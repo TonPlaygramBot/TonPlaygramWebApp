@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
@@ -44,7 +45,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.02;
+const BOARD_TABLE_CLEARANCE = 0.085;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -59,6 +60,16 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
+
+
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -215,6 +226,44 @@ async function resolveHdriUrl(variant) {
   }
 }
 
+
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) model.scale.multiplyScalar(targetMax / currentMax);
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-scaledCenter.x, TARGET_CHAIR_MIN_Y - scaledBox.min.y, TARGET_CHAIR_CENTER_Z - scaledCenter.z));
+}
+
+async function loadChessMappedChairTemplate() {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) throw lastError || new Error('Failed to load GLTF chair model');
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error('Chair model scene missing');
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+  });
+  fitChairModelToFootprint(model);
+  return model;
+}
+
 function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   const group = new THREE.Group();
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.09, 0.92), new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.5 }));
@@ -259,6 +308,10 @@ export default function FourInRowRoyal() {
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
   const chairMeshesRef = useRef([]);
+  const chairThemeIdRef = useRef(null);
+  const chairTemplateRef = useRef(null);
+  const pendingChairTokenRef = useRef(0);
+  const tableThemeIdRef = useRef(null);
   const boardMaterialsRef = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const keyLightRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -454,6 +507,7 @@ export default function FourInRowRoyal() {
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
     tablePartsRef.current = table.parts;
+    tableThemeIdRef.current = appearance.tableId;
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
@@ -466,6 +520,7 @@ export default function FourInRowRoyal() {
       chairMeshesRef.current.push(chair);
       scene.add(chair);
     });
+    chairThemeIdRef.current = appearance.chairId;
 
     const boardGroup = new THREE.Group();
 
@@ -880,22 +935,77 @@ export default function FourInRowRoyal() {
     key.shadow.mapSize.setScalar(preset.shadowMapSize);
   }, [appearance.graphics]);
 
+
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer || tableThemeIdRef.current === appearance.tableId) return;
+    tablePartsRef.current?.group?.removeFromParent?.();
+    const nextTable = createMurlanStyleTable({
+      arena: scene,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      tableThemeId: appearance.tableId
+    });
+    tablePartsRef.current = nextTable.parts;
+    tableThemeIdRef.current = appearance.tableId;
+    const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+    applyTableMaterials(nextTable.parts, finish);
+  }, [appearance.tableId, appearance.tableFinish]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
+    if (chairThemeIdRef.current === chairTheme.id && chairMeshesRef.current.length) return;
+    const token = pendingChairTokenRef.current + 1;
+    pendingChairTokenRef.current = token;
+    const replaceChairs = (template = null) => {
+      chairMeshesRef.current.forEach((chair) => {
+        chair.removeFromParent();
+      });
+      chairMeshesRef.current = [];
+      [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
+        const chair = template ? template.clone(true) : createChair(chairTheme.primary, chairTheme.legColor);
+        chair.traverse((node) => {
+          if (!node.isMesh || !node.material || chairTheme.preserveMaterials) return;
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          mats.forEach((mat) => {
+            if (mat?.map) return;
+            mat.color?.set(chairTheme.primary || '#8b1538');
+          });
+        });
+        chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
+        chair.lookAt(0, TABLE_HEIGHT, 0);
+        chairMeshesRef.current.push(chair);
+        scene.add(chair);
+      });
+      chairThemeIdRef.current = chairTheme.id;
+    };
+
+    const apply = async () => {
+      try {
+        if (!chairTemplateRef.current) {
+          chairTemplateRef.current = await loadChessMappedChairTemplate();
+        }
+        if (token !== pendingChairTokenRef.current) return;
+        replaceChairs(chairTemplateRef.current);
+      } catch {
+        if (token !== pendingChairTokenRef.current) return;
+        replaceChairs(null);
+      }
+    };
+
+    void apply();
+  }, [appearance.chairId]);
   useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
     applyTableMaterials(tablePartsRef.current, finish);
   }, [appearance.tableFinish]);
 
-  useEffect(() => {
-    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    chairMeshesRef.current.forEach((chair) => {
-      chair.traverse((node) => {
-        if (!node.isMesh || !node.material) return;
-        if (node.geometry?.type === 'BoxGeometry') node.material.color.set(chairTheme.primary);
-        else node.material.color.set(chairTheme.legColor);
-      });
-    });
-  }, [appearance.chairId]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } = boardMaterialsRef.current;
@@ -936,6 +1046,7 @@ export default function FourInRowRoyal() {
   const aiCount = board.flat().filter((x) => x === 'ai').length;
 
   const optionGroups = [
+    { key: 'tableId', label: 'Table Model', options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFinish', label: 'Board Finish', options: FOUR_IN_ROW_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
@@ -992,17 +1103,22 @@ export default function FourInRowRoyal() {
                 <div key={group.key} className="mt-4">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">{group.label}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {group.options.map((option) => (
+                    {group.options.map((option) => {
+                      const inventoryKey = group.key === 'tableId' ? 'tables' : group.key === 'chairId' ? 'chairColor' : group.key;
+                      const isUnlocked = group.key === 'graphics' || (Array.isArray(inventory?.[inventoryKey]) && inventory[inventoryKey].includes(option.id));
+                      return (
                       <button
                         key={option.id}
                         type="button"
-                        onClick={() => setAppearance((prev) => ({ ...prev, [group.key]: option.id }))}
-                        className={`rounded-xl border p-2 text-left ${appearance[group.key] === option.id ? 'border-cyan-300/70 bg-cyan-400/20' : 'border-white/15 bg-white/5'}`}
+                        onClick={() => { if (isUnlocked) setAppearance((prev) => ({ ...prev, [group.key]: option.id })); }}
+                        disabled={!isUnlocked}
+                        className={`rounded-xl border p-2 text-left ${appearance[group.key] === option.id ? 'border-cyan-300/70 bg-cyan-400/20' : 'border-white/15 bg-white/5'} ${!isUnlocked ? 'opacity-45 cursor-not-allowed' : ''}`}
                       >
                         <img src={safeThumbnail(option.thumbnail)} alt={option.label} className="h-12 w-full rounded-lg object-cover" />
                         <p className="mt-1 truncate text-[10px] text-white/85">{option.label}</p>
+                        {!isUnlocked && <p className="mt-0.5 text-[9px] uppercase tracking-[0.2em] text-amber-300/80">Locked</p>}
                       </button>
-                    ))}
+                    );})}
                   </div>
                 </div>
               ))}
