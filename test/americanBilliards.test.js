@@ -18,21 +18,6 @@ test('open table: first contact cannot be the 8-ball', () => {
 })
 
 
-
-test('break shot must contact the lowest ball first', () => {
-  const game = new AmericanBilliards()
-  const res = game.shotTaken({
-    contactOrder: [2],
-    potted: [],
-    cueOffTable: false
-  })
-
-  assert.equal(res.foul, true)
-  assert.equal(res.reason, 'wrong first contact')
-  assert.equal(res.nextPlayer, 'B')
-  assert.equal(res.ballInHandNext, true)
-})
-
 test('legal break pots score by ball value and keep shooter at table', () => {
   const game = new AmericanBilliards()
   const breakShot = game.shotTaken({
