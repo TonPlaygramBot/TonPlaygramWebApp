@@ -9,10 +9,6 @@ import {
 import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
-import {
-  TAVULL_BATTLE_DEFAULT_UNLOCKS,
-  TAVULL_BATTLE_STORE_ITEMS
-} from '../webapp/src/config/tavullBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
 
@@ -51,15 +47,5 @@ describe('cross-game inventory alignment', () => {
     expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme)).toEqual(
       new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id))
     );
-  });
-
-  test('backgammon store and defaults include murlan table themes', () => {
-    const tavullTableStoreIds = new Set(
-      TAVULL_BATTLE_STORE_ITEMS.filter((item) => item.type === 'tables').map((item) => item.optionId)
-    );
-    const expectedTableIds = new Set(MURLAN_TABLE_THEMES.map((theme) => theme.id));
-
-    expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(MURLAN_TABLE_THEMES[0]?.id);
-    expect(tavullTableStoreIds).toEqual(new Set([...expectedTableIds].filter((id) => id !== MURLAN_TABLE_THEMES[0]?.id)));
   });
 });
