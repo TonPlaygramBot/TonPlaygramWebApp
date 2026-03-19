@@ -150,21 +150,26 @@ const CAM = {
   lookDownOffset: U(0.08),
 } as const;
 
-const PLAYER_AUTO_TRACK = {
-  xLead: 0.11,
-  zLead: 0.08,
-  xLerp: 0.34,
-  zLerp: 0.32,
-  restX: 0,
-  restZ: TABLE.L * 0.25,
-  activeZMin: U(-0.04),
-} as const;
-
 const TOUCH = {
   velocitySmooth: 0.45,
   maxVelocity: 0.0042,
   maxJumpNorm: 0.26,
   driftDamp: 0.84,
+};
+
+const PLAYER_MANUAL_CONTROL = {
+  minX: -TABLE.W / 2 + U(0.16),
+  maxX: TABLE.W / 2 - U(0.16),
+  minZ: U(0.08),
+  maxZ: TABLE.L / 2 - U(0.12),
+  xLerp: 0.48,
+  zLerp: 0.46,
+};
+
+const PLAYER_MANUAL_SHOT = {
+  minSwipeSpeed: 0.00048,
+  minSwipeY: 0.00008,
+  tapWindowMs: 170,
 };
 
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -797,6 +802,7 @@ export default function TableTennisRoyal() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const { g, onDown, onMove, onUp } = useTouch(rootRef);
+  const playerSwingUntilRef = useRef(0);
   const onlineSearch = typeof window !== 'undefined' ? window.location.search : '';
   useOnlineRoomSync(onlineSearch, 'Table Tennis Player');
 
@@ -1290,23 +1296,14 @@ export default function TableTennisRoyal() {
           const diff = difficultyRef.current;
 
           {
-            const shouldTrackBall = b.p.z >= PLAYER_AUTO_TRACK.activeZMin || b.v.z > 0;
-            const wantedX = shouldTrackBall
-              ? clamp(
-                  b.p.x + b.v.x * PLAYER_AUTO_TRACK.xLead,
-                  -TABLE.W / 2 + U(0.14),
-                  TABLE.W / 2 - U(0.14)
-                )
-              : PLAYER_AUTO_TRACK.restX;
-            const wantedZ = shouldTrackBall
-              ? clamp(
-                  b.p.z + b.v.z * PLAYER_AUTO_TRACK.zLead,
-                  U(0.08),
-                  TABLE.L / 2 - U(0.16)
-                )
-              : PLAYER_AUTO_TRACK.restZ;
-            t.paddleP.position.x = lerp(t.paddleP.position.x, wantedX, PLAYER_AUTO_TRACK.xLerp);
-            t.paddleP.position.z = lerp(t.paddleP.position.z, wantedZ, PLAYER_AUTO_TRACK.zLerp);
+            const wantedX = lerp(PLAYER_MANUAL_CONTROL.minX, PLAYER_MANUAL_CONTROL.maxX, g.current.lastX);
+            const wantedZ = clamp(
+              lerp(PLAYER_MANUAL_CONTROL.minZ, PLAYER_MANUAL_CONTROL.maxZ, g.current.lastY),
+              PLAYER_MANUAL_CONTROL.minZ,
+              PLAYER_MANUAL_CONTROL.maxZ
+            );
+            t.paddleP.position.x = lerp(t.paddleP.position.x, wantedX, PLAYER_MANUAL_CONTROL.xLerp);
+            t.paddleP.position.z = lerp(t.paddleP.position.z, wantedZ, PLAYER_MANUAL_CONTROL.zLerp);
             t.paddleP.position.y = PADDLE.y;
             const playerSwing = clamp((g.current.vy * -800) + g.current.speed * 1400, -0.32, 0.56);
             t.paddleP.rotation.x = lerp(t.paddleP.rotation.x, THREE.MathUtils.degToRad(-6) + playerSwing * 0.16, 0.22);
@@ -1472,12 +1469,14 @@ export default function TableTennisRoyal() {
             if (Math.hypot(dx, dz) > PADDLE.reach + BALL.R) return false;
             if (Math.abs(b.p.y - pad.position.y) > U(0.28)) return false;
 
+            if (who === "player" && performance.now() > playerSwingUntilRef.current) return false;
             if (who === "ai" && Math.random() > AI.hitChance[diff]) return false;
 
             const paddlePower = clamp((Math.abs(b.v.x) + Math.abs(b.v.y) + Math.abs(b.v.z)) / U(10), 0.08, 1);
             playImpactFx("paddle", paddlePower);
 
             if (who === "player") {
+              playerSwingUntilRef.current = 0;
               const targetX = clamp(pad.position.x + g.current.vx * U(0.22), -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
               const targetZ = -TABLE.L / 2 + POWER.targetZPad;
               tmpTarget.set(targetX, TABLE.H + U(0.14), targetZ);
@@ -1661,10 +1660,22 @@ export default function TableTennisRoyal() {
         }}
         onPointerDown={(e) => {
           onDown(e);
+          playerSwingUntilRef.current = performance.now() + PLAYER_MANUAL_SHOT.tapWindowMs;
           if (sim.current.phase === "ready" && sim.current.score.server === "player") serve();
         }}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
+        onPointerMove={(e) => {
+          onMove(e);
+          if (!g.current.active) return;
+          if (g.current.speed >= PLAYER_MANUAL_SHOT.minSwipeSpeed || g.current.vy <= -PLAYER_MANUAL_SHOT.minSwipeY) {
+            playerSwingUntilRef.current = performance.now() + PLAYER_MANUAL_SHOT.tapWindowMs;
+          }
+        }}
+        onPointerUp={(e) => {
+          if (g.current.speed >= PLAYER_MANUAL_SHOT.minSwipeSpeed || g.current.vy <= -PLAYER_MANUAL_SHOT.minSwipeY) {
+            playerSwingUntilRef.current = performance.now() + PLAYER_MANUAL_SHOT.tapWindowMs;
+          }
+          onUp(e);
+        }}
       >
         <div ref={mountRef} style={{ position: "absolute", inset: 0 }} />
 
@@ -1945,7 +1956,7 @@ export default function TableTennisRoyal() {
         </div>
 
         <div style={{ position: "absolute", right: 8, bottom: 8, maxWidth: 560, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: 12, padding: "8px 10px", borderRadius: 14 }}>
-          Drag to move paddle • Tap to serve • Aim with finger X • Swipe faster = more speed
+          Drag to position paddle • Swipe to shoot manually • Tap to serve
         </div>
       </div>
     </ErrorBoundary>
