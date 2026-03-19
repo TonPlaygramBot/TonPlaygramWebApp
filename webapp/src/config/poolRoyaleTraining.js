@@ -117,7 +117,7 @@ const clamp = (value) => Math.max(-0.94, Math.min(0.94, value));
 const DISCIPLINE_TO_VARIANT = {
   '8Ball': 'uk',
   '9-Ball': '9ball',
-  'American Billiards': 'american'
+  'American Billiards': 'american61'
 };
 
 const DIFFICULTY_STEPS = [
@@ -156,7 +156,7 @@ export const TRAINING_SCENARIOS = (() => {
       };
 
       const shotLimit = resolveShotLimit(blueprint, tier);
-      const variant = DISCIPLINE_TO_VARIANT[blueprint.discipline] || 'american';
+      const variant = DISCIPLINE_TO_VARIANT[blueprint.discipline] || 'american61';
       const reward = Math.round(60 + level * 10 + (tier.rewardBonus || 0));
       scenarios.push({
         level,
