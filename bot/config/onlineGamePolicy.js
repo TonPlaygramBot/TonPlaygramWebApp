@@ -18,8 +18,7 @@ const GAME_ONLINE_POLICY = Object.freeze({
   texasholdem: { maxPlayers: [2, 6], allowMatchMeta: ['mode', 'token'] },
   airhockey: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   goalrush: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
-  murlanroyale: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] },
-  tabletennisroyal: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] }
+  murlanroyale: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] }
 });
 
 function sanitizeMetaValue(value) {

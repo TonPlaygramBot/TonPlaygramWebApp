@@ -22,9 +22,7 @@ export const gameThumbnails = {
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   checkersbattleroyal: '/assets/icons/Checkersbattleroyallogo.png',
   fourinrowroyale: '/assets/icons/four-in-row-royale.svg',
-  tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
-  ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
-  tabletennisroyal: '/assets/icons/Tabletennisroyallogo.png'
+  ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png'
 };
 
 const buildLobbyIconSet = (keys, icon) =>
@@ -139,21 +137,6 @@ export const lobbyOptionIcons = {
     ['mode-ai', 'mode-online', 'size-9', 'size-13', 'size-16', 'size-19'],
     '/assets/icons/four-in-row-royale.svg'
   ),
-  tavullbattleroyal: buildLobbyIconSet(
-    ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
-    '/assets/icons/chess-royale.svg'
-  ),
-  tabletennisroyal: {
-    'mode-ai': '/assets/icons/table-tennis-mode-ai.svg',
-    'mode-online': '/assets/icons/table-tennis-mode-online.svg',
-    'fps-hd50': '/assets/icons/table-tennis-fps-hd50.svg',
-    'fps-fhd90': '/assets/icons/table-tennis-fps-fhd90.svg',
-    'fps-qhd105': '/assets/icons/table-tennis-fps-qhd105.svg',
-    'fps-uhd120': '/assets/icons/table-tennis-fps-uhd120.svg',
-    'graphics-low': '/assets/icons/table-tennis-graphics-low.svg',
-    'graphics-medium': '/assets/icons/table-tennis-graphics-medium.svg',
-    'graphics-high': '/assets/icons/table-tennis-graphics-high.svg'
-  },
   ludobattleroyal: buildLobbyIconSet(
     [
       'queue-instant',
