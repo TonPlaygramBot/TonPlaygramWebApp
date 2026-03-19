@@ -91,7 +91,7 @@ import {
   normalizeSpinInput,
   smoothDamp,
   SPIN_STUN_RADIUS
-} from './snookerRoyalSpinUtils.js';
+} from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1542,8 +1542,6 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligne
 const SHOT_POWER_REDUCTION = 0.425; // reduce shot power by 50% to match the requested pacing
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // boost overall shot strength by 50%
-const SHOT_POWER_ADJUSTMENT = 0.72; // keep baseline ball pace identical to Pool Royale
-const SHOT_POWER_BOOST = 1.5; // keep baseline ball pace identical to Pool Royale
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1553,9 +1551,7 @@ const SHOT_FORCE_BOOST =
   0.85 *
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_INCREASE *
-  SHOT_POWER_ADJUSTMENT *
-  SHOT_POWER_BOOST;
+  SHOT_POWER_INCREASE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -5023,7 +5019,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.96; // lower the standing camera angle slightly so players see more rail-level framing
+const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing camera tilt
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5032,14 +5028,14 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // move the player standing camera a bit closer to the table
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // match Pool Royale standing/cue camera distance
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.33; // pull the standing camera closer for tighter on-table framing
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5171,7 +5167,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // keep cue-view forward slide behavior identical to Pool Royale
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_SPIN_ZOOM = 0;
