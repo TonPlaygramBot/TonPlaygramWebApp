@@ -30873,8 +30873,12 @@ const powerRef = useRef(hud.power);
           }
         });
         pocketDropRef.current.clear();
-        pocketGlowGeometry.dispose?.();
-        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        if (typeof pocketGlowGeometry !== 'undefined') {
+          pocketGlowGeometry.dispose?.();
+        }
+        if (typeof pocketGlowMaterials !== 'undefined') {
+          Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        }
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
