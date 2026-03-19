@@ -4,23 +4,23 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { BADUK_BOARD_LAYOUTS } from '../../config/badukBattleInventoryConfig.js';
-import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
+import { FOUR_IN_ROW_BOARD_LAYOUTS } from '../../config/fourInRowInventoryConfig.js';
+import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRowInventory.js';
 
-export default function BadukBattleRoyalLobby() {
+export default function FourInRowRoyalLobby() {
   useTelegramBackButton();
   const navigate = useNavigate();
   const [mode, setMode] = useState('ai');
 
-  const inventory = useMemo(() => getBadukBattleInventory(badukBattleAccountId()), []);
+  const inventory = useMemo(() => getFourInRowInventory(fourInRowAccountId()), []);
   const ownedLayouts = inventory.boardLayout || [];
-  const [boardLayout, setBoardLayout] = useState(ownedLayouts[0] || BADUK_BOARD_LAYOUTS[0]?.id);
+  const [boardLayout, setBoardLayout] = useState(ownedLayouts[0] || FOUR_IN_ROW_BOARD_LAYOUTS[0]?.id);
 
   const startGame = () => {
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('boardLayout', boardLayout);
-    navigate(`/games/badukbattleroyal?${params.toString()}`);
+    navigate(`/games/fourinrowroyale?${params.toString()}`);
   };
 
   return (
@@ -28,7 +28,7 @@ export default function BadukBattleRoyalLobby() {
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader
-          slug="badukbattleroyal"
+          slug="fourinrowroyale"
           title="4 in a Row Lobby"
           subtitle="Same HDRI/table/chairs setup, redesigned as a vertical Connect-4 style battle board."
         />
@@ -51,7 +51,7 @@ export default function BadukBattleRoyalLobby() {
                   <div className="lobby-option-thumb bg-gradient-to-br from-cyan-400/30 via-indigo-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('badukbattleroyal', `mode-${item.id}`)}
+                        src={getLobbyIcon('fourinrowroyale', `mode-${item.id}`)}
                         fallback={item.id === 'ai' ? '🤖' : '🌐'}
                         alt={item.label}
                         className="lobby-option-icon"
@@ -70,7 +70,7 @@ export default function BadukBattleRoyalLobby() {
           <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">Board Inventory</h2>
           <p className="mt-2 text-xs text-white/60">Default board is 7×6. Unlock 8×7 in the store to use it here.</p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            {BADUK_BOARD_LAYOUTS.map((layout) => {
+            {FOUR_IN_ROW_BOARD_LAYOUTS.map((layout) => {
               const active = boardLayout === layout.id;
               const owned = ownedLayouts.includes(layout.id);
               return (
@@ -79,14 +79,14 @@ export default function BadukBattleRoyalLobby() {
                   type="button"
                   onClick={() => {
                     if (owned) setBoardLayout(layout.id);
-                    else navigate('/store/badukbattleroyal');
+                    else navigate('/store/fourinrowroyale');
                   }}
                   className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'} ${!owned ? 'opacity-70' : ''}`}
                 >
                   <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/35 via-orange-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('badukbattleroyal', `layout-${layout.id}`)}
+                        src={getLobbyIcon('fourinrowroyale', `layout-${layout.id}`)}
                         fallback="🧩"
                         alt={layout.label}
                         className="lobby-option-icon"
