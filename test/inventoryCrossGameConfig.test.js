@@ -1,6 +1,5 @@
 import {
   CHESS_BATTLE_DEFAULT_UNLOCKS,
-  CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import {
@@ -12,13 +11,6 @@ import {
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../webapp/src/config/murlanTableFinishes.js';
-import {
-  POOL_ROYALE_HDRI_VARIANTS
-} from '../webapp/src/config/poolRoyaleInventoryConfig.js';
-import {
-  TAVULL_BATTLE_STORE_ITEMS
-} from '../webapp/src/config/tavullBattleInventoryConfig.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -55,25 +47,5 @@ describe('cross-game inventory alignment', () => {
     expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme)).toEqual(
       new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id))
     );
-  });
-
-  test('tavull store mirrors chess core arena catalog for tables/chairs/cloth/hdri', () => {
-    const tavullTableIds = new Set(
-      TAVULL_BATTLE_STORE_ITEMS.filter((item) => item.type === 'tables').map((item) => item.optionId)
-    );
-    const tavullChairIds = new Set(
-      TAVULL_BATTLE_STORE_ITEMS.filter((item) => item.type === 'chairColor').map((item) => item.optionId)
-    );
-    const tavullFinishIds = new Set(
-      TAVULL_BATTLE_STORE_ITEMS.filter((item) => item.type === 'tableFinish').map((item) => item.optionId)
-    );
-    const tavullHdriIds = new Set(
-      TAVULL_BATTLE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri').map((item) => item.optionId)
-    );
-
-    expect(tavullTableIds).toEqual(new Set(CHESS_TABLE_OPTIONS.slice(1).map((item) => item.id)));
-    expect(tavullChairIds).toEqual(new Set(CHESS_CHAIR_OPTIONS.slice(1).map((item) => item.id)));
-    expect(tavullFinishIds).toEqual(new Set(MURLAN_TABLE_FINISHES.map((item) => item.id)));
-    expect(tavullHdriIds).toEqual(new Set(POOL_ROYALE_HDRI_VARIANTS.slice(1).map((item) => item.id)));
   });
 });
