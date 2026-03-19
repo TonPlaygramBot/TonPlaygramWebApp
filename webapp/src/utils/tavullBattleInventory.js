@@ -4,23 +4,33 @@ import {
 } from '../config/tavullBattleInventoryConfig.js';
 
 const STORAGE_KEY = 'tavullBattleInventoryByAccount';
+let memoryInventories = {};
+let storageHealthy = true;
 
 const readStore = () => {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined' || !storageHealthy) return memoryInventories;
   try {
-    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
+    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
+    memoryInventories = parsed && typeof parsed === 'object' ? parsed : {};
+    storageHealthy = true;
   } catch (err) {
-    console.warn('Failed to read tavull inventory, resetting', err);
-    return {};
+    if (storageHealthy) {
+      console.warn('Failed to read tavull inventory, using in-memory cache', err);
+      storageHealthy = false;
+    }
   }
+  return memoryInventories;
 };
 
 const writeStore = (payload) => {
+  memoryInventories = payload && typeof payload === 'object' ? payload : {};
   if (typeof window === 'undefined') return;
+  if (!storageHealthy) return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryInventories));
   } catch (err) {
-    console.warn('Failed to persist tavull inventory', err);
+    storageHealthy = false;
+    console.warn('Failed to persist tavull inventory, caching in memory only', err);
   }
 };
 
@@ -39,8 +49,25 @@ const normalizeInventory = (rawInventory) => {
   return base;
 };
 
-const resolveAccountId = (accountId) =>
-  String(accountId || '').trim() || 'guest';
+const resolveAccountId = (accountId) => {
+  const explicit = String(accountId || '').trim();
+  if (explicit) return explicit;
+  if (typeof window !== 'undefined' && storageHealthy) {
+    try {
+      const localAccountId = window.localStorage.getItem('accountId');
+      if (localAccountId) return localAccountId;
+    } catch (err) {
+      if (storageHealthy) {
+        console.warn(
+          'Tavull inventory account lookup failed, falling back to guest',
+          err
+        );
+        storageHealthy = false;
+      }
+    }
+  }
+  return 'guest';
+};
 
 export const getTavullBattleInventory = (accountId) => {
   const resolvedAccountId = resolveAccountId(accountId);

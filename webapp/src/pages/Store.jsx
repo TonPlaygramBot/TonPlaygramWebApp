@@ -184,6 +184,7 @@ const CHESS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 const TAVULL_TYPE_LABELS = {
+  tables: 'Table Models',
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
   boardFinish: 'Board Finish',
