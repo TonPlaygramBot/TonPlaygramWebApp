@@ -5,6 +5,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
@@ -44,7 +46,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.02;
+const BOARD_TABLE_CLEARANCE = 0.12;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -59,6 +61,8 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.25, 1.55, 1.25);
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -228,6 +232,92 @@ function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
     group.add(leg);
   });
   return group;
+}
+
+function createConfiguredGLTFLoader() {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  return loader;
+}
+
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.x += -center.x;
+  model.position.y += -scaledBox.min.y;
+  model.position.z += -center.z;
+}
+
+function tintChairModel(model, chairTheme) {
+  const seatColor = chairTheme?.seatColor || chairTheme?.primary || '#7f1d1d';
+  const legColor = chairTheme?.legColor || '#111827';
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat?.color) return;
+      const targetColor = (mat.metalness ?? 0) > 0.35 ? legColor : seatColor;
+      mat.color.set(targetColor);
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function buildPolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  const id = assetId.trim();
+  const lower = id.toLowerCase();
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${lower}/${lower}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${lower}/${lower}_1k.gltf`
+  ];
+}
+
+async function createChairModel(chairTheme) {
+  if (chairTheme?.source === 'polyhaven' && chairTheme?.assetId) {
+    const loader = createConfiguredGLTFLoader();
+    const urls = buildPolyhavenModelUrls(chairTheme.assetId);
+    let gltf = null;
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        gltf = await loader.loadAsync(url);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (gltf) {
+      const root = gltf.scene || gltf.scenes?.[0];
+      if (root) {
+        root.traverse((obj) => {
+          if (!obj.isMesh) return;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        });
+        fitChairModelToFootprint(root);
+        if (!chairTheme.preserveMaterials) {
+          tintChairModel(root, chairTheme);
+        }
+        return root;
+      }
+    }
+    console.warn('Falling back to procedural chair', lastError);
+  }
+  return createChair(chairTheme?.primary || chairTheme?.seatColor, chairTheme?.legColor);
 }
 
 const safeThumbnail = (value) => {
@@ -458,13 +548,24 @@ export default function FourInRowRoyal() {
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
-    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-      const chair = createChair(chairTheme.primary, chairTheme.legColor);
-      chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
+    const sideChairX = boardWidth / 2 + 1.4;
+    const chairPositions = [
+      [-sideChairX, 0, 0],
+      [sideChairX, 0, 0]
+    ];
+    chairPositions.forEach(([x, y, z]) => {
+      const chair = new THREE.Group();
+      chair.position.set(x, y, z);
       chair.lookAt(0, TABLE_HEIGHT, 0);
       chair.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor };
       chairMeshesRef.current.push(chair);
       scene.add(chair);
+    });
+    createChairModel(chairTheme).then((template) => {
+      chairMeshesRef.current.forEach((chair) => {
+        chair.clear();
+        chair.add(template.clone(true));
+      });
     });
 
     const boardGroup = new THREE.Group();
@@ -888,13 +989,17 @@ export default function FourInRowRoyal() {
 
   useEffect(() => {
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    chairMeshesRef.current.forEach((chair) => {
-      chair.traverse((node) => {
-        if (!node.isMesh || !node.material) return;
-        if (node.geometry?.type === 'BoxGeometry') node.material.color.set(chairTheme.primary);
-        else node.material.color.set(chairTheme.legColor);
+    let cancelled = false;
+    createChairModel(chairTheme).then((template) => {
+      if (cancelled) return;
+      chairMeshesRef.current.forEach((chair) => {
+        chair.clear();
+        chair.add(template.clone(true));
       });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [appearance.chairId]);
 
   useEffect(() => {
