@@ -1890,7 +1890,7 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.65;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.05;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
@@ -1899,8 +1899,8 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.34, CUE_TIP_RADIUS * 2.2);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.24;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -20709,14 +20709,24 @@ const powerRef = useRef(hud.power);
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
-          if (!targetBall) return null;
+          if (
+            !targetBall ||
+            !targetBall.pos ||
+            !Number.isFinite(targetBall.pos.x) ||
+            !Number.isFinite(targetBall.pos.y)
+          ) {
+            return null;
+          }
           if (requireCueContact) {
             const firstContactId = firstHit != null ? String(firstHit) : null;
             if (!firstContactId || firstContactId !== String(ballId)) {
               return null;
             }
           }
-          const dir = targetBall.vel.clone();
+          const dir =
+            targetBall?.vel && typeof targetBall.vel.clone === 'function'
+              ? targetBall.vel.clone()
+              : new THREE.Vector2();
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
           }
@@ -23317,6 +23327,8 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
+      aim.frustumCulled = false;
+      aim.renderOrder = 20;
       table.add(aim);
       const aimPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23334,6 +23346,8 @@ const powerRef = useRef(hud.power);
         })
       );
       aimPower.visible = false;
+      aimPower.frustumCulled = false;
+      aimPower.renderOrder = 21;
       table.add(aimPower);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23351,6 +23365,8 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfter.visible = false;
+      cueAfter.frustumCulled = false;
+      cueAfter.renderOrder = 22;
       table.add(cueAfter);
       const cueAfterPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23368,6 +23384,8 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfterPower.visible = false;
+      cueAfterPower.frustumCulled = false;
+      cueAfterPower.renderOrder = 23;
       table.add(cueAfterPower);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23383,6 +23401,8 @@ const powerRef = useRef(hud.power);
         })
       );
       tick.visible = false;
+      tick.frustumCulled = false;
+      tick.renderOrder = 24;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -23401,6 +23421,8 @@ const powerRef = useRef(hud.power);
         })
       );
       target.visible = false;
+      target.frustumCulled = false;
+      target.renderOrder = 25;
       table.add(target);
       const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23418,6 +23440,8 @@ const powerRef = useRef(hud.power);
         })
       );
       targetPower.visible = false;
+      targetPower.frustumCulled = false;
+      targetPower.renderOrder = 26;
       table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -29046,6 +29070,13 @@ const powerRef = useRef(hud.power);
           const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
+          if (followEnd.distanceTo(end) < BALL_R * 0.8) {
+            followEnd.copy(
+              end
+                .clone()
+                .add(cueFollowPreview.dir.clone().normalize().multiplyScalar(BALL_R * 2.4))
+            );
+          }
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -29256,8 +29287,24 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            target.visible = false;
-            targetPower.visible = false;
+            const fallbackTargetDir = dir.clone().normalize();
+            const fallbackTargetLength = BALL_R * (10 + powerStrength * 12);
+            const fallbackStart = end.clone();
+            const fallbackEnd = fallbackStart
+              .clone()
+              .add(fallbackTargetDir.multiplyScalar(fallbackTargetLength));
+            targetGeom.setFromPoints([fallbackStart, fallbackEnd]);
+            target.material.color.setHex(0x7ce7ff);
+            target.material.opacity = 0.32 + 0.2 * powerStrength;
+            target.visible = true;
+            targetPower.material.color.copy(powerColor);
+            targetPower.material.opacity = 0.26 + 0.4 * powerStrength;
+            targetPower.visible = updatePowerLinePoints(
+              targetPowerGeom,
+              fallbackStart,
+              fallbackEnd,
+              powerStrength
+            );
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -29357,6 +29404,13 @@ const powerRef = useRef(hud.power);
           const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
+          if (followEnd.distanceTo(end) < BALL_R * 0.8) {
+            followEnd.copy(
+              end
+                .clone()
+                .add(cueFollowPreview.dir.clone().normalize().multiplyScalar(BALL_R * 2.4))
+            );
+          }
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -29462,8 +29516,24 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            target.visible = false;
-            targetPower.visible = false;
+            const fallbackTargetDir = baseDir.clone().normalize();
+            const fallbackTargetLength = BALL_R * (10 + powerStrength * 12);
+            const fallbackStart = end.clone();
+            const fallbackEnd = fallbackStart
+              .clone()
+              .add(fallbackTargetDir.multiplyScalar(fallbackTargetLength));
+            targetGeom.setFromPoints([fallbackStart, fallbackEnd]);
+            target.material.color.setHex(0x7ce7ff);
+            target.material.opacity = 0.32 + 0.2 * powerStrength;
+            target.visible = true;
+            targetPower.material.color.copy(powerColor);
+            targetPower.material.opacity = 0.26 + 0.4 * powerStrength;
+            targetPower.visible = updatePowerLinePoints(
+              targetPowerGeom,
+              fallbackStart,
+              fallbackEnd,
+              powerStrength
+            );
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
@@ -30118,6 +30188,49 @@ const powerRef = useRef(hud.power);
             }
           }
         }
+        const activateForcedCornerPocketCamera = (ball, pocketCenter) => {
+          if (
+            suppressPocketCameras ||
+            topViewRef.current ||
+            !ball?.id ||
+            !pocketCenter
+          ) {
+            return;
+          }
+          const sph = sphRef.current;
+          const resumeView = sph
+            ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+            : null;
+          const forcedCornerView = makePocketCameraView(ball.id, resumeView, {
+            forceCornerCapture: true,
+            pocketCenterOverride: pocketCenter
+          });
+          const shouldSwapView =
+            forcedCornerView &&
+            (!activeShotView ||
+              activeShotView.mode !== 'pocket' ||
+              activeShotView.ballId !== ball.id);
+          if (!shouldSwapView) {
+            return;
+          }
+          forcedCornerView.lastUpdate = performance.now();
+          if (cameraRef.current) {
+            const cam = cameraRef.current;
+            forcedCornerView.smoothedPos = cam.position.clone();
+            const storedTarget = lastCameraTargetRef.current?.clone();
+            if (storedTarget) {
+              forcedCornerView.smoothedTarget = storedTarget;
+            }
+          }
+          if (activeShotView?.mode === 'action') {
+            suspendedActionView = activeShotView;
+            forcedCornerView.resumeAction = activeShotView;
+          } else if (suspendedActionView?.mode === 'action') {
+            forcedCornerView.resumeAction = suspendedActionView;
+          }
+          updatePocketCameraState(true);
+          activeShotView = forcedCornerView;
+        };
         // Pocket capture
         const pocketMarkers =
           table?.userData?.pockets && Array.isArray(table.userData.pockets)
@@ -30259,43 +30372,8 @@ const powerRef = useRef(hud.power);
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
-                const shouldForceCornerPocketView =
-                  !suppressPocketCameras &&
-                  !topViewRef.current &&
-                  pocketIndex < 4;
-                if (shouldForceCornerPocketView) {
-                  const sph = sphRef.current;
-                  const resumeView = sph
-                    ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
-                    : null;
-                  const forcedCornerView = makePocketCameraView(b.id, resumeView, {
-                    forceCornerCapture: true,
-                    pocketCenterOverride: c
-                  });
-                  const shouldSwapView =
-                    forcedCornerView &&
-                    (!activeShotView ||
-                      activeShotView.mode !== 'pocket' ||
-                      activeShotView.ballId !== b.id);
-                  if (shouldSwapView) {
-                    forcedCornerView.lastUpdate = performance.now();
-                    if (cameraRef.current) {
-                      const cam = cameraRef.current;
-                      forcedCornerView.smoothedPos = cam.position.clone();
-                      const storedTarget = lastCameraTargetRef.current?.clone();
-                      if (storedTarget) {
-                        forcedCornerView.smoothedTarget = storedTarget;
-                      }
-                    }
-                    if (activeShotView?.mode === 'action') {
-                      suspendedActionView = activeShotView;
-                      forcedCornerView.resumeAction = activeShotView;
-                    } else if (suspendedActionView?.mode === 'action') {
-                      forcedCornerView.resumeAction = suspendedActionView;
-                    }
-                    updatePocketCameraState(true);
-                    activeShotView = forcedCornerView;
-                  }
+                if (pocketIndex < 4) {
+                  activateForcedCornerPocketCamera(b, c);
                 }
                 if (
                   activeShotView?.mode === 'pocket' &&
@@ -30447,43 +30525,8 @@ const powerRef = useRef(hud.power);
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
-              const shouldForceCornerPocketView =
-                !suppressPocketCameras &&
-                !topViewRef.current &&
-                pocketIndex < 4;
-              if (shouldForceCornerPocketView) {
-                const sph = sphRef.current;
-                const resumeView = sph
-                  ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
-                  : null;
-                const forcedCornerView = makePocketCameraView(b.id, resumeView, {
-                  forceCornerCapture: true,
-                  pocketCenterOverride: c
-                });
-                const shouldSwapView =
-                  forcedCornerView &&
-                  (!activeShotView ||
-                    activeShotView.mode !== 'pocket' ||
-                    activeShotView.ballId !== b.id);
-                if (shouldSwapView) {
-                  forcedCornerView.lastUpdate = performance.now();
-                  if (cameraRef.current) {
-                    const cam = cameraRef.current;
-                    forcedCornerView.smoothedPos = cam.position.clone();
-                    const storedTarget = lastCameraTargetRef.current?.clone();
-                    if (storedTarget) {
-                      forcedCornerView.smoothedTarget = storedTarget;
-                    }
-                  }
-                  if (activeShotView?.mode === 'action') {
-                    suspendedActionView = activeShotView;
-                    forcedCornerView.resumeAction = activeShotView;
-                  } else if (suspendedActionView?.mode === 'action') {
-                    forcedCornerView.resumeAction = suspendedActionView;
-                  }
-                  updatePocketCameraState(true);
-                  activeShotView = forcedCornerView;
-                }
+              if (pocketIndex < 4) {
+                activateForcedCornerPocketCamera(b, c);
               }
               if (
                 activeShotView?.mode === 'pocket' &&
