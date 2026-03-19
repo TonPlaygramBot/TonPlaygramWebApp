@@ -32,6 +32,7 @@ import {
   TAVULL_BATTLE_FRAME_FINISH_OPTIONS,
   TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS
 } from '../../config/tavullBattleInventoryConfig.js';
+import { MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP
@@ -117,6 +118,7 @@ const CHAIR_MODEL_URLS = Object.freeze([
   '/assets/models/chair/chair.gltf'
 ]);
 const CHAIR_THEMES = Object.freeze([...TAVULL_BATTLE_CHAIR_OPTIONS]);
+const TABLE_THEMES = Object.freeze([...MURLAN_TABLE_THEMES]);
 const QUALITY_OPTIONS = Object.freeze([
   { id: 'performance', label: 'Performance', pixelRatio: 1, shadows: false },
   { id: 'balanced', label: 'Balanced', pixelRatio: 1.5, shadows: true },
@@ -646,6 +648,7 @@ export default function TavullBattleRoyal() {
   const [viewMode, setViewMode] = useState('3d');
   const [isRollingDice, setIsRollingDice] = useState(false);
   const [tableFinishIdx, setTableFinishIdx] = useState(0);
+  const [tableThemeIdx, setTableThemeIdx] = useState(0);
   const [chairThemeIdx, setChairThemeIdx] = useState(0);
   const [hdriIdx, setHdriIdx] = useState(0);
   const [boardFinishIdx, setBoardFinishIdx] = useState(0);
@@ -662,7 +665,11 @@ export default function TavullBattleRoyal() {
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const [activeMoveHighlight, setActiveMoveHighlight] = useState(null);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const accountId = tavullBattleAccountId();
+  const accountId = useMemo(() => {
+    if (typeof window === 'undefined') return tavullBattleAccountId();
+    const params = new URLSearchParams(window.location.search);
+    return tavullBattleAccountId(params.get('accountId'));
+  }, []);
   const tavullInventory = useMemo(
     () => getTavullBattleInventory(accountId),
     [accountId, inventoryVersion]
@@ -693,6 +700,13 @@ export default function TavullBattleRoyal() {
     }
   ];
 
+  const ownedTableOptions = useMemo(
+    () =>
+      TABLE_THEMES.filter((option) =>
+        isTavullOptionUnlocked('tables', option.id, tavullInventory)
+      ),
+    [tavullInventory]
+  );
   const ownedChairOptions = useMemo(
     () =>
       CHAIR_THEMES.filter((option) =>
@@ -739,6 +753,13 @@ export default function TavullBattleRoyal() {
   const customizationSections = useMemo(
     () => [
       {
+        key: 'tables',
+        label: 'Tables',
+        options: ownedTableOptions,
+        selectedIdx: tableThemeIdx,
+        setSelectedIdx: setTableThemeIdx
+      },
+      {
         key: 'tableFinish',
         label: 'Table Finish',
         options: ownedFinishOptions,
@@ -782,6 +803,8 @@ export default function TavullBattleRoyal() {
       }
     ],
     [
+      ownedTableOptions,
+      tableThemeIdx,
       ownedFinishOptions,
       tableFinishIdx,
       ownedChairOptions,
@@ -832,14 +855,23 @@ export default function TavullBattleRoyal() {
   }, []);
 
   useEffect(() => {
-    const onInventoryUpdate = () => setInventoryVersion((v) => v + 1);
+    const onInventoryUpdate = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setInventoryVersion((v) => v + 1);
+      }
+    };
     window.addEventListener('tavullBattleInventoryUpdate', onInventoryUpdate);
     return () =>
       window.removeEventListener(
         'tavullBattleInventoryUpdate',
         onInventoryUpdate
       );
-  }, []);
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!ownedTableOptions.length) return;
+    if (!ownedTableOptions[tableThemeIdx]) setTableThemeIdx(0);
+  }, [ownedTableOptions, tableThemeIdx]);
 
   useEffect(() => {
     if (!ownedFinishOptions.length) return;
@@ -1022,7 +1054,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-    }, [2.5, 2.5]);
+    }, [2.2, 2.2]);
     const frameTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#6e3a22');
@@ -1038,7 +1070,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(x - 36, height);
         ctx.stroke();
       }
-    }, [4, 1.5]);
+    }, [2.2, 2.2]);
     const triangleTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#ffffff');
@@ -1934,6 +1966,7 @@ export default function TavullBattleRoyal() {
                 <button
                   type="button"
                   onClick={() => {
+                    setTableThemeIdx(0);
                     setTableFinishIdx(0);
                     setChairThemeIdx(0);
                     setHdriIdx(0);
