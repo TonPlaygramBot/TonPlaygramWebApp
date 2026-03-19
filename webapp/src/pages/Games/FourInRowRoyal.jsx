@@ -44,7 +44,6 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_VERTICAL_LIFT = 0.08;
 const BOARD_TABLE_CLEARANCE = 0.02;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
@@ -216,85 +215,19 @@ async function resolveHdriUrl(variant) {
   }
 }
 
-function adjustHexColor(hex, amount) {
-  const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
-  base.lerp(target, Math.min(Math.abs(amount), 1));
-  return `#${base.getHexString()}`;
-}
-
-function createChairFabricTexture(theme, renderer) {
-  const primary = theme?.seatColor ?? theme?.primary ?? '#7f1d1d';
-  const accent = theme?.accent ?? adjustHexColor(primary, -0.3);
-  const highlight = theme?.highlight ?? adjustHexColor(primary, 0.2);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, adjustHexColor(primary, 0.16));
-  gradient.addColorStop(0.5, primary);
-  gradient.addColorStop(1, accent);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const spacing = 64;
-  ctx.strokeStyle = adjustHexColor(accent, -0.2);
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.62;
-  for (let i = -canvas.height; i <= canvas.width + canvas.height; i += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i - canvas.height, canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 0.38;
-  ctx.strokeStyle = highlight;
-  for (let i = -canvas.height; i <= canvas.width + canvas.height; i += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(i + spacing / 2, 0);
-    ctx.lineTo(i + spacing / 2 - canvas.height, canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(3, 3);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function createChair(theme, renderer) {
+function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   const group = new THREE.Group();
-  const seatTexture = createChairFabricTexture(theme, renderer);
-  const seatMat = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(theme?.seatColor ?? theme?.primary ?? '#7f1d1d'),
-    map: seatTexture,
-    roughness: 0.32,
-    metalness: 0.08,
-    clearcoat: 0.45,
-    clearcoatRoughness: 0.34
-  });
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.09, 0.92), seatMat);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.09, 0.92), new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.5 }));
   seat.position.y = TABLE_HEIGHT - 0.05;
-  seat.userData.role = 'seat';
   group.add(seat);
-  const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.5, 0.12), seatMat);
-  backrest.position.set(0, TABLE_HEIGHT + 0.2, -0.39);
-  backrest.userData.role = 'seat';
-  group.add(backrest);
   const legGeo = new THREE.CylinderGeometry(0.045, 0.05, TABLE_HEIGHT, 20);
-  const legMat = new THREE.MeshStandardMaterial({ color: theme?.legColor ?? '#111827', metalness: 0.35, roughness: 0.45 });
+  const legMat = new THREE.MeshStandardMaterial({ color: legColor, metalness: 0.35, roughness: 0.45 });
   [[-0.3, TABLE_HEIGHT / 2, -0.3], [0.3, TABLE_HEIGHT / 2, -0.3], [-0.3, TABLE_HEIGHT / 2, 0.3], [0.3, TABLE_HEIGHT / 2, 0.3]].forEach(([x, y, z]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(x, y, z);
-    leg.userData.role = 'leg';
     group.add(leg);
   });
-  return { group, seatMat, legMat };
+  return group;
 }
 
 const safeThumbnail = (value) => {
@@ -325,7 +258,6 @@ export default function FourInRowRoyal() {
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
-  const tableInstanceRef = useRef(null);
   const chairMeshesRef = useRef([]);
   const boardMaterialsRef = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const keyLightRef = useRef(null);
@@ -348,7 +280,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_VERTICAL_LIFT;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -521,19 +453,18 @@ export default function FourInRowRoyal() {
     scene.add(key);
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    tableInstanceRef.current = table;
-    tablePartsRef.current = table.materials;
-    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    tablePartsRef.current = table.parts;
+    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-      const chair = createChair(chairTheme, renderer);
-      chair.group.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
-      chair.group.lookAt(0, TABLE_HEIGHT, 0);
-      chair.group.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor, seatMaterial: chair.seatMat, legMaterial: chair.legMat };
-      chairMeshesRef.current.push(chair.group);
-      scene.add(chair.group);
+      const chair = createChair(chairTheme.primary, chairTheme.legColor);
+      chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
+      chair.lookAt(0, TABLE_HEIGHT, 0);
+      chair.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor };
+      chairMeshesRef.current.push(chair);
+      scene.add(chair);
     });
 
     const boardGroup = new THREE.Group();
@@ -776,16 +707,6 @@ export default function FourInRowRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
-      tableInstanceRef.current?.dispose?.();
-      tableInstanceRef.current = null;
-      tablePartsRef.current = null;
-      chairMeshesRef.current.forEach((chair) => {
-        const seatMat = chair.userData?.seatMaterial;
-        seatMat?.map?.dispose?.();
-        seatMat?.dispose?.();
-        chair.userData?.legMaterial?.dispose?.();
-      });
-      chairMeshesRef.current = [];
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
@@ -960,56 +881,21 @@ export default function FourInRowRoyal() {
   }, [appearance.graphics]);
 
   useEffect(() => {
-    const scene = sceneRef.current;
-    const renderer = rendererRef.current;
-    if (!scene || !renderer) return;
-    tableInstanceRef.current?.dispose?.();
-    const nextTable = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    tableInstanceRef.current = nextTable;
-    tablePartsRef.current = nextTable.materials;
-    const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
-    applyTableMaterials(nextTable.materials, finish);
-  }, [appearance.tableId]);
-
-  useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
     applyTableMaterials(tablePartsRef.current, finish);
   }, [appearance.tableFinish]);
 
   useEffect(() => {
-    const scene = sceneRef.current;
-    const renderer = rendererRef.current;
-    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    if (!scene || !renderer) return;
-    chairMeshesRef.current.forEach((chair) => {
-      const seatMat = chair.userData?.seatMaterial;
-      seatMat?.map?.dispose?.();
-      seatMat?.dispose?.();
-      chair.userData?.legMaterial?.dispose?.();
-      scene.remove(chair);
-    });
-    chairMeshesRef.current = [];
-    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-      const chair = createChair(chairTheme, renderer);
-      chair.group.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
-      chair.group.lookAt(0, TABLE_HEIGHT, 0);
-      chair.group.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor, seatMaterial: chair.seatMat, legMaterial: chair.legMat };
-      chairMeshesRef.current.push(chair.group);
-      scene.add(chair.group);
-    });
-  }, [appearance.chairId]);
-
-  useEffect(() => {
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current.forEach((chair) => {
       chair.traverse((node) => {
         if (!node.isMesh || !node.material) return;
-        if (node.userData?.role === 'seat') node.material.color.set(chairTheme.primary);
+        if (node.geometry?.type === 'BoxGeometry') node.material.color.set(chairTheme.primary);
         else node.material.color.set(chairTheme.legColor);
       });
     });
-  }, [appearance.chairId, appearance.graphics]);
+  }, [appearance.chairId]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } = boardMaterialsRef.current;
@@ -1051,7 +937,6 @@ export default function FourInRowRoyal() {
 
   const optionGroups = [
     { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'tableId', label: 'Tables', options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFinish', label: 'Board Finish', options: FOUR_IN_ROW_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFrameFinish', label: 'Board Frame', options: FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
