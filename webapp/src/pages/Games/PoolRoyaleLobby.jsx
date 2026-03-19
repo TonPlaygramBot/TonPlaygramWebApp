@@ -709,12 +709,11 @@ export default function PoolRoyaleLobby() {
                   Ruleset
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'uk', label: '8Ball' },
-                  { id: '8ball', label: 'BCA 8-Ball' },
-                  { id: '9ball', label: '9-Ball' },
-                  { id: 'american61', label: 'Race to 61' }
+                  { id: 'american', label: 'American' },
+                  { id: '9ball', label: '9-Ball' }
                 ].map(({ id, label }) => {
                   const active = variant === id;
                   return (
