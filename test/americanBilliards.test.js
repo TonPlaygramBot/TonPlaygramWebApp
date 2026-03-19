@@ -6,7 +6,7 @@ test('open table: first contact cannot be the 8-ball', () => {
   const game = new AmericanBilliards()
   game.state.breakInProgress = false
   const res = game.shotTaken({
-    contactOrder: [8],
+    contactOrder: [2],
     potted: [],
     cueOffTable: false
   })
@@ -18,28 +18,18 @@ test('open table: first contact cannot be the 8-ball', () => {
 })
 
 
-test('legal break pot keeps table open until post-break shot', () => {
+test('legal break pots score by ball value and keep shooter at table', () => {
   const game = new AmericanBilliards()
   const breakShot = game.shotTaken({
-    contactOrder: [2],
-    potted: [2],
+    contactOrder: [1],
+    potted: [1, 2],
     cueOffTable: false
   })
 
   assert.equal(breakShot.foul, false)
   assert.equal(game.state.breakInProgress, false)
-  assert.equal(game.state.assignments.A, null)
-  assert.equal(game.state.assignments.B, null)
-
-  const nextShot = game.shotTaken({
-    contactOrder: [3],
-    potted: [3],
-    cueOffTable: false
-  })
-
-  assert.equal(nextShot.foul, false)
-  assert.equal(game.state.assignments.A, 'SOLID')
-  assert.equal(game.state.assignments.B, 'STRIPE')
+  assert.equal(game.state.scores.A, 3)
+  assert.equal(breakShot.nextPlayer, 'A')
 })
 
 
@@ -57,8 +47,6 @@ test('break scratch is a foul and gives opponent ball in hand', () => {
   assert.equal(res.ballInHandNext, true)
   assert.equal(game.state.currentPlayer, 'B')
   assert.equal(game.state.breakInProgress, false)
-  assert.equal(game.state.assignments.A, null)
-  assert.equal(game.state.assignments.B, null)
 })
 
 test('scratch gives opponent ball in hand and keeps object balls down', () => {
@@ -77,47 +65,54 @@ test('scratch gives opponent ball in hand and keeps object balls down', () => {
   assert.equal(game.state.ballsOnTable.has(1), false)
 })
 
-test('8-ball on break is spotted and does not end frame', () => {
+test('first post-break shot must contact the lowest remaining ball', () => {
   const game = new AmericanBilliards()
-  const res = game.shotTaken({
+  game.shotTaken({
     contactOrder: [1],
-    potted: [8],
+    potted: [1],
+    cueOffTable: false
+  })
+  const res = game.shotTaken({
+    contactOrder: [3],
+    potted: [],
     cueOffTable: false
   })
 
-  assert.equal(res.frameOver, false)
-  assert.equal(res.foul, false)
-  assert.equal(game.state.ballsOnTable.has(8), true)
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'wrong first contact')
 })
 
-test('potting 8-ball early loses the frame', () => {
+test('reaching 61 points wins the frame immediately', () => {
   const game = new AmericanBilliards()
   game.state.breakInProgress = false
-  game.state.assignments = { A: 'SOLID', B: 'STRIPE' }
+  game.state.scores.A = 59
+  game.state.ballsOnTable = new Set([2, 15])
 
   const res = game.shotTaken({
-    contactOrder: [8],
-    potted: [8],
+    contactOrder: [2],
+    potted: [2],
     cueOffTable: false
   })
 
-  assert.equal(res.frameOver, true)
-  assert.equal(res.winner, 'B')
-})
-
-test('legal group clearance then 8-ball wins frame', () => {
-  const game = new AmericanBilliards()
-  game.state.breakInProgress = false
-  game.state.assignments = { A: 'SOLID', B: 'STRIPE' }
-  game.state.ballsOnTable = new Set([8, 9, 10, 11, 12, 13, 14, 15])
-
-  const res = game.shotTaken({
-    contactOrder: [8],
-    potted: [8],
-    cueOffTable: false
-  })
-
-  assert.equal(res.foul, false)
   assert.equal(res.frameOver, true)
   assert.equal(res.winner, 'A')
+  assert.equal(res.scores.A, 61)
+})
+
+test('if all balls are gone before 61, higher score wins', () => {
+  const game = new AmericanBilliards()
+  game.state.breakInProgress = false
+  game.state.currentPlayer = 'B'
+  game.state.scores = { A: 40, B: 50 }
+  game.state.ballsOnTable = new Set([15])
+
+  const res = game.shotTaken({
+    contactOrder: [15],
+    potted: [15],
+    cueOffTable: false
+  })
+
+  assert.equal(res.foul, false)
+  assert.equal(res.frameOver, true)
+  assert.equal(res.winner, 'B')
 })
