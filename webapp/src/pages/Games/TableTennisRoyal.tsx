@@ -12,13 +12,7 @@ import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
 /**
  * File: src/TableTennis3D_VanillaThree.tsx
  *
- * User request:
- * - Keep gameplay logic exactly the same.
- * - Pull camera a bit farther from the table.
- * - Slightly more power.
- *
- * NOTE: Only constants CAM.zBase and POWER serve/hit speeds were adjusted.
- * Everything else (rules/physics/AI/controls) remains identical.
+ * Table Tennis Royal (Three.js) gameplay scene.
  */
 
 type ErrState = { error: unknown | null; message: string; stack: string };
@@ -151,9 +145,19 @@ const AI = {
 
 const CAM = {
   follow: 0.07,
-  yBase: TABLE.H + U(0.72),
-  zBase: TABLE.L * 1.06,
+  yBase: TABLE.H + U(0.64),
+  zBase: TABLE.L * 1.12,
   lookDownOffset: U(0.08),
+} as const;
+
+const PLAYER_AUTO_TRACK = {
+  xLead: 0.11,
+  zLead: 0.08,
+  xLerp: 0.34,
+  zLerp: 0.32,
+  restX: 0,
+  restZ: TABLE.L * 0.25,
+  activeZMin: U(-0.04),
 } as const;
 
 const TOUCH = {
@@ -1286,11 +1290,23 @@ export default function TableTennisRoyal() {
           const diff = difficultyRef.current;
 
           {
-            const controlY = clamp((g.current.y - 0.48) / 0.52, 0, 1);
-            const px = lerp(-TABLE.W / 2 + U(0.14), TABLE.W / 2 - U(0.14), g.current.x);
-            const pz = lerp(U(0.08), TABLE.L / 2 - U(0.16), controlY);
-            t.paddleP.position.x = lerp(t.paddleP.position.x, px, 0.30);
-            t.paddleP.position.z = lerp(t.paddleP.position.z, pz, 0.30);
+            const shouldTrackBall = b.p.z >= PLAYER_AUTO_TRACK.activeZMin || b.v.z > 0;
+            const wantedX = shouldTrackBall
+              ? clamp(
+                  b.p.x + b.v.x * PLAYER_AUTO_TRACK.xLead,
+                  -TABLE.W / 2 + U(0.14),
+                  TABLE.W / 2 - U(0.14)
+                )
+              : PLAYER_AUTO_TRACK.restX;
+            const wantedZ = shouldTrackBall
+              ? clamp(
+                  b.p.z + b.v.z * PLAYER_AUTO_TRACK.zLead,
+                  U(0.08),
+                  TABLE.L / 2 - U(0.16)
+                )
+              : PLAYER_AUTO_TRACK.restZ;
+            t.paddleP.position.x = lerp(t.paddleP.position.x, wantedX, PLAYER_AUTO_TRACK.xLerp);
+            t.paddleP.position.z = lerp(t.paddleP.position.z, wantedZ, PLAYER_AUTO_TRACK.zLerp);
             t.paddleP.position.y = PADDLE.y;
             const playerSwing = clamp((g.current.vy * -800) + g.current.speed * 1400, -0.32, 0.56);
             t.paddleP.rotation.x = lerp(t.paddleP.rotation.x, THREE.MathUtils.degToRad(-6) + playerSwing * 0.16, 0.22);
@@ -1462,7 +1478,7 @@ export default function TableTennisRoyal() {
             playImpactFx("paddle", paddlePower);
 
             if (who === "player") {
-              const targetX = lerp(-TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18), g.current.x);
+              const targetX = clamp(pad.position.x + g.current.vx * U(0.22), -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
               const targetZ = -TABLE.L / 2 + POWER.targetZPad;
               tmpTarget.set(targetX, TABLE.H + U(0.14), targetZ);
 
