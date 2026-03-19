@@ -1,5 +1,6 @@
 import { MURLAN_STOOL_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { CHESS_TABLE_OPTIONS } from './chessBattleInventoryConfig.js';
 import { FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS } from './fourInRowInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -103,6 +104,7 @@ export const TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS = Object.freeze(
 
 export const TAVULL_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [TAVULL_BATTLE_CHAIR_OPTIONS[0]?.id],
+  tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
   boardFinish: [TAVULL_BATTLE_BOARD_FINISH_OPTIONS[0]?.id],
   frameFinish: [TAVULL_BATTLE_FRAME_FINISH_OPTIONS[0]?.id],
@@ -120,6 +122,7 @@ const reduceLabels = (options, labelKey = 'label') =>
 
 export const TAVULL_BATTLE_OPTION_LABELS = Object.freeze({
   chairColor: reduceLabels(TAVULL_BATTLE_CHAIR_OPTIONS),
+  tables: reduceLabels(CHESS_TABLE_OPTIONS),
   tableFinish: reduceLabels(MURLAN_TABLE_FINISHES),
   boardFinish: reduceLabels(TAVULL_BATTLE_BOARD_FINISH_OPTIONS),
   frameFinish: reduceLabels(TAVULL_BATTLE_FRAME_FINISH_OPTIONS),
@@ -142,6 +145,18 @@ export const TAVULL_BATTLE_STORE_ITEMS = [
     description: finish.description,
     swatches: finish.swatches,
     thumbnail: finish.thumbnail,
+    previewShape: 'table'
+  })),
+  ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
+    id: `tavull-table-${theme.id}`,
+    type: 'tables',
+    optionId: theme.id,
+    name: theme.label,
+    price: theme.price ?? 980 + idx * 40,
+    description:
+      theme.description ||
+      `${theme.label} table with preserved Poly Haven materials.`,
+    thumbnail: theme.thumbnail,
     previewShape: 'table'
   })),
   ...TAVULL_BATTLE_CHAIR_OPTIONS.slice(1).map((option, idx) => ({
@@ -192,12 +207,12 @@ export const TAVULL_BATTLE_STORE_ITEMS = [
     thumbnail: option.thumbnail,
     previewShape: 'board'
   })),
-  ...POOL_ROYALE_HDRI_VARIANTS.slice(1).map((variant, idx) => ({
+  ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `tavull-hdri-${variant.id}`,
     type: 'environmentHdri',
     optionId: variant.id,
     name: `${variant.name} HDRI`,
-    price: variant.price ?? 780 + idx * 60,
+    price: variant.price ?? 1400 + idx * 30,
     description: `Arena lighting profile based on ${variant.name}.`,
     thumbnail:
       variant.thumbnail ||
