@@ -134,13 +134,6 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
 
 const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
 
-function clearPocketGlowMesh(entry) {
-  if (!entry?.glowMesh) return;
-  entry.glowMesh.parent?.remove?.(entry.glowMesh);
-  entry.glowMesh = null;
-  entry.glowTone = null;
-}
-
 function loadCareerAttemptsProgress() {
   if (typeof window === 'undefined') {
     return { carryShots: 0, attemptsAwardedStageIds: [], bonusAwardedStageIds: [] };
@@ -259,15 +252,6 @@ function safePolygonDifference(subject, ...clips) {
     console.error('Pool Royale polygon difference failed', err);
     return validSubject;
   }
-}
-
-function createIdLookupMap(entries) {
-  if (!Array.isArray(entries)) return new Map();
-  return new Map(
-    entries
-      .filter((entry) => entry && entry.id != null)
-      .map((entry) => [entry.id, entry])
-  );
 }
 
 function applyTablePhysicsSpec(meta) {
@@ -1694,15 +1678,12 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = true;
-const POCKET_GLOW_RADIUS = BALL_R * 1.46;
-const POCKET_GLOW_LIFT = BALL_R * 0.92;
-const POCKET_GLOW_OPACITY = 0.72;
-const POCKET_GLOW_RAY_OPACITY = 0.38;
-const POCKET_GLOW_SPARK_OPACITY = 0.5;
-const POCKET_GLOW_POINT_LIGHT_INTENSITY = 1.35;
+const POCKET_GLOW_ENABLED = false;
+const POCKET_GLOW_RADIUS = BALL_R * 1.32;
+const POCKET_GLOW_LIFT = BALL_R * 0.78;
+const POCKET_GLOW_OPACITY = 0.62;
 const POCKET_GLOW_COLORS = Object.freeze({
-  good: 0x3bc7ff,
+  good: 0x2eea73,
   foul: 0xff4b4b
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
@@ -1909,7 +1890,7 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.05;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.65;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
@@ -1918,8 +1899,8 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.34, CUE_TIP_RADIUS * 2.2);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.24;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -2067,64 +2048,6 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'stripe'
     ]
   },
-  race61: {
-    id: 'race61',
-    label: 'American Billiards (Race to 61)',
-    cueColor: 0xffffff,
-    rackLayout: 'triangle',
-    disableSnookerMarkings: true,
-    objectColors: [
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28,
-      0x111111,
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28
-    ],
-    objectNumbers: [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15
-    ],
-    objectPatterns: [
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe'
-    ]
-  },
   '9ball': {
     id: '9ball',
     label: '9-Ball',
@@ -2169,8 +2092,6 @@ function normalizeBallSetKey(value) {
   const normalized = normalizeVariantKey(value);
   if (
     normalized === 'american' ||
-    normalized === 'race61' ||
-    normalized === 'americanbilliards' ||
     normalized === 'solidsstripes' ||
     normalized === 'solidsandstripes' ||
     normalized === 'solids' ||
@@ -2194,12 +2115,6 @@ function resolvePoolVariant(variantId, ballSet = null) {
     normalized === 'uk8'
   ) {
     key = 'uk';
-  } else if (
-    normalized === 'race61' ||
-    normalized === 'americanbilliards' ||
-    normalized === 'rotation61'
-  ) {
-    key = 'race61';
   }
   const base =
     POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
@@ -2221,9 +2136,6 @@ function deriveInHandFromFrame(frame) {
   const meta = frame && typeof frame === 'object' ? frame.meta : null;
   if (!meta || typeof meta !== 'object') return false;
   if (meta.variant === 'american' && meta.state) {
-    return Boolean(meta.state.ballInHand);
-  }
-  if (meta.variant === 'race61' && meta.state) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === '9ball' && meta.state) {
@@ -8468,25 +8380,6 @@ export function Table3D(
   const pocketGlowGeometry = POCKET_GLOW_ENABLED
     ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36)
     : null;
-  const pocketGlowRayGeometry = POCKET_GLOW_ENABLED
-    ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS * 1.42, 24)
-    : null;
-  const pocketGlowSparkGeometry = (() => {
-    if (!POCKET_GLOW_ENABLED) return null;
-    const sparkCount = 18;
-    const positions = new Float32Array(sparkCount * 3);
-    for (let i = 0; i < sparkCount; i += 1) {
-      const radius = POCKET_GLOW_RADIUS * (0.28 + Math.random() * 0.72);
-      const angle = Math.random() * Math.PI * 2;
-      const idx = i * 3;
-      positions[idx] = Math.cos(angle) * radius;
-      positions[idx + 1] = 0;
-      positions[idx + 2] = Math.sin(angle) * radius;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geometry;
-  })();
   const pocketGlowMaterials = POCKET_GLOW_ENABLED
     ? {
         good: new THREE.MeshBasicMaterial({
@@ -8494,7 +8387,6 @@ export function Table3D(
           transparent: true,
           opacity: POCKET_GLOW_OPACITY,
           blending: THREE.AdditiveBlending,
-          depthTest: false,
           depthWrite: false,
           side: THREE.DoubleSide
         }),
@@ -8503,114 +8395,37 @@ export function Table3D(
           transparent: true,
           opacity: POCKET_GLOW_OPACITY,
           blending: THREE.AdditiveBlending,
-          depthTest: false,
           depthWrite: false,
           side: THREE.DoubleSide
-        })
-      }
-    : {};
-  const pocketGlowRayMaterials = POCKET_GLOW_ENABLED
-    ? {
-        good: new THREE.MeshBasicMaterial({
-          color: POCKET_GLOW_COLORS.good,
-          transparent: true,
-          opacity: POCKET_GLOW_RAY_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        }),
-        foul: new THREE.MeshBasicMaterial({
-          color: POCKET_GLOW_COLORS.foul,
-          transparent: true,
-          opacity: POCKET_GLOW_RAY_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        })
-      }
-    : {};
-  const pocketGlowSparkMaterials = POCKET_GLOW_ENABLED
-    ? {
-        good: new THREE.PointsMaterial({
-          color: POCKET_GLOW_COLORS.good,
-          size: BALL_R * 0.24,
-          transparent: true,
-          opacity: POCKET_GLOW_SPARK_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false
-        }),
-        foul: new THREE.PointsMaterial({
-          color: POCKET_GLOW_COLORS.foul,
-          size: BALL_R * 0.24,
-          transparent: true,
-          opacity: POCKET_GLOW_SPARK_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false
         })
       }
     : {};
   const createPocketGlowMesh = (tone = 'good') => {
     if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
-    const rayMaterial = pocketGlowRayMaterials[tone] || pocketGlowRayMaterials.good;
-    const sparkMaterial = pocketGlowSparkMaterials[tone] || pocketGlowSparkMaterials.good;
-    if (!material || !rayMaterial) return null;
-    const glowGroup = new THREE.Group();
-    const aura = new THREE.Mesh(pocketGlowGeometry, material);
-    aura.rotation.x = -Math.PI / 2;
-    aura.renderOrder = 3;
-    aura.castShadow = false;
-    aura.receiveShadow = false;
-    glowGroup.add(aura);
-    if (pocketGlowRayGeometry) {
-      const rays = new THREE.Mesh(pocketGlowRayGeometry, rayMaterial);
-      rays.rotation.x = -Math.PI / 2;
-      rays.renderOrder = 3;
-      rays.castShadow = false;
-      rays.receiveShadow = false;
-      glowGroup.add(rays);
-      glowGroup.userData.rays = rays;
-    }
-    if (pocketGlowSparkGeometry && sparkMaterial) {
-      const sparks = new THREE.Points(pocketGlowSparkGeometry, sparkMaterial);
-      sparks.rotation.x = -Math.PI / 2;
-      sparks.renderOrder = 3;
-      sparks.frustumCulled = false;
-      glowGroup.add(sparks);
-      glowGroup.userData.sparks = sparks;
-    }
-    const glowLight = new THREE.PointLight(POCKET_GLOW_COLORS[tone] ?? POCKET_GLOW_COLORS.good, 0, BALL_R * 8.5, 2);
-    glowLight.castShadow = false;
-    glowGroup.add(glowLight);
-    glowGroup.userData.aura = aura;
-    glowGroup.userData.light = glowLight;
-    glowGroup.userData.tone = tone;
-    return glowGroup;
+    if (!material) return null;
+    const glow = new THREE.Mesh(pocketGlowGeometry, material);
+    glow.rotation.x = -Math.PI / 2;
+    glow.renderOrder = 3;
+    glow.castShadow = false;
+    glow.receiveShadow = false;
+    return glow;
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
-    const rayMaterial = pocketGlowRayMaterials[tone] || pocketGlowRayMaterials.good;
-    const sparkMaterial = pocketGlowSparkMaterials[tone] || pocketGlowSparkMaterials.good;
-    const glowColor = POCKET_GLOW_COLORS[tone] ?? POCKET_GLOW_COLORS.good;
-    const aura = entry.glowMesh.userData?.aura;
-    const rays = entry.glowMesh.userData?.rays;
-    const sparks = entry.glowMesh.userData?.sparks;
-    const light = entry.glowMesh.userData?.light;
-    if (material && aura) aura.material = material;
-    if (rayMaterial && rays) rays.material = rayMaterial;
-    if (sparkMaterial && sparks) sparks.material = sparkMaterial;
-    if (light) light.color.setHex(glowColor);
+    if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
+  };
+  const clearPocketGlow = (entry) => {
+    if (!entry?.glowMesh) return;
+    entry.glowMesh.parent?.remove?.(entry.glowMesh);
+    entry.glowMesh = null;
   };
   const removePocketDropEntry = (ballId) => {
     const entry = pocketDropRef.current.get(ballId);
     if (entry) {
-      clearPocketGlowMesh(entry);
+      clearPocketGlow(entry);
     }
     pocketDropRef.current.delete(ballId);
   };
@@ -13434,7 +13249,7 @@ function PoolRoyaleGame({
       };
     });
 
-    const stateById = createIdLookupMap(snapshot);
+    const stateById = new Map(snapshot.map((entry) => [entry.id, entry]));
     if (cueBall) {
       const cueState = stateById.get(cueBall.id);
       const cueX = normalize(trainingLayout?.cue?.x, limitX);
@@ -20894,24 +20709,14 @@ const powerRef = useRef(hud.power);
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
-          if (
-            !targetBall ||
-            !targetBall.pos ||
-            !Number.isFinite(targetBall.pos.x) ||
-            !Number.isFinite(targetBall.pos.y)
-          ) {
-            return null;
-          }
+          if (!targetBall) return null;
           if (requireCueContact) {
             const firstContactId = firstHit != null ? String(firstHit) : null;
             if (!firstContactId || firstContactId !== String(ballId)) {
               return null;
             }
           }
-          const dir =
-            targetBall?.vel && typeof targetBall.vel.clone === 'function'
-              ? targetBall.vel.clone()
-              : new THREE.Vector2();
+          const dir = targetBall.vel.clone();
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
           }
@@ -21249,7 +21054,7 @@ const powerRef = useRef(hud.power);
 
         const applyBallSnapshot = (snapshot) => {
           if (!Array.isArray(snapshot)) return;
-          const map = createIdLookupMap(snapshot);
+          const map = new Map(snapshot.map((entry) => [entry.id, entry]));
           balls.forEach((ball) => {
             const state = map.get(ball.id);
             if (!state) return;
@@ -21332,8 +21137,8 @@ const powerRef = useRef(hud.power);
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
-          const aMap = createIdLookupMap(frameA.balls);
-          const bMap = frameB ? createIdLookupMap(frameB.balls) : null;
+          const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
+          const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
           balls.forEach((ball) => {
             const aState = aMap.get(ball.id);
             if (!aState) return;
@@ -21488,7 +21293,7 @@ const powerRef = useRef(hud.power);
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
             const firstFrame = frames[0] ?? null;
-            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry?.id === 'cue') ?? null;
+            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry.id === 'cue') ?? null;
             const cueBallFramePos =
               cueBallFrame?.pos && typeof cueBallFrame.pos === 'object'
                 ? TMP_VEC3_A.set(cueBallFrame.pos.x, CUE_Y, cueBallFrame.pos.y)
@@ -23512,8 +23317,6 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.frustumCulled = false;
-      aim.renderOrder = 20;
       table.add(aim);
       const aimPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23531,8 +23334,6 @@ const powerRef = useRef(hud.power);
         })
       );
       aimPower.visible = false;
-      aimPower.frustumCulled = false;
-      aimPower.renderOrder = 21;
       table.add(aimPower);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23550,8 +23351,6 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfter.visible = false;
-      cueAfter.frustumCulled = false;
-      cueAfter.renderOrder = 22;
       table.add(cueAfter);
       const cueAfterPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23569,8 +23368,6 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfterPower.visible = false;
-      cueAfterPower.frustumCulled = false;
-      cueAfterPower.renderOrder = 23;
       table.add(cueAfterPower);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23586,8 +23383,6 @@ const powerRef = useRef(hud.power);
         })
       );
       tick.visible = false;
-      tick.frustumCulled = false;
-      tick.renderOrder = 24;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -23606,8 +23401,6 @@ const powerRef = useRef(hud.power);
         })
       );
       target.visible = false;
-      target.frustumCulled = false;
-      target.renderOrder = 25;
       table.add(target);
       const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -23625,8 +23418,6 @@ const powerRef = useRef(hud.power);
         })
       );
       targetPower.visible = false;
-      targetPower.frustumCulled = false;
-      targetPower.renderOrder = 26;
       table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -25104,7 +24895,7 @@ const powerRef = useRef(hud.power);
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
-          if ((meta.variant === 'american' || meta.variant === 'race61') && meta.state) {
+          if (meta.variant === 'american' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
@@ -28493,10 +28284,7 @@ const powerRef = useRef(hud.power);
             if (isTraining) {
               nextInHand = cueBallPotted;
             } else if (nextMeta && typeof nextMeta === 'object') {
-              if (
-                (nextMeta.variant === 'american' || nextMeta.variant === 'race61') &&
-                nextMeta.state
-              ) {
+              if (nextMeta.variant === 'american' && nextMeta.state) {
                 nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
@@ -29258,13 +29046,6 @@ const powerRef = useRef(hud.power);
           const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          if (followEnd.distanceTo(end) < BALL_R * 0.8) {
-            followEnd.copy(
-              end
-                .clone()
-                .add(cueFollowPreview.dir.clone().normalize().multiplyScalar(BALL_R * 2.4))
-            );
-          }
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -29475,24 +29256,8 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            const fallbackTargetDir = dir.clone().normalize();
-            const fallbackTargetLength = BALL_R * (10 + powerStrength * 12);
-            const fallbackStart = end.clone();
-            const fallbackEnd = fallbackStart
-              .clone()
-              .add(fallbackTargetDir.multiplyScalar(fallbackTargetLength));
-            targetGeom.setFromPoints([fallbackStart, fallbackEnd]);
-            target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = 0.32 + 0.2 * powerStrength;
-            target.visible = true;
-            targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.26 + 0.4 * powerStrength;
-            targetPower.visible = updatePowerLinePoints(
-              targetPowerGeom,
-              fallbackStart,
-              fallbackEnd,
-              powerStrength
-            );
+            target.visible = false;
+            targetPower.visible = false;
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -29592,13 +29357,6 @@ const powerRef = useRef(hud.power);
           const followEnd = end
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
-          if (followEnd.distanceTo(end) < BALL_R * 0.8) {
-            followEnd.copy(
-              end
-                .clone()
-                .add(cueFollowPreview.dir.clone().normalize().multiplyScalar(BALL_R * 2.4))
-            );
-          }
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -29704,24 +29462,8 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            const fallbackTargetDir = baseDir.clone().normalize();
-            const fallbackTargetLength = BALL_R * (10 + powerStrength * 12);
-            const fallbackStart = end.clone();
-            const fallbackEnd = fallbackStart
-              .clone()
-              .add(fallbackTargetDir.multiplyScalar(fallbackTargetLength));
-            targetGeom.setFromPoints([fallbackStart, fallbackEnd]);
-            target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = 0.32 + 0.2 * powerStrength;
-            target.visible = true;
-            targetPower.material.color.copy(powerColor);
-            targetPower.material.opacity = 0.26 + 0.4 * powerStrength;
-            targetPower.visible = updatePowerLinePoints(
-              targetPowerGeom,
-              fallbackStart,
-              fallbackEnd,
-              powerStrength
-            );
+            target.visible = false;
+            targetPower.visible = false;
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
@@ -30376,49 +30118,6 @@ const powerRef = useRef(hud.power);
             }
           }
         }
-        const activateForcedCornerPocketCamera = (ball, pocketCenter) => {
-          if (
-            suppressPocketCameras ||
-            topViewRef.current ||
-            !ball?.id ||
-            !pocketCenter
-          ) {
-            return;
-          }
-          const sph = sphRef.current;
-          const resumeView = sph
-            ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
-            : null;
-          const forcedCornerView = makePocketCameraView(ball.id, resumeView, {
-            forceCornerCapture: true,
-            pocketCenterOverride: pocketCenter
-          });
-          const shouldSwapView =
-            forcedCornerView &&
-            (!activeShotView ||
-              activeShotView.mode !== 'pocket' ||
-              activeShotView.ballId !== ball.id);
-          if (!shouldSwapView) {
-            return;
-          }
-          forcedCornerView.lastUpdate = performance.now();
-          if (cameraRef.current) {
-            const cam = cameraRef.current;
-            forcedCornerView.smoothedPos = cam.position.clone();
-            const storedTarget = lastCameraTargetRef.current?.clone();
-            if (storedTarget) {
-              forcedCornerView.smoothedTarget = storedTarget;
-            }
-          }
-          if (activeShotView?.mode === 'action') {
-            suspendedActionView = activeShotView;
-            forcedCornerView.resumeAction = activeShotView;
-          } else if (suspendedActionView?.mode === 'action') {
-            forcedCornerView.resumeAction = suspendedActionView;
-          }
-          updatePocketCameraState(true);
-          activeShotView = forcedCornerView;
-        };
         // Pocket capture
         const pocketMarkers =
           table?.userData?.pockets && Array.isArray(table.userData.pockets)
@@ -30560,8 +30259,43 @@ const powerRef = useRef(hud.power);
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
-                if (pocketIndex < 4) {
-                  activateForcedCornerPocketCamera(b, c);
+                const shouldForceCornerPocketView =
+                  !suppressPocketCameras &&
+                  !topViewRef.current &&
+                  pocketIndex < 4;
+                if (shouldForceCornerPocketView) {
+                  const sph = sphRef.current;
+                  const resumeView = sph
+                    ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+                    : null;
+                  const forcedCornerView = makePocketCameraView(b.id, resumeView, {
+                    forceCornerCapture: true,
+                    pocketCenterOverride: c
+                  });
+                  const shouldSwapView =
+                    forcedCornerView &&
+                    (!activeShotView ||
+                      activeShotView.mode !== 'pocket' ||
+                      activeShotView.ballId !== b.id);
+                  if (shouldSwapView) {
+                    forcedCornerView.lastUpdate = performance.now();
+                    if (cameraRef.current) {
+                      const cam = cameraRef.current;
+                      forcedCornerView.smoothedPos = cam.position.clone();
+                      const storedTarget = lastCameraTargetRef.current?.clone();
+                      if (storedTarget) {
+                        forcedCornerView.smoothedTarget = storedTarget;
+                      }
+                    }
+                    if (activeShotView?.mode === 'action') {
+                      suspendedActionView = activeShotView;
+                      forcedCornerView.resumeAction = activeShotView;
+                    } else if (suspendedActionView?.mode === 'action') {
+                      forcedCornerView.resumeAction = suspendedActionView;
+                    }
+                    updatePocketCameraState(true);
+                    activeShotView = forcedCornerView;
+                  }
                 }
                 if (
                   activeShotView?.mode === 'pocket' &&
@@ -30704,14 +30438,6 @@ const powerRef = useRef(hud.power);
                   b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
-                const pocketGlow = createPocketGlowMesh('good');
-                if (pocketGlow && table) {
-                  pocketGlow.position.set(c.x, BALL_CENTER_Y - BALL_R * 0.42, c.y);
-                  pocketGlow.visible = true;
-                  table.add(pocketGlow);
-                  dropEntry.glowMesh = pocketGlow;
-                  dropEntry.glowTone = 'good';
-                }
                 pocketDropRef.current.set(b.id, dropEntry);
               } else {
                 removePocketDropEntry(b.id);
@@ -30721,8 +30447,43 @@ const powerRef = useRef(hud.power);
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
-              if (pocketIndex < 4) {
-                activateForcedCornerPocketCamera(b, c);
+              const shouldForceCornerPocketView =
+                !suppressPocketCameras &&
+                !topViewRef.current &&
+                pocketIndex < 4;
+              if (shouldForceCornerPocketView) {
+                const sph = sphRef.current;
+                const resumeView = sph
+                  ? { orbitSnapshot: { radius: sph.radius, phi: sph.phi, theta: sph.theta } }
+                  : null;
+                const forcedCornerView = makePocketCameraView(b.id, resumeView, {
+                  forceCornerCapture: true,
+                  pocketCenterOverride: c
+                });
+                const shouldSwapView =
+                  forcedCornerView &&
+                  (!activeShotView ||
+                    activeShotView.mode !== 'pocket' ||
+                    activeShotView.ballId !== b.id);
+                if (shouldSwapView) {
+                  forcedCornerView.lastUpdate = performance.now();
+                  if (cameraRef.current) {
+                    const cam = cameraRef.current;
+                    forcedCornerView.smoothedPos = cam.position.clone();
+                    const storedTarget = lastCameraTargetRef.current?.clone();
+                    if (storedTarget) {
+                      forcedCornerView.smoothedTarget = storedTarget;
+                    }
+                  }
+                  if (activeShotView?.mode === 'action') {
+                    suspendedActionView = activeShotView;
+                    forcedCornerView.resumeAction = activeShotView;
+                  } else if (suspendedActionView?.mode === 'action') {
+                    forcedCornerView.resumeAction = suspendedActionView;
+                  }
+                  updatePocketCameraState(true);
+                  activeShotView = forcedCornerView;
+                }
               }
               if (
                 activeShotView?.mode === 'pocket' &&
@@ -30848,7 +30609,6 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
-                clearPocketGlowMesh(entry);
                 return;
               }
               entry.velocityY =
@@ -30882,58 +30642,6 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
-              if (entry.glowMesh) {
-                const elapsedMs = Math.max(0, now - (entry.start ?? now));
-                const descentProgress = THREE.MathUtils.clamp(
-                  (fromY - entry.currentY) / fallDistance,
-                  0,
-                  1
-                );
-                const rampIn = THREE.MathUtils.clamp(elapsedMs / 120, 0, 1);
-                const preDropBoost = 1 - THREE.MathUtils.clamp(descentProgress / 0.72, 0, 1) * 0.22;
-                const fadeOut =
-                  descentProgress > 0.72
-                    ? Math.max(0, 1 - (descentProgress - 0.72) / 0.28)
-                    : 1;
-                const speedBoost = THREE.MathUtils.clamp(
-                  (entry.entrySpeed ?? 0) / (BALL_R * 9),
-                  0.8,
-                  1.2
-                );
-                const glowStrength = THREE.MathUtils.clamp(rampIn * preDropBoost * fadeOut * speedBoost, 0, 1);
-                if (glowStrength <= 0.01) {
-                  entry.glowMesh.visible = false;
-                } else {
-                  const glowY = Math.min(
-                    entry.currentY - BALL_R * 0.45,
-                    BALL_CENTER_Y - BALL_R * 0.34
-                  );
-                  entry.glowMesh.visible = true;
-                  entry.glowMesh.position.set(xDrop, glowY, zDrop);
-                  const aura = entry.glowMesh.userData?.aura;
-                  const rays = entry.glowMesh.userData?.rays;
-                  const sparks = entry.glowMesh.userData?.sparks;
-                  const light = entry.glowMesh.userData?.light;
-                  const pulse = 0.92 + Math.sin(now * 0.018 + key.length) * 0.08;
-                  if (aura) {
-                    aura.scale.setScalar((0.82 + glowStrength * 0.78) * pulse);
-                    aura.material.opacity = POCKET_GLOW_OPACITY * glowStrength;
-                  }
-                  if (rays) {
-                    rays.scale.setScalar(0.95 + glowStrength * 1.25);
-                    rays.rotation.z = now * 0.0018;
-                    rays.material.opacity = POCKET_GLOW_RAY_OPACITY * glowStrength;
-                  }
-                  if (sparks) {
-                    sparks.rotation.z = -now * 0.0026;
-                    sparks.position.y = Math.sin(now * 0.01) * BALL_R * 0.08;
-                    sparks.material.opacity = POCKET_GLOW_SPARK_OPACITY * glowStrength;
-                  }
-                  if (light) {
-                    light.intensity = POCKET_GLOW_POINT_LIGHT_INTENSITY * glowStrength;
-                  }
-                }
-              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
@@ -31145,21 +30853,11 @@ const powerRef = useRef(hud.power);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.forEach((entry) => {
-          clearPocketGlowMesh(entry);
+          clearPocketGlow(entry);
         });
         pocketDropRef.current.clear();
-        if (typeof pocketGlowGeometry !== 'undefined') pocketGlowGeometry?.dispose?.();
-        if (typeof pocketGlowRayGeometry !== 'undefined') pocketGlowRayGeometry?.dispose?.();
-        if (typeof pocketGlowSparkGeometry !== 'undefined') pocketGlowSparkGeometry?.dispose?.();
-        if (typeof pocketGlowMaterials !== 'undefined') {
-          Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
-        }
-        if (typeof pocketGlowRayMaterials !== 'undefined') {
-          Object.values(pocketGlowRayMaterials).forEach((material) => material?.dispose?.());
-        }
-        if (typeof pocketGlowSparkMaterials !== 'undefined') {
-          Object.values(pocketGlowSparkMaterials).forEach((material) => material?.dispose?.());
-        }
+        pocketGlowGeometry.dispose?.();
+        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
