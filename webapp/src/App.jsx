@@ -44,15 +44,11 @@ const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattl
 const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
 const FourInRowRoyal = React.lazy(() => import('./pages/Games/FourInRowRoyal.jsx'));
 const FourInRowRoyalLobby = React.lazy(() => import('./pages/Games/FourInRowRoyalLobby.jsx'));
-const TavullBattleRoyal = React.lazy(() => import('./pages/Games/TavullBattleRoyal.jsx'));
-const TavullBattleRoyalLobby = React.lazy(() => import('./pages/Games/TavullBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
 import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
 import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
-import TableTennisRoyal from './pages/Games/TableTennisRoyal.tsx';
-import TableTennisRoyalLobby from './pages/Games/TableTennisRoyalLobby.jsx';
 
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
@@ -203,22 +199,6 @@ export default function App() {
             />
 
             <Route
-              path="/games/tavullbattleroyal/lobby"
-              element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Lobby…</div>}>
-                  <TavullBattleRoyalLobby />
-                </Suspense>
-              )}
-            />
-            <Route
-              path="/games/tavullbattleroyal"
-              element={(
-                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Royal…</div>}>
-                  <TavullBattleRoyal />
-                </Suspense>
-              )}
-            />
-            <Route
               path="/games/ludobattleroyal/lobby"
               element={<LudoBattleRoyalLobby />}
             />
@@ -255,11 +235,6 @@ export default function App() {
               element={<SnookerRoyalLobby />}
             />
             <Route path="/games/snookerroyale" element={<SnookerRoyal />} />
-            <Route
-              path="/games/tabletennisroyal/lobby"
-              element={<TableTennisRoyalLobby />}
-            />
-            <Route path="/games/tabletennisroyal" element={<TableTennisRoyal />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}
