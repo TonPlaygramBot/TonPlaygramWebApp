@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -627,7 +626,6 @@ const pointBasePosition = (index) => {
 };
 
 export default function TavullBattleRoyal() {
-  const navigate = useNavigate();
   useTelegramBackButton();
   const canvasHostRef = useRef(null);
   const sceneBundleRef = useRef(null);
@@ -654,6 +652,8 @@ export default function TavullBattleRoyal() {
   const [frameFinishIdx, setFrameFinishIdx] = useState(0);
   const [triangleColorIdx, setTriangleColorIdx] = useState(0);
   const [qualityIdx, setQualityIdx] = useState(1);
+  const [activeCustomizationKey, setActiveCustomizationKey] =
+    useState('tableFinish');
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
@@ -734,6 +734,97 @@ export default function TavullBattleRoyal() {
       ),
     [tavullInventory]
   );
+
+  const customizationSections = useMemo(
+    () => [
+      {
+        key: 'tableFinish',
+        label: 'Table',
+        options: ownedFinishOptions,
+        selectedIdx: tableFinishIdx,
+        onSelect: setTableFinishIdx,
+        getLabel: (option) => option?.label || 'Table'
+      },
+      {
+        key: 'chairTheme',
+        label: 'Chairs',
+        options: ownedChairOptions,
+        selectedIdx: chairThemeIdx,
+        onSelect: setChairThemeIdx,
+        getLabel: (option) => option?.label || 'Chair'
+      },
+      {
+        key: 'boardFinish',
+        label: 'Board',
+        options: ownedBoardFinishOptions,
+        selectedIdx: boardFinishIdx,
+        onSelect: setBoardFinishIdx,
+        getLabel: (option) => option?.label || 'Board'
+      },
+      {
+        key: 'frameFinish',
+        label: 'Frame',
+        options: ownedFrameFinishOptions,
+        selectedIdx: frameFinishIdx,
+        onSelect: setFrameFinishIdx,
+        getLabel: (option) => option?.label || 'Frame'
+      },
+      {
+        key: 'triangleColor',
+        label: 'Triangles',
+        options: ownedTriangleColorOptions,
+        selectedIdx: triangleColorIdx,
+        onSelect: setTriangleColorIdx,
+        getLabel: (option) => option?.label || 'Palette'
+      },
+      {
+        key: 'environmentHdri',
+        label: 'Environment',
+        options: ownedHdriOptions,
+        selectedIdx: hdriIdx,
+        onSelect: setHdriIdx,
+        getLabel: (option) => option?.name || option?.label || 'Environment'
+      },
+      {
+        key: 'graphics',
+        label: 'Graphics',
+        options: QUALITY_OPTIONS,
+        selectedIdx: qualityIdx,
+        onSelect: setQualityIdx,
+        getLabel: (option) => option?.label || 'Quality'
+      }
+    ],
+    [
+      boardFinishIdx,
+      chairThemeIdx,
+      frameFinishIdx,
+      hdriIdx,
+      ownedBoardFinishOptions,
+      ownedChairOptions,
+      ownedFinishOptions,
+      ownedFrameFinishOptions,
+      ownedHdriOptions,
+      ownedTriangleColorOptions,
+      qualityIdx,
+      tableFinishIdx,
+      triangleColorIdx
+    ]
+  );
+
+  useEffect(() => {
+    if (
+      !customizationSections.some(
+        (section) => section.key === activeCustomizationKey
+      )
+    ) {
+      setActiveCustomizationKey(customizationSections[0]?.key ?? 'tableFinish');
+    }
+  }, [activeCustomizationKey, customizationSections]);
+
+  const activeCustomizationSection =
+    customizationSections.find(
+      (section) => section.key === activeCustomizationKey
+    ) || customizationSections[0];
 
   useEffect(() => {
     const onInventoryUpdate = () => setInventoryVersion((v) => v + 1);
@@ -920,14 +1011,69 @@ export default function TavullBattleRoyal() {
       roughness: 0.7,
       metalness: 0.04
     });
+    const configureColorTexture = (texture) => {
+      if (!texture) return null;
+      applySRGBColorSpace(texture);
+      texture.flipY = false;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.needsUpdate = true;
+      return texture;
+    };
+    const configureLinearTexture = (texture) => {
+      if (!texture) return null;
+      if ('colorSpace' in texture) texture.colorSpace = THREE.NoColorSpace;
+      texture.flipY = false;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.needsUpdate = true;
+      return texture;
+    };
+    const resolveTextureMap = (option, keys) => {
+      if (!option || !keys?.length) return null;
+      return keys.map((key) => option[key]).find(Boolean) || null;
+    };
     const applyFinishToMaterial = (material, finish, fallback = '#7b4127') => {
       const [primary] = finish?.swatches || [];
       material.color.set(primary || fallback);
+
+      const colorMap = configureColorTexture(
+        resolveTextureMap(finish, [
+          'map',
+          'baseColorMap',
+          'albedoMap',
+          'diffuseMap'
+        ])
+      );
+      const normalMap = configureLinearTexture(
+        resolveTextureMap(finish, ['normalMap'])
+      );
+      const roughnessMap = configureLinearTexture(
+        resolveTextureMap(finish, ['roughnessMap'])
+      );
+      const metalnessMap = configureLinearTexture(
+        resolveTextureMap(finish, ['metalnessMap'])
+      );
+      const aoMap = configureLinearTexture(
+        resolveTextureMap(finish, ['aoMap', 'ambientOcclusionMap'])
+      );
+
+      material.map = colorMap;
+      material.normalMap = normalMap;
+      material.roughnessMap = roughnessMap;
+      material.metalnessMap = metalnessMap;
+      material.aoMap = aoMap;
       material.needsUpdate = true;
     };
     const applyTrianglePalette = (palette) => {
       pointDarkMaterial.color.set(palette?.dark || '#f59e0b');
       pointLightMaterial.color.set(palette?.light || '#fef3c7');
+      pointDarkMaterial.map = configureColorTexture(
+        resolveTextureMap(palette, ['darkMap', 'darkTexture', 'map'])
+      );
+      pointLightMaterial.map = configureColorTexture(
+        resolveTextureMap(palette, ['lightMap', 'lightTexture', 'map'])
+      );
       pointDarkMaterial.needsUpdate = true;
       pointLightMaterial.needsUpdate = true;
     };
@@ -1709,187 +1855,162 @@ export default function TavullBattleRoyal() {
             order={['mute']}
           />
         </div>
-      </div>
-
-      {configOpen && (
-        <div className="absolute top-20 right-4 z-30 pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
-                Backgammon Settings
-              </p>
-              <p className="mt-1 text-[0.7rem] text-white/70">
-                Personalize board finish, frame, triangle colors, chairs, and
-                table finish.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setConfigOpen(false)}
-              className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              aria-label="Close settings"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-4 w-4"
+        {configOpen && (
+          <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
+                  Backgammon Settings
+                </p>
+                <p className="mt-1 text-[0.7rem] text-white/70">
+                  Personalize board finish, frame, triangle colors, chairs, and
+                  table finish.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(false)}
+                className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                aria-label="Close settings"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m6 6 12 12M18 6 6 18"
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-4 w-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m6 6 12 12M18 6 6 18"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                <span>Sound effects</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                  checked={soundEnabled}
+                  onChange={(event) => setSoundEnabled(event.target.checked)}
                 />
-              </svg>
-            </button>
-          </div>
-          <div className="mt-4 space-y-3">
-            <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-              <span>Sound effects</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                checked={soundEnabled}
-                onChange={(event) => setSoundEnabled(event.target.checked)}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => navigate('/store/tavullbattleroyal')}
-              className="w-full rounded-lg border border-emerald-300/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100"
-            >
-              Open Store
-            </button>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                    Personalize Arena
-                  </p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Table cloth, chairs, and table details.
-                  </p>
+              </label>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
+                      Personalize Arena
+                    </p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">
+                      Table cloth, chairs, and table details.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTableFinishIdx(0);
+                      setChairThemeIdx(0);
+                      setHdriIdx(0);
+                      setBoardFinishIdx(0);
+                      setFrameFinishIdx(0);
+                      setTriangleColorIdx(0);
+                      setQualityIdx(1);
+                    }}
+                    className="rounded-lg border border-white/15 px-2 py-1 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/30 hover:text-white"
+                  >
+                    Reset
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTableFinishIdx(0);
-                    setChairThemeIdx(0);
-                    setHdriIdx(0);
-                    setBoardFinishIdx(0);
-                    setFrameFinishIdx(0);
-                    setTriangleColorIdx(0);
-                    setQualityIdx(1);
-                  }}
-                  className="rounded-lg border border-white/15 px-2 py-1 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/30 hover:text-white"
-                >
-                  Reset
-                </button>
-              </div>
-              <div className="mt-3 grid gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setTableFinishIdx(
-                      (v) => (v + 1) % Math.max(1, ownedFinishOptions.length)
-                    )
-                  }
-                >
-                  Table Finish:{' '}
-                  {ownedFinishOptions[tableFinishIdx]?.label ||
-                    ownedFinishOptions[0]?.label ||
-                    'Default'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setChairThemeIdx(
-                      (v) => (v + 1) % Math.max(1, ownedChairOptions.length)
-                    )
-                  }
-                >
-                  Chair Theme:{' '}
-                  {ownedChairOptions[chairThemeIdx]?.label ||
-                    ownedChairOptions[0]?.label ||
-                    'Royal'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setBoardFinishIdx(
-                      (v) =>
-                        (v + 1) % Math.max(1, ownedBoardFinishOptions.length)
-                    )
-                  }
-                >
-                  Board Finish:{' '}
-                  {ownedBoardFinishOptions[boardFinishIdx]?.label ||
-                    ownedBoardFinishOptions[0]?.label ||
-                    'Classic'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setFrameFinishIdx(
-                      (v) =>
-                        (v + 1) % Math.max(1, ownedFrameFinishOptions.length)
-                    )
-                  }
-                >
-                  Frame Finish:{' '}
-                  {ownedFrameFinishOptions[frameFinishIdx]?.label ||
-                    ownedFrameFinishOptions[0]?.label ||
-                    'Classic'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setTriangleColorIdx(
-                      (v) =>
-                        (v + 1) % Math.max(1, ownedTriangleColorOptions.length)
-                    )
-                  }
-                >
-                  Triangle Colors:{' '}
-                  {ownedTriangleColorOptions[triangleColorIdx]?.label ||
-                    ownedTriangleColorOptions[0]?.label ||
-                    'Amber Glow'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setHdriIdx(
-                      (v) => (v + 1) % Math.max(1, ownedHdriOptions.length)
-                    )
-                  }
-                >
-                  Environment:{' '}
-                  {ownedHdriOptions[hdriIdx]?.name ||
-                    ownedHdriOptions[0]?.name ||
-                    'Studio'}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
-                  onClick={() =>
-                    setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)
-                  }
-                >
-                  Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
-                </button>
+                <div className="mt-3 max-h-72 space-y-3">
+                  <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
+                    {customizationSections.map(({ key, label }) => {
+                      const selectedSection = key === activeCustomizationKey;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setActiveCustomizationKey(key)}
+                          className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            selectedSection
+                              ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                              : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {activeCustomizationSection && (
+                    <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
+                        {activeCustomizationSection.label}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {activeCustomizationSection.options.map(
+                          (option, idx) => {
+                            const selected =
+                              activeCustomizationSection.selectedIdx === idx;
+                            const label =
+                              activeCustomizationSection.getLabel(option);
+                            return (
+                              <button
+                                key={`${activeCustomizationSection.key}-${option?.id || idx}`}
+                                type="button"
+                                onClick={() =>
+                                  activeCustomizationSection.onSelect(idx)
+                                }
+                                aria-pressed={selected}
+                                className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }`}
+                                title={label}
+                              >
+                                <span className="relative flex h-12 w-full items-center justify-center overflow-hidden rounded-lg border border-white/20 bg-white/5">
+                                  {option?.thumbnail ? (
+                                    <img
+                                      src={option.thumbnail}
+                                      alt={`${label} thumbnail`}
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="h-full w-full"
+                                      style={{
+                                        background:
+                                          Array.isArray(option?.swatches) &&
+                                          option.swatches.length >= 2
+                                            ? `linear-gradient(135deg, ${option.swatches[0]} 50%, ${option.swatches[1]} 50%)`
+                                            : option?.dark && option?.light
+                                              ? `linear-gradient(135deg, ${option.dark} 50%, ${option.light} 50%)`
+                                              : '#334155'
+                                      }}
+                                    />
+                                  )}
+                                </span>
+                                <span className="mt-1 text-center text-[0.62rem] font-semibold text-gray-100">
+                                  {label}
+                                </span>
+                              </button>
+                            );
+                          }
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-black/30">
         <div ref={canvasHostRef} className="h-full w-full" />
