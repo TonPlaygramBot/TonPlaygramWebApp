@@ -25261,8 +25261,10 @@ const powerRef = useRef(hud.power);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          const pullPos = buildCuePosition(visualPull);
-          cueStick.position.copy(pullPos);
+          // Start the release from the *currently visible* pulled cue position
+          // so slider release always pushes forward from what the player sees.
+          const releaseStartPos = cueStick.position.clone();
+          cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           cueStick.visible = true;
@@ -25373,7 +25375,7 @@ const powerRef = useRef(hud.power);
             const strokeStartOffset = REPLAY_CUE_START_HOLD_MS;
             shotRecording.cueStroke = {
               idle: serializeVector3Snapshot(idlePos),
-              pull: serializeVector3Snapshot(pullPos),
+              pull: serializeVector3Snapshot(releaseStartPos),
               impact: serializeVector3Snapshot(impactPos),
               follow: serializeVector3Snapshot(followPos),
               rotationX: cueStick.rotation.x,
@@ -25396,7 +25398,7 @@ const powerRef = useRef(hud.power);
             cueStrokeStateRef.current = {
               startTime,
               idlePos: idlePos.clone(),
-              pullPos: pullPos.clone(),
+              pullPos: releaseStartPos.clone(),
               impactPos: impactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
@@ -25408,7 +25410,9 @@ const powerRef = useRef(hud.power);
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
               strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
-              forwardOnly: Boolean(strokeProfile.forwardOnly),
+              // Slider release should drive an immediate forward strike from the
+              // currently pulled cue position back to contact.
+              forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
