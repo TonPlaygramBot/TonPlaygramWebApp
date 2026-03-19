@@ -955,55 +955,16 @@ export default function TableTennisRoyal() {
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    if (type === "table" || type === "floor") {
-      const clip = impactClipBufferRef.current;
-      if (!clip) return;
-      const normalizedPower = clamp(power, 0, 1);
-      const gainValue = lerp(0.18, 1, normalizedPower);
-      const src = ctx.createBufferSource();
-      const gain = ctx.createGain();
-      src.buffer = clip;
-      gain.gain.setValueAtTime(gainValue, now);
-      src.connect(gain).connect(ctx.destination);
-      src.start(now, 0, Math.min(1, clip.duration));
-      return;
-    }
-
-    const makeNoise = (duration: number, gain: number) => {
-      const bufferSize = Math.max(128, Math.floor(ctx.sampleRate * duration));
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const ch = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i += 1) ch[i] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource();
-      src.buffer = noiseBuffer;
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(gain, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      src.connect(noiseGain).connect(ctx.destination);
-      src.start(now);
-      src.stop(now + duration + 0.01);
-    };
-
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-    const startFreq = 340;
-    const endFreq = 180;
-    const duration = 0.07;
-    const startGain = 0.09;
-    const midGain = 0.055;
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(startFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
-    oscGain.gain.setValueAtTime(startGain, now);
-    oscGain.gain.exponentialRampToValueAtTime(midGain, now + duration * 0.4);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    osc.connect(oscGain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + duration + 0.01);
-
-    makeNoise(0.03, 0.02);
+    const clip = impactClipBufferRef.current;
+    if (!clip) return;
+    const normalizedPower = clamp(power, 0, 1);
+    const gainValue = lerp(0.18, 1, normalizedPower);
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = clip;
+    gain.gain.setValueAtTime(gainValue, now);
+    src.connect(gain).connect(ctx.destination);
+    src.start(now, 0, Math.min(1, clip.duration));
   }, [getAudioCtx]);
 
   useEffect(() => {
@@ -1497,7 +1458,8 @@ export default function TableTennisRoyal() {
 
             if (who === "ai" && Math.random() > AI.hitChance[diff]) return false;
 
-            playImpactFx("paddle");
+            const paddlePower = clamp((Math.abs(b.v.x) + Math.abs(b.v.y) + Math.abs(b.v.z)) / U(10), 0.08, 1);
+            playImpactFx("paddle", paddlePower);
 
             if (who === "player") {
               const targetX = lerp(-TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18), g.current.x);
@@ -1672,8 +1634,15 @@ export default function TableTennisRoyal() {
     <ErrorBoundary>
       <div
         ref={rootRef}
-        className="w-full h-[92vh] relative select-none"
-        style={{ background: "#070b1a", touchAction: "none", paddingTop: "3.5vh" }}
+        className="w-full relative select-none"
+        style={{
+          background: "#070b1a",
+          touchAction: "none",
+          height: "100dvh",
+          minHeight: "100vh",
+          paddingTop: "max(env(safe-area-inset-top), 3.5vh)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
         onPointerDown={(e) => {
           onDown(e);
           if (sim.current.phase === "ready" && sim.current.score.server === "player") serve();
@@ -1878,7 +1847,7 @@ export default function TableTennisRoyal() {
 
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Sound FX</h3>
-                  <p className="mt-1 text-[0.68rem] text-white/60">Table/floor impact uses /assets/sounds/freesound_community-ping-pong-ball-100140.mp3 (first 1 second only), and loudness scales with shot power.</p>
+                  <p className="mt-1 text-[0.68rem] text-white/60">Table, paddle, and floor impacts now all use /assets/sounds/freesound_community-ping-pong-ball-100140.mp3 (first 1 second only), with matching loudness scaling by impact power.</p>
                 </div>
 
                 <div>
