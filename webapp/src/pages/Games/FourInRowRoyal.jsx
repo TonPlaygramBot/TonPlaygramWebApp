@@ -348,6 +348,7 @@ export default function FourInRowRoyal() {
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
+  const tableInfoRef = useRef(null);
   const chairMeshesRef = useRef([]);
   const boardMaterialsRef = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const keyLightRef = useRef(null);
@@ -543,14 +544,16 @@ export default function FourInRowRoyal() {
     scene.add(key);
 
     const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
-    tablePartsRef.current = table.parts;
-    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    table.group.userData.themeId = appearance.tableId;
+    tableInfoRef.current = table;
+    tablePartsRef.current = table.materials;
+    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0], renderer);
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     const chairPositions = [
-      [Math.cos(Math.PI / 2) * CHAIR_DISTANCE, 0, Math.sin(Math.PI / 2) * CHAIR_DISTANCE],
-      [Math.cos(-Math.PI / 2) * CHAIR_DISTANCE, 0, Math.sin(-Math.PI / 2) * CHAIR_DISTANCE]
+      [Math.cos(0) * CHAIR_DISTANCE, 0, Math.sin(0) * CHAIR_DISTANCE],
+      [Math.cos(Math.PI) * CHAIR_DISTANCE, 0, Math.sin(Math.PI) * CHAIR_DISTANCE]
     ];
     chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();
@@ -807,6 +810,9 @@ export default function FourInRowRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      tableInfoRef.current?.dispose?.();
+      tableInfoRef.current = null;
+      tablePartsRef.current = null;
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
@@ -983,8 +989,30 @@ export default function FourInRowRoyal() {
   useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
-    applyTableMaterials(tablePartsRef.current, finish);
+    applyTableMaterials(tablePartsRef.current, finish, rendererRef.current);
   }, [appearance.tableFinish]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer) return;
+    const current = tableInfoRef.current;
+    if (current?.group?.userData?.themeId === appearance.tableId) return;
+
+    current?.dispose?.();
+    const nextTable = createMurlanStyleTable({
+      arena: scene,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      tableThemeId: appearance.tableId
+    });
+    nextTable.group.userData.themeId = appearance.tableId;
+    tableInfoRef.current = nextTable;
+    tablePartsRef.current = nextTable.materials;
+    const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
+    applyTableMaterials(nextTable.materials, finish, renderer);
+  }, [appearance.tableId, appearance.tableFinish]);
 
   useEffect(() => {
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
@@ -1040,6 +1068,7 @@ export default function FourInRowRoyal() {
   const aiCount = board.flat().filter((x) => x === 'ai').length;
 
   const optionGroups = [
+    { key: 'tableId', label: 'Tables', options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFinish', label: 'Board Finish', options: FOUR_IN_ROW_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
