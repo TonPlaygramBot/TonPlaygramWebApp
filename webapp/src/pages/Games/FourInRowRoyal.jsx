@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
@@ -38,13 +39,13 @@ import AvatarTimer from '../../components/AvatarTimer.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRowInventory.js';
-import { applyRendererSRGB } from '../../utils/colorSpace.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.02;
+const BOARD_TABLE_CLEARANCE = 0.08;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -59,6 +60,11 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
+const CHAIR_MODEL_TARGET_HEIGHT = 1.8;
+const CHAIR_MODEL_TARGET_WIDTH = 1.35;
+const CHAIR_MODEL_TARGET_DEPTH = 1.35;
+const chairModelLoader = new GLTFLoader();
+const chairModelCache = new Map();
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -230,6 +236,87 @@ function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   return group;
 }
 
+async function resolvePolyhavenChairUrl(assetId, resolution = '1k') {
+  if (!assetId) return null;
+  const fallback = `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${assetId}/${assetId}_${resolution}.gltf`;
+  try {
+    const res = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    const exact = data?.gltf?.[resolution]?.url;
+    if (typeof exact === 'string' && exact) return exact;
+    const anyEntry = data?.gltf && typeof data.gltf === 'object' ? Object.values(data.gltf).find((entry) => entry?.url) : null;
+    return anyEntry?.url || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeChairModel(model) {
+  if (!model) return model;
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const scaleX = size.x > 0 ? CHAIR_MODEL_TARGET_WIDTH / size.x : 1;
+  const scaleY = size.y > 0 ? CHAIR_MODEL_TARGET_HEIGHT / size.y : 1;
+  const scaleZ = size.z > 0 ? CHAIR_MODEL_TARGET_DEPTH / size.z : 1;
+  model.scale.multiplyScalar(Math.min(scaleX, scaleY, scaleZ));
+
+  const nextBox = new THREE.Box3().setFromObject(model);
+  const center = nextBox.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= nextBox.min.y;
+  return model;
+}
+
+async function loadPolyhavenChairTemplate(option) {
+  const assetId = option?.assetId;
+  if (!assetId) return null;
+  if (!chairModelCache.has(assetId)) {
+    const pending = (async () => {
+      const urls = [await resolvePolyhavenChairUrl(assetId, '1k'), await resolvePolyhavenChairUrl(assetId, '2k')].filter(Boolean);
+      let gltf = null;
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          gltf = await chairModelLoader.loadAsync(url);
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (!gltf) throw lastError || new Error(`Unable to load chair ${assetId}`);
+      const model = gltf.scene || gltf.scenes?.[0];
+      if (!model) throw new Error(`Chair scene missing for ${assetId}`);
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+        materials.forEach((mat) => {
+          if (!mat) return;
+          if (mat.map) applySRGBColorSpace(mat.map);
+          if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        });
+      });
+      return normalizeChairModel(model);
+    })();
+    chairModelCache.set(assetId, pending);
+  }
+  return (await chairModelCache.get(assetId)).clone(true);
+}
+
+async function createChairForOption(option) {
+  if (option?.source === 'polyhaven' && option?.assetId) {
+    try {
+      return await loadPolyhavenChairTemplate(option);
+    } catch (error) {
+      console.warn('Failed loading Four in Row GLTF chair, using procedural fallback', error);
+    }
+  }
+  return createChair(option?.primary, option?.legColor);
+}
+
 const safeThumbnail = (value) => {
   if (!value) return '/assets/icons/four-in-row-royale.svg';
   if (value.startsWith('data:') || value.startsWith('/assets/') || value.startsWith('http')) return value;
@@ -259,6 +346,7 @@ export default function FourInRowRoyal() {
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
   const chairMeshesRef = useRef([]);
+  const chairBuildTokenRef = useRef(0);
   const boardMaterialsRef = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const keyLightRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -280,7 +368,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.22;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -456,17 +544,6 @@ export default function FourInRowRoyal() {
     tablePartsRef.current = table.parts;
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
-    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    chairMeshesRef.current = [];
-    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-      const chair = createChair(chairTheme.primary, chairTheme.legColor);
-      chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
-      chair.lookAt(0, TABLE_HEIGHT, 0);
-      chair.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor };
-      chairMeshesRef.current.push(chair);
-      scene.add(chair);
-    });
-
     const boardGroup = new THREE.Group();
 
     const selectedBoardTheme = FOUR_IN_ROW_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || FOUR_IN_ROW_BOARD_THEMES[0];
@@ -635,6 +712,27 @@ export default function FourInRowRoyal() {
     piecesGroupRef.current = pieces;
     boardGroup.add(pieces);
     scene.add(boardGroup);
+
+    const buildChairs = async (chairTheme) => {
+      const token = ++chairBuildTokenRef.current;
+      chairMeshesRef.current.forEach((chair) => chair.parent?.remove(chair));
+      chairMeshesRef.current = [];
+      const sideDistance = boardWidth * 0.44 + 1.15;
+      const chairZ = 0;
+      const chairY = 0;
+      const anchors = [-1, 1];
+      for (const side of anchors) {
+        const chair = await createChairForOption(chairTheme);
+        if (token !== chairBuildTokenRef.current || !chair) return;
+        chair.position.set(side * sideDistance, chairY, chairZ);
+        chair.lookAt(0, TABLE_HEIGHT + 0.4, 0);
+        chair.userData = { seatColor: chairTheme?.primary, legColor: chairTheme?.legColor };
+        chairMeshesRef.current.push(chair);
+        scene.add(chair);
+      }
+    };
+    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
+    void buildChairs(chairTheme);
 
     const onResize = () => {
       if (!mount) return;
@@ -887,15 +985,30 @@ export default function FourInRowRoyal() {
   }, [appearance.tableFinish]);
 
   useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    let cancelled = false;
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    chairMeshesRef.current.forEach((chair) => {
-      chair.traverse((node) => {
-        if (!node.isMesh || !node.material) return;
-        if (node.geometry?.type === 'BoxGeometry') node.material.color.set(chairTheme.primary);
-        else node.material.color.set(chairTheme.legColor);
-      });
-    });
-  }, [appearance.chairId]);
+    const token = ++chairBuildTokenRef.current;
+    const update = async () => {
+      chairMeshesRef.current.forEach((chair) => chair.parent?.remove(chair));
+      chairMeshesRef.current = [];
+      const sideDistance = boardWidth * 0.44 + 1.15;
+      for (const side of [-1, 1]) {
+        const chair = await createChairForOption(chairTheme);
+        if (cancelled || token !== chairBuildTokenRef.current || !chair) return;
+        chair.position.set(side * sideDistance, 0, 0);
+        chair.lookAt(0, TABLE_HEIGHT + 0.4, 0);
+        chair.userData = { seatColor: chairTheme?.primary, legColor: chairTheme?.legColor };
+        chairMeshesRef.current.push(chair);
+        scene.add(chair);
+      }
+    };
+    void update();
+    return () => {
+      cancelled = true;
+    };
+  }, [appearance.chairId, boardWidth]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } = boardMaterialsRef.current;
