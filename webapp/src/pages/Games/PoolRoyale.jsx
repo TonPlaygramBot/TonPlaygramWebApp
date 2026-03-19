@@ -1647,7 +1647,6 @@ const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for 
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.18; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
-const POCKET_POT_GLOW_ENABLED = false;
 const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -28150,6 +28149,70 @@ const powerRef = useRef(hud.power);
           }
           trainingOutOfAttempts = remainingTrainingShots <= 0;
         }
+        const shooterPlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+        const otherPlayer = shooterPlayer === 'B' ? 'A' : 'B';
+        const safeMetaState =
+          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        const currentMetaState =
+          currentState && typeof currentState.meta === 'object' ? currentState.meta.state : null;
+        const openingBreakInProgress =
+          Boolean(safeMetaState?.breakInProgress || currentMetaState?.breakInProgress) ||
+          (currentState?.currentBreak ?? 0) === 0;
+        if (!isTraining && openingBreakInProgress && !cueBallPotted && !safeState?.foul) {
+          const breakPotCount = potted.filter(
+            (entry) => String(entry?.id || '').toLowerCase() !== 'cue'
+          ).length;
+          const breakNextPlayer = breakPotCount > 0 ? shooterPlayer : otherPlayer;
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: breakNextPlayer,
+              ballInHand: false
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: breakNextPlayer,
+            meta: nextMeta ?? safeState.meta
+          };
+        }
+        if (!isTraining && cueBallPotted) {
+          const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: nextPlayer,
+              ballInHand: true
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: nextPlayer,
+            foul: safeState?.foul ?? { points: 0, reason: 'scratch' },
+            meta: nextMeta ?? safeState.meta
+          };
+        }
+        if (!isTraining && safeState?.foul) {
+          const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
+          const nextMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextMeta?.state && typeof nextMeta.state === 'object') {
+            nextMeta.state = {
+              ...nextMeta.state,
+              currentPlayer: foulNextPlayer,
+              ballInHand: true
+            };
+          }
+          safeState = {
+            ...safeState,
+            activePlayer: foulNextPlayer,
+            meta: nextMeta ?? safeState.meta
+          };
+        }
         if (shotRecording) {
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
@@ -28417,10 +28480,20 @@ const powerRef = useRef(hud.power);
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
             }
+            const nextMeta = safeState.meta;
             if (isTraining) {
               nextInHand = cueBallPotted;
-            } else {
-              nextInHand = deriveInHandFromFrame(safeState);
+            } else if (nextMeta && typeof nextMeta === 'object') {
+              if (
+                (nextMeta.variant === 'american' || nextMeta.variant === 'race61') &&
+                nextMeta.state
+              ) {
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
+              } else if (nextMeta.variant === '9ball' && nextMeta.state) {
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
+              } else if (nextMeta.variant === 'uk' && nextMeta.state) {
+                nextInHand = cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
+              }
             }
             if (usesCareerAttempts && trainingOutOfAttempts) {
               nextInHand = false;
@@ -30478,7 +30551,9 @@ const powerRef = useRef(hud.power);
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
-                activateForcedCornerPocketCamera(b, c);
+                if (pocketIndex < 4) {
+                  activateForcedCornerPocketCamera(b, c);
+                }
                 if (
                   activeShotView?.mode === 'pocket' &&
                   activeShotView.ballId === b.id
@@ -30620,9 +30695,7 @@ const powerRef = useRef(hud.power);
                   b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
-                const pocketGlow = POCKET_POT_GLOW_ENABLED
-                  ? createPocketGlowMesh('good')
-                  : null;
+                const pocketGlow = createPocketGlowMesh('good');
                 if (pocketGlow && table) {
                   pocketGlow.position.set(c.x, BALL_CENTER_Y - BALL_R * 0.42, c.y);
                   pocketGlow.visible = true;
@@ -30639,7 +30712,9 @@ const powerRef = useRef(hud.power);
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
-              activateForcedCornerPocketCamera(b, c);
+              if (pocketIndex < 4) {
+                activateForcedCornerPocketCamera(b, c);
+              }
               if (
                 activeShotView?.mode === 'pocket' &&
                 activeShotView.ballId === b.id
@@ -31867,7 +31942,7 @@ const powerRef = useRef(hud.power);
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
   const bottomHudVisible =
-    hud.turn != null && !hud.over && !replayActive && !hideNonEssentialHud;
+    hud.turn != null && !hud.over && !shotActive && !replayActive && !hideNonEssentialHud;
   const bottomHudScale = usePortraitHudLayout ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = usePortraitHudLayout ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
   const nameWidthClass = usePortraitHudLayout ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
@@ -33473,8 +33548,8 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={replayActive}
+          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
+          aria-hidden={pocketCameraActive || replayActive}
           style={{
             bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
             left: hudInsets.left,
