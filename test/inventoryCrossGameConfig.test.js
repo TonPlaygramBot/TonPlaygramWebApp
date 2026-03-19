@@ -1,5 +1,6 @@
 import {
   CHESS_BATTLE_DEFAULT_UNLOCKS,
+  CHESS_BATTLE_STORE_ITEMS,
   CHESS_TABLE_OPTIONS
 } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import {
@@ -11,6 +12,10 @@ import {
 } from '../webapp/src/config/ludoBattleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
+import {
+  TAVULL_BATTLE_DEFAULT_UNLOCKS,
+  TAVULL_BATTLE_STORE_ITEMS
+} from '../webapp/src/config/tavullBattleInventoryConfig.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -47,5 +52,20 @@ describe('cross-game inventory alignment', () => {
     expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme)).toEqual(
       new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id))
     );
+  });
+
+  test('tavull store keeps chess arena items for tables, chairs, cloth, and hdri', () => {
+    const toOptionSet = (items, type) =>
+      new Set(items.filter((item) => item.type === type).map((item) => item.optionId));
+    const chessTables = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'tables');
+    const chessChairs = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'chairColor');
+    const chessTableFinish = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'tableFinish');
+    const chessHdri = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'environmentHdri');
+
+    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tables')).toEqual(chessTables);
+    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'chairColor')).toEqual(chessChairs);
+    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tableFinish')).toEqual(chessTableFinish);
+    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'environmentHdri')).toEqual(chessHdri);
+    expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
   });
 });

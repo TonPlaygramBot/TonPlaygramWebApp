@@ -131,6 +131,8 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
 ];
+const BOARD_FRAME_TEXTURE_SIZE = 2048;
+const BOARD_FRAME_TEXTURE_REPEAT = [2.2, 2.2];
 const BACKGAMMON_DIE_SIZE = 0.116;
 const BACKGAMMON_DIE_CORNER_RADIUS = BACKGAMMON_DIE_SIZE * 0.18;
 const BACKGAMMON_DIE_PIP_RADIUS = BACKGAMMON_DIE_SIZE * 0.093;
@@ -662,7 +664,9 @@ export default function TavullBattleRoyal() {
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const [activeMoveHighlight, setActiveMoveHighlight] = useState(null);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const accountId = tavullBattleAccountId();
+  const accountId = tavullBattleAccountId(
+    typeof window !== 'undefined' ? window.localStorage?.getItem('accountId') : ''
+  );
   const tavullInventory = useMemo(
     () => getTavullBattleInventory(accountId),
     [accountId, inventoryVersion]
@@ -993,8 +997,8 @@ export default function TavullBattleRoyal() {
 
     const createCanvasTexture = (drawFn, repeat = [1, 1]) => {
       const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
+      canvas.width = BOARD_FRAME_TEXTURE_SIZE;
+      canvas.height = BOARD_FRAME_TEXTURE_SIZE;
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
       drawFn(ctx, canvas.width, canvas.height);
@@ -1022,7 +1026,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-    }, [2.5, 2.5]);
+    }, BOARD_FRAME_TEXTURE_REPEAT);
     const frameTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#6e3a22');
@@ -1038,7 +1042,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(x - 36, height);
         ctx.stroke();
       }
-    }, [4, 1.5]);
+    }, BOARD_FRAME_TEXTURE_REPEAT);
     const triangleTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#ffffff');
