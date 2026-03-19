@@ -15168,6 +15168,73 @@ const powerRef = useRef(hud.power);
   const pocketRestIndexRef = useRef(new Map());
   const pocketPopupRef = useRef([]);
   const pocketPopupPendingRef = useRef([]);
+  const pocketGlowResourcesRef = useRef({
+    geometry: null,
+    materials: {}
+  });
+  const ensurePocketGlowResources = useCallback(() => {
+    if (!POCKET_GLOW_ENABLED) {
+      return pocketGlowResourcesRef.current;
+    }
+    const resources = pocketGlowResourcesRef.current;
+    if (!resources.geometry) {
+      resources.geometry = new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36);
+    }
+    if (!resources.materials?.good || !resources.materials?.foul) {
+      resources.materials = {
+        good: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          transparent: true,
+          opacity: POCKET_GLOW_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }),
+        foul: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          transparent: true,
+          opacity: POCKET_GLOW_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      };
+    }
+    return resources;
+  }, []);
+  const createPocketGlowMesh = useCallback((tone = 'good') => {
+    if (!POCKET_GLOW_ENABLED) return null;
+    const resources = ensurePocketGlowResources();
+    const geometry = resources.geometry;
+    const material = resources.materials?.[tone] || resources.materials?.good;
+    if (!geometry || !material) return null;
+    const glow = new THREE.Mesh(geometry, material);
+    glow.rotation.x = -Math.PI / 2;
+    glow.renderOrder = 3;
+    glow.castShadow = false;
+    glow.receiveShadow = false;
+    return glow;
+  }, [ensurePocketGlowResources]);
+  const setPocketGlowTone = useCallback((entry, tone = 'good') => {
+    if (!entry?.glowMesh) return;
+    const resources = ensurePocketGlowResources();
+    const material = resources.materials?.[tone] || resources.materials?.good;
+    if (!material) return;
+    entry.glowMesh.material = material;
+    entry.glowTone = tone;
+  }, [ensurePocketGlowResources]);
+  const clearPocketGlow = useCallback((entry) => {
+    if (!entry?.glowMesh) return;
+    entry.glowMesh.parent?.remove?.(entry.glowMesh);
+    entry.glowMesh = null;
+  }, []);
+  const removePocketDropEntry = useCallback((ballId) => {
+    const entry = pocketDropRef.current.get(ballId);
+    if (entry) {
+      clearPocketGlow(entry);
+    }
+    pocketDropRef.current.delete(ballId);
+  }, [clearPocketGlow]);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const initialLayoutRef = useRef(null);
@@ -30873,8 +30940,11 @@ const powerRef = useRef(hud.power);
           }
         });
         pocketDropRef.current.clear();
-        pocketGlowGeometry.dispose?.();
-        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        pocketGlowResourcesRef.current.geometry?.dispose?.();
+        Object.values(pocketGlowResourcesRef.current.materials || {}).forEach((material) =>
+          material?.dispose?.()
+        );
+        pocketGlowResourcesRef.current = { geometry: null, materials: {} };
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
