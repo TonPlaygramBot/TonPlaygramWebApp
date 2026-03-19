@@ -46,7 +46,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const BOARD_TABLE_CLEARANCE = 0.2;
+const BOARD_TABLE_CLEARANCE = 0.12;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -548,9 +548,14 @@ export default function FourInRowRoyal() {
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
-    [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
+    const sideChairX = boardWidth / 2 + 1.4;
+    const chairPositions = [
+      [-sideChairX, 0, 0],
+      [sideChairX, 0, 0]
+    ];
+    chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();
-      chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
+      chair.position.set(x, y, z);
       chair.lookAt(0, TABLE_HEIGHT, 0);
       chair.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor };
       chairMeshesRef.current.push(chair);
