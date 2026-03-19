@@ -8378,34 +8378,38 @@ export function Table3D(
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  const pocketGlowGeometry = POCKET_GLOW_ENABLED
-    ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36)
-    : null;
-  const pocketGlowMaterials = POCKET_GLOW_ENABLED
-    ? {
-        good: new THREE.MeshBasicMaterial({
-          color: POCKET_GLOW_COLORS.good,
-          transparent: true,
-          opacity: POCKET_GLOW_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        }),
-        foul: new THREE.MeshBasicMaterial({
-          color: POCKET_GLOW_COLORS.foul,
-          transparent: true,
-          opacity: POCKET_GLOW_OPACITY,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        })
-      }
-    : {};
+  const pocketGlowResources = {
+    geometry: null,
+    materials: {}
+  };
+  if (POCKET_GLOW_ENABLED) {
+    pocketGlowResources.geometry = new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36);
+    pocketGlowResources.materials = {
+      good: new THREE.MeshBasicMaterial({
+        color: POCKET_GLOW_COLORS.good,
+        transparent: true,
+        opacity: POCKET_GLOW_OPACITY,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      foul: new THREE.MeshBasicMaterial({
+        color: POCKET_GLOW_COLORS.foul,
+        transparent: true,
+        opacity: POCKET_GLOW_OPACITY,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    };
+  }
   const createPocketGlowMesh = (tone = 'good') => {
-    if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
-    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    const glowGeometry = pocketGlowResources.geometry;
+    const glowMaterials = pocketGlowResources.materials;
+    if (!POCKET_GLOW_ENABLED || !glowGeometry) return null;
+    const material = glowMaterials[tone] || glowMaterials.good;
     if (!material) return null;
-    const glow = new THREE.Mesh(pocketGlowGeometry, material);
+    const glow = new THREE.Mesh(glowGeometry, material);
     glow.rotation.x = -Math.PI / 2;
     glow.renderOrder = 3;
     glow.castShadow = false;
@@ -8414,7 +8418,8 @@ export function Table3D(
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
-    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    const glowMaterials = pocketGlowResources.materials;
+    const material = glowMaterials[tone] || glowMaterials.good;
     if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
   };
@@ -30873,8 +30878,10 @@ const powerRef = useRef(hud.power);
           }
         });
         pocketDropRef.current.clear();
-        pocketGlowGeometry.dispose?.();
-        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        pocketGlowResources.geometry?.dispose?.();
+        Object.values(pocketGlowResources.materials).forEach((material) =>
+          material?.dispose?.()
+        );
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
