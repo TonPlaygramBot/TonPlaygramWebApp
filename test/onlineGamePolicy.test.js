@@ -33,7 +33,7 @@ describe('online game policy', () => {
     });
 
     expect(
-      validateSeatTableRequest({ gameType: 'poolroyale', stake: 5, maxPlayers: 4 })
+      validateSeatTableRequest({ gameType: 'tabletennisroyal', stake: 5, maxPlayers: 4 })
     ).toEqual({ ok: false, error: 'invalid_max_players' });
   });
 

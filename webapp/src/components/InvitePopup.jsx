@@ -68,6 +68,11 @@ export default function InvitePopup({
                     src: '/assets/icons/snooker-royale.svg',
                     alt: 'Snooker Royal',
                   },
+                  {
+                    id: 'tabletennisroyal',
+                    src: '/assets/icons/pool-royale.svg',
+                    alt: 'Table Tennis Royal',
+                  },
                 ].map((g) => (
                   <img
                     key={g.id}

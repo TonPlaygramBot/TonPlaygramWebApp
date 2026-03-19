@@ -75,12 +75,24 @@ import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../config/ludoBattleInventoryConfig.js';
 import {
+  TAVULL_BATTLE_DEFAULT_LOADOUT,
+  TAVULL_BATTLE_OPTION_LABELS,
+  TAVULL_BATTLE_STORE_ITEMS
+} from '../config/tavullBattleInventoryConfig.js';
+import {
   addLudoBattleUnlock,
   getLudoBattleInventory,
   isLudoOptionUnlocked,
   listOwnedLudoOptions,
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
+import {
+  addTavullBattleUnlock,
+  getTavullBattleInventory,
+  isTavullOptionUnlocked,
+  listOwnedTavullOptions,
+  tavullBattleAccountId
+} from '../utils/tavullBattleInventory.js';
 import {
   MURLAN_ROYALE_DEFAULT_LOADOUT,
   MURLAN_ROYALE_OPTION_LABELS,
@@ -171,6 +183,15 @@ const CHESS_TYPE_LABELS = {
   headStyle: 'Pawn Heads',
   environmentHdri: 'HDR Environments'
 };
+const TAVULL_TYPE_LABELS = {
+  tableFinish: 'Table Finish',
+  chairColor: 'Chairs',
+  boardFinish: 'Board Finish',
+  frameFinish: 'Board Frame',
+  triangleColor: 'Triangle Colors',
+  environmentHdri: 'HDR Environments'
+};
+
 const FOUR_IN_ROW_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
@@ -267,6 +288,8 @@ const AIR_HOCKEY_STORE_ACCOUNT_ID =
   import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const TAVULL_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_TAVULL_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const BLACKJACK_STORE_ACCOUNT_ID =
   import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
 const LUDO_STORE_ACCOUNT_ID =
@@ -471,6 +494,7 @@ const PREVIEW_BY_SLUG = {
   chessbattleroyal: 'chess-royals',
   checkersbattleroyal: 'chess-royals',
   fourinrowroyale: 'chess-royals',
+  tavullbattleroyal: 'chess-royals',
   'domino-royal': 'domino'
 };
 
@@ -728,6 +752,14 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
+  tabletennisroyal: {
+    name: 'Table Tennis Royal',
+    items: POOL_ROYALE_STORE_ITEMS,
+    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
+    labels: POOL_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   snookerroyale: {
     name: 'Snooker Royal',
     items: SNOOKER_ROYALE_STORE_ITEMS,
@@ -767,6 +799,14 @@ const storeMeta = {
     labels: FOUR_IN_ROW_BATTLE_OPTION_LABELS,
     typeLabels: FOUR_IN_ROW_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
+  },
+  tavullbattleroyal: {
+    name: 'Backgammon Royal',
+    items: TAVULL_BATTLE_STORE_ITEMS,
+    defaults: TAVULL_BATTLE_DEFAULT_LOADOUT,
+    labels: TAVULL_BATTLE_OPTION_LABELS,
+    typeLabels: TAVULL_TYPE_LABELS,
+    accountId: TAVULL_STORE_ACCOUNT_ID
   },
   ludobattleroyal: {
     name: 'Ludo Battle Royal',
@@ -832,6 +872,9 @@ export default function Store() {
   );
   const [ludoOwned, setLudoOwned] = useState(() =>
     getLudoBattleInventory(ludoBattleAccountId(accountId))
+  );
+  const [tavullOwned, setTavullOwned] = useState(() =>
+    getTavullBattleInventory(tavullBattleAccountId(accountId))
   );
   const [murlanOwned, setMurlanOwned] = useState(() =>
     getMurlanInventory(murlanAccountId(accountId))
@@ -937,6 +980,7 @@ export default function Store() {
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
+    setTavullOwned(getTavullBattleInventory(tavullBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
@@ -1039,6 +1083,11 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'poolroyale'
       })),
+      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tabletennisroyal'
+      })),
       snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1063,6 +1112,11 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'fourinrowroyale'
+      })),
+      tavullbattleroyal: TAVULL_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tavullbattleroyal'
       })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({
         ...item,
@@ -1097,6 +1151,8 @@ export default function Store() {
     () => ({
       poolroyale: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
+      tabletennisroyal: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned),
       snookerroyale: (type, optionId) =>
         isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) =>
@@ -1107,6 +1163,8 @@ export default function Store() {
         isChessOptionUnlocked(type, optionId, chessOwned),
       fourinrowroyale: (type, optionId) =>
         isFourInRowOptionUnlocked(type, optionId, fourInRowOwned),
+      tavullbattleroyal: (type, optionId) =>
+        isTavullOptionUnlocked(type, optionId, tavullOwned),
       ludobattleroyal: (type, optionId) =>
         isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) =>
@@ -1125,6 +1183,7 @@ export default function Store() {
       chessOwned,
       fourInRowOwned,
       ludoOwned,
+      tavullOwned,
       murlanOwned,
       dominoOwned,
       snakeOwned,
@@ -1135,6 +1194,8 @@ export default function Store() {
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) =>
+        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      tabletennisroyal: (item) =>
         POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snookerroyale: (item) =>
         SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -1147,6 +1208,8 @@ export default function Store() {
       fourinrowroyale: (item) =>
         FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] ||
         item.name,
+      tavullbattleroyal: (item) =>
+        TAVULL_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) =>
         LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) =>
@@ -1164,10 +1227,12 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
+      tabletennisroyal: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
+      tavullbattleroyal: TAVULL_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
@@ -1740,7 +1805,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale') {
+        if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
@@ -1782,6 +1847,14 @@ export default function Store() {
           ) {
             setChessOwned(
               addChessBattleUnlock(
+                entry.type,
+                entry.optionId,
+                resolvedAccountId
+              )
+            );
+          } else if (slug === 'tavullbattleroyal') {
+            setTavullOwned(
+              addTavullBattleUnlock(
                 entry.type,
                 entry.optionId,
                 resolvedAccountId

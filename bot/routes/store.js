@@ -19,6 +19,7 @@ export const BUNDLES = {};
 
 const STORE_INVENTORY_TARGETS = {
   poolroyale: 'pool',
+  tabletennisroyal: 'pool',
   snookerroyale: 'snooker'
 };
 
