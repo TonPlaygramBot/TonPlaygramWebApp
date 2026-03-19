@@ -42,8 +42,8 @@ const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
 const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattleRoyal.jsx'));
 const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
-const BadukBattleRoyal = React.lazy(() => import('./pages/Games/BadukBattleRoyal.jsx'));
-const BadukBattleRoyalLobby = React.lazy(() => import('./pages/Games/BadukBattleRoyalLobby.jsx'));
+const FourInRowRoyal = React.lazy(() => import('./pages/Games/FourInRowRoyal.jsx'));
+const FourInRowRoyalLobby = React.lazy(() => import('./pages/Games/FourInRowRoyalLobby.jsx'));
 const TavullBattleRoyal = React.lazy(() => import('./pages/Games/TavullBattleRoyal.jsx'));
 const TavullBattleRoyalLobby = React.lazy(() => import('./pages/Games/TavullBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
@@ -186,18 +186,18 @@ export default function App() {
             />
 
             <Route
-              path="/games/badukbattleroyal/lobby"
+              path="/games/fourinrowroyale/lobby"
               element={(
                 <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row Lobby…</div>}>
-                  <BadukBattleRoyalLobby />
+                  <FourInRowRoyalLobby />
                 </Suspense>
               )}
             />
             <Route
-              path="/games/badukbattleroyal"
+              path="/games/fourinrowroyale"
               element={(
                 <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row…</div>}>
-                  <BadukBattleRoyal />
+                  <FourInRowRoyal />
                 </Suspense>
               )}
             />

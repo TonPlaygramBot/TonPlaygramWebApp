@@ -9,17 +9,17 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
-  BADUK_CHAIR_OPTIONS,
-  BADUK_BOARD_THEMES,
-  BADUK_BOARD_FINISH_OPTIONS,
-  BADUK_BOARD_FRAME_FINISH_OPTIONS,
-  BADUK_RING_FINISH_OPTIONS,
-  BADUK_STONE_STYLES,
-  BADUK_TABLE_OPTIONS,
-  BADUK_BATTLE_DEFAULT_LOADOUT,
-  BADUK_BOARD_LAYOUTS,
-  BADUK_BATTLE_OPTION_LABELS
-} from '../../config/badukBattleInventoryConfig.js';
+  FOUR_IN_ROW_CHAIR_OPTIONS,
+  FOUR_IN_ROW_BOARD_THEMES,
+  FOUR_IN_ROW_BOARD_FINISH_OPTIONS,
+  FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS,
+  FOUR_IN_ROW_RING_FINISH_OPTIONS,
+  FOUR_IN_ROW_STONE_STYLES,
+  FOUR_IN_ROW_TABLE_OPTIONS,
+  FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
+  FOUR_IN_ROW_BOARD_LAYOUTS,
+  FOUR_IN_ROW_BATTLE_OPTION_LABELS
+} from '../../config/fourInRowInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
@@ -37,7 +37,7 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
-import { badukBattleAccountId, getBadukBattleInventory } from '../../utils/badukBattleInventory.js';
+import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRowInventory.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
@@ -235,7 +235,7 @@ const safeThumbnail = (value) => {
   return '/assets/icons/four-in-row-royale.svg';
 };
 
-export default function BadukBattleRoyal() {
+export default function FourInRowRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -268,11 +268,11 @@ export default function BadukBattleRoyal() {
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
   const username = params.get('username') || getTelegramUsername() || 'Player';
 
-  const inventory = useMemo(() => getBadukBattleInventory(badukBattleAccountId(accountId || undefined)), [accountId]);
+  const inventory = useMemo(() => getFourInRowInventory(fourInRowAccountId(accountId || undefined)), [accountId]);
   const selectedLayout = useMemo(() => {
     const requested = params.get('boardLayout');
     const owned = inventory.boardLayout || [];
-    return BADUK_BOARD_LAYOUTS.find((l) => l.id === requested && owned.includes(l.id)) || BADUK_BOARD_LAYOUTS.find((l) => owned.includes(l.id)) || BADUK_BOARD_LAYOUTS[0];
+    return FOUR_IN_ROW_BOARD_LAYOUTS.find((l) => l.id === requested && owned.includes(l.id)) || FOUR_IN_ROW_BOARD_LAYOUTS.find((l) => owned.includes(l.id)) || FOUR_IN_ROW_BOARD_LAYOUTS[0];
   }, [inventory.boardLayout, params]);
 
   const rows = selectedLayout.rows;
@@ -287,14 +287,14 @@ export default function BadukBattleRoyal() {
 
   const [appearance, setAppearance] = useState(() => ({
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
-    tableId: inventory.tables?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.tables?.[0] || BADUK_TABLE_OPTIONS[0]?.id,
-    chairId: inventory.chairColor?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || BADUK_CHAIR_OPTIONS[0]?.id,
-    boardFinish: inventory.boardFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardFinish?.[0] || BADUK_BOARD_FINISH_OPTIONS[0]?.id,
-    boardFrameFinish: inventory.boardFrameFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardFrameFinish?.[0] || BADUK_BOARD_FRAME_FINISH_OPTIONS[0]?.id,
-    ringFinish: inventory.ringFinish?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.ringFinish?.[0] || BADUK_RING_FINISH_OPTIONS[0]?.id,
-    boardTheme: inventory.boardTheme?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || BADUK_BOARD_THEMES[0]?.id,
-    stoneStyle: inventory.stoneStyle?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || BADUK_STONE_STYLES[0]?.id,
-    hdriId: inventory.environmentHdri?.[0] || BADUK_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
+    tableId: inventory.tables?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.tables?.[0] || FOUR_IN_ROW_TABLE_OPTIONS[0]?.id,
+    chairId: inventory.chairColor?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.chairColor?.[0] || FOUR_IN_ROW_CHAIR_OPTIONS[0]?.id,
+    boardFinish: inventory.boardFinish?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.boardFinish?.[0] || FOUR_IN_ROW_BOARD_FINISH_OPTIONS[0]?.id,
+    boardFrameFinish: inventory.boardFrameFinish?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.boardFrameFinish?.[0] || FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS[0]?.id,
+    ringFinish: inventory.ringFinish?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.ringFinish?.[0] || FOUR_IN_ROW_RING_FINISH_OPTIONS[0]?.id,
+    boardTheme: inventory.boardTheme?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.boardTheme?.[0] || FOUR_IN_ROW_BOARD_THEMES[0]?.id,
+    stoneStyle: inventory.stoneStyle?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] || FOUR_IN_ROW_STONE_STYLES[0]?.id,
+    hdriId: inventory.environmentHdri?.[0] || FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
     graphics: GRAPHICS_PRESETS[0].id
   }));
 
@@ -455,7 +455,7 @@ export default function BadukBattleRoyal() {
     tablePartsRef.current = table.parts;
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
-    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
       const chair = createChair(chairTheme.primary, chairTheme.legColor);
@@ -468,13 +468,13 @@ export default function BadukBattleRoyal() {
 
     const boardGroup = new THREE.Group();
 
-    const selectedBoardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
+    const selectedBoardTheme = FOUR_IN_ROW_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || FOUR_IN_ROW_BOARD_THEMES[0];
     const selectedBoardFinish =
-      BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
+      FOUR_IN_ROW_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || FOUR_IN_ROW_BOARD_FINISH_OPTIONS[0];
     const selectedBoardFrameFinish =
-      BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
+      FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS[0];
     const selectedRingFinish =
-      BADUK_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
+      FOUR_IN_ROW_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || FOUR_IN_ROW_RING_FINISH_OPTIONS[0];
 
     const boardFaceMat = new THREE.MeshStandardMaterial({ color: selectedBoardTheme?.tint || CONNECT4_PANEL, roughness: 0.74, metalness: 0.02, side: THREE.DoubleSide });
     const railMat = new THREE.MeshStandardMaterial({ color: CONNECT4_WOOD, roughness: 0.52, metalness: 0.08 });
@@ -507,7 +507,7 @@ export default function BadukBattleRoyal() {
         mapUrl: texture?.mapUrl,
         roughnessMapUrl: texture?.roughnessMapUrl,
         normalMapUrl: texture?.normalMapUrl,
-        sharedKey: `baduk-${finish?.id || 'default'}-${texturePart}`
+        sharedKey: `fourinrow-${finish?.id || 'default'}-${texturePart}`
       });
     };
     applyWoodFinish(boardFaceMat, selectedBoardFinish, 'frame', { x: 0.9, y: 0.9 });
@@ -883,7 +883,7 @@ export default function BadukBattleRoyal() {
   }, [appearance.tableFinish]);
 
   useEffect(() => {
-    const chairTheme = BADUK_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || BADUK_CHAIR_OPTIONS[0];
+    const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current.forEach((chair) => {
       chair.traverse((node) => {
         if (!node.isMesh || !node.material) return;
@@ -896,10 +896,10 @@ export default function BadukBattleRoyal() {
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } = boardMaterialsRef.current;
     if (!boardFaceMat || !railMat || !trimMat || !holeRimMat) return;
-    const boardTheme = BADUK_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || BADUK_BOARD_THEMES[0];
-    const boardFinish = BADUK_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || BADUK_BOARD_FINISH_OPTIONS[0];
-    const boardFrameFinish = BADUK_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || BADUK_BOARD_FRAME_FINISH_OPTIONS[0];
-    const ring = BADUK_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || BADUK_RING_FINISH_OPTIONS[0];
+    const boardTheme = FOUR_IN_ROW_BOARD_THEMES.find((item) => item.id === appearance.boardTheme) || FOUR_IN_ROW_BOARD_THEMES[0];
+    const boardFinish = FOUR_IN_ROW_BOARD_FINISH_OPTIONS.find((item) => item.id === appearance.boardFinish) || FOUR_IN_ROW_BOARD_FINISH_OPTIONS[0];
+    const boardFrameFinish = FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.find((item) => item.id === appearance.boardFrameFinish) || FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS[0];
+    const ring = FOUR_IN_ROW_RING_FINISH_OPTIONS.find((item) => item.id === appearance.ringFinish) || FOUR_IN_ROW_RING_FINISH_OPTIONS[0];
     boardFaceMat.color.set(boardTheme?.tint || CONNECT4_PANEL);
     holeRimMat.color.set(ring?.color || '#9a856e');
     holeRimMat.roughness = ring?.roughness ?? 0.52;
@@ -920,7 +920,7 @@ export default function BadukBattleRoyal() {
         mapUrl: texture?.mapUrl,
         roughnessMapUrl: texture?.roughnessMapUrl,
         normalMapUrl: texture?.normalMapUrl,
-        sharedKey: `baduk-${finish?.id || 'default'}-${texturePart}`
+        sharedKey: `fourinrow-${finish?.id || 'default'}-${texturePart}`
       });
     };
     applyFinish(boardFaceMat, boardFinish, 'frame', { x: 0.9, y: 0.9 });
@@ -932,14 +932,14 @@ export default function BadukBattleRoyal() {
   const aiCount = board.flat().filter((x) => x === 'ai').length;
 
   const optionGroups = [
-    { key: 'chairId', label: 'Chairs', options: BADUK_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'boardFinish', label: 'Board Finish', options: BADUK_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'boardFrameFinish', label: 'Board Frame', options: BADUK_BOARD_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'ringFinish', label: 'Ring Finish', options: BADUK_RING_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'boardFinish', label: 'Board Finish', options: FOUR_IN_ROW_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'boardFrameFinish', label: 'Board Frame', options: FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'ringFinish', label: 'Ring Finish', options: FOUR_IN_ROW_RING_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'hdriId', label: 'HDRI', options: POOL_ROYALE_HDRI_VARIANTS.map((item) => ({ id: item.id, label: item.name, thumbnail: item.thumbnail })) },
-    { key: 'boardTheme', label: 'Board', options: BADUK_BOARD_THEMES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'stoneStyle', label: 'Pieces', options: BADUK_STONE_STYLES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'boardTheme', label: 'Board', options: FOUR_IN_ROW_BOARD_THEMES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
+    { key: 'stoneStyle', label: 'Pieces', options: FOUR_IN_ROW_STONE_STYLES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'graphics', label: 'Graphics', options: GRAPHICS_PRESETS.map((item) => ({ id: item.id, label: item.label, thumbnail: '/assets/icons/four-in-row-royale.svg' })) }
   ];
 
@@ -983,7 +983,7 @@ export default function BadukBattleRoyal() {
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-[min(90vw,32rem)] max-h-[72vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">4 in a Row Customization</p>
-              <p className="mt-2 text-white/70">Layout: {BADUK_BATTLE_OPTION_LABELS.boardLayout[selectedLayout.id] || selectedLayout.label}</p>
+              <p className="mt-2 text-white/70">Layout: {FOUR_IN_ROW_BATTLE_OPTION_LABELS.boardLayout[selectedLayout.id] || selectedLayout.label}</p>
               {optionGroups.map((group) => (
                 <div key={group.key} className="mt-4">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">{group.label}</p>
@@ -1028,7 +1028,7 @@ export default function BadukBattleRoyal() {
                     key={`coin-${i}`}
                     className="absolute left-1/2 top-1/2 text-xl"
                     style={{
-                      animation: `baduk-coin-burst 900ms ease-out ${i * 35}ms forwards`,
+                      animation: `fourinrow-coin-burst 900ms ease-out ${i * 35}ms forwards`,
                       '--x': `${x}px`,
                       '--y': `${y}px`
                     }}
@@ -1047,7 +1047,7 @@ export default function BadukBattleRoyal() {
             {showWinnerActions && (
               <div className="pointer-events-auto mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button type="button" onClick={resetMatch} className="rounded-xl border border-cyan-300/70 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-100">Play Again</button>
-                <button type="button" onClick={() => navigate('/games/badukbattleroyal/lobby')} className="rounded-xl border border-white/45 bg-transparent px-4 py-2 text-sm font-semibold text-white">Return Lobby</button>
+                <button type="button" onClick={() => navigate('/games/fourinrowroyale/lobby')} className="rounded-xl border border-white/45 bg-transparent px-4 py-2 text-sm font-semibold text-white">Return Lobby</button>
               </div>
             )}
           </div>
@@ -1055,7 +1055,7 @@ export default function BadukBattleRoyal() {
       )}
 
       <style>
-        {`@keyframes baduk-coin-burst {
+        {`@keyframes fourinrow-coin-burst {
           0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
           15% { opacity: 1; }
           100% { opacity: 0; transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, -110px))) scale(1.25); }
@@ -1067,7 +1067,7 @@ export default function BadukBattleRoyal() {
 
       <QuickMessagePopup open={showChat} onClose={() => setShowChat(false)} title="Quick Chat" onSend={(text) => { const id = Date.now(); setChatBubbles((b) => [...b, { id, text, photoUrl: avatar || '/assets/icons/profile.svg' }]); setTimeout(() => setChatBubbles((b) => b.filter((x) => x.id !== id)), 3000); }} />
       {chatBubbles.map((bubble) => <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble"><span>{bubble.text}</span><img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" /></div>)}
-      <GiftPopup open={showGift} onClose={() => setShowGift(false)} players={[{ index: 0, id: badukBattleAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' }, { index: 1, id: 'ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }]} senderIndex={0} title="Send Gift" />
+      <GiftPopup open={showGift} onClose={() => setShowGift(false)} players={[{ index: 0, id: fourInRowAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' }, { index: 1, id: 'ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }]} senderIndex={0} title="Send Gift" />
     </div>
   );
 }

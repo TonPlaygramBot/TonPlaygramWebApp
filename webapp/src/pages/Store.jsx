@@ -51,10 +51,10 @@ import {
   CHESS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
-  BADUK_BATTLE_DEFAULT_LOADOUT,
-  BADUK_BATTLE_OPTION_LABELS,
-  BADUK_BATTLE_STORE_ITEMS
-} from '../config/badukBattleInventoryConfig.js';
+  FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
+  FOUR_IN_ROW_BATTLE_OPTION_LABELS,
+  FOUR_IN_ROW_BATTLE_STORE_ITEMS
+} from '../config/fourInRowInventoryConfig.js';
 import {
   addChessBattleUnlock,
   getChessBattleInventory,
@@ -63,12 +63,12 @@ import {
   listOwnedChessOptions
 } from '../utils/chessBattleInventory.js';
 import {
-  addBadukBattleUnlock,
-  getBadukBattleInventory,
-  isBadukOptionUnlocked,
-  listOwnedBadukOptions,
-  badukBattleAccountId
-} from '../utils/badukBattleInventory.js';
+  addFourInRowUnlock,
+  getFourInRowInventory,
+  isFourInRowOptionUnlocked,
+  listOwnedFourInRowOptions,
+  fourInRowAccountId
+} from '../utils/fourInRowInventory.js';
 import {
   LUDO_BATTLE_DEFAULT_LOADOUT,
   LUDO_BATTLE_OPTION_LABELS,
@@ -169,7 +169,7 @@ const CHESS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const BADUK_TYPE_LABELS = {
+const FOUR_IN_ROW_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
@@ -454,7 +454,7 @@ const PREVIEW_BY_TYPE = {
 const PREVIEW_BY_SLUG = {
   chessbattleroyal: 'chess-royals',
   checkersbattleroyal: 'chess-royals',
-  badukbattleroyal: 'chess-royals',
+  fourinrowroyale: 'chess-royals',
   tavullbattleroyal: 'chess-royals',
   'domino-royal': 'domino'
 };
@@ -722,12 +722,12 @@ const storeMeta = {
     typeLabels: CHESS_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
-  badukbattleroyal: {
+  fourinrowroyale: {
     name: '4 in a Row',
-    items: BADUK_BATTLE_STORE_ITEMS,
-    defaults: BADUK_BATTLE_DEFAULT_LOADOUT,
-    labels: BADUK_BATTLE_OPTION_LABELS,
-    typeLabels: BADUK_TYPE_LABELS,
+    items: FOUR_IN_ROW_BATTLE_STORE_ITEMS,
+    defaults: FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
+    labels: FOUR_IN_ROW_BATTLE_OPTION_LABELS,
+    typeLabels: FOUR_IN_ROW_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
   tavullbattleroyal: {
@@ -789,7 +789,7 @@ export default function Store() {
   const [snookerOwned, setSnookerOwned] = useState(() => getCachedSnookerRoyalInventory(accountId));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
-  const [badukOwned, setBadukOwned] = useState(() => getBadukBattleInventory(badukBattleAccountId(accountId)));
+  const [fourInRowOwned, setFourInRowOwned] = useState(() => getFourInRowInventory(fourInRowAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
   const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -878,7 +878,7 @@ export default function Store() {
     setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
-    setBadukOwned(getBadukBattleInventory(badukBattleAccountId(accountId)));
+    setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -959,7 +959,7 @@ export default function Store() {
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
       checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'checkersbattleroyal' })),
-      badukbattleroyal: BADUK_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'badukbattleroyal' })),
+      fourinrowroyale: FOUR_IN_ROW_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'fourinrowroyale' })),
       tavullbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tavullbattleroyal' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
@@ -978,7 +978,7 @@ export default function Store() {
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       checkersbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      badukbattleroyal: (type, optionId) => isBadukOptionUnlocked(type, optionId, badukOwned),
+      fourinrowroyale: (type, optionId) => isFourInRowOptionUnlocked(type, optionId, fourInRowOwned),
       tavullbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
@@ -986,7 +986,7 @@ export default function Store() {
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, chessOwned, badukOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [airOwned, poolOwned, snookerOwned, chessOwned, fourInRowOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
   const labelResolvers = useMemo(
@@ -997,7 +997,7 @@ export default function Store() {
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      badukbattleroyal: (item) => BADUK_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      fourinrowroyale: (item) => FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       tavullbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -1015,7 +1015,7 @@ export default function Store() {
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
-      badukbattleroyal: BADUK_TYPE_LABELS,
+      fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
       tavullbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
@@ -1560,8 +1560,8 @@ export default function Store() {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal' || slug === 'tavullbattleroyal') {
             setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'badukbattleroyal') {
-            setBadukOwned(addBadukBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+          } else if (slug === 'fourinrowroyale') {
+            setFourInRowOwned(addFourInRowUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'ludobattleroyal') {
             setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
           } else if (slug === 'murlanroyale') {

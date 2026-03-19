@@ -13,7 +13,7 @@
       .s { fill:#241105; opacity:.96; }
     </style>
   </defs>
-  <image href="/assets/game-art/baduk-battle-royal/boards/ogs-anime-board.svg" x="0" y="0" width="1024" height="1024" preserveAspectRatio="none"/>
+  <image href="/assets/game-art/four-in-row-royal/boards/ogs-anime-board.svg" x="0" y="0" width="1024" height="1024" preserveAspectRatio="none"/>
   <rect x="86" y="86" width="852" height="852" fill="url(#woodTint)"/>
   <rect x="86" y="86" width="852" height="852" fill="url(#grain)"/>
   <line x1="86.0000" y1="86" x2="86.0000" y2="938" class="g" stroke-width="3.2"/>

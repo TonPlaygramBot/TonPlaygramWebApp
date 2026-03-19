@@ -1,20 +1,20 @@
 import {
-  BADUK_BATTLE_DEFAULT_LOADOUT,
-  BADUK_BATTLE_DEFAULT_UNLOCKS,
-  BADUK_BATTLE_OPTION_LABELS
-} from '../config/badukBattleInventoryConfig.js'
+  FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
+  FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS,
+  FOUR_IN_ROW_BATTLE_OPTION_LABELS
+} from '../config/fourInRowInventoryConfig.js'
 
-const STORAGE_KEY = 'badukBattleInventoryByAccount'
+const STORAGE_KEY = 'fourInRowInventoryByAccount'
 let memoryInventories = {}
 let storageHealthy = true
 
 const copyDefaults = () =>
-  Object.entries(BADUK_BATTLE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
+  Object.entries(FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
     acc[key] = Array.isArray(values) ? [...values].filter(Boolean) : []
     return acc
   }, {})
 
-export const badukBattleAccountId = (value) => {
+export const fourInRowAccountId = (value) => {
   const normalized = `${value || 'guest'}`.trim()
   return normalized || 'guest'
 }
@@ -52,8 +52,8 @@ const normalizeInventory = (rawInventory) => {
   return merged
 }
 
-export const getBadukBattleInventory = (accountId = 'guest') => {
-  const id = badukBattleAccountId(accountId)
+export const getFourInRowInventory = (accountId = 'guest') => {
+  const id = fourInRowAccountId(accountId)
   const db = readStore()
   const resolved = normalizeInventory(db[id])
   if (typeof window !== 'undefined') {
@@ -62,17 +62,17 @@ export const getBadukBattleInventory = (accountId = 'guest') => {
   return resolved
 }
 
-export const isBadukOptionUnlocked = (type, optionId, inventoryOrAccountId) => {
+export const isFourInRowOptionUnlocked = (type, optionId, inventoryOrAccountId) => {
   if (!type || !optionId) return false
   const inventory =
     typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
-      ? getBadukBattleInventory(inventoryOrAccountId)
+      ? getFourInRowInventory(inventoryOrAccountId)
       : inventoryOrAccountId
   return Array.isArray(inventory?.[type]) && inventory[type].includes(optionId)
 }
 
-export const addBadukBattleUnlock = (type, optionId, accountId = 'guest') => {
-  const id = badukBattleAccountId(accountId)
+export const addFourInRowUnlock = (type, optionId, accountId = 'guest') => {
+  const id = fourInRowAccountId(accountId)
   const db = readStore()
   const current = normalizeInventory(db[id])
   const nextValues = new Set(current[type] || [])
@@ -80,18 +80,18 @@ export const addBadukBattleUnlock = (type, optionId, accountId = 'guest') => {
   const nextInventory = { ...current, [type]: Array.from(nextValues) }
   writeStore({ ...db, [id]: nextInventory })
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('badukBattleInventoryUpdate', { detail: { accountId: id, inventory: nextInventory } }))
+    window.dispatchEvent(new CustomEvent('fourInRowInventoryUpdate', { detail: { accountId: id, inventory: nextInventory } }))
   }
   return nextInventory
 }
 
-export const listOwnedBadukOptions = (accountId) => {
-  const inventory = getBadukBattleInventory(accountId)
+export const listOwnedFourInRowOptions = (accountId) => {
+  const inventory = getFourInRowInventory(accountId)
   return Object.entries(inventory).flatMap(([type, values]) => {
     if (!Array.isArray(values)) return []
-    const labels = BADUK_BATTLE_OPTION_LABELS[type] || {}
+    const labels = FOUR_IN_ROW_BATTLE_OPTION_LABELS[type] || {}
     return values.map((optionId) => ({ type, optionId, label: labels[optionId] || optionId }))
   })
 }
 
-export const getDefaultBadukBattleLoadout = () => ({ ...BADUK_BATTLE_DEFAULT_LOADOUT })
+export const getDefaultFourInRowLoadout = () => ({ ...FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT })
