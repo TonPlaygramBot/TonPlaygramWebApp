@@ -4,8 +4,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
@@ -61,8 +59,6 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const MODEL_CACHE = new Map();
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -234,67 +230,6 @@ function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
   return group;
 }
 
-function createConfiguredGLTFLoader() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
-  return loader;
-}
-
-function buildPolyhavenModelUrls(assetId) {
-  if (!assetId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
-  ];
-}
-
-async function loadPolyhavenModel(assetId) {
-  if (!assetId) return null;
-  if (MODEL_CACHE.has(assetId)) return MODEL_CACHE.get(assetId);
-  const promise = (async () => {
-    const loader = createConfiguredGLTFLoader();
-    let lastError = null;
-    for (const url of buildPolyhavenModelUrls(assetId)) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(url);
-        const root = gltf.scene || gltf.scenes?.[0] || null;
-        if (root) return root;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError || new Error(`Failed loading model ${assetId}`);
-  })();
-  MODEL_CACHE.set(assetId, promise);
-  promise.catch(() => MODEL_CACHE.delete(assetId));
-  return promise;
-}
-
-function prepareModel(root) {
-  root?.traverse((node) => {
-    if (!node.isMesh) return;
-    node.castShadow = true;
-    node.receiveShadow = true;
-  });
-}
-
-function fitModelToTarget(model, { targetHeight = 1, targetDiameter = 1 }) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const maxXZ = Math.max(size.x, size.z);
-  const sy = size.y > 0 ? targetHeight / size.y : 1;
-  const sxz = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-  model.scale.set(model.scale.x * sxz, model.scale.y * sy, model.scale.z * sxz);
-  const fitted = new THREE.Box3().setFromObject(model);
-  const center = fitted.getCenter(new THREE.Vector3());
-  model.position.add(new THREE.Vector3(-center.x, -fitted.min.y, -center.z));
-}
-
 const safeThumbnail = (value) => {
   if (!value) return '/assets/icons/four-in-row-royale.svg';
   if (value.startsWith('data:') || value.startsWith('/assets/') || value.startsWith('http')) return value;
@@ -323,7 +258,6 @@ export default function FourInRowRoyal() {
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null });
   const tablePartsRef = useRef(null);
-  const tableRootRef = useRef(null);
   const chairMeshesRef = useRef([]);
   const boardMaterialsRef = useRef({ boardFaceMat: null, railMat: null, trimMat: null, holeRimMat: null });
   const keyLightRef = useRef(null);
@@ -346,7 +280,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.22;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -518,12 +452,9 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
-    const tableRoot = new THREE.Group();
-    scene.add(tableRoot);
-    tableRootRef.current = tableRoot;
-    const table = createMurlanStyleTable({ arena: tableRoot, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
-    tablePartsRef.current = table.materials;
-    applyTableMaterials(table.materials, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
+    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
+    tablePartsRef.current = table.parts;
+    applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
@@ -950,74 +881,20 @@ export default function FourInRowRoyal() {
   }, [appearance.graphics]);
 
   useEffect(() => {
-    const tableRoot = tableRootRef.current;
-    const renderer = rendererRef.current;
-    if (!tableRoot || !renderer) return;
-    let cancelled = false;
-    const selectedTable = FOUR_IN_ROW_TABLE_OPTIONS.find((item) => item.id === appearance.tableId) || FOUR_IN_ROW_TABLE_OPTIONS[0];
+    if (!tablePartsRef.current) return;
     const finish = MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0];
-    const rebuild = async () => {
-      while (tableRoot.children.length) tableRoot.remove(tableRoot.children[0]);
-      if (selectedTable?.source === 'polyhaven' && selectedTable?.assetId) {
-        try {
-          const root = await loadPolyhavenModel(selectedTable.assetId);
-          if (cancelled) return;
-          const model = root.clone(true);
-          prepareModel(model);
-          fitModelToTarget(model, { targetHeight: TABLE_HEIGHT, targetDiameter: TABLE_RADIUS * 2 });
-          tableRoot.add(model);
-          tablePartsRef.current = null;
-          return;
-        } catch {
-          // fallback to procedural below
-        }
-      }
-      const procedural = createMurlanStyleTable({ arena: tableRoot, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT });
-      tablePartsRef.current = procedural.materials;
-      applyTableMaterials(procedural.materials, finish);
-    };
-    void rebuild();
-    return () => {
-      cancelled = true;
-    };
-  }, [appearance.tableId, appearance.tableFinish]);
+    applyTableMaterials(tablePartsRef.current, finish);
+  }, [appearance.tableFinish]);
 
   useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene) return;
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    let cancelled = false;
-    const applyChairs = async () => {
-      chairMeshesRef.current.forEach((chair) => scene.remove(chair));
-      chairMeshesRef.current = [];
-      const addPlacedChairs = (template) => {
-        [Math.PI / 2, -Math.PI / 2].forEach((angle) => {
-          const chair = template.clone(true);
-          chair.position.set(Math.cos(angle) * CHAIR_DISTANCE, 0, Math.sin(angle) * CHAIR_DISTANCE);
-          chair.lookAt(0, TABLE_HEIGHT, 0);
-          scene.add(chair);
-          chairMeshesRef.current.push(chair);
-        });
-      };
-      if (chairTheme?.source === 'polyhaven' && chairTheme?.assetId) {
-        try {
-          const root = await loadPolyhavenModel(chairTheme.assetId);
-          if (cancelled) return;
-          const model = root.clone(true);
-          prepareModel(model);
-          fitModelToTarget(model, { targetHeight: 1.7, targetDiameter: 1.6 });
-          addPlacedChairs(model);
-          return;
-        } catch {
-          // fallback below
-        }
-      }
-      addPlacedChairs(createChair(chairTheme.primary, chairTheme.legColor));
-    };
-    void applyChairs();
-    return () => {
-      cancelled = true;
-    };
+    chairMeshesRef.current.forEach((chair) => {
+      chair.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+        if (node.geometry?.type === 'BoxGeometry') node.material.color.set(chairTheme.primary);
+        else node.material.color.set(chairTheme.legColor);
+      });
+    });
   }, [appearance.chairId]);
 
   useEffect(() => {
@@ -1060,7 +937,6 @@ export default function FourInRowRoyal() {
 
   const optionGroups = [
     { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
-    { key: 'tableId', label: 'Table Model', options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFinish', label: 'Board Finish', options: FOUR_IN_ROW_BOARD_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'boardFrameFinish', label: 'Board Frame', options: FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
@@ -1116,13 +992,7 @@ export default function FourInRowRoyal() {
                 <div key={group.key} className="mt-4">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">{group.label}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {group.options
-                      .filter((option) => {
-                        const owned = inventory[group.key === 'chairId' ? 'chairColor' : group.key];
-                        if (!Array.isArray(owned) || !owned.length) return true;
-                        return owned.includes(option.id);
-                      })
-                      .map((option) => (
+                    {group.options.map((option) => (
                       <button
                         key={option.id}
                         type="button"
