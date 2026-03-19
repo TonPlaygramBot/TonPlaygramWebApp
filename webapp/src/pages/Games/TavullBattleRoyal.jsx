@@ -126,7 +126,7 @@ const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
 const WIN_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
-const DICE_ROLL_SOUND_URL = '/assets/sounds/dice-roll.mp3';
+const DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '73%' },
   { left: '50%', top: '18%' }
@@ -1702,7 +1702,7 @@ export default function TavullBattleRoyal() {
     setAiThinking(true);
     setSelectedPoint(null);
     sceneBundleRef.current?.animateDiceThrow?.(visibleAiDice, 1);
-    playSfx(DICE_ROLL_SOUND_URL, 0.75);
+    playSfx(DICE_ROLL_SOUND_URL, 1);
 
     const timeoutId = window.setTimeout(() => {
       if (!isMountedRef.current) return;
@@ -1742,7 +1742,7 @@ export default function TavullBattleRoyal() {
     const visibleDice = [d1, d2];
     const useDice = d1 === d2 ? [d1, d1, d1, d1] : visibleDice;
     sceneBundleRef.current?.animateDiceThrow?.(visibleDice, 0);
-    playSfx(DICE_ROLL_SOUND_URL, 0.75);
+    playSfx(DICE_ROLL_SOUND_URL, 1);
     const timeoutId = window.setTimeout(() => {
       if (!isMountedRef.current) return;
       setIsRollingDice(false);

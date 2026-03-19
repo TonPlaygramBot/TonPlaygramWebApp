@@ -1,5 +1,6 @@
-// Lightweight procedural SFX inspired by open-source Web Audio patterns (MIT-style oscillator envelopes).
 let sharedCtx = null;
+const LUDO_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
+let ludoDiceRollAudio = null;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -31,100 +32,16 @@ function scheduleTone(ctx, { startAt, duration, fromHz, toHz, volume = 0.4, type
   osc.stop(startAt + duration + 0.02);
 }
 
-function scheduleNoiseBurst(ctx, { startAt, duration, volume = 0.2, bandHz = 1800 }) {
-  const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
-  const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < sampleCount; i += 1) {
-    const t = i / sampleCount;
-    const contour = 0.45 + 0.55 * Math.sin(Math.PI * t);
-    data[i] = (Math.random() * 2 - 1) * contour;
-  }
-
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.setValueAtTime(Math.max(300, bandHz), startAt);
-  filter.Q.setValueAtTime(1.2, startAt);
-
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), startAt + Math.min(0.03, duration * 0.4));
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  source.start(startAt);
-  source.stop(startAt + duration + 0.01);
-}
-
-function scheduleRumble(ctx, { startAt, duration, volume = 0.12, fromHz = 120, toHz = 70 }) {
-  scheduleTone(ctx, {
-    startAt,
-    duration,
-    fromHz,
-    toHz,
-    volume,
-    type: 'sawtooth'
-  });
-}
-
 export function playLudoDiceRollSfx({ volume = 1, muted = false } = {}) {
   if (muted || volume <= 0) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const now = ctx.currentTime + 0.004;
-  const baseVolume = Math.min(0.58, Math.max(0.2, volume * 0.46));
-
-  // Procedural, source-code-only dice roll SFX (no binary assets), shaped from free Web Audio synthesis patterns.
-  scheduleRumble(ctx, {
-    startAt: now,
-    duration: 0.28,
-    volume: baseVolume * 0.3,
-    fromHz: 132,
-    toHz: 74
-  });
-
-  scheduleNoiseBurst(ctx, {
-    startAt: now,
-    duration: 0.24,
-    volume: baseVolume * 0.85,
-    bandHz: 1580
-  });
-
-  scheduleNoiseBurst(ctx, {
-    startAt: now + 0.085,
-    duration: 0.18,
-    volume: baseVolume * 0.52,
-    bandHz: 1120
-  });
-
-  const impacts = [0.02, 0.055, 0.09, 0.125, 0.165, 0.205, 0.235];
-  impacts.forEach((offset, index) => {
-    const decay = Math.max(0.18, 1 - index * 0.11);
-    const impactVolume = baseVolume * (0.78 + Math.random() * 0.28) * decay;
-    const impactStart = now + offset + (Math.random() - 0.5) * 0.01;
-    scheduleTone(ctx, {
-      startAt: impactStart,
-      duration: 0.038 + Math.random() * 0.026,
-      fromHz: 490 - index * 41 + Math.random() * 24,
-      toHz: 130 + Math.random() * 46,
-      volume: impactVolume,
-      type: index % 2 === 0 ? 'triangle' : 'sine'
-    });
-  });
-
-  scheduleTone(ctx, {
-    startAt: now + 0.22,
-    duration: 0.14,
-    fromHz: 180,
-    toHz: 86,
-    volume: baseVolume * 0.52,
-    type: 'triangle'
-  });
+  if (typeof Audio === 'undefined') return;
+  if (!ludoDiceRollAudio) {
+    ludoDiceRollAudio = new Audio(LUDO_DICE_ROLL_SOUND_URL);
+    ludoDiceRollAudio.preload = 'auto';
+  }
+  ludoDiceRollAudio.volume = 1;
+  ludoDiceRollAudio.currentTime = 0;
+  ludoDiceRollAudio.play().catch(() => {});
 }
 
 export function playLudoTokenStepSfx({ volume = 1, muted = false } = {}) {

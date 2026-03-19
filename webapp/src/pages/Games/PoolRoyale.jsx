@@ -5529,6 +5529,7 @@ const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
+const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
@@ -14515,6 +14516,14 @@ const powerRef = useRef(hud.power);
   }, [breakRollState]);
 
   const breakRollPending = breakRollState !== 'done';
+  const playBreakDiceRollSfx = useCallback(() => {
+    if (isGameMuted()) return;
+    try {
+      const audio = new Audio(BREAK_DICE_ROLL_SOUND_URL);
+      audio.volume = 1;
+      void audio.play().catch(() => {});
+    } catch {}
+  }, []);
   const rollBreakDie = useCallback(
     async (seat = 'ai') => {
       if (breakRollBusyRef.current || breakRollState === 'done') return;
@@ -14522,6 +14531,7 @@ const powerRef = useRef(hud.power);
       const seatLabel = seat === 'ai' ? 'AI' : 'You';
       setBreakRollMessage(`${seatLabel} rolling from behind the line...`);
       await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
+      playBreakDiceRollSfx();
       const value = await rollBreakDie3DRef.current(seat);
       setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
       await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
@@ -14558,7 +14568,7 @@ const powerRef = useRef(hud.power);
       setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
       breakRollBusyRef.current = false;
     },
-    [breakRollState]
+    [breakRollState, playBreakDiceRollSfx]
   );
 
   useEffect(() => {
