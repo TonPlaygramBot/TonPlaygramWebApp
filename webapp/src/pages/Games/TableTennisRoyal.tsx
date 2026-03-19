@@ -55,7 +55,7 @@ type Call = "" | "SERVE" | "FAULT" | "LET" | "NET" | "OUT" | "DOUBLE" | "MISS";
 
 type Score = { player: number; ai: number; server: Side; pointsPlayed: number };
 
-type Gesture = { active: boolean; x: number; y: number; lastX: number; lastY: number; vx: number; vy: number; lastT: number };
+type Gesture = { active: boolean; x: number; y: number; lastX: number; lastY: number; vx: number; vy: number; lastT: number; speed: number };
 
 type BallState = {
   p: THREE.Vector3;
@@ -72,7 +72,7 @@ type BallState = {
 const M2U = 2.6;
 const U = (m: number) => m * M2U;
 
-const TIME_SCALE = 0.62;
+const TIME_SCALE = 0.68;
 
 const TABLE = {
   // Match the Pool Royale 9ft footprint so venue placement and framing align.
@@ -103,22 +103,23 @@ const PHYS = {
   airDrag: 0.9989,
   tableRest: 0.86,
   netRest: 0.18,
-  magnus: 0.00082,
-  spinDamp: 0.995,
-  tableTangentialDamp: 0.91,
-  tableSpinTransfer: 0.00062,
-  paddleRest: 0.78,
-  paddleFriction: 0.12,
-  paddleSpinTransfer: 0.0066,
-  maxSpeed: U(9.8),
+  magnus: 0.00104,
+  spinDamp: 0.992,
+  tableTangentialDamp: 0.9,
+  tableSpinTransfer: 0.00082,
+  paddleRest: 0.83,
+  paddleFriction: 0.18,
+  paddleSpinTransfer: 0.0074,
+  paddleSwingTransfer: 0.34,
+  maxSpeed: U(10.4),
 } as const;
 
 const POWER = {
   serveSpeedBase: U(3.15),
   serveSpeedMax: U(4.1),
   serveUpMin: U(1.05),
-  hitSpeedBase: U(2.5),
-  hitSpeedMax: U(7.3),
+  hitSpeedBase: U(2.7),
+  hitSpeedMax: U(7.8),
   targetZPad: U(0.45),
   swipeXToSpin: 0.00062,
   swipeYToSpin: 0.00046,
@@ -126,16 +127,16 @@ const POWER = {
 } as const;
 
 const AI = {
-  lerp: { easy: 0.11, medium: 0.16, hard: 0.21 },
-  react: { easy: 0.14, medium: 0.24, hard: 0.34 },
-  jitter: { easy: U(0.10), medium: U(0.06), hard: U(0.04) },
-  hitChance: { easy: 0.9, medium: 0.975, hard: 0.997 },
+  lerp: { easy: 0.13, medium: 0.2, hard: 0.28 },
+  react: { easy: 0.16, medium: 0.28, hard: 0.44 },
+  jitter: { easy: U(0.08), medium: U(0.04), hard: U(0.018) },
+  hitChance: { easy: 0.93, medium: 0.985, hard: 1 },
   serveDelayMs: { easy: 900, medium: 750, hard: 620 },
-  sideBias: { easy: 0.62, medium: 0.8, hard: 0.93 },
-  aimStrength: { easy: 0.62, medium: 0.88, hard: 1 },
-  spinStrength: { easy: 0.6, medium: 0.82, hard: 1.04 },
-  hitPowerScale: { easy: 0.8, medium: 0.9, hard: 1 },
-  recoveryBias: { easy: 0.14, medium: 0.28, hard: 0.38 },
+  sideBias: { easy: 0.66, medium: 0.84, hard: 0.96 },
+  aimStrength: { easy: 0.66, medium: 0.92, hard: 1.08 },
+  spinStrength: { easy: 0.66, medium: 0.92, hard: 1.16 },
+  hitPowerScale: { easy: 0.84, medium: 0.96, hard: 1.08 },
+  recoveryBias: { easy: 0.2, medium: 0.34, hard: 0.48 },
   powerMix: {
     easy: [0.7, 0.84, 0.96],
     medium: [0.82, 0.98, 1.1],
@@ -152,7 +153,15 @@ const CAM = {
   follow: 0.07,
   yBase: TABLE.H + U(0.72),
   zBase: TABLE.L * 1.06,
+  lookDownOffset: U(0.08),
 } as const;
+
+const TOUCH = {
+  velocitySmooth: 0.45,
+  maxVelocity: 0.0042,
+  maxJumpNorm: 0.26,
+  driftDamp: 0.84,
+};
 
 const FRAME_RATE_OPTIONS = Object.freeze([
   { id: "hd50", label: "HD Performance (50 Hz)", fps: 50, pixelRatioCap: 1.35 },
@@ -461,7 +470,7 @@ function sideOfZ(z: number): Side {
 function swipeMag(g: Gesture) {
   const sx = Math.abs(g.vx) * 1000;
   const sy = Math.abs(g.vy) * 1000;
-  return Math.hypot(sx, sy);
+  return Math.max(Math.hypot(sx, sy), g.speed * 1180);
 }
 
 function serveSpeedFromSwipe(g: Gesture) {
@@ -553,7 +562,7 @@ function predictBallAtZ(ball: BallState, targetZ: number, maxSimSeconds = 1.3) {
 }
 
 function useTouch(rootRef: React.RefObject<HTMLDivElement>) {
-  const g = useRef<Gesture>({ active: false, x: 0.5, y: 0.72, lastX: 0.5, lastY: 0.72, vx: 0, vy: 0, lastT: 0 });
+  const g = useRef<Gesture>({ active: false, x: 0.5, y: 0.72, lastX: 0.5, lastY: 0.72, vx: 0, vy: 0, lastT: 0, speed: 0 });
 
   const update = useCallback(
     (clientX: number, clientY: number) => {
@@ -564,12 +573,19 @@ function useTouch(rootRef: React.RefObject<HTMLDivElement>) {
       const ny = clamp((clientY - r.top) / r.height, 0, 1);
       const t = performance.now();
       const dt = Math.max(1, t - g.current.lastT);
-      const vx = (nx - g.current.lastX) / dt;
-      const vy = (ny - g.current.lastY) / dt;
-      g.current.vx = lerp(g.current.vx, vx, 0.72);
-      g.current.vy = lerp(g.current.vy, vy, 0.72);
-      g.current.lastX = nx;
-      g.current.lastY = ny;
+      const rawDx = nx - g.current.lastX;
+      const rawDy = ny - g.current.lastY;
+      const jump = Math.hypot(rawDx, rawDy);
+      const jumpBlend = jump > TOUCH.maxJumpNorm ? TOUCH.maxJumpNorm / jump : 1;
+      const dx = rawDx * jumpBlend;
+      const dy = rawDy * jumpBlend;
+      const vx = clamp(dx / dt, -TOUCH.maxVelocity, TOUCH.maxVelocity);
+      const vy = clamp(dy / dt, -TOUCH.maxVelocity, TOUCH.maxVelocity);
+      g.current.vx = lerp(g.current.vx, vx, TOUCH.velocitySmooth);
+      g.current.vy = lerp(g.current.vy, vy, TOUCH.velocitySmooth);
+      g.current.speed = lerp(g.current.speed, Math.hypot(g.current.vx, g.current.vy), 0.42);
+      g.current.lastX = g.current.lastX + dx;
+      g.current.lastY = g.current.lastY + dy;
       g.current.lastT = t;
       g.current.x = nx;
       g.current.y = ny;
@@ -600,8 +616,9 @@ function useTouch(rootRef: React.RefObject<HTMLDivElement>) {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
     g.current.active = false;
-    g.current.vx *= 0.6;
-    g.current.vy *= 0.6;
+    g.current.vx *= TOUCH.driftDamp;
+    g.current.vy *= TOUCH.driftDamp;
+    g.current.speed *= TOUCH.driftDamp;
   }, []);
 
   return { g, onDown, onMove, onUp };
@@ -780,6 +797,30 @@ function buildTableLikeSnippet() {
   return { group: g, materials: m };
 }
 
+function makeRubberTex(baseHex: number, accentHex: number, w = 512, h = 512) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = `#${baseHex.toString(16).padStart(6, "0")}`;
+  ctx.fillRect(0, 0, w, h);
+  const accent = `#${accentHex.toString(16).padStart(6, "0")}`;
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1;
+  for (let y = 2; y < h; y += 8) {
+    for (let x = (y / 8) % 2 ? 2 : 6; x < w; x += 8) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2.4, 2.6);
+  return tex;
+}
+
 function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Material, edgeHex = 0x222222) {
   const group = new THREE.Group();
 
@@ -787,9 +828,11 @@ function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Mat
   const sh = new THREE.Shape();
   sh.absellipse(0, 0, headRadius, headRadius * 0.92, 0, Math.PI * 2, false, 0);
 
-  const headFrontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.7, metalness: 0.05 });
-  const headBackMat = new THREE.MeshStandardMaterial({ color: backHex, roughness: 0.7, metalness: 0.05 });
-  const edgeMat = new THREE.MeshStandardMaterial({ color: edgeHex, roughness: 0.8, metalness: 0.2 });
+  const frontTex = makeRubberTex(frontHex, 0x111111);
+  const backTex = makeRubberTex(backHex, 0x3a3a3a);
+  const headFrontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.88, metalness: 0.03, map: frontTex || undefined, normalScale: new THREE.Vector2(0.4, 0.4) });
+  const headBackMat = new THREE.MeshStandardMaterial({ color: backHex, roughness: 0.9, metalness: 0.02, map: backTex || undefined, normalScale: new THREE.Vector2(0.35, 0.35) });
+  const edgeMat = new THREE.MeshStandardMaterial({ color: edgeHex, roughness: 0.75, metalness: 0.25 });
 
   const headFront = new THREE.Mesh(
     new THREE.ExtrudeGeometry(sh, { depth: 0.006, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.003, curveSegments: 64, steps: 1 }),
@@ -807,8 +850,8 @@ function buildCurvedPaddle(frontHex: number, backHex: number, woodMat: THREE.Mat
 
   const HANDLE_DEPTH = 0.028;
   const s = new THREE.Shape();
-  const hw = 0.11;
-  const hh = 0.24;
+  const hw = 0.095;
+  const hh = 0.27;
   const rr = 0.06;
   s.moveTo(-hw + rr, -hh);
   s.lineTo(hw - rr, -hh);
@@ -1268,6 +1311,7 @@ export default function TableTennisRoyal() {
       scene.add(floor);
 
       const { group: table, materials } = buildTableLikeSnippet();
+      table.position.y = -U(0.065);
       scene.add(table);
 
       const playerPaddle = new THREE.Group();
@@ -1346,24 +1390,32 @@ export default function TableTennisRoyal() {
           const diff = difficultyRef.current;
 
           {
-            const px = lerp(-TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18), g.current.x);
-            const pz = lerp(U(0.12), TABLE.L / 2 - U(0.22), g.current.y);
+            const controlY = clamp((g.current.y - 0.48) / 0.52, 0, 1);
+            const px = lerp(-TABLE.W / 2 + U(0.14), TABLE.W / 2 - U(0.14), g.current.x);
+            const pz = lerp(U(0.08), TABLE.L / 2 - U(0.16), controlY);
             t.paddleP.position.x = lerp(t.paddleP.position.x, px, 0.30);
             t.paddleP.position.z = lerp(t.paddleP.position.z, pz, 0.30);
             t.paddleP.position.y = PADDLE.y;
+            const playerSwing = clamp((g.current.vy * -800) + g.current.speed * 1400, -0.32, 0.56);
+            t.paddleP.rotation.x = lerp(t.paddleP.rotation.x, THREE.MathUtils.degToRad(-6) + playerSwing * 0.16, 0.22);
+            t.paddleP.rotation.z = lerp(t.paddleP.rotation.z, clamp(g.current.vx * 22, -0.3, 0.3), 0.25);
           }
 
           {
-            const aiLaneZ = -TABLE.L / 2 + U(0.22);
-            const prediction = predictBallAtZ(b, aiLaneZ, 1.25 + AI.react[diff]);
-            const fallbackPredX = b.p.x + b.v.x * AI.react[diff];
+            const aiLaneZ = -TABLE.L / 2 + U(0.18);
+            const prediction = predictBallAtZ(b, aiLaneZ, 1.4 + AI.react[diff]);
+            const fallbackPredX = b.p.x + b.v.x * (AI.react[diff] * 0.82);
             const attackBias = clamp((Math.abs(b.p.z) / TABLE.L) * AI.recoveryBias[diff], 0, AI.recoveryBias[diff]);
-            const wantXRaw = b.p.z < 0 ? lerp(fallbackPredX, prediction.x, 0.72 + attackBias) : prediction.x * 0.2;
-            const jitter = (Math.random() * 2 - 1) * AI.jitter[diff] * (b.p.z < 0 ? 0.45 : 1);
+            const interceptionBias = clamp((Math.abs(b.v.z) / U(8.5)) * 0.28, 0, 0.28);
+            const wantXRaw = b.p.z < 0 ? lerp(fallbackPredX, prediction.x, 0.76 + attackBias + interceptionBias) : prediction.x * 0.24;
+            const jitter = (Math.random() * 2 - 1) * AI.jitter[diff] * (b.p.z < 0 ? 0.3 : 0.7);
             const ax = clamp(wantXRaw + jitter, -TABLE.W / 2 + U(0.18), TABLE.W / 2 - U(0.18));
             t.paddleA.position.x = lerp(t.paddleA.position.x, ax, AI.lerp[diff] + 0.04);
             t.paddleA.position.z = lerp(t.paddleA.position.z, aiLaneZ, AI.lerp[diff] * 0.94);
             t.paddleA.position.y = PADDLE.y;
+            const aiSwing = clamp((Math.abs(b.v.z) / U(8)) * 0.42, 0.06, 0.42);
+            t.paddleA.rotation.x = lerp(t.paddleA.rotation.x, THREE.MathUtils.degToRad(-8) + aiSwing * 0.12, 0.16);
+            t.paddleA.rotation.z = lerp(t.paddleA.rotation.z, clamp((ax - t.paddleA.position.x) * 0.3, -0.18, 0.18), 0.2);
           }
 
           {
@@ -1373,7 +1425,7 @@ export default function TableTennisRoyal() {
             t.camera.position.x = lerp(t.camera.position.x, targetX, CAM.follow);
             t.camera.position.y = lerp(t.camera.position.y, targetY, CAM.follow);
             t.camera.position.z = lerp(t.camera.position.z, targetZ, CAM.follow);
-            t.camera.lookAt(b.p.x * 0.10, TABLE.H + U(0.22) + b.p.y * 0.03, -TABLE.L * 0.06);
+            t.camera.lookAt(b.p.x * 0.10, TABLE.H + U(0.22) + b.p.y * 0.03 - CAM.lookDownOffset, -TABLE.L * 0.06);
           }
 
           if (s.phase === "ready" && s.score.server === "ai" && !b.served && performance.now() >= aiServeAt.current) {
@@ -1443,7 +1495,9 @@ export default function TableTennisRoyal() {
               b.p.y = topY + BALL.R;
               const contactVx = b.v.x;
               const contactVz = b.v.z;
-              b.v.y = -b.v.y * PHYS.tableRest;
+              const impactV = Math.abs(b.v.y);
+              const bounceRest = clamp(PHYS.tableRest - impactV * 0.0024, 0.72, 0.88);
+              b.v.y = -b.v.y * bounceRest;
               b.v.x = contactVx * PHYS.tableTangentialDamp + b.spin.y * PHYS.tableSpinTransfer;
               b.v.z = contactVz * PHYS.tableTangentialDamp - b.spin.x * PHYS.tableSpinTransfer;
               b.spin.x *= 0.985;
@@ -1514,18 +1568,20 @@ export default function TableTennisRoyal() {
               tmpDir.subVectors(tmpTarget, b.p);
               if (tmpDir.lengthSq() > 1e-9) {
                 tmpDir.normalize();
-                b.v.copy(tmpDir.multiplyScalar(speed));
+                const paddleVel = new THREE.Vector3(g.current.vx * 1400, g.current.speed * 520, g.current.vy * 980);
+                const desired = tmpDir.multiplyScalar(speed);
+                b.v.lerp(desired, 0.72);
+                b.v.addScaledVector(paddleVel, PHYS.paddleSwingTransfer);
                 b.v.z = -Math.abs(b.v.z) * PHYS.paddleRest;
-                b.v.y = Math.max(b.v.y, U(1.05));
-                b.v.x += g.current.vx * 900 * PHYS.paddleFriction;
-                b.v.z += g.current.vy * 600 * PHYS.paddleFriction;
+                b.v.y = Math.max(b.v.y, U(1.12));
+                b.v.x += g.current.vx * 1200 * PHYS.paddleFriction;
               }
 
               const edge = clamp(dx / (PADDLE.bladeW * 0.5), -1, 1);
               const edgeSpin = edge * POWER.edgeSpinK;
-              b.spin.x += (-g.current.vy * 1000) * POWER.swipeYToSpin;
-              b.spin.y += (g.current.vx * 1000) * POWER.swipeXToSpin + edgeSpin;
-              b.spin.z += (g.current.vx * 400 + g.current.vy * 240) * PHYS.paddleSpinTransfer;
+              b.spin.x += (-g.current.vy * 1100) * POWER.swipeYToSpin;
+              b.spin.y += (g.current.vx * 1100) * POWER.swipeXToSpin + edgeSpin;
+              b.spin.z += (g.current.vx * 520 + g.current.vy * 300) * PHYS.paddleSpinTransfer;
             } else {
               const lane = pickAiSideTarget(diff);
               const wide = Math.random() < AI.sideBias[diff];
@@ -1535,17 +1591,19 @@ export default function TableTennisRoyal() {
               tmpTarget.set(targetX, TABLE.H + U(0.14), targetZ);
 
               const base =
-                lerp(POWER.hitSpeedBase, POWER.hitSpeedMax * 0.78, AI.aimStrength[diff]) *
+                lerp(POWER.hitSpeedBase, POWER.hitSpeedMax * 0.82, AI.aimStrength[diff]) *
                 AI.hitPowerScale[diff] *
                 pickAiPowerFactor(diff);
               tmpDir.subVectors(tmpTarget, b.p);
               if (tmpDir.lengthSq() > 1e-9) {
                 tmpDir.normalize();
-                b.v.copy(tmpDir.multiplyScalar(base));
+                const aiPaddleVel = new THREE.Vector3((targetX - pad.position.x) * 5.6, 0.38, (targetZ - pad.position.z) * 2.6);
+                b.v.lerp(tmpDir.multiplyScalar(base), 0.78);
+                b.v.addScaledVector(aiPaddleVel, PHYS.paddleSwingTransfer * AI.aimStrength[diff]);
                 b.v.z = Math.abs(b.v.z) * PHYS.paddleRest;
-                b.v.y = Math.max(b.v.y, U(1.00));
+                b.v.y = Math.max(b.v.y, U(1.05));
                 const aiIntent = Math.sign(targetX - b.p.x || 1);
-                b.v.x += aiIntent * U(0.08) * AI.aimStrength[diff];
+                b.v.x += aiIntent * U(0.11) * AI.aimStrength[diff];
               }
 
               const edge = clamp(dx / (PADDLE.bladeW * 0.5), -1, 1);
@@ -1675,7 +1733,7 @@ export default function TableTennisRoyal() {
       <div
         ref={rootRef}
         className="w-full h-[92vh] relative select-none"
-        style={{ background: "#070b1a", touchAction: "none" }}
+        style={{ background: "#070b1a", touchAction: "none", paddingTop: "3.5vh" }}
         onPointerDown={(e) => {
           onDown(e);
           if (sim.current.phase === "ready" && sim.current.score.server === "player") serve();
