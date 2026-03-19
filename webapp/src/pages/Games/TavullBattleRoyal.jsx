@@ -122,8 +122,7 @@ const QUALITY_OPTIONS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatio: 1.5, shadows: true },
   { id: 'ultra', label: 'Ultra', pixelRatio: 2, shadows: true }
 ]);
-const MOVE_SOUND_URL =
-  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
+const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const WIN_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';

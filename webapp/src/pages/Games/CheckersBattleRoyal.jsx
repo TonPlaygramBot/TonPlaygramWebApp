@@ -203,8 +203,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 );
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
-const MOVE_SOUND_URL =
-  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
+const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
 const TOUCH_TAP_MAX_DISTANCE_PX = 40;
