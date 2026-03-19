@@ -45,7 +45,8 @@ import { giftSounds } from '../../utils/giftSounds.js';
 import {
   chessBattleAccountId,
   getChessBattleInventory,
-  isChessOptionUnlocked
+  isChessOptionUnlocked,
+  setChessBattleEquippedOption
 } from '../../utils/chessBattleInventory.js';
 
 const SIZE = 8;
@@ -794,8 +795,9 @@ function applyCheckersBoardTheme(
     mats.forEach((mat) => {
       if (!mat) return;
       if (mat?.color?.copy) mat.color.copy(targetColor);
-      if ('roughness' in mat) mat.roughness = isFrame ? 0.8 : 0.62;
-      if ('metalness' in mat) mat.metalness = isFrame ? 0.2 : 0.08;
+      if ('roughness' in mat) mat.roughness = isFrame ? 0.92 : 0.86;
+      if ('metalness' in mat) mat.metalness = isFrame ? 0.02 : 0.01;
+      if ('reflectivity' in mat) mat.reflectivity = 0;
       mat.needsUpdate = true;
     });
     node.castShadow = true;
@@ -821,14 +823,14 @@ function resolveCheckersPlayableTileSize(boardModel) {
 function createCheckerMaterial(sideColor, headPreset) {
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(sideColor),
-    roughness: headPreset?.roughness ?? 0.08,
-    metalness: headPreset?.metalness ?? 0,
-    transmission: headPreset?.transmission ?? 0.95,
-    ior: headPreset?.ior ?? 1.5,
-    thickness: headPreset?.thickness ?? 0.5,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.08,
-    specularIntensity: 0.9
+    roughness: Math.max(0.3, headPreset?.roughness ?? 0.38),
+    metalness: Math.min(0.14, headPreset?.metalness ?? 0.08),
+    transmission: 0,
+    ior: 1.45,
+    thickness: 0,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.42,
+    specularIntensity: 0.28
   });
 }
 function ensureKtx2SupportDetection(renderer = null) {
@@ -1106,10 +1108,60 @@ export default function CheckersBattleRoyal() {
     dark: []
   });
   const aiBusyRef = useRef(false);
+  const resolvedAccountId = useMemo(() => chessBattleAccountId(), []);
+  const [inventory, setInventory] = useState(() =>
+    getChessBattleInventory(resolvedAccountId)
+  );
 
-  const inv = useMemo(() => {
-    const inventory = getChessBattleInventory(chessBattleAccountId());
-    return {
+  useEffect(() => {
+    const syncInventory = (event) => {
+      const nextAccountId = event?.detail?.accountId;
+      if (nextAccountId && nextAccountId !== resolvedAccountId) return;
+      setInventory(getChessBattleInventory(resolvedAccountId));
+    };
+    window.addEventListener('chessBattleInventoryUpdate', syncInventory);
+    return () =>
+      window.removeEventListener('chessBattleInventoryUpdate', syncInventory);
+  }, [resolvedAccountId]);
+
+  const unlockedTableOptions = useMemo(
+    () =>
+      CHESS_TABLE_OPTIONS.filter((opt) =>
+        isChessOptionUnlocked('tables', opt.id, inventory)
+      ),
+    [inventory]
+  );
+  const unlockedChairOptions = useMemo(
+    () =>
+      CHESS_CHAIR_OPTIONS.filter((opt) =>
+        isChessOptionUnlocked('chairColor', opt.id, inventory)
+      ),
+    [inventory]
+  );
+  const unlockedTableFinishes = useMemo(
+    () =>
+      MURLAN_TABLE_FINISHES.filter((opt) =>
+        isChessOptionUnlocked('tableFinish', opt.id, inventory)
+      ),
+    [inventory]
+  );
+  const unlockedBoardThemes = useMemo(
+    () =>
+      CHECKERS_BOARD_THEME_OPTIONS.filter((opt) =>
+        isChessOptionUnlocked('boardTheme', opt.id, inventory)
+      ),
+    [inventory]
+  );
+  const unlockedHdriOptions = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((opt) =>
+        isChessOptionUnlocked('environmentHdri', opt.id, inventory)
+      ),
+    [inventory]
+  );
+
+  const inv = useMemo(
+    () => ({
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
@@ -1117,16 +1169,18 @@ export default function CheckersBattleRoyal() {
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
       headStyle: inventory.headStyle?.[0] || 'current'
-    };
-  }, []);
+    }),
+    [inventory]
+  );
 
   const [appearance, setAppearance] = useState(inv);
-  const unlockedPieceStyleIds = useMemo(() => {
-    const inventory = getChessBattleInventory(chessBattleAccountId());
-    return Object.keys(CHECKERS_CHIP_SET_BY_ID).filter((id) =>
-      isChessOptionUnlocked('sideColor', id, inventory)
-    );
-  }, []);
+  const unlockedPieceStyleIds = useMemo(
+    () =>
+      Object.keys(CHECKERS_CHIP_SET_BY_ID).filter((id) =>
+        isChessOptionUnlocked('sideColor', id, inventory)
+      ),
+    [inventory]
+  );
   const defaultP1PieceStyleId = unlockedPieceStyleIds[0] || 'amberGlow';
   const defaultP2PieceStyleId =
     unlockedPieceStyleIds.find((id) => id !== defaultP1PieceStyleId) ||
@@ -1205,6 +1259,67 @@ export default function CheckersBattleRoyal() {
       thickness: 0.44
     };
   }, [inv?.headStyle]);
+
+
+  useEffect(() => {
+    setAppearance((prev) => ({
+      ...prev,
+      tableId:
+        unlockedTableOptions.find((opt) => opt.id === prev.tableId)?.id ||
+        unlockedTableOptions[0]?.id ||
+        CHESS_TABLE_OPTIONS[0]?.id,
+      chairId:
+        unlockedChairOptions.find((opt) => opt.id === prev.chairId)?.id ||
+        unlockedChairOptions[0]?.id ||
+        CHESS_CHAIR_OPTIONS[0]?.id,
+      tableFinish:
+        unlockedTableFinishes.find((opt) => opt.id === prev.tableFinish)?.id ||
+        unlockedTableFinishes[0]?.id ||
+        MURLAN_TABLE_FINISHES[0]?.id,
+      boardTheme:
+        unlockedBoardThemes.find((opt) => opt.id === prev.boardTheme)?.id ||
+        unlockedBoardThemes[0]?.id ||
+        CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
+      hdriId:
+        unlockedHdriOptions.find((opt) => opt.id === prev.hdriId)?.id ||
+        unlockedHdriOptions[0]?.id ||
+        POOL_ROYALE_DEFAULT_HDRI_ID
+    }));
+  }, [
+    unlockedBoardThemes,
+    unlockedChairOptions,
+    unlockedHdriOptions,
+    unlockedTableFinishes,
+    unlockedTableOptions
+  ]);
+
+  useEffect(() => {
+    if (appearance.tableId)
+      setChessBattleEquippedOption('tables', appearance.tableId, resolvedAccountId);
+    if (appearance.chairId)
+      setChessBattleEquippedOption('chairColor', appearance.chairId, resolvedAccountId);
+    if (appearance.tableFinish)
+      setChessBattleEquippedOption(
+        'tableFinish',
+        appearance.tableFinish,
+        resolvedAccountId
+      );
+    if (appearance.boardTheme)
+      setChessBattleEquippedOption('boardTheme', appearance.boardTheme, resolvedAccountId);
+    if (appearance.hdriId)
+      setChessBattleEquippedOption(
+        'environmentHdri',
+        appearance.hdriId,
+        resolvedAccountId
+      );
+  }, [
+    appearance.boardTheme,
+    appearance.chairId,
+    appearance.hdriId,
+    appearance.tableFinish,
+    appearance.tableId,
+    resolvedAccountId
+  ]);
   const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
 
@@ -2201,7 +2316,7 @@ export default function CheckersBattleRoyal() {
                   Table Finish
                 </div>
                 <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                  {MURLAN_TABLE_FINISHES.map((opt) => (
+                  {unlockedTableFinishes.map((opt) => (
                     <button
                       key={opt.id}
                       onClick={() =>
@@ -2228,7 +2343,7 @@ export default function CheckersBattleRoyal() {
                   Tables
                 </div>
                 <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                  {CHESS_TABLE_OPTIONS.map((opt) => (
+                  {unlockedTableOptions.map((opt) => (
                     <button
                       key={opt.id}
                       onClick={() =>
@@ -2252,7 +2367,7 @@ export default function CheckersBattleRoyal() {
                   Board
                 </div>
                 <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                  {CHECKERS_BOARD_THEME_OPTIONS.map((opt) => (
+                  {unlockedBoardThemes.map((opt) => (
                     <button
                       key={opt.id}
                       onClick={() =>
@@ -2279,7 +2394,7 @@ export default function CheckersBattleRoyal() {
                   Chairs
                 </div>
                 <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                  {CHESS_CHAIR_OPTIONS.map((opt) => (
+                  {unlockedChairOptions.map((opt) => (
                     <button
                       key={opt.id}
                       onClick={() =>
@@ -2301,7 +2416,7 @@ export default function CheckersBattleRoyal() {
 
                 <div className="mb-2 text-[11px] text-white/70">HDRI</div>
                 <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-auto">
-                  {POOL_ROYALE_HDRI_VARIANTS.map((opt) => (
+                  {unlockedHdriOptions.map((opt) => (
                     <button
                       key={opt.id}
                       onClick={() =>
