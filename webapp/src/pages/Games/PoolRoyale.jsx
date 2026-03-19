@@ -138,6 +138,7 @@ function clearPocketGlowMesh(entry) {
   if (!entry?.glowMesh) return;
   entry.glowMesh.parent?.remove?.(entry.glowMesh);
   entry.glowMesh = null;
+  entry.glowTone = null;
 }
 
 function loadCareerAttemptsProgress() {
@@ -1684,12 +1685,15 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = false;
-const POCKET_GLOW_RADIUS = BALL_R * 1.32;
-const POCKET_GLOW_LIFT = BALL_R * 0.78;
-const POCKET_GLOW_OPACITY = 0.62;
+const POCKET_GLOW_ENABLED = true;
+const POCKET_GLOW_RADIUS = BALL_R * 1.46;
+const POCKET_GLOW_LIFT = BALL_R * 0.92;
+const POCKET_GLOW_OPACITY = 0.72;
+const POCKET_GLOW_RAY_OPACITY = 0.38;
+const POCKET_GLOW_SPARK_OPACITY = 0.5;
+const POCKET_GLOW_POINT_LIGHT_INTENSITY = 1.35;
 const POCKET_GLOW_COLORS = Object.freeze({
-  good: 0x2eea73,
+  good: 0x3bc7ff,
   foul: 0xff4b4b
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
@@ -2054,6 +2058,64 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'stripe'
     ]
   },
+  race61: {
+    id: 'race61',
+    label: 'American Billiards (Race to 61)',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: true,
+    objectColors: [
+      0xffc52c,
+      0x0a58ff,
+      0xd32232,
+      0x8f32d6,
+      0xff7c1f,
+      0x0faa60,
+      0x651f28,
+      0x111111,
+      0xffc52c,
+      0x0a58ff,
+      0xd32232,
+      0x8f32d6,
+      0xff7c1f,
+      0x0faa60,
+      0x651f28
+    ],
+    objectNumbers: [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    objectPatterns: [
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'solid',
+      'stripe',
+      'stripe',
+      'stripe',
+      'stripe',
+      'stripe',
+      'stripe',
+      'stripe'
+    ]
+  },
   '9ball': {
     id: '9ball',
     label: '9-Ball',
@@ -2098,6 +2160,8 @@ function normalizeBallSetKey(value) {
   const normalized = normalizeVariantKey(value);
   if (
     normalized === 'american' ||
+    normalized === 'race61' ||
+    normalized === 'americanbilliards' ||
     normalized === 'solidsstripes' ||
     normalized === 'solidsandstripes' ||
     normalized === 'solids' ||
@@ -2121,6 +2185,12 @@ function resolvePoolVariant(variantId, ballSet = null) {
     normalized === 'uk8'
   ) {
     key = 'uk';
+  } else if (
+    normalized === 'race61' ||
+    normalized === 'americanbilliards' ||
+    normalized === 'rotation61'
+  ) {
+    key = 'race61';
   }
   const base =
     POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
@@ -2142,6 +2212,9 @@ function deriveInHandFromFrame(frame) {
   const meta = frame && typeof frame === 'object' ? frame.meta : null;
   if (!meta || typeof meta !== 'object') return false;
   if (meta.variant === 'american' && meta.state) {
+    return Boolean(meta.state.ballInHand);
+  }
+  if (meta.variant === 'race61' && meta.state) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === '9ball' && meta.state) {
@@ -8386,6 +8459,25 @@ export function Table3D(
   const pocketGlowGeometry = POCKET_GLOW_ENABLED
     ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36)
     : null;
+  const pocketGlowRayGeometry = POCKET_GLOW_ENABLED
+    ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS * 1.42, 24)
+    : null;
+  const pocketGlowSparkGeometry = (() => {
+    if (!POCKET_GLOW_ENABLED) return null;
+    const sparkCount = 18;
+    const positions = new Float32Array(sparkCount * 3);
+    for (let i = 0; i < sparkCount; i += 1) {
+      const radius = POCKET_GLOW_RADIUS * (0.28 + Math.random() * 0.72);
+      const angle = Math.random() * Math.PI * 2;
+      const idx = i * 3;
+      positions[idx] = Math.cos(angle) * radius;
+      positions[idx + 1] = 0;
+      positions[idx + 2] = Math.sin(angle) * radius;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return geometry;
+  })();
   const pocketGlowMaterials = POCKET_GLOW_ENABLED
     ? {
         good: new THREE.MeshBasicMaterial({
@@ -8393,6 +8485,7 @@ export function Table3D(
           transparent: true,
           opacity: POCKET_GLOW_OPACITY,
           blending: THREE.AdditiveBlending,
+          depthTest: false,
           depthWrite: false,
           side: THREE.DoubleSide
         }),
@@ -8401,26 +8494,108 @@ export function Table3D(
           transparent: true,
           opacity: POCKET_GLOW_OPACITY,
           blending: THREE.AdditiveBlending,
+          depthTest: false,
           depthWrite: false,
           side: THREE.DoubleSide
+        })
+      }
+    : {};
+  const pocketGlowRayMaterials = POCKET_GLOW_ENABLED
+    ? {
+        good: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          transparent: true,
+          opacity: POCKET_GLOW_RAY_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }),
+        foul: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          transparent: true,
+          opacity: POCKET_GLOW_RAY_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      }
+    : {};
+  const pocketGlowSparkMaterials = POCKET_GLOW_ENABLED
+    ? {
+        good: new THREE.PointsMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          size: BALL_R * 0.24,
+          transparent: true,
+          opacity: POCKET_GLOW_SPARK_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false
+        }),
+        foul: new THREE.PointsMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          size: BALL_R * 0.24,
+          transparent: true,
+          opacity: POCKET_GLOW_SPARK_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false
         })
       }
     : {};
   const createPocketGlowMesh = (tone = 'good') => {
     if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
-    if (!material) return null;
-    const glow = new THREE.Mesh(pocketGlowGeometry, material);
-    glow.rotation.x = -Math.PI / 2;
-    glow.renderOrder = 3;
-    glow.castShadow = false;
-    glow.receiveShadow = false;
-    return glow;
+    const rayMaterial = pocketGlowRayMaterials[tone] || pocketGlowRayMaterials.good;
+    const sparkMaterial = pocketGlowSparkMaterials[tone] || pocketGlowSparkMaterials.good;
+    if (!material || !rayMaterial) return null;
+    const glowGroup = new THREE.Group();
+    const aura = new THREE.Mesh(pocketGlowGeometry, material);
+    aura.rotation.x = -Math.PI / 2;
+    aura.renderOrder = 3;
+    aura.castShadow = false;
+    aura.receiveShadow = false;
+    glowGroup.add(aura);
+    if (pocketGlowRayGeometry) {
+      const rays = new THREE.Mesh(pocketGlowRayGeometry, rayMaterial);
+      rays.rotation.x = -Math.PI / 2;
+      rays.renderOrder = 3;
+      rays.castShadow = false;
+      rays.receiveShadow = false;
+      glowGroup.add(rays);
+      glowGroup.userData.rays = rays;
+    }
+    if (pocketGlowSparkGeometry && sparkMaterial) {
+      const sparks = new THREE.Points(pocketGlowSparkGeometry, sparkMaterial);
+      sparks.rotation.x = -Math.PI / 2;
+      sparks.renderOrder = 3;
+      sparks.frustumCulled = false;
+      glowGroup.add(sparks);
+      glowGroup.userData.sparks = sparks;
+    }
+    const glowLight = new THREE.PointLight(POCKET_GLOW_COLORS[tone] ?? POCKET_GLOW_COLORS.good, 0, BALL_R * 8.5, 2);
+    glowLight.castShadow = false;
+    glowGroup.add(glowLight);
+    glowGroup.userData.aura = aura;
+    glowGroup.userData.light = glowLight;
+    glowGroup.userData.tone = tone;
+    return glowGroup;
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
     if (!entry?.glowMesh) return;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
-    if (material) entry.glowMesh.material = material;
+    const rayMaterial = pocketGlowRayMaterials[tone] || pocketGlowRayMaterials.good;
+    const sparkMaterial = pocketGlowSparkMaterials[tone] || pocketGlowSparkMaterials.good;
+    const glowColor = POCKET_GLOW_COLORS[tone] ?? POCKET_GLOW_COLORS.good;
+    const aura = entry.glowMesh.userData?.aura;
+    const rays = entry.glowMesh.userData?.rays;
+    const sparks = entry.glowMesh.userData?.sparks;
+    const light = entry.glowMesh.userData?.light;
+    if (material && aura) aura.material = material;
+    if (rayMaterial && rays) rays.material = rayMaterial;
+    if (sparkMaterial && sparks) sparks.material = sparkMaterial;
+    if (light) light.color.setHex(glowColor);
     entry.glowTone = tone;
   };
   const removePocketDropEntry = (ballId) => {
@@ -24920,7 +25095,7 @@ const powerRef = useRef(hud.power);
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
-          if (meta.variant === 'american' && meta.state) {
+          if ((meta.variant === 'american' || meta.variant === 'race61') && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
@@ -28309,7 +28484,10 @@ const powerRef = useRef(hud.power);
             if (isTraining) {
               nextInHand = cueBallPotted;
             } else if (nextMeta && typeof nextMeta === 'object') {
-              if (nextMeta.variant === 'american' && nextMeta.state) {
+              if (
+                (nextMeta.variant === 'american' || nextMeta.variant === 'race61') &&
+                nextMeta.state
+              ) {
                 nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
@@ -30517,6 +30695,14 @@ const powerRef = useRef(hud.power);
                   b.mesh.scale.set(1, 1, 1);
                   b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
                 }
+                const pocketGlow = createPocketGlowMesh('good');
+                if (pocketGlow && table) {
+                  pocketGlow.position.set(c.x, BALL_CENTER_Y - BALL_R * 0.42, c.y);
+                  pocketGlow.visible = true;
+                  table.add(pocketGlow);
+                  dropEntry.glowMesh = pocketGlow;
+                  dropEntry.glowTone = 'good';
+                }
                 pocketDropRef.current.set(b.id, dropEntry);
               } else {
                 removePocketDropEntry(b.id);
@@ -30653,6 +30839,7 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
+                clearPocketGlowMesh(entry);
                 return;
               }
               entry.velocityY =
@@ -30686,6 +30873,58 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
+              if (entry.glowMesh) {
+                const elapsedMs = Math.max(0, now - (entry.start ?? now));
+                const descentProgress = THREE.MathUtils.clamp(
+                  (fromY - entry.currentY) / fallDistance,
+                  0,
+                  1
+                );
+                const rampIn = THREE.MathUtils.clamp(elapsedMs / 120, 0, 1);
+                const preDropBoost = 1 - THREE.MathUtils.clamp(descentProgress / 0.72, 0, 1) * 0.22;
+                const fadeOut =
+                  descentProgress > 0.72
+                    ? Math.max(0, 1 - (descentProgress - 0.72) / 0.28)
+                    : 1;
+                const speedBoost = THREE.MathUtils.clamp(
+                  (entry.entrySpeed ?? 0) / (BALL_R * 9),
+                  0.8,
+                  1.2
+                );
+                const glowStrength = THREE.MathUtils.clamp(rampIn * preDropBoost * fadeOut * speedBoost, 0, 1);
+                if (glowStrength <= 0.01) {
+                  entry.glowMesh.visible = false;
+                } else {
+                  const glowY = Math.min(
+                    entry.currentY - BALL_R * 0.45,
+                    BALL_CENTER_Y - BALL_R * 0.34
+                  );
+                  entry.glowMesh.visible = true;
+                  entry.glowMesh.position.set(xDrop, glowY, zDrop);
+                  const aura = entry.glowMesh.userData?.aura;
+                  const rays = entry.glowMesh.userData?.rays;
+                  const sparks = entry.glowMesh.userData?.sparks;
+                  const light = entry.glowMesh.userData?.light;
+                  const pulse = 0.92 + Math.sin(now * 0.018 + key.length) * 0.08;
+                  if (aura) {
+                    aura.scale.setScalar((0.82 + glowStrength * 0.78) * pulse);
+                    aura.material.opacity = POCKET_GLOW_OPACITY * glowStrength;
+                  }
+                  if (rays) {
+                    rays.scale.setScalar(0.95 + glowStrength * 1.25);
+                    rays.rotation.z = now * 0.0018;
+                    rays.material.opacity = POCKET_GLOW_RAY_OPACITY * glowStrength;
+                  }
+                  if (sparks) {
+                    sparks.rotation.z = -now * 0.0026;
+                    sparks.position.y = Math.sin(now * 0.01) * BALL_R * 0.08;
+                    sparks.material.opacity = POCKET_GLOW_SPARK_OPACITY * glowStrength;
+                  }
+                  if (light) {
+                    light.intensity = POCKET_GLOW_POINT_LIGHT_INTENSITY * glowStrength;
+                  }
+                }
+              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
@@ -30900,8 +31139,18 @@ const powerRef = useRef(hud.power);
           clearPocketGlowMesh(entry);
         });
         pocketDropRef.current.clear();
-        pocketGlowGeometry.dispose?.();
-        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        if (typeof pocketGlowGeometry !== 'undefined') pocketGlowGeometry?.dispose?.();
+        if (typeof pocketGlowRayGeometry !== 'undefined') pocketGlowRayGeometry?.dispose?.();
+        if (typeof pocketGlowSparkGeometry !== 'undefined') pocketGlowSparkGeometry?.dispose?.();
+        if (typeof pocketGlowMaterials !== 'undefined') {
+          Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        }
+        if (typeof pocketGlowRayMaterials !== 'undefined') {
+          Object.values(pocketGlowRayMaterials).forEach((material) => material?.dispose?.());
+        }
+        if (typeof pocketGlowSparkMaterials !== 'undefined') {
+          Object.values(pocketGlowSparkMaterials).forEach((material) => material?.dispose?.());
+        }
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
