@@ -22,6 +22,7 @@ import { fetchTelegramInfo } from '../utils/telegram.js';
 import { applyStoreItemDelivery } from './store.js';
 import { POOL_ROYALE_STORE_ITEMS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_STORE_ITEMS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
+import { TAVULL_BATTLE_STORE_ITEMS } from '../../webapp/src/config/tavullBattleInventoryConfig.js';
 import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
 import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import {
@@ -35,13 +36,17 @@ import {
 const router = Router();
 
 const STORE_ITEMS_INDEX = new Map(
-  [...POOL_ROYALE_STORE_ITEMS, ...SNOOKER_ROYALE_STORE_ITEMS].map((item) => [
+  [
+    ...POOL_ROYALE_STORE_ITEMS,
+    ...SNOOKER_ROYALE_STORE_ITEMS,
+    ...TAVULL_BATTLE_STORE_ITEMS
+  ].map((item) => [
     `${item.type}:${item.optionId}`,
     item
   ])
 );
 
-function resolveStoreItemPreview(items = []) {
+export function resolveStoreItemPreview(items = []) {
   for (const item of items) {
     const key = `${item.type}:${item.optionId}`;
     const found = STORE_ITEMS_INDEX.get(key);
