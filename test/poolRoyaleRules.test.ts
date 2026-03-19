@@ -139,4 +139,53 @@ describe('PoolRoyaleRules', () => {
     expect(recoveryState.ballOn).toEqual(['BALL_3']);
     expect(recoveryMeta?.hud?.next).toBe('ball 3');
   });
+
+  test('8-ball keeps its own rules and allows a legal black-ball finish', () => {
+    const rules = new PoolRoyaleRules('8ball-us');
+    const initial = rules.getInitialFrame('Shooter', 'Opponent');
+    const initialMeta = initial.meta as any;
+
+    expect(initialMeta?.variant).toBe('8ball');
+    expect(initial.ballOn).toEqual(['SOLID', 'STRIPE']);
+
+    const assignSolid = rules.applyShot(
+      initial,
+      [
+        { type: 'HIT', firstContact: 1, ballId: 1 },
+        { type: 'POTTED', ball: 1, pocket: 'BL', ballId: 1 }
+      ],
+      { contactMade: true, cushionAfterContact: true }
+    );
+    const assignMeta = assignSolid.meta as any;
+    expect(assignMeta?.state?.assignments?.A).toBe('SOLID');
+    expect(assignSolid.ballOn).toEqual(['SOLID']);
+
+    const clearSolids = rules.applyShot(
+      assignSolid,
+      [
+        { type: 'HIT', firstContact: 2, ballId: 2 },
+        { type: 'POTTED', ball: 2, pocket: 'BL', ballId: 2 },
+        { type: 'POTTED', ball: 3, pocket: 'BM', ballId: 3 },
+        { type: 'POTTED', ball: 4, pocket: 'BR', ballId: 4 },
+        { type: 'POTTED', ball: 5, pocket: 'TL', ballId: 5 },
+        { type: 'POTTED', ball: 6, pocket: 'TM', ballId: 6 },
+        { type: 'POTTED', ball: 7, pocket: 'TR', ballId: 7 }
+      ],
+      { contactMade: true, cushionAfterContact: true }
+    );
+    expect(clearSolids.foul).toBeUndefined();
+    expect(clearSolids.ballOn).toEqual(['BLACK']);
+
+    const blackFinish = rules.applyShot(
+      clearSolids,
+      [
+        { type: 'HIT', firstContact: 8, ballId: 8 },
+        { type: 'POTTED', ball: 8, pocket: 'TM', ballId: 8 }
+      ],
+      { contactMade: true, cushionAfterContact: true }
+    );
+    expect(blackFinish.foul).toBeUndefined();
+    expect(blackFinish.frameOver).toBe(true);
+    expect(blackFinish.winner).toBe('A');
+  });
 });
