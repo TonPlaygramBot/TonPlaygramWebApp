@@ -49,7 +49,7 @@ describe('PoolRoyaleRules', () => {
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const initialMeta = initialFrame.meta as any;
 
-    expect(initialMeta?.variant).toBe('american');
+    expect(initialMeta?.variant).toBe('race61');
     expect(initialMeta?.breakInProgress).toBe(true);
     expect(initialMeta?.state?.ballInHand).toBe(true);
     expect(initialMeta?.state?.targetScore).toBe(61);

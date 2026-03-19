@@ -288,6 +288,7 @@ export class PoolRoyaleRules {
     if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
       this.variant = 'uk';
     } else if (
+      normalized === 'american' ||
       normalized === 'race61' ||
       normalized === 'americanbilliards' ||
       normalized === 'rotation61'
@@ -295,8 +296,15 @@ export class PoolRoyaleRules {
       this.variant = 'race61';
     } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
       this.variant = '9ball';
-    } else {
+    } else if (
+      normalized === '8ballus' ||
+      normalized === '8ballamerican' ||
+      normalized === 'american8ball' ||
+      normalized === 'bca8ball'
+    ) {
       this.variant = 'american';
+    } else {
+      this.variant = 'race61';
     }
   }
 
