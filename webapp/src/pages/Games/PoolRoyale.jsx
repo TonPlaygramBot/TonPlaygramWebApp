@@ -25408,9 +25408,7 @@ const powerRef = useRef(hud.power);
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
               strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
-              // Slider release should drive an immediate forward strike from the
-              // currently pulled cue position back to contact.
-              forwardOnly: true,
+              forwardOnly: Boolean(strokeProfile.forwardOnly),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
