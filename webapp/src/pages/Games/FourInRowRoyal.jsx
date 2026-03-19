@@ -62,7 +62,9 @@ const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.25, 1.55, 1.25);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -253,10 +255,13 @@ function fitChairModelToFootprint(model) {
     model.scale.multiplyScalar(scale);
   }
   const scaledBox = new THREE.Box3().setFromObject(model);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.x += -center.x;
-  model.position.y += -scaledBox.min.y;
-  model.position.z += -center.z;
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(
+    -scaledCenter.x,
+    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+    TARGET_CHAIR_CENTER_Z - scaledCenter.z
+  );
+  model.position.add(offset);
 }
 
 function tintChairModel(model, chairTheme) {
@@ -549,8 +554,8 @@ export default function FourInRowRoyal() {
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     const chairPositions = [
-      [Math.cos(Math.PI / 2) * CHAIR_DISTANCE, 0, Math.sin(Math.PI / 2) * CHAIR_DISTANCE],
-      [Math.cos(-Math.PI / 2) * CHAIR_DISTANCE, 0, Math.sin(-Math.PI / 2) * CHAIR_DISTANCE]
+      [-CHAIR_DISTANCE, 0, 0],
+      [CHAIR_DISTANCE, 0, 0]
     ];
     chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();

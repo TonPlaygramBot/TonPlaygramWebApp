@@ -3,6 +3,7 @@ import {
   FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS,
   FOUR_IN_ROW_BATTLE_OPTION_LABELS
 } from '../config/fourInRowInventoryConfig.js'
+import { getChessBattleInventory } from './chessBattleInventory.js'
 
 const STORAGE_KEY = 'fourInRowInventoryByAccount'
 let memoryInventories = {}
@@ -56,6 +57,11 @@ export const getFourInRowInventory = (accountId = 'guest') => {
   const id = fourInRowAccountId(accountId)
   const db = readStore()
   const resolved = normalizeInventory(db[id])
+  const chessInventory = getChessBattleInventory(id)
+  ;['chairColor', 'tables', 'tableFinish'].forEach((sharedKey) => {
+    const merged = new Set([...(resolved[sharedKey] || []), ...(chessInventory?.[sharedKey] || [])])
+    resolved[sharedKey] = Array.from(merged)
+  })
   if (typeof window !== 'undefined') {
     writeStore({ ...db, [id]: resolved })
   }
