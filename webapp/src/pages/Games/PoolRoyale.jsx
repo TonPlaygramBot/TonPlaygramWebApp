@@ -30867,7 +30867,10 @@ const powerRef = useRef(hud.power);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.forEach((entry) => {
-          clearPocketGlow(entry);
+          if (entry?.glowMesh) {
+            entry.glowMesh.parent?.remove?.(entry.glowMesh);
+            entry.glowMesh = null;
+          }
         });
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
