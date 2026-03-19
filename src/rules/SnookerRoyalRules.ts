@@ -126,6 +126,12 @@ function calculateFoulPoints(ballOn: BallColor[], involved: BallColor[]): number
   return Math.min(7, Math.max(4, ballOnValue, involvedValue));
 }
 
+function isBallState(value: unknown): value is Ball {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<Ball>;
+  return typeof candidate.id === 'string' && typeof candidate.color === 'string';
+}
+
 export class SnookerRoyalRules {
   constructor(_variant?: string | null) {}
 
@@ -160,9 +166,11 @@ export class SnookerRoyalRules {
     const colorsRemaining = Array.isArray(meta?.colorsRemaining)
       ? [...meta.colorsRemaining]
       : [...COLOR_ORDER];
-    const ballsState = Array.isArray(state.balls) && state.balls.length
-      ? state.balls.map((ball) => ({ ...ball }))
-      : buildInitialBalls();
+    const restoredBalls =
+      Array.isArray(state.balls) && state.balls.length
+        ? state.balls.filter(isBallState).map((ball) => ({ ...ball }))
+        : [];
+    const ballsState = restoredBalls.length > 0 ? restoredBalls : buildInitialBalls();
     const ballSnapshot = new Map(
       ballsState.map((ball) => [ball.id, { onTable: ball.onTable, potted: ball.potted }])
     );
@@ -459,14 +467,15 @@ export class SnookerRoyalRules {
       respotColor(nominatedFreeBall);
     }
     if (foulReason && pottedColors.length) {
-      const removed = new Set(
+      const removed = new Set<Exclude<BallColor, 'RED'>>(
         pottedColors
           .map((entry) => entry.color)
-          .filter((color) => color && color !== 'RED')
+          .filter((color): color is Exclude<BallColor, 'RED'> => color !== 'RED')
       );
       if (removed.size) {
         for (let index = colorsRemaining.length - 1; index >= 0; index -= 1) {
-          if (removed.has(colorsRemaining[index])) {
+          const color = colorsRemaining[index];
+          if (color !== 'RED' && removed.has(color)) {
             colorsRemaining.splice(index, 1);
           }
         }
