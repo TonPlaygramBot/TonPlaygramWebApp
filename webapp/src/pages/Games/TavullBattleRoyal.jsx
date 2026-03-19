@@ -30,6 +30,7 @@ import {
   TAVULL_BATTLE_BOARD_FINISH_OPTIONS,
   TAVULL_BATTLE_CHAIR_OPTIONS,
   TAVULL_BATTLE_FRAME_FINISH_OPTIONS,
+  TAVULL_BATTLE_TABLE_OPTIONS,
   TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS
 } from '../../config/tavullBattleInventoryConfig.js';
 import {
@@ -52,6 +53,7 @@ import {
 
 const TABLE_RADIUS = 2.55;
 const TABLE_HEIGHT = 1.16;
+const TABLE_TEXTURE_REPEAT = [2.4, 2.4];
 const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const BOARD_Y = TABLE_HEIGHT + 0.08;
 const BOARD_HALF_X = 1.28;
@@ -645,6 +647,7 @@ export default function TavullBattleRoyal() {
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [isRollingDice, setIsRollingDice] = useState(false);
+  const [tableThemeIdx, setTableThemeIdx] = useState(0);
   const [tableFinishIdx, setTableFinishIdx] = useState(0);
   const [chairThemeIdx, setChairThemeIdx] = useState(0);
   const [hdriIdx, setHdriIdx] = useState(0);
@@ -714,6 +717,13 @@ export default function TavullBattleRoyal() {
       ),
     [tavullInventory]
   );
+  const ownedTableThemeOptions = useMemo(
+    () =>
+      TAVULL_BATTLE_TABLE_OPTIONS.filter((option) =>
+        isTavullOptionUnlocked('tables', option.id, tavullInventory)
+      ),
+    [tavullInventory]
+  );
   const ownedBoardFinishOptions = useMemo(
     () =>
       TAVULL_BATTLE_BOARD_FINISH_OPTIONS.filter((option) =>
@@ -738,6 +748,13 @@ export default function TavullBattleRoyal() {
 
   const customizationSections = useMemo(
     () => [
+      {
+        key: 'tables',
+        label: 'Table Model',
+        options: ownedTableThemeOptions,
+        selectedIdx: tableThemeIdx,
+        setSelectedIdx: setTableThemeIdx
+      },
       {
         key: 'tableFinish',
         label: 'Table Finish',
@@ -782,6 +799,8 @@ export default function TavullBattleRoyal() {
       }
     ],
     [
+      ownedTableThemeOptions,
+      tableThemeIdx,
       ownedFinishOptions,
       tableFinishIdx,
       ownedChairOptions,
@@ -840,6 +859,11 @@ export default function TavullBattleRoyal() {
         onInventoryUpdate
       );
   }, []);
+
+  useEffect(() => {
+    if (!ownedTableThemeOptions.length) return;
+    if (!ownedTableThemeOptions[tableThemeIdx]) setTableThemeIdx(0);
+  }, [ownedTableThemeOptions, tableThemeIdx]);
 
   useEffect(() => {
     if (!ownedFinishOptions.length) return;
@@ -1022,7 +1046,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-    }, [2.5, 2.5]);
+    }, TABLE_TEXTURE_REPEAT);
     const frameTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#6e3a22');
@@ -1038,7 +1062,7 @@ export default function TavullBattleRoyal() {
         ctx.lineTo(x - 36, height);
         ctx.stroke();
       }
-    }, [4, 1.5]);
+    }, TABLE_TEXTURE_REPEAT);
     const triangleTexture = createCanvasTexture((ctx, width, height) => {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, '#ffffff');
@@ -1934,6 +1958,7 @@ export default function TavullBattleRoyal() {
                 <button
                   type="button"
                   onClick={() => {
+                    setTableThemeIdx(0);
                     setTableFinishIdx(0);
                     setChairThemeIdx(0);
                     setHdriIdx(0);
