@@ -712,9 +712,8 @@ export default function PoolRoyaleLobby() {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'uk', label: '8Ball' },
-                  { id: 'american', label: '8-Ball (BCA)' },
-                  { id: '9ball', label: '9-Ball' },
-                  { id: 'race61', label: 'Race to 61' }
+                  { id: 'american', label: 'American' },
+                  { id: '9ball', label: '9-Ball' }
                 ].map(({ id, label }) => {
                   const active = variant === id;
                   return (
