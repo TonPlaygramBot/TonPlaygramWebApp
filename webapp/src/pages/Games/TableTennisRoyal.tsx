@@ -1000,6 +1000,8 @@ export default function TableTennisRoyal() {
   const hdriHandle = useRef<{ envMap: THREE.Texture | null; bgMap: THREE.Texture | null } | null>(null);
   const commentaryLastAtRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const impactBallBufferRef = useRef<AudioBuffer | null>(null);
+  const impactBallBufferLoadingRef = useRef<Promise<AudioBuffer | null> | null>(null);
 
   const sim = useRef<{ phase: Phase; score: Score; ball: BallState; call: Call; hint: string; callCooldownUntil: number }>({
     phase: "ready",
@@ -1050,10 +1052,48 @@ export default function TableTennisRoyal() {
     return audioCtxRef.current;
   }, []);
 
-  const playImpactFx = useCallback((type: "paddle" | "table") => {
+  const ensureImpactSample = useCallback(async (ctx: AudioContext) => {
+    if (impactBallBufferRef.current) return impactBallBufferRef.current;
+    if (!impactBallBufferLoadingRef.current) {
+      impactBallBufferLoadingRef.current = fetch("/assets/sounds/freesound_community-ping-pong-ball-100140.mp3")
+        .then((resp) => (resp.ok ? resp.arrayBuffer() : null))
+        .then(async (arr) => {
+          if (!arr) return null;
+          try {
+            const decoded = await ctx.decodeAudioData(arr.slice(0));
+            impactBallBufferRef.current = decoded;
+            return decoded;
+          } catch {
+            return null;
+          }
+        })
+        .catch(() => null);
+    }
+    return impactBallBufferLoadingRef.current;
+  }, []);
+
+  const playImpactFx = useCallback((type: "paddle" | "table" | "floor", impactPower = 0.6) => {
     const ctx = getAudioCtx();
     if (!ctx) return;
     const now = ctx.currentTime;
+
+    if (type === "table" || type === "floor") {
+      void ensureImpactSample(ctx).then((sample) => {
+        if (!sample) return;
+        const src = ctx.createBufferSource();
+        src.buffer = sample;
+        const outGain = ctx.createGain();
+        const normalizedPower = clamp(impactPower, 0, 1);
+        const baseGain = type === "floor" ? 0.2 : 0.25;
+        const maxGain = type === "floor" ? 0.9 : 1.0;
+        const gainValue = lerp(baseGain, maxGain, normalizedPower);
+        const playDuration = Math.min(1, sample.duration);
+        outGain.gain.setValueAtTime(gainValue, ctx.currentTime);
+        src.connect(outGain).connect(ctx.destination);
+        src.start(ctx.currentTime, 0, playDuration);
+      });
+      return;
+    }
 
     const makeNoise = (duration: number, gain: number) => {
       const bufferSize = Math.max(128, Math.floor(ctx.sampleRate * duration));
@@ -1091,7 +1131,7 @@ export default function TableTennisRoyal() {
     osc.stop(now + duration + 0.01);
 
     makeNoise(type === "paddle" ? 0.03 : Math.max(0.012, duration * 0.55), type === "paddle" ? 0.02 : tablePreset.noiseGain);
-  }, [activeBallSoundPreset, getAudioCtx]);
+  }, [ensureImpactSample, getAudioCtx]);
 
   const showAnnouncement = useCallback((text: string) => {
     if (!text) return;
@@ -1502,7 +1542,8 @@ export default function TableTennisRoyal() {
               b.v.z = contactVz * PHYS.tableTangentialDamp - b.spin.x * PHYS.tableSpinTransfer;
               b.spin.x *= 0.985;
               b.spin.y *= 0.985;
-              playImpactFx("table");
+              const impactPower = clamp(b.v.length() / POWER.hitSpeedMax, 0, 1);
+              playImpactFx("table", impactPower);
 
               const side = sideOfZ(b.p.z);
               if (b.lastBounceSide === side) b.bouncesOnSide += 1;
@@ -1542,6 +1583,10 @@ export default function TableTennisRoyal() {
             const outXZ = Math.abs(b.p.x) > TABLE.W / 2 + U(0.30) || Math.abs(b.p.z) > TABLE.L / 2 + U(0.55);
             const floorHit = b.p.y - BALL.R <= 0;
             if (floorHit || outXZ) {
+              if (floorHit) {
+                const floorPower = clamp(Math.abs(b.v.y) / POWER.hitSpeedMax, 0, 1);
+                playImpactFx("floor", floorPower);
+              }
               const side = sideOfZ(b.p.z);
               awardPoint(side === "player" ? "ai" : "player", outXZ ? "OUT" : "MISS");
               t.raf = requestAnimationFrame(tick);
@@ -1964,7 +2009,7 @@ export default function TableTennisRoyal() {
 
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Sound FX</h3>
-                  <p className="mt-1 text-[0.68rem] text-white/60">Ball/table and paddle hits are fully procedural via WebAudio (no binary audio files added to git).</p>
+                  <p className="mt-1 text-[0.68rem] text-white/60">Ball-to-table/floor uses the Freesound ping-pong sample (first 1 second), with volume scaled by shot power; paddle taps remain procedural.</p>
                   <div className="mt-2 space-y-1 rounded-xl border border-white/15 bg-white/5 p-2">
                     {TABLE_TENNIS_BALL_SOUND_PRESETS.map((preset) => (
                       <a
