@@ -369,13 +369,35 @@ function prepareLoadedModel(model) {
     if (!obj?.isMesh) return;
     obj.castShadow = true;
     obj.receiveShadow = true;
+    if (obj.geometry?.attributes?.uv && !obj.geometry.attributes.uv2) {
+      obj.geometry.setAttribute('uv2', obj.geometry.attributes.uv);
+    }
     const materials = Array.isArray(obj.material)
       ? obj.material
       : [obj.material];
     materials.forEach((material) => {
       if (!material) return;
-      if (material.map) applySRGBColorSpace(material.map);
-      if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+      const colorMaps = [material.map, material.emissiveMap];
+      const linearMaps = [
+        material.normalMap,
+        material.roughnessMap,
+        material.metalnessMap,
+        material.aoMap,
+        material.displacementMap,
+        material.alphaMap,
+        material.bumpMap
+      ];
+
+      colorMaps.filter(Boolean).forEach((texture) => {
+        applySRGBColorSpace(texture);
+        texture.flipY = false;
+        texture.needsUpdate = true;
+      });
+      linearMaps.filter(Boolean).forEach((texture) => {
+        if ('colorSpace' in texture) texture.colorSpace = THREE.NoColorSpace;
+        texture.flipY = false;
+        texture.needsUpdate = true;
+      });
     });
   });
 }
@@ -523,8 +545,28 @@ async function loadMappedChair(renderer, theme) {
         if (/leg|base|metal|foot/.test(label)) mat.color?.lerp(legTint, 0.7);
         else mat.color?.lerp(tint, 0.55);
       }
-      if (mat.map) applySRGBColorSpace(mat.map);
-      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      if (mat.map) {
+        applySRGBColorSpace(mat.map);
+        mat.map.flipY = false;
+      }
+      if (mat.emissiveMap) {
+        applySRGBColorSpace(mat.emissiveMap);
+        mat.emissiveMap.flipY = false;
+      }
+      [
+        mat.normalMap,
+        mat.roughnessMap,
+        mat.metalnessMap,
+        mat.aoMap,
+        mat.displacementMap,
+        mat.alphaMap,
+        mat.bumpMap
+      ]
+        .filter(Boolean)
+        .forEach((texture) => {
+          if ('colorSpace' in texture) texture.colorSpace = THREE.NoColorSpace;
+          texture.flipY = false;
+        });
       mat.needsUpdate = true;
     });
   });
