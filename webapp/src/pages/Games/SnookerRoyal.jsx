@@ -91,7 +91,7 @@ import {
   normalizeSpinInput,
   smoothDamp,
   SPIN_STUN_RADIUS
-} from './poolRoyaleSpinUtils.js';
+} from './snookerRoyalSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1308,13 +1308,17 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.12; // widen the capture bowl so firm/spun shots still drop like Pool Royale
+  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // mirror Pool Royale corner-pocket capture gain for identical pocket acceptance
 const SIDE_CAPTURE_R =
   SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
-const POCKET_GUARD_RADIUS = Math.max(0, CAPTURE_R - BALL_R * 0.08); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
+const POCKET_GUARD_RADIUS =
+  CAPTURE_R - BALL_R * 0.12; // mirror Pool Royale guard inset so corner jaw collision acceptance matches
+const POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  POCKET_GUARD_RADIUS - BALL_R * 0.04
+); // keep corner jaw clearance aligned with the Pool Royale middle-pocket clearance
 const CORNER_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+  POCKET_VIS_R * 1.6 * POCKET_VISUAL_EXPANSION; // use Pool Royale depth multiplier for matching corner-pocket rebounds
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_CAPTURE_R - BALL_R * 0.12; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
@@ -1662,9 +1666,10 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 2.6;
-const TOPSPIN_MULTIPLIER = 1.5;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
+const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5019,7 +5024,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing camera tilt
+const STANDING_VIEW_PHI = 0.96; // lower the standing camera a touch so the table sits slightly lower on screen
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5035,7 +5040,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance
+const STANDING_VIEW_DISTANCE_SCALE = 0.33; // pull the standing camera slightly closer to the table for tighter portrait framing
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5387,7 +5392,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = -1; // allow full 360° spin input so every controller side stays responsive
+const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5418,10 +5423,35 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const clampSpinToVisibleHemisphere = (spinInput, _aimDir, _cueBall, _camera) => {
-  // Keep controller input 1:1 with the user's chosen strike direction on screen.
-  // Do not remap to the camera-facing hemisphere; it made some sides feel unresponsive.
-  return spinInput;
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
