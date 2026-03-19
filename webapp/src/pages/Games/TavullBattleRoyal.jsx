@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -626,6 +627,7 @@ const pointBasePosition = (index) => {
 };
 
 export default function TavullBattleRoyal() {
+  const navigate = useNavigate();
   useTelegramBackButton();
   const canvasHostRef = useRef(null);
   const sceneBundleRef = useRef(null);
@@ -659,8 +661,6 @@ export default function TavullBattleRoyal() {
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const [activeMoveHighlight, setActiveMoveHighlight] = useState(null);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const [activeCustomizationKey, setActiveCustomizationKey] =
-    useState('tableFinish');
   const accountId = tavullBattleAccountId();
   const tavullInventory = useMemo(
     () => getTavullBattleInventory(accountId),
@@ -733,95 +733,6 @@ export default function TavullBattleRoyal() {
         isTavullOptionUnlocked('triangleColor', option.id, tavullInventory)
       ),
     [tavullInventory]
-  );
-  const customizationSections = useMemo(
-    () => [
-      {
-        key: 'tableFinish',
-        label: 'Table',
-        options: ownedFinishOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'chairTheme',
-        label: 'Chairs',
-        options: ownedChairOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'boardFinish',
-        label: 'Board',
-        options: ownedBoardFinishOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'frameFinish',
-        label: 'Frame',
-        options: ownedFrameFinishOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'triangleColor',
-        label: 'Triangles',
-        options: ownedTriangleColorOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'hdri',
-        label: 'HDRI',
-        options: ownedHdriOptions.map((option, idx) => ({
-          id: option.id,
-          label: option.name,
-          thumbnail: option.thumbnail,
-          idx
-        }))
-      },
-      {
-        key: 'graphics',
-        label: 'Graphics',
-        options: QUALITY_OPTIONS.map((option, idx) => ({
-          id: option.id,
-          label: option.label,
-          thumbnail: '/assets/icons/chess-battle-royal.svg',
-          idx
-        }))
-      }
-    ],
-    [
-      ownedFinishOptions,
-      ownedChairOptions,
-      ownedBoardFinishOptions,
-      ownedFrameFinishOptions,
-      ownedTriangleColorOptions,
-      ownedHdriOptions
-    ]
-  );
-  const activeCustomizationSection = useMemo(
-    () =>
-      customizationSections.find(
-        (section) => section.key === activeCustomizationKey
-      ) || customizationSections[0],
-    [customizationSections, activeCustomizationKey]
   );
 
   useEffect(() => {
@@ -1009,72 +920,14 @@ export default function TavullBattleRoyal() {
       roughness: 0.7,
       metalness: 0.04
     });
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setCrossOrigin?.('anonymous');
-    const loadedTextures = new Set();
-    const applyTextureMap = (
-      material,
-      textureUrl,
-      { repeatX = 1, repeatY = 1, linear = false } = {}
-    ) => {
-      if (!material) return;
-      if (!textureUrl) {
-        if (material.map) {
-          material.map.dispose?.();
-          material.map = null;
-        }
-        material.needsUpdate = true;
-        return;
-      }
-      textureLoader.load(
-        textureUrl,
-        (texture) => {
-          loadedTextures.add(texture);
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(repeatX, repeatY);
-          texture.flipY = false;
-          if ('anisotropy' in texture) {
-            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-          }
-          if (linear && 'colorSpace' in texture) {
-            texture.colorSpace = THREE.NoColorSpace;
-          } else {
-            applySRGBColorSpace(texture);
-          }
-          texture.needsUpdate = true;
-          material.map = texture;
-          material.needsUpdate = true;
-        },
-        undefined,
-        () => {
-          material.map = null;
-          material.needsUpdate = true;
-        }
-      );
-    };
-    const applyFinishToMaterial = (
-      material,
-      finish,
-      fallback = '#7b4127',
-      textureConfig = {}
-    ) => {
+    const applyFinishToMaterial = (material, finish, fallback = '#7b4127') => {
       const [primary] = finish?.swatches || [];
       material.color.set(primary || fallback);
-      applyTextureMap(material, finish?.thumbnail, textureConfig);
       material.needsUpdate = true;
     };
     const applyTrianglePalette = (palette) => {
       pointDarkMaterial.color.set(palette?.dark || '#f59e0b');
       pointLightMaterial.color.set(palette?.light || '#fef3c7');
-      applyTextureMap(pointDarkMaterial, palette?.thumbnail, {
-        repeatX: 2.4,
-        repeatY: 1.2
-      });
-      applyTextureMap(pointLightMaterial, palette?.thumbnail, {
-        repeatX: 2.4,
-        repeatY: 1.2
-      });
       pointDarkMaterial.needsUpdate = true;
       pointLightMaterial.needsUpdate = true;
     };
@@ -1172,14 +1025,12 @@ export default function TavullBattleRoyal() {
     applyFinishToMaterial(
       boardSurfaceMaterial,
       ownedBoardFinishOptions[boardFinishIdx] || ownedBoardFinishOptions[0],
-      '#f0dfbf',
-      { repeatX: 2.8, repeatY: 1.3 }
+      '#f0dfbf'
     );
     applyFinishToMaterial(
       frameMaterial,
       ownedFrameFinishOptions[frameFinishIdx] || ownedFrameFinishOptions[0],
-      '#5d2e1b',
-      { repeatX: 1.6, repeatY: 1.6 }
+      '#5d2e1b'
     );
     applyTrianglePalette(
       ownedTriangleColorOptions[triangleColorIdx] ||
@@ -1326,16 +1177,14 @@ export default function TavullBattleRoyal() {
           boardSurfaceMaterial,
           TAVULL_BATTLE_BOARD_FINISH_OPTIONS[idx] ||
             TAVULL_BATTLE_BOARD_FINISH_OPTIONS[0],
-          '#f0dfbf',
-          { repeatX: 2.8, repeatY: 1.3 }
+          '#f0dfbf'
         ),
       applyFrameFinish: (idx) =>
         applyFinishToMaterial(
           frameMaterial,
           TAVULL_BATTLE_FRAME_FINISH_OPTIONS[idx] ||
             TAVULL_BATTLE_FRAME_FINISH_OPTIONS[0],
-          '#5d2e1b',
-          { repeatX: 1.6, repeatY: 1.6 }
+          '#5d2e1b'
         ),
       applyTriangleColor: (idx) =>
         applyTrianglePalette(
@@ -1358,7 +1207,6 @@ export default function TavullBattleRoyal() {
       window.removeEventListener('resize', resize);
       controls.dispose();
       renderer.dispose();
-      loadedTextures.forEach((texture) => texture.dispose?.());
       renderer.domElement.removeEventListener('pointerdown', onBoardTap);
       if (host.contains(renderer.domElement))
         host.removeChild(renderer.domElement);
@@ -1907,6 +1755,13 @@ export default function TavullBattleRoyal() {
                 onChange={(event) => setSoundEnabled(event.target.checked)}
               />
             </label>
+            <button
+              type="button"
+              onClick={() => navigate('/store/tavullbattleroyal')}
+              className="w-full rounded-lg border border-emerald-300/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100"
+            >
+              Open Store
+            </button>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1933,97 +1788,103 @@ export default function TavullBattleRoyal() {
                   Reset
                 </button>
               </div>
-              <div className="mt-3 max-h-72 space-y-3">
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                  {customizationSections.map(({ key, label }) => {
-                    const selectedSection = key === activeCustomizationSection?.key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setActiveCustomizationKey(key)}
-                        className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          selectedSection
-                            ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                            : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {activeCustomizationSection && (
-                  <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
-                      {activeCustomizationSection.label}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {activeCustomizationSection.options.map((option) => {
-                        const selected =
-                          (activeCustomizationSection.key === 'tableFinish' &&
-                            tableFinishIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'chairTheme' &&
-                            chairThemeIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'boardFinish' &&
-                            boardFinishIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'frameFinish' &&
-                            frameFinishIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'triangleColor' &&
-                            triangleColorIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'hdri' &&
-                            hdriIdx === option.idx) ||
-                          (activeCustomizationSection.key === 'graphics' &&
-                            qualityIdx === option.idx);
-                        const onSelect = () => {
-                          if (activeCustomizationSection.key === 'tableFinish')
-                            setTableFinishIdx(option.idx);
-                          if (activeCustomizationSection.key === 'chairTheme')
-                            setChairThemeIdx(option.idx);
-                          if (activeCustomizationSection.key === 'boardFinish')
-                            setBoardFinishIdx(option.idx);
-                          if (activeCustomizationSection.key === 'frameFinish')
-                            setFrameFinishIdx(option.idx);
-                          if (activeCustomizationSection.key === 'triangleColor')
-                            setTriangleColorIdx(option.idx);
-                          if (activeCustomizationSection.key === 'hdri')
-                            setHdriIdx(option.idx);
-                          if (activeCustomizationSection.key === 'graphics')
-                            setQualityIdx(option.idx);
-                        };
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={onSelect}
-                            aria-pressed={selected}
-                            className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            <span className="relative flex h-12 w-full items-center justify-center overflow-hidden rounded-lg border border-white/20 bg-white/5">
-                              {option.thumbnail ? (
-                                <img
-                                  src={option.thumbnail}
-                                  alt={`${option.label} thumbnail`}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <span className="h-full w-full bg-white/10" />
-                              )}
-                            </span>
-                            <span className="mt-1 text-center text-[0.6rem] font-semibold text-gray-100">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              <div className="mt-3 grid gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setTableFinishIdx(
+                      (v) => (v + 1) % Math.max(1, ownedFinishOptions.length)
+                    )
+                  }
+                >
+                  Table Finish:{' '}
+                  {ownedFinishOptions[tableFinishIdx]?.label ||
+                    ownedFinishOptions[0]?.label ||
+                    'Default'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setChairThemeIdx(
+                      (v) => (v + 1) % Math.max(1, ownedChairOptions.length)
+                    )
+                  }
+                >
+                  Chair Theme:{' '}
+                  {ownedChairOptions[chairThemeIdx]?.label ||
+                    ownedChairOptions[0]?.label ||
+                    'Royal'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setBoardFinishIdx(
+                      (v) =>
+                        (v + 1) % Math.max(1, ownedBoardFinishOptions.length)
+                    )
+                  }
+                >
+                  Board Finish:{' '}
+                  {ownedBoardFinishOptions[boardFinishIdx]?.label ||
+                    ownedBoardFinishOptions[0]?.label ||
+                    'Classic'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setFrameFinishIdx(
+                      (v) =>
+                        (v + 1) % Math.max(1, ownedFrameFinishOptions.length)
+                    )
+                  }
+                >
+                  Frame Finish:{' '}
+                  {ownedFrameFinishOptions[frameFinishIdx]?.label ||
+                    ownedFrameFinishOptions[0]?.label ||
+                    'Classic'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setTriangleColorIdx(
+                      (v) =>
+                        (v + 1) % Math.max(1, ownedTriangleColorOptions.length)
+                    )
+                  }
+                >
+                  Triangle Colors:{' '}
+                  {ownedTriangleColorOptions[triangleColorIdx]?.label ||
+                    ownedTriangleColorOptions[0]?.label ||
+                    'Amber Glow'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setHdriIdx(
+                      (v) => (v + 1) % Math.max(1, ownedHdriOptions.length)
+                    )
+                  }
+                >
+                  Environment:{' '}
+                  {ownedHdriOptions[hdriIdx]?.name ||
+                    ownedHdriOptions[0]?.name ||
+                    'Studio'}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-left"
+                  onClick={() =>
+                    setQualityIdx((v) => (v + 1) % QUALITY_OPTIONS.length)
+                  }
+                >
+                  Graphics: {QUALITY_OPTIONS[qualityIdx]?.label || 'Balanced'}
+                </button>
               </div>
             </div>
           </div>
