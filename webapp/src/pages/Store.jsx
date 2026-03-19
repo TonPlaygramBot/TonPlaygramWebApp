@@ -75,12 +75,24 @@ import {
   LUDO_BATTLE_STORE_ITEMS
 } from '../config/ludoBattleInventoryConfig.js';
 import {
+  TAVULL_BATTLE_DEFAULT_LOADOUT,
+  TAVULL_BATTLE_OPTION_LABELS,
+  TAVULL_BATTLE_STORE_ITEMS
+} from '../config/tavullBattleInventoryConfig.js';
+import {
   addLudoBattleUnlock,
   getLudoBattleInventory,
   isLudoOptionUnlocked,
   listOwnedLudoOptions,
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
+import {
+  addTavullBattleUnlock,
+  getTavullBattleInventory,
+  isTavullOptionUnlocked,
+  listOwnedTavullOptions,
+  tavullBattleAccountId
+} from '../utils/tavullBattleInventory.js';
 import {
   MURLAN_ROYALE_DEFAULT_LOADOUT,
   MURLAN_ROYALE_OPTION_LABELS,
@@ -131,7 +143,10 @@ import {
 } from '../utils/texasHoldemInventory.js';
 import { buyBundle, getAccountBalance } from '../utils/api.js';
 import { addTrainingAttempts } from '../utils/poolRoyaleTrainingProgress.js';
-import { getLastStorePurchaseSnapshot, recordStorePurchase } from '../utils/storeTransactions.js';
+import {
+  getLastStorePurchaseSnapshot,
+  recordStorePurchase
+} from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 
@@ -166,6 +181,14 @@ const CHESS_TYPE_LABELS = {
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
+  environmentHdri: 'HDR Environments'
+};
+const TAVULL_TYPE_LABELS = {
+  tableFinish: 'Table Finish',
+  chairColor: 'Chairs',
+  boardFinish: 'Board Finish',
+  frameFinish: 'Board Frame',
+  triangleColor: 'Triangle Colors',
   environmentHdri: 'HDR Environments'
 };
 
@@ -257,24 +280,36 @@ const TON_PRICE_MAX = 5000;
 const THUMBNAIL_SIZE = 256;
 const ZOOM_PREVIEW_SIZE = 1024;
 const POLYHAVEN_THUMBNAIL_BASE = 'https://cdn.polyhaven.com/asset_img/thumbs/';
-const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const POOL_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
-const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const BLACKJACK_STORE_ACCOUNT_ID = import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
-const LUDO_STORE_ACCOUNT_ID = import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
+const AIR_HOCKEY_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
+const CHESS_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const TAVULL_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_TAVULL_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const BLACKJACK_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
+const LUDO_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const MURLAN_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const DOMINO_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SNAKE_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const TEXAS_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
 const formatTpcAmount = (value) => Number(value || 0).toLocaleString();
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
-  if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
+  if (OPTION_SWATCH_OVERRIDES[optionId])
+    return OPTION_SWATCH_OVERRIDES[optionId];
   if (TYPE_SWATCHES[type]) return TYPE_SWATCHES[type];
   if (fallbackSwatches.length) return fallbackSwatches;
   return TYPE_SWATCHES.default;
@@ -290,7 +325,8 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 
 const normalizePolyHavenImage = (url, size) => {
-  if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE)) return url;
+  if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE))
+    return url;
   try {
     const parsed = new URL(url);
     parsed.searchParams.set('width', size);
@@ -354,12 +390,15 @@ const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
   return acc;
 }, {});
 
-const SNOOKER_CLOTH_SWATCHES = SNOOKER_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
-  if (cloth?.swatches?.length) {
-    acc[cloth.id] = cloth.swatches;
-  }
-  return acc;
-}, {});
+const SNOOKER_CLOTH_SWATCHES = SNOOKER_ROYALE_CLOTH_VARIANTS.reduce(
+  (acc, cloth) => {
+    if (cloth?.swatches?.length) {
+      acc[cloth.id] = cloth.swatches;
+    }
+    return acc;
+  },
+  {}
+);
 
 const OPTION_SWATCH_OVERRIDES = {
   ...POOL_CLOTH_SWATCHES,
@@ -477,35 +516,43 @@ const PREVIEW_LABELS = {
 const USAGE_BY_TYPE = {
   tableFinish: {
     title: 'Table finish',
-    description: 'Updates the main table finish visible in every match, replay, and lobby preview.'
+    description:
+      'Updates the main table finish visible in every match, replay, and lobby preview.'
   },
   tableBase: {
     title: 'Table base',
-    description: 'Swaps the base build under the table for all match cameras and result screens.'
+    description:
+      'Swaps the base build under the table for all match cameras and result screens.'
   },
   tableWood: {
     title: 'Table wood',
-    description: 'Replaces the wooden trim around the table for all match broadcasts.'
+    description:
+      'Replaces the wooden trim around the table for all match broadcasts.'
   },
   tableCloth: {
     title: 'Table cloth',
-    description: 'Changes the cloth color and texture players see during every rally.'
+    description:
+      'Changes the cloth color and texture players see during every rally.'
   },
   clothColor: {
     title: 'Cloth color',
-    description: 'Applies a new cloth palette to the table surface in matches and training rooms.'
+    description:
+      'Applies a new cloth palette to the table surface in matches and training rooms.'
   },
   cueStyle: {
     title: 'Cue style',
-    description: 'Replaces the cue model shown in aim view, replays, and win screens.'
+    description:
+      'Replaces the cue model shown in aim view, replays, and win screens.'
   },
   pocketLiner: {
     title: 'Pocket jaws',
-    description: 'Updates the pocket liners that are visible in close-up shots and replays.'
+    description:
+      'Updates the pocket liners that are visible in close-up shots and replays.'
   },
   chromeColor: {
     title: 'Chrome fascia',
-    description: 'Re-tints the table hardware for every broadcast camera and showroom view.'
+    description:
+      'Re-tints the table hardware for every broadcast camera and showroom view.'
   },
   railMarkerColor: {
     title: 'Rail markers',
@@ -513,67 +560,83 @@ const USAGE_BY_TYPE = {
   },
   environmentHdri: {
     title: 'HDR environment',
-    description: 'Replaces the HDR lighting setup used for showroom previews and match lighting.'
+    description:
+      'Replaces the HDR lighting setup used for showroom previews and match lighting.'
   },
   table: {
     title: 'Table finish',
-    description: 'Swaps the main table surface used in matches and lobby previews.'
+    description:
+      'Swaps the main table surface used in matches and lobby previews.'
   },
   field: {
     title: 'Rink surface',
-    description: 'Changes the rink surface and markings used in Air Hockey matches.'
+    description:
+      'Changes the rink surface and markings used in Air Hockey matches.'
   },
   cushionCloth: {
     title: 'Cushion cloth',
-    description: 'Refreshes the padded rail cloth used in gameplay and highlight reels.'
+    description:
+      'Refreshes the padded rail cloth used in gameplay and highlight reels.'
   },
   puck: {
     title: 'Puck finish',
-    description: 'Applies a new puck material in every serve, replay, and highlight view.'
+    description:
+      'Applies a new puck material in every serve, replay, and highlight view.'
   },
   mallet: {
     title: 'Mallet style',
-    description: 'Updates the striker model used by players throughout each match.'
+    description:
+      'Updates the striker model used by players throughout each match.'
   },
   rails: {
     title: 'Rails',
-    description: 'Replaces the rink rails shown in match play and top-down camera shots.'
+    description:
+      'Replaces the rink rails shown in match play and top-down camera shots.'
   },
   goals: {
     title: 'Goals',
-    description: 'Updates the goal framing and net details visible in match shots.'
+    description:
+      'Updates the goal framing and net details visible in match shots.'
   },
   tables: {
     title: 'Table model',
-    description: 'Swaps the full table model used in Chess, Ludo, and Snake arenas.'
+    description:
+      'Swaps the full table model used in Chess, Ludo, and Snake arenas.'
   },
   chairColor: {
     title: 'Chair finish',
-    description: 'Changes the seating upholstery shown in lobby previews and matches.'
+    description:
+      'Changes the seating upholstery shown in lobby previews and matches.'
   },
   stools: {
     title: 'Stools & chairs',
-    description: 'Updates the chair styling around the arena table and podium views.'
+    description:
+      'Updates the chair styling around the arena table and podium views.'
   },
   sideColor: {
     title: 'Piece colors',
-    description: 'Applies a new palette to player pieces in live matches and replays.'
+    description:
+      'Applies a new palette to player pieces in live matches and replays.'
   },
   boardTheme: {
     title: 'Board theme',
-    description: 'Replaces the board texture and accents used in board-based matches.'
+    description:
+      'Replaces the board texture and accents used in board-based matches.'
   },
   boardFinish: {
     title: 'Board finish',
-    description: 'Applies octagon-table finish textures to the 4 in a Row board faces.'
+    description:
+      'Applies octagon-table finish textures to the 4 in a Row board faces.'
   },
   boardFrameFinish: {
     title: 'Board frame',
-    description: 'Updates the 4 in a Row board frame and stand with octagon-table textures.'
+    description:
+      'Updates the 4 in a Row board frame and stand with octagon-table textures.'
   },
   ringFinish: {
     title: 'Ring finish',
-    description: 'Changes the slot ring material (chrome, gold, aluminium, or plastic variants).'
+    description:
+      'Changes the slot ring material (chrome, gold, aluminium, or plastic variants).'
   },
   headStyle: {
     title: 'Pawn heads',
@@ -581,7 +644,8 @@ const USAGE_BY_TYPE = {
   },
   tokenPalette: {
     title: 'Token palette',
-    description: 'Changes the palette for your Ludo tokens across matches and highlights.'
+    description:
+      'Changes the palette for your Ludo tokens across matches and highlights.'
   },
   tokenStyle: {
     title: 'Token style',
@@ -589,23 +653,28 @@ const USAGE_BY_TYPE = {
   },
   tokenPiece: {
     title: 'Token piece',
-    description: 'Replaces the token model shown on the board and victory screens.'
+    description:
+      'Replaces the token model shown on the board and victory screens.'
   },
   outfit: {
     title: 'Outfit',
-    description: 'Applies a new outfit skin to your Murlan avatar across match scenes.'
+    description:
+      'Applies a new outfit skin to your Murlan avatar across match scenes.'
   },
   cards: {
     title: 'Card theme',
-    description: 'Updates the card backs and suits shown during every deal and replay.'
+    description:
+      'Updates the card backs and suits shown during every deal and replay.'
   },
   tableTheme: {
     title: 'Table model',
-    description: 'Swaps the full table model used in Domino or Texas Hold’em arenas.'
+    description:
+      'Swaps the full table model used in Domino or Texas Hold’em arenas.'
   },
   dominoStyle: {
     title: 'Domino style',
-    description: 'Applies a new domino material finish for match play and replays.'
+    description:
+      'Applies a new domino material finish for match play and replays.'
   },
   highlightStyle: {
     title: 'Highlights',
@@ -621,7 +690,8 @@ const USAGE_BY_TYPE = {
   },
   boardPalette: {
     title: 'Board palette',
-    description: 'Updates the Snake board palette used in match and lobby views.'
+    description:
+      'Updates the Snake board palette used in match and lobby views.'
   },
   snakeSkin: {
     title: 'Snake skin',
@@ -732,11 +802,11 @@ const storeMeta = {
   },
   tavullbattleroyal: {
     name: 'Backgammon Royal',
-    items: CHESS_BATTLE_STORE_ITEMS,
-    defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
-    labels: CHESS_BATTLE_OPTION_LABELS,
-    typeLabels: CHESS_TYPE_LABELS,
-    accountId: CHESS_STORE_ACCOUNT_ID
+    items: TAVULL_BATTLE_STORE_ITEMS,
+    defaults: TAVULL_BATTLE_DEFAULT_LOADOUT,
+    labels: TAVULL_BATTLE_OPTION_LABELS,
+    typeLabels: TAVULL_TYPE_LABELS,
+    accountId: TAVULL_STORE_ACCOUNT_ID
   },
   ludobattleroyal: {
     name: 'Ludo Battle Royal',
@@ -785,16 +855,39 @@ export default function Store() {
   const navigate = useNavigate();
   const { gameSlug } = useParams();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
-  const [poolOwned, setPoolOwned] = useState(() => getCachedPoolRoyalInventory(accountId));
-  const [snookerOwned, setSnookerOwned] = useState(() => getCachedSnookerRoyalInventory(accountId));
-  const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
-  const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
-  const [fourInRowOwned, setFourInRowOwned] = useState(() => getFourInRowInventory(fourInRowAccountId(accountId)));
-  const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
-  const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
-  const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
-  const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
-  const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+  const [poolOwned, setPoolOwned] = useState(() =>
+    getCachedPoolRoyalInventory(accountId)
+  );
+  const [snookerOwned, setSnookerOwned] = useState(() =>
+    getCachedSnookerRoyalInventory(accountId)
+  );
+  const [airOwned, setAirOwned] = useState(() =>
+    getAirHockeyInventory(airHockeyAccountId(accountId))
+  );
+  const [chessOwned, setChessOwned] = useState(() =>
+    getChessBattleInventory(chessBattleAccountId(accountId))
+  );
+  const [fourInRowOwned, setFourInRowOwned] = useState(() =>
+    getFourInRowInventory(fourInRowAccountId(accountId))
+  );
+  const [ludoOwned, setLudoOwned] = useState(() =>
+    getLudoBattleInventory(ludoBattleAccountId(accountId))
+  );
+  const [tavullOwned, setTavullOwned] = useState(() =>
+    getTavullBattleInventory(tavullBattleAccountId(accountId))
+  );
+  const [murlanOwned, setMurlanOwned] = useState(() =>
+    getMurlanInventory(murlanAccountId(accountId))
+  );
+  const [dominoOwned, setDominoOwned] = useState(() =>
+    getDominoRoyalInventory(dominoRoyalAccountId(accountId))
+  );
+  const [snakeOwned, setSnakeOwned] = useState(() =>
+    getSnakeInventory(snakeAccountId(accountId))
+  );
+  const [texasOwned, setTexasOwned] = useState(() =>
+    getTexasHoldemInventory(texasHoldemAccountId(accountId))
+  );
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -853,7 +946,10 @@ export default function Store() {
     }
     setShowTransactionToast(true);
     if (transactionState === 'processing') return undefined;
-    const timeout = window.setTimeout(() => setShowTransactionToast(false), 7000);
+    const timeout = window.setTimeout(
+      () => setShowTransactionToast(false),
+      7000
+    );
     return () => window.clearTimeout(timeout);
   }, [transactionState, transactionStatus]);
 
@@ -869,8 +965,12 @@ export default function Store() {
       window.localStorage.setItem('accountId', snapshot.accountId);
     }
     setAccountId(snapshot.accountId);
-    const restoredDate = new Date(snapshot.transaction?.date || Date.now()).toLocaleString();
-    setInfo(`Store restored to your last purchase profile from ${restoredDate}.`);
+    const restoredDate = new Date(
+      snapshot.transaction?.date || Date.now()
+    ).toLocaleString();
+    setInfo(
+      `Store restored to your last purchase profile from ${restoredDate}.`
+    );
   }, [accountId]);
 
   useEffect(() => {
@@ -880,6 +980,7 @@ export default function Store() {
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
+    setTavullOwned(getTavullBattleInventory(tavullBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
@@ -889,12 +990,16 @@ export default function Store() {
       .then((inventory) => {
         if (!cancelled && inventory) setPoolOwned(inventory);
       })
-      .catch((err) => console.warn('Failed to sync Pool Royale inventory', err));
+      .catch((err) =>
+        console.warn('Failed to sync Pool Royale inventory', err)
+      );
     getSnookerRoyalInventory(accountId)
       .then((inventory) => {
         if (!cancelled && inventory) setSnookerOwned(inventory);
       })
-      .catch((err) => console.warn('Failed to sync Snooker Royal inventory', err));
+      .catch((err) =>
+        console.warn('Failed to sync Snooker Royal inventory', err)
+      );
     return () => {
       cancelled = true;
     };
@@ -902,37 +1007,57 @@ export default function Store() {
 
   useEffect(() => {
     const handlePoolInventoryUpdate = (event) => {
-      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      if (event?.detail?.accountId && event.detail.accountId !== accountId)
+        return;
       if (event?.detail?.inventory) {
         setPoolOwned(event.detail.inventory);
       } else {
         setPoolOwned(getCachedPoolRoyalInventory(accountId));
         getPoolRoyalInventory(accountId)
           .then((inventory) => setPoolOwned(inventory))
-          .catch((err) => console.warn('Failed to reload Pool Royale inventory', err));
+          .catch((err) =>
+            console.warn('Failed to reload Pool Royale inventory', err)
+          );
       }
     };
     const handleSnookerInventoryUpdate = (event) => {
-      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      if (event?.detail?.accountId && event.detail.accountId !== accountId)
+        return;
       if (event?.detail?.inventory) {
         setSnookerOwned(event.detail.inventory);
       } else {
         setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
         getSnookerRoyalInventory(accountId)
           .then((inventory) => setSnookerOwned(inventory))
-          .catch((err) => console.warn('Failed to reload Snooker Royal inventory', err));
+          .catch((err) =>
+            console.warn('Failed to reload Snooker Royal inventory', err)
+          );
       }
     };
-    window.addEventListener('poolRoyalInventoryUpdate', handlePoolInventoryUpdate);
-    window.addEventListener('snookerRoyalInventoryUpdate', handleSnookerInventoryUpdate);
+    window.addEventListener(
+      'poolRoyalInventoryUpdate',
+      handlePoolInventoryUpdate
+    );
+    window.addEventListener(
+      'snookerRoyalInventoryUpdate',
+      handleSnookerInventoryUpdate
+    );
     return () => {
-      window.removeEventListener('poolRoyalInventoryUpdate', handlePoolInventoryUpdate);
-      window.removeEventListener('snookerRoyalInventoryUpdate', handleSnookerInventoryUpdate);
+      window.removeEventListener(
+        'poolRoyalInventoryUpdate',
+        handlePoolInventoryUpdate
+      );
+      window.removeEventListener(
+        'snookerRoyalInventoryUpdate',
+        handleSnookerInventoryUpdate
+      );
     };
   }, [accountId]);
 
   const loadAccountBalance = useCallback(async () => {
-    const resolvedAccountId = poolRoyalAccountId(accountId === 'guest' ? '' : accountId);
+    const resolvedAccountId = poolRoyalAccountId(
+      accountId === 'guest' ? '' : accountId
+    );
     if (!resolvedAccountId || resolvedAccountId === 'guest') {
       setAccountBalance(null);
       return;
@@ -953,57 +1078,148 @@ export default function Store() {
 
   const storeItemsBySlug = useMemo(
     () => ({
-      poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
-      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tabletennisroyal' })),
-      snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerroyale' })),
-      airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
-      checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'checkersbattleroyal' })),
-      fourinrowroyale: FOUR_IN_ROW_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'fourinrowroyale' })),
-      tavullbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'tavullbattleroyal' })),
-      ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
-      murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
-      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
-      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snake' })),
-      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' }))
+      poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'poolroyale'
+      })),
+      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tabletennisroyal'
+      })),
+      snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'snookerroyale'
+      })),
+      airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'airhockey'
+      })),
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'chessbattleroyal'
+      })),
+      checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'checkersbattleroyal'
+      })),
+      fourinrowroyale: FOUR_IN_ROW_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'fourinrowroyale'
+      })),
+      tavullbattleroyal: TAVULL_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'tavullbattleroyal'
+      })),
+      ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'ludobattleroyal'
+      })),
+      murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'murlanroyale'
+      })),
+      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'domino-royal'
+      })),
+      snake: SNAKE_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'snake'
+      })),
+      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'texasholdem'
+      }))
     }),
     []
   );
 
   const ownedCheckers = useMemo(
     () => ({
-      poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      tabletennisroyal: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      snookerroyale: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
-      airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
-      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      checkersbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      fourinrowroyale: (type, optionId) => isFourInRowOptionUnlocked(type, optionId, fourInRowOwned),
-      tavullbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
-      murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
-      'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
-      snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
+      poolroyale: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned),
+      tabletennisroyal: (type, optionId) =>
+        isPoolOptionUnlocked(type, optionId, poolOwned),
+      snookerroyale: (type, optionId) =>
+        isSnookerOptionUnlocked(type, optionId, snookerOwned),
+      airhockey: (type, optionId) =>
+        isAirHockeyOptionUnlocked(type, optionId, airOwned),
+      chessbattleroyal: (type, optionId) =>
+        isChessOptionUnlocked(type, optionId, chessOwned),
+      checkersbattleroyal: (type, optionId) =>
+        isChessOptionUnlocked(type, optionId, chessOwned),
+      fourinrowroyale: (type, optionId) =>
+        isFourInRowOptionUnlocked(type, optionId, fourInRowOwned),
+      tavullbattleroyal: (type, optionId) =>
+        isTavullOptionUnlocked(type, optionId, tavullOwned),
+      ludobattleroyal: (type, optionId) =>
+        isLudoOptionUnlocked(type, optionId, ludoOwned),
+      murlanroyale: (type, optionId) =>
+        isMurlanOptionUnlocked(type, optionId, murlanOwned),
+      'domino-royal': (type, optionId) =>
+        isDominoOptionUnlocked(type, optionId, dominoOwned),
+      snake: (type, optionId) =>
+        isSnakeOptionUnlocked(type, optionId, snakeOwned),
+      texasholdem: (type, optionId) =>
+        isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, chessOwned, fourInRowOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [
+      airOwned,
+      poolOwned,
+      snookerOwned,
+      chessOwned,
+      fourInRowOwned,
+      ludoOwned,
+      tavullOwned,
+      murlanOwned,
+      dominoOwned,
+      snakeOwned,
+      texasOwned
+    ]
   );
 
   const labelResolvers = useMemo(
     () => ({
-      poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tabletennisroyal: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      snookerroyale: (item) => SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      checkersbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      fourinrowroyale: (item) => FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tavullbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      poolroyale: (item) =>
+        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      tabletennisroyal: (item) =>
+        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      snookerroyale: (item) =>
+        SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      airhockey: (item) =>
+        AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      chessbattleroyal: (item) =>
+        CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      checkersbattleroyal: (item) =>
+        CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      fourinrowroyale: (item) =>
+        FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] ||
+        item.name,
+      tavullbattleroyal: (item) =>
+        TAVULL_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      ludobattleroyal: (item) =>
+        LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      murlanroyale: (item) =>
+        MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      'domino-royal': (item) =>
+        DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      snake: (item) =>
+        SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      texasholdem: (item) =>
+        TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -1016,7 +1232,7 @@ export default function Store() {
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
-      tavullbattleroyal: CHESS_TYPE_LABELS,
+      tavullbattleroyal: TAVULL_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
@@ -1109,7 +1325,8 @@ export default function Store() {
       const numeric = Number(rawPrice);
       if (!Number.isFinite(numeric)) return TON_PRICE_MIN;
       if (priceRange.max <= priceRange.min) return TON_PRICE_MAX;
-      const ratio = (numeric - priceRange.min) / (priceRange.max - priceRange.min);
+      const ratio =
+        (numeric - priceRange.min) / (priceRange.max - priceRange.min);
       const clamped = Math.min(1, Math.max(0, ratio));
       const value = TON_PRICE_MIN + clamped * (TON_PRICE_MAX - TON_PRICE_MIN);
       return Number(value.toFixed(2));
@@ -1129,7 +1346,10 @@ export default function Store() {
       item.zoomImage
     ];
     return (
-      candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || ''
+      candidates.find(
+        (candidate) =>
+          typeof candidate === 'string' && candidate.trim().length > 0
+      ) || ''
     );
   }, []);
 
@@ -1145,10 +1365,17 @@ export default function Store() {
         item.preview?.thumbnail
       ];
       const resolvedThumbnail =
-        thumbnailCandidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+        thumbnailCandidates.find(
+          (candidate) =>
+            typeof candidate === 'string' && candidate.trim().length > 0
+        ) || '';
       const originalImage = resolveOriginalImage(item);
-      const usesGeneratedSwatch = resolvedThumbnail.startsWith('data:image/svg+xml');
-      const resolved = (resolvedThumbnail && !usesGeneratedSwatch ? resolvedThumbnail : originalImage) || '';
+      const usesGeneratedSwatch =
+        resolvedThumbnail.startsWith('data:image/svg+xml');
+      const resolved =
+        (resolvedThumbnail && !usesGeneratedSwatch
+          ? resolvedThumbnail
+          : originalImage) || '';
       if (resolved) return normalizePolyHavenImage(resolved, THUMBNAIL_SIZE);
       if (item.swatches?.length) {
         return swatchThumbnail(item.swatches);
@@ -1169,9 +1396,15 @@ export default function Store() {
         item.media?.zoom,
         item.media?.image
       ];
-      const zoomFallback = normalizePolyHavenImage(thumbnail, ZOOM_PREVIEW_SIZE);
+      const zoomFallback = normalizePolyHavenImage(
+        thumbnail,
+        ZOOM_PREVIEW_SIZE
+      );
       const zoom =
-        zoomCandidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) ||
+        zoomCandidates.find(
+          (candidate) =>
+            typeof candidate === 'string' && candidate.trim().length > 0
+        ) ||
         zoomFallback ||
         thumbnail;
       return {
@@ -1188,8 +1421,16 @@ export default function Store() {
       ? normalizeTonPrice(item.price)
       : clampTonPrice(item.price);
     const swatches = resolveSwatches(item.type, item.optionId, item.swatches);
-    const previewShape = resolvePreviewShape(item.slug, item.type, item.previewShape);
-    const nftMeta = buildNftMetadata({ ...item, price: resolvedPrice, swatches });
+    const previewShape = resolvePreviewShape(
+      item.slug,
+      item.type,
+      item.previewShape
+    );
+    const nftMeta = buildNftMetadata({
+      ...item,
+      price: resolvedPrice,
+      swatches
+    });
     return { ...item, price: resolvedPrice, swatches, previewShape, nftMeta };
   };
 
@@ -1204,13 +1445,15 @@ export default function Store() {
         entries.push(
           decorateMarketplaceItem(
             {
-            ...item,
-            slug,
-            displayLabel,
-            typeLabel: typeLabels[item.type] || item.type,
-            gameName: storeMeta[slug]?.name || slug,
-            owned: ownedChecker ? ownedChecker(item.type, item.optionId) : false,
-            seller: 'Official store'
+              ...item,
+              slug,
+              displayLabel,
+              typeLabel: typeLabels[item.type] || item.type,
+              gameName: storeMeta[slug]?.name || slug,
+              owned: ownedChecker
+                ? ownedChecker(item.type, item.optionId)
+                : false,
+              seller: 'Official store'
             },
             { scalePrice: true }
           )
@@ -1228,10 +1471,14 @@ export default function Store() {
   useEffect(() => {
     if (showListModal && ownedMarketplaceItems.length) {
       setListForm((prev) => {
-        const validSelection = ownedMarketplaceItems.find((item) => item.id === prev.itemId);
+        const validSelection = ownedMarketplaceItems.find(
+          (item) => item.id === prev.itemId
+        );
         const nextItem = validSelection || ownedMarketplaceItems[0];
-        const suggestedPrice = prev.price || (nextItem.price ? String(nextItem.price) : '');
-        if (prev.itemId === nextItem.id && prev.price === suggestedPrice) return prev;
+        const suggestedPrice =
+          prev.price || (nextItem.price ? String(nextItem.price) : '');
+        if (prev.itemId === nextItem.id && prev.price === suggestedPrice)
+          return prev;
         return { ...prev, itemId: nextItem.id, price: suggestedPrice };
       });
     }
@@ -1248,7 +1495,8 @@ export default function Store() {
           {
             ...listing,
             slug: listing.slug || listing.game,
-            gameName: storeMeta[listing.slug || listing.game]?.name || 'Player listing',
+            gameName:
+              storeMeta[listing.slug || listing.game]?.name || 'Player listing',
             typeLabel: listing.typeLabel || 'Player NFT',
             displayLabel: listing.displayLabel || listing.name || 'Player NFT',
             owned: true,
@@ -1271,7 +1519,8 @@ export default function Store() {
       return items
         .filter((item) => {
           if (activeGame !== 'all' && item.slug !== activeGame) return false;
-          if (activeType !== 'all' && item.typeLabel !== activeType) return false;
+          if (activeType !== 'all' && item.typeLabel !== activeType)
+            return false;
           if (!term) return true;
           return (
             item.displayLabel.toLowerCase().includes(term) ||
@@ -1283,11 +1532,15 @@ export default function Store() {
         .sort((a, b) => {
           if (sortOption === 'price-low') return a.price - b.price;
           if (sortOption === 'price-high') return b.price - a.price;
-          if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
+          if (sortOption === 'alpha')
+            return a.displayLabel.localeCompare(b.displayLabel);
           const featuredRank = (item) => {
             const label = item.typeLabel?.toLowerCase() || '';
             const hasThumbnail = Boolean(resolveItemThumbnail(item));
-            const isTableOrChair = label.includes('table') || label.includes('chair') || label.includes('stool');
+            const isTableOrChair =
+              label.includes('table') ||
+              label.includes('chair') ||
+              label.includes('stool');
             if (hasThumbnail && isTableOrChair) return 0;
             if (hasThumbnail) return 1;
             if (isTableOrChair) return 2;
@@ -1303,7 +1556,10 @@ export default function Store() {
     [activeGame, activeType, searchTerm, sortOption]
   );
 
-  const filteredItems = useMemo(() => applyFilters(allMarketplaceItems), [allMarketplaceItems, applyFilters]);
+  const filteredItems = useMemo(
+    () => applyFilters(allMarketplaceItems),
+    [allMarketplaceItems, applyFilters]
+  );
   const filteredUserListings = useMemo(
     () => applyFilters(decoratedUserListings),
     [applyFilters, decoratedUserListings]
@@ -1311,7 +1567,9 @@ export default function Store() {
   const visibleItems = showMyListings ? filteredUserListings : filteredItems;
 
   useEffect(() => {
-    const validKeys = new Set(allMarketplaceItems.map((item) => selectionKey(item)));
+    const validKeys = new Set(
+      allMarketplaceItems.map((item) => selectionKey(item))
+    );
     setSelectedKeys((prev) => prev.filter((key) => validKeys.has(key)));
   }, [allMarketplaceItems]);
 
@@ -1335,10 +1593,12 @@ export default function Store() {
   );
   const hasSelection = selectedKeys.length > 0;
   const hasPurchasableSelection = selectedPurchasable.length > 0;
-  const selectedBalanceAfter = accountBalance === null ? null : accountBalance - selectedTotalPrice;
-  const selectedShortfall = selectedBalanceAfter !== null && selectedBalanceAfter < 0
-    ? Math.abs(selectedBalanceAfter)
-    : 0;
+  const selectedBalanceAfter =
+    accountBalance === null ? null : accountBalance - selectedTotalPrice;
+  const selectedShortfall =
+    selectedBalanceAfter !== null && selectedBalanceAfter < 0
+      ? Math.abs(selectedBalanceAfter)
+      : 0;
 
   useEffect(() => {
     if (!selectedPurchasable.length) {
@@ -1373,7 +1633,9 @@ export default function Store() {
 
   const typeFilters = useMemo(() => {
     const types = new Set();
-    const scopedItems = showMyListings ? decoratedUserListings : allMarketplaceItems;
+    const scopedItems = showMyListings
+      ? decoratedUserListings
+      : allMarketplaceItems;
     scopedItems.forEach((item) => {
       if (item.typeLabel) {
         types.add(item.typeLabel);
@@ -1417,19 +1679,25 @@ export default function Store() {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(item);
     });
-    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return Array.from(groups.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
   }, [activeGame, visibleItems]);
 
   const handleListSubmit = (event) => {
     event?.preventDefault();
-    const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
+    const selectedItem = ownedMarketplaceItems.find(
+      (item) => item.id === listForm.itemId
+    );
 
     if (!selectedItem) {
       setInfo('Select an owned NFT to list.');
       return;
     }
 
-    const listingPrice = clampTonPrice(listForm.price || selectedItem.price || TON_PRICE_MIN);
+    const listingPrice = clampTonPrice(
+      listForm.price || selectedItem.price || TON_PRICE_MIN
+    );
 
     const newListing = decorateMarketplaceItem({
       id: `user-${Date.now()}`,
@@ -1456,7 +1724,9 @@ export default function Store() {
   };
 
   const handlePurchase = async (items) => {
-    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    const payload = Array.isArray(items)
+      ? items.filter(Boolean)
+      : [items].filter(Boolean);
     if (!payload.length) return;
     const fallbackSnapshot = getLastStorePurchaseSnapshot();
     const fallbackAccountId = fallbackSnapshot?.accountId || '';
@@ -1490,7 +1760,10 @@ export default function Store() {
     }
 
     const groupedBySlug = purchasable.reduce((acc, item) => {
-      acc[item.slug] = acc[item.slug] || { items: [], gameName: storeMeta[item.slug]?.name || item.slug };
+      acc[item.slug] = acc[item.slug] || {
+        items: [],
+        gameName: storeMeta[item.slug]?.name || item.slug
+      };
       acc[item.slug].items.push(item);
       return acc;
     }, {});
@@ -1502,7 +1775,9 @@ export default function Store() {
     }
 
     const labelResolver = (slug, item) =>
-      labelResolvers[slug] ? labelResolvers[slug](item) : item.name || item.displayLabel;
+      labelResolvers[slug]
+        ? labelResolvers[slug](item)
+        : item.name || item.displayLabel;
     setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
     setTransactionState('processing');
@@ -1521,7 +1796,9 @@ export default function Store() {
       if (purchase?.error) {
         setInfo(purchase.error || 'Unable to process TPC payment.');
         setTransactionState('error');
-        setTransactionStatus(purchase.error || 'Payment failed. Please try again.');
+        setTransactionStatus(
+          purchase.error || 'Payment failed. Please try again.'
+        );
         return;
       }
       setTransactionStatus('Payment approved. Unlocking items…');
@@ -1530,12 +1807,14 @@ export default function Store() {
       for (const [slug, group] of Object.entries(groupedBySlug)) {
         if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
           for (const entry of group.items) {
-            const syncTask = addPoolRoyalUnlock(entry.type, entry.optionId, resolvedAccountId).then(
-              (updated) => {
-                setPoolOwned(updated);
-                return updated;
-              }
-            );
+            const syncTask = addPoolRoyalUnlock(
+              entry.type,
+              entry.optionId,
+              resolvedAccountId
+            ).then((updated) => {
+              setPoolOwned(updated);
+              return updated;
+            });
             backgroundSyncTasks.push(syncTask);
           }
           setPoolOwned(getCachedPoolRoyalInventory(resolvedAccountId));
@@ -1543,12 +1822,14 @@ export default function Store() {
         }
         if (slug === 'snookerroyale') {
           for (const entry of group.items) {
-            const syncTask = addSnookerRoyalUnlock(entry.type, entry.optionId, resolvedAccountId).then(
-              (updated) => {
-                setSnookerOwned(updated);
-                return updated;
-              }
-            );
+            const syncTask = addSnookerRoyalUnlock(
+              entry.type,
+              entry.optionId,
+              resolvedAccountId
+            ).then((updated) => {
+              setSnookerOwned(updated);
+              return updated;
+            });
             backgroundSyncTasks.push(syncTask);
           }
           setSnookerOwned(getCachedSnookerRoyalInventory(resolvedAccountId));
@@ -1557,21 +1838,60 @@ export default function Store() {
 
         for (const entry of group.items) {
           if (slug === 'airhockey') {
-            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId));
-          } else if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal' || slug === 'tavullbattleroyal') {
-            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setAirOwned(
+              addAirHockeyUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
+          } else if (
+            slug === 'chessbattleroyal' ||
+            slug === 'checkersbattleroyal'
+          ) {
+            setChessOwned(
+              addChessBattleUnlock(
+                entry.type,
+                entry.optionId,
+                resolvedAccountId
+              )
+            );
+          } else if (slug === 'tavullbattleroyal') {
+            setTavullOwned(
+              addTavullBattleUnlock(
+                entry.type,
+                entry.optionId,
+                resolvedAccountId
+              )
+            );
           } else if (slug === 'fourinrowroyale') {
-            setFourInRowOwned(addFourInRowUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setFourInRowOwned(
+              addFourInRowUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
           } else if (slug === 'ludobattleroyal') {
-            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setLudoOwned(
+              addLudoBattleUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
           } else if (slug === 'murlanroyale') {
-            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setMurlanOwned(
+              addMurlanUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
           } else if (slug === 'domino-royal') {
-            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setDominoOwned(
+              addDominoRoyalUnlock(
+                entry.type,
+                entry.optionId,
+                resolvedAccountId
+              )
+            );
           } else if (slug === 'snake') {
-            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setSnakeOwned(
+              addSnakeUnlock(entry.type, entry.optionId, resolvedAccountId)
+            );
           } else if (slug === 'texasholdem') {
-            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, resolvedAccountId));
+            setTexasOwned(
+              addTexasHoldemUnlock(
+                entry.type,
+                entry.optionId,
+                resolvedAccountId
+              )
+            );
           }
         }
       }
@@ -1580,9 +1900,12 @@ export default function Store() {
       }
 
       const purchasedTrainingAttempts = purchasable.reduce((sum, item) => {
-        if (item.slug !== 'poolroyale' || item.type !== 'poolTrainingAttempt') return sum;
+        if (item.slug !== 'poolroyale' || item.type !== 'poolTrainingAttempt')
+          return sum;
         const attempts = Number(item.optionId);
-        return Number.isFinite(attempts) && attempts > 0 ? sum + Math.floor(attempts) : sum;
+        return Number.isFinite(attempts) && attempts > 0
+          ? sum + Math.floor(attempts)
+          : sum;
       }, 0);
       if (purchasedTrainingAttempts > 0) {
         addTrainingAttempts(purchasedTrainingAttempts);
@@ -1611,7 +1934,9 @@ export default function Store() {
           price: item.price
         }))
       });
-      const purchasedKeys = new Set(purchasable.map((item) => selectionKey(item)));
+      const purchasedKeys = new Set(
+        purchasable.map((item) => selectionKey(item))
+      );
       setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
       setPurchaseStatus(successLabel);
       setInfo('');
@@ -1631,7 +1956,9 @@ export default function Store() {
   };
 
   const initiateTpcPurchase = async (items) => {
-    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    const payload = Array.isArray(items)
+      ? items.filter(Boolean)
+      : [items].filter(Boolean);
     if (!payload.length) return;
     setIsPaying(true);
     resetStatus();
@@ -1644,22 +1971,30 @@ export default function Store() {
 
   const featuredCount = allMarketplaceItems.length;
   const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
-  const walletLabel = accountId && accountId !== 'guest' ? 'Account linked' : 'Guest mode';
+  const walletLabel =
+    accountId && accountId !== 'guest' ? 'Account linked' : 'Guest mode';
   const mainPaddingClass = hasSelection
     ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]'
     : 'pb-24';
 
   const renderListModal = () => {
     if (!showListModal) return null;
-    const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
+    const selectedItem = ownedMarketplaceItems.find(
+      (item) => item.id === listForm.itemId
+    );
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="flex w-full max-w-xl max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">List an owned NFT</p>
-              <h3 className="text-lg font-semibold text-white">Create marketplace listing</h3>
-              <p className="text-sm text-white/60">Pick an unlocked cosmetic, then set the sale price. We keep the metadata locked to your NFT.</p>
+              <h3 className="text-lg font-semibold text-white">
+                Create marketplace listing
+              </h3>
+              <p className="text-sm text-white/60">
+                Pick an unlocked cosmetic, then set the sale price. We keep the
+                metadata locked to your NFT.
+              </p>
             </div>
             <button
               type="button"
@@ -1670,12 +2005,17 @@ export default function Store() {
             </button>
           </div>
 
-          <form className="grid flex-1 gap-3 overflow-y-auto p-4" onSubmit={handleListSubmit}>
+          <form
+            className="grid flex-1 gap-3 overflow-y-auto p-4"
+            onSubmit={handleListSubmit}
+          >
             <div className="grid gap-3 md:grid-cols-[7fr_5fr] md:items-start">
               <div className="grid gap-2">
                 <div className="flex items-center justify-between text-sm text-white/80">
                   <span>Choose an owned NFT</span>
-                  <span className="text-xs text-white/60">{ownedMarketplaceItems.length} available</span>
+                  <span className="text-xs text-white/60">
+                    {ownedMarketplaceItems.length} available
+                  </span>
                 </div>
                 <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
                   {ownedMarketplaceItems.length ? (
@@ -1689,7 +2029,9 @@ export default function Store() {
                             setListForm((prev) => ({
                               ...prev,
                               itemId: item.id,
-                              price: prev.price || (item.price ? String(item.price) : '')
+                              price:
+                                prev.price ||
+                                (item.price ? String(item.price) : '')
                             }))
                           }
                           className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition ${
@@ -1701,25 +2043,34 @@ export default function Store() {
                           <div className="flex items-center gap-3">
                             {renderPreview3d(item, false)}
                             <div className="grid gap-0.5 text-sm text-white/80">
-                              <div className="font-semibold text-white">{item.displayLabel}</div>
+                              <div className="font-semibold text-white">
+                                {item.displayLabel}
+                              </div>
                               <div className="text-xs text-white/60">
                                 {item.gameName} • {item.typeLabel}
                               </div>
                             </div>
                           </div>
                           <div className="text-right text-sm text-white/80">
-                          <div className="flex items-center justify-end gap-1 font-semibold">
-                            <span>{item.price}</span>
-                            <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                            <div className="flex items-center justify-end gap-1 font-semibold">
+                              <span>{item.price}</span>
+                              <img
+                                src={TON_ICON}
+                                alt="TPC"
+                                className="h-4 w-4"
+                              />
+                            </div>
+                            <div className="text-[11px] text-white/50">
+                              Base price
+                            </div>
                           </div>
-                          <div className="text-[11px] text-white/50">Base price</div>
-                        </div>
-                      </button>
-                    );
+                        </button>
+                      );
                     })
                   ) : (
                     <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white/70">
-                      You have no cosmetics unlocked yet. Buy an item from the store before listing it.
+                      You have no cosmetics unlocked yet. Buy an item from the
+                      store before listing it.
                     </div>
                   )}
                 </div>
@@ -1728,9 +2079,13 @@ export default function Store() {
               <div className="grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-wide text-white/60">Selected NFT</p>
+                    <p className="text-xs uppercase tracking-wide text-white/60">
+                      Selected NFT
+                    </p>
                     <h4 className="text-base font-semibold text-white">
-                      {selectedItem ? selectedItem.displayLabel : 'No selection'}
+                      {selectedItem
+                        ? selectedItem.displayLabel
+                        : 'No selection'}
                     </h4>
                     <p className="text-xs text-white/60">
                       {selectedItem
@@ -1742,20 +2097,28 @@ export default function Store() {
                 </div>
 
                 <label className="grid gap-1 text-sm text-white/80">
-                  <span className="text-xs uppercase tracking-wide text-white/60">Listing price (TPC)</span>
+                  <span className="text-xs uppercase tracking-wide text-white/60">
+                    Listing price (TPC)
+                  </span>
                   <input
                     type="number"
                     min={TON_PRICE_MIN}
                     max={TON_PRICE_MAX}
                     step="0.01"
                     value={listForm.price}
-                    onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
+                    onChange={(e) =>
+                      setListForm((prev) => ({
+                        ...prev,
+                        price: e.target.value
+                      }))
+                    }
                     placeholder={selectedItem?.price || TON_PRICE_MIN}
                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
                     required
                   />
                   <span className="text-xs text-white/50">
-                    Metadata stays tied to your NFT. Buyers will only see the price you set here.
+                    Metadata stays tied to your NFT. Buyers will only see the
+                    price you set here.
                   </span>
                 </label>
 
@@ -1789,10 +2152,12 @@ export default function Store() {
   const renderConfirmModal = () => {
     if (!confirmItem) return null;
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
-    const confirmBalanceAfter = accountBalance === null ? null : accountBalance - confirmItem.price;
-    const confirmShortfall = confirmBalanceAfter !== null && confirmBalanceAfter < 0
-      ? Math.abs(confirmBalanceAfter)
-      : 0;
+    const confirmBalanceAfter =
+      accountBalance === null ? null : accountBalance - confirmItem.price;
+    const confirmShortfall =
+      confirmBalanceAfter !== null && confirmBalanceAfter < 0
+        ? Math.abs(confirmBalanceAfter)
+        : 0;
     const isInsufficientBalance = confirmShortfall > 0;
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pb-4 pt-8 sm:pt-12">
@@ -1800,8 +2165,12 @@ export default function Store() {
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">Confirm purchase</p>
-              <h3 className="text-lg font-semibold text-white">{confirmItem.displayLabel}</h3>
-              <p className="text-sm text-white/60">{gameName} • {confirmItem.typeLabel}</p>
+              <h3 className="text-lg font-semibold text-white">
+                {confirmItem.displayLabel}
+              </h3>
+              <p className="text-sm text-white/60">
+                {gameName} • {confirmItem.typeLabel}
+              </p>
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {confirmItem.price}
@@ -1811,13 +2180,18 @@ export default function Store() {
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Purchase with your TPC balance. Once approved, we deliver the NFT instantly and log it on your statement.
+              Purchase with your TPC balance. Once approved, we deliver the NFT
+              instantly and log it on your statement.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               {renderStoreThumbnail(confirmItem, 'compact')}
               <div className="grid gap-1 text-xs">
-                <div className="text-sm font-semibold text-white">{confirmItem.displayLabel}</div>
-                <div className="text-white/60">{gameName} • {confirmItem.typeLabel}</div>
+                <div className="text-sm font-semibold text-white">
+                  {confirmItem.displayLabel}
+                </div>
+                <div className="text-white/60">
+                  {gameName} • {confirmItem.typeLabel}
+                </div>
               </div>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/80">
@@ -1840,40 +2214,59 @@ export default function Store() {
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">TPC balance purchase</span>
+                <span className="font-semibold text-white">
+                  TPC balance purchase
+                </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFT sent instantly and logged on your statement</span>
+                <span className="font-semibold text-white">
+                  NFT sent instantly and logged on your statement
+                </span>
               </div>
             </div>
             <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">TPC balance</span>
-                <span className="font-semibold text-white">{accountBalance === null ? '—' : formatTpcAmount(accountBalance)}</span>
+                <span className="font-semibold text-white">
+                  {accountBalance === null
+                    ? '—'
+                    : formatTpcAmount(accountBalance)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">Item total</span>
-                <span className="font-semibold text-white">{formatTpcAmount(confirmItem.price)}</span>
+                <span className="font-semibold text-white">
+                  {formatTpcAmount(confirmItem.price)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">After purchase</span>
-                <span className={`font-semibold ${isInsufficientBalance ? 'text-rose-200' : 'text-emerald-200'}`}>
-                  {confirmBalanceAfter === null ? '—' : formatTpcAmount(confirmBalanceAfter)}
+                <span
+                  className={`font-semibold ${isInsufficientBalance ? 'text-rose-200' : 'text-emerald-200'}`}
+                >
+                  {confirmBalanceAfter === null
+                    ? '—'
+                    : formatTpcAmount(confirmBalanceAfter)}
                 </span>
               </div>
               {isInsufficientBalance ? (
-                <p className="text-rose-200">Need {formatTpcAmount(confirmShortfall)} more TPC to complete this purchase.</p>
+                <p className="text-rose-200">
+                  Need {formatTpcAmount(confirmShortfall)} more TPC to complete
+                  this purchase.
+                </p>
               ) : null}
             </div>
             {showTransactionToast ? (
-              <div className={`rounded-2xl border px-3 py-2 text-xs ${
-                transactionState === 'error'
-                  ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
-                  : transactionState === 'success'
-                    ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
-                    : 'border-white/20 bg-white/10 text-white/90'
-              }`}>
+              <div
+                className={`rounded-2xl border px-3 py-2 text-xs ${
+                  transactionState === 'error'
+                    ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
+                    : transactionState === 'success'
+                      ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
+                      : 'border-white/20 bg-white/10 text-white/90'
+                }`}
+              >
                 <span className="font-semibold">{transactionStatus}</span>
               </div>
             ) : null}
@@ -1889,9 +2282,15 @@ export default function Store() {
                 type="button"
                 onClick={() => initiateTpcPurchase(confirmItem)}
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
-                disabled={Boolean(processing) || isPaying || isInsufficientBalance}
+                disabled={
+                  Boolean(processing) || isPaying || isInsufficientBalance
+                }
               >
-                {isInsufficientBalance ? 'Insufficient TPC' : isPaying ? 'Purchasing…' : 'Purchase'}
+                {isInsufficientBalance
+                  ? 'Insufficient TPC'
+                  : isPaying
+                    ? 'Purchasing…'
+                    : 'Purchase'}
               </button>
             </div>
           </div>
@@ -1903,10 +2302,12 @@ export default function Store() {
   const renderBulkConfirmModal = () => {
     if (!confirmItems.length) return null;
     const totalPrice = confirmItems.reduce((sum, item) => sum + item.price, 0);
-    const bulkBalanceAfter = accountBalance === null ? null : accountBalance - totalPrice;
-    const bulkShortfall = bulkBalanceAfter !== null && bulkBalanceAfter < 0
-      ? Math.abs(bulkBalanceAfter)
-      : 0;
+    const bulkBalanceAfter =
+      accountBalance === null ? null : accountBalance - totalPrice;
+    const bulkShortfall =
+      bulkBalanceAfter !== null && bulkBalanceAfter < 0
+        ? Math.abs(bulkBalanceAfter)
+        : 0;
     const hasBulkShortfall = bulkShortfall > 0;
     const grouped = confirmItems.reduce((acc, item) => {
       const gameName = storeMeta[item.slug]?.name || item.slug;
@@ -1924,9 +2325,12 @@ export default function Store() {
             <div>
               <p className="text-xs text-white/60">Confirm bulk purchase</p>
               <h3 className="text-lg font-semibold text-white">
-                {confirmItems.length} cosmetics • {groupedLabels || 'Mixed games'}
+                {confirmItems.length} cosmetics •{' '}
+                {groupedLabels || 'Mixed games'}
               </h3>
-              <p className="text-sm text-white/60">Review your cart and pay once to unlock everything.</p>
+              <p className="text-sm text-white/60">
+                Review your cart and pay once to unlock everything.
+              </p>
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {totalPrice.toLocaleString()}
@@ -1944,8 +2348,13 @@ export default function Store() {
                   <div className="flex items-center gap-3">
                     {renderStoreThumbnail(item, 'compact')}
                     <div className="grid gap-0.5">
-                      <span className="text-white font-semibold">{item.displayLabel}</span>
-                      <span className="text-xs text-white/60">{storeMeta[item.slug]?.name || item.slug} • {item.typeLabel}</span>
+                      <span className="text-white font-semibold">
+                        {item.displayLabel}
+                      </span>
+                      <span className="text-xs text-white/60">
+                        {storeMeta[item.slug]?.name || item.slug} •{' '}
+                        {item.typeLabel}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 text-sm font-semibold">
@@ -1958,45 +2367,67 @@ export default function Store() {
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
-              <p className="mt-1">Purchase once with your TPC balance, then we deliver instantly and record it on your statement.</p>
+              <p className="mt-1">
+                Purchase once with your TPC balance, then we deliver instantly
+                and record it on your statement.
+              </p>
             </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
-                <span className="font-semibold text-white">TPC balance purchase</span>
+                <span className="font-semibold text-white">
+                  TPC balance purchase
+                </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Delivery</span>
-                <span className="font-semibold text-white">NFTs sent instantly and logged on your statement</span>
+                <span className="font-semibold text-white">
+                  NFTs sent instantly and logged on your statement
+                </span>
               </div>
             </div>
             <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">TPC balance</span>
-                <span className="font-semibold text-white">{accountBalance === null ? '—' : formatTpcAmount(accountBalance)}</span>
+                <span className="font-semibold text-white">
+                  {accountBalance === null
+                    ? '—'
+                    : formatTpcAmount(accountBalance)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">Bundle total</span>
-                <span className="font-semibold text-white">{formatTpcAmount(totalPrice)}</span>
+                <span className="font-semibold text-white">
+                  {formatTpcAmount(totalPrice)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-white/60">After purchase</span>
-                <span className={`font-semibold ${hasBulkShortfall ? 'text-rose-200' : 'text-emerald-200'}`}>
-                  {bulkBalanceAfter === null ? '—' : formatTpcAmount(bulkBalanceAfter)}
+                <span
+                  className={`font-semibold ${hasBulkShortfall ? 'text-rose-200' : 'text-emerald-200'}`}
+                >
+                  {bulkBalanceAfter === null
+                    ? '—'
+                    : formatTpcAmount(bulkBalanceAfter)}
                 </span>
               </div>
               {hasBulkShortfall ? (
-                <p className="text-rose-200">Need {formatTpcAmount(bulkShortfall)} more TPC to checkout this bundle.</p>
+                <p className="text-rose-200">
+                  Need {formatTpcAmount(bulkShortfall)} more TPC to checkout
+                  this bundle.
+                </p>
               ) : null}
             </div>
             {showTransactionToast ? (
-              <div className={`rounded-2xl border px-3 py-2 text-xs ${
-                transactionState === 'error'
-                  ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
-                  : transactionState === 'success'
-                    ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
-                    : 'border-white/20 bg-white/10 text-white/90'
-              }`}>
+              <div
+                className={`rounded-2xl border px-3 py-2 text-xs ${
+                  transactionState === 'error'
+                    ? 'border-rose-400/50 bg-rose-500/15 text-rose-100'
+                    : transactionState === 'success'
+                      ? 'border-emerald-300/50 bg-emerald-500/10 text-emerald-100'
+                      : 'border-white/20 bg-white/10 text-white/90'
+                }`}
+              >
                 <span className="font-semibold">{transactionStatus}</span>
               </div>
             ) : null}
@@ -2015,7 +2446,11 @@ export default function Store() {
                 className="w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-200 sm:w-auto"
                 disabled={Boolean(processing) || isPaying || hasBulkShortfall}
               >
-                {hasBulkShortfall ? 'Insufficient TPC' : isPaying ? 'Purchasing…' : 'Purchase'}
+                {hasBulkShortfall
+                  ? 'Insufficient TPC'
+                  : isPaying
+                    ? 'Purchasing…'
+                    : 'Purchase'}
               </button>
             </div>
           </div>
@@ -2035,8 +2470,12 @@ export default function Store() {
         <div className="w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-start justify-between border-b border-white/10 p-4">
             <div>
-              <p className="text-xs text-white/60">{gameName} • {detailItem.typeLabel}</p>
-              <h3 className="text-lg font-semibold text-white">{detailItem.displayLabel}</h3>
+              <p className="text-xs text-white/60">
+                {gameName} • {detailItem.typeLabel}
+              </p>
+              <h3 className="text-lg font-semibold text-white">
+                {detailItem.displayLabel}
+              </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70">
                   {detailItem.slug.replace('-', ' ')}
@@ -2098,10 +2537,15 @@ export default function Store() {
               <div className="space-y-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                   <p className="font-semibold text-white">Item overview</p>
-                  <p className="mt-1">{detailItem.description || 'Cosmetic details will appear here.'}</p>
+                  <p className="mt-1">
+                    {detailItem.description ||
+                      'Cosmetic details will appear here.'}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                  <p className="font-semibold text-white">{usageDetails.title}</p>
+                  <p className="font-semibold text-white">
+                    {usageDetails.title}
+                  </p>
                   <p className="text-white/70">{usageDetails.description}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-white/60">
                     {usageDetails.placements.map((placement) => (
@@ -2115,44 +2559,64 @@ export default function Store() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
-                  <p className="font-semibold text-white">NFT utility & circulation</p>
+                  <p className="font-semibold text-white">
+                    NFT utility & circulation
+                  </p>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Usable in</span>
-                    <span className="font-semibold">{detailItem.nftMeta?.games?.join(', ') || gameName}</span>
+                    <span className="font-semibold">
+                      {detailItem.nftMeta?.games?.join(', ') || gameName}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Circulation</span>
-                    <span className="font-semibold">{detailItem.nftMeta?.circulation?.toLocaleString() || '—'} minted</span>
+                    <span className="font-semibold">
+                      {detailItem.nftMeta?.circulation?.toLocaleString() || '—'}{' '}
+                      minted
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Burns</span>
-                    <span className="font-semibold">{detailItem.nftMeta?.burns ?? 0}</span>
+                    <span className="font-semibold">
+                      {detailItem.nftMeta?.burns ?? 0}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Serial</span>
-                    <span className="font-semibold">{detailItem.nftMeta?.serial || 'TPG-XXXXXX'}</span>
+                    <span className="font-semibold">
+                      {detailItem.nftMeta?.serial || 'TPG-XXXXXX'}
+                    </span>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Seller</span>
-                    <span className="font-semibold">{detailItem.seller || 'Official store'}</span>
+                    <span className="font-semibold">
+                      {detailItem.seller || 'Official store'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/60">Status</span>
-                    <span className="font-semibold text-emerald-200">{detailItem.owned ? 'Unlocked' : 'Available'}</span>
+                    <span className="font-semibold text-emerald-200">
+                      {detailItem.owned ? 'Unlocked' : 'Available'}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {(detailItem.swatches || []).slice(0, 6).map((color, index) => (
-                      <span
-                        key={`${detailItem.id}-detail-${color}-${index}`}
-                        className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                    {(!detailItem.swatches || detailItem.swatches.length === 0) && (
-                      <span className="text-xs text-white/60">Color samples unavailable</span>
+                    {(detailItem.swatches || [])
+                      .slice(0, 6)
+                      .map((color, index) => (
+                        <span
+                          key={`${detailItem.id}-detail-${color}-${index}`}
+                          className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    {(!detailItem.swatches ||
+                      detailItem.swatches.length === 0) && (
+                      <span className="text-xs text-white/60">
+                        Color samples unavailable
+                      </span>
                     )}
                   </div>
                 </div>
@@ -2164,13 +2628,19 @@ export default function Store() {
                         key={`${detailItem.id}-history-${index}`}
                         className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70"
                       >
-                        <div className="font-semibold text-white">{event.label}</div>
+                        <div className="font-semibold text-white">
+                          {event.label}
+                        </div>
                         <div className="flex items-center gap-2">
                           {event.date ? <span>{event.date}</span> : null}
                           {event.price ? (
                             <span className="flex items-center gap-1 font-semibold text-white">
                               {event.price}
-                              <img src={TON_ICON} alt="TPC" className="h-3.5 w-3.5" />
+                              <img
+                                src={TON_ICON}
+                                alt="TPC"
+                                className="h-3.5 w-3.5"
+                              />
                             </span>
                           ) : null}
                         </div>
@@ -2202,7 +2672,9 @@ export default function Store() {
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  {renderPreview3d(detailItem, { size: 'md' })}
+                </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-white">Store thumbnail</p>
@@ -2227,12 +2699,17 @@ export default function Store() {
                       <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/70" />
                     </div>
                   ) : (
-                    <p className="text-xs text-white/50">Store thumbnails are processing for this item.</p>
+                    <p className="text-xs text-white/50">
+                      Store thumbnails are processing for this item.
+                    </p>
                   )}
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                   <p className="font-semibold text-white">What you get</p>
-                  <p className="mt-1">After the TPC payment is confirmed, the NFT unlocks immediately on your linked TPC account.</p>
+                  <p className="mt-1">
+                    After the TPC payment is confirmed, the NFT unlocks
+                    immediately on your linked TPC account.
+                  </p>
                 </div>
               </div>
             </div>
@@ -2251,7 +2728,9 @@ export default function Store() {
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">High-res zoom preview</p>
-              <h3 className="text-sm font-semibold text-white">{zoomPreview.alt}</h3>
+              <h3 className="text-sm font-semibold text-white">
+                {zoomPreview.alt}
+              </h3>
             </div>
             <button
               type="button"
@@ -2268,7 +2747,8 @@ export default function Store() {
               className="h-[60vh] w-full rounded-2xl object-contain"
             />
             <p className="mt-3 text-xs text-white/60">
-              Captured with the same lighting profile as the store thumbnail for consistent finish checks.
+              Captured with the same lighting profile as the store thumbnail for
+              consistent finish checks.
             </p>
           </div>
         </div>
@@ -2277,14 +2757,22 @@ export default function Store() {
   };
 
   const renderPreview3d = (item, options = {}) => {
-    const resolvedOptions = typeof options === 'boolean' ? { showCaption: options } : options;
-    const { showCaption = true, size = 'sm', containerClassName = '' } = resolvedOptions;
+    const resolvedOptions =
+      typeof options === 'boolean' ? { showCaption: options } : options;
+    const {
+      showCaption = true,
+      size = 'sm',
+      containerClassName = ''
+    } = resolvedOptions;
     if (!item) return null;
     const previewShape = item.previewShape || 'default';
     const primary = item.swatches?.[0] || '#0f172a';
     const secondary = item.swatches?.[1] || primary;
     const accent = item.swatches?.[2] || '#f8fafc';
-    const safeId = (item.id || item.optionId || 'preview').replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeId = (item.id || item.optionId || 'preview').replace(
+      /[^a-zA-Z0-9_-]/g,
+      ''
+    );
     const gradientId = `${safeId}-grad`;
     const shineId = `${safeId}-shine`;
     const shadowId = `${safeId}-shadow`;
@@ -2299,10 +2787,34 @@ export default function Store() {
         case 'cue':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="18" y="42" width="106" height="10" rx="5" fill={`url(#${gradientId})`} />
-              <rect x="18" y="40" width="30" height="14" rx="7" fill={accent} opacity="0.25" />
+              <rect
+                x="18"
+                y="42"
+                width="106"
+                height="10"
+                rx="5"
+                fill={`url(#${gradientId})`}
+              />
+              <rect
+                x="18"
+                y="40"
+                width="30"
+                height="14"
+                rx="7"
+                fill={accent}
+                opacity="0.25"
+              />
               <rect x="122" y="44" width="20" height="6" rx="3" fill={accent} />
-              <rect x="18" y="42" width="124" height="10" rx="5" stroke={accent} strokeWidth="1.2" fill="none" />
+              <rect
+                x="18"
+                y="42"
+                width="124"
+                height="10"
+                rx="5"
+                stroke={accent}
+                strokeWidth="1.2"
+                fill="none"
+              />
             </g>
           );
         case 'chess-royals':
@@ -2328,19 +2840,75 @@ export default function Store() {
                 strokeWidth="1.3"
                 opacity="0.9"
               />
-              <ellipse cx="52" cy="76" rx="20" ry="5" fill={secondary} opacity="0.5" />
-              <ellipse cx="98" cy="78" rx="24" ry="6" fill={secondary} opacity="0.6" />
+              <ellipse
+                cx="52"
+                cy="76"
+                rx="20"
+                ry="5"
+                fill={secondary}
+                opacity="0.5"
+              />
+              <ellipse
+                cx="98"
+                cy="78"
+                rx="24"
+                ry="6"
+                fill={secondary}
+                opacity="0.6"
+              />
             </g>
           );
         case 'pawn-head':
           return (
             <g filter={`url(#${shadowId})`}>
-              <ellipse cx="60" cy="36" rx="12" ry="9" fill={accent} opacity="0.85" />
-              <rect x="50" y="42" width="20" height="16" rx="6" fill={`url(#${shineId})`} />
-              <rect x="46" y="56" width="28" height="10" rx="4" fill={`url(#${gradientId})`} />
-              <ellipse cx="104" cy="34" rx="10" ry="10" fill={accent} opacity="0.9" />
-              <rect x="94" y="44" width="20" height="14" rx="5" fill={`url(#${shineId})`} />
-              <rect x="90" y="56" width="28" height="10" rx="4" fill={`url(#${gradientId})`} />
+              <ellipse
+                cx="60"
+                cy="36"
+                rx="12"
+                ry="9"
+                fill={accent}
+                opacity="0.85"
+              />
+              <rect
+                x="50"
+                y="42"
+                width="20"
+                height="16"
+                rx="6"
+                fill={`url(#${shineId})`}
+              />
+              <rect
+                x="46"
+                y="56"
+                width="28"
+                height="10"
+                rx="4"
+                fill={`url(#${gradientId})`}
+              />
+              <ellipse
+                cx="104"
+                cy="34"
+                rx="10"
+                ry="10"
+                fill={accent}
+                opacity="0.9"
+              />
+              <rect
+                x="94"
+                y="44"
+                width="20"
+                height="14"
+                rx="5"
+                fill={`url(#${shineId})`}
+              />
+              <rect
+                x="90"
+                y="56"
+                width="28"
+                height="10"
+                rx="4"
+                fill={`url(#${gradientId})`}
+              />
             </g>
           );
         case 'chrome':
@@ -2350,7 +2918,11 @@ export default function Store() {
                 d="M40 22h86c4 0 6 3 5 6l-10 48c-1 3-4 5-7 5H36c-4 0-6-3-5-7l9-46c1-4 4-6 7-6Z"
                 fill={`url(#${gradientId})`}
               />
-              <path d="M40 28h78l-8 40c-.6 3-3 5-6 5H36Z" fill={`url(#${shineId})`} opacity="0.9" />
+              <path
+                d="M40 28h78l-8 40c-.6 3-3 5-6 5H36Z"
+                fill={`url(#${shineId})`}
+                opacity="0.9"
+              />
               <circle cx="50" cy="34" r="3" fill={accent} opacity="0.7" />
               <circle cx="112" cy="34" r="3" fill={accent} opacity="0.7" />
             </g>
@@ -2358,8 +2930,23 @@ export default function Store() {
         case 'domino':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="26" y="18" width="108" height="64" rx="10" fill={`url(#${gradientId})`} />
-              <line x1="80" y1="22" x2="80" y2="78" stroke={accent} strokeWidth="2" opacity="0.6" />
+              <rect
+                x="26"
+                y="18"
+                width="108"
+                height="64"
+                rx="10"
+                fill={`url(#${gradientId})`}
+              />
+              <line
+                x1="80"
+                y1="22"
+                x2="80"
+                y2="78"
+                stroke={accent}
+                strokeWidth="2"
+                opacity="0.6"
+              />
               <circle cx="60" cy="40" r="6" fill={accent} />
               <circle cx="100" cy="60" r="6" fill={accent} />
               <circle cx="100" cy="40" r="4" fill={accent} opacity="0.6" />
@@ -2368,8 +2955,25 @@ export default function Store() {
         case 'cards':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="32" y="18" width="78" height="58" rx="9" fill={secondary} opacity="0.65" transform="rotate(-6 32 18)" />
-              <rect x="56" y="26" width="78" height="58" rx="9" fill={`url(#${gradientId})`} transform="rotate(6 56 26)" />
+              <rect
+                x="32"
+                y="18"
+                width="78"
+                height="58"
+                rx="9"
+                fill={secondary}
+                opacity="0.65"
+                transform="rotate(-6 32 18)"
+              />
+              <rect
+                x="56"
+                y="26"
+                width="78"
+                height="58"
+                rx="9"
+                fill={`url(#${gradientId})`}
+                transform="rotate(6 56 26)"
+              />
               <rect
                 x="52"
                 y="22"
@@ -2381,41 +2985,136 @@ export default function Store() {
                 fill="none"
                 transform="rotate(3 52 22)"
               />
-              <text x="76" y="56" fill={accent} fontSize="16" fontWeight="700" opacity="0.9">A♠</text>
+              <text
+                x="76"
+                y="56"
+                fill={accent}
+                fontSize="16"
+                fontWeight="700"
+                opacity="0.9"
+              >
+                A♠
+              </text>
             </g>
           );
         case 'table':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="22" y="26" width="116" height="48" rx="12" fill={`url(#${gradientId})`} />
-              <rect x="30" y="34" width="100" height="32" rx="10" fill={`url(#${shineId})`} opacity="0.7" />
-              <rect x="36" y="40" width="88" height="20" rx="8" fill={accent} opacity="0.15" />
+              <rect
+                x="22"
+                y="26"
+                width="116"
+                height="48"
+                rx="12"
+                fill={`url(#${gradientId})`}
+              />
+              <rect
+                x="30"
+                y="34"
+                width="100"
+                height="32"
+                rx="10"
+                fill={`url(#${shineId})`}
+                opacity="0.7"
+              />
+              <rect
+                x="36"
+                y="40"
+                width="88"
+                height="20"
+                rx="8"
+                fill={accent}
+                opacity="0.15"
+              />
             </g>
           );
         case 'puck':
           return (
             <g filter={`url(#${shadowId})`}>
               <circle cx="80" cy="50" r="26" fill={`url(#${gradientId})`} />
-              <circle cx="80" cy="50" r="18" fill={`url(#${shineId})`} opacity="0.8" />
+              <circle
+                cx="80"
+                cy="50"
+                r="18"
+                fill={`url(#${shineId})`}
+                opacity="0.8"
+              />
               <circle cx="80" cy="50" r="10" fill={accent} opacity="0.35" />
             </g>
           );
         case 'token-stack':
           return (
             <g filter={`url(#${shadowId})`}>
-              <ellipse cx="64" cy="42" rx="18" ry="8" fill={`url(#${gradientId})`} />
-              <rect x="46" y="42" width="36" height="12" rx="6" fill={`url(#${shineId})`} opacity="0.8" />
-              <ellipse cx="96" cy="54" rx="18" ry="8" fill={`url(#${shineId})`} opacity="0.9" />
-              <rect x="78" y="54" width="36" height="12" rx="6" fill={`url(#${gradientId})`} />
-              <ellipse cx="78" cy="66" rx="18" ry="8" fill={accent} opacity="0.6" />
-              <rect x="60" y="66" width="36" height="12" rx="6" fill={`url(#${shineId})`} opacity="0.8" />
+              <ellipse
+                cx="64"
+                cy="42"
+                rx="18"
+                ry="8"
+                fill={`url(#${gradientId})`}
+              />
+              <rect
+                x="46"
+                y="42"
+                width="36"
+                height="12"
+                rx="6"
+                fill={`url(#${shineId})`}
+                opacity="0.8"
+              />
+              <ellipse
+                cx="96"
+                cy="54"
+                rx="18"
+                ry="8"
+                fill={`url(#${shineId})`}
+                opacity="0.9"
+              />
+              <rect
+                x="78"
+                y="54"
+                width="36"
+                height="12"
+                rx="6"
+                fill={`url(#${gradientId})`}
+              />
+              <ellipse
+                cx="78"
+                cy="66"
+                rx="18"
+                ry="8"
+                fill={accent}
+                opacity="0.6"
+              />
+              <rect
+                x="60"
+                y="66"
+                width="36"
+                height="12"
+                rx="6"
+                fill={`url(#${shineId})`}
+                opacity="0.8"
+              />
             </g>
           );
         case 'dice':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="42" y="24" width="44" height="44" rx="8" fill={`url(#${shineId})`} />
-              <rect x="76" y="38" width="44" height="44" rx="8" fill={`url(#${gradientId})`} />
+              <rect
+                x="42"
+                y="24"
+                width="44"
+                height="44"
+                rx="8"
+                fill={`url(#${shineId})`}
+              />
+              <rect
+                x="76"
+                y="38"
+                width="44"
+                height="44"
+                rx="8"
+                fill={`url(#${gradientId})`}
+              />
               <circle cx="54" cy="36" r="3" fill={accent} />
               <circle cx="64" cy="46" r="3" fill={accent} />
               <circle cx="54" cy="56" r="3" fill={accent} />
@@ -2429,18 +3128,72 @@ export default function Store() {
         case 'chair':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="54" y="26" width="52" height="36" rx="10" fill={`url(#${gradientId})`} />
-              <rect x="50" y="42" width="60" height="24" rx="8" fill={`url(#${shineId})`} opacity="0.85" />
-              <rect x="58" y="62" width="12" height="20" rx="3" fill={accent} opacity="0.8" />
-              <rect x="100" y="62" width="12" height="20" rx="3" fill={accent} opacity="0.8" />
-              <rect x="70" y="64" width="28" height="8" rx="4" fill={secondary} opacity="0.7" />
+              <rect
+                x="54"
+                y="26"
+                width="52"
+                height="36"
+                rx="10"
+                fill={`url(#${gradientId})`}
+              />
+              <rect
+                x="50"
+                y="42"
+                width="60"
+                height="24"
+                rx="8"
+                fill={`url(#${shineId})`}
+                opacity="0.85"
+              />
+              <rect
+                x="58"
+                y="62"
+                width="12"
+                height="20"
+                rx="3"
+                fill={accent}
+                opacity="0.8"
+              />
+              <rect
+                x="100"
+                y="62"
+                width="12"
+                height="20"
+                rx="3"
+                fill={accent}
+                opacity="0.8"
+              />
+              <rect
+                x="70"
+                y="64"
+                width="28"
+                height="8"
+                rx="4"
+                fill={secondary}
+                opacity="0.7"
+              />
             </g>
           );
         default:
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="28" y="26" width="104" height="44" rx="10" fill={`url(#${gradientId})`} />
-              <rect x="38" y="34" width="84" height="28" rx="8" fill={`url(#${shineId})`} opacity="0.8" />
+              <rect
+                x="28"
+                y="26"
+                width="104"
+                height="44"
+                rx="10"
+                fill={`url(#${gradientId})`}
+              />
+              <rect
+                x="38"
+                y="34"
+                width="84"
+                height="28"
+                rx="8"
+                fill={`url(#${shineId})`}
+                opacity="0.8"
+              />
             </g>
           );
       }
@@ -2448,7 +3201,9 @@ export default function Store() {
 
     return (
       <div className={`flex items-center gap-3 ${containerClassName}`}>
-        <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-black/40 shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)] ${sizeClasses[size] || sizeClasses.sm}`}>
+        <div
+          className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-black/40 shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)] ${sizeClasses[size] || sizeClasses.sm}`}
+        >
           <svg viewBox="0 0 160 100" className="h-full w-full">
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
@@ -2459,8 +3214,19 @@ export default function Store() {
                 <stop offset="0%" stopColor={accent} stopOpacity="0.9" />
                 <stop offset="100%" stopColor={secondary} stopOpacity="0.2" />
               </radialGradient>
-              <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="rgba(0,0,0,0.6)" />
+              <filter
+                id={shadowId}
+                x="-20%"
+                y="-20%"
+                width="140%"
+                height="140%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="10"
+                  stdDeviation="8"
+                  floodColor="rgba(0,0,0,0.6)"
+                />
               </filter>
             </defs>
             {shapeLayer(previewShape)}
@@ -2469,7 +3235,9 @@ export default function Store() {
         </div>
         {showCaption ? (
           <div className="grid gap-0.5 text-xs text-white/70">
-            <span className="font-semibold text-white">{previewLabel(previewShape)}</span>
+            <span className="font-semibold text-white">
+              {previewLabel(previewShape)}
+            </span>
             <span className="text-white/60">High-fidelity 3D sample</span>
           </div>
         ) : null}
@@ -2486,7 +3254,9 @@ export default function Store() {
     const wrapperClass = isCompact
       ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
       : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
-    const imageClass = isCompact ? 'h-full w-full object-contain p-2' : 'h-full w-full object-contain p-3';
+    const imageClass = isCompact
+      ? 'h-full w-full object-contain p-2'
+      : 'h-full w-full object-contain p-3';
 
     if (resolvedThumbnail) {
       return (
@@ -2498,7 +3268,9 @@ export default function Store() {
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
-          <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
+          <div
+            className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}
+          >
             {label}
           </div>
         </div>
@@ -2507,9 +3279,15 @@ export default function Store() {
 
     return (
       <div className={wrapperClass}>
-        {renderPreview3d(item, { showCaption: false, size: isCompact ? 'sm' : 'lg', containerClassName: 'h-full w-full' })}
+        {renderPreview3d(item, {
+          showCaption: false,
+          size: isCompact ? 'sm' : 'lg',
+          containerClassName: 'h-full w-full'
+        })}
         <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
-        <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
+        <div
+          className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}
+        >
           {label}
         </div>
       </div>
@@ -2556,9 +3334,15 @@ export default function Store() {
               </span>
             )}
           </div>
-          <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
-          <div className="text-[11px] text-white/50">Usage: {usageDetails.title}</div>
-          <div className="text-[11px] text-white/50">Serial {item.nftMeta?.serial}</div>
+          <div className="text-xs text-white/60">
+            {item.gameName} • {item.typeLabel}
+          </div>
+          <div className="text-[11px] text-white/50">
+            Usage: {usageDetails.title}
+          </div>
+          <div className="text-[11px] text-white/50">
+            Serial {item.nftMeta?.serial}
+          </div>
         </div>
 
         <div className="mt-auto flex flex-wrap items-center gap-2">
@@ -2602,7 +3386,9 @@ export default function Store() {
               />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-wide">TonPlaygram</div>
+              <div className="text-sm font-semibold tracking-wide">
+                TonPlaygram
+              </div>
               <div className="text-xs text-white/60">NFT Storefront</div>
             </div>
           </div>
@@ -2616,7 +3402,9 @@ export default function Store() {
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className={`h-2.5 w-2.5 rounded-full ${accountId && accountId !== 'guest' ? 'bg-emerald-400' : 'bg-white/40'}`} />
+              <div
+                className={`h-2.5 w-2.5 rounded-full ${accountId && accountId !== 'guest' ? 'bg-emerald-400' : 'bg-white/40'}`}
+              />
               <div className="text-xs font-semibold">{walletLabel}</div>
             </div>
           </div>
@@ -2654,7 +3442,11 @@ export default function Store() {
           >
             <div className="flex items-start gap-2">
               <span className="mt-0.5 text-base">
-                {transactionState === 'error' ? '⚠️' : transactionState === 'success' ? '✅' : '⏳'}
+                {transactionState === 'error'
+                  ? '⚠️'
+                  : transactionState === 'success'
+                    ? '✅'
+                    : '⏳'}
               </span>
               <span className="font-semibold">{transactionStatus}</span>
             </div>
@@ -2671,7 +3463,9 @@ export default function Store() {
         </div>
       ) : null}
 
-      <main className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}>
+      <main
+        className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
+      >
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
           <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
           <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
@@ -2687,7 +3481,8 @@ export default function Store() {
             </h1>
 
             <p className="max-w-2xl text-sm text-white/70">
-              Mobile-first design inspired by the mock above. Every card shows TPC price, accessory type, and whether you already own it.
+              Mobile-first design inspired by the mock above. Every card shows
+              TPC price, accessory type, and whether you already own it.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2705,14 +3500,23 @@ export default function Store() {
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-white/60">Marketplace</p>
-                <h2 className="text-xl font-semibold leading-tight">Accessories for every TonPlaygram game</h2>
-                <p className="text-sm text-white/60">Quick filters, transparent listings, and a confirmation modal before checkout.</p>
+                <p className="text-xs uppercase tracking-wide text-white/60">
+                  Marketplace
+                </p>
+                <h2 className="text-xl font-semibold leading-tight">
+                  Accessories for every TonPlaygram game
+                </h2>
+                <p className="text-sm text-white/60">
+                  Quick filters, transparent listings, and a confirmation modal
+                  before checkout.
+                </p>
               </div>
               <div className="grid grid-cols-3 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm">
                 <div className="text-left">
                   <p className="text-xs text-white/60">Listings</p>
-                  <p className="font-semibold text-white">{featuredCount.toLocaleString()}</p>
+                  <p className="font-semibold text-white">
+                    {featuredCount.toLocaleString()}
+                  </p>
                 </div>
                 <div className="text-left">
                   <p className="text-xs text-white/60">Owned</p>
@@ -2776,7 +3580,8 @@ export default function Store() {
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2">
               <div className="text-xs text-white/60">
-                List cosmetics you already own so other players can purchase them securely.
+                List cosmetics you already own so other players can purchase
+                them securely.
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -2815,7 +3620,9 @@ export default function Store() {
                   </span>
                   {selectedOwnedCount > 0 ? (
                     <span className="text-xs text-amber-200">
-                      {selectedOwnedCount} owned selection{selectedOwnedCount === 1 ? ' is' : 's are'} skipped automatically.
+                      {selectedOwnedCount} owned selection
+                      {selectedOwnedCount === 1 ? ' is' : 's are'} skipped
+                      automatically.
                     </span>
                   ) : null}
                 </div>
@@ -2842,7 +3649,9 @@ export default function Store() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
-                <span className={`rounded-full border px-2 py-0.5 ${selectedShortfall ? 'border-rose-300/30 bg-rose-400/10 text-rose-100' : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100'}`}>
+                <span
+                  className={`rounded-full border px-2 py-0.5 ${selectedShortfall ? 'border-rose-300/30 bg-rose-400/10 text-rose-100' : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100'}`}
+                >
                   {selectedBalanceAfter === null
                     ? 'Balance preview unavailable'
                     : selectedShortfall
@@ -2852,39 +3661,63 @@ export default function Store() {
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   Green + Blue cloth bundles ready for Pool Royale
                 </span>
-                <span>Pick multiple NFTs, confirm once, and unlock them together.</span>
+                <span>
+                  Pick multiple NFTs, confirm once, and unlock them together.
+                </span>
               </div>
             </div>
 
             <div className="mt-3 grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-white/80 shadow-sm sm:grid-cols-4">
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-white/60">Your listings</p>
-                <p className="text-2xl font-semibold text-white">{userListingStats.total}</p>
-                <p className="text-xs text-white/60">Listed items tied to your account</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/60">
+                  Your listings
+                </p>
+                <p className="text-2xl font-semibold text-white">
+                  {userListingStats.total}
+                </p>
+                <p className="text-xs text-white/60">
+                  Listed items tied to your account
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-white/60">Total value</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/60">
+                  Total value
+                </p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.totalValue.toLocaleString()}
                   <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
                 </p>
-                <p className="text-xs text-white/60">Sum of your active listings</p>
+                <p className="text-xs text-white/60">
+                  Sum of your active listings
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-white/60">Average price</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/60">
+                  Average price
+                </p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.avgPrice.toLocaleString()}
                   <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
                 </p>
-                <p className="text-xs text-white/60">Per item across your listings</p>
+                <p className="text-xs text-white/60">
+                  Per item across your listings
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-white/60">Floor price</p>
-                <p className="flex items-center gap-1 text-2xl font-semibold text-white">
-                  {userListingStats.total ? userListingStats.floorPrice.toLocaleString() : '—'}
-                  {userListingStats.total ? <img src={TON_ICON} alt="TPC" className="h-4 w-4" /> : null}
+                <p className="text-[11px] uppercase tracking-wide text-white/60">
+                  Floor price
                 </p>
-                <p className="text-xs text-white/60">Lowest priced NFT you listed</p>
+                <p className="flex items-center gap-1 text-2xl font-semibold text-white">
+                  {userListingStats.total
+                    ? userListingStats.floorPrice.toLocaleString()
+                    : '—'}
+                  {userListingStats.total ? (
+                    <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                  ) : null}
+                </p>
+                <p className="text-xs text-white/60">
+                  Lowest priced NFT you listed
+                </p>
               </div>
             </div>
 
@@ -2897,7 +3730,7 @@ export default function Store() {
                       activeGame === 'all'
                         ? 'border-white/20 bg-white text-zinc-950'
                         : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
-                      }`}
+                    }`}
                     onClick={() => handleGameChange('all')}
                   >
                     All
@@ -2919,7 +3752,9 @@ export default function Store() {
               </div>
 
               <div className="grid gap-2">
-                <div className="text-xs font-semibold text-white/70">Accessory types</div>
+                <div className="text-xs font-semibold text-white/70">
+                  Accessory types
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {typeFilters.map((type) => (
                     <button
@@ -2941,8 +3776,13 @@ export default function Store() {
 
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
-              <div className="text-base font-semibold">{showMyListings ? 'Your listings' : 'Marketplace'}</div>
-              <div className="text-xs text-white/60">{visibleItems.length} listings | pay with TPC | accessories for every game</div>
+              <div className="text-base font-semibold">
+                {showMyListings ? 'Your listings' : 'Marketplace'}
+              </div>
+              <div className="text-xs text-white/60">
+                {visibleItems.length} listings | pay with TPC | accessories for
+                every game
+              </div>
             </div>
             <button className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 md:inline">
               View analytics
@@ -2955,8 +3795,13 @@ export default function Store() {
                 <section key={typeLabel} className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-white">{typeLabel}</div>
-                      <div className="text-xs text-white/60">{items.length} items • {storeMeta[activeGame]?.name || activeGame}</div>
+                      <div className="text-sm font-semibold text-white">
+                        {typeLabel}
+                      </div>
+                      <div className="text-xs text-white/60">
+                        {items.length} items •{' '}
+                        {storeMeta[activeGame]?.name || activeGame}
+                      </div>
                     </div>
                     <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/60">
                       Category
@@ -2985,15 +3830,29 @@ export default function Store() {
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/70 space-y-2">
             <p className="font-semibold text-white">Quick guidance</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Confirmation modal appears before every purchase so you always know the total.</li>
-              <li>The “Owned” badge updates immediately when a purchase succeeds.</li>
-              <li>Mobile-first layout keeps the cards readable on small portrait screens.</li>
+              <li>
+                Confirmation modal appears before every purchase so you always
+                know the total.
+              </li>
+              <li>
+                The “Owned” badge updates immediately when a purchase succeeds.
+              </li>
+              <li>
+                Mobile-first layout keeps the cards readable on small portrait
+                screens.
+              </li>
             </ul>
           </div>
 
-          {info ? <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white/80">{info}</div> : null}
+          {info ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white/80">
+              {info}
+            </div>
+          ) : null}
           {purchaseStatus ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-emerald-300">{purchaseStatus}</div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-emerald-300">
+              {purchaseStatus}
+            </div>
           ) : null}
         </div>
       </main>
@@ -3014,7 +3873,9 @@ export default function Store() {
               ) : null}
             </div>
             {hasPurchasableSelection ? (
-              <div className={`text-[11px] ${selectedShortfall ? 'text-rose-200' : 'text-emerald-200'}`}>
+              <div
+                className={`text-[11px] ${selectedShortfall ? 'text-rose-200' : 'text-emerald-200'}`}
+              >
                 {selectedBalanceAfter === null
                   ? 'Balance preview unavailable.'
                   : selectedShortfall
