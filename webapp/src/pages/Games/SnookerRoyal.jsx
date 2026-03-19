@@ -5019,7 +5019,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.96; // lower the standing camera a touch so the player view sits closer to rail height
+const STANDING_VIEW_PHI = 0.92; // match Pool Royale standing camera tilt
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5028,14 +5028,14 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // pull standing/cue camera closer to the table for tighter portrait framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // match Pool Royale standing/cue camera distance
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.33; // tighten standing camera distance so table occupies more screen space
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing camera distance
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5387,15 +5387,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const TOPSPIN_POWER_SOFT_CAP = 0.9;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
-
-const resolveTopspinPowerScale = (power) => {
-  if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = Math.min(power, TOPSPIN_POWER_SOFT_CAP);
-  return 0.55 + cappedPower * 0.45;
-};
-
+const SPIN_VIEW_BLOCK_THRESHOLD = -1; // allow full 360° spin input so every controller side stays responsive
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5426,35 +5418,10 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
-  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
-  const viewVec = computeCueViewVector(cueBall, camera);
-  if (!viewVec) return spinInput;
-  const axes = prepareSpinAxes(aimDir);
-  TMP_VEC2_SPIN.set(0, 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
-  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
-  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
-  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
-  if (viewDot >= 0) return spinInput;
-  const dx = camera.position.x - cueBall.pos.x;
-  const dz = camera.position.z - cueBall.pos.y;
-  const planarDistance = Math.hypot(dx, dz);
-  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
-  const relax =
-    elevation <= 0
-      ? 0
-      : THREE.MathUtils.clamp(
-          (elevation - 0.35) / (0.75 - 0.35),
-          0,
-          1
-        );
-  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
-  return {
-    x: TMP_VEC2_SPIN.dot(axes.perp),
-    y: TMP_VEC2_SPIN.dot(axes.axis)
-  };
+const clampSpinToVisibleHemisphere = (spinInput, _aimDir, _cueBall, _camera) => {
+  // Keep controller input 1:1 with the user's chosen strike direction on screen.
+  // Do not remap to the camera-facing hemisphere; it made some sides feel unresponsive.
+  return spinInput;
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -5539,7 +5506,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
-  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.2;
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
   const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
@@ -21808,39 +21775,17 @@ const powerRef = useRef(hud.power);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
-          const scaledSpin = {
-            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
-            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
-          };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
-            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
-            if (Math.abs(baseSide) > 1e-6) {
-              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-            }
           }
           cue.vel.copy(base);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(aimDir.x, 0, aimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode = 'standard';
