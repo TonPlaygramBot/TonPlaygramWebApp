@@ -130,3 +130,29 @@ export const listOwnedChessOptions = (accountId) => {
 export const getDefaultChessBattleLoadout = () => [...CHESS_BATTLE_DEFAULT_LOADOUT];
 
 export const chessBattleAccountId = resolveAccountId;
+
+export const setChessBattleEquippedOption = (type, optionId, accountId) => {
+  if (!type || !optionId) return getChessBattleInventory(accountId);
+  const resolvedAccountId = resolveAccountId(accountId);
+  const inventories = readAllInventories();
+  const current = normalizeInventory(inventories[resolvedAccountId]);
+  const currentValues = Array.isArray(current[type]) ? current[type] : [];
+  const nextValues = [optionId, ...currentValues.filter((value) => value !== optionId)];
+  const nextInventory = {
+    ...current,
+    [type]: nextValues
+  };
+  writeAllInventories({
+    ...inventories,
+    [resolvedAccountId]: nextInventory
+  });
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('chessBattleInventoryUpdate', {
+        detail: { accountId: resolvedAccountId, inventory: nextInventory }
+      })
+    );
+  }
+  return nextInventory;
+};
+
