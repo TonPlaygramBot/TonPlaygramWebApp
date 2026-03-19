@@ -50,6 +50,7 @@ const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
+const BOARD_FRAME_CENTER_Z = 0;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -553,12 +554,12 @@ export default function FourInRowRoyal() {
     boardGroup.add(topFrontRail, topBackRail);
 
     const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(boardWidth + frameSideWidth * 2, BOARD_FRAME_THICKNESS, BOARD_FRAME_DEPTH), railMat);
-    bottomRail.position.set(0, boardCenterY - boardHeight / 2 - BOARD_FRAME_THICKNESS / 2, 0.03);
+    bottomRail.position.set(0, boardCenterY - boardHeight / 2 - BOARD_FRAME_THICKNESS / 2, BOARD_FRAME_CENTER_Z);
     boardGroup.add(bottomRail);
 
     const sideOffset = boardWidth / 2 + frameSideWidth / 2;
     const leftRail = new THREE.Mesh(new THREE.BoxGeometry(frameSideWidth, boardHeight + BOARD_FRAME_THICKNESS * 2, BOARD_FRAME_DEPTH), railMat);
-    leftRail.position.set(-sideOffset, boardCenterY, 0.03);
+    leftRail.position.set(-sideOffset, boardCenterY, BOARD_FRAME_CENTER_Z);
     const rightRail = leftRail.clone();
     rightRail.position.x = sideOffset;
     boardGroup.add(leftRail, rightRail);
@@ -566,7 +567,7 @@ export default function FourInRowRoyal() {
     const legHeight = boardHeight * 0.66;
     const legY = boardBaseY - legHeight / 2 - 0.02;
     const legLeft = new THREE.Mesh(new THREE.BoxGeometry(0.16, legHeight, 0.2), trimMat);
-    legLeft.position.set(-sideOffset, legY, 0.02);
+    legLeft.position.set(-sideOffset, legY, BOARD_FRAME_CENTER_Z);
     const legRight = legLeft.clone();
     legRight.position.x = sideOffset;
     boardGroup.add(legLeft, legRight);
@@ -574,10 +575,13 @@ export default function FourInRowRoyal() {
     const footY = TABLE_HEIGHT - 0.08;
     const footGeo = new THREE.BoxGeometry(0.54, 0.16, 0.28);
     const leftFoot = new THREE.Mesh(footGeo, railMat);
-    leftFoot.position.set(-sideOffset - 0.04, footY, 0.04);
+    leftFoot.position.set(-sideOffset - 0.04, footY, BOARD_FRAME_CENTER_Z);
     const rightFoot = leftFoot.clone();
     rightFoot.position.x = sideOffset + 0.04;
     boardGroup.add(leftFoot, rightFoot);
+
+    // Keep the board and frame visually straight from the default portrait camera angle.
+    boardGroup.rotation.y = Math.PI / 2;
 
     const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.97, 0.018, 16, 42);
     for (let r = 0; r < rows; r += 1) {
