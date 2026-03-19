@@ -135,9 +135,19 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
 const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
 
 function clearPocketGlowMesh(entry) {
-  if (!entry?.glowMesh) return;
-  entry.glowMesh.parent?.remove?.(entry.glowMesh);
-  entry.glowMesh = null;
+  if (!entry) return;
+  if (entry.glowMesh) {
+    entry.glowMesh.parent?.remove?.(entry.glowMesh);
+    entry.glowMesh = null;
+  }
+  if (entry.glowSparkMesh) {
+    entry.glowSparkMesh.parent?.remove?.(entry.glowSparkMesh);
+    entry.glowSparkMesh = null;
+  }
+  if (entry.glowRayMesh) {
+    entry.glowRayMesh.parent?.remove?.(entry.glowRayMesh);
+    entry.glowRayMesh = null;
+  }
 }
 
 function loadCareerAttemptsProgress() {
@@ -1684,12 +1694,17 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
-const POCKET_GLOW_ENABLED = false;
-const POCKET_GLOW_RADIUS = BALL_R * 1.32;
+const POCKET_GLOW_ENABLED = true;
+const POCKET_GLOW_RADIUS = BALL_R * 1.4;
 const POCKET_GLOW_LIFT = BALL_R * 0.78;
-const POCKET_GLOW_OPACITY = 0.62;
+const POCKET_GLOW_OPACITY = 0.74;
+const POCKET_GLOW_RAY_OPACITY = 0.26;
+const POCKET_GLOW_SPARK_OPACITY = 0.42;
+const POCKET_GLOW_RAY_HEIGHT = BALL_R * 1.55;
+const POCKET_GLOW_FADE_MS = 220;
+const POCKET_GLOW_ACTIVATE_PROGRESS = 0.05;
 const POCKET_GLOW_COLORS = Object.freeze({
-  good: 0x2eea73,
+  good: 0x29b6ff,
   foul: 0xff4b4b
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
@@ -8386,6 +8401,19 @@ export function Table3D(
   const pocketGlowGeometry = POCKET_GLOW_ENABLED
     ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36)
     : null;
+  const pocketGlowSparkGeometry = POCKET_GLOW_ENABLED
+    ? new THREE.RingGeometry(POCKET_GLOW_RADIUS * 0.2, POCKET_GLOW_RADIUS * 0.95, 32)
+    : null;
+  const pocketGlowRayGeometry = POCKET_GLOW_ENABLED
+    ? new THREE.CylinderGeometry(
+        POCKET_GLOW_RADIUS * 0.12,
+        POCKET_GLOW_RADIUS * 0.44,
+        POCKET_GLOW_RAY_HEIGHT,
+        16,
+        1,
+        true
+      )
+    : null;
   const pocketGlowMaterials = POCKET_GLOW_ENABLED
     ? {
         good: new THREE.MeshBasicMaterial({
@@ -8406,6 +8434,46 @@ export function Table3D(
         })
       }
     : {};
+  const pocketGlowSparkMaterials = POCKET_GLOW_ENABLED
+    ? {
+        good: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          transparent: true,
+          opacity: POCKET_GLOW_SPARK_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }),
+        foul: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          transparent: true,
+          opacity: POCKET_GLOW_SPARK_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      }
+    : {};
+  const pocketGlowRayMaterials = POCKET_GLOW_ENABLED
+    ? {
+        good: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          transparent: true,
+          opacity: POCKET_GLOW_RAY_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }),
+        foul: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          transparent: true,
+          opacity: POCKET_GLOW_RAY_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      }
+    : {};
   const createPocketGlowMesh = (tone = 'good') => {
     if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
@@ -8418,9 +8486,12 @@ export function Table3D(
     return glow;
   };
   const setPocketGlowTone = (entry, tone = 'good') => {
-    if (!entry?.glowMesh) return;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
-    if (material) entry.glowMesh.material = material;
+    if (material && entry?.glowMesh) entry.glowMesh.material = material;
+    const sparkMaterial = pocketGlowSparkMaterials[tone] || pocketGlowSparkMaterials.good;
+    if (sparkMaterial && entry?.glowSparkMesh) entry.glowSparkMesh.material = sparkMaterial;
+    const rayMaterial = pocketGlowRayMaterials[tone] || pocketGlowRayMaterials.good;
+    if (rayMaterial && entry?.glowRayMesh) entry.glowRayMesh.material = rayMaterial;
     entry.glowTone = tone;
   };
   const removePocketDropEntry = (ballId) => {
@@ -30486,6 +30557,7 @@ const powerRef = useRef(hud.power);
               if (!isCueBall) {
                 const dropEntry = {
                   start: dropStart,
+                  glowStart: dropStart,
                   fromY: BALL_CENTER_Y,
                   currentY: BALL_CENTER_Y,
                   targetY: restY,
@@ -30512,6 +30584,40 @@ const powerRef = useRef(hud.power);
                   pocketId,
                   resting: false
                 };
+                const glowMesh = createPocketGlowMesh('good');
+                if (glowMesh) {
+                  glowMesh.position.set(c.x, pocketTopY + POCKET_GLOW_LIFT, c.y);
+                  glowMesh.scale.set(0.32, 0.32, 0.32);
+                  glowMesh.visible = false;
+                  table.add(glowMesh);
+                  dropEntry.glowMesh = glowMesh;
+                }
+                if (POCKET_GLOW_ENABLED && pocketGlowSparkGeometry) {
+                  const sparkMaterial = pocketGlowSparkMaterials.good;
+                  if (sparkMaterial) {
+                    const sparkMesh = new THREE.Mesh(pocketGlowSparkGeometry, sparkMaterial);
+                    sparkMesh.rotation.x = -Math.PI / 2;
+                    sparkMesh.position.set(c.x, pocketTopY + POCKET_GLOW_LIFT * 0.75, c.y);
+                    sparkMesh.scale.set(0.45, 0.45, 0.45);
+                    sparkMesh.visible = false;
+                    sparkMesh.renderOrder = 4;
+                    table.add(sparkMesh);
+                    dropEntry.glowSparkMesh = sparkMesh;
+                  }
+                }
+                if (POCKET_GLOW_ENABLED && pocketGlowRayGeometry) {
+                  const rayMaterial = pocketGlowRayMaterials.good;
+                  if (rayMaterial) {
+                    const rayMesh = new THREE.Mesh(pocketGlowRayGeometry, rayMaterial);
+                    rayMesh.position.set(c.x, pocketTopY + POCKET_GLOW_RAY_HEIGHT * 0.35, c.y);
+                    rayMesh.renderOrder = 3;
+                    rayMesh.visible = false;
+                    rayMesh.castShadow = false;
+                    rayMesh.receiveShadow = false;
+                    table.add(rayMesh);
+                    dropEntry.glowRayMesh = rayMesh;
+                  }
+                }
                 if (b.mesh) {
                   b.mesh.visible = true;
                   b.mesh.scale.set(1, 1, 1);
@@ -30661,6 +30767,20 @@ const powerRef = useRef(hud.power);
               entry.currentY =
                 (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
               const reachedStrap = entry.currentY <= targetY;
+              const dropProgress = THREE.MathUtils.clamp(
+                ((entry.fromY ?? fromY) - entry.currentY) / fallDistance,
+                0,
+                1
+              );
+              const glowProgress =
+                dropProgress <= POCKET_GLOW_ACTIVATE_PROGRESS
+                  ? 0
+                  : THREE.MathUtils.clamp(
+                      (dropProgress - POCKET_GLOW_ACTIVATE_PROGRESS) /
+                        (1 - POCKET_GLOW_ACTIVATE_PROGRESS),
+                      0,
+                      1
+                    );
               if (reachedStrap) {
                 entry.currentY = targetY;
                 entry.velocityY = 0;
@@ -30686,6 +30806,32 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
+              const glowFadeProgress =
+                entry.settledAt != null
+                  ? THREE.MathUtils.clamp((now - entry.settledAt) / POCKET_GLOW_FADE_MS, 0, 1)
+                  : 0;
+              const glowIntensity = glowProgress * (1 - glowFadeProgress);
+              if (entry.glowMesh) {
+                const scale = THREE.MathUtils.lerp(0.3, 1.14, glowIntensity);
+                entry.glowMesh.scale.set(scale, scale, scale);
+                entry.glowMesh.visible = glowIntensity > 0.01;
+                entry.glowMesh.position.y = pocketTopY + POCKET_GLOW_LIFT;
+                entry.glowMesh.material.opacity = POCKET_GLOW_OPACITY * glowIntensity;
+              }
+              if (entry.glowSparkMesh) {
+                const sparkScale = THREE.MathUtils.lerp(0.35, 1.25, glowIntensity);
+                entry.glowSparkMesh.scale.set(sparkScale, sparkScale, sparkScale);
+                entry.glowSparkMesh.rotation.z += deltaSeconds * (2.2 + glowIntensity * 2.5);
+                entry.glowSparkMesh.visible = glowIntensity > 0.04;
+                entry.glowSparkMesh.material.opacity =
+                  POCKET_GLOW_SPARK_OPACITY * glowIntensity * (0.8 + 0.2 * Math.sin(now * 0.03));
+              }
+              if (entry.glowRayMesh) {
+                const rayScale = THREE.MathUtils.lerp(0.45, 1.05, glowIntensity);
+                entry.glowRayMesh.scale.set(rayScale, 0.8 + glowIntensity * 0.65, rayScale);
+                entry.glowRayMesh.visible = glowIntensity > 0.07;
+                entry.glowRayMesh.material.opacity = POCKET_GLOW_RAY_OPACITY * glowIntensity;
+              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
@@ -30901,7 +31047,11 @@ const powerRef = useRef(hud.power);
         });
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
+        pocketGlowSparkGeometry?.dispose?.();
+        pocketGlowRayGeometry?.dispose?.();
         Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
+        Object.values(pocketGlowSparkMaterials).forEach((material) => material?.dispose?.());
+        Object.values(pocketGlowRayMaterials).forEach((material) => material?.dispose?.());
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
