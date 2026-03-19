@@ -31,10 +31,6 @@ describe('online game policy', () => {
       ok: false,
       error: 'unsupported_game_type'
     });
-
-    expect(
-      validateSeatTableRequest({ gameType: 'tabletennisroyal', stake: 5, maxPlayers: 4 })
-    ).toEqual({ ok: false, error: 'invalid_max_players' });
   });
 
   test('buildReadinessSnapshot returns all policy games with security checks', () => {

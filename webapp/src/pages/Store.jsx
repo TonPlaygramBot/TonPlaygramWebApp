@@ -752,14 +752,6 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
-  tabletennisroyal: {
-    name: 'Table Tennis Royal',
-    items: POOL_ROYALE_STORE_ITEMS,
-    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
-    labels: POOL_ROYALE_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   snookerroyale: {
     name: 'Snooker Royal',
     items: SNOOKER_ROYALE_STORE_ITEMS,
@@ -1083,11 +1075,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'poolroyale'
       })),
-      tabletennisroyal: POOL_ROYALE_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tabletennisroyal'
-      })),
       snookerroyale: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1151,8 +1138,6 @@ export default function Store() {
     () => ({
       poolroyale: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
-      tabletennisroyal: (type, optionId) =>
-        isPoolOptionUnlocked(type, optionId, poolOwned),
       snookerroyale: (type, optionId) =>
         isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) =>
@@ -1195,8 +1180,6 @@ export default function Store() {
     () => ({
       poolroyale: (item) =>
         POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tabletennisroyal: (item) =>
-        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       snookerroyale: (item) =>
         SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) =>
@@ -1227,7 +1210,6 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
-      tabletennisroyal: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHESS_TYPE_LABELS,
@@ -1805,7 +1787,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'tabletennisroyal') {
+        if (slug === 'poolroyale') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
