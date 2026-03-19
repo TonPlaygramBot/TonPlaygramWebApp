@@ -261,6 +261,15 @@ function safePolygonDifference(subject, ...clips) {
   }
 }
 
+function createIdLookupMap(entries) {
+  if (!Array.isArray(entries)) return new Map();
+  return new Map(
+    entries
+      .filter((entry) => entry && entry.id != null)
+      .map((entry) => [entry.id, entry])
+  );
+}
+
 function applyTablePhysicsSpec(meta) {
   const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
     ? meta.cushionCutAngleDeg
@@ -13425,7 +13434,7 @@ function PoolRoyaleGame({
       };
     });
 
-    const stateById = new Map(snapshot.map((entry) => [entry.id, entry]));
+    const stateById = createIdLookupMap(snapshot);
     if (cueBall) {
       const cueState = stateById.get(cueBall.id);
       const cueX = normalize(trainingLayout?.cue?.x, limitX);
@@ -21240,7 +21249,7 @@ const powerRef = useRef(hud.power);
 
         const applyBallSnapshot = (snapshot) => {
           if (!Array.isArray(snapshot)) return;
-          const map = new Map(snapshot.map((entry) => [entry.id, entry]));
+          const map = createIdLookupMap(snapshot);
           balls.forEach((ball) => {
             const state = map.get(ball.id);
             if (!state) return;
@@ -21323,8 +21332,8 @@ const powerRef = useRef(hud.power);
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
-          const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
-          const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
+          const aMap = createIdLookupMap(frameA.balls);
+          const bMap = frameB ? createIdLookupMap(frameB.balls) : null;
           balls.forEach((ball) => {
             const aState = aMap.get(ball.id);
             if (!aState) return;
@@ -21479,7 +21488,7 @@ const powerRef = useRef(hud.power);
             const snapshotApplied = applyCueSnapshot();
             const cuePath = playback?.cuePath ?? [];
             const firstFrame = frames[0] ?? null;
-            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry.id === 'cue') ?? null;
+            const cueBallFrame = firstFrame?.balls?.find?.((entry) => entry?.id === 'cue') ?? null;
             const cueBallFramePos =
               cueBallFrame?.pos && typeof cueBallFrame.pos === 'object'
                 ? TMP_VEC3_A.set(cueBallFrame.pos.x, CUE_Y, cueBallFrame.pos.y)
