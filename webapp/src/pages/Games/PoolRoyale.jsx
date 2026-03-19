@@ -134,6 +134,12 @@ const TRAINING_ATTEMPT_BUNDLES = Object.freeze([
 
 const CAREER_ATTEMPTS_KEY = 'poolRoyaleCareerAttempts';
 
+function clearPocketGlowMesh(entry) {
+  if (!entry?.glowMesh) return;
+  entry.glowMesh.parent?.remove?.(entry.glowMesh);
+  entry.glowMesh = null;
+}
+
 function loadCareerAttemptsProgress() {
   if (typeof window === 'undefined') {
     return { carryShots: 0, attemptsAwardedStageIds: [], bonusAwardedStageIds: [] };
@@ -8417,15 +8423,10 @@ export function Table3D(
     if (material) entry.glowMesh.material = material;
     entry.glowTone = tone;
   };
-  const clearPocketGlow = (entry) => {
-    if (!entry?.glowMesh) return;
-    entry.glowMesh.parent?.remove?.(entry.glowMesh);
-    entry.glowMesh = null;
-  };
   const removePocketDropEntry = (ballId) => {
     const entry = pocketDropRef.current.get(ballId);
     if (entry) {
-      clearPocketGlow(entry);
+      clearPocketGlowMesh(entry);
     }
     pocketDropRef.current.delete(ballId);
   };
@@ -30896,7 +30897,7 @@ const powerRef = useRef(hud.power);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.forEach((entry) => {
-          clearPocketGlow(entry);
+          clearPocketGlowMesh(entry);
         });
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
