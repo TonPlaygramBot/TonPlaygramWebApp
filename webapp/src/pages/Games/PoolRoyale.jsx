@@ -5533,10 +5533,12 @@ const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
-// Keep the live stroke timing aligned with the reference cue motion:
-// quick push forward and a short hold before snapping back to idle.
-const LIVE_CUE_FORWARD_DURATION_MS = 180;
-const LIVE_CUE_IMPACT_HOLD_MS = 90;
+// Reference cue-shot model constants (seconds converted to ms where needed).
+const CUE_SHOT_IDLE_GAP = 0.01;
+const CUE_SHOT_CONTACT_GAP = 0.001;
+const CUE_SHOT_PULL_RANGE = 0.34;
+const LIVE_CUE_FORWARD_DURATION_MS = 120;
+const LIVE_CUE_IMPACT_HOLD_MS = 50;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -15122,6 +15124,16 @@ const powerRef = useRef(hud.power);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
+  const cueShotControllerRef = useRef({
+    state: 'idle',
+    livePower: 0,
+    shotPower: 0,
+    strikeTimer: 0,
+    hitTriggered: false,
+    strikeStartBack: 0,
+    cueAnchorPosition: new THREE.Vector3(0, BALL_CENTER_Y, 0),
+    cueAnchorRotationY: 0
+  });
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -15159,6 +15171,35 @@ const powerRef = useRef(hud.power);
     if (!cueBall?.pos) return;
     cueStickAnchorRef.current.set(cueBall.pos.x, CUE_Y, cueBall.pos.y);
   }, []);
+  const onPowerDragStart = useCallback(() => {
+    captureCueStickAnchor();
+    const controller = cueShotControllerRef.current;
+    const cueBall = cueRef.current;
+    if (cueBall?.pos) {
+      controller.cueAnchorPosition.set(cueBall.pos.x, CUE_Y, cueBall.pos.y);
+    } else {
+      controller.cueAnchorPosition.copy(cueStickAnchorRef.current);
+    }
+    const aimDir = aimDirRef.current;
+    controller.cueAnchorRotationY = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+    controller.state = 'dragging';
+    controller.livePower = clampPower(powerRef.current, 0);
+  }, [captureCueStickAnchor, clampPower]);
+  const onPowerDrag = useCallback((power) => {
+    const controller = cueShotControllerRef.current;
+    controller.livePower = clampPower(power, 0);
+    if (controller.state !== 'striking') {
+      controller.state = 'dragging';
+    }
+  }, [clampPower]);
+  const onPowerRelease = useCallback(() => {
+    const controller = cueShotControllerRef.current;
+    controller.shotPower = clampPower(controller.livePower, 0);
+    controller.strikeTimer = 0;
+    controller.hitTriggered = false;
+    controller.state = 'striking';
+    return controller.shotPower;
+  }, [clampPower]);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const breakDiceMeshesRef = useRef({ ai: null, user: null });
@@ -21650,6 +21691,7 @@ const powerRef = useRef(hud.power);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
+              cueShotControllerRef.current.state = 'idle';
               pendingImpactRef.current = null;
             }
             return false;
@@ -21658,6 +21700,7 @@ const powerRef = useRef(hud.power);
             cueStick.visible = false;
             cueAnimating = false;
             cueStrokeStateRef.current = null;
+            cueShotControllerRef.current.state = 'idle';
             pendingImpactRef.current = null;
             syncCueShadow();
             return false;
@@ -21689,47 +21732,7 @@ const powerRef = useRef(hud.power);
               1
             );
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
-            const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-            const motionTechnique = stroke.motionTechnique ?? animationStyle;
-            const easedPush = (() => {
-              switch (animationStyle) {
-                case 'linear':
-                  return pushT;
-                case 'spring': {
-                  const spring = 1 - Math.exp(-7.2 * pushT) * Math.cos(9.4 * pushT);
-                  return THREE.MathUtils.clamp(spring, 0, 1);
-                }
-                case 'snap':
-                  return THREE.MathUtils.smootherstep(pushT, 0, 1);
-                case 'whip':
-                  return Math.pow(pushT, 0.68);
-                case 'classic':
-                default:
-                  return easeOutCubic(pushT);
-              }
-            })();
-            const motionPush = (() => {
-              switch (motionTechnique) {
-                case 'spring':
-                  return THREE.MathUtils.clamp(
-                    easedPush + Math.sin(pushT * Math.PI) * (1 - pushT) * 0.1,
-                    0,
-                    1
-                  );
-                case 'snap': {
-                  const steps = 4;
-                  return Math.ceil(easedPush * steps) / steps;
-                }
-                case 'whip':
-                  return pushT < 0.35
-                    ? pushT * 0.45
-                    : THREE.MathUtils.clamp(0.1575 + (pushT - 0.35) * 1.3, 0, 1);
-                case 'linear':
-                case 'classic':
-                default:
-                  return easedPush;
-              }
-            })();
+            const motionPush = easeOutCubic(pushT);
             cueStick.visible = true;
             cueStick.position.lerpVectors(pullPos, impactPos, motionPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * motionPush;
@@ -21755,6 +21758,9 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            cueShotControllerRef.current.state = 'idle';
+            cueShotControllerRef.current.livePower = 0;
+            cueShotControllerRef.current.shotPower = 0;
             pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
@@ -21841,6 +21847,7 @@ const powerRef = useRef(hud.power);
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
+          cueShotControllerRef.current.state = 'idle';
           pendingImpactRef.current = null;
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -21851,6 +21858,14 @@ const powerRef = useRef(hud.power);
             updateCamera();
           }
           return false;
+        };
+        const updateCue = (dtSeconds = 0, now = performance.now()) => {
+          const controller = cueShotControllerRef.current;
+          controller.strikeTimer = Math.max(
+            0,
+            controller.strikeTimer + Math.max(0, dtSeconds || 0)
+          );
+          return updateCueStroke(now);
         };
 
         const updateReplayTrail = (cuePath, targetTime) => {
@@ -23596,10 +23611,11 @@ const powerRef = useRef(hud.power);
           cueAnimating;
         const baseX = useAnchor && Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
         const baseZ = useAnchor && Number.isFinite(anchor?.z) ? anchor.z : cue.pos.y;
+        const idleBack = BALL_R + CUE_SHOT_IDLE_GAP;
         return TMP_VEC3_CUE_TIP_TARGET.set(
-          baseX - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+          baseX - dir.x * (idleBack + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          baseZ - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          baseZ - dir.z * (idleBack + pullAmount) + spinWorld.z
         );
       };
       const applyCueStickTransform = (tipTarget) => {
@@ -24748,19 +24764,17 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
-          pullbackDuration,
+          strikeDuration: LIVE_CUE_FORWARD_DURATION_MS,
+          holdDuration: LIVE_CUE_IMPACT_HOLD_MS,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.88,
+          impactThreshold: 0.9,
           forwardOnly: false,
-          cameraExtraHoldMs: 240,
+          cameraExtraHoldMs: 120,
           spinScale: 0.22
         };
       };
@@ -24840,14 +24854,10 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
+        const eased = easeOutCubic(ratio);
+        const requested = CUE_SHOT_PULL_RANGE * eased;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
-        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target =
-          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
-        return Math.min(target, visualMax);
+        return Math.min(requested, effectiveMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
@@ -24947,6 +24957,12 @@ const powerRef = useRef(hud.power);
           replayPlaybackRef.current
         )
           return;
+        const cueController = cueShotControllerRef.current;
+        if (cueController.state !== 'striking') {
+          cueController.livePower = clampPower(powerRef.current, 0);
+          cueController.shotPower = cueController.livePower;
+          cueController.state = 'striking';
+        }
         if (breakWinnerSeatRef.current === 'A') {
           breakWinnerSeatRef.current = null;
         }
@@ -25009,7 +25025,11 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const clampedPower = clampPower(powerRef.current, 0);
+        const clampedPower = clampPower(
+          cueController.shotPower > 0 ? cueController.shotPower : powerRef.current,
+          0
+        );
+        cueController.shotPower = clampedPower;
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -25204,54 +25224,17 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
-          const scaledSpin = {
-            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
-            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
+          const impactPayload = {
+            base: base.clone(),
+            aimDir: shotAimDir.clone(),
+            physicsSpin,
+            clampedPower,
+            liftStrength,
+            applied: false
           };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
-            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
-            spinTop *= TOPSPIN_MULTIPLIER;
-            if (Math.abs(baseSide) > 1e-6) {
-              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-            }
-          }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          const onCueContact = () => {
+            applyShotAtImpact(impactPayload);
+          };
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25284,22 +25267,18 @@ const powerRef = useRef(hud.power);
           if (cue?.pos) {
             cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
           }
-          const backInfo = calcTarget(
-            cue,
-            aimDir.clone().multiplyScalar(-1),
-            balls
-          );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const backInfo = calcTarget(cue, aimDir.clone().multiplyScalar(-1), balls);
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - (BALL_R + CUE_SHOT_IDLE_GAP));
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
-          const pullTarget = pullRange * strokeProfile.pullRatio;
+          const pullTarget = CUE_SHOT_PULL_RANGE * easeOutCubic(clampedPower);
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
-          const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
+          cueController.state = 'striking';
+          cueController.strikeStartBack = BALL_R + CUE_SHOT_IDLE_GAP + startPull;
+          cueController.strikeTimer = 0;
+          cueController.hitTriggered = false;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
           const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
@@ -25331,8 +25310,18 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-          const buildCuePosition = (pullAmount = visualPull) => {
+          const buildCuePosition = (pullAmount = startPull) => {
             const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            applyCueObstructionLift(tipTarget, obstructionLift);
+            return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
+              .sub(TMP_VEC3_CUE_TIP_OFFSET);
+          };
+          const buildCueContactPosition = () => {
+            const tipTarget = resolveCueTipTarget(
+              dir,
+              CUE_SHOT_CONTACT_GAP - CUE_SHOT_IDLE_GAP,
+              spinWorld
+            );
             applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
@@ -25348,11 +25337,11 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
-          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
+          const strikeDuration = LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const impactPos = idlePos.clone();
+          const impactPos = buildCueContactPosition();
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
@@ -25492,14 +25481,17 @@ const powerRef = useRef(hud.power);
               forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: true,
+              onImpact: onCueContact
             };
           } else {
+            onCueContact();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            cueShotControllerRef.current.state = 'idle';
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -28579,7 +28571,7 @@ const powerRef = useRef(hud.power);
           return;
         }
         const nowMs = now;
-        updateCueStroke(nowMs);
+        updateCue((frameTiming?.dt ?? 16.67) / 1000, nowMs);
         if (ENABLE_CUE_STROKE_ANIMATION && cueStick && cueStrokeStateRef.current) {
           cueStick.visible = true;
           cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
@@ -28786,6 +28778,7 @@ const powerRef = useRef(hud.power);
           !cueAnimating
         ) {
           cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
+          cueShotControllerRef.current.state = 'idle';
         }
         const remoteAimFresh =
           remoteAimState &&
@@ -29154,23 +29147,23 @@ const powerRef = useRef(hud.power);
             impactRing.visible = false;
           }
           const maxPull = CUE_PULL_BASE;
-          const pullProfile = resolveCueStrokeProfile(
-            cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
-            powerRef.current ?? 0
+          const controller = cueShotControllerRef.current;
+          const livePower = clampPower(
+            sliderInstanceRef.current?.dragging ? controller.livePower : powerRef.current ?? 0,
+            0
           );
           const aiPullReady =
             !isAiTurn ||
             (aiCueViewActive && now >= (aiCuePullReadyAtRef.current ?? 0));
           const desiredPull = aiPullReady
-            ? computePullTargetFromPower(powerRef.current, maxPull)
+            ? computePullTargetFromPower(livePower, maxPull)
             : 0;
           const pull = computeCuePull(desiredPull, maxPull, {
             instant:
               Boolean(sliderInstanceRef.current?.dragging) ||
               (isAiTurn && !aiPullReady),
-            smoothingOverride: pullProfile.pullSmoothing
+            smoothingOverride: 1
           });
-          const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
@@ -29193,7 +29186,9 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          const tipTarget = resolveCueTipTarget(dir, pull, spinWorld);
+          // Tiny visual dip while pulling for a heavier stroke feel.
+          tipTarget.y -= Math.min(0.0025, pull * 0.01);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
@@ -31152,11 +31147,17 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
+      onChange: (v) => {
+        const power = v / 100;
+        onPowerDrag(power);
+        applyPower(power);
+      },
       onStart: () => {
-        captureCueStickAnchor();
+        onPowerDragStart();
       },
       onCommit: () => {
+        const latchedPower = onPowerRelease();
+        applyPower(latchedPower);
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
@@ -31170,7 +31171,7 @@ const powerRef = useRef(hud.power);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applyPower, applySliderLock, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -31180,6 +31181,9 @@ const powerRef = useRef(hud.power);
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
+    cueShotControllerRef.current.state = 'idle';
+    cueShotControllerRef.current.livePower = 0;
+    cueShotControllerRef.current.shotPower = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
 
   const isPlayerTurn = hud.turn === 0;
