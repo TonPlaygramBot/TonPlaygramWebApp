@@ -25352,15 +25352,7 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const strikePushDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const impactPos = idlePos.clone().addScaledVector(
-            dir,
-            strikePushDistance
-          );
+          const impactPos = idlePos.clone();
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
