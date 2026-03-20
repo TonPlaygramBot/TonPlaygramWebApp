@@ -150,7 +150,8 @@ namespace Aiming
 
             if (cueTip != null)
             {
-                cueTip.position = cueBall.position - _aimDirection * idleTipGap;
+                float tipDistance = idleTipGap + _currentPullback;
+                cueTip.position = cueBall.position - _aimDirection * tipDistance;
             }
         }
 
@@ -189,7 +190,7 @@ namespace Aiming
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
-                float eased = strikeEaseIn.Evaluate(t);
+                float eased = Mathf.Max(strikeEaseIn.Evaluate(t), t * 0.2f);
 
                 _currentPullback = Mathf.Lerp(startPullback, 0f, eased);
                 UpdateCuePose();
