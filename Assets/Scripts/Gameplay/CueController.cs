@@ -5,13 +5,6 @@ namespace Aiming
 {
     public class CueController : MonoBehaviour
     {
-        enum ShotState
-        {
-            Idle,
-            Dragging,
-            Striking
-        }
-
         public AdaptiveAimingEngine aiming;
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
@@ -20,22 +13,25 @@ namespace Aiming
         public float ballRadius = 0.028575f;
 
         [Header("Cue placement")]
-        public float idleTipGap = 0.010f;
-        public float contactTipGap = 0.001f;
+        public float idleTipGap = 0.012f;
         public float baseCueOffset = 0.12f;
-        public float pullRange = 0.34f;
+        public float maxPullbackDistance = 0.16f;
 
         [Header("Aiming feel")]
         [Range(1f, 30f)] public float rotationDamping = 14f;
+        [Range(1f, 30f)] public float translationDamping = 18f;
         public bool allowAimAdjustWhileCharging = false;
 
         [Header("Strike feel")]
-        public float strikeDuration = 0.12f;
-        public float strikeHoldDuration = 0.05f;
+        public float strikeDuration = 0.055f;
+        public float recoilDistance = 0.015f;
+        public float recoilDuration = 0.04f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
-        [Tooltip("Normalized strike progress where the hit is fired once.")]
-        [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
+        [Tooltip("How close to idle pullback the cue must be before applying the strike impulse.")]
+        public float strikeContactPullbackThreshold = 0.001f;
+        public AnimationCurve pullbackEasing = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        public AnimationCurve strikeEaseIn = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
@@ -44,11 +40,13 @@ namespace Aiming
 
         Vector3 _aimDirection = Vector3.forward;
         Vector3 _targetDirection = Vector3.forward;
-        Vector3 _cueAnchorPosition;
-        float _currentCueDepth;
+        float _currentPullback;
+        float _targetPullback;
+        float _pullbackVelocity;
         float _power;
-        float _latchedShotPower;
-        ShotState _shotState = ShotState.Idle;
+        float _lastRequestedPower;
+        bool _charging;
+        bool _striking;
 
         void Update()
         {
@@ -57,54 +55,34 @@ namespace Aiming
                 return;
             }
 
-            if (_shotState == ShotState.Striking)
+            if (_striking)
             {
                 return;
             }
 
             bool ballsMoving = AreBallsMoving();
-            if (ballsMoving && _shotState == ShotState.Idle)
+            if (ballsMoving && !_charging)
             {
                 gameObject.SetActive(false);
                 return;
             }
 
             gameObject.SetActive(true);
-            if (_shotState == ShotState.Idle)
-            {
-                _cueAnchorPosition = cueBall.position;
-            }
-
             UpdateAimDirection();
-            UpdateCueDepth();
+            UpdatePullback();
             UpdateCuePose();
         }
 
         public void SetChargePower(float normalizedPower)
         {
             _power = Mathf.Clamp01(normalizedPower);
-
-            if (_shotState == ShotState.Dragging)
-            {
-                float pull = pullRange * EaseOutCubic(_power);
-                _currentCueDepth = idleTipGap + pull;
-                UpdateCuePose();
-            }
+            _lastRequestedPower = _power;
+            _targetPullback = pullbackEasing.Evaluate(_power) * maxPullbackDistance;
         }
 
         public void BeginCharge()
         {
-            if (_shotState == ShotState.Striking)
-            {
-                return;
-            }
-
-            _cueAnchorPosition = cueBall.position;
-            _shotState = ShotState.Dragging;
-            _latchedShotPower = 0f;
-            _currentCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
-            gameObject.SetActive(true);
-            UpdateCuePose();
+            _charging = true;
         }
 
         public void SetSpinInput(Vector2 normalizedSpin)
@@ -114,35 +92,16 @@ namespace Aiming
 
         public void CancelCharge()
         {
-            if (_shotState == ShotState.Striking)
-            {
-                return;
-            }
-
-            _shotState = ShotState.Idle;
-            _power = 0f;
-            _latchedShotPower = 0f;
-            _currentCueDepth = idleTipGap;
-            UpdateCuePose();
+            _charging = false;
+            SetChargePower(0f);
         }
 
         public void ReleaseAndStrike()
         {
-            if (_shotState != ShotState.Dragging)
-            {
-                return;
-            }
+            if (_striking) return;
 
-            _latchedShotPower = Mathf.Clamp01(_power);
-            if (_latchedShotPower <= 0.02f)
-            {
-                _shotState = ShotState.Idle;
-                _currentCueDepth = idleTipGap;
-                UpdateCuePose();
-                return;
-            }
-
-            StartCoroutine(StrikeRoutine(_latchedShotPower));
+            float shotPower = Mathf.Clamp01(Mathf.Max(_power, _lastRequestedPower));
+            StartCoroutine(StrikeRoutine(shotPower));
         }
 
         void UpdateAimDirection()
@@ -154,8 +113,7 @@ namespace Aiming
                 if (desiredDirection.sqrMagnitude > 1e-6f)
                 {
                     desiredDirection.Normalize();
-                    bool canAdjustAim = _shotState != ShotState.Dragging || allowAimAdjustWhileCharging;
-                    if (canAdjustAim)
+                    if (!_charging || allowAimAdjustWhileCharging)
                     {
                         _targetDirection = desiredDirection;
                     }
@@ -170,28 +128,30 @@ namespace Aiming
             }
         }
 
-        void UpdateCueDepth()
+        void UpdatePullback()
         {
-            if (_shotState == ShotState.Dragging)
+            if (!_charging)
             {
-                float pull = pullRange * EaseOutCubic(_power);
-                _currentCueDepth = idleTipGap + pull;
-                return;
+                _targetPullback = 0f;
             }
 
-            _currentCueDepth = idleTipGap;
+            _currentPullback = Mathf.SmoothDamp(
+                _currentPullback,
+                _targetPullback,
+                ref _pullbackVelocity,
+                1f / Mathf.Max(translationDamping, 0.01f));
         }
 
         void UpdateCuePose()
         {
-            Vector3 anchor = _cueAnchorPosition;
-            float cueDistance = baseCueOffset + _currentCueDepth;
-            transform.position = anchor - _aimDirection * cueDistance;
+            float cueDistance = baseCueOffset + idleTipGap + _currentPullback;
+            transform.position = cueBall.position - _aimDirection * cueDistance;
             transform.rotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
 
             if (cueTip != null)
             {
-                cueTip.position = anchor - _aimDirection * _currentCueDepth;
+                float tipDistance = idleTipGap + _currentPullback;
+                cueTip.position = cueBall.position - _aimDirection * tipDistance;
             }
         }
 
@@ -218,27 +178,24 @@ namespace Aiming
 
         IEnumerator StrikeRoutine(float shotPower)
         {
-            _shotState = ShotState.Striking;
+            _striking = true;
+            _charging = false;
 
             Vector3 strikeDirection = _aimDirection;
-            float pull = pullRange * EaseOutCubic(shotPower);
-            float startDepth = idleTipGap + pull;
-            float contactDepth = contactTipGap;
+            float startPullback = _currentPullback;
             float elapsed = 0f;
             bool didStrike = false;
-            _currentCueDepth = startDepth;
-            UpdateCuePose();
 
             while (elapsed < strikeDuration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
-                float eased = EaseOutCubic(t);
+                float eased = Mathf.Max(strikeEaseIn.Evaluate(t), t * 0.2f);
 
-                _currentCueDepth = Mathf.Lerp(startDepth, contactDepth, eased);
+                _currentPullback = Mathf.Lerp(startPullback, 0f, eased);
                 UpdateCuePose();
 
-                if (!didStrike && t >= hitProgress)
+                if (!didStrike && _currentPullback <= strikeContactPullbackThreshold)
                 {
                     didStrike = true;
                     ApplyStrikeImpulse(strikeDirection, shotPower);
@@ -252,15 +209,16 @@ namespace Aiming
                 ApplyStrikeImpulse(strikeDirection, shotPower);
             }
 
-            _currentCueDepth = contactDepth;
+            _currentPullback = recoilDistance;
             UpdateCuePose();
-            yield return new WaitForSeconds(strikeHoldDuration);
+            yield return new WaitForSeconds(recoilDuration);
 
-            _currentCueDepth = idleTipGap;
+            _currentPullback = 0f;
+            _targetPullback = 0f;
             _power = 0f;
-            _latchedShotPower = 0f;
-            _shotState = ShotState.Idle;
-            UpdateCuePose();
+            _lastRequestedPower = 0f;
+            _striking = false;
+            gameObject.SetActive(false);
         }
 
         void ApplyStrikeImpulse(Vector3 strikeDirection, float shotPower)
@@ -272,13 +230,6 @@ namespace Aiming
 
             float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
-        }
-
-        static float EaseOutCubic(float t)
-        {
-            t = Mathf.Clamp01(t);
-            float inv = 1f - t;
-            return 1f - (inv * inv * inv);
         }
     }
 }
