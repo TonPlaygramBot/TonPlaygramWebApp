@@ -5537,11 +5537,6 @@ const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CUE_STROKE_IDLE_GAP = 0.01;
-const CUE_STROKE_CONTACT_GAP = 0.001;
-const CUE_STROKE_PULL_RANGE = 0.34;
-const CUE_STROKE_STRIKE_DURATION_MS = 120;
-const CUE_STROKE_HOLD_DURATION_MS = 50;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -15126,8 +15121,6 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const cueShotStateRef = useRef('idle');
-  const latchedShotPowerRef = useRef(Number.NaN);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
   const cueLiftRef = useRef({
     active: false,
@@ -21645,7 +21638,6 @@ const powerRef = useRef(hud.power);
             return Boolean(cueAnimating);
           }
           if (!stroke) {
-            cueShotStateRef.current = 'idle';
             if (cueAnimating) {
               const idlePose = lastCueIdlePoseRef.current;
               if (idlePose?.position) {
@@ -21667,7 +21659,6 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
-            cueShotStateRef.current = 'idle';
             syncCueShadow();
             return false;
           }
@@ -21765,7 +21756,6 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
-            cueShotStateRef.current = 'idle';
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -21852,7 +21842,6 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          cueShotStateRef.current = 'idle';
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -23605,15 +23594,12 @@ const powerRef = useRef(hud.power);
           Boolean(sliderInstanceRef.current?.dragging) ||
           shooting ||
           cueAnimating;
-        const useContactGap =
-          Boolean(options.contact) || cueShotStateRef.current === 'striking';
-        const cueGap = resolveCueStrokeGap(useContactGap);
         const baseX = useAnchor && Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
         const baseZ = useAnchor && Number.isFinite(anchor?.z) ? anchor.z : cue.pos.y;
         return TMP_VEC3_CUE_TIP_TARGET.set(
-          baseX - dir.x * (cueGap + pullAmount) + spinWorld.x,
+          baseX - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          baseZ - dir.z * (cueGap + pullAmount) + spinWorld.z
+          baseZ - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
       };
       const applyCueStickTransform = (tipTarget) => {
@@ -24762,16 +24748,17 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
+        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Lock rhythm to: idle -> dragging -> striking -> idle.
+          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: CUE_STROKE_STRIKE_DURATION_MS,
-          holdDuration: CUE_STROKE_HOLD_DURATION_MS,
-          pullbackDuration: 0,
+          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
+          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
+          pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 0.88,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -24866,8 +24853,6 @@ const powerRef = useRef(hud.power);
       const easeInOutCubic = (t) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-      const resolveCueStrokeGap = (contact = false) =>
-        (contact ? CUE_STROKE_CONTACT_GAP : CUE_STROKE_IDLE_GAP) + BALL_R;
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -25024,12 +25009,7 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const clampedPower = clampPower(
-          currentHud?.turn === 0 && Number.isFinite(latchedShotPowerRef.current)
-            ? latchedShotPowerRef.current
-            : powerRef.current,
-          0
-        );
+        const clampedPower = clampPower(powerRef.current, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -25301,7 +25281,7 @@ const powerRef = useRef(hud.power);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
           dir.normalize();
-          if (cue?.pos && currentHud?.turn === 1) {
+          if (cue?.pos) {
             cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
           }
           const backInfo = calcTarget(
@@ -25313,7 +25293,8 @@ const powerRef = useRef(hud.power);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullTarget = CUE_STROKE_PULL_RANGE * easeOutCubic(clampedPower);
+          const pullRange = 0.24;
+          const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
@@ -25486,7 +25467,6 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
-            cueShotStateRef.current = 'striking';
             lastCueIdlePoseRef.current = {
               position: idlePos.clone(),
               rotationX: cueStick.rotation.x,
@@ -29181,11 +29161,8 @@ const powerRef = useRef(hud.power);
           const aiPullReady =
             !isAiTurn ||
             (aiCueViewActive && now >= (aiCuePullReadyAtRef.current ?? 0));
-          const playerDragging = Boolean(sliderInstanceRef.current?.dragging) && isPlayerTurn;
           const desiredPull = aiPullReady
-            ? playerDragging
-              ? CUE_STROKE_PULL_RANGE * easeOutCubic(clampPower(powerRef.current ?? 0, 0))
-              : computePullTargetFromPower(powerRef.current, maxPull)
+            ? computePullTargetFromPower(powerRef.current, maxPull)
             : 0;
           const pull = computeCuePull(desiredPull, maxPull, {
             instant:
@@ -31178,12 +31155,8 @@ const powerRef = useRef(hud.power);
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
         captureCueStickAnchor();
-        cueShotStateRef.current = 'dragging';
       },
-      onCommit: (value) => {
-        const normalizedPower = clampPower((value ?? 0) / 100, 0);
-        latchedShotPowerRef.current = normalizedPower;
-        cueShotStateRef.current = normalizedPower > 0.02 ? 'striking' : 'idle';
+      onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
@@ -31207,8 +31180,6 @@ const powerRef = useRef(hud.power);
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
-    cueShotStateRef.current = 'idle';
-    latchedShotPowerRef.current = Number.NaN;
   }, [applyPower, hud.over, hud.turn, shotActive]);
 
   const isPlayerTurn = hud.turn === 0;
