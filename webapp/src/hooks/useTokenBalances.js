@@ -17,7 +17,15 @@ export default function useTokenBalances() {
   const [tonBalance, setTonBalance] = useState(null);
   const [tpcWalletBalance, setTpcWalletBalance] = useState(null);
 
-  const walletAddress = useTonAddress(true);
+  const connectedWalletAddress = useTonAddress(true);
+  const [storedWalletAddress, setStoredWalletAddress] = useState(() => {
+    try {
+      return localStorage.getItem('walletAddress') || '';
+    } catch {
+      return '';
+    }
+  });
+  const walletAddress = connectedWalletAddress || storedWalletAddress;
 
   useEffect(() => {
     async function loadTpc() {
@@ -49,6 +57,28 @@ export default function useTokenBalances() {
       window.removeEventListener('storage', refresh);
     };
   }, [telegramId]);
+
+  useEffect(() => {
+    const syncStoredWallet = () => {
+      try {
+        setStoredWalletAddress(localStorage.getItem('walletAddress') || '');
+      } catch {
+        setStoredWalletAddress('');
+      }
+    };
+
+    window.addEventListener('storage', syncStoredWallet);
+    window.addEventListener('walletAddressUpdated', syncStoredWallet);
+    window.addEventListener('focus', syncStoredWallet);
+    window.addEventListener('pageshow', syncStoredWallet);
+
+    return () => {
+      window.removeEventListener('storage', syncStoredWallet);
+      window.removeEventListener('walletAddressUpdated', syncStoredWallet);
+      window.removeEventListener('focus', syncStoredWallet);
+      window.removeEventListener('pageshow', syncStoredWallet);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadExternal() {

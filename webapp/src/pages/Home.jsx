@@ -166,6 +166,14 @@ export default function Home() {
         )}
 
         <TonConnectButton />
+        {walletAddress && (
+          <div className="mt-2 text-center">
+            <p className="text-xs text-subtext">Connected TON balance</p>
+            <p className="text-lg font-semibold text-white">
+              {formatValue(tonBalance ?? '...', 4)} TON
+            </p>
+          </div>
+        )}
         <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
           <p className="text-xs text-subtext">
             1 TPC account • connect only what is still missing.
