@@ -2516,6 +2516,43 @@ export default function Store() {
         Promise.allSettled(backgroundSyncTasks).catch(() => {});
       }
 
+      const purchasedCustomHdriListings = purchasable.filter(
+        (item) =>
+          item?.type === 'environmentHdri' &&
+          typeof item?.optionId === 'string' &&
+          item.optionId.startsWith('custom-hdri:') &&
+          typeof item?.environmentUrl === 'string' &&
+          item.environmentUrl
+      );
+      if (purchasedCustomHdriListings.length) {
+        purchasedCustomHdriListings.forEach((item) => {
+          const slug = String(item.slug || '').toLowerCase();
+          if (!slug) return;
+          const optionIdByGame =
+            item.optionIdByGame && typeof item.optionIdByGame === 'object'
+              ? { ...item.optionIdByGame, [slug]: item.optionId }
+              : { [slug]: item.optionId };
+          saveCustomHdriEntry({
+            id:
+              item.id && String(item.id).startsWith('custom-hdri-')
+                ? item.id
+                : `custom-hdri-${Date.now()}-${slug}`,
+            name: item.name || item.displayLabel || 'Custom HDRI',
+            description: item.description || '',
+            createdAt: Number(item.createdAt || Date.now()),
+            createdBy: resolvedAccountId,
+            visibility: 'private',
+            supportedGames: Array.from(new Set([slug])),
+            optionIdByGame,
+            environmentUrl: item.environmentUrl,
+            thumbnailUrl:
+              item.thumbnailUrl || item.thumbnail || item.environmentUrl,
+            storePrice: Number(item.price || 0)
+          });
+        });
+        setUserListings(getCustomHdriCatalog(resolvedAccountId));
+      }
+
       const purchasedTrainingAttempts = purchasable.reduce((sum, item) => {
         if (item.slug !== 'poolroyale' || item.type !== 'poolTrainingAttempt')
           return sum;
