@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -15,8 +15,10 @@ import {
 } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
+  ensureAccountId,
   getTelegramFirstName,
-  getTelegramPhotoUrl
+  getTelegramPhotoUrl,
+  getTelegramUsername
 } from '../../utils/telegram.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
@@ -48,6 +50,7 @@ import {
   isChessOptionUnlocked,
   setChessBattleEquippedOption
 } from '../../utils/chessBattleInventory.js';
+import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
 const MODEL_SCALE = 0.75;
@@ -1071,6 +1074,42 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
 export default function CheckersBattleRoyal() {
   useTelegramBackButton();
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const mode = params.get('mode') || 'ai';
+  const initialTableId = params.get('tableId') || '';
+  const initialAccountId = params.get('accountId') || '';
+  const preferredSideParam = params.get('preferredSide');
+  const initialSideParam = params.get('side');
+  const initialOpponentName = params.get('opponentName') || '';
+  const initialOpponentAvatar = params.get('opponentAvatar') || '';
+  const [accountId, setAccountId] = useState(initialAccountId);
+  const [tableId] = useState(initialTableId);
+  const [onlineStatus, setOnlineStatus] = useState(
+    mode === 'online' ? 'connecting' : 'offline'
+  );
+  const [onlineOpponent, setOnlineOpponent] = useState(
+    initialOpponentName || initialOpponentAvatar
+      ? { name: initialOpponentName || 'Opponent', avatar: initialOpponentAvatar }
+      : null
+  );
+  const [redirecting, setRedirecting] = useState(false);
+  const onlineRef = useRef({
+    enabled: mode === 'online',
+    tableId: initialTableId || null,
+    accountId: initialAccountId || null,
+    side:
+      initialSideParam === 'dark' || initialSideParam === 'black'
+        ? 'dark'
+        : initialSideParam === 'light' || initialSideParam === 'white'
+        ? 'light'
+        : preferredSideParam === 'black'
+        ? 'dark'
+        : 'light',
+    synced: mode !== 'online',
+    status: mode === 'online' ? 'connecting' : 'offline',
+    opponent: null
+  });
   const mountRef = useRef(null);
 
   const boardRef = useRef(createInitial());
@@ -1106,6 +1145,24 @@ export default function CheckersBattleRoyal() {
     light: [],
     dark: []
   });
+  useEffect(() => {
+    if (mode !== 'online') return;
+    if (!initialTableId) {
+      setRedirecting(true);
+      navigate('/games/checkersbattleroyal/lobby', { replace: true });
+      return;
+    }
+    if (!initialAccountId) {
+      ensureAccountId()
+        .then((id) => {
+          if (!id) return;
+          setAccountId(id);
+          onlineRef.current.accountId = id;
+        })
+        .catch(() => {});
+    }
+  }, [initialAccountId, initialTableId, mode, navigate]);
+
   const aiBusyRef = useRef(false);
   const resolvedAccountId = useMemo(() => chessBattleAccountId(), []);
   const [inventory, setInventory] = useState(() =>
@@ -1319,14 +1376,17 @@ export default function CheckersBattleRoyal() {
     appearance.tableId,
     resolvedAccountId
   ]);
-  const playerName = getTelegramFirstName() || 'Player';
+  const playerName =
+    getTelegramFirstName() || getTelegramUsername() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
+  const rivalName = onlineOpponent?.name || 'Rival';
+  const rivalPhoto = onlineOpponent?.avatar || '/assets/icons/profile.svg';
 
   const players = [
     {
       index: 0,
-      name: 'Rival',
-      photoUrl: '/assets/icons/profile.svg',
+      name: rivalName,
+      photoUrl: rivalPhoto,
       color: '#f43f5e',
       isTurn: turn === 'dark'
     },
@@ -1566,6 +1626,12 @@ export default function CheckersBattleRoyal() {
     const pointer = new THREE.Vector2();
 
     const applyMove = (r, c) => {
+      const isOnlineGame = onlineRef.current.enabled;
+      if (isOnlineGame && !onlineRef.current.synced) return;
+      if (isOnlineGame && turn !== onlineRef.current.side) {
+        setStatus('Waiting for opponent move…');
+        return;
+      }
       const board = boardRef.current;
       const selected = selectedRef.current;
       const sideMoves = getMovesForSide(board, turn);
@@ -1612,6 +1678,21 @@ export default function CheckersBattleRoyal() {
         ...move
       });
       if (!applied) return;
+      const emitOnlineMove = (nextBoard, nextTurn) => {
+        if (!onlineRef.current.enabled || !onlineRef.current.tableId) return;
+        socket.emit('checkersMove', {
+          tableId: onlineRef.current.tableId,
+          move: {
+            board: nextBoard,
+            turn: nextTurn,
+            lastMove: {
+              from: { ...selected },
+              to: { r, c },
+              capture: move.capture || null
+            }
+          }
+        });
+      };
 
       if (Array.isArray(move.capture)) {
         const [captureR, captureC] = move.capture;
@@ -1644,7 +1725,7 @@ export default function CheckersBattleRoyal() {
         setStatus(
           turn === HUMAN_SIDE
             ? 'Chain capture required. Continue capturing.'
-            : 'AI continues a capture chain…'
+            : 'Chain capture required. Continue capturing.'
         );
         renderHighlights();
         return;
@@ -1672,9 +1753,12 @@ export default function CheckersBattleRoyal() {
         setStatus(
           nextTurn === HUMAN_SIDE
             ? 'Your turn. Forced captures are enabled.'
+            : isOnlineGame
+            ? 'Opponent is thinking…'
             : 'AI is thinking…'
         );
       }
+      emitOnlineMove(copyBoard(applied.board), nextTurn);
       renderHighlights();
     };
 
@@ -1989,6 +2073,68 @@ export default function CheckersBattleRoyal() {
   }, []);
 
   useEffect(() => {
+    const isOnlineGame = mode === 'online';
+    onlineRef.current.enabled = isOnlineGame;
+    if (!isOnlineGame) return;
+    if (!tableId || !accountId) return;
+
+    onlineRef.current.tableId = tableId;
+    onlineRef.current.accountId = accountId;
+    onlineRef.current.synced = false;
+    setOnlineStatus('connecting');
+    setStatus('Connecting to online table…');
+
+    const handleGameStart = ({ tableId: startedId, players: remotePlayers = [] } = {}) => {
+      if (!startedId || startedId !== tableId) return;
+      const me = remotePlayers.find((player) => String(player.id) === String(accountId));
+      const opp = remotePlayers.find((player) => String(player.id) !== String(accountId));
+      const mySide =
+        me?.side === 'black' || me?.side === 'dark'
+          ? 'dark'
+          : me?.side === 'white' || me?.side === 'light'
+          ? 'light'
+          : onlineRef.current.side;
+      onlineRef.current.side = mySide;
+      onlineRef.current.opponent = opp || null;
+      setOnlineOpponent(
+        opp ? { name: opp.name || 'Opponent', avatar: opp.avatar || '' } : null
+      );
+      setOnlineStatus('in-game');
+      setStatus(mySide === 'light' ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
+    };
+
+    const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      if (!Array.isArray(board)) return;
+      boardRef.current = copyBoard(board);
+      selectedRef.current = null;
+      setTurn(remoteTurn === 'dark' ? 'dark' : 'light');
+      setCanReplay(false);
+      setGameOver(null);
+      setCapturedBySide({ light: [], dark: [] });
+      renderPieces();
+      renderHighlights();
+      onlineRef.current.synced = true;
+      setOnlineStatus('in-game');
+      const myTurn = (remoteTurn === 'dark' ? 'dark' : 'light') === onlineRef.current.side;
+      setStatus(myTurn ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
+    };
+
+    socket.on('gameStart', handleGameStart);
+    socket.on('checkersState', handleCheckersState);
+    socket.emit('register', { playerId: accountId });
+    socket.emit('joinCheckersRoom', { tableId, accountId });
+    socket.emit('checkersSyncRequest', { tableId });
+
+    return () => {
+      socket.off('gameStart', handleGameStart);
+      socket.off('checkersState', handleCheckersState);
+      socket.emit('leaveLobby', { accountId, tableId });
+    };
+  }, [accountId, mode, renderHighlights, renderPieces, tableId]);
+
+  useEffect(() => {
+    if (onlineRef.current.enabled) return;
     if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
@@ -2224,6 +2370,10 @@ export default function CheckersBattleRoyal() {
   }, [viewMode]);
 
   const restartGame = () => {
+    if (onlineRef.current.enabled && onlineRef.current.tableId) {
+      socket.emit('checkersSyncRequest', { tableId: onlineRef.current.tableId });
+      return;
+    }
     boardRef.current = createInitial();
     selectedRef.current = null;
     replayStateRef.current = null;
@@ -2260,6 +2410,14 @@ export default function CheckersBattleRoyal() {
 
   const optionButton = (active) =>
     `rounded-lg border px-2 py-1 text-[11px] ${active ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`;
+
+  if (mode === 'online' && redirecting) {
+    return (
+      <div className="p-4 text-center text-sm text-subtext">
+        Syncing with the lobby…
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-[#050814] text-white">
@@ -2505,6 +2663,12 @@ export default function CheckersBattleRoyal() {
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {status} • Turn: {turn}
           </div>
+          {mode === 'online' && (
+            <div className="mt-2 text-center text-[11px] text-emerald-100/80">
+              Online: {onlineStatus}
+              {tableId ? ` • Table ${tableId.slice(0, 8)}` : ''}
+            </div>
+          )}
         </div>
 
         {gameOver ? (

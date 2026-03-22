@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "receipt:preview": "node scripts/generate-receipt-preview.js"
+    "receipt:preview": "node scripts/generate-receipt-preview.js",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "canvas": "^2.11.2",
