@@ -47,12 +47,19 @@ function getStoredAccountId() {
   return window?.localStorage?.getItem('accountId') || '';
 }
 
+function getStoredGoogleId() {
+  if (typeof window === 'undefined') return '';
+  return window?.localStorage?.getItem('googleId') || '';
+}
+
 function buildSocketAuthPayload() {
   const initData = getTelegramInitData();
   const accountId = getStoredAccountId();
+  const googleId = getStoredGoogleId();
   return {
     ...(initData ? { initData } : {}),
-    ...(accountId ? { accountId } : {})
+    ...(accountId ? { accountId } : {}),
+    ...(googleId ? { googleId } : {})
   };
 }
 

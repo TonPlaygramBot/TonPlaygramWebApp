@@ -174,6 +174,12 @@ io.use((socket, next) => {
   const initData =
     socket.handshake.auth?.initData ||
     socket.handshake.headers?.['x-telegram-init-data'];
+  const accountId =
+    socket.handshake.auth?.accountId ||
+    socket.handshake.headers?.['x-tpc-account-id'];
+  const googleId =
+    socket.handshake.auth?.googleId ||
+    socket.handshake.headers?.['x-google-id'];
 
   if (initData) {
     const data = verifyTelegramInitData(initData);
@@ -187,6 +193,14 @@ io.use((socket, next) => {
 
   if (process.env.API_AUTH_TOKEN && token === process.env.API_AUTH_TOKEN) {
     socket.data.auth = { apiToken: true };
+    return next();
+  }
+
+  if (accountId || googleId) {
+    socket.data.auth = {
+      accountId: accountId ? String(accountId) : undefined,
+      googleId: googleId ? String(googleId) : undefined
+    };
     return next();
   }
 
