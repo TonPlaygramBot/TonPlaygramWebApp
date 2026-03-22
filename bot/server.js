@@ -1482,7 +1482,11 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {
     const pid = playerId || accountId;
     const map = tableSeats.get(roomId);
-    const cap = Number(roomId.split('-')[1]) || 4;
+    const tableEntry = tableMap.get(roomId);
+    const cap =
+      Number(tableEntry?.maxPlayers) ||
+      Number(roomId.split('-')[1]) ||
+      4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
       socket.emit('waitingForPlayers', { roomId, current: map.size, capacity: cap });
       return;
@@ -1513,7 +1517,13 @@ io.on('connection', (socket) => {
         () => {}
       );
     }
-    const result = await gameManager.joinRoom(roomId, pid, name, socket, avatar);
+    const inferredGameType =
+      tableEntry?.gameType ||
+      (roomId.startsWith('checkers') ? 'checkers' : 'snake');
+    const result = await gameManager.joinRoom(roomId, pid, name, socket, avatar, {
+      capacity: cap,
+      gameType: inferredGameType
+    });
     if (result.error) {
       socket.emit('error', result.error);
     } else if (result.board) {
@@ -1701,6 +1711,62 @@ io.on('connection', (socket) => {
     });
     socket.to(tableId).emit('chessMove', { tableId, ...next });
   });
+
+  socket.on('checkersMove', async ({ roomId, from, to }) => {
+    if (!roomId) return;
+    const room = await gameManager.getRoom(roomId).catch(() => null);
+    if (!room || room.gameType !== 'checkers') {
+      socket.emit('errorMessage', 'checkers_room_not_found');
+      return;
+    }
+    if (room.status !== 'playing') {
+      socket.emit('errorMessage', 'game_not_started');
+      return;
+    }
+    const playerIndex = room.players.findIndex((p) => p.socketId === socket.id);
+    if (playerIndex === -1) {
+      socket.emit('errorMessage', 'player_not_in_room');
+      return;
+    }
+    const result = room.game.movePiece(playerIndex, from, to);
+    if (!result?.ok) {
+      socket.emit('errorMessage', result?.error || 'invalid_move');
+      return;
+    }
+    room.currentTurn = room.game.currentTurn;
+    io.to(room.id).emit('checkersMove', {
+      roomId: room.id,
+      playerId: room.players[playerIndex]?.playerId,
+      from: result.from,
+      to: result.to,
+      captured: result.captured,
+      crowned: result.crowned,
+      board: room.game.board,
+      currentTurn: room.players[room.currentTurn]?.playerId || null
+    });
+    if (result.winner != null) {
+      room.status = 'finished';
+      io.to(room.id).emit('gameWon', {
+        roomId: room.id,
+        playerId: room.players[result.winner]?.playerId || null
+      });
+    } else {
+      room.emitNextTurn();
+    }
+    await gameManager.saveRoom(room);
+  });
+
+  socket.on('checkersSyncRequest', async ({ roomId }) => {
+    if (!roomId) return;
+    const room = await gameManager.getRoom(roomId).catch(() => null);
+    if (!room || room.gameType !== 'checkers') return;
+    socket.emit('checkersState', {
+      roomId,
+      board: room.game.board,
+      currentTurn: room.players[room.currentTurn]?.playerId || null,
+      status: room.status
+    });
+  });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
     let set = tableWatchers.get(roomId);
@@ -1764,6 +1830,9 @@ io.on('connection', (socket) => {
 
     const room = gameManager.findRoomBySocket(socket.id);
     if (!room) return;
+    if (room.gameType !== 'snake') {
+      return socket.emit('errorMessage', 'unsupported_action_for_game');
+    }
     if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {
       return socket.emit('errorMessage', 'roll_rate_limited');
     }
