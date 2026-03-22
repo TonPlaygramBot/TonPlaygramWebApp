@@ -33,7 +33,7 @@ describe('online game policy', () => {
     });
   });
 
-  test('accepts chess and checkers lobby aliases used by seatTable clients', () => {
+  test('accepts chess/checkers aliases and checkers battle royal metadata used by seatTable clients', () => {
     const chess = validateSeatTableRequest({
       gameType: 'chess',
       stake: 100,
@@ -46,11 +46,22 @@ describe('online game policy', () => {
       maxPlayers: 2,
       matchMeta: { preferredSide: 'black', mode: 'online' }
     });
+    const checkersBattleRoyal = validateSeatTableRequest({
+      gameType: 'checkersbattleroyal',
+      stake: 100,
+      maxPlayers: 2,
+      matchMeta: { preferredSide: 'black', mode: 'online' }
+    });
 
     expect(chess.ok).toBe(true);
     expect(chess.safeMatchMeta).toEqual({ preferredSide: 'white', mode: 'online' });
     expect(checkers.ok).toBe(true);
     expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online' });
+    expect(checkersBattleRoyal.ok).toBe(true);
+    expect(checkersBattleRoyal.safeMatchMeta).toEqual({
+      preferredSide: 'black',
+      mode: 'online'
+    });
   });
 
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
