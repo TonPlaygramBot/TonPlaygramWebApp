@@ -60,11 +60,13 @@ import {
   listOnline
 } from './services/connectionService.js';
 import { validateSeatTableRequest } from './config/onlineGamePolicy.js';
+import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
 
 validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
+const checkersRealtimeStore = createCheckersRealtimeStore();
 const AUTHENTIC_ACCOUNT_QUERY = {
   isBanned: { $ne: true },
   $or: [
@@ -738,6 +740,12 @@ function maybeStartGame(table) {
         if (whitePlayer) table.currentTurn = whitePlayer.id;
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
+      } else if (table.gameType === 'checkers') {
+        const initial = checkersRealtimeStore.updateState(table.id, {
+          turn: 'light',
+          lastMove: null
+        });
+        io.to(table.id).emit('checkersState', { tableId: table.id, ...initial });
       }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
@@ -786,6 +794,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
       }
     }
     if (table.players.length === 0) {
+      if (table.gameType === 'checkers') {
+        checkersRealtimeStore.clearState(tableId);
+      }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
       lobbyTables[key] = (lobbyTables[key] || []).filter(
@@ -1536,6 +1547,27 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('joinCheckersRoom', async ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    const state = checkersRealtimeStore.getState(tableId);
+    socket.emit('checkersState', { tableId, ...state });
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+  });
+
+  socket.on('checkersSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const state = checkersRealtimeStore.getState(tableId);
+    socket.emit('checkersState', { tableId, ...state });
+  });
+
   socket.on('chessSyncRequest', ({ tableId }) => {
     if (!tableId) return;
     const state = getChessState(tableId);
@@ -1700,6 +1732,16 @@ io.on('connection', (socket) => {
       lastMove: move.lastMove || null
     });
     socket.to(tableId).emit('chessMove', { tableId, ...next });
+  });
+
+  socket.on('checkersMove', ({ tableId, move }) => {
+    if (!tableId || !move) return;
+    const next = checkersRealtimeStore.updateState(tableId, {
+      board: move.board,
+      turn: move.turn,
+      lastMove: move.lastMove || null
+    });
+    io.to(tableId).emit('checkersState', { tableId, ...next });
   });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
