@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import type { ComponentType } from 'react';
 import { App } from './App';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
@@ -11,6 +12,9 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 const solanaWallets = [new PhantomWalletAdapter()];
 const queryClient = new QueryClient();
+
+const SolanaConnectionProvider = ConnectionProvider as unknown as ComponentType<any>;
+const SolanaWalletProvider = WalletProvider as unknown as ComponentType<any>;
 
 const wagmiConfig = createConfig({
   chains: [bsc],
@@ -55,16 +59,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       actionsConfiguration={{
         returnStrategy: 'back',
         // Only used in Telegram WebView; harmless elsewhere.
-        twaReturnUrl: window.location.href,
+        twaReturnUrl: window.location.href as `${string}://${string}`,
       }}
     >
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <ConnectionProvider endpoint="https://api.mainnet-beta.solana.com">
-            <WalletProvider wallets={solanaWallets} autoConnect>
+          <SolanaConnectionProvider endpoint="https://api.mainnet-beta.solana.com">
+            <SolanaWalletProvider wallets={solanaWallets} autoConnect>
               <App />
-            </WalletProvider>
-          </ConnectionProvider>
+            </SolanaWalletProvider>
+          </SolanaConnectionProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </TonConnectUIProvider>

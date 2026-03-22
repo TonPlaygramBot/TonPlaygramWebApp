@@ -13,7 +13,7 @@ export function EvmLink({ onDone }: { onDone: () => Promise<void> }) {
       connect({ connector: wc });
       return;
     }
-    if (!address) throw new Error('No EVM address');
+    if (!address) throw new Error('No BNB address');
 
     const nonceResp = await api<{ nonce: string; message: string }>('/api/wallets/link/nonce?chain=evm');
     const signature = await signMessageAsync({ message: nonceResp.message });
@@ -23,7 +23,7 @@ export function EvmLink({ onDone }: { onDone: () => Promise<void> }) {
       body: JSON.stringify({
         chain: 'evm',
         address,
-        provider: 'walletconnect',
+        provider: 'walletconnect-bnb',
         nonce: nonceResp.nonce,
         message: nonceResp.message,
         signature,
@@ -32,5 +32,5 @@ export function EvmLink({ onDone }: { onDone: () => Promise<void> }) {
     await onDone();
   };
 
-  return <button onClick={() => link().catch((e) => alert(e.message))}>{isConnected ? 'Sign & Link EVM' : 'Connect WalletConnect'}</button>;
+  return <button onClick={() => link().catch((e) => alert(e.message))}>{isConnected ? 'Sign & Link BNB' : 'Connect BNB Wallet'}</button>;
 }
