@@ -1163,7 +1163,9 @@ export default function Store() {
   useEffect(
     () => () => {
       hdriUploadFiles.forEach((entry) => {
-        if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+        if (entry?.previewUrl?.startsWith?.('blob:')) {
+          URL.revokeObjectURL(entry.previewUrl);
+        }
       });
     },
     [hdriUploadFiles]
@@ -1177,23 +1179,135 @@ export default function Store() {
     }
   }, []);
 
-  const handleHdriUploads = useCallback((event) => {
-    const files = Array.from(event.target.files || []);
-    setHdriUploadFiles((prev) => {
-      prev.forEach((entry) => {
-        if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+  const fileToDataUrl = useCallback(
+    (file) =>
+      new Promise((resolve, reject) => {
+        if (!file) {
+          reject(new Error('No file selected'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      }),
+    []
+  );
+
+  const optimizeHdriImage = useCallback(
+    (file) =>
+      new Promise(async (resolve) => {
+        try {
+          if (!file || !String(file.type || '').startsWith('image/')) {
+            const rawDataUrl = await fileToDataUrl(file);
+            resolve({
+              previewUrl: rawDataUrl,
+              mintDataUrl: rawDataUrl
+            });
+            return;
+          }
+
+          const image = new Image();
+          const objectUrl = URL.createObjectURL(file);
+          image.onload = () => {
+            try {
+              const maxWidth = 1600;
+              const maxHeight = 900;
+              const widthRatio = maxWidth / image.width;
+              const heightRatio = maxHeight / image.height;
+              const scale = Math.min(1, widthRatio, heightRatio);
+              const targetWidth = Math.max(1, Math.round(image.width * scale));
+              const targetHeight = Math.max(1, Math.round(image.height * scale));
+              const canvas = document.createElement('canvas');
+              canvas.width = targetWidth;
+              canvas.height = targetHeight;
+              const context = canvas.getContext('2d');
+              if (!context) {
+                throw new Error('Canvas context unavailable');
+              }
+              context.drawImage(image, 0, 0, targetWidth, targetHeight);
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+              resolve({
+                previewUrl: optimizedDataUrl,
+                mintDataUrl: optimizedDataUrl
+              });
+            } catch (error) {
+              console.warn('Falling back to raw HDRI image upload', error);
+              fileToDataUrl(file)
+                .then((rawDataUrl) =>
+                  resolve({
+                    previewUrl: rawDataUrl,
+                    mintDataUrl: rawDataUrl
+                  })
+                )
+                .catch(() =>
+                  resolve({
+                    previewUrl: objectUrl,
+                    mintDataUrl: ''
+                  })
+                );
+            } finally {
+              URL.revokeObjectURL(objectUrl);
+            }
+          };
+          image.onerror = () => {
+            fileToDataUrl(file)
+              .then((rawDataUrl) =>
+                resolve({
+                  previewUrl: rawDataUrl,
+                  mintDataUrl: rawDataUrl
+                })
+              )
+              .catch(() =>
+                resolve({
+                  previewUrl: objectUrl,
+                  mintDataUrl: ''
+                })
+              )
+              .finally(() => URL.revokeObjectURL(objectUrl));
+          };
+          image.src = objectUrl;
+        } catch (error) {
+          console.warn('Failed to optimize HDRI image', error);
+          const rawDataUrl = await fileToDataUrl(file).catch(() => '');
+          resolve({
+            previewUrl: rawDataUrl,
+            mintDataUrl: rawDataUrl
+          });
+        }
+      }),
+    [fileToDataUrl]
+  );
+
+  const handleHdriUploads = useCallback(
+    async (event) => {
+      const files = Array.from(event.target.files || []);
+      const preparedFiles = await Promise.all(
+        files.map(async (file, index) => {
+          const optimized = await optimizeHdriImage(file);
+          return {
+            id: `${file.name}-${file.size}-${index}`,
+            file,
+            previewUrl: optimized.previewUrl,
+            mintDataUrl: optimized.mintDataUrl,
+            isMain: index === 0
+          };
+        })
+      );
+      setHdriUploadFiles((prev) => {
+        prev.forEach((entry) => {
+          if (entry?.previewUrl?.startsWith?.('blob:')) {
+            URL.revokeObjectURL(entry.previewUrl);
+          }
+        });
+        return preparedFiles;
       });
-      return files.map((file, index) => ({
-        id: `${file.name}-${file.size}-${index}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-        isMain: index === 0
-      }));
-    });
-    setHdriPreviewUnlocked(false);
-    setHdriPublished(false);
-    setHdriCreatorStep(1);
-  }, []);
+      setHdriPreviewUnlocked(false);
+      setHdriPublished(false);
+      setHdriCreatorStep(1);
+    },
+    [optimizeHdriImage]
+  );
 
   const handleHdriGameToggle = useCallback((slug) => {
     setHdriSelectedGames((prev) => {
@@ -1237,21 +1351,6 @@ export default function Store() {
     );
   }, [hdriDraft.name, hdriUploadFiles.length]);
 
-  const fileToDataUrl = useCallback(
-    (file) =>
-      new Promise((resolve, reject) => {
-        if (!file) {
-          reject(new Error('No file selected'));
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      }),
-    []
-  );
-
   const handleHdriPublish = useCallback(async () => {
     if (!canPublishHdri || hdriPublishing) return;
     if (!hdriSelectedGames.length) {
@@ -1267,11 +1366,12 @@ export default function Store() {
       return;
     }
     const mainUpload = hdriUploadFiles[0]?.file;
+    const preparedMintDataUrl = hdriUploadFiles[0]?.mintDataUrl;
     try {
       setHdriPublishing(true);
       setTransactionState('processing');
       setTransactionStatus('Minting your HDRI NFT and activating it in selected games…');
-      const uploadedImageDataUrl = await fileToDataUrl(mainUpload);
+      const uploadedImageDataUrl = preparedMintDataUrl || (await fileToDataUrl(mainUpload));
       const createdAt = Date.now();
       const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
         acc[slug] = `custom-hdri:${createdAt}:${slug}`;
