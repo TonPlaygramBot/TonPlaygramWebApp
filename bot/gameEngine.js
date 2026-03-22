@@ -231,6 +231,7 @@ export class GameRoom {
     const current = this.players[this.currentTurn];
     if (current) {
       this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
+      if (this.gameType !== 'snake') return;
       if (this.turnTimer) clearTimeout(this.turnTimer);
       this.turnTimer = setTimeout(() => {
         if (
@@ -520,10 +521,11 @@ export class GameRoomManager {
     return room;
   }
 
-  async joinRoom(roomId, playerId, name, socket, avatar = '') {
+  async joinRoom(roomId, playerId, name, socket, avatar = '', options = {}) {
     const match = /-(\d+)$/.exec(roomId);
-    const cap = match ? Number(match[1]) : 4;
-    const room = await this.getRoom(roomId, cap);
+    const fallbackCap = match ? Number(match[1]) : 4;
+    const cap = Number(options.capacity) || fallbackCap;
+    const room = await this.getRoom(roomId, cap, undefined, options.gameType);
     const result = room.addPlayer(playerId, name, socket, avatar);
     if (!result.error) await this.saveRoom(room);
     return result;
