@@ -491,7 +491,20 @@ function isRateLimited(socket, key, cooldownMs) {
 }
 
 function ensureRegistered(socket, accountId) {
-  const registered = socket.data?.playerId;
+  let registered = socket.data?.playerId;
+  if (!registered && accountId) {
+    registered = String(accountId);
+    socket.data.playerId = registered;
+    let set = userSockets.get(registered);
+    if (!set) {
+      set = new Set();
+      userSockets.set(registered, set);
+    }
+    set.add(socket.id);
+    registerConnection({ userId: registered, socketId: socket.id }).catch((err) => {
+      console.error('registerConnection fallback failed', err);
+    });
+  }
   if (!registered) {
     socket.emit('errorMessage', 'register_required');
     return false;
