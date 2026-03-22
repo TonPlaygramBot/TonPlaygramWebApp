@@ -3,7 +3,9 @@ import { API_BASE_URL } from './api.js';
 
 function normalizePath(path) {
   if (!path) return '/socket.io';
-  return path.startsWith('/') ? path : `/${path}`;
+  const trimmed = String(path).trim();
+  if (!trimmed) return '/socket.io';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 }
 
 function normalizeBaseUrl(rawUrl) {
@@ -63,13 +65,29 @@ function buildSocketAuthPayload() {
   };
 }
 
+function deriveSocketPathFromApiBase(rawUrl) {
+  if (!rawUrl) return '/socket.io';
+  const fallback = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+
+  try {
+    const parsed = new URL(rawUrl, fallback);
+    const cleanPath = parsed.pathname.replace(/\/+$/, '');
+    if (!cleanPath || cleanPath === '/') return '/socket.io';
+    return `${cleanPath}/socket.io`;
+  } catch {
+    return '/socket.io';
+  }
+}
+
 function resolveSocketConfig() {
   const metaEnv = loadMetaEnv();
   const explicitUrl = metaEnv.VITE_SOCKET_URL;
   const explicitPath = metaEnv.VITE_SOCKET_PATH;
 
   const url = normalizeBaseUrl(explicitUrl || API_BASE_URL);
-  const path = normalizePath(explicitPath);
+  const path = explicitPath
+    ? normalizePath(explicitPath)
+    : normalizePath(deriveSocketPathFromApiBase(API_BASE_URL));
 
   const options = {
     path,
