@@ -17,6 +17,43 @@ function clearTimeoutSafely(ref) {
   }
 }
 
+function waitForSocketConnection(socketInstance, timeoutMs = 8000) {
+  if (!socketInstance) return Promise.resolve(false);
+  if (socketInstance.connected) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId = null;
+
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      socketInstance.off('connect', onConnect);
+      socketInstance.off('connect_error', onConnectError);
+    };
+
+    const settle = (connected) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(connected);
+    };
+
+    const onConnect = () => settle(true);
+    const onConnectError = () => settle(Boolean(socketInstance.connected));
+
+    socketInstance.on('connect', onConnect);
+    socketInstance.on('connect_error', onConnectError);
+
+    timeoutId = setTimeout(() => settle(Boolean(socketInstance.connected)), timeoutMs);
+
+    try {
+      socketInstance.connect?.();
+    } catch {
+      settle(false);
+    }
+  });
+}
+
 export async function runPoolRoyaleOnlineFlow({
   stake,
   tableId,
@@ -145,7 +182,8 @@ export async function runPoolRoyaleOnlineFlow({
     return { success: false };
   }
 
-  if (!socketInstance?.connected) {
+  const isSocketConnected = await waitForSocketConnection(socketInstance);
+  if (!isSocketConnected) {
     setMatchStatus('');
     setMatchingError('Unable to reach the online arena. We refunded your stake.');
     await refundStake('socket_registration_failed', { accountId });
