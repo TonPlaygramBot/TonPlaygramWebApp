@@ -51,17 +51,38 @@ export function createRealtimeServer(app) {
                 socket.emit('error', { code: 'QUEUE_INVALID_PAYLOAD', message: 'Invalid queue payload', details: parsed.error.flatten() });
                 return;
             }
-            await matchmaking.joinQueue({
+            const queueEntry = {
                 userId: user.id,
                 username: user.username,
                 gameMode: parsed.data.gameMode,
+                region: parsed.data.region,
                 joinedAt: Date.now(),
-            });
-            const pair = await matchmaking.popMatchPair();
+            };
+            await matchmaking.joinQueue(queueEntry);
+            const pair = await matchmaking.popMatchPair(user.id);
             if (!pair) {
                 return;
             }
             const [playerA, playerB] = pair;
+            const playerASocketId = sessions.getSocket(playerA.userId);
+            const playerBSocketId = sessions.getSocket(playerB.userId);
+            if (!playerASocketId || !playerBSocketId) {
+                if (playerASocketId) {
+                    await matchmaking.joinQueue(playerA);
+                    io.to(playerASocketId).emit('error', {
+                        code: 'QUEUE_RETRYING',
+                        message: 'Opponent disconnected while matching. Searching again.',
+                    });
+                }
+                if (playerBSocketId) {
+                    await matchmaking.joinQueue(playerB);
+                    io.to(playerBSocketId).emit('error', {
+                        code: 'QUEUE_RETRYING',
+                        message: 'Opponent disconnected while matching. Searching again.',
+                    });
+                }
+                return;
+            }
             const dbMatch = await createMatch({
                 roomCode: `MM-${Date.now().toString().slice(-6)}`,
                 isPrivate: false,
@@ -75,11 +96,10 @@ export function createRealtimeServer(app) {
             roomService.joinRoom(playerB.userId, generatedRoom.roomCode);
             const initialState = stateService.createInitialState(dbMatch.id, playerA.userId, playerB.userId);
             await startMatch(dbMatch.id, initialState);
-            [playerA.userId, playerB.userId].forEach((playerId) => {
-                const socketId = sessions.getSocket(playerId);
-                if (!socketId) {
-                    return;
-                }
+            [
+                { playerId: playerA.userId, socketId: playerASocketId },
+                { playerId: playerB.userId, socketId: playerBSocketId },
+            ].forEach(({ playerId, socketId }) => {
                 io.to(socketId).emit('match:found', {
                     matchId: dbMatch.id,
                     roomCode: generatedRoom.roomCode,
