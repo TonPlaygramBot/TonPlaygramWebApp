@@ -38,7 +38,7 @@ function normalizeHostCode(code = '') {
 function buildHostedTableId(code = '') {
   const safeCode = normalizeHostCode(code);
   if (!safeCode) return '';
-  return `checkersbattleroyal-2-host-${safeCode}`;
+  return `checkers-2-host-${safeCode}`;
 }
 
 async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
@@ -348,7 +348,7 @@ export default function CheckersBattleRoyalLobby() {
       'seatTable',
       {
         accountId: trackedAccountId || accountId,
-        gameType: 'checkersbattleroyal',
+        gameType: 'checkers',
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         mode: 'online',

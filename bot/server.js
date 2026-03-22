@@ -476,7 +476,6 @@ const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
-const CHECKERS_REALTIME_GAME_TYPES = new Set(['checkers', 'checkersbattleroyal']);
 
 function normalizeMatchMeta(rawMeta = {}) {
   const normalized = {};
@@ -487,21 +486,6 @@ function normalizeMatchMeta(rawMeta = {}) {
     }
   });
   return normalized;
-}
-
-function isCheckersRealtimeGame(gameType = '') {
-  return CHECKERS_REALTIME_GAME_TYPES.has(String(gameType || '').toLowerCase());
-}
-
-function parseTableIdDescriptor(tableId = '') {
-  const raw = String(tableId || '').trim();
-  if (!raw) return { gameType: '', maxPlayers: 0 };
-  const match = raw.match(/^(.*)-(\d+)(?:-.+)?$/);
-  if (!match) return { gameType: raw, maxPlayers: 0 };
-  return {
-    gameType: match[1],
-    maxPlayers: Number(match[2]) || 0
-  };
 }
 
 function isMatchMetaCompatible(existing = {}, requested = {}) {
@@ -840,7 +824,7 @@ function maybeStartGame(table) {
         if (whitePlayer) table.currentTurn = whitePlayer.id;
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
-      } else if (isCheckersRealtimeGame(table.gameType)) {
+      } else if (table.gameType === 'checkers') {
         table.players = assignCheckersSides(table.players);
         const lightPlayer = table.players.find((p) => p.side === 'light');
         if (lightPlayer) table.currentTurn = lightPlayer.id;
@@ -897,7 +881,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
       }
     }
     if (table.players.length === 0) {
-      if (isCheckersRealtimeGame(table.gameType)) {
+      if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
       }
       tableMap.delete(tableId);
@@ -1501,9 +1485,8 @@ io.on('connection', (socket) => {
       if (isRateLimited(socket, 'seatTable', seatTableRateLimitMs)) {
         return cb && cb({ success: false, error: 'rate_limited' });
       }
-      const descriptor = tableId ? parseTableIdDescriptor(tableId) : null;
-      const resolvedGameType = descriptor?.gameType || gameType;
-      const resolvedMaxPlayers = descriptor?.maxPlayers || maxPlayers;
+      const resolvedGameType = tableId ? String(tableId).split('-')[0] : gameType;
+      const resolvedMaxPlayers = tableId ? Number(String(tableId).split('-')[1]) || 0 : maxPlayers;
       const validation = validateSeatTableRequest({
         gameType: resolvedGameType,
         stake,
@@ -1861,7 +1844,7 @@ io.on('connection', (socket) => {
       const board =
         room.gameType === 'snake'
           ? { snakes: room.snakes, ladders: room.ladders, diceCells: room.diceCells }
-          : isCheckersRealtimeGame(room.gameType)
+          : room.gameType === 'checkers'
           ? { board: room.game.board }
           : null;
       if (board) socket.emit('boardData', board);
