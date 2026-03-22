@@ -60,6 +60,7 @@ export default function PoolRoyaleLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
+  const requestedTableId = (searchParams.get('tableId') || searchParams.get('tableNr') || '').trim();
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -197,6 +198,7 @@ export default function PoolRoyaleLobby() {
     if (isOnlineMatch) {
       await runPoolRoyaleOnlineFlow({
         stake,
+        tableId: requestedTableId,
         variant,
         ballSet: ukBallSet,
         playType,

@@ -19,6 +19,7 @@ function clearTimeoutSafely(ref) {
 
 export async function runPoolRoyaleOnlineFlow({
   stake,
+  tableId,
   variant,
   ballSet,
   playType,
@@ -61,6 +62,8 @@ export async function runPoolRoyaleOnlineFlow({
 
   const seatTimeoutMs = timeouts.seat ?? DEFAULT_SEAT_TIMEOUT_MS;
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
+  const requestedTableId =
+    typeof tableId === 'string' && tableId.trim() ? tableId.trim() : undefined;
 
   const telegramId = getTelegramIdFn?.();
 
@@ -240,6 +243,7 @@ export async function runPoolRoyaleOnlineFlow({
       token: stake.token,
       gameType: 'poolroyale',
       maxPlayers: 2,
+      tableId: requestedTableId,
       mode,
       variant,
       ballSet,
