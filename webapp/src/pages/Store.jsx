@@ -302,6 +302,34 @@ const SNAKE_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
+const HDRI_PUBLISH_TARIFF_TPC = 2500;
+const HDRI_CREATOR_STEPS = [
+  {
+    id: 'concept',
+    title: '1) Concept',
+    description: 'Name your HDRI and pick a style direction.'
+  },
+  {
+    id: 'light',
+    title: '2) Light setup',
+    description: 'Tune lighting, time, and intensity for clear gameplay.'
+  },
+  {
+    id: 'preview',
+    title: '3) Free preview',
+    description: 'Test it instantly in preview mode at zero cost.'
+  },
+  {
+    id: 'publish',
+    title: '4) Publish to game',
+    description: 'Pay tariff once to unlock this HDRI in live matches.'
+  }
+];
+const HDRI_CREATOR_PRESETS = [
+  { label: 'Arena daylight', mood: 'Competitive', lighting: 'Natural', timeOfDay: 'Day' },
+  { label: 'Neon night', mood: 'Sci-fi', lighting: 'Neon', timeOfDay: 'Night' },
+  { label: 'Studio clean', mood: 'Minimal', lighting: 'Softbox', timeOfDay: 'Sunset' }
+];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
@@ -902,6 +930,19 @@ export default function Store() {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [isPaying, setIsPaying] = useState(false);
+  const [hdriCreatorStep, setHdriCreatorStep] = useState(0);
+  const [hdriDraft, setHdriDraft] = useState({
+    name: '',
+    mood: 'Competitive',
+    lighting: 'Natural',
+    timeOfDay: 'Day',
+    intensity: 60,
+    tone: 'Balanced',
+    resolution: '2K',
+    notes: ''
+  });
+  const [hdriPreviewUnlocked, setHdriPreviewUnlocked] = useState(false);
+  const [hdriPublished, setHdriPublished] = useState(false);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -1067,6 +1108,76 @@ export default function Store() {
   useEffect(() => {
     loadAccountBalance();
   }, [loadAccountBalance]);
+
+  const hdriStepProgress = useMemo(
+    () =>
+      Math.max(
+        1,
+        Math.min(HDRI_CREATOR_STEPS.length, hdriCreatorStep + 1)
+      ),
+    [hdriCreatorStep]
+  );
+  const canPublishHdri =
+    hdriDraft.name.trim().length >= 3 && hdriPreviewUnlocked && !hdriPublished;
+  const hdriPublishShortfall =
+    typeof accountBalance === 'number'
+      ? Math.max(0, HDRI_PUBLISH_TARIFF_TPC - accountBalance)
+      : null;
+
+  const handleHdriDraftChange = useCallback((field, value) => {
+    setHdriDraft((prev) => ({ ...prev, [field]: value }));
+    if (field !== 'notes' && field !== 'name') {
+      setHdriPreviewUnlocked(false);
+      setHdriPublished(false);
+    }
+  }, []);
+
+  const applyHdriPreset = useCallback((preset) => {
+    setHdriDraft((prev) => ({
+      ...prev,
+      mood: preset.mood,
+      lighting: preset.lighting,
+      timeOfDay: preset.timeOfDay
+    }));
+    setHdriPreviewUnlocked(false);
+    setHdriPublished(false);
+    setHdriCreatorStep(1);
+  }, []);
+
+  const handleHdriPreview = useCallback(() => {
+    if (hdriDraft.name.trim().length < 3) {
+      setTransactionState('error');
+      setTransactionStatus('Give your HDRI a name (min 3 chars) before preview.');
+      return;
+    }
+    setHdriPreviewUnlocked(true);
+    setHdriPublished(false);
+    setHdriCreatorStep(2);
+    setTransactionState('success');
+    setTransactionStatus(
+      `Preview ready: "${hdriDraft.name.trim()}". Test it for free before publishing.`
+    );
+  }, [hdriDraft.name]);
+
+  const handleHdriPublish = useCallback(() => {
+    if (!canPublishHdri) return;
+    if (typeof accountBalance === 'number' && accountBalance < HDRI_PUBLISH_TARIFF_TPC) {
+      setTransactionState('error');
+      setTransactionStatus(
+        `Not enough TPC. Add ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC - accountBalance)} more to publish this HDRI.`
+      );
+      return;
+    }
+    setHdriPublished(true);
+    setHdriCreatorStep(3);
+    setTransactionState('success');
+    setTransactionStatus(
+      `HDRI published. ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC tariff applied and now available in-game.`
+    );
+    if (typeof accountBalance === 'number') {
+      setAccountBalance((prev) => Math.max(0, (prev || 0) - HDRI_PUBLISH_TARIFF_TPC));
+    }
+  }, [accountBalance, canPublishHdri]);
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -3448,6 +3559,182 @@ export default function Store() {
       <main
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
+        <section className="mb-4 rounded-3xl border border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-500/20 via-violet-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(217,70,239,0.95)] md:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/40 bg-fuchsia-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-fuchsia-100">
+                Premium Feature
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-white md:text-xl">
+                Build your own HDRI — try free, publish with TPC tariff
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-fuchsia-100/80">
+                Guided mobile-first wizard: create, preview, and then unlock for live game usage.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-fuchsia-200/40 bg-black/35 px-3 py-2 text-xs text-fuchsia-100">
+              Step {hdriStepProgress} / {HDRI_CREATOR_STEPS.length}
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            {HDRI_CREATOR_STEPS.map((step, idx) => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => setHdriCreatorStep(idx)}
+                className={`rounded-2xl border px-3 py-2 text-left transition ${
+                  hdriCreatorStep === idx
+                    ? 'border-fuchsia-100/60 bg-fuchsia-500/20 text-white'
+                    : 'border-white/10 bg-black/25 text-white/75 hover:border-fuchsia-200/30 hover:text-white'
+                }`}
+              >
+                <p className="text-xs font-semibold">{step.title}</p>
+                <p className="mt-1 text-[11px] text-white/70">{step.description}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <label className="text-xs text-white/80">
+                HDRI name
+                <input
+                  value={hdriDraft.name}
+                  onChange={(e) => handleHdriDraftChange('name', e.target.value)}
+                  placeholder="e.g. Skyline Neon Dome"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                />
+              </label>
+              <label className="text-xs text-white/80">
+                Mood
+                <select
+                  value={hdriDraft.mood}
+                  onChange={(e) => handleHdriDraftChange('mood', e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                >
+                  <option>Competitive</option>
+                  <option>Cinematic</option>
+                  <option>Sci-fi</option>
+                  <option>Minimal</option>
+                </select>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {HDRI_CREATOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => applyHdriPreset(preset)}
+                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-fuchsia-200/30 hover:text-white"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Lighting
+                  <select
+                    value={hdriDraft.lighting}
+                    onChange={(e) => handleHdriDraftChange('lighting', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Natural</option>
+                    <option>Neon</option>
+                    <option>Softbox</option>
+                    <option>Contrast</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Time
+                  <select
+                    value={hdriDraft.timeOfDay}
+                    onChange={(e) => handleHdriDraftChange('timeOfDay', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Day</option>
+                    <option>Sunset</option>
+                    <option>Night</option>
+                  </select>
+                </label>
+              </div>
+              <label className="text-xs text-white/80">
+                Light intensity ({hdriDraft.intensity}%)
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={hdriDraft.intensity}
+                  onChange={(e) => handleHdriDraftChange('intensity', Number(e.target.value))}
+                  className="mt-1 w-full accent-fuchsia-400"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Tone mapping
+                  <select
+                    value={hdriDraft.tone}
+                    onChange={(e) => handleHdriDraftChange('tone', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Balanced</option>
+                    <option>Filmic</option>
+                    <option>ACES</option>
+                    <option>Vivid</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Output
+                  <select
+                    value={hdriDraft.resolution}
+                    onChange={(e) => handleHdriDraftChange('resolution', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>1K</option>
+                    <option>2K</option>
+                    <option>4K</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleHdriPreview}
+              className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-400/20 px-4 py-2 text-sm font-semibold text-fuchsia-50 hover:bg-fuchsia-400/30"
+            >
+              Free preview
+            </button>
+            <button
+              type="button"
+              onClick={handleHdriPublish}
+              disabled={!canPublishHdri}
+              className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Publish in-game ({formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC)
+            </button>
+            <span className="text-xs text-fuchsia-100/85">
+              {hdriPublished
+                ? `Live now: ${hdriDraft.name || 'Custom HDRI'} is unlocked in match environments.`
+                : hdriPreviewUnlocked
+                  ? 'Preview enabled. If you like it, publish to use it in game.'
+                  : 'Try every configuration for free before paying tariff.'}
+            </span>
+          </div>
+
+          <div className="mt-2 text-xs text-white/70">
+            {hdriPublishShortfall
+              ? `Balance alert: you need ${formatTpcAmount(hdriPublishShortfall)} more TPC to publish.`
+              : 'Publishing tariff applies one time per HDRI design.'}
+          </div>
+        </section>
+
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
           <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
           <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
