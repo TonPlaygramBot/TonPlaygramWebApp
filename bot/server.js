@@ -475,9 +475,26 @@ function normalizeMatchMeta(rawMeta = {}) {
 }
 
 function isMatchMetaCompatible(existing = {}, requested = {}) {
-  const entries = Object.entries(requested);
-  if (!entries.length) return true;
-  return entries.every(([key, value]) => (existing?.[key] || '') === value);
+  const keys = new Set([
+    ...Object.keys(existing || {}),
+    ...Object.keys(requested || {})
+  ]);
+  if (!keys.size) return true;
+
+  for (const key of keys) {
+    const existingValue = existing?.[key];
+    const requestedValue = requested?.[key];
+    if (!existingValue || !requestedValue) {
+      // Missing metadata acts like a wildcard so legacy/new clients
+      // can still meet in the same lobby when they agree on shared keys.
+      continue;
+    }
+    if (existingValue !== requestedValue) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function isRateLimited(socket, key, cooldownMs) {
