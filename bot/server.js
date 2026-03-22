@@ -59,7 +59,7 @@ import {
   countOnline,
   listOnline
 } from './services/connectionService.js';
-import { validateSeatTableRequest } from './config/onlineGamePolicy.js';
+import { GAME_ONLINE_POLICY, validateSeatTableRequest } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
 
 validateEnv();
@@ -595,6 +595,37 @@ function getAvailableTable(
     `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
   );
   return table;
+}
+
+function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPlayers) {
+  if (!tableId) {
+    return {
+      gameType: fallbackGameType,
+      maxPlayers: fallbackMaxPlayers
+    };
+  }
+
+  const [prefix, capStr] = String(tableId).split('-');
+  const parsedCap = Number(capStr);
+
+  // Some joins use invite/table ids that are opaque (UUID-like) and not in
+  // "<game>-<capacity>-..." form. In those cases, keep the explicit payload
+  // gameType/maxPlayers instead of inferring invalid values from the table id.
+  if (
+    !GAME_ONLINE_POLICY[prefix] ||
+    !Number.isFinite(parsedCap) ||
+    parsedCap <= 0
+  ) {
+    return {
+      gameType: fallbackGameType,
+      maxPlayers: fallbackMaxPlayers
+    };
+  }
+
+  return {
+    gameType: prefix,
+    maxPlayers: parsedCap
+  };
 }
 
 function cleanupSeats() {
@@ -1531,8 +1562,10 @@ io.on('connection', (socket) => {
       if (isRateLimited(socket, 'seatTable', seatTableRateLimitMs)) {
         return cb && cb({ success: false, error: 'rate_limited' });
       }
-      const resolvedGameType = tableId ? String(tableId).split('-')[0] : gameType;
-      const resolvedMaxPlayers = tableId ? Number(String(tableId).split('-')[1]) || 0 : maxPlayers;
+      const {
+        gameType: resolvedGameType,
+        maxPlayers: resolvedMaxPlayers
+      } = resolveSeatIdentityFromTableId(tableId, gameType, maxPlayers);
       const validation = validateSeatTableRequest({
         gameType: resolvedGameType,
         stake,
