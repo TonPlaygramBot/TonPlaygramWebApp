@@ -181,26 +181,30 @@ io.use((socket, next) => {
     socket.handshake.auth?.googleId ||
     socket.handshake.headers?.['x-google-id'];
 
+  const resolvedAuth = {};
   if (initData) {
     const data = verifyTelegramInitData(initData);
     if (data) {
-      socket.data.auth = {
-        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined
-      };
-      return next();
+      resolvedAuth.telegramId = data.user ? Number(JSON.parse(data.user).id) : undefined;
     }
   }
 
   if (process.env.API_AUTH_TOKEN && token === process.env.API_AUTH_TOKEN) {
-    socket.data.auth = { apiToken: true };
+    socket.data.auth = { ...resolvedAuth, apiToken: true };
     return next();
   }
 
   if (accountId || googleId) {
     socket.data.auth = {
+      ...resolvedAuth,
       accountId: accountId ? String(accountId) : undefined,
       googleId: googleId ? String(googleId) : undefined
     };
+    return next();
+  }
+
+  if (Object.keys(resolvedAuth).length > 0) {
+    socket.data.auth = resolvedAuth;
     return next();
   }
 
