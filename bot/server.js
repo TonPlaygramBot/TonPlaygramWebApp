@@ -470,6 +470,7 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
+const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
@@ -1440,6 +1441,38 @@ mongoose.connection.once('open', async () => {
     .catch((err) => console.error('Failed to load game rooms:', err));
 });
 
+
+function normalizeLiveChatRoomId(roomId) {
+  const raw = String(roomId || '').trim();
+  if (!raw) return '';
+  return `livechat:${raw}`;
+}
+
+function ensureLiveChatRoom(roomId) {
+  if (!liveChatRooms.has(roomId)) {
+    liveChatRooms.set(roomId, new Map());
+  }
+  return liveChatRooms.get(roomId);
+}
+
+function removeSocketFromLiveChat(socket) {
+  const joinedRooms = socket.data?.liveChatRooms;
+  if (!joinedRooms || joinedRooms.size === 0) return;
+
+  for (const roomId of joinedRooms) {
+    const room = liveChatRooms.get(roomId);
+    if (!room) continue;
+    room.delete(socket.id);
+    socket.leave(roomId);
+    socket.to(roomId).emit('liveChat:peer-left', { roomId: roomId.replace(/^livechat:/, ''), socketId: socket.id });
+    if (room.size === 0) {
+      liveChatRooms.delete(roomId);
+    }
+  }
+
+  joinedRooms.clear();
+}
+
 io.on('connection', (socket) => {
   socket.on('register', async ({ playerId } = {}, cb) => {
     if (!playerId) {
@@ -1877,6 +1910,102 @@ io.on('connection', (socket) => {
     }
   });
 
+
+  socket.on('liveChat:join', ({ roomId, participant } = {}) => {
+    const normalizedRoomId = normalizeLiveChatRoomId(roomId);
+    if (!normalizedRoomId) return;
+
+    const room = ensureLiveChatRoom(normalizedRoomId);
+    const safeParticipant = {
+      displayName: String(participant?.displayName || 'Player').slice(0, 60),
+      mediaState: {
+        microphone: participant?.mediaState?.microphone !== false,
+        camera: participant?.mediaState?.camera !== false
+      }
+    };
+
+    const participants = Array.from(room.entries()).map(([socketId, details]) => ({
+      socketId,
+      displayName: details.displayName,
+      mediaState: details.mediaState
+    }));
+
+    room.set(socket.id, safeParticipant);
+    socket.join(normalizedRoomId);
+    if (!socket.data.liveChatRooms) socket.data.liveChatRooms = new Set();
+    socket.data.liveChatRooms.add(normalizedRoomId);
+
+    socket.emit('liveChat:participants', {
+      roomId: String(roomId),
+      participants
+    });
+
+    socket.to(normalizedRoomId).emit('liveChat:peer-joined', {
+      roomId: String(roomId),
+      socketId: socket.id,
+      participant: safeParticipant
+    });
+  });
+
+  socket.on('liveChat:leave', ({ roomId } = {}) => {
+    const normalizedRoomId = normalizeLiveChatRoomId(roomId);
+    if (!normalizedRoomId) return;
+    const room = liveChatRooms.get(normalizedRoomId);
+    if (!room) return;
+
+    room.delete(socket.id);
+    socket.leave(normalizedRoomId);
+    if (socket.data.liveChatRooms) {
+      socket.data.liveChatRooms.delete(normalizedRoomId);
+    }
+
+    socket.to(normalizedRoomId).emit('liveChat:peer-left', {
+      roomId: String(roomId),
+      socketId: socket.id
+    });
+
+    if (room.size === 0) {
+      liveChatRooms.delete(normalizedRoomId);
+    }
+  });
+
+  socket.on('liveChat:media_state', ({ roomId, mediaState } = {}) => {
+    const normalizedRoomId = normalizeLiveChatRoomId(roomId);
+    if (!normalizedRoomId) return;
+    const room = liveChatRooms.get(normalizedRoomId);
+    if (!room || !room.has(socket.id)) return;
+
+    const existing = room.get(socket.id) || {};
+    const nextMediaState = {
+      microphone: mediaState?.microphone !== false,
+      camera: mediaState?.camera !== false
+    };
+    room.set(socket.id, {
+      ...existing,
+      mediaState: nextMediaState
+    });
+
+    socket.to(normalizedRoomId).emit('liveChat:media_state', {
+      roomId: String(roomId),
+      socketId: socket.id,
+      mediaState: nextMediaState
+    });
+  });
+
+  socket.on('liveChat:signal', ({ roomId, targetSocketId, data } = {}) => {
+    const normalizedRoomId = normalizeLiveChatRoomId(roomId);
+    if (!normalizedRoomId || !targetSocketId || !data) return;
+    const room = liveChatRooms.get(normalizedRoomId);
+    if (!room || !room.has(socket.id) || !room.has(targetSocketId)) return;
+
+    io.to(targetSocketId).emit('liveChat:signal', {
+      roomId: String(roomId),
+      fromSocketId: socket.id,
+      participant: room.get(socket.id),
+      data
+    });
+  });
+
   socket.on('rollDice', async (payload = {}) => {
     const { accountId, tableId } = payload;
     if (accountId && tableId && tableMap.has(tableId)) {
@@ -2010,6 +2139,7 @@ io.on('connection', (socket) => {
   };
 
   socket.on('disconnecting', () => {
+    removeSocketFromLiveChat(socket);
     clearSocketLobbySeats();
   });
 
