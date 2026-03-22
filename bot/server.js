@@ -65,7 +65,6 @@ validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
-const checkersGames = new Map();
 const AUTHENTIC_ACCOUNT_QUERY = {
   isBanned: { $ne: true },
   $or: [
@@ -587,31 +586,6 @@ function updateChessState(tableId, nextState = {}) {
   return merged;
 }
 
-function getCheckersState(tableId) {
-  if (!checkersGames.has(tableId)) {
-    checkersGames.set(tableId, {
-      board: null,
-      turn: 'light',
-      status: '',
-      capturedBySide: { light: [], dark: [] },
-      gameOver: null,
-      updatedAt: Date.now()
-    });
-  }
-  return checkersGames.get(tableId);
-}
-
-function updateCheckersState(tableId, nextState = {}) {
-  const base = getCheckersState(tableId);
-  const merged = {
-    ...base,
-    ...nextState,
-    updatedAt: Date.now()
-  };
-  checkersGames.set(tableId, merged);
-  return merged;
-}
-
 function normalizeSidePreference(pref) {
   return pref === 'white' || pref === 'black' ? pref : 'auto';
 }
@@ -764,20 +738,6 @@ function maybeStartGame(table) {
         if (whitePlayer) table.currentTurn = whitePlayer.id;
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
-      } else if (table.gameType === 'checkers') {
-        table.players = assignChessSides(table.players);
-        const whitePlayer = table.players.find((p) => p.side === 'white');
-        if (whitePlayer) table.currentTurn = whitePlayer.id;
-        const initial = updateCheckersState(table.id, {
-          turn: 'light',
-          status: 'Match started',
-          capturedBySide: { light: [], dark: [] },
-          gameOver: null
-        });
-        io.to(table.id).emit('checkersState', {
-          tableId: table.id,
-          state: initial
-        });
       }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
@@ -1576,27 +1536,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinCheckersRoom', async ({ tableId, accountId }) => {
-    if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
-    socket.join(tableId);
-    const state = getCheckersState(tableId);
-    socket.emit('checkersState', { tableId, state });
-    if (accountId) {
-      await registerConnection({
-        userId: String(accountId),
-        roomId: tableId,
-        socketId: socket.id
-      });
-    }
-  });
-
-  socket.on('checkersSyncRequest', ({ tableId }) => {
-    if (!tableId) return;
-    const state = getCheckersState(tableId);
-    socket.emit('checkersState', { tableId, state });
-  });
-
   socket.on('chessSyncRequest', ({ tableId }) => {
     if (!tableId) return;
     const state = getChessState(tableId);
@@ -1761,22 +1700,6 @@ io.on('connection', (socket) => {
       lastMove: move.lastMove || null
     });
     socket.to(tableId).emit('chessMove', { tableId, ...next });
-  });
-
-  socket.on('checkersMove', ({ tableId, accountId, state }) => {
-    if (!tableId || !state) return;
-    const next = updateCheckersState(tableId, {
-      board: Array.isArray(state.board) ? state.board : null,
-      turn: state.turn === 'dark' ? 'dark' : 'light',
-      status: typeof state.status === 'string' ? state.status : '',
-      capturedBySide: state.capturedBySide || { light: [], dark: [] },
-      gameOver: state.gameOver === 'light' || state.gameOver === 'dark' ? state.gameOver : null
-    });
-    socket.to(tableId).emit('checkersMove', {
-      tableId,
-      state: next,
-      hostId: accountId || null
-    });
   });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;

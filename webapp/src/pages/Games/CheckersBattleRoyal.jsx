@@ -16,10 +16,8 @@ import {
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
-  getTelegramPhotoUrl,
-  getTelegramUsername
+  getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { socket } from '../../utils/socket.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   createMurlanStyleTable,
@@ -1073,20 +1071,6 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
 export default function CheckersBattleRoyal() {
   useTelegramBackButton();
   const navigate = useNavigate();
-  const searchParams = useMemo(
-    () =>
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search || '')
-        : new URLSearchParams(),
-    []
-  );
-  const modeParam = searchParams.get('mode') || 'ai';
-  const accountId = searchParams.get('accountId') || '';
-  const initialTableId = searchParams.get('tableId') || '';
-  const initialSideParam = searchParams.get('side') || '';
-  const opponentNameParam = searchParams.get('opponentName') || '';
-  const opponentAvatarParam = searchParams.get('opponentAvatar') || '';
-  const isOnlineMode = modeParam === 'online';
   const mountRef = useRef(null);
 
   const boardRef = useRef(createInitial());
@@ -1113,10 +1097,6 @@ export default function CheckersBattleRoyal() {
 
   const [turn, setTurn] = useState('light');
   const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
-  const [onlineStatus, setOnlineStatus] = useState(
-    isOnlineMode ? 'connecting' : 'offline'
-  );
-  const [tableId, setTableId] = useState(initialTableId);
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [showGift, setShowGift] = useState(false);
@@ -1127,23 +1107,6 @@ export default function CheckersBattleRoyal() {
     dark: []
   });
   const aiBusyRef = useRef(false);
-  const onlineRef = useRef({
-    enabled: Boolean(isOnlineMode && accountId && initialTableId),
-    tableId: initialTableId || null,
-    side: initialSideParam === 'black' ? 'dark' : 'light',
-    synced: !isOnlineMode,
-    opponent: {
-      name: opponentNameParam || '',
-      avatar: opponentAvatarParam || ''
-    },
-    status: isOnlineMode ? 'connecting' : 'offline'
-  });
-
-  useEffect(() => {
-    if (!isOnlineMode) return;
-    if (accountId && initialTableId) return;
-    navigate('/games/checkersbattleroyal/lobby', { replace: true });
-  }, [accountId, initialTableId, isOnlineMode, navigate]);
   const resolvedAccountId = useMemo(() => chessBattleAccountId(), []);
   const [inventory, setInventory] = useState(() =>
     getChessBattleInventory(resolvedAccountId)
@@ -1356,26 +1319,21 @@ export default function CheckersBattleRoyal() {
     appearance.tableId,
     resolvedAccountId
   ]);
-
-  const playerName =
-    getTelegramFirstName() || getTelegramUsername() || 'Player';
+  const playerName = getTelegramFirstName() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
-  const myOnlineSide = onlineRef.current.side || 'light';
-  const rivalName = onlineRef.current.opponent?.name || 'Rival';
-  const rivalAvatar = onlineRef.current.opponent?.avatar || '/assets/icons/profile.svg';
 
   const players = [
     {
       index: 0,
-      name: myOnlineSide === 'light' ? rivalName : playerName,
-      photoUrl: myOnlineSide === 'light' ? rivalAvatar : playerPhotoUrl,
+      name: 'Rival',
+      photoUrl: '/assets/icons/profile.svg',
       color: '#f43f5e',
       isTurn: turn === 'dark'
     },
     {
       index: 1,
-      name: myOnlineSide === 'light' ? playerName : rivalName,
-      photoUrl: myOnlineSide === 'light' ? playerPhotoUrl : rivalAvatar,
+      name: playerName,
+      photoUrl: playerPhotoUrl,
       color: '#38bdf8',
       isTurn: turn === 'light'
     }
@@ -1526,120 +1484,6 @@ export default function CheckersBattleRoyal() {
   );
 
   useEffect(() => {
-    onlineRef.current.enabled = Boolean(isOnlineMode && accountId && tableId);
-    onlineRef.current.tableId = tableId || null;
-  }, [accountId, isOnlineMode, tableId]);
-
-  const serializeOnlineState = useMemo(
-    () => () => ({
-      board: copyBoard(boardRef.current),
-      turn,
-      status,
-      capturedBySide,
-      gameOver
-    }),
-    [capturedBySide, gameOver, status, turn]
-  );
-
-  const applyOnlineState = useMemo(
-    () => (payload = {}) => {
-      if (!payload || typeof payload !== 'object') return;
-      if (Array.isArray(payload.board)) {
-        boardRef.current = copyBoard(payload.board);
-        renderPieces();
-      }
-      if (payload.turn === 'light' || payload.turn === 'dark') {
-        setTurn(payload.turn);
-      }
-      if (payload.status) setStatus(payload.status);
-      if (payload.capturedBySide) {
-        setCapturedBySide({
-          light: Array.isArray(payload.capturedBySide.light)
-            ? payload.capturedBySide.light
-            : [],
-          dark: Array.isArray(payload.capturedBySide.dark)
-            ? payload.capturedBySide.dark
-            : []
-        });
-      }
-      if (payload.gameOver === 'light' || payload.gameOver === 'dark') {
-        setGameOver(payload.gameOver);
-      } else if (!payload.gameOver) {
-        setGameOver(null);
-      }
-      selectedRef.current = null;
-      renderHighlights();
-      setCanReplay(false);
-      replayStateRef.current = null;
-    },
-    [renderHighlights, renderPieces]
-  );
-
-  useEffect(() => {
-    if (!onlineRef.current.enabled || !accountId) return undefined;
-    const normalizedInitialSide = initialSideParam === 'black' ? 'dark' : 'light';
-    onlineRef.current.side = normalizedInitialSide;
-    setOnlineStatus('connecting');
-
-    const handleCheckersState = ({ tableId: remoteTableId, state, hostId } = {}) => {
-      if (!remoteTableId || !onlineRef.current.tableId) return;
-      if (remoteTableId !== onlineRef.current.tableId) return;
-      if (hostId && String(hostId) === String(accountId)) return;
-      if (state) applyOnlineState(state);
-      onlineRef.current.synced = true;
-      onlineRef.current.status = 'in-progress';
-      setOnlineStatus('in-game');
-    };
-
-    const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
-      if (!startedId) return;
-      const me = players.find((p) => String(p.id) === String(accountId));
-      const opp = players.find((p) => String(p.id) !== String(accountId));
-      if (me?.side === 'black' || me?.side === 'white') {
-        onlineRef.current.side = me.side === 'black' ? 'dark' : 'light';
-      }
-      if (opp) onlineRef.current.opponent = { name: opp.name || '', avatar: opp.avatar || '' };
-      onlineRef.current.tableId = startedId;
-      onlineRef.current.status = 'started';
-      setTableId(startedId);
-      setOnlineStatus('in-game');
-      socket.emit('joinCheckersRoom', { tableId: startedId, accountId });
-      socket.emit('checkersSyncRequest', { tableId: startedId });
-      if ((me?.side || '').toLowerCase() === 'white') {
-        window.setTimeout(() => {
-          socket.emit('checkersMove', {
-            tableId: startedId,
-            accountId,
-            state: {
-              board: copyBoard(boardRef.current),
-              turn: 'light',
-              status: `Match started. ${RULE_SUMMARY}`,
-              capturedBySide: { light: [], dark: [] },
-              gameOver: null
-            }
-          });
-        }, 120);
-      }
-    };
-
-    socket.on('gameStart', handleGameStart);
-    socket.on('checkersState', handleCheckersState);
-    socket.on('checkersMove', handleCheckersState);
-    socket.emit('register', { playerId: accountId });
-
-    if (tableId) {
-      socket.emit('joinCheckersRoom', { tableId, accountId });
-      socket.emit('checkersSyncRequest', { tableId });
-    }
-
-    return () => {
-      socket.off('gameStart', handleGameStart);
-      socket.off('checkersState', handleCheckersState);
-      socket.off('checkersMove', handleCheckersState);
-    };
-  }, [accountId, applyOnlineState, initialSideParam, tableId]);
-
-  useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
@@ -1724,15 +1568,11 @@ export default function CheckersBattleRoyal() {
     const applyMove = (r, c) => {
       const board = boardRef.current;
       const selected = selectedRef.current;
-      const isOnline = onlineRef.current.enabled;
-      const mySide = onlineRef.current.side || HUMAN_SIDE;
-      const canAct = isOnline ? turn === mySide : turn === HUMAN_SIDE;
-      if (!canAct) return;
       const sideMoves = getMovesForSide(board, turn);
       if (!sideMoves.length) {
-        const winnerSide = turn === 'light' ? 'dark' : 'light';
+        const winnerSide = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
         setStatus(
-          `${turn === mySide ? 'You' : 'Opponent'} have no legal moves. ${winnerSide === mySide ? 'You' : 'Opponent'} win.`
+          `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win.`
         );
         setGameOver(winnerSide);
         return;
@@ -1740,6 +1580,7 @@ export default function CheckersBattleRoyal() {
 
       const piece = board[r][c];
       if (piece && piece.side === turn) {
+        if (turn === AI_SIDE) return;
         const forcedCaptures = sideMoves.filter((move) => move.capture);
         if (
           forcedCaptures.length &&
@@ -1810,7 +1651,7 @@ export default function CheckersBattleRoyal() {
       }
 
       selectedRef.current = null;
-      const nextTurn = turn === 'light' ? 'dark' : 'light';
+      const nextTurn = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
       replayStateRef.current = {
         beforeBoard,
         afterBoard: copyBoard(applied.board),
@@ -1824,24 +1665,15 @@ export default function CheckersBattleRoyal() {
         setGameOver(winnerSide);
         setTurn(nextTurn);
         setStatus(
-          `${nextTurn === mySide ? 'You' : 'Opponent'} have no legal moves. ${winnerSide === mySide ? 'You' : 'Opponent'} win!`
+          `${nextTurn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win!`
         );
       } else {
         setTurn(nextTurn);
         setStatus(
-          nextTurn === mySide
+          nextTurn === HUMAN_SIDE
             ? 'Your turn. Forced captures are enabled.'
-            : isOnline
-              ? 'Opponent turn…'
-              : 'AI is thinking…'
+            : 'AI is thinking…'
         );
-      }
-      if (isOnline && onlineRef.current.tableId) {
-        socket.emit('checkersMove', {
-          tableId: onlineRef.current.tableId,
-          accountId,
-          state: serializeOnlineState()
-        });
       }
       renderHighlights();
     };
@@ -2157,7 +1989,6 @@ export default function CheckersBattleRoyal() {
   }, []);
 
   useEffect(() => {
-    if (onlineRef.current.enabled) return undefined;
     if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
@@ -2409,13 +2240,10 @@ export default function CheckersBattleRoyal() {
 
   useEffect(() => {
     if (!gameOver) return;
-    const mySide = onlineRef.current.enabled
-      ? onlineRef.current.side || HUMAN_SIDE
-      : HUMAN_SIDE;
     const winnerAvatar =
-      gameOver === mySide ? playerPhotoUrl : rivalAvatar;
+      gameOver === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg';
     coinConfetti(60, winnerAvatar);
-  }, [gameOver, playerPhotoUrl, rivalAvatar]);
+  }, [gameOver, playerPhotoUrl]);
 
   const replayLastMove = () => {
     if (!replayStateRef.current) return;
@@ -2676,7 +2504,6 @@ export default function CheckersBattleRoyal() {
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {status} • Turn: {turn}
-            {onlineStatus !== 'offline' ? ` • Net: ${onlineStatus}` : ''}
           </div>
         </div>
 
@@ -2688,23 +2515,15 @@ export default function CheckersBattleRoyal() {
               </p>
               <img
                 src={
-                  gameOver ===
-                  (onlineRef.current.enabled
-                    ? onlineRef.current.side || HUMAN_SIDE
-                    : HUMAN_SIDE)
+                  gameOver === HUMAN_SIDE
                     ? playerPhotoUrl
-                    : rivalAvatar
+                    : '/assets/icons/profile.svg'
                 }
                 alt="winner avatar"
                 className="mx-auto mt-3 h-20 w-20 rounded-full border-4 border-yellow-300/70 object-cover"
               />
               <p className="mt-2 text-lg font-bold text-white">
-                {gameOver ===
-                (onlineRef.current.enabled
-                  ? onlineRef.current.side || HUMAN_SIDE
-                  : HUMAN_SIDE)
-                  ? playerName
-                  : rivalName}
+                {gameOver === HUMAN_SIDE ? playerName : 'Rival'}
               </p>
               <div className="mt-4 flex gap-2">
                 <button
