@@ -73,7 +73,13 @@ function deriveSocketPathFromApiBase(rawUrl) {
     const parsed = new URL(rawUrl, fallback);
     const cleanPath = parsed.pathname.replace(/\/+$/, '');
     if (!cleanPath || cleanPath === '/') return '/socket.io';
-    return `${cleanPath}/socket.io`;
+
+    // Most deployments expose REST APIs under `/api` but keep Socket.IO on the
+    // default `/socket.io` endpoint. If we blindly append to `/api`, clients
+    // attempt `/api/socket.io` and fail to connect.
+    const baseWithoutApiSuffix = cleanPath.replace(/\/api(?:\/v\d+)?$/i, '');
+    if (!baseWithoutApiSuffix || baseWithoutApiSuffix === '/') return '/socket.io';
+    return `${baseWithoutApiSuffix}/socket.io`;
   } catch {
     return '/socket.io';
   }
