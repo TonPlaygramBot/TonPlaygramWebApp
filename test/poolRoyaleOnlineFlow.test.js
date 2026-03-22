@@ -100,6 +100,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
 
   await runPoolRoyaleOnlineFlow({
     stake: { token: 'TPC', amount: 100 },
+    tableId: 'room-77',
     variant: 'uk',
     ballSet: 'american',
     playType: 'regular',
@@ -120,6 +121,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   assert.equal(seatPayload.mode, 'online');
   assert.equal(seatPayload.tableSize, 'medium');
   assert.equal(seatPayload.playType, 'regular');
+  assert.equal(seatPayload.tableId, 'room-77');
   const seatCb = mockSocket.seatRequests[0].cb;
   seatCb({
     success: true,
@@ -169,6 +171,7 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
 
   await runPoolRoyaleOnlineFlow({
     stake: { token: 'TPC', amount: 75 },
+    tableId: 'room-timeout',
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -183,6 +186,7 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
 
   assert.equal(mockSocket.seatRequests.length, 1);
   const seatCb = mockSocket.seatRequests[0].cb;
+  assert.equal(mockSocket.seatRequests[0].payload.tableId, 'room-timeout');
   seatCb({ success: true, tableId: 'tbl-timeout', players: [], ready: [] });
 
   await delay(120);
