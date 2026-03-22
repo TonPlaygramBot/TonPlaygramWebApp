@@ -1485,8 +1485,17 @@ io.on('connection', (socket) => {
       if (isRateLimited(socket, 'seatTable', seatTableRateLimitMs)) {
         return cb && cb({ success: false, error: 'rate_limited' });
       }
-      const resolvedGameType = tableId ? String(tableId).split('-')[0] : gameType;
-      const resolvedMaxPlayers = tableId ? Number(String(tableId).split('-')[1]) || 0 : maxPlayers;
+      const rawTableId = tableId ? String(tableId).trim() : '';
+      const parsedTableParts = rawTableId ? rawTableId.split('-') : [];
+      const parsedGameType = parsedTableParts[0];
+      const parsedMaxPlayers = Number(parsedTableParts[1]) || 0;
+      const hasStructuredTableId =
+        Boolean(rawTableId) &&
+        parsedTableParts.length === 2 &&
+        parsedGameType === String(gameType) &&
+        parsedMaxPlayers > 0;
+      const resolvedGameType = hasStructuredTableId ? parsedGameType : gameType;
+      const resolvedMaxPlayers = hasStructuredTableId ? parsedMaxPlayers : maxPlayers;
       const validation = validateSeatTableRequest({
         gameType: resolvedGameType,
         stake,
