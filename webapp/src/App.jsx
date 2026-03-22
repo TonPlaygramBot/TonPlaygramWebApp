@@ -38,30 +38,14 @@ import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
 
-const ChessBattleRoyal = React.lazy(
-  () => import('./pages/Games/ChessBattleRoyal.jsx')
-);
-const ChessBattleRoyalLobby = React.lazy(
-  () => import('./pages/Games/ChessBattleRoyalLobby.jsx')
-);
-const CheckersBattleRoyal = React.lazy(
-  () => import('./pages/Games/CheckersBattleRoyal.jsx')
-);
-const CheckersBattleRoyalLobby = React.lazy(
-  () => import('./pages/Games/CheckersBattleRoyalLobby.jsx')
-);
-const FourInRowRoyal = React.lazy(
-  () => import('./pages/Games/FourInRowRoyal.jsx')
-);
-const FourInRowRoyalLobby = React.lazy(
-  () => import('./pages/Games/FourInRowRoyalLobby.jsx')
-);
-const TavullBattleRoyal = React.lazy(
-  () => import('./pages/Games/TavullBattleRoyal.jsx')
-);
-const TavullBattleRoyalLobby = React.lazy(
-  () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
-);
+const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
+const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
+const CheckersBattleRoyal = React.lazy(() => import('./pages/Games/CheckersBattleRoyal.jsx'));
+const CheckersBattleRoyalLobby = React.lazy(() => import('./pages/Games/CheckersBattleRoyalLobby.jsx'));
+const FourInRowRoyal = React.lazy(() => import('./pages/Games/FourInRowRoyal.jsx'));
+const FourInRowRoyalLobby = React.lazy(() => import('./pages/Games/FourInRowRoyalLobby.jsx'));
+const TavullBattleRoyal = React.lazy(() => import('./pages/Games/TavullBattleRoyal.jsx'));
+const TavullBattleRoyalLobby = React.lazy(() => import('./pages/Games/TavullBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import PoolRoyaleCareer from './pages/Games/PoolRoyaleCareer.jsx';
@@ -71,7 +55,6 @@ import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 import StoreThumbnailStudioPoolRoyale from './pages/Tools/StoreThumbnailStudioPoolRoyale.jsx';
 
 import Layout from './components/Layout.jsx';
-import GameLiveVideoOverlay from './components/GameLiveVideoOverlay.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useTelegramFullscreen from './hooks/useTelegramFullscreen.js';
@@ -86,14 +69,10 @@ export default function App() {
   // TonConnect can hang if the manifest URL/origin mismatch.
   // Keep this as early as possible.
   if (typeof window !== 'undefined') {
-    const canonical =
-      import.meta.env.VITE_PUBLIC_APP_URL ||
-      'https://tonplaygram-bot.onrender.com';
+    const canonical = import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com';
     try {
       const canonicalUrl = new URL(canonical);
-      const isLocalhost =
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       if (!isLocalhost && canonicalUrl.origin !== window.location.origin) {
         const next = new URL(window.location.href);
         next.protocol = canonicalUrl.protocol;
@@ -113,10 +92,8 @@ export default function App() {
   useNativePushNotifications();
 
   const canonicalOrigin = useMemo(
-    () =>
-      import.meta.env.VITE_PUBLIC_APP_URL ||
-      'https://tonplaygram-bot.onrender.com',
-    []
+    () => import.meta.env.VITE_PUBLIC_APP_URL || 'https://tonplaygram-bot.onrender.com',
+    [],
   );
 
   // Always load the TonConnect manifest from the canonical origin.
@@ -142,9 +119,9 @@ export default function App() {
       // "back" works across regular browsers + Telegram webview.
       returnStrategy: 'back',
       // Where TonConnect should return the user after approving in-wallet.
-      twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl
+      twaReturnUrl: isTelegramWebView() ? telegramReturnUrl : returnUrl,
     }),
-    [returnUrl, telegramReturnUrl]
+    [returnUrl, telegramReturnUrl],
   );
 
   return (
@@ -165,145 +142,79 @@ export default function App() {
             <Route path="/games" element={<Games />} />
             <Route path="/games/transactions" element={<GameTransactions />} />
             <Route path="/games/:game/lobby" element={<Lobby />} />
-            <Route
-              path="/games/snake"
-              element={
-                <GameLiveVideoOverlay gameSlug="snake">
-                  <SnakeAndLadder />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />
             <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
-            <Route
-              path="/games/goalrush"
-              element={
-                <GameLiveVideoOverlay gameSlug="goalrush">
-                  <GoalRush />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route
               path="/games/chessbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">Loading Chess Lobby…</div>
-                  }
-                >
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Chess Lobby…</div>}>
                   <ChessBattleRoyalLobby />
                 </Suspense>
-              }
+              )}
             />
             <Route
               path="/games/chessbattleroyal"
-              element={
-                <GameLiveVideoOverlay gameSlug="chessbattleroyal">
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Chess Battle Royal…
-                      </div>
-                    }
-                  >
-                    <ChessBattleRoyal />
-                  </Suspense>
-                </GameLiveVideoOverlay>
-              }
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Chess Battle Royal…</div>}>
+                  <ChessBattleRoyal />
+                </Suspense>
+              )}
             />
 
             <Route
               path="/games/checkersbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Checkers Lobby…
-                    </div>
-                  }
-                >
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Lobby…</div>}>
                   <CheckersBattleRoyalLobby />
                 </Suspense>
-              }
+              )}
             />
             <Route
               path="/games/checkersbattleroyal"
-              element={
-                <GameLiveVideoOverlay gameSlug="checkersbattleroyal">
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Checkers Battle Royal…
-                      </div>
-                    }
-                  >
-                    <CheckersBattleRoyal />
-                  </Suspense>
-                </GameLiveVideoOverlay>
-              }
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Checkers Battle Royal…</div>}>
+                  <CheckersBattleRoyal />
+                </Suspense>
+              )}
             />
 
             <Route
               path="/games/fourinrowroyale/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading 4 in a Row Lobby…
-                    </div>
-                  }
-                >
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row Lobby…</div>}>
                   <FourInRowRoyalLobby />
                 </Suspense>
-              }
+              )}
             />
             <Route
               path="/games/fourinrowroyale"
-              element={
-                <GameLiveVideoOverlay gameSlug="fourinrowroyale">
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">Loading 4 in a Row…</div>
-                    }
-                  >
-                    <FourInRowRoyal />
-                  </Suspense>
-                </GameLiveVideoOverlay>
-              }
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading 4 in a Row…</div>}>
+                  <FourInRowRoyal />
+                </Suspense>
+              )}
             />
 
             <Route
               path="/games/tavullbattleroyal/lobby"
-              element={
-                <Suspense
-                  fallback={
-                    <div className="p-4 text-center">
-                      Loading Backgammon Lobby…
-                    </div>
-                  }
-                >
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Lobby…</div>}>
                   <TavullBattleRoyalLobby />
                 </Suspense>
-              }
+              )}
             />
             <Route
               path="/games/tavullbattleroyal"
-              element={
-                <GameLiveVideoOverlay gameSlug="tavullbattleroyal">
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Backgammon Royal…
-                      </div>
-                    }
-                  >
-                    <TavullBattleRoyal />
-                  </Suspense>
-                </GameLiveVideoOverlay>
-              }
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Backgammon Royal…</div>}>
+                  <TavullBattleRoyal />
+                </Suspense>
+              )}
             />
             <Route
               path="/games/ludobattleroyal/lobby"
@@ -311,48 +222,23 @@ export default function App() {
             />
             <Route
               path="/games/ludobattleroyal"
-              element={
-                <GameLiveVideoOverlay gameSlug="ludobattleroyal">
-                  <LudoBattleRoyal />
-                </GameLiveVideoOverlay>
-              }
+              element={<LudoBattleRoyal />}
             />
             <Route
               path="/games/texasholdem/lobby"
               element={<TexasHoldemLobby />}
             />
-            <Route
-              path="/games/texasholdem"
-              element={
-                <GameLiveVideoOverlay gameSlug="texasholdem">
-                  <TexasHoldem />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/texasholdem" element={<TexasHoldem />} />
             <Route
               path="/games/domino-royal/lobby"
               element={<DominoRoyalLobby />}
             />
-            <Route
-              path="/games/domino-royal"
-              element={
-                <GameLiveVideoOverlay gameSlug="domino-royal">
-                  <DominoRoyal />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/domino-royal" element={<DominoRoyal />} />
             <Route
               path="/games/murlanroyale/lobby"
               element={<MurlanRoyaleLobby />}
             />
-            <Route
-              path="/games/murlanroyale"
-              element={
-                <GameLiveVideoOverlay gameSlug="murlanroyale">
-                  <MurlanRoyale />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route
               path="/games/poolroyale/lobby"
               element={<PoolRoyaleLobby />}
@@ -361,26 +247,12 @@ export default function App() {
               path="/games/poolroyale/career"
               element={<PoolRoyaleCareer />}
             />
-            <Route
-              path="/games/poolroyale"
-              element={
-                <GameLiveVideoOverlay gameSlug="poolroyale">
-                  <PoolRoyale />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/poolroyale" element={<PoolRoyale />} />
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
             />
-            <Route
-              path="/games/snookerroyale"
-              element={
-                <GameLiveVideoOverlay gameSlug="snookerroyale">
-                  <SnookerRoyal />
-                </GameLiveVideoOverlay>
-              }
-            />
+            <Route path="/games/snookerroyale" element={<SnookerRoyal />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}
@@ -392,10 +264,7 @@ export default function App() {
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
-            <Route
-              path="/store"
-              element={<Navigate to="/store/all" replace />}
-            />
+            <Route path="/store" element={<Navigate to="/store/all" replace />} />
             <Route path="/store/:gameSlug" element={<Store />} />
             <Route path="/referral" element={<Referral />} />
             <Route path="/wallet" element={<Wallet />} />
