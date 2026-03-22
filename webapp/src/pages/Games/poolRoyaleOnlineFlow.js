@@ -1,6 +1,6 @@
 import { ensureAccountId, getTelegramFirstName, getTelegramId } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
-import { socket } from '../../utils/socket.js';
+import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 
 const DEFAULT_SEAT_TIMEOUT_MS = 12000;
 const DEFAULT_MATCH_TIMEOUT_MS = 30000;
@@ -65,6 +65,10 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
 function setSocketIdentity(socketInstance, accountId) {
   if (!socketInstance || !accountId) return;
   try {
+    if (socketInstance === socket) {
+      refreshSocketAuthIdentity({ accountId: String(accountId) });
+      return;
+    }
     const existingAuth =
       socketInstance.auth && typeof socketInstance.auth === 'object'
         ? socketInstance.auth

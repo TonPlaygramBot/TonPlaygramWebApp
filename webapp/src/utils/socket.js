@@ -51,7 +51,16 @@ function getStoredAccountId() {
 
 function getStoredGoogleId() {
   if (typeof window === 'undefined') return '';
-  return window?.localStorage?.getItem('googleId') || '';
+  const direct = window?.localStorage?.getItem('googleId') || '';
+  if (direct) return direct;
+  try {
+    const rawProfile = window?.localStorage?.getItem('googleProfile');
+    if (!rawProfile) return '';
+    const parsed = JSON.parse(rawProfile);
+    return parsed?.id ? String(parsed.id) : '';
+  } catch {
+    return '';
+  }
 }
 
 function buildSocketAuthPayload() {
@@ -63,6 +72,20 @@ function buildSocketAuthPayload() {
     ...(accountId ? { accountId } : {}),
     ...(googleId ? { googleId } : {})
   };
+}
+
+function isSameIdentity(currentAuth, nextAuth) {
+  const currentAccountId = String(currentAuth?.accountId || '');
+  const nextAccountId = String(nextAuth?.accountId || '');
+  const currentGoogleId = String(currentAuth?.googleId || '');
+  const nextGoogleId = String(nextAuth?.googleId || '');
+  const currentInit = String(currentAuth?.initData || '');
+  const nextInit = String(nextAuth?.initData || '');
+  return (
+    currentAccountId === nextAccountId &&
+    currentGoogleId === nextGoogleId &&
+    currentInit === nextInit
+  );
 }
 
 function deriveSocketPathFromApiBase(rawUrl) {
@@ -111,3 +134,19 @@ function resolveSocketConfig() {
 const { url, options } = resolveSocketConfig();
 
 export const socket = io(url, options);
+
+export function refreshSocketAuthIdentity(patch = {}, { reconnect = false } = {}) {
+  const base = buildSocketAuthPayload();
+  const nextAuth = {
+    ...base,
+    ...patch
+  };
+  if (!isSameIdentity(socket.auth, nextAuth)) {
+    socket.auth = nextAuth;
+    if (reconnect && socket.connected) {
+      socket.disconnect();
+      socket.connect();
+    }
+  }
+  return nextAuth;
+}
