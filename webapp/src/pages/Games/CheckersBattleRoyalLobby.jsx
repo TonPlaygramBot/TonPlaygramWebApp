@@ -17,6 +17,7 @@ import { socket } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -24,6 +25,7 @@ const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
 const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
+const MATCHMAKING_TIMEOUT_MS = 45000;
 
 function normalizeHostCode(code = '') {
   return String(code || '')
@@ -91,6 +93,7 @@ export default function CheckersBattleRoyalLobby() {
   const [hostCodeInput, setHostCodeInput] = useState('');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
+  const readiness = getOnlineReadiness('checkersbattleroyal');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -222,8 +225,25 @@ export default function CheckersBattleRoyalLobby() {
   const startGame = async () => {
     const isOnline = mode === 'online';
     if (matching) return;
+    if (isOnline && !readiness.ready) {
+      setMatchError('Online mode is temporarily unavailable for Checkers Battle Royal.');
+      setMatchStatus('');
+      return;
+    }
     let tgId;
     let trackedAccountId;
+    let stakeCharged = false;
+    const refundStakeIfNeeded = async (reason = 'stake_refund') => {
+      if (!isOnline || !stakeCharged || !trackedAccountId || !tgId || !stake.amount) return;
+      stakeCharged = false;
+      try {
+        await addTransaction(tgId, stake.amount, reason, {
+          game: 'checkersbattle',
+          players: 2,
+          accountId: trackedAccountId
+        });
+      } catch {}
+    };
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
@@ -239,9 +259,11 @@ export default function CheckersBattleRoyalLobby() {
           players: 2,
           accountId: trackedAccountId,
         });
+        stakeCharged = true;
       } catch {}
 
       if (!trackedAccountId) {
+        await refundStakeIfNeeded();
         setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
         setMatching(false);
         setMatchStatus('');
@@ -260,6 +282,7 @@ export default function CheckersBattleRoyalLobby() {
 
     const socketReady = await ensureSocketConnected();
     if (!socketReady) {
+      await refundStakeIfNeeded();
       setMatchError('Lobby connection failed. Check your network and try again.');
       setMatching(false);
       setMatchStatus('');
@@ -296,19 +319,30 @@ export default function CheckersBattleRoyalLobby() {
 
     cleanupRef.current = () => cleanupLobby({ account: trackedAccountId, skipRefReset: true });
 
+    const hostedTableId =
+      onlineQueueMode === 'quick' ? '' : buildHostedTableId(hostCodeInput);
+    if (onlineQueueMode !== 'quick' && !hostedTableId) {
+      await refundStakeIfNeeded();
+      setMatchError('Enter a host code to create or join a private online table.');
+      setMatching(false);
+      setMatchStatus('');
+      socket.off('gameStart', handleGameStart);
+      socket.off('lobbyUpdate', handleLobbyUpdate);
+      return;
+    }
+
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.emit('register', { playerId: trackedAccountId });
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
-    const hostedTableId =
-      onlineQueueMode === 'quick' ? '' : buildHostedTableId(hostCodeInput);
-    if (onlineQueueMode !== 'quick' && !hostedTableId) {
-      setMatchError('Enter a host code to create or join a private online table.');
-      setMatching(false);
+    const matchTimeout = window.setTimeout(async () => {
+      if (!pendingTableRef.current) return;
+      cleanupLobby({ account: trackedAccountId });
+      await refundStakeIfNeeded();
+      setMatchError('No opponent joined in time. Your stake was refunded.');
       setMatchStatus('');
-      return;
-    }
+    }, MATCHMAKING_TIMEOUT_MS);
 
     socket.emit(
       'seatTable',
@@ -320,10 +354,13 @@ export default function CheckersBattleRoyalLobby() {
         playerName: friendlyName,
         avatar,
         preferredSide,
+        token: stake.token,
         ...(hostedTableId ? { tableId: hostedTableId } : {})
       },
-      (res) => {
+      async (res) => {
         if (!res?.success || !res.tableId) {
+          clearTimeout(matchTimeout);
+          await refundStakeIfNeeded();
           setMatchError('Could not join the online lobby. Please try again.');
           cleanupLobby({ account: trackedAccountId });
           return;
@@ -338,6 +375,10 @@ export default function CheckersBattleRoyalLobby() {
           accountId: trackedAccountId,
           tableId: res.tableId
         });
+        cleanupRef.current = () => {
+          clearTimeout(matchTimeout);
+          cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+        };
       }
     );
   };
@@ -424,9 +465,10 @@ export default function CheckersBattleRoyalLobby() {
                   key={key}
                   type="button"
                   onClick={() => setMode(key)}
+                  disabled={key === 'online' && !readiness.ready}
                   className={`lobby-option-card ${
                     active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                  }`}
+                  } ${key === 'online' && !readiness.ready ? 'cursor-not-allowed opacity-60' : ''}`}
                 >
                   <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
                     <div className="lobby-option-thumb-inner">
@@ -449,6 +491,11 @@ export default function CheckersBattleRoyalLobby() {
           <p className="text-xs text-white/60 text-center">
             AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
           </p>
+          {!readiness.ready && (
+            <p className="text-xs text-amber-200 text-center">
+              Online matchmaking is currently disabled while service checks complete.
+            </p>
+          )}
         </div>
 
         {mode === 'online' && (
