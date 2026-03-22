@@ -34,54 +34,67 @@ class InMemoryRedis {
     return 1;
   }
 
-  async lpop(key: string) {
-    const list = this.lists.get(key) ?? [];
-    const item = list.shift() ?? null;
-    this.lists.set(key, list);
-    return item;
-  }
-
-  async lpush(key: string, value: string) {
-    const list = this.lists.get(key) ?? [];
-    list.unshift(value);
-    this.lists.set(key, list);
-    return list.length;
-  }
-
   async hmget(key: string, ...fields: string[]) {
     const hash = this.hashes.get(key) ?? new Map<string, string>();
     return fields.map((field) => hash.get(field) ?? null);
   }
+
+  async lrange(key: string, start: number, stop: number) {
+    const list = this.lists.get(key) ?? [];
+    const safeStop = stop < 0 ? list.length + stop + 1 : stop + 1;
+    return list.slice(start, safeStop);
+  }
 }
 
-const makeEntry = (userId: string): QueueEntry => ({
+const makeEntry = (userId: string, overrides: Partial<QueueEntry> = {}): QueueEntry => ({
   userId,
   username: `player-${userId}`,
   gameMode: 'ranked',
+  region: 'eu',
   joinedAt: Date.now(),
+  ...overrides,
 });
 
 describe('MatchmakingService', () => {
-  it('pairs two queued players', async () => {
+  it('pairs requester with compatible queued player', async () => {
     const redis = new InMemoryRedis();
     const service = new MatchmakingService(redis);
 
     await service.joinQueue(makeEntry('u1'));
     await service.joinQueue(makeEntry('u2'));
 
-    const pair = await service.popMatchPair();
+    const pair = await service.popMatchPair('u2');
     expect(pair).not.toBeNull();
-    expect(pair?.[0].userId).toBe('u1');
-    expect(pair?.[1].userId).toBe('u2');
+    expect(pair?.[0].userId).toBe('u2');
+    expect(pair?.[1].userId).toBe('u1');
   });
 
-  it('returns null when queue has less than two players', async () => {
+  it('does not pair players from different game modes or regions', async () => {
     const redis = new InMemoryRedis();
     const service = new MatchmakingService(redis);
 
-    await service.joinQueue(makeEntry('solo'));
-    const pair = await service.popMatchPair();
+    await service.joinQueue(makeEntry('u1', { gameMode: 'ranked', region: 'eu' }));
+    await service.joinQueue(makeEntry('u2', { gameMode: 'casual', region: 'eu' }));
+    await service.joinQueue(makeEntry('u3', { gameMode: 'ranked', region: 'na' }));
 
+    const pair = await service.popMatchPair('u1');
     expect(pair).toBeNull();
+  });
+
+  it('deduplicates queue joins for the same user', async () => {
+    const redis = new InMemoryRedis();
+    const service = new MatchmakingService(redis);
+
+    await service.joinQueue(makeEntry('u1'));
+    await service.joinQueue(makeEntry('u1'));
+    await service.joinQueue(makeEntry('u2'));
+
+    const pair = await service.popMatchPair('u2');
+    expect(pair).not.toBeNull();
+    expect(pair?.[0].userId).toBe('u2');
+    expect(pair?.[1].userId).toBe('u1');
+
+    const secondTry = await service.popMatchPair('u1');
+    expect(secondTry).toBeNull();
   });
 });
