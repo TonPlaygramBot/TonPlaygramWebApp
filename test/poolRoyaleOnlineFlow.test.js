@@ -10,6 +10,13 @@ class MockSocket extends EventEmitter {
     this.connected = true;
     this.seatRequests = [];
     this.leaveRequests = [];
+    this.connectCalls = 0;
+  }
+
+  connect() {
+    this.connectCalls += 1;
+    this.connected = true;
+    this.emit('connect');
   }
 
   emit(event, payload, cb) {
@@ -197,4 +204,45 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('timed out'));
   assert.equal(refs.pendingTableRef.current, '');
+});
+
+
+test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () => {
+  const mockSocket = new MockSocket();
+  mockSocket.connected = false;
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-3'),
+    getAccountBalance: () => Promise.resolve({ balance: 200 }),
+    addTransaction: (...args) => {
+      addCalls.push(args);
+      return Promise.resolve();
+    },
+    getTelegramId: () => 'tg-3',
+    getTelegramFirstName: () => 'Chris',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 100, socketConnect: 50 }
+  });
+
+  assert.equal(mockSocket.connectCalls, 1);
+  assert.equal(mockSocket.seatRequests.length, 1, 'should proceed after reconnecting');
+  mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
+  await delay(0);
+  assert.equal(addCalls[0][2], 'stake');
 });
