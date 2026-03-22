@@ -73,13 +73,15 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   }
 }
 
-function buildHeaders(base = {}) {
+function buildHeaders(base = {}, body = null) {
   const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
-  const accountId = window?.localStorage?.getItem('accountId');
+  const bodyAccountId = body && typeof body === 'object' ? body.accountId : null;
+  const accountId = window?.localStorage?.getItem('accountId') || bodyAccountId;
   if (accountId) headers['X-Tpc-Account-Id'] = accountId;
-  const googleId = window?.localStorage?.getItem('googleId');
+  const bodyGoogleId = body && typeof body === 'object' ? body.googleId : null;
+  const googleId = window?.localStorage?.getItem('googleId') || bodyGoogleId;
   if (googleId) headers['X-Google-Id'] = googleId;
   const bridgeHeaders = getNativeBridgeHeaders();
   Object.entries(bridgeHeaders).forEach(([key, value]) => {
@@ -89,7 +91,7 @@ function buildHeaders(base = {}) {
 }
 
 export async function post(path, body, token) {
-  const headers = buildHeaders({ 'Content-Type': 'application/json' });
+  const headers = buildHeaders({ 'Content-Type': 'application/json' }, body);
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
@@ -127,7 +129,7 @@ export async function post(path, body, token) {
 }
 
 export async function put(path, body, token) {
-  const headers = buildHeaders({ 'Content-Type': 'application/json' });
+  const headers = buildHeaders({ 'Content-Type': 'application/json' }, body);
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
