@@ -1,6 +1,6 @@
 import React from 'react';
 
-function VideoTile({ title, stream, muted = false, mediaState, mirror = false, avatar }) {
+function VideoTile({ title, stream, muted = false, mediaState, mirror = false }) {
   const videoRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -14,20 +14,13 @@ function VideoTile({ title, stream, muted = false, mediaState, mirror = false, a
         <span className="truncate">{title}</span>
         <span>{mediaState?.microphone === false ? '🎙️ Off' : '🎙️ On'} · {mediaState?.camera === false ? '📷 Off' : '📷 On'}</span>
       </div>
-      <div className="relative h-24 w-full rounded-lg bg-black">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={muted}
-          className={`h-full w-full rounded-lg bg-black object-cover ${mirror ? 'scale-x-[-1]' : ''} ${mediaState?.camera === false ? 'opacity-0' : 'opacity-100'}`}
-        />
-        {mediaState?.camera === false && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <img src={avatar} alt="" className="h-16 w-16 rounded-full object-cover" />
-          </div>
-        )}
-      </div>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={muted}
+        className={`h-24 w-full rounded-lg bg-black object-cover ${mirror ? 'scale-x-[-1]' : ''}`}
+      />
     </div>
   );
 }
@@ -37,7 +30,6 @@ export default function LiveVideoChatPanel({
   onClose,
   roomId,
   localVideoRef,
-  localAvatar,
   localMediaState,
   remotePeers,
   isConnected,
@@ -54,7 +46,7 @@ export default function LiveVideoChatPanel({
       <div className="w-full max-w-md rounded-2xl border border-white/15 bg-slate-950/95 p-3 text-white shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.24em]">Live</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.24em]">Live Chat</h3>
             <p className="text-[10px] text-white/60">Room: {roomId}</p>
           </div>
           <button
@@ -74,20 +66,13 @@ export default function LiveVideoChatPanel({
               <span>You</span>
               <span>{localMediaState?.microphone === false ? '🎙️ Off' : '🎙️ On'} · {localMediaState?.camera === false ? '📷 Off' : '📷 On'}</span>
             </div>
-            <div className="relative h-24 w-full rounded-lg bg-black">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`h-full w-full rounded-lg bg-black object-cover scale-x-[-1] ${localMediaState?.camera === false ? 'opacity-0' : 'opacity-100'}`}
-              />
-              {localMediaState?.camera === false && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <img src={localAvatar} alt="" className="h-16 w-16 rounded-full object-cover" />
-                </div>
-              )}
-            </div>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-24 w-full rounded-lg bg-black object-cover scale-x-[-1]"
+            />
           </div>
           {remotePeers.length > 0 ? (
             remotePeers.map((peer) => (
@@ -96,12 +81,11 @@ export default function LiveVideoChatPanel({
                 title={peer.displayName || 'Player'}
                 stream={peer.stream}
                 mediaState={peer.mediaState}
-                avatar={peer.avatar}
               />
             ))
           ) : (
             <p className="rounded-xl border border-dashed border-white/20 p-2 text-center text-xs text-white/60">
-              Waiting for other players to join live…
+              Waiting for other players to join live chat…
             </p>
           )}
         </div>
@@ -113,7 +97,7 @@ export default function LiveVideoChatPanel({
               onClick={onStart}
               className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-400"
             >
-              Start live
+              Start live chat
             </button>
           ) : (
             <>
@@ -136,7 +120,7 @@ export default function LiveVideoChatPanel({
                 onClick={onStop}
                 className="rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-400"
               >
-                Leave live
+                Leave live chat
               </button>
             </>
           )}

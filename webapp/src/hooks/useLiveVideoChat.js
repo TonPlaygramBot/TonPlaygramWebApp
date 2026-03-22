@@ -14,7 +14,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
   const [isConnected, setIsConnected] = useState(false);
   const [remotePeers, setRemotePeers] = useState([]);
   const [mediaState, setMediaState] = useState(EMPTY_MEDIA_STATE);
-  const [localStream, setLocalStream] = useState(null);
   const [error, setError] = useState('');
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -118,7 +117,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
-      setLocalStream(null);
     }
 
     if (localVideoRef.current) {
@@ -146,7 +144,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
       });
 
       localStreamRef.current = stream;
-      setLocalStream(stream);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
@@ -267,7 +264,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
     error,
     isConnected,
     localVideoRef,
-    localStream,
     mediaState,
     remotePeers,
     startLiveChat,
