@@ -246,3 +246,56 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
   await delay(0);
   assert.equal(addCalls[0][2], 'stake');
 });
+
+test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobile', async () => {
+  class FlakyConnectSocket extends MockSocket {
+    connect() {
+      this.connectCalls += 1;
+      this.connected = false;
+      setTimeout(() => this.emit('connect_error', new Error('temporary network dip')), 5);
+      setTimeout(() => {
+        this.connected = true;
+        this.emit('connect');
+      }, 15);
+    }
+  }
+
+  const mockSocket = new FlakyConnectSocket();
+  mockSocket.connected = false;
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-4'),
+    getAccountBalance: () => Promise.resolve({ balance: 200 }),
+    addTransaction: (...args) => {
+      addCalls.push(args);
+      return Promise.resolve();
+    },
+    getTelegramId: () => 'tg-4',
+    getTelegramFirstName: () => 'Dina',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 100, socketConnect: 60 }
+  });
+
+  assert.equal(mockSocket.connectCalls, 1);
+  assert.equal(mockSocket.seatRequests.length, 1, 'should keep waiting after temporary connect error');
+  mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
+  await delay(0);
+  assert.equal(state.snapshot.matchingError, 'busy');
+  assert.equal(addCalls[0][2], 'stake');
+});
