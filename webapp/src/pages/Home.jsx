@@ -31,13 +31,22 @@ import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { loadGoogleProfile } from '../utils/google.js';
 
+const getStoredWalletAddress = () => {
+  try {
+    return localStorage.getItem('walletAddress') || '';
+  } catch {
+    return '';
+  }
+};
+
 export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
-  const walletAddress = useTonAddress();
+  const tonAddress = useTonAddress();
+  const [walletAddress, setWalletAddress] = useState(() => tonAddress || getStoredWalletAddress());
   const hasGoogle = Boolean(loadGoogleProfile()?.id);
   let telegramId = null;
   try {
@@ -46,6 +55,33 @@ export default function Home() {
     telegramId = null;
   }
   const hasTelegram = Boolean(telegramId);
+
+  useEffect(() => {
+    setWalletAddress(tonAddress || getStoredWalletAddress());
+  }, [tonAddress]);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setWalletAddress(tonAddress || getStoredWalletAddress());
+    };
+
+    const handleWalletAddressUpdated = (event) => {
+      const nextAddress = event?.detail?.address || '';
+      setWalletAddress(nextAddress || tonAddress || getStoredWalletAddress());
+    };
+
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('focus', syncFromStorage);
+    window.addEventListener('pageshow', syncFromStorage);
+    window.addEventListener('walletAddressUpdated', handleWalletAddressUpdated);
+
+    return () => {
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('focus', syncFromStorage);
+      window.removeEventListener('pageshow', syncFromStorage);
+      window.removeEventListener('walletAddressUpdated', handleWalletAddressUpdated);
+    };
+  }, [tonAddress]);
 
   const handleOpenTelegramAuth = () => {
     const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';

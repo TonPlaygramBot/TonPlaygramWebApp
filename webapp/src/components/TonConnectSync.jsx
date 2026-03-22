@@ -14,12 +14,20 @@ export default function TonConnectSync() {
   };
 
   const syncWalletAddress = (address) => {
-    if (address) {
-      localStorage.setItem('walletAddress', address);
+    const normalizedAddress = address || '';
+
+    if (normalizedAddress) {
+      localStorage.setItem('walletAddress', normalizedAddress);
       closeModalIfConnected();
     } else {
       localStorage.removeItem('walletAddress');
     }
+
+    window.dispatchEvent(
+      new CustomEvent('walletAddressUpdated', {
+        detail: { address: normalizedAddress },
+      }),
+    );
   };
 
   useEffect(() => {
