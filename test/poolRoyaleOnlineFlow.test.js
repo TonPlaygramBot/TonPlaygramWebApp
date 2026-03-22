@@ -10,6 +10,16 @@ class MockSocket extends EventEmitter {
     this.connected = true;
     this.seatRequests = [];
     this.leaveRequests = [];
+    this.connectCalls = 0;
+    this.autoConnect = false;
+  }
+
+  connect() {
+    this.connectCalls += 1;
+    if (this.autoConnect) {
+      this.connected = true;
+      setImmediate(() => this.emit('connect'));
+    }
   }
 
   emit(event, payload, cb) {
@@ -197,4 +207,49 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('timed out'));
   assert.equal(refs.pendingTableRef.current, '');
+});
+
+test('runPoolRoyaleOnlineFlow waits for socket connection before failing', async () => {
+  const mockSocket = new MockSocket();
+  mockSocket.connected = false;
+  mockSocket.autoConnect = true;
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-20'),
+    getAccountBalance: () => Promise.resolve({ balance: 300 }),
+    addTransaction: (...args) => {
+      addCalls.push(args);
+      return Promise.resolve();
+    },
+    getTelegramId: () => 'tg-20',
+    getTelegramFirstName: () => 'Jo',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 50 },
+    tableId: 'room-connect',
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 100, matchmaking: 200 }
+  });
+
+  assert.equal(mockSocket.connectCalls, 1);
+  assert.equal(mockSocket.seatRequests.length, 1, 'should proceed to seat after connect');
+  const seatCb = mockSocket.seatRequests[0].cb;
+  seatCb({ success: true, tableId: 'tbl-connect', players: [], ready: [] });
+  mockSocket.emit('gameStart', { tableId: 'tbl-connect', players: [] });
+  await delay(0);
+  assert.equal(addCalls.length, 1, 'should only debit stake before seat result');
+  assert.equal(state.snapshot.matchingError, '');
 });
