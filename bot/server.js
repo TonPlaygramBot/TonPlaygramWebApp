@@ -489,9 +489,19 @@ function normalizeMatchMeta(rawMeta = {}) {
 }
 
 function isMatchMetaCompatible(existing = {}, requested = {}) {
-  const entries = Object.entries(requested);
-  if (!entries.length) return true;
-  return entries.every(([key, value]) => (existing?.[key] || '') === value);
+  const allKeys = new Set([
+    ...Object.keys(existing || {}),
+    ...Object.keys(requested || {})
+  ]);
+  for (const key of allKeys) {
+    const existingValue = existing?.[key];
+    const requestedValue = requested?.[key];
+    // Treat missing keys as wildcards so players can still pair when one client
+    // sends less detailed lobby metadata (for example missing tableSize).
+    if (!existingValue || !requestedValue) continue;
+    if (existingValue !== requestedValue) return false;
+  }
+  return true;
 }
 
 function isRateLimited(socket, key, cooldownMs) {
