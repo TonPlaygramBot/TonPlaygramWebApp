@@ -1350,56 +1350,22 @@ export default function Store() {
           const objectUrl = URL.createObjectURL(file);
           image.onload = () => {
             try {
-              const createOptimizedDataUrl = ({
-                maxWidth = 2048,
-                maxHeight = 1024,
-                quality = 0.82,
-                maxBytes = 1_200_000,
-                minBytes = 550_000
-              } = {}) => {
-                let targetWidth = image.width;
-                let targetHeight = image.height;
-                const widthRatio = maxWidth / image.width;
-                const heightRatio = maxHeight / image.height;
-                const scale = Math.min(1, widthRatio, heightRatio);
-                targetWidth = Math.max(1, Math.round(image.width * scale));
-                targetHeight = Math.max(1, Math.round(image.height * scale));
-
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                if (!context) {
-                  throw new Error('Canvas context unavailable');
-                }
-
-                let attempts = 0;
-                let currentQuality = quality;
-                let output = '';
-                while (attempts < 8) {
-                  attempts += 1;
-                  canvas.width = targetWidth;
-                  canvas.height = targetHeight;
-                  context.clearRect(0, 0, targetWidth, targetHeight);
-                  context.drawImage(image, 0, 0, targetWidth, targetHeight);
-                  output = canvas.toDataURL('image/jpeg', currentQuality);
-                  const approxBytes = Math.ceil((output.length * 3) / 4);
-
-                  if (approxBytes <= maxBytes || (approxBytes <= minBytes && attempts >= 2)) {
-                    return output;
-                  }
-                  if (currentQuality > 0.58) {
-                    currentQuality = Math.max(0.58, currentQuality - 0.08);
-                    continue;
-                  }
-                  targetWidth = Math.max(768, Math.round(targetWidth * 0.82));
-                  targetHeight = Math.max(384, Math.round(targetHeight * 0.82));
-                }
-                return output;
-              };
-
-              const optimizedDataUrl = createOptimizedDataUrl();
-              if (!optimizedDataUrl) {
-                throw new Error('Failed to optimize image');
+              const maxWidth = 4096;
+              const maxHeight = 2048;
+              const widthRatio = maxWidth / image.width;
+              const heightRatio = maxHeight / image.height;
+              const scale = Math.min(1, widthRatio, heightRatio);
+              const targetWidth = Math.max(1, Math.round(image.width * scale));
+              const targetHeight = Math.max(1, Math.round(image.height * scale));
+              const canvas = document.createElement('canvas');
+              canvas.width = targetWidth;
+              canvas.height = targetHeight;
+              const context = canvas.getContext('2d');
+              if (!context) {
+                throw new Error('Canvas context unavailable');
               }
+              context.drawImage(image, 0, 0, targetWidth, targetHeight);
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
               resolve({
                 previewUrl: optimizedDataUrl,
                 mintDataUrl: optimizedDataUrl
