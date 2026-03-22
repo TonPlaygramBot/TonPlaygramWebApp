@@ -74,7 +74,6 @@ import {
 } from '../../utils/woodMaterials.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
@@ -12582,7 +12581,7 @@ function PoolRoyaleGame({
       'environmentHdri',
       HDRI_STORAGE_KEY,
       (id) => Boolean(POOL_ROYALE_HDRI_VARIANT_MAP[id]),
-      POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID || POOL_ROYALE_DEFAULT_HDRI_ID
+      POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
   const [hdriResolutionId, setHdriResolutionId] = useState(() => {
@@ -14120,9 +14119,6 @@ function PoolRoyaleGame({
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
-    applyArenaPlacementRef.current?.(activeEnvironmentVariantRef.current);
-    updateDecorTablesRef.current?.(environmentHdriRef.current);
-    updateHospitalityLayoutRef.current?.(environmentHdriRef.current);
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
     activeTableSlotRef.current = activeTableSlot;
@@ -14289,7 +14285,6 @@ function PoolRoyaleGame({
   const applyBaseRef = useRef(() => {});
   const applyFinishRef = useRef(() => {});
   const applyTableSlotRef = useRef(() => {});
-  const applyArenaPlacementRef = useRef(() => {});
   const updateDecorTablesRef = useRef(() => {});
   const clearDecorTablesRef = useRef(() => {});
   const updateHospitalityLayoutRef = useRef(() => {});
@@ -14304,7 +14299,6 @@ function PoolRoyaleGame({
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
   const secondaryTableDecorRef = useRef({ group: null, dispose: null });
-  const primaryTableRef = useRef(null);
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
@@ -22715,17 +22709,6 @@ const powerRef = useRef(hud.power);
         rendererRef.current
       );
       const SPOTS = spotPositions(baulkZ);
-      primaryTableRef.current = table;
-      const applyArenaPlacement = (variant = activeEnvironmentVariantRef.current) => {
-        const primary = primaryTableRef.current;
-        if (!primary) return;
-        const offsetX = Number.isFinite(variant?.tableOffsetX) ? variant.tableOffsetX : 0;
-        const offsetZ = Number.isFinite(variant?.tableOffsetZ) ? variant.tableOffsetZ : 0;
-        primary.position.set(offsetX, primary.position.y, offsetZ);
-        primary.rotation.y = Number.isFinite(variant?.tableRotationY) ? variant.tableRotationY : 0;
-      };
-      applyArenaPlacementRef.current = applyArenaPlacement;
-      applyArenaPlacement(activeEnvironmentVariantRef.current);
 
       const breakDiceGroup = new THREE.Group();
       table.add(breakDiceGroup);
@@ -31041,7 +31024,6 @@ const powerRef = useRef(hud.power);
         applyBaseRef.current = () => {};
         applyFinishRef.current = () => {};
         applyTableSlotRef.current = () => {};
-        applyArenaPlacementRef.current = () => {};
         clearSecondaryTableDecorRef.current?.();
         refreshSecondaryTableDecorRef.current = () => {};
         clearSecondaryTableDecorRef.current = () => {};
@@ -31059,7 +31041,6 @@ const powerRef = useRef(hud.power);
         chessBoardTextureRef.current = null;
         dartboardTextureRef.current = null;
         applyRailMarkerStyleRef.current = () => {};
-        primaryTableRef.current = null;
         secondaryTableRef.current = null;
         secondaryBaseSetterRef.current = null;
         chalkMeshesRef.current = [];
