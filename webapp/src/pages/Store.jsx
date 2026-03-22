@@ -1333,6 +1333,63 @@ export default function Store() {
     []
   );
 
+  const estimateDataUrlBytes = useCallback((value) => {
+    if (typeof value !== 'string' || !value.startsWith('data:')) return 0;
+    const commaIndex = value.indexOf(',');
+    if (commaIndex < 0) return 0;
+    const payload = value.slice(commaIndex + 1);
+    return Math.floor((payload.length * 3) / 4);
+  }, []);
+
+  const compressHdriDataUrlForStorage = useCallback(
+    (dataUrl, options = {}) =>
+      new Promise((resolve) => {
+        if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+          resolve(dataUrl);
+          return;
+        }
+        const targetBytes = Math.max(80 * 1024, Number(options.targetBytes) || 320 * 1024);
+        if (estimateDataUrlBytes(dataUrl) <= targetBytes) {
+          resolve(dataUrl);
+          return;
+        }
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const maxWidth = Math.max(512, Number(options.maxWidth) || 1280);
+            const maxHeight = Math.max(256, Number(options.maxHeight) || 640);
+            const widthRatio = maxWidth / image.width;
+            const heightRatio = maxHeight / image.height;
+            const scale = Math.min(1, widthRatio, heightRatio);
+            const targetWidth = Math.max(1, Math.round(image.width * scale));
+            const targetHeight = Math.max(1, Math.round(image.height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const context = canvas.getContext('2d');
+            if (!context) {
+              resolve(dataUrl);
+              return;
+            }
+            context.drawImage(image, 0, 0, targetWidth, targetHeight);
+            let quality = 0.72;
+            let compressed = canvas.toDataURL('image/jpeg', quality);
+            while (quality > 0.42 && estimateDataUrlBytes(compressed) > targetBytes) {
+              quality -= 0.08;
+              compressed = canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve(compressed);
+          } catch (error) {
+            console.warn('Failed to compress HDRI for storage', error);
+            resolve(dataUrl);
+          }
+        };
+        image.onerror = () => resolve(dataUrl);
+        image.src = dataUrl;
+      }),
+    [estimateDataUrlBytes]
+  );
+
   const optimizeHdriImage = useCallback(
     (file) =>
       new Promise(async (resolve) => {
@@ -1520,6 +1577,7 @@ export default function Store() {
       setTransactionStatus('Minting your HDRI NFT and activating it in selected games…');
       const uploadedImageDataUrl = preparedMintDataUrl || (await fileToDataUrl(mainUpload));
       const createdAt = Date.now();
+      const storableImageDataUrl = await compressHdriDataUrlForStorage(uploadedImageDataUrl);
       const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
         acc[slug] = `custom-hdri:${createdAt}:${slug}`;
         return acc;
@@ -1535,22 +1593,42 @@ export default function Store() {
           visibility: hdriDraft.visibility,
           supportedGames: hdriSelectedGames,
           optionIdByGame,
-          thumbnailUrl: uploadedImageDataUrl,
-          environmentUrl: uploadedImageDataUrl
+          thumbnailUrl: storableImageDataUrl,
+          environmentUrl: storableImageDataUrl
         });
       } catch (error) {
         if (
           typeof error?.name === 'string' &&
           (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
         ) {
-          setTransactionState('error');
-          setTransactionStatus(
-            'Could not save HDRI on this device (storage full). Remove old uploads or clear app cache, then try again.'
-          );
-          setHdriPublishing(false);
-          return;
+          const emergencyCompressedDataUrl = await compressHdriDataUrlForStorage(uploadedImageDataUrl, {
+            targetBytes: 180 * 1024,
+            maxWidth: 960,
+            maxHeight: 480
+          });
+          try {
+            entry = saveCustomHdriEntry({
+              id: `custom-hdri-${createdAt}`,
+              name: hdriDraft.name.trim(),
+              type: 'environmentHdri',
+              price: Number(hdriDraft.storePrice || 0),
+              createdBy: accountId || 'guest',
+              visibility: hdriDraft.visibility,
+              supportedGames: hdriSelectedGames,
+              optionIdByGame,
+              thumbnailUrl: emergencyCompressedDataUrl,
+              environmentUrl: emergencyCompressedDataUrl
+            });
+          } catch (retryError) {
+            setTransactionState('error');
+            setTransactionStatus(
+              'Could not save HDRI on this device (storage full). Remove old uploads or clear app cache, then try again.'
+            );
+            setHdriPublishing(false);
+            return;
+          }
         }
-        throw error;
+        if (!entry) throw error;
       }
       await Promise.all(
         hdriSelectedGames.map((slug) => {
@@ -1612,6 +1690,7 @@ export default function Store() {
     accountId,
     canPublishHdri,
     fileToDataUrl,
+    compressHdriDataUrlForStorage,
     hdriDraft,
     hdriPublishing,
     hdriPublishTotalTariff,
