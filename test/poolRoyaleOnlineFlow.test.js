@@ -10,6 +10,7 @@ class MockSocket extends EventEmitter {
     this.connected = true;
     this.seatRequests = [];
     this.leaveRequests = [];
+    this.registerRequests = [];
     this.connectCalls = 0;
   }
 
@@ -20,6 +21,11 @@ class MockSocket extends EventEmitter {
   }
 
   emit(event, payload, cb) {
+    if (event === 'register') {
+      this.registerRequests.push(payload);
+      if (typeof cb === 'function') cb({ success: true });
+      return true;
+    }
     if (event === 'seatTable') {
       this.seatRequests.push({ payload, cb });
       return true;
@@ -122,6 +128,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   });
 
   assert.equal(mockSocket.seatRequests.length, 1);
+  assert.equal(mockSocket.registerRequests.length, 1);
   const seatPayload = mockSocket.seatRequests[0].payload;
   assert.equal(seatPayload.ballSet, 'american');
   assert.equal(seatPayload.variant, 'uk');
@@ -241,6 +248,7 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
   });
 
   assert.equal(mockSocket.connectCalls, 1);
+  assert.equal(mockSocket.registerRequests.length, 1);
   assert.equal(mockSocket.seatRequests.length, 1, 'should proceed after reconnecting');
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
@@ -293,9 +301,60 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
   });
 
   assert.equal(mockSocket.connectCalls, 1);
+  assert.equal(mockSocket.registerRequests.length, 1);
   assert.equal(mockSocket.seatRequests.length, 1, 'should keep waiting after temporary connect error');
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
   assert.equal(state.snapshot.matchingError, 'busy');
   assert.equal(addCalls[0][2], 'stake');
+});
+
+test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
+  class RejectRegisterSocket extends MockSocket {
+    emit(event, payload, cb) {
+      if (event === 'register') {
+        this.registerRequests.push(payload);
+        if (typeof cb === 'function') cb({ success: false, error: 'register_failed' });
+        return true;
+      }
+      return super.emit(event, payload, cb);
+    }
+  }
+
+  const mockSocket = new RejectRegisterSocket();
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-12'),
+    getAccountBalance: () => Promise.resolve({ balance: 200 }),
+    addTransaction: (...args) => {
+      addCalls.push(args);
+      return Promise.resolve();
+    },
+    getTelegramId: () => 'tg-12',
+    getTelegramFirstName: () => 'Elena',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 100, register: 40 }
+  });
+
+  assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.seatRequests.length, 0);
+  assert.equal(addCalls.length, 2, 'should debit then refund when register ack fails');
+  assert.equal(addCalls[1][2], 'stake_refund');
+  assert.ok(state.snapshot.matchingError.includes('online session'));
 });

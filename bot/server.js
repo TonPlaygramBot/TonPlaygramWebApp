@@ -1437,16 +1437,25 @@ mongoose.connection.once('open', async () => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('register', async ({ playerId }) => {
-    if (!playerId) return;
-    let set = userSockets.get(String(playerId));
-    if (!set) {
-      set = new Set();
-      userSockets.set(String(playerId), set);
+  socket.on('register', async ({ playerId } = {}, cb) => {
+    if (!playerId) {
+      cb && cb({ success: false, error: 'missing_player_id' });
+      return;
     }
-    set.add(socket.id);
-    socket.data.playerId = String(playerId);
-    await registerConnection({ userId: String(playerId), socketId: socket.id });
+    try {
+      let set = userSockets.get(String(playerId));
+      if (!set) {
+        set = new Set();
+        userSockets.set(String(playerId), set);
+      }
+      set.add(socket.id);
+      socket.data.playerId = String(playerId);
+      await registerConnection({ userId: String(playerId), socketId: socket.id });
+      cb && cb({ success: true });
+    } catch (error) {
+      console.error('register socket failed', error);
+      cb && cb({ success: false, error: 'register_failed' });
+    }
   });
 
   socket.on('createLobby', ({ roomId }, cb) => {

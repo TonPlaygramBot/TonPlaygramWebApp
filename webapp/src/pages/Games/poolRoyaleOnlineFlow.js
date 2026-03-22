@@ -4,7 +4,8 @@ import { socket } from '../../utils/socket.js';
 
 const DEFAULT_SEAT_TIMEOUT_MS = 12000;
 const DEFAULT_MATCH_TIMEOUT_MS = 30000;
-const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 8000;
+const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 15000;
+const DEFAULT_REGISTER_TIMEOUT_MS = 6000;
 
 function logSupportError(message, error, context = {}) {
   // Surface in console for support teams; caller will also show inline errors.
@@ -61,6 +62,36 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
   });
 }
 
+async function ensureSocketRegistered(
+  socketInstance,
+  accountId,
+  timeoutMs = DEFAULT_REGISTER_TIMEOUT_MS
+) {
+  if (!socketInstance || !accountId) return false;
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(false);
+    }, timeoutMs);
+
+    try {
+      socketInstance.emit('register', { playerId: accountId }, (res) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(!!res?.success);
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      logSupportError('Socket register emit failed', error, { accountId });
+      resolve(false);
+    }
+  });
+}
+
 export async function runPoolRoyaleOnlineFlow({
   stake,
   tableId,
@@ -107,6 +138,7 @@ export async function runPoolRoyaleOnlineFlow({
   const seatTimeoutMs = timeouts.seat ?? DEFAULT_SEAT_TIMEOUT_MS;
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
   const socketConnectTimeoutMs = timeouts.socketConnect ?? DEFAULT_SOCKET_CONNECT_TIMEOUT_MS;
+  const registerTimeoutMs = timeouts.register ?? DEFAULT_REGISTER_TIMEOUT_MS;
   const requestedTableId =
     typeof tableId === 'string' && tableId.trim()
       ? tableId.trim()
@@ -202,6 +234,20 @@ export async function runPoolRoyaleOnlineFlow({
     return { success: false };
   }
 
+  const socketRegistered = await ensureSocketRegistered(
+    socketInstance,
+    accountId,
+    registerTimeoutMs
+  );
+  if (!socketRegistered) {
+    setMatchStatus('');
+    setMatchingError('Unable to sync your online session. We refunded your stake.');
+    await refundStake('socket_register_ack_failed', { accountId });
+    setMatching(false);
+    setIsSearching(false);
+    return { success: false };
+  }
+
   function handleLobbyUpdate({ tableId: tid, players: list = [], ready = [] } = {}) {
     if (!tid || tid !== pendingTableRef.current) return;
     setMatchPlayers(list);
@@ -271,7 +317,6 @@ export async function runPoolRoyaleOnlineFlow({
 
   socketInstance.on('lobbyUpdate', handleLobbyUpdate);
   socketInstance.on('gameStart', handleGameStart);
-  socketInstance.emit('register', { playerId: accountId });
 
   function startMatchTimeout(tableId) {
     clearTimeoutSafely(matchTimeoutRef);
@@ -283,47 +328,62 @@ export async function runPoolRoyaleOnlineFlow({
     }, matchmakingTimeoutMs);
   }
 
-  socketInstance.emit(
-    'seatTable',
-    {
-      accountId,
-      stake: stake.amount,
-      token: stake.token,
-      gameType: 'poolroyale',
-      maxPlayers: 2,
-      tableId: requestedTableId,
-      mode,
-      variant,
-      ballSet,
-      tableSize,
-      playType,
-      playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
-      avatar
-    },
-    (res) => {
-      clearTimeoutSafely(seatTimeoutRef);
-      setIsSearching(false);
-      if (!res?.success || !res.tableId) {
-        triggerTimeoutRefund(
-          'seat_table_failed',
-          res?.message || 'Failed to join the online arena. Please retry.',
-          { response: res, accountId }
-        );
-        return;
-      }
-      pendingTableRef.current = res.tableId;
-      setMatchStatus('Waiting for another player…');
-      const playersList = res.players || [];
-      setMatchPlayers(playersList);
-      matchPlayersRef.current = playersList;
-      setReadyList(res.ready || []);
-      socketInstance.emit('confirmReady', {
+  let seatAttempts = 0;
+  const maxSeatAttempts = 2;
+  const seatPlayer = () => {
+    seatAttempts += 1;
+    socketInstance.emit(
+      'seatTable',
+      {
         accountId,
-        tableId: res.tableId
-      });
-      startMatchTimeout(res.tableId);
-    }
-  );
+        stake: stake.amount,
+        token: stake.token,
+        gameType: 'poolroyale',
+        maxPlayers: 2,
+        tableId: requestedTableId,
+        mode,
+        variant,
+        ballSet,
+        tableSize,
+        playType,
+        playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
+        avatar
+      },
+      (res) => {
+        clearTimeoutSafely(seatTimeoutRef);
+        setIsSearching(false);
+        if (!res?.success || !res.tableId) {
+          const shouldRetry = (res?.error === 'register_required' || res?.error === 'rate_limited') && seatAttempts < maxSeatAttempts;
+          if (shouldRetry) {
+            setMatchStatus('Retrying online seat…');
+            seatTimeoutRef.current = setTimeout(() => {
+              seatPlayer();
+            }, 400);
+            return;
+          }
+          triggerTimeoutRefund(
+            'seat_table_failed',
+            res?.message || 'Failed to join the online arena. Please retry.',
+            { response: res, accountId, seatAttempts }
+          );
+          return;
+        }
+        pendingTableRef.current = res.tableId;
+        setMatchStatus('Waiting for another player…');
+        const playersList = res.players || [];
+        setMatchPlayers(playersList);
+        matchPlayersRef.current = playersList;
+        setReadyList(res.ready || []);
+        socketInstance.emit('confirmReady', {
+          accountId,
+          tableId: res.tableId
+        });
+        startMatchTimeout(res.tableId);
+      }
+    );
+  };
+
+  seatPlayer();
 
   return { success: true };
 }
