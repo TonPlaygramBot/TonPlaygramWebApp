@@ -37,6 +37,25 @@ function loadMetaEnv() {
   return {};
 }
 
+function getTelegramInitData() {
+  if (typeof window === 'undefined') return '';
+  return window?.Telegram?.WebApp?.initData || '';
+}
+
+function getStoredAccountId() {
+  if (typeof window === 'undefined') return '';
+  return window?.localStorage?.getItem('accountId') || '';
+}
+
+function buildSocketAuthPayload() {
+  const initData = getTelegramInitData();
+  const accountId = getStoredAccountId();
+  return {
+    ...(initData ? { initData } : {}),
+    ...(accountId ? { accountId } : {})
+  };
+}
+
 function resolveSocketConfig() {
   const metaEnv = loadMetaEnv();
   const explicitUrl = metaEnv.VITE_SOCKET_URL;
@@ -48,6 +67,7 @@ function resolveSocketConfig() {
   const options = {
     path,
     transports: ['websocket', 'polling'],
+    auth: (cb) => cb(buildSocketAuthPayload()),
     reconnectionAttempts: 8,
     reconnectionDelay: 500,
     reconnectionDelayMax: 5000,
