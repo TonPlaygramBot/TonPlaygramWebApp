@@ -31,6 +31,7 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
   return await new Promise((resolve) => {
     let settled = false;
     let timer;
+    let lastError = null;
 
     const finish = (ok) => {
       if (settled) return;
@@ -39,11 +40,18 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
       socketInstance.off?.('connect', onConnect);
       socketInstance.off?.('connect_error', onConnectError);
       socketInstance.off?.('error', onConnectError);
+      if (!ok && lastError) {
+        logSupportError('Socket connect failed', lastError);
+      }
       resolve(ok);
     };
 
     const onConnect = () => finish(true);
-    const onConnectError = () => finish(false);
+    const onConnectError = (error) => {
+      lastError = error || lastError;
+      // Mobile connections can emit temporary connect errors before succeeding.
+      // Keep waiting until timeout so we avoid false negatives and unnecessary stake refunds.
+    };
 
     timer = setTimeout(() => finish(socketInstance.connected), timeoutMs);
 
