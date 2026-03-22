@@ -1350,8 +1350,8 @@ export default function Store() {
           const objectUrl = URL.createObjectURL(file);
           image.onload = () => {
             try {
-              const maxWidth = 4096;
-              const maxHeight = 2048;
+              const maxWidth = 2048;
+              const maxHeight = 1024;
               const widthRatio = maxWidth / image.width;
               const heightRatio = maxHeight / image.height;
               const scale = Math.min(1, widthRatio, heightRatio);
@@ -1365,7 +1365,7 @@ export default function Store() {
                 throw new Error('Canvas context unavailable');
               }
               context.drawImage(image, 0, 0, targetWidth, targetHeight);
-              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
               resolve({
                 previewUrl: optimizedDataUrl,
                 mintDataUrl: optimizedDataUrl
@@ -1524,18 +1524,34 @@ export default function Store() {
         acc[slug] = `custom-hdri:${createdAt}:${slug}`;
         return acc;
       }, {});
-      const entry = saveCustomHdriEntry({
-        id: `custom-hdri-${createdAt}`,
-        name: hdriDraft.name.trim(),
-        type: 'environmentHdri',
-        price: Number(hdriDraft.storePrice || 0),
-        createdBy: accountId || 'guest',
-        visibility: hdriDraft.visibility,
-        supportedGames: hdriSelectedGames,
-        optionIdByGame,
-        thumbnailUrl: uploadedImageDataUrl,
-        environmentUrl: uploadedImageDataUrl
-      });
+      let entry = null;
+      try {
+        entry = saveCustomHdriEntry({
+          id: `custom-hdri-${createdAt}`,
+          name: hdriDraft.name.trim(),
+          type: 'environmentHdri',
+          price: Number(hdriDraft.storePrice || 0),
+          createdBy: accountId || 'guest',
+          visibility: hdriDraft.visibility,
+          supportedGames: hdriSelectedGames,
+          optionIdByGame,
+          thumbnailUrl: uploadedImageDataUrl,
+          environmentUrl: uploadedImageDataUrl
+        });
+      } catch (error) {
+        if (
+          typeof error?.name === 'string' &&
+          (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+        ) {
+          setTransactionState('error');
+          setTransactionStatus(
+            'Could not save HDRI on this device (storage full). Remove old uploads or clear app cache, then try again.'
+          );
+          setHdriPublishing(false);
+          return;
+        }
+        throw error;
+      }
       await Promise.all(
         hdriSelectedGames.map((slug) => {
           const optionId = optionIdByGame[slug];
@@ -1582,9 +1598,12 @@ export default function Store() {
     } catch (error) {
       console.warn('HDRI publish failed', error);
       setTransactionState('error');
-      setTransactionStatus(
-        'Could not mint this HDRI right now. Please re-check your upload and try again.'
-      );
+      const message =
+        typeof error?.message === 'string' &&
+        error.message.toLowerCase().includes('quota')
+          ? 'Could not save HDRI on this device (storage full). Remove old uploads or clear app cache, then try again.'
+          : 'Could not mint this HDRI right now. Please try again in a few seconds.';
+      setTransactionStatus(message);
     } finally {
       setHdriPublishing(false);
     }
