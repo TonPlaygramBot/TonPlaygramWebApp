@@ -245,6 +245,38 @@ const AI_SIDE = 'dark';
 const AI_SEARCH_DEPTH = 6;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
+const ONLINE_SOCKET_CONNECT_TIMEOUT_MS = 6000;
+
+async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIMEOUT_MS) {
+  if (socket.connected) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleError);
+      socket.off('error', handleError);
+    };
+
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(ok);
+    };
+
+    const handleConnect = () => finish(true);
+    const handleError = () => finish(false);
+
+    const timer = window.setTimeout(() => finish(Boolean(socket.connected)), timeoutMs);
+    socket.once('connect', handleConnect);
+    socket.once('connect_error', handleError);
+    socket.once('error', handleError);
+    socket.connect?.();
+  });
+}
 
 const createCheckerMesh = ({
   tile,
@@ -2120,13 +2152,27 @@ export default function CheckersBattleRoyal() {
       setStatus(myTurn ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
     };
 
+    let cancelled = false;
     socket.on('gameStart', handleGameStart);
     socket.on('checkersState', handleCheckersState);
-    socket.emit('register', { playerId: accountId });
-    socket.emit('joinCheckersRoom', { tableId, accountId });
-    socket.emit('checkersSyncRequest', { tableId });
+
+    const joinOnlineTable = async () => {
+      const connected = await ensureOnlineSocketConnected();
+      if (cancelled) return;
+      if (!connected) {
+        setOnlineStatus('error');
+        setStatus('Online connection failed. Return to lobby and retry.');
+        return;
+      }
+      socket.emit('register', { playerId: accountId });
+      socket.emit('joinCheckersRoom', { tableId, accountId });
+      socket.emit('checkersSyncRequest', { tableId });
+    };
+
+    void joinOnlineTable();
 
     return () => {
+      cancelled = true;
       socket.off('gameStart', handleGameStart);
       socket.off('checkersState', handleCheckersState);
       socket.emit('leaveLobby', { accountId, tableId });
