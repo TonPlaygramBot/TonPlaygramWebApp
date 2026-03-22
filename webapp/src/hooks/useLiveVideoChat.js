@@ -131,7 +131,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
   }, [safeRoomId]);
 
   const startLiveChat = useCallback(async () => {
-    if (!safeRoomId || isConnected) return;
+    if (!enabled || !safeRoomId || isConnected) return;
     setError('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -166,7 +166,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
       setError(message);
       console.error('live chat media init failed', mediaError);
     }
-  }, [displayName, isConnected, safeRoomId]);
+  }, [displayName, enabled, isConnected, safeRoomId]);
 
   const toggleTrack = useCallback((kind) => {
     const stream = localStreamRef.current;
