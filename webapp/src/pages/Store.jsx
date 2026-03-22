@@ -149,6 +149,7 @@ import {
 } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
+import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -303,6 +304,7 @@ const SNAKE_STORE_ACCOUNT_ID =
 const TEXAS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
 const HDRI_PUBLISH_TARIFF_TPC = 2500;
+const HDRI_PUBLISH_TARIFF_PER_GAME_TPC = 900;
 const HDRI_CREATOR_STEPS = [
   {
     id: 'upload',
@@ -330,6 +332,18 @@ const HDRI_CREATOR_PRESETS = [
   { label: 'Neon night', mood: 'Sci-fi', lighting: 'Neon', timeOfDay: 'Night' },
   { label: 'Studio clean', mood: 'Minimal', lighting: 'Softbox', timeOfDay: 'Sunset' }
 ];
+const HDRI_TARGET_GAMES = Object.freeze([
+  { slug: 'poolroyale', label: 'Pool Royale' },
+  { slug: 'snookerroyale', label: 'Snooker Royal' },
+  { slug: 'chessbattleroyal', label: 'Chess Battle Royal' },
+  { slug: 'checkersbattleroyal', label: 'Checkers Battle Royal' },
+  { slug: 'tavullbattleroyal', label: 'Backgammon Royal' },
+  { slug: 'ludobattleroyal', label: 'Ludo Battle Royal' },
+  { slug: 'murlanroyale', label: 'Murlan Royale' },
+  { slug: 'domino-royal', label: 'Domino Royal' },
+  { slug: 'snake', label: 'Snake & Ladder' },
+  { slug: 'texasholdem', label: 'Texas Holdem Arena' }
+]);
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
@@ -921,7 +935,7 @@ export default function Store() {
   const [transactionStatus, setTransactionStatus] = useState('');
   const [transactionState, setTransactionState] = useState('idle');
   const [showTransactionToast, setShowTransactionToast] = useState(false);
-  const [userListings, setUserListings] = useState([]);
+  const [userListings, setUserListings] = useState(() => getCustomHdriCatalog());
   const [showListModal, setShowListModal] = useState(false);
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
   const [showMyListings, setShowMyListings] = useState(false);
@@ -945,6 +959,7 @@ export default function Store() {
   const [hdriUploadFiles, setHdriUploadFiles] = useState([]);
   const [hdriPreviewUnlocked, setHdriPreviewUnlocked] = useState(false);
   const [hdriPublished, setHdriPublished] = useState(false);
+  const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['poolroyale']);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -963,6 +978,17 @@ export default function Store() {
       setZoomPreview(null);
     }
   }, [detailItem]);
+
+  useEffect(() => {
+    setUserListings(getCustomHdriCatalog(accountId || 'guest'));
+    const handleCatalogUpdate = () => {
+      setUserListings(getCustomHdriCatalog(accountId || 'guest'));
+    };
+    window.addEventListener('customHdriCatalogUpdate', handleCatalogUpdate);
+    return () => {
+      window.removeEventListener('customHdriCatalogUpdate', handleCatalogUpdate);
+    };
+  }, [accountId]);
 
   useEffect(() => {
     if (!purchaseStatus) {
@@ -1122,11 +1148,14 @@ export default function Store() {
   const canPublishHdri =
     hdriDraft.name.trim().length >= 3 &&
     hdriUploadFiles.length > 0 &&
+    hdriSelectedGames.length > 0 &&
     hdriPreviewUnlocked &&
     !hdriPublished;
+  const hdriGameTariff = hdriSelectedGames.length * HDRI_PUBLISH_TARIFF_PER_GAME_TPC;
+  const hdriPublishTotalTariff = HDRI_PUBLISH_TARIFF_TPC + hdriGameTariff;
   const hdriPublishShortfall =
     typeof accountBalance === 'number'
-      ? Math.max(0, HDRI_PUBLISH_TARIFF_TPC - accountBalance)
+      ? Math.max(0, hdriPublishTotalTariff - accountBalance)
       : null;
 
   useEffect(
@@ -1164,6 +1193,16 @@ export default function Store() {
     setHdriCreatorStep(1);
   }, []);
 
+  const handleHdriGameToggle = useCallback((slug) => {
+    setHdriSelectedGames((prev) => {
+      if (prev.includes(slug)) {
+        return prev.filter((entry) => entry !== slug);
+      }
+      return [...prev, slug];
+    });
+    setHdriPublished(false);
+  }, []);
+
   const applyHdriPreset = useCallback((preset) => {
     setHdriDraft((prev) => ({
       ...prev,
@@ -1196,15 +1235,49 @@ export default function Store() {
     );
   }, [hdriDraft.name, hdriUploadFiles.length]);
 
-  const handleHdriPublish = useCallback(() => {
+  const fileToDataUrl = useCallback(
+    (file) =>
+      new Promise((resolve, reject) => {
+        if (!file) {
+          reject(new Error('No file selected'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      }),
+    []
+  );
+
+  const handleHdriPublish = useCallback(async () => {
     if (!canPublishHdri) return;
-    if (typeof accountBalance === 'number' && accountBalance < HDRI_PUBLISH_TARIFF_TPC) {
+    if (!hdriSelectedGames.length) {
+      setTransactionState('error');
+      setTransactionStatus('Select at least one game where this HDRI will be used.');
+      return;
+    }
+    if (typeof accountBalance === 'number' && accountBalance < hdriPublishTotalTariff) {
       setTransactionState('error');
       setTransactionStatus(
-        `Not enough TPC. Add ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC - accountBalance)} more to publish this HDRI.`
+        `Not enough TPC. Add ${formatTpcAmount(hdriPublishTotalTariff - accountBalance)} more to publish this HDRI.`
       );
       return;
     }
+    const mainUpload = hdriUploadFiles[0]?.file;
+    let uploadedImageDataUrl = '';
+    try {
+      uploadedImageDataUrl = await fileToDataUrl(mainUpload);
+    } catch (error) {
+      setTransactionState('error');
+      setTransactionStatus('Could not process the uploaded image. Please try another photo.');
+      return;
+    }
+    const createdAt = Date.now();
+    const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
+      acc[slug] = `custom-hdri:${createdAt}:${slug}`;
+      return acc;
+    }, {});
     setHdriPublished(true);
     setHdriCreatorStep(3);
     setTransactionState('success');
@@ -1214,29 +1287,53 @@ export default function Store() {
         : 'created privately and only visible in your own games.';
     setTransactionStatus(`HDRI ${visibilityLabel}`);
     if (typeof accountBalance === 'number') {
-      setAccountBalance((prev) => Math.max(0, (prev || 0) - HDRI_PUBLISH_TARIFF_TPC));
+      setAccountBalance((prev) => Math.max(0, (prev || 0) - hdriPublishTotalTariff));
     }
-    if (hdriDraft.visibility === 'public') {
-      const createdAt = Date.now();
-      setUserListings((prev) => [
-        {
-          id: `custom-hdri-${createdAt}`,
-          slug: 'creator-hdri',
-          type: 'environmentHdri',
-          optionId: `custom-${createdAt}`,
-          displayLabel: hdriDraft.name.trim(),
-          gameName: 'TonPlaygram Creator Marketplace',
-          typeLabel: 'Custom HDRI',
-          price: Number(hdriDraft.storePrice || 0),
-          ownerAccountId: accountId || 'guest',
-          createdBy: accountId || 'guest',
-          creatorRevenueShare: 100,
-          usage: 'Public store listing'
-        },
-        ...prev
-      ]);
+    const entry = saveCustomHdriEntry({
+      id: `custom-hdri-${createdAt}`,
+      name: hdriDraft.name.trim(),
+      type: 'environmentHdri',
+      price: Number(hdriDraft.storePrice || 0),
+      createdBy: accountId || 'guest',
+      visibility: hdriDraft.visibility,
+      supportedGames: hdriSelectedGames,
+      optionIdByGame,
+      thumbnailUrl: uploadedImageDataUrl,
+      environmentUrl: uploadedImageDataUrl
+    });
+    if (entry) {
+      setUserListings(getCustomHdriCatalog(accountId || 'guest'));
     }
-  }, [accountBalance, accountId, canPublishHdri, hdriDraft]);
+    await Promise.all(
+      hdriSelectedGames.map((slug) => {
+        const optionId = optionIdByGame[slug];
+        if (!optionId) return Promise.resolve();
+        if (slug === 'poolroyale') return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal') {
+          return addChessBattleUnlock('environmentHdri', optionId, accountId);
+        }
+        if (slug === 'fourinrowroyale') return addFourInRowUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'tavullbattleroyal') return addTavullBattleUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'ludobattleroyal') return addLudoBattleUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'murlanroyale') return addMurlanUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
+        return Promise.resolve();
+      })
+    );
+  }, [
+    accountBalance,
+    accountId,
+    canPublishHdri,
+    fileToDataUrl,
+    hdriDraft,
+    hdriPublishTotalTariff,
+    hdriSelectedGames,
+    hdriUploadFiles
+  ]);
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -1642,21 +1739,26 @@ export default function Store() {
 
   const decoratedUserListings = useMemo(
     () =>
-      userListings.map((listing) =>
-        decorateMarketplaceItem(
-          {
-            ...listing,
-            slug: listing.slug || listing.game,
-            gameName:
-              storeMeta[listing.slug || listing.game]?.name || 'Player listing',
-            typeLabel: listing.typeLabel || 'Player NFT',
-            displayLabel: listing.displayLabel || listing.name || 'Player NFT',
-            owned: true,
-            seller: 'You'
-          },
-          { scalePrice: false }
-        )
-      ),
+      userListings.flatMap((listing) => {
+        const games = Array.isArray(listing.supportedGames) ? listing.supportedGames : [];
+        return games.map((slug) =>
+          decorateMarketplaceItem(
+            {
+              ...listing,
+              id: `${listing.id}-${slug}`,
+              slug,
+              optionId: listing.optionIdByGame?.[slug] || listing.optionId,
+              gameName: storeMeta[slug]?.name || 'Player listing',
+              typeLabel: 'Custom HDRI',
+              displayLabel: listing.name || listing.displayLabel || 'Player NFT',
+              thumbnail: listing.thumbnailUrl || listing.environmentUrl || '',
+              owned: true,
+              seller: 'You'
+            },
+            { scalePrice: false }
+          )
+        );
+      }),
     [userListings]
   );
 
@@ -3801,6 +3903,31 @@ export default function Store() {
                   />
                 </label>
               </div>
+              <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                <p className="text-xs text-white/80">Use this HDRI in games (multi-select)</p>
+                <p className="mt-1 text-[11px] text-white/60">
+                  +{formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {HDRI_TARGET_GAMES.map((game) => {
+                    const active = hdriSelectedGames.includes(game.slug);
+                    return (
+                      <button
+                        key={game.slug}
+                        type="button"
+                        onClick={() => handleHdriGameToggle(game.slug)}
+                        className={`rounded-lg border px-2 py-1.5 text-left text-[11px] ${
+                          active
+                            ? 'border-fuchsia-300/70 bg-fuchsia-400/20 text-fuchsia-50'
+                            : 'border-white/10 bg-black/35 text-white/70'
+                        }`}
+                      >
+                        {game.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-white/70">
                 {hdriDraft.visibility === 'public'
                   ? 'Creator payout: 100% of each sale goes to your creator wallet.'
@@ -3840,7 +3967,7 @@ export default function Store() {
               disabled={!canPublishHdri}
               className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              Publish in-game ({formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC)
+              Publish in-game ({formatTpcAmount(hdriPublishTotalTariff)} TPC)
             </button>
             <span className="text-xs text-fuchsia-100/85">
               {hdriPublished
@@ -3856,7 +3983,7 @@ export default function Store() {
           <div className="mt-2 text-xs text-white/70">
             {hdriPublishShortfall
               ? `Balance alert: you need ${formatTpcAmount(hdriPublishShortfall)} more TPC to publish.`
-              : `Creation tariff: ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC once per HDRI.`}
+              : `Creation tariff: ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC + ${formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game.`}
           </div>
         </section>
 

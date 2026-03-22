@@ -88,6 +88,7 @@ import {
   poolRoyalAccountId,
   addPoolRoyalUnlock
 } from '../../utils/poolRoyalInventory.js';
+import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import {
   describeTrainingLevel,
   getNextIncompleteLevel,
@@ -4880,6 +4881,33 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
     }
   };
   const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const isStandardImage =
+    lowerUrl.startsWith('data:image/') ||
+    /\.(png|jpe?g|webp|avif)(\?|$)/.test(lowerUrl);
+  if (isStandardImage) {
+    const imageLoader = new THREE.TextureLoader();
+    imageLoader.setCrossOrigin?.('anonymous');
+    return new Promise((resolve) => {
+      imageLoader.load(
+        url,
+        (texture) => {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          pmrem.compileEquirectangularShader();
+          const envMap = pmrem.fromEquirectangular(texture).texture;
+          envMap.name = `${config?.assetId ?? 'custom-upload'}-env`;
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.needsUpdate = true;
+          pmrem.dispose();
+          resolve({ envMap, skyboxMap: texture, url });
+        },
+        undefined,
+        async () => {
+          const fallbackEnv = await resolveFallback();
+          resolve(fallbackEnv);
+        }
+      );
+    });
+  }
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : new RGBELoader();
   loader.setCrossOrigin?.('anonymous');
@@ -12679,11 +12707,14 @@ function PoolRoyaleGame({
     [poolInventory]
   );
   const availableEnvironmentHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+    () => {
+      const customVariants = getCustomHdriVariantsForGame('poolroyale', accountId);
+      const merged = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
+      return merged.filter((variant) =>
         isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      ),
-    [poolInventory]
+      );
+    },
+    [accountId, poolInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
@@ -12731,9 +12762,14 @@ function PoolRoyaleGame({
   }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
+      const fromAvailable = availableEnvironmentHdris.find(
+        (variant) => variant.id === environmentHdriId
+      );
       const variant =
+        fromAvailable ??
         POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
         POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
+        availableEnvironmentHdris[0] ??
         POOL_ROYALE_HDRI_VARIANTS[0];
       if (!variant) return null;
       const basePreferred =
@@ -12752,7 +12788,7 @@ function PoolRoyaleGame({
         fallbackResolution: resolved
       };
     },
-    [environmentHdriId, resolvedHdriResolution]
+    [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(() => false, []);
   const activePocketLinerOption = useMemo(

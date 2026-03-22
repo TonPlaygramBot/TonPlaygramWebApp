@@ -71,6 +71,7 @@ import {
   snookerRoyalAccountId,
   addSnookerRoyalUnlock
 } from '../../utils/snookerRoyalInventory.js';
+import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import {
   describeTrainingLevel,
   getNextIncompleteLevel,
@@ -4503,6 +4504,33 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
     }
   };
   const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const isStandardImage =
+    lowerUrl.startsWith('data:image/') ||
+    /\.(png|jpe?g|webp|avif)(\?|$)/.test(lowerUrl);
+  if (isStandardImage) {
+    const imageLoader = new THREE.TextureLoader();
+    imageLoader.setCrossOrigin?.('anonymous');
+    return new Promise((resolve) => {
+      imageLoader.load(
+        url,
+        (texture) => {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          pmrem.compileEquirectangularShader();
+          const envMap = pmrem.fromEquirectangular(texture).texture;
+          envMap.name = `${config?.assetId ?? 'custom-upload'}-env`;
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.needsUpdate = true;
+          pmrem.dispose();
+          resolve({ envMap, skyboxMap: texture, url });
+        },
+        undefined,
+        async () => {
+          const fallbackEnv = await resolveFallback();
+          resolve(fallbackEnv);
+        }
+      );
+    });
+  }
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : new RGBELoader();
   loader.setCrossOrigin?.('anonymous');
@@ -11676,11 +11704,14 @@ function SnookerRoyalGame({
     [snookerInventory]
   );
   const availableEnvironmentHdris = useMemo(
-    () =>
-      SNOOKER_ROYALE_HDRI_VARIANTS.filter((variant) =>
+    () => {
+      const customVariants = getCustomHdriVariantsForGame('snookerroyale', accountId);
+      const merged = [...SNOOKER_ROYALE_HDRI_VARIANTS, ...customVariants];
+      return merged.filter((variant) =>
         isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)
-      ),
-    [snookerInventory]
+      );
+    },
+    [accountId, snookerInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
@@ -11723,9 +11754,14 @@ function SnookerRoyalGame({
       : activeHdriResolutionOption.id;
   const activeEnvironmentHdri = useMemo(
     () => {
+      const fromAvailable = availableEnvironmentHdris.find(
+        (variant) => variant.id === environmentHdriId
+      );
       const variant =
+        fromAvailable ??
         SNOOKER_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
         SNOOKER_ROYALE_HDRI_VARIANT_MAP[SNOOKER_ROYALE_DEFAULT_HDRI_ID] ??
+        availableEnvironmentHdris[0] ??
         SNOOKER_ROYALE_HDRI_VARIANTS[0];
       if (!variant) return null;
       const basePreferred =
@@ -11744,7 +11780,7 @@ function SnookerRoyalGame({
         fallbackResolution: resolved
       };
     },
-    [environmentHdriId, resolvedHdriResolution]
+    [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(
     () => environmentHdriId === 'musicHall02',
