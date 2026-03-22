@@ -101,6 +101,7 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { listCustomHdrisForGame } from '../../utils/customHdriCatalog.js';
 import {
   clampToUnitCircle,
   computeQuantizedOffsetScaled,
@@ -12679,11 +12680,24 @@ function PoolRoyaleGame({
     [poolInventory]
   );
   const availableEnvironmentHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+    () => {
+      const unlockedDefault = POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
         isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      ),
-    [poolInventory]
+      );
+      const customVariants = listCustomHdrisForGame({
+        accountId,
+        gameId: 'poolroyale'
+      }).map((entry) => ({
+        id: entry.id,
+        name: entry.name || 'Custom HDRI',
+        thumbnail: entry.thumbnail || '',
+        swatches: entry.swatches || ['#d946ef', '#111827'],
+        preferredResolutions: DEFAULT_HDRI_RESOLUTIONS,
+        fallbackResolution: DEFAULT_HDRI_RESOLUTIONS[0]
+      }));
+      return [...unlockedDefault, ...customVariants];
+    },
+    [accountId, poolInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
@@ -12731,7 +12745,11 @@ function PoolRoyaleGame({
   }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
+      const customVariant = availableEnvironmentHdris.find(
+        (variant) => variant.id === environmentHdriId
+      );
       const variant =
+        customVariant ??
         POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
         POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
         POOL_ROYALE_HDRI_VARIANTS[0];
@@ -12752,7 +12770,7 @@ function PoolRoyaleGame({
         fallbackResolution: resolved
       };
     },
-    [environmentHdriId, resolvedHdriResolution]
+    [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(() => false, []);
   const activePocketLinerOption = useMemo(

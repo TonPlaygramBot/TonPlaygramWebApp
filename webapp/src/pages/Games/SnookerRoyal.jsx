@@ -79,6 +79,7 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/snookerRoyalTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { listCustomHdrisForGame } from '../../utils/customHdriCatalog.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -11676,11 +11677,24 @@ function SnookerRoyalGame({
     [snookerInventory]
   );
   const availableEnvironmentHdris = useMemo(
-    () =>
-      SNOOKER_ROYALE_HDRI_VARIANTS.filter((variant) =>
+    () => {
+      const unlockedDefault = SNOOKER_ROYALE_HDRI_VARIANTS.filter((variant) =>
         isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)
-      ),
-    [snookerInventory]
+      );
+      const customVariants = listCustomHdrisForGame({
+        accountId,
+        gameId: 'snookerroyale'
+      }).map((entry) => ({
+        id: entry.id,
+        name: entry.name || 'Custom HDRI',
+        thumbnail: entry.thumbnail || '',
+        swatches: entry.swatches || ['#d946ef', '#111827'],
+        preferredResolutions: DEFAULT_HDRI_RESOLUTIONS,
+        fallbackResolution: DEFAULT_HDRI_RESOLUTIONS[0]
+      }));
+      return [...unlockedDefault, ...customVariants];
+    },
+    [accountId, snookerInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
@@ -11723,7 +11737,11 @@ function SnookerRoyalGame({
       : activeHdriResolutionOption.id;
   const activeEnvironmentHdri = useMemo(
     () => {
+      const customVariant = availableEnvironmentHdris.find(
+        (variant) => variant.id === environmentHdriId
+      );
       const variant =
+        customVariant ??
         SNOOKER_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
         SNOOKER_ROYALE_HDRI_VARIANT_MAP[SNOOKER_ROYALE_DEFAULT_HDRI_ID] ??
         SNOOKER_ROYALE_HDRI_VARIANTS[0];
@@ -11744,7 +11762,7 @@ function SnookerRoyalGame({
         fallbackResolution: resolved
       };
     },
-    [environmentHdriId, resolvedHdriResolution]
+    [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(
     () => environmentHdriId === 'musicHall02',
