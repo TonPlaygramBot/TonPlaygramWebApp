@@ -23,11 +23,13 @@ const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
 const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
+const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 
 function normalizeHostCode(code = '') {
   return String(code || '')
     .trim()
     .replace(/[^a-zA-Z0-9_-]/g, '')
+    .toUpperCase()
     .slice(0, 48);
 }
 
@@ -35,6 +37,37 @@ function buildHostedTableId(code = '') {
   const safeCode = normalizeHostCode(code);
   if (!safeCode) return '';
   return `checkers-2-host-${safeCode}`;
+}
+
+async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+  if (socket.connected) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleError);
+      socket.off('error', handleError);
+    };
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(result);
+    };
+
+    const handleConnect = () => finish(true);
+    const handleError = () => finish(false);
+
+    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
+    socket.once('connect', handleConnect);
+    socket.once('connect_error', handleError);
+    socket.once('error', handleError);
+    socket.connect?.();
+  });
 }
 
 export default function CheckersBattleRoyalLobby() {
@@ -224,6 +257,14 @@ export default function CheckersBattleRoyalLobby() {
     setMatchError('');
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
+
+    const socketReady = await ensureSocketConnected();
+    if (!socketReady) {
+      setMatchError('Lobby connection failed. Check your network and try again.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
 
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
