@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import * as THREE from 'three';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -365,6 +366,144 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 };
 
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
+
+const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
+  poolroyale: 'poolHdriEnvironment',
+  snookerroyale: 'snookerHdriEnvironment'
+});
+
+function HdriEquirectangularPreview({ src, title }) {
+  const mountRef = useRef(null);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || !src) return undefined;
+    let disposed = false;
+    let lon = 0;
+    let lat = 0;
+    let pointerDown = false;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let lonStart = 0;
+    let latStart = 0;
+    const width = Math.max(1, mount.clientWidth || 768);
+    const height = Math.max(1, mount.clientHeight || 320);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(72, width / height, 0.1, 1500);
+    camera.position.set(0, 0, 0);
+    camera.lookAt(new THREE.Vector3(0, 0, -1));
+
+    const geometry = new THREE.SphereGeometry(500, 96, 64);
+    geometry.scale(-1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin?.('anonymous');
+    loader.load(
+      src,
+      (texture) => {
+        if (disposed) {
+          texture.dispose?.();
+          return;
+        }
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        material.map = texture;
+        material.needsUpdate = true;
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to render HDRI preview skybox', error);
+      }
+    );
+
+    const onPointerDown = (event) => {
+      pointerDown = true;
+      pointerStartX = event.clientX;
+      pointerStartY = event.clientY;
+      lonStart = lon;
+      latStart = lat;
+    };
+    const onPointerUp = () => {
+      pointerDown = false;
+    };
+    const onPointerMove = (event) => {
+      if (!pointerDown) return;
+      const deltaX = event.clientX - pointerStartX;
+      const deltaY = event.clientY - pointerStartY;
+      lon = lonStart + deltaX * 0.14;
+      lat = THREE.MathUtils.clamp(latStart + deltaY * 0.12, -80, 80);
+    };
+
+    const onResize = () => {
+      if (!mount || disposed) return;
+      const nextWidth = Math.max(1, mount.clientWidth || 768);
+      const nextHeight = Math.max(1, mount.clientHeight || 320);
+      renderer.setSize(nextWidth, nextHeight);
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+    };
+
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('resize', onResize);
+
+    const animate = () => {
+      if (disposed) return;
+      if (!pointerDown) {
+        lon += 0.06;
+      }
+      const phi = THREE.MathUtils.degToRad(90 - lat);
+      const theta = THREE.MathUtils.degToRad(lon);
+      const radius = 500;
+      const target = new THREE.Vector3(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+      camera.lookAt(target);
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+
+    return () => {
+      disposed = true;
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('resize', onResize);
+      material.map?.dispose?.();
+      geometry.dispose?.();
+      material.dispose?.();
+      renderer.dispose?.();
+      if (mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement);
+      }
+    };
+  }, [src]);
+
+  return (
+    <div className="relative">
+      <div ref={mountRef} className="h-44 w-full md:h-56" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2 text-[11px] text-fuchsia-100/90">
+        360° preview · drag to look around · {title}
+      </div>
+    </div>
+  );
+}
 
 const normalizePolyHavenImage = (url, size) => {
   if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE))
@@ -1211,8 +1350,8 @@ export default function Store() {
           const objectUrl = URL.createObjectURL(file);
           image.onload = () => {
             try {
-              const maxWidth = 1600;
-              const maxHeight = 900;
+              const maxWidth = 4096;
+              const maxHeight = 2048;
               const widthRatio = maxWidth / image.width;
               const heightRatio = maxHeight / image.height;
               const scale = Math.min(1, widthRatio, heightRatio);
@@ -1242,7 +1381,7 @@ export default function Store() {
                 )
                 .catch(() =>
                   resolve({
-                    previewUrl: objectUrl,
+                    previewUrl: '',
                     mintDataUrl: ''
                   })
                 );
@@ -1260,7 +1399,7 @@ export default function Store() {
               )
               .catch(() =>
                 resolve({
-                  previewUrl: objectUrl,
+                  previewUrl: '',
                   mintDataUrl: ''
                 })
               )
@@ -1294,14 +1433,22 @@ export default function Store() {
           };
         })
       );
+      const validFiles = preparedFiles.filter((entry) => entry.previewUrl);
       setHdriUploadFiles((prev) => {
         prev.forEach((entry) => {
           if (entry?.previewUrl?.startsWith?.('blob:')) {
             URL.revokeObjectURL(entry.previewUrl);
           }
         });
-        return preparedFiles;
+        return validFiles;
       });
+      if (validFiles.length === 0) {
+        setTransactionState('error');
+        setTransactionStatus('Could not read that HDRI image. Please upload JPG/PNG/WebP and try again.');
+        setHdriPreviewUnlocked(false);
+        setHdriPublished(false);
+        return;
+      }
       setHdriPreviewUnlocked(false);
       setHdriPublished(false);
       setHdriCreatorStep(1);
@@ -1409,6 +1556,15 @@ export default function Store() {
           return Promise.resolve();
         })
       );
+      if (typeof window !== 'undefined') {
+        hdriSelectedGames.forEach((slug) => {
+          const selectionStorageKey = GAME_HDRI_SELECTION_STORAGE_KEYS[slug];
+          const optionId = optionIdByGame[slug];
+          if (selectionStorageKey && optionId) {
+            window.localStorage.setItem(selectionStorageKey, optionId);
+          }
+        });
+      }
       setHdriPublished(true);
       setHdriCreatorStep(3);
       setTransactionState('success');
@@ -4072,13 +4228,12 @@ export default function Store() {
                   {hdriDraft.name.trim() || 'Untitled HDRI'}
                 </span>
               </div>
-              <img
+              <HdriEquirectangularPreview
                 src={hdriPrimaryUpload.previewUrl}
-                alt={hdriPrimaryUpload.file?.name || 'HDRI environment preview'}
-                className="h-44 w-full object-cover md:h-56"
+                title={hdriDraft.name.trim() || 'Untitled HDRI'}
               />
               <p className="px-3 py-2 text-[11px] text-fuchsia-100/75">
-                This is your current environment view before minting/publishing.
+                This is your live 360° skybox preview before minting/publishing.
               </p>
             </div>
           ) : null}
