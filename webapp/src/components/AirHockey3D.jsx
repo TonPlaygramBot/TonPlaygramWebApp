@@ -570,15 +570,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [showGift, setShowGift] = useState(false);
   const [cameraLiftUi, setCameraLiftUi] = useState(DEFAULT_CAMERA_LIFT);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const [showChatOptions, setShowChatOptions] = useState(false);
-  const [showLiveChat, setShowLiveChat] = useState(false);
-
-  useEffect(() => {
-    if (!showChatOptions) return undefined;
-    const close = () => setShowChatOptions(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [showChatOptions]);
+  const [liveMode, setLiveMode] = useState(false);
+  const [showLivePanel, setShowLivePanel] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -646,6 +639,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const restartTimeoutRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
   const lastTouchRef = useRef(null);
+  const topLiveVideoRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
     cushion: null,
@@ -695,8 +689,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const liveChat = useLiveVideoChat({
     roomId: liveChatRoomId,
     displayName: player?.name || 'Player',
-    enabled: showLiveChat
+    enabled: liveMode
   });
+  useEffect(() => {
+    if (liveMode) {
+      liveChat.startLiveChat();
+      return;
+    }
+    liveChat.stopLiveChat();
+  }, [liveMode, liveChat.startLiveChat, liveChat.stopLiveChat]);
   const giftPlayers = useMemo(() => {
     const playerAvatar = getAvatarUrl(player.avatar);
     const aiAvatar = getAvatarUrl(ai.avatar);
@@ -718,6 +719,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       }
     ];
   }, [ai, accountId, player, resolvedAccountId]);
+  useEffect(() => {
+    if (!topLiveVideoRef.current) return;
+    topLiveVideoRef.current.srcObject = liveChat.localStream || null;
+  }, [liveChat.localStream]);
   const updateRendererSettings = useCallback(() => {
     const renderer = rendererRef.current;
     const host = hostRef.current;
@@ -2577,13 +2582,24 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="0"
         >
-          <img
-            src={getAvatarUrl(player.avatar)}
-            alt=""
-            className="h-5 w-5 rounded-full object-cover"
-          />
+          {liveMode ? (
+            <video
+              ref={topLiveVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-10 w-10 rounded-full border border-emerald-300/70 object-cover bg-black scale-x-[-1]"
+            />
+          ) : (
+            <img
+              src={getAvatarUrl(player.avatar)}
+              alt=""
+              className="h-5 w-5 rounded-full object-cover"
+            />
+          )}
           <span className="truncate">
             {player.name}: {ui.left}
+            {liveMode ? <span className="ml-1 text-emerald-200">• Live</span> : null}
           </span>
         </div>
         <div
@@ -2646,40 +2662,27 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             : 'bottom-2 left-2 items-start'
         }`}
       >
-        <div className="relative" onClick={(event) => event.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => setShowChatOptions((prev) => !prev)}
-            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-          >
-            <AiOutlineMessage className="text-xl" />
-            <span>Chat</span>
-          </button>
-          {showChatOptions && (
-            <div className="absolute left-10 top-0 z-50 flex min-w-[9rem] flex-col gap-1 rounded-lg border border-white/20 bg-black/85 p-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowChatOptions(false);
-                  setShowChat(true);
-                }}
-                className="rounded px-2 py-1 text-left hover:bg-white/10"
-              >
-                Quick chat
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowChatOptions(false);
-                  setShowLiveChat(true);
-                }}
-                className="rounded px-2 py-1 text-left hover:bg-white/10"
-              >
-                Live chat (video + mic)
-              </button>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setLiveMode((prev) => !prev);
+            setShowLivePanel((prev) => (!liveMode ? true : prev));
+          }}
+          className={`flex flex-col items-center rounded px-2 py-1 text-[10px] font-semibold ${
+            liveMode ? 'bg-emerald-500/25 text-emerald-100' : 'bg-transparent text-white hover:bg-white/10'
+          }`}
+        >
+          <AiOutlineMessage className="text-xl" />
+          <span>{liveMode ? 'Avatar' : 'Live'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowChat(true)}
+          className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+        >
+          <span className="text-xl">💬</span>
+          <span>Chat</span>
+        </button>
         {isTopDownView ? (
           <>
             <button
@@ -2947,20 +2950,25 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         />
       </div>
       <LiveVideoChatPanel
-        open={showLiveChat}
+        open={showLivePanel && liveMode}
         onClose={() => {
-          liveChat.stopLiveChat();
-          setShowLiveChat(false);
-          setShowChatOptions(false);
+          setShowLivePanel(false);
         }}
         roomId={liveChatRoomId}
-        localVideoRef={liveChat.localVideoRef}
+        localStream={liveChat.localStream}
         localMediaState={liveChat.mediaState}
         remotePeers={liveChat.remotePeers}
         isConnected={liveChat.isConnected}
         error={liveChat.error}
-        onStart={liveChat.startLiveChat}
-        onStop={liveChat.stopLiveChat}
+        onStart={() => {
+          setLiveMode(true);
+          liveChat.startLiveChat();
+        }}
+        onStop={() => {
+          liveChat.stopLiveChat();
+          setLiveMode(false);
+          setShowLivePanel(false);
+        }}
         onToggleMicrophone={liveChat.toggleMicrophone}
         onToggleCamera={liveChat.toggleCamera}
       />
