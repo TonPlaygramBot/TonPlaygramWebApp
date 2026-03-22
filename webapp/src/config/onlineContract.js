@@ -24,6 +24,10 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
   },
+  checkersbattleroyal: {
+    checks: { lobby: true, runtime: true, backend: true, security: true },
+    label: 'Online Ready'
+  },
   fourinrowroyale: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
