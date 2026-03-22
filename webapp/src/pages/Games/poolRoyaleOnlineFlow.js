@@ -62,6 +62,22 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
   });
 }
 
+function setSocketIdentity(socketInstance, accountId) {
+  if (!socketInstance || !accountId) return;
+  try {
+    const existingAuth =
+      socketInstance.auth && typeof socketInstance.auth === 'object'
+        ? socketInstance.auth
+        : {};
+    socketInstance.auth = {
+      ...existingAuth,
+      accountId: String(accountId)
+    };
+  } catch (error) {
+    logSupportError('Socket identity setup failed', error, { accountId });
+  }
+}
+
 async function ensureSocketRegistered(
   socketInstance,
   accountId,
@@ -207,6 +223,10 @@ export async function runPoolRoyaleOnlineFlow({
     logSupportError('getAccountBalance failed', error, { accountId });
     return { success: false };
   }
+
+  // Some mobile sessions can initialize socket auth before accountId is available.
+  // Ensure the current accountId is attached to the next handshake attempt.
+  setSocketIdentity(socketInstance, accountId);
 
   try {
     await addTransactionFn(telegramId, -stake.amount, 'stake', {
