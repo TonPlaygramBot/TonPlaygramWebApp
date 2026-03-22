@@ -958,7 +958,6 @@ export default function Store() {
   });
   const [hdriUploadFiles, setHdriUploadFiles] = useState([]);
   const [hdriPreviewUnlocked, setHdriPreviewUnlocked] = useState(false);
-  const [hdriPreviewLightboxOpen, setHdriPreviewLightboxOpen] = useState(false);
   const [hdriPublished, setHdriPublished] = useState(false);
   const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['poolroyale']);
 
@@ -1152,7 +1151,6 @@ export default function Store() {
     hdriSelectedGames.length > 0 &&
     hdriPreviewUnlocked &&
     !hdriPublished;
-  const hdriMainPreviewUrl = hdriUploadFiles[0]?.previewUrl || '';
   const hdriGameTariff = hdriSelectedGames.length * HDRI_PUBLISH_TARIFF_PER_GAME_TPC;
   const hdriPublishTotalTariff = HDRI_PUBLISH_TARIFF_TPC + hdriGameTariff;
   const hdriPublishShortfall =
@@ -1252,36 +1250,6 @@ export default function Store() {
     []
   );
 
-  const createHdriStorageImage = useCallback(async (file) => {
-    const dataUrl = await fileToDataUrl(file);
-    if (typeof window === 'undefined') return dataUrl;
-    try {
-      const image = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error('Failed to decode image'));
-        img.src = dataUrl;
-      });
-      const sourceWidth = Number(image.width) || 0;
-      const sourceHeight = Number(image.height) || 0;
-      if (!sourceWidth || !sourceHeight) return dataUrl;
-      const maxSide = 2048;
-      const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
-      const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
-      const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return dataUrl;
-      ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
-      return canvas.toDataURL('image/jpeg', 0.9);
-    } catch (error) {
-      console.warn('Failed to optimize HDRI upload for storage', error);
-      return dataUrl;
-    }
-  }, [fileToDataUrl]);
-
   const handleHdriPublish = useCallback(async () => {
     if (!canPublishHdri) return;
     if (!hdriSelectedGames.length) {
@@ -1298,76 +1266,69 @@ export default function Store() {
     }
     const mainUpload = hdriUploadFiles[0]?.file;
     let uploadedImageDataUrl = '';
-    setTransactionState('processing');
-    setTransactionStatus('Minting your HDRI NFT and syncing inventory...');
     try {
-      uploadedImageDataUrl = await createHdriStorageImage(mainUpload);
+      uploadedImageDataUrl = await fileToDataUrl(mainUpload);
     } catch (error) {
       setTransactionState('error');
       setTransactionStatus('Could not process the uploaded image. Please try another photo.');
       return;
     }
-    try {
-      const createdAt = Date.now();
-      const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
-        acc[slug] = `custom-hdri:${createdAt}:${slug}`;
-        return acc;
-      }, {});
-      const entry = saveCustomHdriEntry({
-        id: `custom-hdri-${createdAt}`,
-        name: hdriDraft.name.trim(),
-        type: 'environmentHdri',
-        price: Number(hdriDraft.storePrice || 0),
-        createdBy: accountId || 'guest',
-        visibility: hdriDraft.visibility,
-        supportedGames: hdriSelectedGames,
-        optionIdByGame,
-        thumbnailUrl: uploadedImageDataUrl,
-        environmentUrl: uploadedImageDataUrl
-      });
-      if (!entry) throw new Error('Failed to save HDRI entry');
-      setUserListings(getCustomHdriCatalog(accountId || 'guest'));
-      await Promise.all(
-        hdriSelectedGames.map((slug) => {
-          const optionId = optionIdByGame[slug];
-          if (!optionId) return Promise.resolve();
-          if (slug === 'poolroyale') return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal') {
-            return addChessBattleUnlock('environmentHdri', optionId, accountId);
-          }
-          if (slug === 'fourinrowroyale') return addFourInRowUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'tavullbattleroyal') return addTavullBattleUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'ludobattleroyal') return addLudoBattleUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'murlanroyale') return addMurlanUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
-          return Promise.resolve();
-        })
-      );
-      setHdriPublished(true);
-      setHdriCreatorStep(3);
-      setTransactionState('success');
-      const visibilityLabel =
-        hdriDraft.visibility === 'public'
-          ? 'published to the store. 100% of sales income goes to your creator wallet.'
-          : 'created privately and only visible in your own games.';
-      setTransactionStatus(`HDRI ${visibilityLabel}`);
-      if (typeof accountBalance === 'number') {
-        setAccountBalance((prev) => Math.max(0, (prev || 0) - hdriPublishTotalTariff));
-      }
-    } catch (error) {
-      console.error('HDRI publish failed', error);
-      setTransactionState('error');
-      setTransactionStatus('Mint failed while saving or unlocking this HDRI. Please try again.');
+    const createdAt = Date.now();
+    const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
+      acc[slug] = `custom-hdri:${createdAt}:${slug}`;
+      return acc;
+    }, {});
+    setHdriPublished(true);
+    setHdriCreatorStep(3);
+    setTransactionState('success');
+    const visibilityLabel =
+      hdriDraft.visibility === 'public'
+        ? 'published to the store. 100% of sales income goes to your creator wallet.'
+        : 'created privately and only visible in your own games.';
+    setTransactionStatus(`HDRI ${visibilityLabel}`);
+    if (typeof accountBalance === 'number') {
+      setAccountBalance((prev) => Math.max(0, (prev || 0) - hdriPublishTotalTariff));
     }
+    const entry = saveCustomHdriEntry({
+      id: `custom-hdri-${createdAt}`,
+      name: hdriDraft.name.trim(),
+      type: 'environmentHdri',
+      price: Number(hdriDraft.storePrice || 0),
+      createdBy: accountId || 'guest',
+      visibility: hdriDraft.visibility,
+      supportedGames: hdriSelectedGames,
+      optionIdByGame,
+      thumbnailUrl: uploadedImageDataUrl,
+      environmentUrl: uploadedImageDataUrl
+    });
+    if (entry) {
+      setUserListings(getCustomHdriCatalog(accountId || 'guest'));
+    }
+    await Promise.all(
+      hdriSelectedGames.map((slug) => {
+        const optionId = optionIdByGame[slug];
+        if (!optionId) return Promise.resolve();
+        if (slug === 'poolroyale') return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal') {
+          return addChessBattleUnlock('environmentHdri', optionId, accountId);
+        }
+        if (slug === 'fourinrowroyale') return addFourInRowUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'tavullbattleroyal') return addTavullBattleUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'ludobattleroyal') return addLudoBattleUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'murlanroyale') return addMurlanUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
+        if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
+        return Promise.resolve();
+      })
+    );
   }, [
-    createHdriStorageImage,
     accountBalance,
     accountId,
     canPublishHdri,
+    fileToDataUrl,
     hdriDraft,
     hdriPublishTotalTariff,
     hdriSelectedGames,
@@ -3992,26 +3953,6 @@ export default function Store() {
             </div>
           ) : null}
 
-          {hdriPreviewUnlocked && hdriMainPreviewUrl ? (
-            <div className="mt-3 rounded-2xl border border-fuchsia-200/30 bg-black/35 p-2">
-              <div className="flex items-center justify-between gap-2 pb-2">
-                <p className="text-xs font-semibold text-fuchsia-100">Environment preview</p>
-                <button
-                  type="button"
-                  onClick={() => setHdriPreviewLightboxOpen(true)}
-                  className="rounded-xl border border-fuchsia-200/50 bg-fuchsia-400/20 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-50 hover:bg-fuchsia-400/30"
-                >
-                  View full
-                </button>
-              </div>
-              <img
-                src={hdriMainPreviewUrl}
-                alt={`${hdriDraft.name || 'HDRI'} preview`}
-                className="h-36 w-full rounded-xl border border-white/10 object-cover"
-              />
-            </div>
-          ) : null}
-
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -4490,29 +4431,6 @@ export default function Store() {
       {renderListModal()}
       {renderDetailModal()}
       {renderZoomModal()}
-      {hdriPreviewLightboxOpen && hdriMainPreviewUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-4xl rounded-2xl border border-white/20 bg-zinc-950/95 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">
-                HDRI preview • {hdriDraft.name || 'Untitled environment'}
-              </p>
-              <button
-                type="button"
-                onClick={() => setHdriPreviewLightboxOpen(false)}
-                className="rounded-lg border border-white/20 px-2 py-1 text-xs font-semibold text-white/80 hover:bg-white/10"
-              >
-                Close
-              </button>
-            </div>
-            <img
-              src={hdriMainPreviewUrl}
-              alt={`${hdriDraft.name || 'HDRI'} full preview`}
-              className="h-[70vh] w-full rounded-xl object-contain"
-            />
-          </div>
-        </div>
-      ) : null}
       {renderBulkConfirmModal()}
       {renderConfirmModal()}
     </div>
