@@ -87,3 +87,79 @@ test('pool royale players with partially-filled matching meta share same table',
     server.kill();
   }
 });
+
+test('pool royale disconnect clears stale lobby seat so next player can queue cleanly', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3208',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: apiToken,
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1'
+  };
+
+  const server = await startServer(env);
+  const s1 = connectClient(3208);
+
+  try {
+    await new Promise((resolve) => s1.on('connect', resolve));
+    s1.emit('register', { playerId: 'acct-disconnect-a' });
+
+    const firstSeat = await new Promise((resolve) => {
+      s1.emit(
+        'seatTable',
+        {
+          accountId: 'acct-disconnect-a',
+          gameType: 'poolroyale',
+          stake: 100,
+          maxPlayers: 2,
+          mode: 'online',
+          playType: 'regular',
+          playerName: 'DisconnectA'
+        },
+        resolve
+      );
+    });
+    assert.equal(firstSeat.success, true);
+    assert.equal(firstSeat.players.length, 1);
+
+    s1.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const s2 = connectClient(3208);
+    try {
+      await new Promise((resolve) => s2.on('connect', resolve));
+      s2.emit('register', { playerId: 'acct-disconnect-b' });
+      const secondSeat = await new Promise((resolve) => {
+        s2.emit(
+          'seatTable',
+          {
+            accountId: 'acct-disconnect-b',
+            gameType: 'poolroyale',
+            stake: 100,
+            maxPlayers: 2,
+            mode: 'online',
+            playType: 'regular',
+            playerName: 'DisconnectB'
+          },
+          resolve
+        );
+      });
+
+      assert.equal(secondSeat.success, true);
+      assert.equal(
+        secondSeat.players.some((player) => player.id === 'acct-disconnect-a'),
+        false
+      );
+      assert.equal(secondSeat.players.length, 1);
+    } finally {
+      s2.disconnect();
+    }
+  } finally {
+    server.kill();
+  }
+});

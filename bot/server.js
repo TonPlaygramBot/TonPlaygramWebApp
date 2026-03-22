@@ -1984,6 +1984,22 @@ io.on('connection', (socket) => {
     }
   );
 
+  const clearSocketLobbySeats = () => {
+    const pid = socket.data.playerId;
+    for (const [roomId, seats] of tableSeats.entries()) {
+      const seated = Array.from(seats.values()).some(
+        (seat) => seat?.socketId === socket.id
+      );
+      if (seated) {
+        unseatTableSocket(pid, roomId, socket.id);
+      }
+    }
+  };
+
+  socket.on('disconnecting', () => {
+    clearSocketLobbySeats();
+  });
+
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
     lastActionBySocket.delete(socket.id);
@@ -1999,11 +2015,7 @@ io.on('connection', (socket) => {
         () => {}
       );
     }
-    for (const roomId of socket.rooms) {
-      if (tableSeats.has(roomId)) {
-        unseatTableSocket(pid, roomId, socket.id);
-      }
-    }
+    clearSocketLobbySeats();
     for (const [id, set] of tableWatchers) {
       if (set.delete(socket.id)) {
         const count = set.size;
