@@ -64,7 +64,6 @@ async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONN
 export async function runPoolRoyaleOnlineFlow({
   stake,
   tableId,
-  forceTableJoin = false,
   variant,
   ballSet,
   playType,
@@ -109,7 +108,7 @@ export async function runPoolRoyaleOnlineFlow({
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
   const socketConnectTimeoutMs = timeouts.socketConnect ?? DEFAULT_SOCKET_CONNECT_TIMEOUT_MS;
   const requestedTableId =
-    forceTableJoin && typeof tableId === 'string' && tableId.trim()
+    typeof tableId === 'string' && tableId.trim()
       ? tableId.trim()
       : undefined;
 
