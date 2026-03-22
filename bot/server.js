@@ -619,6 +619,53 @@ function normalizeSidePreference(pref) {
   return pref === 'white' || pref === 'black' ? pref : 'auto';
 }
 
+function assignCheckersSides(players = []) {
+  if (!Array.isArray(players)) return [];
+  if (players.length <= 1) {
+    return players.map((p, idx) => ({
+      ...p,
+      side: idx === 0 ? 'light' : 'dark'
+    }));
+  }
+
+  const [p1, p2] = players.map((p) => ({
+    ...p,
+    sidePreference: normalizeSidePreference(p.sidePreference)
+  }));
+
+  let lightPlayer = null;
+  let darkPlayer = null;
+
+  if (p1.sidePreference === 'white' && p2.sidePreference === 'black') {
+    lightPlayer = p1;
+    darkPlayer = p2;
+  } else if (p1.sidePreference === 'black' && p2.sidePreference === 'white') {
+    lightPlayer = p2;
+    darkPlayer = p1;
+  } else if (p1.sidePreference === 'white' && p2.sidePreference !== 'white') {
+    lightPlayer = p1;
+    darkPlayer = p2;
+  } else if (p2.sidePreference === 'white' && p1.sidePreference !== 'white') {
+    lightPlayer = p2;
+    darkPlayer = p1;
+  } else if (p1.sidePreference === 'black' && p2.sidePreference !== 'black') {
+    darkPlayer = p1;
+    lightPlayer = p2;
+  } else if (p2.sidePreference === 'black' && p1.sidePreference !== 'black') {
+    darkPlayer = p2;
+    lightPlayer = p1;
+  } else {
+    const p1Light = Math.random() < 0.5;
+    lightPlayer = p1Light ? p1 : p2;
+    darkPlayer = p1Light ? p2 : p1;
+  }
+
+  return players.map((p) => ({
+    ...p,
+    side: p.id === lightPlayer.id ? 'light' : 'dark'
+  }));
+}
+
 function assignChessSides(players = []) {
   if (!Array.isArray(players)) return [];
   if (players.length <= 1) {
@@ -768,6 +815,9 @@ function maybeStartGame(table) {
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
       } else if (table.gameType === 'checkers') {
+        table.players = assignCheckersSides(table.players);
+        const lightPlayer = table.players.find((p) => p.side === 'light');
+        if (lightPlayer) table.currentTurn = lightPlayer.id;
         const initial = checkersRealtimeStore.updateState(table.id, {
           turn: 'light',
           lastMove: null

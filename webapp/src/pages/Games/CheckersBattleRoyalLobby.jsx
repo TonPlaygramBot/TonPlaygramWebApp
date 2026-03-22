@@ -207,10 +207,10 @@ export default function CheckersBattleRoyalLobby() {
     navigate(`/games/checkersbattleroyal?${params.toString()}`);
   };
 
-  const cleanupLobby = ({ account, skipRefReset } = {}) => {
+  const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
     socket.off('gameStart');
     socket.off('lobbyUpdate');
-    if (pendingTableRef.current && (account || accountId)) {
+    if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
         tableId: pendingTableRef.current
@@ -306,7 +306,7 @@ export default function CheckersBattleRoyalLobby() {
       const mySide =
         players.find((p) => String(p.id) === String(trackedAccountId || accountId))?.side ||
         (meIndex === 0 ? 'white' : 'black');
-      cleanupLobby({ account: trackedAccountId });
+      cleanupLobby({ account: trackedAccountId, skipLeave: true });
       navigateToGame({
         tgId,
         trackedAccountId,
@@ -351,6 +351,7 @@ export default function CheckersBattleRoyalLobby() {
         gameType: 'checkers',
         stake: stake.amount ?? 0,
         maxPlayers: 2,
+        mode: 'online',
         playerName: friendlyName,
         avatar,
         preferredSide,
