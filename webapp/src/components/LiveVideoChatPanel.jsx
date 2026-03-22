@@ -29,7 +29,7 @@ export default function LiveVideoChatPanel({
   open,
   onClose,
   roomId,
-  localVideoRef,
+  localStream,
   localMediaState,
   remotePeers,
   isConnected,
@@ -61,19 +61,13 @@ export default function LiveVideoChatPanel({
         {error ? <p className="mb-2 rounded-md bg-red-500/20 px-2 py-1 text-xs text-red-100">{error}</p> : null}
 
         <div className="space-y-2">
-          <div className="rounded-xl border border-white/15 bg-black/60 p-2">
-            <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-white/70">
-              <span>You</span>
-              <span>{localMediaState?.microphone === false ? '🎙️ Off' : '🎙️ On'} · {localMediaState?.camera === false ? '📷 Off' : '📷 On'}</span>
-            </div>
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-24 w-full rounded-lg bg-black object-cover scale-x-[-1]"
-            />
-          </div>
+          <VideoTile
+            title="You"
+            stream={localStream}
+            muted
+            mediaState={localMediaState}
+            mirror
+          />
           {remotePeers.length > 0 ? (
             remotePeers.map((peer) => (
               <VideoTile
