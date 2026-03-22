@@ -572,7 +572,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
-  const [showLiveOptions, setShowLiveOptions] = useState(false);
 
   useEffect(() => {
     if (!showChatOptions) return undefined;
@@ -580,12 +579,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, [showChatOptions]);
-  useEffect(() => {
-    if (!showLiveOptions) return undefined;
-    const close = () => setShowLiveOptions(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [showLiveOptions]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -704,17 +697,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     displayName: player?.name || 'Player',
     enabled: showLiveChat
   });
-  useEffect(() => {
-    if (!showLiveChat || liveChat.isConnected) return;
-    liveChat.startLiveChat();
-  }, [showLiveChat, liveChat.isConnected, liveChat.startLiveChat]);
-  const remoteAvatarLookup = useMemo(() => {
-    const opponentAvatar = getAvatarUrl(ai.avatar);
-    return liveChat.remotePeers.reduce((acc, peer) => {
-      acc[peer.socketId] = opponentAvatar;
-      return acc;
-    }, {});
-  }, [ai.avatar, liveChat.remotePeers]);
   const giftPlayers = useMemo(() => {
     const playerAvatar = getAvatarUrl(player.avatar);
     const aiAvatar = getAvatarUrl(ai.avatar);
@@ -2690,11 +2672,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 onClick={() => {
                   setShowChatOptions(false);
                   setShowLiveChat(true);
-                  setShowLiveOptions(false);
                 }}
                 className="rounded px-2 py-1 text-left hover:bg-white/10"
               >
-                Live (face + voice)
+                Live chat (video + mic)
               </button>
             </div>
           )}
@@ -2712,41 +2693,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             >
               <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
             </button>
-            <div className="relative" onClick={(event) => event.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setShowLiveOptions((prev) => !prev)}
-                className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              >
-                <span className="text-xl">🎥</span>
-                <span>Live</span>
-              </button>
-              {showLiveOptions ? (
-                <div className="absolute left-10 top-0 z-50 flex min-w-[9rem] flex-col gap-1 rounded-lg border border-white/20 bg-black/85 p-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowLiveOptions(false);
-                      liveChat.stopLiveChat();
-                      setShowLiveChat(false);
-                    }}
-                    className="rounded px-2 py-1 text-left hover:bg-white/10"
-                  >
-                    Avatar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowLiveOptions(false);
-                      setShowLiveChat(true);
-                    }}
-                    className="rounded px-2 py-1 text-left hover:bg-white/10"
-                  >
-                    Live (face + voice)
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowGift(true)}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <span className="text-xl">🎁</span>
+              <span>Gift</span>
+            </button>
           </>
         ) : null}
       </div>
@@ -2815,41 +2769,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       )}
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         {!isTopDownView && (
-          <div className="relative" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setShowLiveOptions((prev) => !prev)}
-              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-            >
-              <span className="text-xl">🎥</span>
-              <span>Live</span>
-            </button>
-            {showLiveOptions ? (
-              <div className="absolute bottom-11 right-0 z-50 flex min-w-[9rem] flex-col gap-1 rounded-lg border border-white/20 bg-black/85 p-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLiveOptions(false);
-                    liveChat.stopLiveChat();
-                    setShowLiveChat(false);
-                  }}
-                  className="rounded px-2 py-1 text-left hover:bg-white/10"
-                >
-                  Avatar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLiveOptions(false);
-                    setShowLiveChat(true);
-                  }}
-                  className="rounded px-2 py-1 text-left hover:bg-white/10"
-                >
-                  Live (face + voice)
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowGift(true)}
+            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+          >
+            <span className="text-xl">🎁</span>
+            <span>Gift</span>
+          </button>
         )}
         {isTopDownView && (
           <button
@@ -3036,8 +2963,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         onStop={liveChat.stopLiveChat}
         onToggleMicrophone={liveChat.toggleMicrophone}
         onToggleCamera={liveChat.toggleCamera}
-        localAvatarUrl={chatAvatar}
-        remoteAvatarLookup={remoteAvatarLookup}
       />
       <div className="pointer-events-auto">
         <GiftPopup

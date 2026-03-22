@@ -1,27 +1,7 @@
 import React from 'react';
 
-function AvatarFallback({ avatarUrl, label, doubleSize = false }) {
-  const sizeClass = doubleSize ? 'h-20 w-20 text-2xl' : 'h-10 w-10 text-sm';
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={`${label} avatar`}
-        className={`${sizeClass} rounded-full border border-white/30 object-cover shadow-[0_8px_20px_rgba(0,0,0,0.45)]`}
-      />
-    );
-  }
-  const fallbackInitial = (label || '?').slice(0, 1).toUpperCase();
-  return (
-    <div className={`${sizeClass} flex items-center justify-center rounded-full border border-white/30 bg-slate-800/80 font-semibold text-white shadow-[0_8px_20px_rgba(0,0,0,0.45)]`}>
-      {fallbackInitial}
-    </div>
-  );
-}
-
-function VideoTile({ title, stream, muted = false, mediaState, mirror = false, avatarUrl }) {
+function VideoTile({ title, stream, muted = false, mediaState, mirror = false }) {
   const videoRef = React.useRef(null);
-  const showAvatar = !stream || mediaState?.camera === false;
 
   React.useEffect(() => {
     if (!videoRef.current) return;
@@ -34,19 +14,13 @@ function VideoTile({ title, stream, muted = false, mediaState, mirror = false, a
         <span className="truncate">{title}</span>
         <span>{mediaState?.microphone === false ? '🎙️ Off' : '🎙️ On'} · {mediaState?.camera === false ? '📷 Off' : '📷 On'}</span>
       </div>
-      {showAvatar ? (
-        <div className="flex h-24 w-full items-center justify-center rounded-lg bg-black/80">
-          <AvatarFallback avatarUrl={avatarUrl} label={title} doubleSize />
-        </div>
-      ) : (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={muted}
-          className={`h-24 w-full rounded-lg bg-black object-cover ${mirror ? 'scale-x-[-1]' : ''}`}
-        />
-      )}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={muted}
+        className={`h-24 w-full rounded-lg bg-black object-cover ${mirror ? 'scale-x-[-1]' : ''}`}
+      />
     </div>
   );
 }
@@ -63,9 +37,7 @@ export default function LiveVideoChatPanel({
   onStart,
   onStop,
   onToggleMicrophone,
-  onToggleCamera,
-  localAvatarUrl,
-  remoteAvatarLookup = {}
+  onToggleCamera
 }) {
   if (!open) return null;
 
@@ -94,19 +66,13 @@ export default function LiveVideoChatPanel({
               <span>You</span>
               <span>{localMediaState?.microphone === false ? '🎙️ Off' : '🎙️ On'} · {localMediaState?.camera === false ? '📷 Off' : '📷 On'}</span>
             </div>
-            {localMediaState?.camera === false ? (
-              <div className="flex h-24 w-full items-center justify-center rounded-lg bg-black/80">
-                <AvatarFallback avatarUrl={localAvatarUrl} label="You" doubleSize />
-              </div>
-            ) : (
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-24 w-full rounded-lg bg-black object-cover scale-x-[-1]"
-              />
-            )}
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-24 w-full rounded-lg bg-black object-cover scale-x-[-1]"
+            />
           </div>
           {remotePeers.length > 0 ? (
             remotePeers.map((peer) => (
@@ -115,7 +81,6 @@ export default function LiveVideoChatPanel({
                 title={peer.displayName || 'Player'}
                 stream={peer.stream}
                 mediaState={peer.mediaState}
-                avatarUrl={remoteAvatarLookup[peer.socketId]}
               />
             ))
           ) : (
