@@ -60,13 +60,56 @@ function generateAccountId() {
   return `tpc-${timestamp}-${random}`;
 }
 
+function accountIdMapStorageKey(telegramId) {
+  return `accountId:tg:${telegramId}`;
+}
+
+function hasAnyScopedAccountIds(storage) {
+  try {
+    const len = Number(storage?.length) || 0;
+    for (let i = 0; i < len; i += 1) {
+      const key = storage.key(i);
+      if (typeof key === 'string' && key.startsWith('accountId:tg:')) {
+        return true;
+      }
+    }
+  } catch {
+    // ignore storage iteration failures
+  }
+  return false;
+}
+
 export function getPlayerId() {
   if (typeof window === 'undefined') return null;
-  let id = localStorage.getItem('accountId');
-  if (!id) {
-    id = generateAccountId();
-    if (id) localStorage.setItem('accountId', id);
+  const telegramId = getTelegramId();
+  const globalId = localStorage.getItem('accountId');
+
+  if (telegramId != null) {
+    const perTelegramKey = accountIdMapStorageKey(telegramId);
+    let telegramScopedId = localStorage.getItem(perTelegramKey);
+
+    // Backward compatibility:
+    // if this Telegram user already had a single legacy accountId stored, bind it
+    // once to the per-user key instead of generating a new id.
+    if (!telegramScopedId && globalId && !hasAnyScopedAccountIds(localStorage)) {
+      telegramScopedId = globalId;
+      localStorage.setItem(perTelegramKey, telegramScopedId);
+    }
+
+    if (!telegramScopedId) {
+      telegramScopedId = generateAccountId();
+      if (telegramScopedId) localStorage.setItem(perTelegramKey, telegramScopedId);
+    }
+
+    if (telegramScopedId) {
+      localStorage.setItem('accountId', telegramScopedId);
+      return telegramScopedId;
+    }
   }
+
+  if (globalId) return globalId;
+  const id = generateAccountId();
+  if (id) localStorage.setItem('accountId', id);
   return id;
 }
 
