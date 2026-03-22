@@ -2,13 +2,6 @@ import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
-  tonPlaygramArena: {
-    cameraHeightM: 1.5,
-    groundRadiusMultiplier: 4.2,
-    groundResolution: 96,
-    arenaScale: 1.16,
-    rotationY: Math.PI
-  },
   neonPhotostudio: {
     cameraHeightM: 1.52,
     groundRadiusMultiplier: 3.8,
@@ -102,20 +95,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
-  {
-    id: 'tonPlaygramArena',
-    name: 'TonPlaygram Arena',
-    assetUrl: '/assets/icons/file_00000000b46071f49c3186dc736411a0.png',
-    preferredResolutions: ['2k'],
-    fallbackResolution: '2k',
-    price: 0,
-    exposure: 1.04,
-    environmentIntensity: 1,
-    backgroundIntensity: 1,
-    swatches: ['#ef4444', '#111827'],
-    description:
-      'Official TonPlaygram panoramic arena with centered floor-mark placement and branded crowd shell.'
-  },
   {
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
@@ -307,7 +286,7 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
     ...variant,
     preferredResolutions: HDRI_RESOLUTION_STACK,
     fallbackResolution: HDRI_RESOLUTION_STACK[0],
-    thumbnail: variant.thumbnail || variant.assetUrl || polyHavenThumb(variant.assetId),
+    thumbnail: polyHavenThumb(variant.assetId),
     ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
   }))
 );
@@ -390,7 +369,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
   thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
 })));
 
-export const POOL_ROYALE_DEFAULT_HDRI_ID = 'tonPlaygramArena';
+export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
