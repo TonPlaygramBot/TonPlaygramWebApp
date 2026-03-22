@@ -4786,13 +4786,7 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const cacheId =
-    config?.id ??
-    config?.assetId ??
-    config?.assetUrl ??
-    config?.fallbackUrl ??
-    'fallback';
-  const cacheKey = `${cacheId}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
   if (HDRI_URL_CACHE.has(cacheKey)) {
     return HDRI_URL_CACHE.get(cacheKey);
   }
@@ -4843,13 +4837,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 }
 
 async function prefetchHdriVariant(config = {}) {
-  const cacheId =
-    config?.id ??
-    config?.assetId ??
-    config?.assetUrl ??
-    config?.fallbackUrl ??
-    'fallback';
-  const key = `${cacheId}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  const key = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
   if (HDRI_PREFETCH_CACHE.has(key)) return HDRI_PREFETCH_CACHE.get(key);
   const request = (async () => {
     const url = await resolvePolyHavenHdriUrl(config);
