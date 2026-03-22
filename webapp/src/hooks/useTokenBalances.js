@@ -4,6 +4,14 @@ import { getTelegramId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
 import { loadGoogleProfile } from '../utils/google.js';
 
+const getStoredWalletAddress = () => {
+  try {
+    return localStorage.getItem('walletAddress') || '';
+  } catch {
+    return '';
+  }
+};
+
 export default function useTokenBalances() {
   let telegramId;
   try {
@@ -17,7 +25,35 @@ export default function useTokenBalances() {
   const [tonBalance, setTonBalance] = useState(null);
   const [tpcWalletBalance, setTpcWalletBalance] = useState(null);
 
-  const walletAddress = useTonAddress(true);
+  const tonAddress = useTonAddress(true);
+  const [walletAddress, setWalletAddress] = useState(() => tonAddress || getStoredWalletAddress());
+
+  useEffect(() => {
+    setWalletAddress(tonAddress || getStoredWalletAddress());
+  }, [tonAddress]);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setWalletAddress(tonAddress || getStoredWalletAddress());
+    };
+
+    const handleWalletAddressUpdated = (event) => {
+      const nextAddress = event?.detail?.address || '';
+      setWalletAddress(nextAddress || tonAddress || getStoredWalletAddress());
+    };
+
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('focus', syncFromStorage);
+    window.addEventListener('pageshow', syncFromStorage);
+    window.addEventListener('walletAddressUpdated', handleWalletAddressUpdated);
+
+    return () => {
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('focus', syncFromStorage);
+      window.removeEventListener('pageshow', syncFromStorage);
+      window.removeEventListener('walletAddressUpdated', handleWalletAddressUpdated);
+    };
+  }, [tonAddress]);
 
   useEffect(() => {
     async function loadTpc() {
