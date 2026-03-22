@@ -113,10 +113,6 @@ const GRAPHICS_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
 const DEFAULT_CAMERA_LIFT = 1;
-const LIVE_MODE = Object.freeze({
-  AVATAR: 'avatar',
-  FACE_VOICE: 'face-voice'
-});
 const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
@@ -190,34 +186,6 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
-
-function LiveAvatarBadge({ avatar, stream, showLiveFeed, mirror = false, label = 'Player' }) {
-  const videoRef = useRef(null);
-
-  useEffect(() => {
-    if (!videoRef.current) return;
-    videoRef.current.srcObject = stream || null;
-  }, [stream]);
-
-  const sizeClassName = showLiveFeed ? 'h-10 w-10' : 'h-5 w-5';
-
-  if (showLiveFeed) {
-    return (
-      <div className={`${sizeClassName} overflow-hidden rounded-full border border-emerald-300/70 bg-black shadow-[0_0_16px_rgba(16,185,129,0.45)]`}>
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          aria-label={`${label} live video`}
-          className={`h-full w-full object-cover ${mirror ? 'scale-x-[-1]' : ''}`}
-        />
-      </div>
-    );
-  }
-
-  return <img src={avatar} alt="" className={`${sizeClassName} rounded-full object-cover`} />;
-}
 const HUD_VERTICAL_SHIFT_REM = 9;
 const HUD_TOP_ROW_LIFT_REM = 2.5;
 const HUD_ICON_ROW_TOP_REM = 0.9;
@@ -604,8 +572,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [chatBubbles, setChatBubbles] = useState([]);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
-  const [liveMode, setLiveMode] = useState(LIVE_MODE.AVATAR);
-  const [showLiveOptions, setShowLiveOptions] = useState(false);
 
   useEffect(() => {
     if (!showChatOptions) return undefined;
@@ -613,12 +579,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, [showChatOptions]);
-  useEffect(() => {
-    if (!showLiveOptions) return undefined;
-    const close = () => setShowLiveOptions(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [showLiveOptions]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -737,11 +697,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     displayName: player?.name || 'Player',
     enabled: showLiveChat
   });
-  const remoteLivePeer = liveChat.remotePeers[0] || null;
-  const localLiveVideoVisible =
-    liveMode === LIVE_MODE.FACE_VOICE && showLiveChat && liveChat.mediaState?.camera !== false;
-  const remoteLiveVideoVisible =
-    liveMode === LIVE_MODE.FACE_VOICE && showLiveChat && remoteLivePeer?.mediaState?.camera !== false;
   const giftPlayers = useMemo(() => {
     const playerAvatar = getAvatarUrl(player.avatar);
     const aiAvatar = getAvatarUrl(ai.avatar);
@@ -2622,12 +2577,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="0"
         >
-          <LiveAvatarBadge
-            avatar={getAvatarUrl(player.avatar)}
-            stream={liveChat.localStream}
-            showLiveFeed={localLiveVideoVisible}
-            mirror
-            label={player.name}
+          <img
+            src={getAvatarUrl(player.avatar)}
+            alt=""
+            className="h-5 w-5 rounded-full object-cover"
           />
           <span className="truncate">
             {player.name}: {ui.left}
@@ -2640,11 +2593,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           <span className="truncate text-right">
             {ui.right}: {ai.name}
           </span>
-          <LiveAvatarBadge
-            avatar={getAvatarUrl(ai.avatar)}
-            stream={remoteLivePeer?.stream || null}
-            showLiveFeed={remoteLiveVideoVisible}
-            label={ai.name}
+          <img
+            src={getAvatarUrl(ai.avatar)}
+            alt=""
+            className="h-5 w-5 rounded-full object-cover"
           />
         </div>
       </div>
@@ -2728,53 +2680,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             </div>
           )}
         </div>
-        <div className="relative" onClick={(event) => event.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => setShowLiveOptions((prev) => !prev)}
-            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-          >
-            <span className="text-xl" aria-hidden>📡</span>
-            <span>Live</span>
-          </button>
-          {showLiveOptions && (
-            <div className="absolute left-10 top-0 z-50 flex min-w-[11rem] flex-col gap-1 rounded-lg border border-white/20 bg-black/85 p-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setLiveMode(LIVE_MODE.AVATAR);
-                  setShowLiveOptions(false);
-                  liveChat.stopLiveChat();
-                  setShowLiveChat(false);
-                }}
-                className="rounded px-2 py-1 text-left hover:bg-white/10"
-              >
-                Avatar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLiveMode(LIVE_MODE.FACE_VOICE);
-                  setShowLiveOptions(false);
-                  setShowLiveChat(true);
-                }}
-                className="rounded px-2 py-1 text-left hover:bg-white/10"
-              >
-                Live face + voice
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLiveOptions(false);
-                  setShowGift(true);
-                }}
-                className="rounded px-2 py-1 text-left hover:bg-white/10"
-              >
-                Send gift
-              </button>
-            </div>
-          )}
-        </div>
         {isTopDownView ? (
           <>
             <button
@@ -2787,6 +2692,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
               aria-label={muted ? 'Unmute' : 'Mute'}
             >
               <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowGift(true)}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <span className="text-xl">🎁</span>
+              <span>Gift</span>
             </button>
           </>
         ) : null}
@@ -2855,6 +2768,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         </>
       )}
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+        {!isTopDownView && (
+          <button
+            type="button"
+            onClick={() => setShowGift(true)}
+            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+          >
+            <span className="text-xl">🎁</span>
+            <span>Gift</span>
+          </button>
+        )}
         {isTopDownView && (
           <button
             type="button"
@@ -3029,16 +2952,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           liveChat.stopLiveChat();
           setShowLiveChat(false);
           setShowChatOptions(false);
-          setShowLiveOptions(false);
         }}
         roomId={liveChatRoomId}
         localVideoRef={liveChat.localVideoRef}
-        localAvatar={getAvatarUrl(player.avatar)}
         localMediaState={liveChat.mediaState}
-        remotePeers={liveChat.remotePeers.map((peer) => ({
-          ...peer,
-          avatar: getAvatarUrl(ai.avatar)
-        }))}
+        remotePeers={liveChat.remotePeers}
         isConnected={liveChat.isConnected}
         error={liveChat.error}
         onStart={liveChat.startLiveChat}
