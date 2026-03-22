@@ -22,6 +22,20 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
+const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
+
+function normalizeHostCode(code = '') {
+  return String(code || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 48);
+}
+
+function buildHostedTableId(code = '') {
+  const safeCode = normalizeHostCode(code);
+  if (!safeCode) return '';
+  return `checkers-2-host-${safeCode}`;
+}
 
 export default function CheckersBattleRoyalLobby() {
   const navigate = useNavigate();
@@ -40,6 +54,8 @@ export default function CheckersBattleRoyalLobby() {
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
   const [preferredSide, setPreferredSide] = useState('auto');
+  const [onlineQueueMode, setOnlineQueueMode] = useState('quick');
+  const [hostCodeInput, setHostCodeInput] = useState('');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
 
@@ -105,6 +121,26 @@ export default function CheckersBattleRoyalLobby() {
   }, []);
 
   useEffect(() => () => cleanupRef.current?.(), []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(CHECKERS_HOST_CODE_STORAGE_KEY) || '';
+      setHostCodeInput(normalizeHostCode(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (hostCodeInput) {
+        window.localStorage?.setItem(
+          CHECKERS_HOST_CODE_STORAGE_KEY,
+          normalizeHostCode(hostCodeInput)
+        );
+      } else {
+        window.localStorage?.removeItem(CHECKERS_HOST_CODE_STORAGE_KEY);
+      }
+    } catch {}
+  }, [hostCodeInput]);
 
   const navigateToGame = (extraParams = {}) => {
     const params = new URLSearchParams();
@@ -224,6 +260,15 @@ export default function CheckersBattleRoyalLobby() {
     socket.emit('register', { playerId: trackedAccountId });
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
+    const hostedTableId =
+      onlineQueueMode === 'quick' ? '' : buildHostedTableId(hostCodeInput);
+    if (onlineQueueMode !== 'quick' && !hostedTableId) {
+      setMatchError('Enter a host code to create or join a private online table.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+
     socket.emit(
       'seatTable',
       {
@@ -233,7 +278,8 @@ export default function CheckersBattleRoyalLobby() {
         maxPlayers: 2,
         playerName: friendlyName,
         avatar,
-        preferredSide
+        preferredSide,
+        ...(hostedTableId ? { tableId: hostedTableId } : {})
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -242,7 +288,11 @@ export default function CheckersBattleRoyalLobby() {
           return;
         }
         pendingTableRef.current = res.tableId;
-        setMatchStatus('Waiting for another player…');
+        setMatchStatus(
+          hostedTableId
+            ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Waiting for your invited opponent…`
+            : 'Waiting for another player…'
+        );
         socket.emit('confirmReady', {
           accountId: trackedAccountId,
           tableId: res.tableId
@@ -379,6 +429,56 @@ export default function CheckersBattleRoyalLobby() {
             <p className="text-center text-white/60 text-xs">
               Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
             </p>
+          </div>
+        )}
+
+        {mode === 'online' && (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Online Table Type</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Host</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'quick', label: 'Quick Match', desc: 'Auto-join public queue', icon: '🌐' },
+                { key: 'host', label: 'Host / Join', desc: 'Use private host code', icon: '🛡️' }
+              ].map((item) => {
+                const active = onlineQueueMode === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setOnlineQueueMode(item.key)}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-white/10 bg-white/5 text-white/80 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="text-lg">{item.icon}</div>
+                    <div className="mt-1 text-sm font-semibold">{item.label}</div>
+                    <div className="text-[11px] text-white/60">{item.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {onlineQueueMode === 'host' && (
+              <div className="space-y-2">
+                <label className="block text-xs uppercase tracking-wide text-white/50">
+                  Host code (share with your opponent)
+                </label>
+                <input
+                  value={hostCodeInput}
+                  onChange={(e) => setHostCodeInput(normalizeHostCode(e.target.value))}
+                  placeholder="e.g. ALBANIA-ROOM-01"
+                  className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-sm text-white outline-none transition focus:border-primary/70"
+                  maxLength={48}
+                />
+                <p className="text-xs text-white/60">
+                  Both players must use the same host code and stake amount to enter this private table.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
