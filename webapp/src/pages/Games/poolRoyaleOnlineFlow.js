@@ -4,6 +4,7 @@ import { socket } from '../../utils/socket.js';
 
 const DEFAULT_SEAT_TIMEOUT_MS = 12000;
 const DEFAULT_MATCH_TIMEOUT_MS = 30000;
+const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 8000;
 
 function logSupportError(message, error, context = {}) {
   // Surface in console for support teams; caller will also show inline errors.
@@ -15,6 +16,41 @@ function clearTimeoutSafely(ref) {
     clearTimeout(ref.current);
     ref.current = null;
   }
+}
+
+async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONNECT_TIMEOUT_MS) {
+  if (!socketInstance) return false;
+  if (socketInstance.connected) return true;
+
+  try {
+    socketInstance.connect?.();
+  } catch {
+    return false;
+  }
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    let timer;
+
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      socketInstance.off?.('connect', onConnect);
+      socketInstance.off?.('connect_error', onConnectError);
+      socketInstance.off?.('error', onConnectError);
+      resolve(ok);
+    };
+
+    const onConnect = () => finish(true);
+    const onConnectError = () => finish(false);
+
+    timer = setTimeout(() => finish(socketInstance.connected), timeoutMs);
+
+    socketInstance.once?.('connect', onConnect);
+    socketInstance.once?.('connect_error', onConnectError);
+    socketInstance.once?.('error', onConnectError);
+  });
 }
 
 export async function runPoolRoyaleOnlineFlow({
@@ -62,6 +98,7 @@ export async function runPoolRoyaleOnlineFlow({
 
   const seatTimeoutMs = timeouts.seat ?? DEFAULT_SEAT_TIMEOUT_MS;
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
+  const socketConnectTimeoutMs = timeouts.socketConnect ?? DEFAULT_SOCKET_CONNECT_TIMEOUT_MS;
   const requestedTableId =
     typeof tableId === 'string' && tableId.trim() ? tableId.trim() : undefined;
 
@@ -145,7 +182,8 @@ export async function runPoolRoyaleOnlineFlow({
     return { success: false };
   }
 
-  if (!socketInstance?.connected) {
+  const socketReady = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
+  if (!socketReady) {
     setMatchStatus('');
     setMatchingError('Unable to reach the online arena. We refunded your stake.');
     await refundStake('socket_registration_failed', { accountId });
