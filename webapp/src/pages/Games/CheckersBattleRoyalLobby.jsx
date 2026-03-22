@@ -92,6 +92,7 @@ export default function CheckersBattleRoyalLobby() {
   const [onlineQueueMode, setOnlineQueueMode] = useState('quick');
   const [hostCodeInput, setHostCodeInput] = useState('');
   const pendingTableRef = useRef('');
+  const matchmakingTimeoutRef = useRef(null);
   const cleanupRef = useRef(() => {});
   const readiness = getOnlineReadiness('checkersbattleroyal');
 
@@ -158,6 +159,16 @@ export default function CheckersBattleRoyalLobby() {
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
+  useEffect(
+    () => () => {
+      if (matchmakingTimeoutRef.current) {
+        clearTimeout(matchmakingTimeoutRef.current);
+        matchmakingTimeoutRef.current = null;
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     try {
       const stored = window.localStorage?.getItem(CHECKERS_HOST_CODE_STORAGE_KEY) || '';
@@ -208,6 +219,10 @@ export default function CheckersBattleRoyalLobby() {
   };
 
   const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
+    if (matchmakingTimeoutRef.current) {
+      clearTimeout(matchmakingTimeoutRef.current);
+      matchmakingTimeoutRef.current = null;
+    }
     socket.off('gameStart');
     socket.off('lobbyUpdate');
     if (!skipLeave && pendingTableRef.current && (account || accountId)) {
@@ -343,6 +358,7 @@ export default function CheckersBattleRoyalLobby() {
       setMatchError('No opponent joined in time. Your stake was refunded.');
       setMatchStatus('');
     }, MATCHMAKING_TIMEOUT_MS);
+    matchmakingTimeoutRef.current = matchTimeout;
 
     socket.emit(
       'seatTable',
@@ -361,6 +377,7 @@ export default function CheckersBattleRoyalLobby() {
       async (res) => {
         if (!res?.success || !res.tableId) {
           clearTimeout(matchTimeout);
+          matchmakingTimeoutRef.current = null;
           await refundStakeIfNeeded();
           setMatchError('Could not join the online lobby. Please try again.');
           cleanupLobby({ account: trackedAccountId });
@@ -378,6 +395,7 @@ export default function CheckersBattleRoyalLobby() {
         });
         cleanupRef.current = () => {
           clearTimeout(matchTimeout);
+          matchmakingTimeoutRef.current = null;
           cleanupLobby({ account: trackedAccountId, skipRefReset: true });
         };
       }

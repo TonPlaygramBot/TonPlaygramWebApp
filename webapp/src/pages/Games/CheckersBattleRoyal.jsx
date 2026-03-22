@@ -2151,10 +2151,21 @@ export default function CheckersBattleRoyal() {
       const myTurn = (remoteTurn === 'dark' ? 'dark' : 'light') === onlineRef.current.side;
       setStatus(myTurn ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
     };
+    const handleSocketDisconnect = () => {
+      setOnlineStatus('reconnecting');
+      setStatus('Connection lost. Reconnecting to table…');
+    };
+    const handleSocketReconnect = () => {
+      socket.emit('register', { playerId: accountId });
+      socket.emit('joinCheckersRoom', { tableId, accountId });
+      socket.emit('checkersSyncRequest', { tableId });
+    };
 
     let cancelled = false;
     socket.on('gameStart', handleGameStart);
     socket.on('checkersState', handleCheckersState);
+    socket.on('disconnect', handleSocketDisconnect);
+    socket.on('reconnect', handleSocketReconnect);
 
     const joinOnlineTable = async () => {
       const connected = await ensureOnlineSocketConnected();
@@ -2175,6 +2186,8 @@ export default function CheckersBattleRoyal() {
       cancelled = true;
       socket.off('gameStart', handleGameStart);
       socket.off('checkersState', handleCheckersState);
+      socket.off('disconnect', handleSocketDisconnect);
+      socket.off('reconnect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });
     };
   }, [accountId, mode, renderHighlights, renderPieces, tableId]);
