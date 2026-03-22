@@ -2,6 +2,16 @@ import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
+  tonplaygramArenaFree: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 5.4,
+    groundResolution: 112,
+    arenaScale: 1.28,
+    rotationY: Math.PI,
+    tableOffsetX: 0,
+    tableOffsetZ: 0,
+    tableRotationY: Math.PI / 2
+  },
   neonPhotostudio: {
     cameraHeightM: 1.52,
     groundRadiusMultiplier: 3.8,
@@ -95,6 +105,20 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
+  {
+    id: 'tonplaygramArenaFree',
+    name: 'TonPlaygram Arena',
+    assetId: 'tonplaygram_arena_free',
+    assetUrl: '/assets/icons/file_00000000b46071f49c3186dc736411a0.png',
+    preferredResolutions: ['2k'],
+    fallbackResolution: '2k',
+    price: 0,
+    exposure: 1.08,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#ef4444', '#0f172a'],
+    description: 'Official TonPlaygram panoramic arena with branded crowd bowl and center marked floor.'
+  },
   {
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
@@ -286,7 +310,10 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
     ...variant,
     preferredResolutions: HDRI_RESOLUTION_STACK,
     fallbackResolution: HDRI_RESOLUTION_STACK[0],
-    thumbnail: polyHavenThumb(variant.assetId),
+    thumbnail:
+      variant.thumbnail ||
+      variant.assetUrl ||
+      polyHavenThumb(variant.assetId),
     ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
   }))
 );
@@ -370,6 +397,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
 })));
 
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
+export const POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID = 'tonplaygramArenaFree';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
@@ -378,7 +406,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
   pocketLiner: ['plastic-black'],
-  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
+  environmentHdri: [POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
 
@@ -704,7 +732,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   },
   {
     type: 'environmentHdri',
-    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
-    label: POOL_ROYALE_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_HDRI_ID]
+    optionId: POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID,
+    label: POOL_ROYALE_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_FREE_ARENA_HDRI_ID]
   }
 ];
