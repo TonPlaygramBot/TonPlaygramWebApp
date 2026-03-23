@@ -6082,9 +6082,13 @@ function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
   }
 }
 
-function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
+function createSeatBadge({ avatar = '🎯', name = '', isSelf = false } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
+  if (isSelf) {
+    wrap.dataset.selfPlayer = 'true';
+    wrap.classList.add('is-self');
+  }
 
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'seat-badge-avatar';
@@ -6117,7 +6121,11 @@ function refreshSeatBadges(avatars = [], names = []) {
   const avatarSources = avatars.length ? avatars : buildSeatAvatarSources(N);
   const nameSources = names.length ? names : buildSeatNames(N);
   avatarSources.forEach((avatar, idx) => {
-    const badge = createSeatBadge({ avatar, name: nameSources[idx] ?? '' });
+    const badge = createSeatBadge({
+      avatar,
+      name: nameSources[idx] ?? '',
+      isSelf: idx === human
+    });
     badge.style.setProperty('--timer-gradient', gradient);
     seatBadges.push(badge);
   });
@@ -7700,7 +7708,7 @@ function updateLeaderboardCard() {
       return (
         `<div class="leaderboard-row ${entry.idx === human ? 'is-human' : ''}">` +
         `<span class="leaderboard-rank">${rank + 1}</span>` +
-        `<span class="${avatarClass}"${avatarStyle}>${avatarLabel}</span>` +
+        `<span class="${avatarClass}"${avatarStyle}${entry.idx === human ? ' data-self-player="true"' : ''}>${avatarLabel}</span>` +
         `<span class="leaderboard-name">${entry.name}</span>` +
         `${scoreColumn}` +
         `<span class="leaderboard-stat">${entry.piecesLeft} left</span>` +

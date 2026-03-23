@@ -1122,7 +1122,7 @@ export default function FourInRowRoyal() {
 
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="absolute left-1/2 top-[12%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
-        <div className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
+        <div data-self-player="true" className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
       </div>
 
 

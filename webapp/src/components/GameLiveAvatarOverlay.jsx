@@ -3,6 +3,9 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
+  '[data-self-player="true"] .seat-badge-core',
+  '[data-self-player="true"] .score-avatar',
+  '[data-self-player="true"] .avatar-timer-avatar',
   '[data-self-player="true"] img',
   '[data-self-player="true"] .avatar',
   '[data-self-player="true"]',
@@ -13,6 +16,7 @@ const AVATAR_ANCHOR_SELECTORS = [
   '[data-player-index="0"] img',
   '[data-player-index="0"] .avatar',
   '[data-player-index="0"]',
+  '#p1AvatarTop',
   '.player-avatar.you img',
   '.player-avatar.you',
   '.hud-player-you img',
@@ -81,7 +85,29 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     if (typeof window === 'undefined') return undefined;
 
     let frameId = 0;
-    let resizeObserver;
+    const resizeObservers = [];
+    const mutationObservers = [];
+
+    const getIframeContexts = (rootDocument = document, offset = { x: 0, y: 0 }) => {
+      const contexts = [{ doc: rootDocument, offsetX: offset.x, offsetY: offset.y }];
+      const iframes = rootDocument.querySelectorAll('iframe');
+      iframes.forEach((iframe) => {
+        try {
+          const childDoc = iframe.contentDocument;
+          if (!childDoc?.body) return;
+          const rect = iframe.getBoundingClientRect();
+          contexts.push(
+            ...getIframeContexts(childDoc, {
+              x: offset.x + rect.left,
+              y: offset.y + rect.top
+            })
+          );
+        } catch {
+          // Cross-origin iframe; ignore.
+        }
+      });
+      return contexts;
+    };
 
     const scoreAnchor = (element, rect) => {
       let score = 0;
@@ -100,18 +126,27 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       let bestRect = null;
       let bestScore = -Infinity;
       const seen = new Set();
-      for (const selector of AVATAR_ANCHOR_SELECTORS) {
-        const nodes = document.querySelectorAll(selector);
-        for (const candidate of nodes) {
-          if (seen.has(candidate)) continue;
-          seen.add(candidate);
-          const rect = candidate.getBoundingClientRect();
-          if (rect.width <= 8 || rect.height <= 8) continue;
-          const score = scoreAnchor(candidate, rect);
-          if (score > bestScore) {
-            bestScore = score;
-            bestRect = rect;
-            bestNode = candidate;
+      const contexts = getIframeContexts();
+      for (const context of contexts) {
+        for (const selector of AVATAR_ANCHOR_SELECTORS) {
+          const nodes = context.doc.querySelectorAll(selector);
+          for (const candidate of nodes) {
+            if (seen.has(candidate)) continue;
+            seen.add(candidate);
+            const localRect = candidate.getBoundingClientRect();
+            if (localRect.width <= 8 || localRect.height <= 8) continue;
+            const rect = {
+              top: localRect.top + context.offsetY,
+              left: localRect.left + context.offsetX,
+              width: localRect.width,
+              height: localRect.height
+            };
+            const score = scoreAnchor(candidate, rect);
+            if (score > bestScore) {
+              bestScore = score;
+              bestRect = rect;
+              bestNode = candidate;
+            }
           }
         }
       }
@@ -151,25 +186,42 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       frameId = requestAnimationFrame(applyRect);
     };
 
-    const mutationObserver = new MutationObserver(scheduleApply);
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true
-    });
+    const observeContexts = () => {
+      mutationObservers.forEach((observer) => observer.disconnect());
+      resizeObservers.forEach((observer) => observer.disconnect());
+      mutationObservers.length = 0;
+      resizeObservers.length = 0;
 
-    resizeObserver = new ResizeObserver(scheduleApply);
-    resizeObserver.observe(document.body);
+      const contexts = getIframeContexts();
+      contexts.forEach((context) => {
+        if (!context.doc?.body) return;
+        const mutationObserver = new MutationObserver(scheduleApply);
+        mutationObserver.observe(context.doc.body, {
+          childList: true,
+          subtree: true,
+          attributes: true
+        });
+        mutationObservers.push(mutationObserver);
+
+        const resizeObserver = new ResizeObserver(scheduleApply);
+        resizeObserver.observe(context.doc.body);
+        resizeObservers.push(resizeObserver);
+      });
+    };
+
+    observeContexts();
     window.addEventListener('resize', scheduleApply);
     window.addEventListener('orientationchange', scheduleApply);
     window.addEventListener('scroll', scheduleApply, true);
+    const reobserveTimer = window.setTimeout(observeContexts, 450);
 
     scheduleApply();
 
     return () => {
       cancelAnimationFrame(frameId);
-      mutationObserver.disconnect();
-      resizeObserver?.disconnect();
+      mutationObservers.forEach((observer) => observer.disconnect());
+      resizeObservers.forEach((observer) => observer.disconnect());
+      window.clearTimeout(reobserveTimer);
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
