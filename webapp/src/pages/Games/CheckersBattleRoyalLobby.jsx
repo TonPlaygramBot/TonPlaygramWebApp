@@ -5,6 +5,7 @@ import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
+  getTpcAccountId,
   getTelegramId,
   getTelegramFirstName,
   getTelegramPhotoUrl,
@@ -162,7 +163,7 @@ export default function CheckersBattleRoyalLobby() {
     ensureAccountId()
       .then((id) => {
         if (cancelled) return;
-        setAccountId(id || '');
+        setAccountId(getTpcAccountId() || id || '');
       })
       .catch(() => {});
     return () => {
@@ -259,6 +260,7 @@ export default function CheckersBattleRoyalLobby() {
     if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
+        tpcAccountId: account || accountId,
         tableId: pendingTableRef.current
       });
     }
@@ -293,6 +295,7 @@ export default function CheckersBattleRoyalLobby() {
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
+        trackedAccountId = getTpcAccountId() || trackedAccountId;
         if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
       } catch {}
 
@@ -359,7 +362,8 @@ export default function CheckersBattleRoyalLobby() {
       return;
     }
 
-    const socketRegistered = await ensureSocketRegistered(trackedAccountId || accountId);
+    const seatAccountId = getTpcAccountId() || trackedAccountId || accountId;
+    const socketRegistered = await ensureSocketRegistered(seatAccountId);
     if (!socketRegistered) {
       await refundStakeIfNeeded();
       setMatchError('Unable to sync your online session. Please retry.');
@@ -370,7 +374,7 @@ export default function CheckersBattleRoyalLobby() {
 
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
-      const others = list.filter((p) => String(p.id) !== String(trackedAccountId || accountId));
+      const others = list.filter((p) => String(p.id) !== String(seatAccountId));
       if (others.length > 0) {
         setMatchStatus('Opponent joined. Locking seats…');
       } else {
@@ -380,10 +384,10 @@ export default function CheckersBattleRoyalLobby() {
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
-      const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
+      const meIndex = players.findIndex((p) => String(p.id) === String(seatAccountId));
+      const opp = players.find((p) => String(p.id) !== String(seatAccountId));
       const mySide =
-        players.find((p) => String(p.id) === String(trackedAccountId || accountId))?.side ||
+        players.find((p) => String(p.id) === String(seatAccountId))?.side ||
         (meIndex === 0 ? 'white' : 'black');
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
       navigateToGame({
@@ -431,6 +435,7 @@ export default function CheckersBattleRoyalLobby() {
         'seatTable',
         {
           accountId: trackedAccountId || accountId,
+          tpcAccountId: seatAccountId,
           gameType: 'checkers',
           stake: stake.amount ?? 0,
           maxPlayers: 2,
@@ -497,7 +502,8 @@ export default function CheckersBattleRoyalLobby() {
               : 'Waiting for another player…'
           );
           socket.emit('confirmReady', {
-            accountId: trackedAccountId,
+            accountId: seatAccountId,
+            tpcAccountId: seatAccountId,
             tableId: res.tableId
           });
           cleanupRef.current = () => {
