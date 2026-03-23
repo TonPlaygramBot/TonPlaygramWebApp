@@ -186,6 +186,8 @@ export async function runPoolRoyaleOnlineFlow({
     typeof tableId === 'string' && tableId.trim()
       ? tableId.trim()
       : undefined;
+  const normalizedTableSize =
+    typeof tableSize === 'string' && tableSize.trim() ? tableSize.trim() : undefined;
 
   const telegramId = getTelegramIdFn?.();
 
@@ -351,13 +353,18 @@ export async function runPoolRoyaleOnlineFlow({
     logSupportError(message, null, { reason, ...extra });
   };
 
-  function handleGameStart({ tableId: startedId, players: joined = [], currentTurn } = {}) {
+  function handleGameStart({
+    tableId: startedId,
+    players: joined = [],
+    currentTurn,
+    meta
+  } = {}) {
     if (!startedId || startedId !== pendingTableRef.current) return;
     const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
     stakeDebitRef.current = null;
     clearTimers();
     cleanupLobby({ account: accountId, skipRefReset: true, keepError: true });
-    onGameStart?.({ tableId: startedId, roster, accountId, currentTurn });
+    onGameStart?.({ tableId: startedId, roster, accountId, currentTurn, matchMeta: meta });
   }
 
   cleanupRef.current = cleanupLobby;
@@ -401,7 +408,7 @@ export async function runPoolRoyaleOnlineFlow({
         mode,
         variant,
         ballSet,
-        tableSize,
+        tableSize: normalizedTableSize,
         playType,
         playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
         avatar

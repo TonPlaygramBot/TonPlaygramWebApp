@@ -154,7 +154,11 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
     players: [
       { id: 'acct-1', name: 'Alice' },
       { id: 'acct-2', name: 'Bob' }
-    ]
+    ],
+    meta: {
+      tableSize: '9ft',
+      mode: 'online'
+    }
   });
 
   await delay(0);
@@ -164,6 +168,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   assert.equal(addCalls[0][2], 'stake');
   assert.equal(started.length, 1);
   assert.equal(started[0].tableId, 'tbl-1');
+  assert.equal(started[0].matchMeta?.tableSize, '9ft');
   assert.equal(refs.stakeDebitRef.current, null, 'stake cleared after start');
 });
 

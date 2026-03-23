@@ -72,6 +72,8 @@ export default function PoolRoyaleLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
+  const defaultTableSize = resolveTableSize().id;
+  const onlineTableSize = defaultTableSize;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -141,7 +143,8 @@ export default function PoolRoyaleLobby() {
     tableId: startedId,
     roster = [],
     accountId,
-    currentTurn
+    currentTurn,
+    matchMeta = {}
   }) => {
     const selfId = accountId || accountIdRef.current;
     const safeRoster = Array.isArray(roster) ? roster.filter(Boolean) : [];
@@ -193,7 +196,8 @@ export default function PoolRoyaleLobby() {
     if (tgId) params.set('tgId', tgId);
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
-    if (tableSize) params.set('tableSize', tableSize);
+    const resolvedMatchTableSize = resolveTableSize(matchMeta?.tableSize).id;
+    params.set('tableSize', resolvedMatchTableSize || onlineTableSize);
     params.set('seat', seat);
     params.set('starter', starterSeat);
     const name = (friendlyName || '').trim();
@@ -224,7 +228,7 @@ export default function PoolRoyaleLobby() {
         ballSet: ukBallSet,
         playType,
         mode,
-        tableSize,
+        tableSize: onlineTableSize,
         avatar,
         deps: {
           ensureAccountId,
