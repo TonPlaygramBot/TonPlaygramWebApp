@@ -24,6 +24,7 @@ const AVATAR_ANCHOR_SELECTORS = [
   'img[alt="You"]',
   '[aria-label="You"]'
 ];
+const FRAME_SCALE = 2;
 
 export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const { search } = useLocation();
@@ -156,9 +157,10 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const FRAME_SCALE = 1.2;
-      const width = Math.max(Math.round(rect.width * FRAME_SCALE), 32);
-      const height = Math.max(Math.round(rect.height * FRAME_SCALE), 32);
+      const avatarDiameter = Math.max(rect.width, rect.height);
+      const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
+      const width = frameDiameter;
+      const height = frameDiameter;
       const left = Math.max(
         Math.round(rect.left - (width - rect.width) / 2),
         0
