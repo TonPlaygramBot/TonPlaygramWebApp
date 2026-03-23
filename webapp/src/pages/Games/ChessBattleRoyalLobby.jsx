@@ -5,6 +5,7 @@ import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
+  getTpcAccountId,
   getTelegramId,
   getTelegramFirstName,
   getTelegramPhotoUrl,
@@ -13,7 +14,7 @@ import {
 import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { socket } from '../../utils/socket.js';
+import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
@@ -22,6 +23,66 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
+
+const SOCKET_CONNECT_TIMEOUT_MS = 6000;
+const SOCKET_REGISTER_TIMEOUT_MS = 6000;
+const MATCHMAKING_TIMEOUT_MS = 45000;
+
+async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+  if (socket.connected) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleError);
+      socket.off('error', handleError);
+    };
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(result);
+    };
+
+    const handleConnect = () => finish(true);
+    const handleError = () => finish(false);
+
+    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
+    socket.once('connect', handleConnect);
+    socket.once('connect_error', handleError);
+    socket.once('error', handleError);
+    socket.connect?.();
+  });
+}
+
+async function ensureSocketRegistered(accountId, timeoutMs = SOCKET_REGISTER_TIMEOUT_MS) {
+  if (!accountId) return false;
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(false);
+    }, timeoutMs);
+
+    try {
+      socket.emit('register', { playerId: accountId }, (res) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(Boolean(res?.success));
+      });
+    } catch {
+      clearTimeout(timer);
+      resolve(false);
+    }
+  });
+}
 
 export default function ChessBattleRoyalLobby() {
   const navigate = useNavigate();
@@ -42,6 +103,7 @@ export default function ChessBattleRoyalLobby() {
   const [preferredSide, setPreferredSide] = useState('auto');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
+  const matchmakingTimeoutRef = useRef(null);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -106,6 +168,16 @@ export default function ChessBattleRoyalLobby() {
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
+  useEffect(
+    () => () => {
+      if (matchmakingTimeoutRef.current) {
+        clearTimeout(matchmakingTimeoutRef.current);
+        matchmakingTimeoutRef.current = null;
+      }
+    },
+    []
+  );
+
   const navigateToGame = (extraParams = {}) => {
     const params = new URLSearchParams();
     const initData = window.Telegram?.WebApp?.initData;
@@ -135,12 +207,17 @@ export default function ChessBattleRoyalLobby() {
     navigate(`/games/chessbattleroyal?${params.toString()}`);
   };
 
-  const cleanupLobby = ({ account, skipRefReset } = {}) => {
+  const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
+    if (matchmakingTimeoutRef.current) {
+      clearTimeout(matchmakingTimeoutRef.current);
+      matchmakingTimeoutRef.current = null;
+    }
     socket.off('gameStart');
     socket.off('lobbyUpdate');
-    if (pendingTableRef.current && (account || accountId)) {
+    if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
+        tpcAccountId: account || accountId,
         tableId: pendingTableRef.current
       });
     }
@@ -189,9 +266,30 @@ export default function ChessBattleRoyalLobby() {
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
 
+    if (trackedAccountId) {
+      refreshSocketAuthIdentity({ accountId: String(trackedAccountId) }, { reconnect: true });
+    }
+
+    const socketReady = await ensureSocketConnected();
+    if (!socketReady) {
+      setMatchError('Lobby connection failed. Check your network and try again.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+
+    const seatAccountId = getTpcAccountId() || trackedAccountId || accountId;
+    const socketRegistered = await ensureSocketRegistered(seatAccountId);
+    if (!socketRegistered) {
+      setMatchError('Unable to sync your online session. Please retry.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
-      const others = list.filter((p) => String(p.id) !== String(trackedAccountId || accountId));
+      const others = list.filter((p) => String(p.id) !== String(seatAccountId));
       if (others.length > 0) {
         setMatchStatus('Opponent joined. Locking seats…');
       } else {
@@ -201,12 +299,12 @@ export default function ChessBattleRoyalLobby() {
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
-      const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
+      const meIndex = players.findIndex((p) => String(p.id) === String(seatAccountId));
+      const opp = players.find((p) => String(p.id) !== String(seatAccountId));
       const mySide =
-        players.find((p) => String(p.id) === String(trackedAccountId || accountId))?.side ||
+        players.find((p) => String(p.id) === String(seatAccountId))?.side ||
         (meIndex === 0 ? 'white' : 'black');
-      cleanupLobby({ account: trackedAccountId });
+      cleanupLobby({ account: trackedAccountId, skipLeave: true });
       navigateToGame({
         tgId,
         trackedAccountId,
@@ -221,19 +319,29 @@ export default function ChessBattleRoyalLobby() {
 
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
-    socket.emit('register', { playerId: trackedAccountId });
+
+    const matchTimeout = window.setTimeout(() => {
+      if (!pendingTableRef.current) return;
+      cleanupLobby({ account: trackedAccountId });
+      setMatchError('No opponent joined in time. Please try again.');
+      setMatchStatus('');
+    }, MATCHMAKING_TIMEOUT_MS);
+    matchmakingTimeoutRef.current = matchTimeout;
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
     socket.emit(
       'seatTable',
       {
         accountId: trackedAccountId || accountId,
+        tpcAccountId: seatAccountId,
         gameType: 'chess',
         stake: stake.amount ?? 0,
         maxPlayers: 2,
+        mode: 'online',
         playerName: friendlyName,
         avatar,
-        preferredSide
+        preferredSide,
+        token: stake.token
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -244,9 +352,15 @@ export default function ChessBattleRoyalLobby() {
         pendingTableRef.current = res.tableId;
         setMatchStatus('Waiting for another player…');
         socket.emit('confirmReady', {
-          accountId: trackedAccountId,
+          accountId: seatAccountId,
+          tpcAccountId: seatAccountId,
           tableId: res.tableId
         });
+        cleanupRef.current = () => {
+          clearTimeout(matchTimeout);
+          matchmakingTimeoutRef.current = null;
+          cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+        };
       }
     );
   };
