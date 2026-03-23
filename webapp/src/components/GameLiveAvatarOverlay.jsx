@@ -3,6 +3,10 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
+  '#p1AvatarTop',
+  '#dominoLeaderboardCard .leaderboard-row.is-human .leaderboard-avatar',
+  '#dominoLeaderboardCard .leaderboard-row.is-human',
+  '.leaderboard-row.is-human .leaderboard-avatar',
   '[data-self-player="true"] img',
   '[data-self-player="true"] .avatar',
   '[data-self-player="true"]',
@@ -82,54 +86,87 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
 
     let frameId = 0;
     let resizeObserver;
+    let pollingInterval = 0;
+    const iframeListeners = [];
 
-    const scoreAnchor = (element, rect) => {
+    const listSearchDocuments = () => {
+      const docs = [{ doc: document, frameRect: null }];
+      const frames = Array.from(document.querySelectorAll('iframe'));
+      frames.forEach((frame) => {
+        try {
+          if (!frame.contentDocument || !frame.contentWindow) return;
+          docs.push({ doc: frame.contentDocument, frameRect: frame.getBoundingClientRect() });
+        } catch (err) {
+          // ignore cross-origin iframes
+        }
+      });
+      return docs;
+    };
+
+    const toViewportRect = (rect, frameRect) => {
+      if (!frameRect) return rect;
+      return {
+        top: rect.top + frameRect.top,
+        left: rect.left + frameRect.left,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+
+    const scoreAnchor = (element, rect, frameRect = null) => {
+      const viewportRect = toViewportRect(rect, frameRect);
       let score = 0;
       const marker =
         `${element.getAttributeNames().join(' ')} ${element.getAttribute('data-self-player') || ''} ${element.getAttribute('data-is-user') || ''} ${element.getAttribute('data-player-index') || ''} ${element.className || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('alt') || ''}`.toLowerCase();
       if (marker.includes('self')) score += 100;
       if (marker.includes('you')) score += 80;
-      if (rect.top > window.innerHeight * 0.45) score += 25;
-      if (rect.left < window.innerWidth * 0.65) score += 15;
-      score += Math.min(rect.width, rect.height);
+      if (viewportRect.top > window.innerHeight * 0.45) score += 25;
+      if (viewportRect.left < window.innerWidth * 0.65) score += 15;
+      score += Math.min(viewportRect.width, viewportRect.height);
       return score;
     };
 
     const findAvatarAnchor = () => {
       let bestNode = null;
       let bestRect = null;
+      let bestFrameRect = null;
       let bestScore = -Infinity;
-      const seen = new Set();
-      for (const selector of AVATAR_ANCHOR_SELECTORS) {
-        const nodes = document.querySelectorAll(selector);
-        for (const candidate of nodes) {
-          if (seen.has(candidate)) continue;
-          seen.add(candidate);
-          const rect = candidate.getBoundingClientRect();
-          if (rect.width <= 8 || rect.height <= 8) continue;
-          const score = scoreAnchor(candidate, rect);
-          if (score > bestScore) {
-            bestScore = score;
-            bestRect = rect;
-            bestNode = candidate;
+      const docs = listSearchDocuments();
+      for (const { doc, frameRect } of docs) {
+        const seen = new Set();
+        for (const selector of AVATAR_ANCHOR_SELECTORS) {
+          const nodes = doc.querySelectorAll(selector);
+          for (const candidate of nodes) {
+            if (seen.has(candidate)) continue;
+            seen.add(candidate);
+            const rect = candidate.getBoundingClientRect();
+            if (rect.width <= 8 || rect.height <= 8) continue;
+            const score = scoreAnchor(candidate, rect, frameRect);
+            if (score > bestScore) {
+              bestScore = score;
+              bestRect = rect;
+              bestNode = candidate;
+              bestFrameRect = frameRect;
+            }
           }
         }
       }
-      return { rect: bestRect, node: bestNode };
+      return { rect: bestRect, frameRect: bestFrameRect, node: bestNode };
     };
 
     const applyRect = () => {
-      const { rect, node } = findAvatarAnchor();
+      const { rect, frameRect, node } = findAvatarAnchor();
       if (!rect) return;
+      const viewportRect = toViewportRect(rect, frameRect);
       const FRAME_SCALE = 1.2;
-      const width = Math.max(Math.round(rect.width * FRAME_SCALE), 32);
-      const height = Math.max(Math.round(rect.height * FRAME_SCALE), 32);
+      const width = Math.max(Math.round(viewportRect.width * FRAME_SCALE), 32);
+      const height = Math.max(Math.round(viewportRect.height * FRAME_SCALE), 32);
       const left = Math.max(
-        Math.round(rect.left - (width - rect.width) / 2),
+        Math.round(viewportRect.left - (width - viewportRect.width) / 2),
         0
       );
       const top = Math.max(
-        Math.round(rect.top - (height - rect.height) / 2),
+        Math.round(viewportRect.top - (height - viewportRect.height) / 2),
         0
       );
       setAnchorElement(node);
@@ -163,6 +200,12 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     window.addEventListener('resize', scheduleApply);
     window.addEventListener('orientationchange', scheduleApply);
     window.addEventListener('scroll', scheduleApply, true);
+    pollingInterval = window.setInterval(scheduleApply, 800);
+    const iframes = Array.from(document.querySelectorAll('iframe'));
+    iframes.forEach((frame) => {
+      frame.addEventListener('load', scheduleApply);
+      iframeListeners.push(frame);
+    });
 
     scheduleApply();
 
@@ -173,6 +216,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
+      window.clearInterval(pollingInterval);
+      iframeListeners.forEach((frame) => frame.removeEventListener('load', scheduleApply));
     };
   }, [gameSlug, search]);
 
