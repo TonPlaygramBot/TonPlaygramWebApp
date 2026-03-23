@@ -129,7 +129,9 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
 
   assert.equal(mockSocket.seatRequests.length, 1);
   assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.registerRequests[0].tpcAccountId, 'acct-1');
   const seatPayload = mockSocket.seatRequests[0].payload;
+  assert.equal(seatPayload.tpcAccountId, 'acct-1');
   assert.equal(seatPayload.ballSet, 'american');
   assert.equal(seatPayload.variant, 'uk');
   assert.equal(seatPayload.mode, 'online');
@@ -249,6 +251,7 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
 
   assert.equal(mockSocket.connectCalls, 1);
   assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.registerRequests[0].tpcAccountId, 'acct-3');
   assert.equal(mockSocket.seatRequests.length, 1, 'should proceed after reconnecting');
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
@@ -302,11 +305,67 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
 
   assert.equal(mockSocket.connectCalls, 1);
   assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.registerRequests[0].tpcAccountId, 'acct-4');
   assert.equal(mockSocket.seatRequests.length, 1, 'should keep waiting after temporary connect error');
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
   assert.equal(state.snapshot.matchingError, 'busy');
   assert.equal(addCalls[0][2], 'stake');
+});
+
+test('runPoolRoyaleOnlineFlow tolerates null lobby players and accountId-only entries', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+  const started = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-20'),
+    getAccountBalance: () => Promise.resolve({ balance: 200 }),
+    addTransaction: () => Promise.resolve(),
+    getTelegramId: () => 'tg-20',
+    getTelegramFirstName: () => 'Mira',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 50 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 120 },
+    onGameStart: (payload) => started.push(payload)
+  });
+
+  assert.equal(mockSocket.seatRequests.length, 1);
+  mockSocket.seatRequests[0].cb({
+    success: true,
+    tableId: 'tbl-null-safe',
+    players: [null, { accountId: 'acct-30', name: 'Opponent' }],
+    ready: []
+  });
+
+  mockSocket.emit('lobbyUpdate', {
+    tableId: 'tbl-null-safe',
+    players: [null, { accountId: 'acct-30', name: 'Opponent' }]
+  });
+
+  mockSocket.emit('gameStart', {
+    tableId: 'tbl-null-safe',
+    players: [null, { accountId: 'acct-30', name: 'Opponent' }]
+  });
+
+  await delay(0);
+
+  assert.equal(started.length, 1);
+  assert.equal(state.snapshot.matchStatus, '');
+  assert.equal(state.snapshot.matchingError, '');
 });
 
 test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {

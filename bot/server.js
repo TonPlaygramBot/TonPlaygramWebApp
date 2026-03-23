@@ -1788,8 +1788,8 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
-  socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {
-    const pid = playerId || accountId;
+  socket.on('joinRoom', async ({ roomId, playerId, accountId, tpcAccountId, name, avatar }) => {
+    const pid = tpcAccountId || playerId || accountId;
     const map = tableSeats.get(roomId);
     const cap = Number(roomId.split('-')[1]) || 4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
