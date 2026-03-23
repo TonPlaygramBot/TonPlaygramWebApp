@@ -4,12 +4,19 @@ namespace Aiming.Pockets
 {
     /// <summary>
     /// Resolves jaw-face + rounded-tip contacts using explicit billiards response.
+    /// Tuned for realistic corner-pocket jaw rattle and glancing slides.
     /// </summary>
     [System.Serializable]
     public class PocketCollisionResolver
     {
         [SerializeField, Min(0f)] private float positionalSlop = 0.0002f;
         [SerializeField, Min(0f)] private float maxPushOut = 0.02f;
+
+        [Header("Jaw realism")]
+        [SerializeField, Range(0f, 1f)] private float glancingRestitutionScale = 0.4f;
+        [SerializeField, Range(0f, 1f)] private float glancingFrictionScale = 0.5f;
+        [SerializeField, Min(0f)] private float minTangentialCarry = 0.03f;
+        [SerializeField, Range(0f, 1f)] private float pocketGuidance = 0.22f;
 
         public bool Resolve(IPoolBallBody ball, PocketMouth mouth)
         {
@@ -19,16 +26,16 @@ namespace Aiming.Pockets
             }
 
             bool any = false;
-            any |= ResolveJaw(ball, mouth.LeftJaw);
-            any |= ResolveJaw(ball, mouth.RightJaw);
-            any |= ResolveTip(ball, mouth.LeftJaw.StartTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
-            any |= ResolveTip(ball, mouth.LeftJaw.EndTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
-            any |= ResolveTip(ball, mouth.RightJaw.StartTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
-            any |= ResolveTip(ball, mouth.RightJaw.EndTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
+            any |= ResolveJaw(ball, mouth, mouth.LeftJaw);
+            any |= ResolveJaw(ball, mouth, mouth.RightJaw);
+            any |= ResolveTip(ball, mouth, mouth.LeftJaw.StartTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.LeftJaw.EndTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.RightJaw.StartTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.RightJaw.EndTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
             return any;
         }
 
-        private bool ResolveJaw(IPoolBallBody ball, PocketJawDefinition jaw)
+        private bool ResolveJaw(IPoolBallBody ball, PocketMouth mouth, PocketJawDefinition jaw)
         {
             FiniteJawSegment segment = jaw.Segment;
             if (!PocketGeometry.TryCircleVsCapsule(
@@ -38,27 +45,39 @@ namespace Aiming.Pockets
                     jaw.JawRadius,
                     out Vector2 normal,
                     out float penetration,
-                    out _))
+                    out Vector2 closest))
             {
                 return false;
             }
 
-            ApplyCollisionResponse(ball, normal, penetration, jaw.JawRestitution, jaw.JawFriction);
+            Vector2 tangent = segment.Direction.sqrMagnitude > 1e-8f
+                ? segment.Direction.normalized
+                : new Vector2(-normal.y, normal.x);
+            ApplyCollisionResponse(ball, mouth, normal, tangent, closest, penetration, jaw.JawRestitution, jaw.JawFriction);
             return true;
         }
 
-        private bool ResolveTip(IPoolBallBody ball, JawTip tip, float restitution, float friction)
+        private bool ResolveTip(IPoolBallBody ball, PocketMouth mouth, JawTip tip, float restitution, float friction)
         {
             if (!PocketGeometry.TryCircleVsTip(ball.Position2, ball.Radius, tip, out Vector2 normal, out float penetration))
             {
                 return false;
             }
 
-            ApplyCollisionResponse(ball, normal, penetration, restitution, friction);
+            Vector2 tangent = new Vector2(-normal.y, normal.x);
+            ApplyCollisionResponse(ball, mouth, normal, tangent, tip.center, penetration, restitution, friction);
             return true;
         }
 
-        private void ApplyCollisionResponse(IPoolBallBody ball, Vector2 normal, float penetration, float restitution, float friction)
+        private void ApplyCollisionResponse(
+            IPoolBallBody ball,
+            PocketMouth mouth,
+            Vector2 normal,
+            Vector2 tangent,
+            Vector2 contactPoint,
+            float penetration,
+            float restitution,
+            float friction)
         {
             float push = Mathf.Min(Mathf.Max(0f, penetration + positionalSlop), maxPushOut);
             ball.Position2 += normal * push;
@@ -67,14 +86,54 @@ namespace Aiming.Pockets
             float vn = Vector2.Dot(vel, normal);
 
             // Only reflect when moving into the jaw.
-            if (vn < 0f)
+            if (vn >= 0f)
             {
-                Vector2 vN = normal * vn;
-                Vector2 vT = vel - vN;
-                Vector2 reflectedN = -vN * Mathf.Clamp01(restitution);
-                Vector2 dampedT = vT * Mathf.Clamp01(1f - friction);
-                ball.Velocity2 = reflectedN + dampedT;
+                return;
             }
+
+            if (tangent.sqrMagnitude < 1e-8f)
+            {
+                tangent = new Vector2(-normal.y, normal.x);
+            }
+            tangent.Normalize();
+
+            float tangentSpeedSigned = Vector2.Dot(vel, tangent);
+            float tangentSpeed = Mathf.Abs(tangentSpeedSigned);
+            float normalSpeed = -vn;
+            float impactRatio = normalSpeed / Mathf.Max(1e-5f, normalSpeed + tangentSpeed);
+
+            float effectiveRestitution = Mathf.Lerp(
+                Mathf.Clamp01(restitution) * Mathf.Clamp01(glancingRestitutionScale),
+                Mathf.Clamp01(restitution),
+                impactRatio);
+
+            float effectiveFriction = Mathf.Lerp(
+                Mathf.Clamp01(friction) * Mathf.Clamp01(glancingFrictionScale),
+                Mathf.Clamp01(friction),
+                impactRatio);
+
+            float reflectedNormalSpeed = normalSpeed * effectiveRestitution;
+            float outTangentSpeed = tangentSpeedSigned * (1f - effectiveFriction);
+
+            // Keep a small tangential carry on glancing contacts so balls rattle/slide naturally
+            // on jaw angles instead of unnaturally sticking or kicking straight out.
+            float minCarry = minTangentialCarry * (normalSpeed + tangentSpeed);
+            if (Mathf.Abs(outTangentSpeed) < minCarry)
+            {
+                float sign = Mathf.Abs(tangentSpeedSigned) > 1e-5f ? Mathf.Sign(tangentSpeedSigned) : 1f;
+                outTangentSpeed = sign * minCarry;
+            }
+
+            // Bias glancing contacts toward the pocket opening direction.
+            Vector2 toPocket = mouth.PocketCenter - contactPoint;
+            if (toPocket.sqrMagnitude > 1e-8f)
+            {
+                Vector2 toPocketDir = toPocket.normalized;
+                float tangentTowardPocket = Vector2.Dot(tangent, toPocketDir);
+                outTangentSpeed += tangentTowardPocket * normalSpeed * pocketGuidance;
+            }
+
+            ball.Velocity2 = normal * reflectedNormalSpeed + tangent * outTangentSpeed;
         }
     }
 }
