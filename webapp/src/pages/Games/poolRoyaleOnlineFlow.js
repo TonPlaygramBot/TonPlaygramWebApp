@@ -1,7 +1,6 @@
 import { ensureAccountId, getTelegramFirstName, getTelegramId } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction, createAccount } from '../../utils/api.js';
+import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
-import { loadGoogleProfile } from '../../utils/google.js';
 
 const DEFAULT_SEAT_TIMEOUT_MS = 12000;
 const DEFAULT_MATCH_TIMEOUT_MS = 30000;
@@ -130,8 +129,6 @@ export async function runPoolRoyaleOnlineFlow({
 }) {
   const {
     ensureAccountId: ensureAccountIdFn = ensureAccountId,
-    createAccount: createAccountFn = createAccount,
-    loadGoogleProfile: loadGoogleProfileFn = loadGoogleProfile,
     getAccountBalance: getAccountBalanceFn = getAccountBalance,
     addTransaction: addTransactionFn = addTransaction,
     getTelegramId: getTelegramIdFn = getTelegramId,
@@ -202,6 +199,7 @@ export async function runPoolRoyaleOnlineFlow({
   let accountId;
   try {
     accountId = await ensureAccountIdFn();
+    accountIdRef.current = accountId;
   } catch (error) {
     setMatchingError('Unable to verify your TPC account. Please retry.');
     setMatchStatus('');
@@ -210,27 +208,6 @@ export async function runPoolRoyaleOnlineFlow({
     logSupportError('ensureAccountId failed', error);
     return { success: false };
   }
-
-  try {
-    // Ensure an authenticated backend account exists for both Telegram and
-    // Google sign-ins before we check stake balance and reserve funds.
-    const profile = loadGoogleProfileFn?.() || null;
-    const created = await createAccountFn?.(telegramId, profile, accountId);
-    if (created?.error) {
-      throw new Error(created.error);
-    }
-    if (created?.accountId) {
-      accountId = String(created.accountId);
-    }
-  } catch (error) {
-    setMatchingError('Unable to sync your TPC account. Please retry.');
-    setMatchStatus('');
-    setMatching(false);
-    setIsSearching(false);
-    logSupportError('createAccount failed', error, { accountId, telegramId });
-    return { success: false };
-  }
-  accountIdRef.current = accountId;
 
   try {
     const balRes = await getAccountBalanceFn(accountId);
