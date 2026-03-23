@@ -139,8 +139,11 @@ router.post('/get', async (req, res) => {
 
   if (!user.accountId) {
     user.accountId = uuidv4();
-    await user.save();
   }
+  if (!user.tpcAccountNumber) {
+    user.tpcAccountNumber = String(user.accountId);
+  }
+  await user.save();
 
 
   ensureTransactionArray(user);
@@ -162,6 +165,7 @@ router.post('/get', async (req, res) => {
 
   return res.json({
     accountId: user.accountId,
+    tpcAccountNumber: user.tpcAccountNumber || user.accountId,
     nickname: user.nickname,
     firstName: user.firstName,
     lastName: user.lastName,

@@ -528,10 +528,33 @@ function isRateLimited(socket, key, cooldownMs) {
   return false;
 }
 
-function ensureRegistered(socket, accountId) {
+function resolveTpcIdentity(payload = {}) {
+  const tpcAccountNumber = String(
+    payload?.tpcAccountNumber ||
+      payload?.tpcAccountId ||
+      payload?.accountId ||
+      payload?.playerId ||
+      ''
+  ).trim();
+  return tpcAccountNumber;
+}
+
+function hasConflictingIdentities(payload = {}) {
+  const ids = [
+    payload?.tpcAccountNumber,
+    payload?.tpcAccountId,
+    payload?.accountId,
+    payload?.playerId
+  ]
+    .map((id) => String(id || '').trim())
+    .filter(Boolean);
+  return new Set(ids).size > 1;
+}
+
+function ensureRegistered(socket, tpcAccountNumber) {
   let registered = socket.data?.playerId;
-  if (!registered && accountId) {
-    registered = String(accountId);
+  if (!registered && tpcAccountNumber) {
+    registered = String(tpcAccountNumber);
     socket.data.playerId = registered;
     let set = userSockets.get(registered);
     if (!set) {
@@ -547,7 +570,7 @@ function ensureRegistered(socket, accountId) {
     socket.emit('errorMessage', 'register_required');
     return false;
   }
-  if (accountId && String(accountId) !== String(registered)) {
+  if (tpcAccountNumber && String(tpcAccountNumber) !== String(registered)) {
     socket.emit('errorMessage', 'identity_mismatch');
     return false;
   }
@@ -1356,8 +1379,8 @@ app.post('/api/admin/accounts/cleanup-fake', authenticate, async (req, res) => {
 });
 
 app.post('/api/snake/table/seat', (req, res) => {
-  const { tableId, playerId, accountId, name, avatar } = req.body || {};
-  const pid = playerId || accountId;
+  const { tableId, name, avatar } = req.body || {};
+  const pid = resolveTpcIdentity(req.body || {});
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
   seatTableSocket(
@@ -1376,8 +1399,8 @@ app.post('/api/snake/table/seat', (req, res) => {
 });
 
 app.post('/api/snake/table/unseat', (req, res) => {
-  const { tableId, playerId, accountId } = req.body || {};
-  const pid = playerId || accountId;
+  const { tableId } = req.body || {};
+  const pid = resolveTpcIdentity(req.body || {});
   unseatTableSocket(pid, tableId);
   res.json({ success: true });
 });
@@ -1624,10 +1647,14 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('register', async ({ playerId, accountId, tpcAccountId } = {}, cb) => {
-    const resolvedPlayerId = playerId || tpcAccountId || accountId;
+  socket.on('register', async (payload = {}, cb) => {
+    const resolvedPlayerId = resolveTpcIdentity(payload);
     if (!resolvedPlayerId) {
       cb && cb({ success: false, error: 'missing_player_id' });
+      return;
+    }
+    if (hasConflictingIdentities(payload)) {
+      cb && cb({ success: false, error: 'identity_mismatch' });
       return;
     }
     try {
@@ -1660,9 +1687,10 @@ io.on('connection', (socket) => {
   socket.on(
     'seatTable',
     async (
-      {
-        accountId,
-        tpcAccountId,
+      payload = {},
+      cb
+    ) => {
+      const {
         gameType,
         stake,
         maxPlayers = 4,
@@ -1676,10 +1704,11 @@ io.on('connection', (socket) => {
         tableSize,
         ballSet,
         token
-      },
-      cb
-    ) => {
-      const resolvedAccountId = tpcAccountId || accountId;
+      } = payload;
+      const resolvedAccountId = resolveTpcIdentity(payload);
+      if (hasConflictingIdentities(payload)) {
+        return cb && cb({ success: false, error: 'identity_mismatch' });
+      }
       if (!ensureRegistered(socket, resolvedAccountId)) {
         const error =
           resolvedAccountId &&
@@ -1757,15 +1786,21 @@ io.on('connection', (socket) => {
     }
   );
 
-  socket.on('leaveLobby', ({ accountId, tpcAccountId, tableId }) => {
-    const resolvedAccountId = tpcAccountId || accountId;
+  socket.on('leaveLobby', (payload = {}) => {
+    const { tableId } = payload;
+    const resolvedAccountId = resolveTpcIdentity(payload);
     if (tableId) {
       unseatTableSocket(resolvedAccountId, tableId, socket.id);
     }
   });
 
-  socket.on('confirmReady', ({ accountId, tpcAccountId, tableId }) => {
-    const resolvedAccountId = tpcAccountId || accountId;
+  socket.on('confirmReady', (payload = {}) => {
+    const { tableId } = payload;
+    const resolvedAccountId = resolveTpcIdentity(payload);
+    if (hasConflictingIdentities(payload)) {
+      socket.emit('errorMessage', 'identity_mismatch');
+      return;
+    }
     const table = tableMap.get(tableId);
     if (!table) {
       socket.emit('errorMessage', 'table_not_found');
@@ -1788,8 +1823,13 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
-  socket.on('joinRoom', async ({ roomId, playerId, accountId, tpcAccountId, name, avatar }) => {
-    const pid = tpcAccountId || playerId || accountId;
+  socket.on('joinRoom', async (payload = {}) => {
+    const { roomId, name, avatar } = payload;
+    const pid = resolveTpcIdentity(payload);
+    if (hasConflictingIdentities(payload)) {
+      socket.emit('errorMessage', 'identity_mismatch');
+      return;
+    }
     const map = tableSeats.get(roomId);
     const cap = Number(roomId.split('-')[1]) || 4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {

@@ -68,6 +68,7 @@ const userSchema = new mongoose.Schema({
 
 
   accountId: { type: String, unique: true },
+  tpcAccountNumber: { type: String, unique: true, sparse: true },
 
   createdAt: { type: Date, default: Date.now },
 
@@ -166,6 +167,12 @@ userSchema.pre('save', function(next) {
   }
   if (!this.accountId) {
     this.accountId = uuidv4();
+  }
+  if (!this.tpcAccountNumber && this.accountId) {
+    this.tpcAccountNumber = String(this.accountId);
+  }
+  if (!this.accountId && this.tpcAccountNumber) {
+    this.accountId = String(this.tpcAccountNumber);
   }
   next();
 });

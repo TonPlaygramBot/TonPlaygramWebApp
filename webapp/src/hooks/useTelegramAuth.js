@@ -22,14 +22,14 @@ export default function useTelegramAuth() {
     const acc = localStorage.getItem('accountId');
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
-      socket.emit('register', { playerId: acc || user.id });
+      socket.emit('register', { tpcAccountNumber: acc || user.id });
       createAccount(user.id).catch(err => {
         console.error('Failed to create account', err);
       });
     } else {
       (async () => {
         const accountId = acc || (await ensureAccountId());
-        socket.emit('register', { playerId: accountId });
+        socket.emit('register', { tpcAccountNumber: accountId });
         try {
           const res = await createAccount(undefined, googleProfile);
           if (res?.accountId) {

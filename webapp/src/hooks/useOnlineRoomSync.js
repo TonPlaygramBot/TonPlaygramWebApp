@@ -17,23 +17,22 @@ export default function useOnlineRoomSync(search = '', fallbackName = 'Player') 
         accountId = (await ensureAccountId().catch(() => '')) || '';
       }
       if (cancelled || !accountId) return;
-      socket.emit('register', { playerId: accountId, tpcAccountId: accountId });
+      socket.emit('register', { tpcAccountNumber: accountId });
       socket.emit('joinRoom', {
         roomId: tableId,
-        playerId: accountId,
-        accountId,
+        tpcAccountNumber: accountId,
         tpcAccountId: accountId,
         name: params.get('username') || getTelegramUsername() || fallbackName,
         avatar: params.get('avatar') || '',
       });
-      socket.emit('confirmReady', { accountId, tpcAccountId: accountId, tableId });
+      socket.emit('confirmReady', { tpcAccountNumber: accountId, tpcAccountId: accountId, tableId });
     };
 
     sync().catch(() => {});
 
     return () => {
       cancelled = true;
-      if (accountId) socket.emit('leaveLobby', { accountId, tpcAccountId: accountId, tableId });
+      if (accountId) socket.emit('leaveLobby', { tpcAccountNumber: accountId, tpcAccountId: accountId, tableId });
     };
   }, [search, fallbackName]);
 }
