@@ -4784,7 +4784,7 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(11rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(12rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -4815,6 +4815,7 @@ export default function MurlanRoyaleArena({ search }) {
                   name={activePlayer?.name}
                   color={color}
                   size={avatarSize}
+                  frameScale={idx === humanPlayerIndex ? 2 : 1}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
