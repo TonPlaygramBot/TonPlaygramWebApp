@@ -39,8 +39,6 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
-import LocalMediaPanel from '../../components/LocalMediaPanel.jsx';
-import useLocalMediaPreview from '../../hooks/useLocalMediaPreview.js';
 import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRowInventory.js';
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
@@ -406,8 +404,6 @@ export default function FourInRowRoyal() {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const [showLivePanel, setShowLivePanel] = useState(false);
-  const liveMedia = useLocalMediaPreview();
 
   useEffect(() => {
     hoverColRef.current = hoverCol;
@@ -1137,16 +1133,7 @@ export default function FourInRowRoyal() {
 
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="absolute left-1/2 top-[12%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
-        <div data-self-player="true" className="absolute left-1/2 top-[85%] -translate-x-1/2">
-          <AvatarTimer
-            photoUrl={avatar}
-            name={username}
-            active
-            isTurn={turn === 'player'}
-            size={1}
-            onClick={() => setShowLivePanel(true)}
-          />
-        </div>
+        <div data-self-player="true" className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
       </div>
 
 
@@ -1205,18 +1192,6 @@ export default function FourInRowRoyal() {
       <QuickMessagePopup open={showChat} onClose={() => setShowChat(false)} title="Quick Chat" onSend={(text) => { const id = Date.now(); setChatBubbles((b) => [...b, { id, text, photoUrl: avatar || '/assets/icons/profile.svg' }]); setTimeout(() => setChatBubbles((b) => b.filter((x) => x.id !== id)), 3000); }} />
       {chatBubbles.map((bubble) => <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble"><span>{bubble.text}</span><img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" /></div>)}
       <GiftPopup open={showGift} onClose={() => setShowGift(false)} players={[{ index: 0, id: fourInRowAccountId(accountId || undefined), name: username, photoUrl: avatar || '/assets/icons/profile.svg' }, { index: 1, id: 'ai-rival', name: 'AI Rival', photoUrl: '/assets/icons/bot.webp' }]} senderIndex={0} title="Send Gift" />
-      <LocalMediaPanel
-        open={showLivePanel}
-        onClose={() => setShowLivePanel(false)}
-        stream={liveMedia.stream}
-        mediaState={liveMedia.mediaState}
-        isActive={liveMedia.isActive}
-        error={liveMedia.error}
-        onStart={liveMedia.start}
-        onStop={liveMedia.stop}
-        onToggleMicrophone={liveMedia.toggleMicrophone}
-        onToggleCamera={liveMedia.toggleCamera}
-      />
     </div>
   );
 }

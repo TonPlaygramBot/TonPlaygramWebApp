@@ -26,7 +26,6 @@
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
     .score-avatar{width:28px;height:28px;border-radius:999px;background:#111;border:1px solid #233050;display:grid;place-items:center;font-size:16px;overflow:hidden;color:#fff;flex-shrink:0;}
-    .score-avatar[data-self-player="true"]{pointer-events:auto;cursor:pointer;}
     .score-avatar.img{background-size:cover;background-position:center;text-indent:-9999px;}
     .badge{padding:2px 6px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;white-space:nowrap;font-size:12px;}
     .p1{background:var(--p1)}
@@ -98,8 +97,6 @@
     .chat-bubble{position:fixed;display:flex;align-items:center;gap:.35rem;padding:.35rem .6rem;border-radius:999px;background:rgba(8,13,26,.88);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:.7rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:7;pointer-events:none;white-space:nowrap;}
     .chat-bubble img,.chat-bubble .avatar{width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:.75rem;}
     .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem);transform:translateX(-50%);padding:.4rem .75rem;border-radius:999px;background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.18);color:#f8fafc;font-size:.72rem;font-weight:700;z-index:7;box-shadow:0 10px 24px rgba(0,0,0,.45);pointer-events:none;}
-    .live-status{font-size:.65rem;color:#86efac;}
-    .live-video{height:8rem;width:100%;border-radius:.65rem;background:#000;object-fit:cover;transform:scaleX(-1);}
     #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,18,.75);z-index:6;backdrop-filter:blur(2px);}
     #rules .card{max-width:720px;background:#0b1220;color:#e5e7eb;border-radius:16px;box-shadow:0 18px 38px rgba(0,0,0,.45);padding:16px 18px;border:1px solid #233050;}
     #rules h2{margin:0 0 6px 0;font-size:18px;letter-spacing:0.35px;}
@@ -225,23 +222,6 @@
       <p class="gift-note" id="commentarySupportNote" style="display:none;">Voice commentary needs Web Speech support.</p>
     </div>
   </div>
-  <div id="liveModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="liveTitle">
-      <div class="modal-header">
-        <h3 id="liveTitle">Live Camera & Mic</h3>
-        <button class="modal-close" id="liveClose" type="button" aria-label="Close live camera">✕</button>
-      </div>
-      <div class="gift-note">Tap your avatar to open this panel.</div>
-      <video id="livePreview" class="live-video" autoplay playsinline muted></video>
-      <div id="liveStatus" class="live-status">Ready</div>
-      <div class="quick-messages" style="grid-template-columns:1fr;">
-        <button id="liveStart" type="button">Start camera & mic</button>
-        <button id="liveToggleMic" type="button">Toggle mic</button>
-        <button id="liveToggleCamera" type="button">Toggle camera</button>
-        <button id="liveStop" type="button">Stop</button>
-      </div>
-    </div>
-  </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
@@ -279,14 +259,6 @@
   const commentaryMuteButton = document.getElementById('commentaryMute');
   const commentaryMuteState = document.getElementById('commentaryMuteState');
   const commentarySupportNote = document.getElementById('commentarySupportNote');
-  const liveModal = document.getElementById('liveModal');
-  const liveClose = document.getElementById('liveClose');
-  const liveStart = document.getElementById('liveStart');
-  const liveStop = document.getElementById('liveStop');
-  const liveToggleMic = document.getElementById('liveToggleMic');
-  const liveToggleCamera = document.getElementById('liveToggleCamera');
-  const livePreview = document.getElementById('livePreview');
-  const liveStatus = document.getElementById('liveStatus');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
   const TOP_BAR = 0; // no top offset: HUD moved to bottom so the field can rise up a bit
@@ -368,7 +340,6 @@
   await loadCalibration();
 
   let currentRound = 0;
-  let liveStream = null;
   if(window.tournamentMode){
     try{
       const st = JSON.parse(localStorage.getItem(TOURN_STATE_KEY) || '{}');
@@ -1563,47 +1534,6 @@
     toggleModal(commentaryModal, true);
   }
 
-  function setLiveStatus(text) {
-    if (liveStatus) liveStatus.textContent = text;
-  }
-
-  async function startLivePreview() {
-    if (liveStream) {
-      setLiveStatus('Live preview active');
-      return;
-    }
-    try {
-      liveStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' }
-      });
-      if (livePreview) livePreview.srcObject = liveStream;
-      setLiveStatus('Live preview active');
-    } catch (error) {
-      setLiveStatus(error?.message || 'Unable to access camera and microphone.');
-    }
-  }
-
-  function stopLivePreview() {
-    if (liveStream) {
-      liveStream.getTracks().forEach((track) => track.stop());
-      liveStream = null;
-    }
-    if (livePreview) livePreview.srcObject = null;
-    setLiveStatus('Live preview stopped');
-  }
-
-  function toggleLiveTrack(kind) {
-    if (!liveStream) return;
-    const tracks = kind === 'audio' ? liveStream.getAudioTracks() : liveStream.getVideoTracks();
-    if (!tracks.length) return;
-    const enabled = !tracks.every((track) => track.enabled);
-    tracks.forEach((track) => { track.enabled = enabled; });
-    const micOn = liveStream.getAudioTracks().every((track) => track.enabled);
-    const camOn = liveStream.getVideoTracks().every((track) => track.enabled);
-    setLiveStatus(`Mic ${micOn ? 'On' : 'Off'} · Camera ${camOn ? 'On' : 'Off'}`);
-  }
-
   updateQuickActionMute();
   updateCommentaryMuteState();
   updateCommentarySupport();
@@ -1682,32 +1612,6 @@
       }
     });
   }
-  if (p1AvatarTop) {
-    p1AvatarTop.addEventListener('click', () => {
-      toggleModal(liveModal, true);
-    });
-  }
-  if (liveModal) {
-    liveModal.addEventListener('click', (event) => {
-      if (event.target === liveModal) toggleModal(liveModal, false);
-    });
-  }
-  if (liveClose) {
-    liveClose.addEventListener('click', () => toggleModal(liveModal, false));
-  }
-  if (liveStart) {
-    liveStart.addEventListener('click', () => { startLivePreview(); });
-  }
-  if (liveStop) {
-    liveStop.addEventListener('click', () => { stopLivePreview(); });
-  }
-  if (liveToggleMic) {
-    liveToggleMic.addEventListener('click', () => { toggleLiveTrack('audio'); });
-  }
-  if (liveToggleCamera) {
-    liveToggleCamera.addEventListener('click', () => { toggleLiveTrack('video'); });
-  }
-  window.addEventListener('beforeunload', stopLivePreview);
 
   const keys = new Set();
   const touches = new Map();
