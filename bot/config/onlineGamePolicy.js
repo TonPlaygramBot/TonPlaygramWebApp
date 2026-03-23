@@ -10,7 +10,10 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 const GAME_ONLINE_POLICY = Object.freeze({
   chess: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },
   checkers: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },
-  poolroyale: { maxPlayers: [2], allowMatchMeta: ['mode', 'playType', 'tableSize', 'ballSet', 'token'] },
+  poolroyale: {
+    maxPlayers: [2],
+    allowMatchMeta: ['variant', 'mode', 'playType', 'tableSize', 'ballSet', 'token']
+  },
   snookerroyale: { maxPlayers: [2], allowMatchMeta: ['mode', 'playType', 'tableSize', 'token'] },
   snake: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mode', 'token'] },
   chessbattleroyal: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },

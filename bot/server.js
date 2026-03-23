@@ -509,11 +509,22 @@ function normalizeBallSetMeta(value = '') {
   return normalized;
 }
 
+function normalizeVariantMeta(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'us' || normalized === 'usa') return 'american';
+  if (normalized === 'english') return 'uk';
+  if (normalized === 'eightball' || normalized === '8-ball') return '8ball';
+  if (normalized === 'nineball' || normalized === '9-ball') return '9ball';
+  return normalized;
+}
+
 function normalizeMatchMetaValue(key, value) {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return '';
   if (key === 'tableSize') return normalizeTableSizeMeta(normalized);
   if (key === 'ballSet') return normalizeBallSetMeta(normalized);
+  if (key === 'variant') return normalizeVariantMeta(normalized);
   return normalized;
 }
 

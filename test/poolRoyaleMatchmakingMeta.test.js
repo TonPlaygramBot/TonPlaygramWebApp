@@ -88,6 +88,76 @@ test('pool royale players with partially-filled matching meta share same table',
   }
 });
 
+test('pool royale players using variant aliases still share a table', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3210',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: apiToken,
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1'
+  };
+
+  const server = await startServer(env);
+  const s1 = connectClient(3210);
+  const s2 = connectClient(3210);
+
+  try {
+    await Promise.all([
+      new Promise((resolve) => s1.on('connect', resolve)),
+      new Promise((resolve) => s2.on('connect', resolve))
+    ]);
+
+    s1.emit('register', { playerId: 'acct-variant-1' });
+    s2.emit('register', { playerId: 'acct-variant-2' });
+
+    const firstSeat = await new Promise((resolve) => {
+      s1.emit(
+        'seatTable',
+        {
+          accountId: 'acct-variant-1',
+          gameType: 'poolroyale',
+          stake: 250,
+          maxPlayers: 2,
+          mode: 'online',
+          variant: '8-ball',
+          playerName: 'VariantA'
+        },
+        resolve
+      );
+    });
+
+    const secondSeat = await new Promise((resolve) => {
+      s2.emit(
+        'seatTable',
+        {
+          accountId: 'acct-variant-2',
+          gameType: 'poolroyale',
+          stake: 250,
+          maxPlayers: 2,
+          mode: 'online',
+          variant: 'eightball',
+          playerName: 'VariantB'
+        },
+        resolve
+      );
+    });
+
+    assert.equal(firstSeat.success, true);
+    assert.equal(secondSeat.success, true);
+    assert.equal(secondSeat.tableId, firstSeat.tableId);
+    assert.equal(secondSeat.players.length, 2);
+  } finally {
+    s1.disconnect();
+    s2.disconnect();
+    server.kill();
+  }
+});
+
 test('pool royale disconnect clears stale lobby seat so next player can queue cleanly', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
