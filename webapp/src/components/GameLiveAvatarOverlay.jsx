@@ -18,9 +18,7 @@ const AVATAR_ANCHOR_SELECTORS = [
   '.hud-player-you img',
   '.hud-player-you',
   'img[alt="You"]',
-  '[aria-label="You"]',
-  '#p1AvatarTop',
-  '[data-player-role="self"]'
+  '[aria-label="You"]'
 ];
 
 export default function GameLiveAvatarOverlay({ gameSlug, children }) {
@@ -97,53 +95,23 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       return score;
     };
 
-    const getSearchContexts = () => {
-      const contexts = [{ root: document, offsetLeft: 0, offsetTop: 0 }];
-      const iframes = Array.from(document.querySelectorAll('iframe'));
-      iframes.forEach((frame) => {
-        let frameDoc = null;
-        try {
-          frameDoc = frame.contentDocument || frame.contentWindow?.document || null;
-        } catch (error) {
-          frameDoc = null;
-        }
-        if (!frameDoc?.body) return;
-        const frameRect = frame.getBoundingClientRect();
-        contexts.push({
-          root: frameDoc,
-          offsetLeft: frameRect.left,
-          offsetTop: frameRect.top
-        });
-      });
-      return contexts;
-    };
-
     const findAvatarAnchor = () => {
       let bestNode = null;
       let bestRect = null;
       let bestScore = -Infinity;
-      const contexts = getSearchContexts();
-      for (const context of contexts) {
-        const seen = new Set();
-        for (const selector of AVATAR_ANCHOR_SELECTORS) {
-          const nodes = context.root.querySelectorAll(selector);
-          for (const candidate of nodes) {
-            if (seen.has(candidate)) continue;
-            seen.add(candidate);
-            const localRect = candidate.getBoundingClientRect();
-            if (localRect.width <= 8 || localRect.height <= 8) continue;
-            const rect = {
-              top: localRect.top + context.offsetTop,
-              left: localRect.left + context.offsetLeft,
-              width: localRect.width,
-              height: localRect.height
-            };
-            const score = scoreAnchor(candidate, rect);
-            if (score > bestScore) {
-              bestScore = score;
-              bestRect = rect;
-              bestNode = candidate;
-            }
+      const seen = new Set();
+      for (const selector of AVATAR_ANCHOR_SELECTORS) {
+        const nodes = document.querySelectorAll(selector);
+        for (const candidate of nodes) {
+          if (seen.has(candidate)) continue;
+          seen.add(candidate);
+          const rect = candidate.getBoundingClientRect();
+          if (rect.width <= 8 || rect.height <= 8) continue;
+          const score = scoreAnchor(candidate, rect);
+          if (score > bestScore) {
+            bestScore = score;
+            bestRect = rect;
+            bestNode = candidate;
           }
         }
       }
@@ -195,7 +163,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     window.addEventListener('resize', scheduleApply);
     window.addEventListener('orientationchange', scheduleApply);
     window.addEventListener('scroll', scheduleApply, true);
-    const pollTimer = window.setInterval(scheduleApply, 1200);
 
     scheduleApply();
 
@@ -203,7 +170,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       cancelAnimationFrame(frameId);
       mutationObserver.disconnect();
       resizeObserver?.disconnect();
-      window.clearInterval(pollTimer);
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
