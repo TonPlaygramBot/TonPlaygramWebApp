@@ -4780,14 +4780,22 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
-            const positionStyle = anchor
+            const positionStyle = idx === humanPlayerIndex
               ? {
-                  position: 'absolute',
-                  left: `${anchor.x}%`,
-                  top: `${anchor.y + (idx === humanPlayerIndex ? -2.2 : 0)}%`,
-                  transform: 'translate(-50%, -50%)'
+                  position: 'fixed',
+                  left: '50%',
+                  bottom: 'calc(6.7rem + env(safe-area-inset-bottom, 0px))',
+                  transform: 'translateX(-50%)',
+                  zIndex: 24
                 }
-              : { position: 'absolute', left: fallback.left, top: idx === humanPlayerIndex ? '76.8%' : fallback.top, transform: 'translate(-50%, -50%)' };
+              : anchor
+                ? {
+                    position: 'absolute',
+                    left: `${anchor.x}%`,
+                    top: `${anchor.y}%`,
+                    transform: 'translate(-50%, -50%)'
+                  }
+                : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
