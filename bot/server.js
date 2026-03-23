@@ -59,7 +59,11 @@ import {
   countOnline,
   listOnline
 } from './services/connectionService.js';
-import { GAME_ONLINE_POLICY, validateSeatTableRequest } from './config/onlineGamePolicy.js';
+import {
+  GAME_ONLINE_POLICY,
+  validateSeatTableRequest,
+  normalizeOnlineGameType
+} from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
 import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
 
@@ -603,9 +607,10 @@ function getAvailableTable(
 }
 
 function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPlayers) {
+  const normalizedFallbackGameType = normalizeOnlineGameType(fallbackGameType);
   if (!tableId) {
     return {
-      gameType: fallbackGameType,
+      gameType: normalizedFallbackGameType,
       maxPlayers: fallbackMaxPlayers
     };
   }
@@ -622,13 +627,13 @@ function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPl
     parsedCap <= 0
   ) {
     return {
-      gameType: fallbackGameType,
+      gameType: normalizedFallbackGameType,
       maxPlayers: fallbackMaxPlayers
     };
   }
 
   return {
-    gameType: prefix,
+    gameType: normalizeOnlineGameType(prefix),
     maxPlayers: parsedCap
   };
 }
@@ -1703,7 +1708,7 @@ io.on('connection', (socket) => {
       if (tableId) {
         table = await seatTableSocket(
           accountId,
-          resolvedGameType,
+          validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
           playerName,
@@ -1716,7 +1721,7 @@ io.on('connection', (socket) => {
       } else {
         table = await seatTableSocket(
           accountId,
-          resolvedGameType,
+          validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
           playerName,
