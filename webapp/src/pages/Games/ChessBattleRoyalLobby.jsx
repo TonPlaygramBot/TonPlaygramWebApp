@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -14,7 +14,8 @@ import {
 import {
   getAccountBalance,
   addTransaction,
-  getOnlineCount
+  getOnlineCount,
+  getOnlineUsers
 } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -117,7 +118,10 @@ async function ensureSocketRegistered(
 
 export default function ChessBattleRoyalLobby() {
   const navigate = useNavigate();
+  const { search } = useLocation();
   useTelegramBackButton();
+  const searchParams = new URLSearchParams(search);
+  const requestedOnlineTableId = (searchParams.get('tableId') || '').trim();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
@@ -129,12 +133,17 @@ export default function ChessBattleRoyalLobby() {
   const [onlineCount, setOnlineCount] = useState(null);
   const [accountId, setAccountId] = useState('');
   const [matching, setMatching] = useState(false);
+  const [spinningPlayer, setSpinningPlayer] = useState('');
+  const [matchPlayers, setMatchPlayers] = useState([]);
+  const [readyList, setReadyList] = useState([]);
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
   const [preferredSide, setPreferredSide] = useState('auto');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
+  const spinIntervalRef = useRef(null);
 
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
@@ -198,7 +207,64 @@ export default function ChessBattleRoyalLobby() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const loadOnline = () => {
+      getOnlineUsers()
+        .then((data) => {
+          if (!active) return;
+          const list = Array.isArray(data?.users)
+            ? data.users
+            : Array.isArray(data)
+              ? data
+              : [];
+          setOnlinePlayers(list);
+        })
+        .catch(() => {});
+    };
+    loadOnline();
+    const id = setInterval(loadOnline, 15000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+
   useEffect(() => () => cleanupRef.current?.(), []);
+
+  useEffect(() => {
+    if (spinIntervalRef.current) {
+      clearInterval(spinIntervalRef.current);
+      spinIntervalRef.current = null;
+    }
+    const candidates = [...onlinePlayers, ...matchPlayers]
+      .map((p) => ({
+        id: resolveTpcAccountNumber(p),
+        name:
+          p?.username ||
+          p?.name ||
+          p?.telegramName ||
+          p?.telegramId ||
+          resolveTpcAccountNumber(p)
+      }))
+      .filter((p) => p.id);
+    const deduped = candidates.filter((p, idx, arr) => {
+      const first = arr.findIndex((item) => item.id === p.id);
+      return first === idx;
+    });
+    if (!matching || deduped.length === 0) return undefined;
+    setSpinningPlayer(deduped[0].name || 'Searching…');
+    spinIntervalRef.current = setInterval(() => {
+      const pick = deduped[Math.floor(Math.random() * deduped.length)];
+      setSpinningPlayer(pick?.name || 'Searching…');
+    }, 500);
+    return () => {
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current);
+        spinIntervalRef.current = null;
+      }
+    };
+  }, [matching, matchPlayers, onlinePlayers]);
 
   useEffect(
     () => () => {
@@ -249,6 +315,7 @@ export default function ChessBattleRoyalLobby() {
     if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
+        tpcAccountNumber: account || accountId,
         tpcAccountId: account || accountId,
         tableId: pendingTableRef.current
       });
@@ -256,6 +323,9 @@ export default function ChessBattleRoyalLobby() {
     pendingTableRef.current = '';
     setMatching(false);
     setMatchStatus('');
+    setMatchPlayers([]);
+    setReadyList([]);
+    setSpinningPlayer('');
     if (!skipRefReset) cleanupRef.current = null;
   };
 
@@ -327,8 +397,14 @@ export default function ChessBattleRoyalLobby() {
       return;
     }
 
-    const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
+    const handleLobbyUpdate = ({
+      tableId: tid,
+      players: list = [],
+      ready = []
+    } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
+      setMatchPlayers(Array.isArray(list) ? list : []);
+      setReadyList(Array.isArray(ready) ? ready.map((id) => String(id)) : []);
       const others = list.filter(
         (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
       );
@@ -390,6 +466,7 @@ export default function ChessBattleRoyalLobby() {
           tpcAccountId: seatAccountId,
           gameType: 'chess',
           stake: stake.amount ?? 0,
+          tableId: requestedOnlineTableId || undefined,
           maxPlayers: 2,
           mode: 'online',
           playerName: friendlyName,
@@ -441,9 +518,14 @@ export default function ChessBattleRoyalLobby() {
             return;
           }
           pendingTableRef.current = res.tableId;
+          setMatchPlayers(Array.isArray(res.players) ? res.players : []);
+          setReadyList(
+            Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
+          );
           setMatchStatus('Waiting for another player…');
           socket.emit('confirmReady', {
             accountId: seatAccountId,
+            tpcAccountNumber: seatAccountId,
             tpcAccountId: seatAccountId,
             tableId: res.tableId
           });
@@ -705,6 +787,42 @@ export default function ChessBattleRoyalLobby() {
             <p className="text-sm text-white/60">
               {matchStatus || 'Syncing with the lobby…'}
             </p>
+            <div className="lobby-tile w-full flex items-center justify-between">
+              <span>🎯 {spinningPlayer || 'Searching…'}</span>
+              <span className="text-xs text-white/60">
+                Stake {stake.amount} {stake.token}
+              </span>
+            </div>
+            {matchPlayers.length > 0 && (
+              <div className="space-y-1">
+                {matchPlayers.map((player) => {
+                  const playerId = resolveTpcAccountNumber(player);
+                  const isReady = readyList.includes(String(playerId));
+                  return (
+                    <div
+                      key={playerId || player.name}
+                      className="lobby-tile w-full flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {player?.name || `TPC ${playerId}`}
+                        </p>
+                        <p className="text-xs text-white/50">
+                          Account #{playerId}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          isReady ? 'text-emerald-400' : 'text-white/50'
+                        }`}
+                      >
+                        {isReady ? 'Ready' : 'Waiting'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {matchError && <p className="text-sm text-red-400">{matchError}</p>}
             <button
               type="button"
