@@ -7,17 +7,6 @@ const DEFAULT_MATCH_TIMEOUT_MS = 30000;
 const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 15000;
 const DEFAULT_REGISTER_TIMEOUT_MS = 6000;
 
-function resolveTpcAccountNumber(player) {
-  if (!player || typeof player !== 'object') return '';
-  return String(
-    player.tpcAccountNumber ??
-      player.accountId ??
-      player.playerId ??
-      player.id ??
-      ''
-  ).trim();
-}
-
 function logSupportError(message, error, context = {}) {
   // Surface in console for support teams; caller will also show inline errors.
   console.error('[PoolRoyaleLobby]', message, { ...context, error });
@@ -300,11 +289,7 @@ export async function runPoolRoyaleOnlineFlow({
     setMatchPlayers(list);
     matchPlayersRef.current = list;
     setReadyList(ready);
-    const others = list.filter(
-      (p) =>
-        resolveTpcAccountNumber(p) &&
-        resolveTpcAccountNumber(p) !== String(accountId)
-    );
+    const others = list.filter((p) => String(p.id) !== String(accountId));
     setMatchStatus(
       others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
     );
@@ -446,7 +431,7 @@ export async function runPoolRoyaleOnlineFlow({
         }
         pendingTableRef.current = res.tableId;
         setMatchStatus('Waiting for another player…');
-        const playersList = Array.isArray(res.players) ? res.players.filter(Boolean) : [];
+        const playersList = res.players || [];
         setMatchPlayers(playersList);
         matchPlayersRef.current = playersList;
         setReadyList(res.ready || []);
