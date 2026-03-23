@@ -26,6 +26,7 @@ const AVATAR_ANCHOR_SELECTORS = [
 ];
 
 const FRAME_SCALE = 2;
+const ACTIVATION_TOUCH_PADDING = 8;
 
 export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const { search } = useLocation();
@@ -231,19 +232,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [gameSlug, search]);
 
-  useEffect(() => {
-    if (!anchorElement) return undefined;
-    const onToggle = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setLiveMode((prev) => !prev);
-    };
-    anchorElement.style.cursor = 'pointer';
-    anchorElement.addEventListener('click', onToggle);
-    return () => {
-      anchorElement.removeEventListener('click', onToggle);
-    };
-  }, [anchorElement]);
+  const activationRect = useMemo(() => {
+    const width = overlayRect.width + ACTIVATION_TOUCH_PADDING * 2;
+    const height = overlayRect.height + ACTIVATION_TOUCH_PADDING * 2;
+    const left = Math.max(overlayRect.left - ACTIVATION_TOUCH_PADDING, 0);
+    const top = Math.max(overlayRect.top - ACTIVATION_TOUCH_PADDING, 0);
+    return { top, left, width, height };
+  }, [overlayRect]);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
@@ -258,12 +253,26 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   return (
     <>
       {children}
+      {!liveMode && anchorElement ? (
+        <button
+          type="button"
+          aria-label="Turn on live avatar video"
+          onClick={() => setLiveMode(true)}
+          className="fixed z-[64] rounded-full bg-transparent touch-manipulation"
+          style={{
+            top: `${activationRect.top}px`,
+            left: `${activationRect.left}px`,
+            width: `${activationRect.width}px`,
+            height: `${activationRect.height}px`
+          }}
+        />
+      ) : null}
       {liveMode && anchorElement ? (
         <button
           type="button"
           aria-label="Turn off live avatar video"
           onClick={() => setLiveMode(false)}
-          className="fixed z-[65] overflow-hidden rounded-full border border-emerald-300 bg-black/30"
+          className="fixed z-[65] overflow-hidden rounded-full border border-emerald-300 bg-black/30 touch-manipulation"
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
