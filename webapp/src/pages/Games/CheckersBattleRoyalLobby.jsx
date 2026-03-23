@@ -13,7 +13,7 @@ import {
 import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { socket } from '../../utils/socket.js';
+import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
@@ -25,6 +25,7 @@ const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
 const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
+const SOCKET_REGISTER_TIMEOUT_MS = 6000;
 const MATCHMAKING_TIMEOUT_MS = 45000;
 
 function normalizeHostCode(code = '') {
@@ -69,6 +70,31 @@ async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
     socket.once('connect_error', handleError);
     socket.once('error', handleError);
     socket.connect?.();
+  });
+}
+
+async function ensureSocketRegistered(accountId, timeoutMs = SOCKET_REGISTER_TIMEOUT_MS) {
+  if (!accountId) return false;
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(false);
+    }, timeoutMs);
+
+    try {
+      socket.emit('register', { playerId: accountId }, (res) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(Boolean(res?.success));
+      });
+    } catch {
+      clearTimeout(timer);
+      resolve(false);
+    }
   });
 }
 
@@ -263,11 +289,30 @@ export default function CheckersBattleRoyalLobby() {
       try {
         trackedAccountId = await ensureAccountId();
         if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
+      } catch {}
+
+      if (!trackedAccountId) {
+        await refundStakeIfNeeded();
+        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
+        setMatching(false);
+        setMatchStatus('');
+        return;
+      }
+
+      try {
         const balRes = await getAccountBalance(trackedAccountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }
+      } catch {
+        setMatchError('Unable to verify your balance right now. Please try again.');
+        setMatching(false);
+        setMatchStatus('');
+        return;
+      }
+
+      try {
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'checkersbattle',
@@ -275,11 +320,9 @@ export default function CheckersBattleRoyalLobby() {
           accountId: trackedAccountId,
         });
         stakeCharged = true;
-      } catch {}
-
-      if (!trackedAccountId) {
+      } catch {
         await refundStakeIfNeeded();
-        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
+        setMatchError('Unable to reserve your stake. Please try again.');
         setMatching(false);
         setMatchStatus('');
         return;
@@ -295,10 +338,23 @@ export default function CheckersBattleRoyalLobby() {
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
 
+    if (trackedAccountId) {
+      refreshSocketAuthIdentity({ accountId: String(trackedAccountId) });
+    }
+
     const socketReady = await ensureSocketConnected();
     if (!socketReady) {
       await refundStakeIfNeeded();
       setMatchError('Lobby connection failed. Check your network and try again.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+
+    const socketRegistered = await ensureSocketRegistered(trackedAccountId || accountId);
+    if (!socketRegistered) {
+      await refundStakeIfNeeded();
+      setMatchError('Unable to sync your online session. Please retry.');
       setMatching(false);
       setMatchStatus('');
       return;
@@ -348,7 +404,6 @@ export default function CheckersBattleRoyalLobby() {
 
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
-    socket.emit('register', { playerId: trackedAccountId });
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
     const matchTimeout = window.setTimeout(async () => {
@@ -360,46 +415,61 @@ export default function CheckersBattleRoyalLobby() {
     }, MATCHMAKING_TIMEOUT_MS);
     matchmakingTimeoutRef.current = matchTimeout;
 
-    socket.emit(
-      'seatTable',
-      {
-        accountId: trackedAccountId || accountId,
-        gameType: 'checkers',
-        stake: stake.amount ?? 0,
-        maxPlayers: 2,
-        mode: 'online',
-        playerName: friendlyName,
-        avatar,
-        preferredSide,
-        token: stake.token,
-        ...(hostedTableId ? { tableId: hostedTableId } : {})
-      },
-      async (res) => {
-        if (!res?.success || !res.tableId) {
-          clearTimeout(matchTimeout);
-          matchmakingTimeoutRef.current = null;
-          await refundStakeIfNeeded();
-          setMatchError('Could not join the online lobby. Please try again.');
-          cleanupLobby({ account: trackedAccountId });
-          return;
+    let seatAttempts = 0;
+    const maxSeatAttempts = 2;
+    const seatPlayer = () => {
+      seatAttempts += 1;
+      socket.emit(
+        'seatTable',
+        {
+          accountId: trackedAccountId || accountId,
+          gameType: 'checkers',
+          stake: stake.amount ?? 0,
+          maxPlayers: 2,
+          mode: 'online',
+          playerName: friendlyName,
+          avatar,
+          preferredSide,
+          token: stake.token,
+          ...(hostedTableId ? { tableId: hostedTableId } : {})
+        },
+        async (res) => {
+          if (!res?.success || !res.tableId) {
+            const shouldRetry =
+              (res?.error === 'register_required' || res?.error === 'rate_limited') &&
+              seatAttempts < maxSeatAttempts;
+            if (shouldRetry) {
+              setMatchStatus('Retrying online seat…');
+              setTimeout(() => seatPlayer(), 400);
+              return;
+            }
+            clearTimeout(matchTimeout);
+            matchmakingTimeoutRef.current = null;
+            await refundStakeIfNeeded();
+            setMatchError('Could not join the online lobby. Please try again.');
+            cleanupLobby({ account: trackedAccountId });
+            return;
+          }
+          pendingTableRef.current = res.tableId;
+          setMatchStatus(
+            hostedTableId
+              ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Waiting for your invited opponent…`
+              : 'Waiting for another player…'
+          );
+          socket.emit('confirmReady', {
+            accountId: trackedAccountId,
+            tableId: res.tableId
+          });
+          cleanupRef.current = () => {
+            clearTimeout(matchTimeout);
+            matchmakingTimeoutRef.current = null;
+            cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+          };
         }
-        pendingTableRef.current = res.tableId;
-        setMatchStatus(
-          hostedTableId
-            ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Waiting for your invited opponent…`
-            : 'Waiting for another player…'
-        );
-        socket.emit('confirmReady', {
-          accountId: trackedAccountId,
-          tableId: res.tableId
-        });
-        cleanupRef.current = () => {
-          clearTimeout(matchTimeout);
-          matchmakingTimeoutRef.current = null;
-          cleanupLobby({ account: trackedAccountId, skipRefReset: true });
-        };
-      }
-    );
+      );
+    };
+
+    seatPlayer();
   };
 
   return (
