@@ -6082,9 +6082,15 @@ function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
   }
 }
 
-function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
+function createSeatBadge({ avatar = '🎯', name = '', index = -1, isSelf = false } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
+  wrap.dataset.playerIndex = String(index);
+  if (isSelf) {
+    wrap.dataset.selfPlayer = 'true';
+    wrap.dataset.you = 'true';
+    wrap.dataset.playerRole = 'self';
+  }
 
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'seat-badge-avatar';
@@ -6095,6 +6101,12 @@ function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
 
   const core = document.createElement('div');
   core.className = 'seat-badge-core';
+  core.dataset.playerIndex = String(index);
+  if (isSelf) {
+    core.dataset.selfPlayer = 'true';
+    core.dataset.you = 'true';
+    core.dataset.playerRole = 'self';
+  }
   applyBadgeAvatar(core, avatar);
   avatarWrap.appendChild(core);
 
@@ -6117,7 +6129,12 @@ function refreshSeatBadges(avatars = [], names = []) {
   const avatarSources = avatars.length ? avatars : buildSeatAvatarSources(N);
   const nameSources = names.length ? names : buildSeatNames(N);
   avatarSources.forEach((avatar, idx) => {
-    const badge = createSeatBadge({ avatar, name: nameSources[idx] ?? '' });
+    const badge = createSeatBadge({
+      avatar,
+      name: nameSources[idx] ?? '',
+      index: idx,
+      isSelf: idx === human
+    });
     badge.style.setProperty('--timer-gradient', gradient);
     seatBadges.push(badge);
   });
