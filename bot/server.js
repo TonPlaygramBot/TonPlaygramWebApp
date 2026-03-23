@@ -491,12 +491,39 @@ const checkersMoveRateLimitMs =
 
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
 
+function normalizeTableSizeMeta(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'pro') return '9ft';
+  if (normalized.includes('9') && normalized.includes('ft')) return '9ft';
+  if (normalized.includes('8') && normalized.includes('ft')) return '8ft';
+  if (normalized.includes('tournament')) return '9ft';
+  return normalized;
+}
+
+function normalizeBallSetMeta(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'us' || normalized === 'usa') return 'american';
+  if (normalized === 'english') return 'uk';
+  return normalized;
+}
+
+function normalizeMatchMetaValue(key, value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (key === 'tableSize') return normalizeTableSizeMeta(normalized);
+  if (key === 'ballSet') return normalizeBallSetMeta(normalized);
+  return normalized;
+}
+
 function normalizeMatchMeta(rawMeta = {}) {
   const normalized = {};
   MATCH_META_KEYS.forEach((key) => {
     const value = rawMeta[key];
     if (typeof value === 'string' && value.trim()) {
-      normalized[key] = value.trim().toLowerCase();
+      const normalizedValue = normalizeMatchMetaValue(key, value);
+      if (normalizedValue) normalized[key] = normalizedValue;
     }
   });
   return normalized;
