@@ -4784,7 +4784,7 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(9.8rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(10.4rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
