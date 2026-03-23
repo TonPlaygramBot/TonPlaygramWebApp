@@ -1,16 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
-import LocalMediaPanel from '../../components/LocalMediaPanel.jsx';
-import useLocalMediaPreview from '../../hooks/useLocalMediaPreview.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
 
 export default function DominoRoyalArena() {
-  const [showLivePanel, setShowLivePanel] = useState(false);
-  const liveMedia = useLocalMediaPreview();
-
   useEffect(() => {
     const statusNode = document.getElementById('status');
     const appRoot = document.getElementById('app');
@@ -53,17 +48,7 @@ export default function DominoRoyalArena() {
     };
     document.body.appendChild(script);
 
-    const handleSelfAvatarClick = (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (!target.closest('[data-self-player="true"]')) return;
-      event.preventDefault();
-      setShowLivePanel(true);
-    };
-    document.addEventListener('click', handleSelfAvatarClick, true);
-
     return () => {
-      document.removeEventListener('click', handleSelfAvatarClick, true);
       if (typeof window.__dominoRoyalCleanup === 'function') {
         window.__dominoRoyalCleanup('react-unmount');
       }
@@ -378,18 +363,6 @@ export default function DominoRoyalArena() {
           </div>
         </div>
       </div>
-      <LocalMediaPanel
-        open={showLivePanel}
-        onClose={() => setShowLivePanel(false)}
-        stream={liveMedia.stream}
-        mediaState={liveMedia.mediaState}
-        isActive={liveMedia.isActive}
-        error={liveMedia.error}
-        onStart={liveMedia.start}
-        onStop={liveMedia.stop}
-        onToggleMicrophone={liveMedia.toggleMicrophone}
-        onToggleCamera={liveMedia.toggleCamera}
-      />
     </div>
   );
 }
