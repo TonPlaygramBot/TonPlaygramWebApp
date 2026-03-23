@@ -2,8 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
-const POOL_ROYALE_FRAME_SIZE = 44;
-
 const AVATAR_ANCHOR_SELECTORS = [
   '[data-self-player="true"] .seat-badge-core',
   '[data-self-player="true"] .score-avatar',
@@ -158,14 +156,15 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const width = POOL_ROYALE_FRAME_SIZE;
-      const height = POOL_ROYALE_FRAME_SIZE;
+      const FRAME_SCALE = 1.2;
+      const width = Math.max(Math.round(rect.width * FRAME_SCALE), 32);
+      const height = Math.max(Math.round(rect.height * FRAME_SCALE), 32);
       const left = Math.max(
-        Math.round(rect.left + rect.width / 2 - width / 2),
+        Math.round(rect.left - (width - rect.width) / 2),
         0
       );
       const top = Math.max(
-        Math.round(rect.top + rect.height / 2 - height / 2),
+        Math.round(rect.top - (height - rect.height) / 2),
         0
       );
       setAnchorElement(node);
