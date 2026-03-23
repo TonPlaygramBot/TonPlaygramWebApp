@@ -158,7 +158,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const avatarDiameter = Math.max(rect.width, rect.height);
+      const avatarDiameter = Math.min(rect.width, rect.height);
       const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
       const height = frameDiameter;
