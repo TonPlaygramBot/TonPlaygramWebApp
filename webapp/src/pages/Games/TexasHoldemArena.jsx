@@ -6492,7 +6492,7 @@ function TexasHoldemArena({ search }) {
         ))}
       </div>
       <div className="absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto landscape:left-[calc(env(safe-area-inset-left,0px)+5.45rem)] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+2.45rem)] landscape:translate-x-0">
-        <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
+        <div className="player-avatar you flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur" data-self-player="true" data-you="true">
           {humanPlayer?.avatar &&
             (isHumanTurn ? (
               renderAvatarTimer(humanPlayer.avatar, 44)
