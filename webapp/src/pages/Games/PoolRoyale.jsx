@@ -12708,7 +12708,11 @@ function PoolRoyaleGame({
   );
   const availableEnvironmentHdris = useMemo(
     () => {
-      const customVariants = getCustomHdriVariantsForGame('poolroyale', accountId);
+      const customVariants = getCustomHdriVariantsForGame(
+        'poolroyale',
+        accountId,
+        poolInventory?.environmentHdri
+      );
       const merged = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
       return merged.filter((variant) =>
         isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
