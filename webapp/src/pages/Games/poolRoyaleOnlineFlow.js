@@ -112,6 +112,18 @@ async function ensureSocketRegistered(
   });
 }
 
+async function recoverSocketIdentity({
+  socketInstance,
+  accountId,
+  socketConnectTimeoutMs,
+  registerTimeoutMs
+}) {
+  setSocketIdentity(socketInstance, accountId);
+  const ready = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
+  if (!ready) return false;
+  return ensureSocketRegistered(socketInstance, accountId, registerTimeoutMs);
+}
+
 export async function runPoolRoyaleOnlineFlow({
   stake,
   tableId,
@@ -377,12 +389,37 @@ export async function runPoolRoyaleOnlineFlow({
         clearTimeoutSafely(seatTimeoutRef);
         setIsSearching(false);
         if (!res?.success || !res.tableId) {
-          const shouldRetry = (res?.error === 'register_required' || res?.error === 'rate_limited') && seatAttempts < maxSeatAttempts;
+          const isRegistrationError =
+            res?.error === 'register_required' || res?.error === 'identity_mismatch';
+          const shouldRetry =
+            (isRegistrationError || res?.error === 'rate_limited') &&
+            seatAttempts < maxSeatAttempts;
           if (shouldRetry) {
-            setMatchStatus('Retrying online seat…');
-            seatTimeoutRef.current = setTimeout(() => {
-              seatPlayer();
-            }, 400);
+            const retrySeat = async () => {
+              if (isRegistrationError) {
+                setMatchStatus('Resyncing your online session…');
+                const recovered = await recoverSocketIdentity({
+                  socketInstance,
+                  accountId,
+                  socketConnectTimeoutMs,
+                  registerTimeoutMs
+                });
+                if (!recovered) {
+                  triggerTimeoutRefund(
+                    'socket_registration_failed',
+                    'Unable to sync your online session. We refunded your stake.',
+                    { response: res, accountId, seatAttempts }
+                  );
+                  return;
+                }
+              } else {
+                setMatchStatus('Retrying online seat…');
+              }
+              seatTimeoutRef.current = setTimeout(() => {
+                seatPlayer();
+              }, 400);
+            };
+            retrySeat();
             return;
           }
           triggerTimeoutRefund(
