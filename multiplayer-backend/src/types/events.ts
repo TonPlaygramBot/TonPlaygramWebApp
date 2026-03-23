@@ -8,7 +8,6 @@ export interface SocketUser {
 export interface JoinQueuePayload {
   gameMode: string;
   region?: string;
-  tpcAccountNumber?: string;
 }
 
 export interface RoomCreatePayload {

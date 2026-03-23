@@ -13,7 +13,6 @@ interface RedisLike {
 export interface QueueEntry {
   userId: string;
   username: string;
-  tpcAccountNumber?: string;
   gameMode: string;
   region?: string;
   joinedAt: number;
