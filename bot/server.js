@@ -66,6 +66,7 @@ import {
 } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
 import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
+import { findMemoryUser } from './utils/memoryUserStore.js';
 
 validateEnv();
 
@@ -526,6 +527,78 @@ function isRateLimited(socket, key, cooldownMs) {
   map[key] = now;
   lastActionBySocket.set(socket.id, map);
   return false;
+}
+
+async function resolveTpcAccountId(
+  socket,
+  { accountId, tpcAccountId, playerId } = {}
+) {
+  const normalizedTpc = tpcAccountId ? String(tpcAccountId) : '';
+  if (normalizedTpc) {
+    socket.data.tpcAccountId = normalizedTpc;
+    return normalizedTpc;
+  }
+
+  const authAccountId = socket.data?.auth?.accountId
+    ? String(socket.data.auth.accountId)
+    : '';
+  if (authAccountId) {
+    socket.data.tpcAccountId = authAccountId;
+    return authAccountId;
+  }
+
+  if (socket.data?.tpcAccountId) {
+    return String(socket.data.tpcAccountId);
+  }
+
+  const normalizedAccountId = accountId ? String(accountId) : '';
+  const normalizedPlayerId = playerId ? String(playerId) : '';
+  const identityValue = normalizedAccountId || normalizedPlayerId;
+  const authGoogleId = socket.data?.auth?.googleId
+    ? String(socket.data.auth.googleId)
+    : '';
+  const authTelegramId = Number(socket.data?.auth?.telegramId);
+
+  const queryCandidates = [];
+  if (normalizedAccountId) {
+    queryCandidates.push({ accountId: normalizedAccountId });
+  }
+  if (normalizedPlayerId && normalizedPlayerId !== normalizedAccountId) {
+    queryCandidates.push({ accountId: normalizedPlayerId });
+  }
+  if (authGoogleId) {
+    queryCandidates.push({ googleId: authGoogleId });
+  }
+  if (Number.isFinite(authTelegramId) && authTelegramId > 0) {
+    queryCandidates.push({ telegramId: authTelegramId });
+  }
+  if (identityValue) {
+    const asNumber = Number(identityValue);
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+      queryCandidates.push({ telegramId: asNumber });
+    }
+    queryCandidates.push({ googleId: identityValue });
+  }
+
+  for (const query of queryCandidates) {
+    try {
+      const user = await User.findOne(query, { accountId: 1 }).lean();
+      if (user?.accountId) {
+        socket.data.tpcAccountId = String(user.accountId);
+        return String(user.accountId);
+      }
+    } catch (error) {
+      console.error('resolveTpcAccountId query failed', query, error?.message || error);
+    }
+    const memoryUser = findMemoryUser(query);
+    if (memoryUser?.accountId) {
+      socket.data.tpcAccountId = String(memoryUser.accountId);
+      return String(memoryUser.accountId);
+    }
+  }
+
+  if (identityValue) return identityValue;
+  return '';
 }
 
 function ensureRegistered(socket, accountId) {
@@ -1625,7 +1698,11 @@ function removeSocketFromLiveChat(socket) {
 
 io.on('connection', (socket) => {
   socket.on('register', async ({ playerId, accountId, tpcAccountId } = {}, cb) => {
-    const resolvedPlayerId = playerId || tpcAccountId || accountId;
+    const resolvedPlayerId = await resolveTpcAccountId(socket, {
+      playerId,
+      accountId,
+      tpcAccountId
+    });
     if (!resolvedPlayerId) {
       cb && cb({ success: false, error: 'missing_player_id' });
       return;
@@ -1638,6 +1715,7 @@ io.on('connection', (socket) => {
       }
       set.add(socket.id);
       socket.data.playerId = String(resolvedPlayerId);
+      socket.data.tpcAccountId = String(resolvedPlayerId);
       await registerConnection({ userId: String(resolvedPlayerId), socketId: socket.id });
       cb && cb({ success: true });
     } catch (error) {
@@ -1679,7 +1757,10 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
-      const resolvedAccountId = tpcAccountId || accountId;
+      const resolvedAccountId = await resolveTpcAccountId(socket, {
+        accountId,
+        tpcAccountId
+      });
       if (!ensureRegistered(socket, resolvedAccountId)) {
         const error =
           resolvedAccountId &&
@@ -1758,14 +1839,22 @@ io.on('connection', (socket) => {
   );
 
   socket.on('leaveLobby', ({ accountId, tpcAccountId, tableId }) => {
-    const resolvedAccountId = tpcAccountId || accountId;
-    if (tableId) {
-      unseatTableSocket(resolvedAccountId, tableId, socket.id);
-    }
+    resolveTpcAccountId(socket, { accountId, tpcAccountId })
+      .then((resolvedAccountId) => {
+        if (tableId) {
+          unseatTableSocket(resolvedAccountId, tableId, socket.id);
+        }
+      })
+      .catch(() => {
+        if (tableId) unseatTableSocket(accountId, tableId, socket.id);
+      });
   });
 
-  socket.on('confirmReady', ({ accountId, tpcAccountId, tableId }) => {
-    const resolvedAccountId = tpcAccountId || accountId;
+  socket.on('confirmReady', async ({ accountId, tpcAccountId, tableId }) => {
+    const resolvedAccountId = await resolveTpcAccountId(socket, {
+      accountId,
+      tpcAccountId
+    });
     const table = tableMap.get(tableId);
     if (!table) {
       socket.emit('errorMessage', 'table_not_found');
@@ -1789,7 +1878,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {
-    const pid = playerId || accountId;
+    const pid = await resolveTpcAccountId(socket, { playerId, accountId });
     const map = tableSeats.get(roomId);
     const cap = Number(roomId.split('-')[1]) || 4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
