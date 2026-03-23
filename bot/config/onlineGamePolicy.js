@@ -23,6 +23,17 @@ const GAME_ONLINE_POLICY = Object.freeze({
   murlanroyale: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] }
 });
 
+const GAME_TYPE_ALIASES = Object.freeze({
+  chessbattleroyal: 'chess',
+  checkersbattleroyal: 'checkers'
+});
+
+export function normalizeOnlineGameType(gameType) {
+  const normalized = String(gameType || '').trim().toLowerCase();
+  if (!normalized) return '';
+  return GAME_TYPE_ALIASES[normalized] || normalized;
+}
+
 function sanitizeMetaValue(value) {
   if (value == null) return undefined;
   if (typeof value === 'string') return value.slice(0, 48);
@@ -35,7 +46,8 @@ export function validateSeatTableRequest({
   maxPlayers,
   matchMeta = {}
 } = {}) {
-  const policy = GAME_ONLINE_POLICY[gameType];
+  const normalizedGameType = normalizeOnlineGameType(gameType);
+  const policy = GAME_ONLINE_POLICY[normalizedGameType];
   if (!policy) {
     return { ok: false, error: 'unsupported_game_type' };
   }
@@ -60,6 +72,7 @@ export function validateSeatTableRequest({
 
   return {
     ok: true,
+    normalizedGameType,
     normalizedStake,
     normalizedMaxPlayers,
     safeMatchMeta,
@@ -84,4 +97,4 @@ export function buildReadinessSnapshot() {
   }, {});
 }
 
-export { GAME_ONLINE_POLICY, BASE_SECURITY_CONTROLS };
+export { GAME_ONLINE_POLICY, BASE_SECURITY_CONTROLS, GAME_TYPE_ALIASES };

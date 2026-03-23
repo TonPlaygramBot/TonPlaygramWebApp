@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   GAME_ONLINE_POLICY,
+  normalizeOnlineGameType,
   validateSeatTableRequest,
   buildReadinessSnapshot,
   BASE_SECURITY_CONTROLS
@@ -48,9 +49,17 @@ describe('online game policy', () => {
     });
 
     expect(chess.ok).toBe(true);
+    expect(chess.normalizedGameType).toBe('chess');
     expect(chess.safeMatchMeta).toEqual({ preferredSide: 'white', mode: 'online' });
     expect(checkers.ok).toBe(true);
+    expect(checkers.normalizedGameType).toBe('checkers');
     expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online' });
+  });
+
+  test('normalizes battle royal aliases to shared lobby game types', () => {
+    expect(normalizeOnlineGameType('chessbattleroyal')).toBe('chess');
+    expect(normalizeOnlineGameType('checkersbattleroyal')).toBe('checkers');
+    expect(normalizeOnlineGameType('poolroyale')).toBe('poolroyale');
   });
 
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
