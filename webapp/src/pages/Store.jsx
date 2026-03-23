@@ -314,8 +314,8 @@ const HDRI_CREATOR_STEPS = [
   },
   {
     id: 'style',
-    title: '2) Optimize look',
-    description: 'Tune mood and lighting for gameplay visibility.'
+    title: '2) Tune look',
+    description: 'Adjust mood, tone, and quality for gameplay visibility.'
   },
   {
     id: 'ownership',
@@ -333,6 +333,37 @@ const HDRI_CREATOR_PRESETS = [
   { label: 'Neon night', mood: 'Sci-fi', lighting: 'Neon', timeOfDay: 'Night' },
   { label: 'Studio clean', mood: 'Minimal', lighting: 'Softbox', timeOfDay: 'Sunset' }
 ];
+const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
+  [...POOL_ROYALE_HDRI_VARIANTS, ...SNOOKER_ROYALE_HDRI_VARIANTS].reduce(
+    (acc, variant) => {
+      if (!variant?.id || acc.some((entry) => entry.id === variant.id)) {
+        return acc;
+      }
+      acc.push({
+        id: variant.id,
+        label: variant.name || variant.id,
+        description: variant.description || 'Lighting profile from current store HDRIs.',
+        thumbnail:
+          variant.thumbnail ||
+          variant.assetUrl ||
+          Object.values(variant.assetUrls || {}).find(
+            (value) => typeof value === 'string' && value.length
+          ) ||
+          '',
+        environmentUrl:
+          variant.assetUrl ||
+          Object.values(variant.assetUrls || {}).find(
+            (value) => typeof value === 'string' && value.length
+          ) ||
+          variant.thumbnail ||
+          '',
+        swatches: Array.isArray(variant.swatches) ? variant.swatches : []
+      });
+      return acc;
+    },
+    []
+  )
+);
 const HDRI_TARGET_GAMES = Object.freeze([
   { slug: 'poolroyale', label: 'Pool Royale' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
@@ -349,6 +380,8 @@ const HDRI_TARGET_GAMES = Object.freeze([
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
 const formatTpcAmount = (value) => Number(value || 0).toLocaleString();
+const normalizeAccount = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId])
@@ -1086,12 +1119,13 @@ export default function Store() {
   const [hdriCreatorStep, setHdriCreatorStep] = useState(0);
   const [hdriDraft, setHdriDraft] = useState({
     name: '',
+    sourceHdriId: HDRI_LIGHTING_SOURCE_OPTIONS[0]?.id || '',
     mood: 'Competitive',
     lighting: 'Natural',
     timeOfDay: 'Day',
     intensity: 60,
     tone: 'Balanced',
-    resolution: '2K',
+    resolution: '4K',
     visibility: 'private',
     storePrice: 600
   });
@@ -1297,7 +1331,13 @@ export default function Store() {
     typeof accountBalance === 'number'
       ? Math.max(0, hdriPublishTotalTariff - accountBalance)
       : null;
-  const hdriPrimaryUpload = hdriUploadFiles[0] || null;
+  const selectedHdriLighting = useMemo(
+    () =>
+      HDRI_LIGHTING_SOURCE_OPTIONS.find(
+        (option) => option.id === hdriDraft.sourceHdriId
+      ) || HDRI_LIGHTING_SOURCE_OPTIONS[0] || null,
+    [hdriDraft.sourceHdriId]
+  );
 
   useEffect(
     () => () => {
@@ -1407,8 +1447,14 @@ export default function Store() {
           const objectUrl = URL.createObjectURL(file);
           image.onload = () => {
             try {
-              const maxWidth = 2048;
-              const maxHeight = 1024;
+              const resolutionPreset = String(hdriDraft.resolution || '4K').toUpperCase();
+              const maxWidth =
+                resolutionPreset === '1K'
+                  ? 1024
+                  : resolutionPreset === '2K'
+                    ? 2048
+                    : 4096;
+              const maxHeight = Math.round(maxWidth / 2);
               const widthRatio = maxWidth / image.width;
               const heightRatio = maxHeight / image.height;
               const scale = Math.min(1, widthRatio, heightRatio);
@@ -1422,7 +1468,7 @@ export default function Store() {
                 throw new Error('Canvas context unavailable');
               }
               context.drawImage(image, 0, 0, targetWidth, targetHeight);
-              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
               resolve({
                 previewUrl: optimizedDataUrl,
                 mintDataUrl: optimizedDataUrl
@@ -1472,7 +1518,7 @@ export default function Store() {
           });
         }
       }),
-    [fileToDataUrl]
+    [fileToDataUrl, hdriDraft.resolution]
   );
 
   const handleHdriUploads = useCallback(
@@ -1551,7 +1597,7 @@ export default function Store() {
     setHdriCreatorStep(2);
     setTransactionState('success');
     setTransactionStatus(
-      `Preview ready: "${hdriDraft.name.trim()}". Test it for free before publishing.`
+      `Preview ready: "${hdriDraft.name.trim()}". Test it before publishing.`
     );
   }, [hdriDraft.name, hdriUploadFiles.length]);
 
@@ -1575,9 +1621,33 @@ export default function Store() {
       setHdriPublishing(true);
       setTransactionState('processing');
       setTransactionStatus('Minting your HDRI NFT and activating it in selected games…');
-      const uploadedImageDataUrl = preparedMintDataUrl || (await fileToDataUrl(mainUpload));
+      const uploadedImageDataUrl =
+        preparedMintDataUrl ||
+        selectedHdriLighting?.environmentUrl ||
+        selectedHdriLighting?.thumbnail ||
+        (mainUpload ? await fileToDataUrl(mainUpload) : '');
       const createdAt = Date.now();
-      const storableImageDataUrl = await compressHdriDataUrlForStorage(uploadedImageDataUrl);
+      const resolutionPreset = String(hdriDraft.resolution || '4K').toUpperCase();
+      const storableImageDataUrl = await compressHdriDataUrlForStorage(uploadedImageDataUrl, {
+        targetBytes:
+          resolutionPreset === '1K'
+            ? 1024 * 1024
+            : resolutionPreset === '2K'
+              ? 3 * 1024 * 1024
+              : 7 * 1024 * 1024,
+        maxWidth:
+          resolutionPreset === '1K'
+            ? 1024
+            : resolutionPreset === '2K'
+              ? 2048
+              : 4096,
+        maxHeight:
+          resolutionPreset === '1K'
+            ? 512
+            : resolutionPreset === '2K'
+              ? 1024
+              : 2048
+      });
       const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
         acc[slug] = `custom-hdri:${createdAt}:${slug}`;
         return acc;
@@ -1591,6 +1661,8 @@ export default function Store() {
           price: Number(hdriDraft.storePrice || 0),
           createdBy: accountId || 'guest',
           visibility: hdriDraft.visibility,
+          sourceHdriId: selectedHdriLighting?.id || '',
+          sourceHdriLabel: selectedHdriLighting?.label || '',
           supportedGames: hdriSelectedGames,
           optionIdByGame,
           thumbnailUrl: storableImageDataUrl,
@@ -1614,6 +1686,8 @@ export default function Store() {
               price: Number(hdriDraft.storePrice || 0),
               createdBy: accountId || 'guest',
               visibility: hdriDraft.visibility,
+              sourceHdriId: selectedHdriLighting?.id || '',
+              sourceHdriLabel: selectedHdriLighting?.label || '',
               supportedGames: hdriSelectedGames,
               optionIdByGame,
               thumbnailUrl: emergencyCompressedDataUrl,
@@ -1694,6 +1768,7 @@ export default function Store() {
     hdriDraft,
     hdriPublishing,
     hdriPublishTotalTariff,
+    selectedHdriLighting,
     hdriSelectedGames,
     hdriUploadFiles
   ]);
@@ -2104,25 +2179,39 @@ export default function Store() {
     () =>
       userListings.flatMap((listing) => {
         const games = Array.isArray(listing.supportedGames) ? listing.supportedGames : [];
+        const listingOwner = normalizeAccount(listing.createdBy);
+        const isListingOwner =
+          listingOwner && listingOwner === normalizeAccount(accountId || 'guest');
         return games.map((slug) =>
-          decorateMarketplaceItem(
-            {
-              ...listing,
-              id: `${listing.id}-${slug}`,
-              slug,
-              optionId: listing.optionIdByGame?.[slug] || listing.optionId,
-              gameName: storeMeta[slug]?.name || 'Player listing',
-              typeLabel: 'Custom HDRI',
-              displayLabel: listing.name || listing.displayLabel || 'Player NFT',
-              thumbnail: listing.thumbnailUrl || listing.environmentUrl || '',
-              owned: true,
-              seller: 'You'
-            },
-            { scalePrice: false }
-          )
+          {
+            const optionId = listing.optionIdByGame?.[slug] || listing.optionId;
+            const alreadyOwned = ownedCheckers[slug]
+              ? ownedCheckers[slug]('environmentHdri', optionId)
+              : false;
+            return decorateMarketplaceItem(
+              {
+                ...listing,
+                id: `${listing.id}-${slug}`,
+                slug,
+                optionId,
+                gameName: storeMeta[slug]?.name || 'Player listing',
+                typeLabel: 'Custom HDRI',
+                displayLabel: listing.name || listing.displayLabel || 'Player NFT',
+                thumbnail: listing.thumbnailUrl || listing.environmentUrl || '',
+                owned: Boolean(isListingOwner || alreadyOwned),
+                seller: isListingOwner ? 'You' : `Creator ${listing.createdBy || 'player'}`,
+                isCreatorListingOwner: Boolean(isListingOwner)
+              },
+              { scalePrice: false }
+            );
+          }
         );
       }),
-    [userListings]
+    [accountId, ownedCheckers, userListings]
+  );
+  const myCreatorListings = useMemo(
+    () => decoratedUserListings.filter((item) => item.isCreatorListingOwner),
+    [decoratedUserListings]
   );
 
   const allMarketplaceItems = useMemo(
@@ -2178,8 +2267,8 @@ export default function Store() {
     [allMarketplaceItems, applyFilters]
   );
   const filteredUserListings = useMemo(
-    () => applyFilters(decoratedUserListings),
-    [applyFilters, decoratedUserListings]
+    () => applyFilters(myCreatorListings),
+    [applyFilters, myCreatorListings]
   );
   const visibleItems = showMyListings ? filteredUserListings : filteredItems;
 
@@ -2240,18 +2329,18 @@ export default function Store() {
   const clearSelection = useCallback(() => setSelectedKeys([]), []);
 
   const userListingStats = useMemo(() => {
-    const total = decoratedUserListings.length;
-    const prices = decoratedUserListings.map((item) => Number(item.price) || 0);
+    const total = myCreatorListings.length;
+    const prices = myCreatorListings.map((item) => Number(item.price) || 0);
     const totalValue = prices.reduce((sum, price) => sum + price, 0);
     const avgPrice = total ? Math.round((totalValue / total) * 100) / 100 : 0;
     const floorPrice = total ? Math.min(...prices) : 0;
     return { total, totalValue, avgPrice, floorPrice };
-  }, [decoratedUserListings]);
+  }, [myCreatorListings]);
 
   const typeFilters = useMemo(() => {
     const types = new Set();
     const scopedItems = showMyListings
-      ? decoratedUserListings
+      ? myCreatorListings
       : allMarketplaceItems;
     scopedItems.forEach((item) => {
       if (item.typeLabel) {
@@ -2259,7 +2348,7 @@ export default function Store() {
       }
     });
     return ['all', ...Array.from(types)];
-  }, [activeGame, allMarketplaceItems, decoratedUserListings, showMyListings]);
+  }, [activeGame, allMarketplaceItems, myCreatorListings, showMyListings]);
 
   useEffect(() => {
     if (!typeFilters.includes(activeType)) {
@@ -4130,7 +4219,7 @@ export default function Store() {
                 Upload your own 360° environment HDRI
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-fuchsia-100/80">
-                Free-test your uploaded photos, then pay once to create it. Keep private or publish it so others can buy it.
+                Upload 360 photos, pick lighting style, and publish as private or public listing.
               </p>
             </div>
             <div className="rounded-2xl border border-fuchsia-200/40 bg-black/35 px-3 py-2 text-xs text-fuchsia-100">
@@ -4183,6 +4272,22 @@ export default function Store() {
                   : 'No 360 photos uploaded yet'}
               </p>
               <label className="text-xs text-white/80">
+                Lighting type
+                <select
+                  value={hdriDraft.sourceHdriId}
+                  onChange={(e) =>
+                    handleHdriDraftChange('sourceHdriId', e.target.value)
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                >
+                  {HDRI_LIGHTING_SOURCE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-white/80">
                 Mood
                 <select
                   value={hdriDraft.mood}
@@ -4207,6 +4312,10 @@ export default function Store() {
                   </button>
                 ))}
               </div>
+              <p className="text-[11px] text-white/65">
+                {selectedHdriLighting?.description ||
+                  'Pick lighting from current store HDRIs.'}
+              </p>
             </div>
 
             <div className="grid gap-2">
@@ -4353,7 +4462,7 @@ export default function Store() {
             </div>
           ) : null}
 
-          {hdriPreviewUnlocked && hdriPrimaryUpload?.previewUrl ? (
+          {hdriPreviewUnlocked && hdriUploadFiles[0]?.previewUrl ? (
             <div className="mt-3 overflow-hidden rounded-2xl border border-fuchsia-200/40 bg-black/35">
               <div className="flex items-center justify-between border-b border-fuchsia-200/20 px-3 py-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100/90">
@@ -4364,7 +4473,7 @@ export default function Store() {
                 </span>
               </div>
               <HdriEquirectangularPreview
-                src={hdriPrimaryUpload.previewUrl}
+                src={hdriUploadFiles[0].previewUrl}
                 title={hdriDraft.name.trim() || 'Untitled HDRI'}
               />
               <p className="px-3 py-2 text-[11px] text-fuchsia-100/75">
