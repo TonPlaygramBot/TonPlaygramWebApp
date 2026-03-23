@@ -14,6 +14,7 @@ describe('online game policy', () => {
       stake: '25',
       maxPlayers: 2,
       matchMeta: {
+        variant: '8ball',
         mode: 'Ranked',
         tableSize: '9ft',
         token: 'TPC',
@@ -24,7 +25,12 @@ describe('online game policy', () => {
     expect(result.ok).toBe(true);
     expect(result.normalizedStake).toBe(25);
     expect(result.normalizedMaxPlayers).toBe(2);
-    expect(result.safeMatchMeta).toEqual({ mode: 'Ranked', tableSize: '9ft', token: 'TPC' });
+    expect(result.safeMatchMeta).toEqual({
+      variant: '8ball',
+      mode: 'Ranked',
+      tableSize: '9ft',
+      token: 'TPC'
+    });
   });
 
   test('rejects unsupported game and invalid max players', () => {
