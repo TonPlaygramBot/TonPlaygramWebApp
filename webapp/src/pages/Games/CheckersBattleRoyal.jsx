@@ -255,6 +255,8 @@ async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIM
 
   return new Promise((resolve) => {
     let settled = false;
+    let timer = null;
+    let lastError = null;
 
     const cleanup = () => {
       socket.off('connect', handleConnect);
@@ -265,18 +267,24 @@ async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIM
     const finish = (ok) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       cleanup();
+      if (!ok && lastError) {
+        console.warn('[CheckersBattleRoyal] online socket connect failed', lastError);
+      }
       resolve(ok);
     };
 
     const handleConnect = () => finish(true);
-    const handleError = () => finish(false);
+    const handleError = (error) => {
+      // Keep waiting through temporary network blips and only fail on timeout.
+      lastError = error || lastError;
+    };
 
-    const timer = window.setTimeout(() => finish(Boolean(socket.connected)), timeoutMs);
+    timer = window.setTimeout(() => finish(Boolean(socket.connected)), timeoutMs);
     socket.once('connect', handleConnect);
-    socket.once('connect_error', handleError);
-    socket.once('error', handleError);
+    socket.on('connect_error', handleError);
+    socket.on('error', handleError);
     socket.connect?.();
   });
 }
