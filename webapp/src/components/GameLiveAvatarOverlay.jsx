@@ -89,7 +89,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     let frameId = 0;
     const resizeObservers = [];
     const mutationObservers = [];
-    const clickListeners = [];
 
     const getIframeContexts = (rootDocument = document, offset = { x: 0, y: 0 }) => {
       const contexts = [{ doc: rootDocument, offsetX: offset.x, offsetY: offset.y }];
@@ -110,14 +109,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         }
       });
       return contexts;
-    };
-
-    const isAvatarAnchorTarget = (target, contextDoc) => {
-      if (!(target instanceof Element)) return false;
-      return AVATAR_ANCHOR_SELECTORS.some((selector) => {
-        const nearest = target.closest(selector);
-        return Boolean(nearest && contextDoc.contains(nearest));
-      });
     };
 
     const scoreAnchor = (element, rect) => {
@@ -199,12 +190,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const observeContexts = () => {
       mutationObservers.forEach((observer) => observer.disconnect());
       resizeObservers.forEach((observer) => observer.disconnect());
-      clickListeners.forEach(({ doc, listener }) => {
-        doc.removeEventListener('click', listener, true);
-      });
       mutationObservers.length = 0;
       resizeObservers.length = 0;
-      clickListeners.length = 0;
 
       const contexts = getIframeContexts();
       contexts.forEach((context) => {
@@ -220,15 +207,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         const resizeObserver = new ResizeObserver(scheduleApply);
         resizeObserver.observe(context.doc.body);
         resizeObservers.push(resizeObserver);
-
-        const delegatedClickListener = (event) => {
-          if (!isAvatarAnchorTarget(event.target, context.doc)) return;
-          event.preventDefault();
-          event.stopPropagation();
-          setLiveMode((prev) => !prev);
-        };
-        context.doc.addEventListener('click', delegatedClickListener, true);
-        clickListeners.push({ doc: context.doc, listener: delegatedClickListener });
       });
     };
 
@@ -244,9 +222,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       cancelAnimationFrame(frameId);
       mutationObservers.forEach((observer) => observer.disconnect());
       resizeObservers.forEach((observer) => observer.disconnect());
-      clickListeners.forEach(({ doc, listener }) => {
-        doc.removeEventListener('click', listener, true);
-      });
       window.clearTimeout(reobserveTimer);
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
@@ -256,10 +231,15 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
 
   useEffect(() => {
     if (!anchorElement) return undefined;
-    const previousCursor = anchorElement.style.cursor;
+    const onToggle = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setLiveMode((prev) => !prev);
+    };
     anchorElement.style.cursor = 'pointer';
+    anchorElement.addEventListener('click', onToggle);
     return () => {
-      anchorElement.style.cursor = previousCursor;
+      anchorElement.removeEventListener('click', onToggle);
     };
   }, [anchorElement]);
 
