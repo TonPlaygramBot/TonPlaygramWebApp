@@ -2019,7 +2019,7 @@ export default function TavullBattleRoyal() {
         <div ref={canvasHostRef} className="h-full w-full" />
       </div>
 
-      <div className="absolute left-1/2 top-[75%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+      <div className="absolute left-1/2 top-[79%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
         <button
           type="button"
           onClick={roll}
@@ -2126,15 +2126,22 @@ export default function TavullBattleRoyal() {
               <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
                 {player.name}
               </span>
+              {player.index === 1 && (
+                <span
+                  className="mt-0.5 max-w-[120px] text-center text-[0.52rem] font-semibold leading-[1.2] text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.75)]"
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
+                </span>
+              )}
             </div>
           );
         })}
-      </div>
-
-      <div className="absolute top-[32%] left-1/2 z-20 -translate-x-1/2 pointer-events-none">
-        <div className="max-w-[88vw] px-5 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-center text-sm font-semibold backdrop-blur">
-          {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
-        </div>
       </div>
     </div>
   );
