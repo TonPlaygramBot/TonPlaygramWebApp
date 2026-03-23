@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import DominoRoyalArena from './DominoRoyalArena.jsx';
+import GameLiveAvatarOverlay from '../../components/GameLiveAvatarOverlay.jsx';
 import { socket } from '../../utils/socket.js';
 import { ensureAccountId, getTelegramUsername } from '../../utils/telegram.js';
 
@@ -44,7 +45,9 @@ export default function DominoRoyal() {
 
   return (
     <div className="relative w-full h-screen">
-      <DominoRoyalArena />
+      <GameLiveAvatarOverlay gameSlug="domino-royal" frameScale={1}>
+        <DominoRoyalArena />
+      </GameLiveAvatarOverlay>
     </div>
   );
 }

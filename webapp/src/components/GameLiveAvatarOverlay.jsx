@@ -25,7 +25,7 @@ const AVATAR_ANCHOR_SELECTORS = [
   '[aria-label="You"]'
 ];
 
-export default function GameLiveAvatarOverlay({ gameSlug, children }) {
+export default function GameLiveAvatarOverlay({ gameSlug, children, frameScale = 1 }) {
   const { search } = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const [liveMode, setLiveMode] = useState(false);
@@ -156,7 +156,10 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const FRAME_SCALE = 1.2;
+      const FRAME_SCALE =
+        Number.isFinite(frameScale) && frameScale > 0
+          ? frameScale
+          : 1;
       const width = Math.max(Math.round(rect.width * FRAME_SCALE), 32);
       const height = Math.max(Math.round(rect.height * FRAME_SCALE), 32);
       const left = Math.max(
@@ -252,14 +255,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [anchorElement, liveMode]);
 
+  const micIsOn = liveChat.mediaState?.microphone !== false;
+
   return (
     <>
       {children}
       {liveMode && anchorElement ? (
-        <button
-          type="button"
-          aria-label="Turn off live avatar video"
-          onClick={() => setLiveMode(false)}
+        <div
           className="fixed z-[65] overflow-hidden rounded-full border border-emerald-300 bg-black/30"
           style={{
             top: `${overlayRect.top}px`,
@@ -277,7 +279,29 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             playsInline
             className="h-full w-full object-cover scale-x-[-1]"
           />
-        </button>
+          <button
+            type="button"
+            aria-label={micIsOn ? 'Mute microphone' : 'Unmute microphone'}
+            onClick={(event) => {
+              event.stopPropagation();
+              liveChat.toggleMicrophone();
+            }}
+            className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-white/70 bg-black/80 text-[10px] text-white shadow-md"
+          >
+            {micIsOn ? '🎙️' : '🔇'}
+          </button>
+          <button
+            type="button"
+            aria-label="Turn off live avatar video"
+            onClick={(event) => {
+              event.stopPropagation();
+              setLiveMode(false);
+            }}
+            className="absolute -top-1 -left-1 h-5 w-5 rounded-full border border-white/70 bg-black/80 text-[10px] font-bold text-white shadow-md"
+          >
+            ×
+          </button>
+        </div>
       ) : null}
     </>
   );
