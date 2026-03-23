@@ -358,3 +358,68 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('online session'));
 });
+
+test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts match', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+  const started = [];
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('acct-22'),
+    getAccountBalance: () => Promise.resolve({ balance: 200 }),
+    addTransaction: (...args) => {
+      addCalls.push(args);
+      return Promise.resolve();
+    },
+    getTelegramId: () => null,
+    getTelegramFirstName: () => '',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: '9ft',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 200, register: 60 },
+    onGameStart: (payload) => started.push(payload)
+  });
+
+  assert.equal(mockSocket.seatRequests.length, 1);
+  mockSocket.seatRequests[0].cb({ success: false, error: 'identity_mismatch' });
+  await delay(450);
+
+  assert.equal(mockSocket.registerRequests.length, 2, 'identity mismatch should trigger register retry');
+  assert.equal(mockSocket.seatRequests.length, 2, 'identity mismatch should trigger seat retry');
+
+  mockSocket.seatRequests[1].cb({
+    success: true,
+    tableId: 'tbl-identity',
+    players: [
+      { id: 'acct-22', name: 'TPC acct-22' },
+      { id: 'acct-23', name: 'TPC acct-23' }
+    ],
+    ready: ['acct-22']
+  });
+  mockSocket.emit('gameStart', {
+    tableId: 'tbl-identity',
+    players: [
+      { id: 'acct-22', name: 'TPC acct-22' },
+      { id: 'acct-23', name: 'TPC acct-23' }
+    ],
+    currentTurn: 'acct-22'
+  });
+  await delay(0);
+
+  assert.equal(started.length, 1);
+  assert.equal(addCalls.length, 1, 'stake should remain debited when match starts');
+  assert.equal(state.snapshot.matchingError, '');
+});

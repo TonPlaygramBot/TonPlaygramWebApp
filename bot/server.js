@@ -1677,7 +1677,15 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
-      if (!ensureRegistered(socket, accountId)) return cb && cb({ success: false, error: 'register_required' });
+      if (!ensureRegistered(socket, accountId)) {
+        const error =
+          accountId &&
+          socket.data?.playerId &&
+          String(accountId) !== String(socket.data.playerId)
+            ? 'identity_mismatch'
+            : 'register_required';
+        return cb && cb({ success: false, error });
+      }
       if (isRateLimited(socket, 'seatTable', seatTableRateLimitMs)) {
         return cb && cb({ success: false, error: 'rate_limited' });
       }
