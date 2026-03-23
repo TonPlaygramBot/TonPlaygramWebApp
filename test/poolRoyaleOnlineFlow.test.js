@@ -101,6 +101,8 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
 
   const deps = {
     ensureAccountId: () => Promise.resolve('acct-1'),
+    createAccount: () => Promise.resolve({ accountId: 'acct-1' }),
+    loadGoogleProfile: () => null,
     getAccountBalance: () => Promise.resolve({ balance: 200 }),
     addTransaction: (...args) => {
       addCalls.push(args);
@@ -173,6 +175,8 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
 
   const deps = {
     ensureAccountId: () => Promise.resolve('acct-9'),
+    createAccount: () => Promise.resolve({ accountId: 'acct-9' }),
+    loadGoogleProfile: () => null,
     getAccountBalance: () => Promise.resolve({ balance: 200 }),
     addTransaction: (...args) => {
       addCalls.push(args);
@@ -223,6 +227,8 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
 
   const deps = {
     ensureAccountId: () => Promise.resolve('acct-3'),
+    createAccount: () => Promise.resolve({ accountId: 'acct-3' }),
+    loadGoogleProfile: () => null,
     getAccountBalance: () => Promise.resolve({ balance: 200 }),
     addTransaction: (...args) => {
       addCalls.push(args);
@@ -276,6 +282,8 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
 
   const deps = {
     ensureAccountId: () => Promise.resolve('acct-4'),
+    createAccount: () => Promise.resolve({ accountId: 'acct-4' }),
+    loadGoogleProfile: () => null,
     getAccountBalance: () => Promise.resolve({ balance: 200 }),
     addTransaction: (...args) => {
       addCalls.push(args);
@@ -328,6 +336,8 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
 
   const deps = {
     ensureAccountId: () => Promise.resolve('acct-12'),
+    createAccount: () => Promise.resolve({ accountId: 'acct-12' }),
+    loadGoogleProfile: () => null,
     getAccountBalance: () => Promise.resolve({ balance: 200 }),
     addTransaction: (...args) => {
       addCalls.push(args);
@@ -357,4 +367,41 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
   assert.equal(addCalls.length, 2, 'should debit then refund when register ack fails');
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('online session'));
+});
+
+test('runPoolRoyaleOnlineFlow uses backend-resolved account id for lobby seat', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+
+  const deps = {
+    ensureAccountId: () => Promise.resolve('local-acct'),
+    createAccount: () => Promise.resolve({ accountId: 'server-acct' }),
+    loadGoogleProfile: () => ({ id: 'google-1' }),
+    getAccountBalance: () => Promise.resolve({ balance: 300 }),
+    addTransaction: () => Promise.resolve(),
+    getTelegramId: () => null,
+    getTelegramFirstName: () => 'Player',
+    socket: mockSocket
+  };
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 50 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: '9ft',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 60, matchmaking: 120 }
+  });
+
+  assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.registerRequests[0].playerId, 'server-acct');
+  assert.equal(mockSocket.seatRequests.length, 1);
+  assert.equal(mockSocket.seatRequests[0].payload.accountId, 'server-acct');
+  mockSocket.seatRequests[0].cb({ success: false, message: 'stop' });
+  await delay(0);
 });
