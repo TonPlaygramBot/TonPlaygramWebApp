@@ -18,6 +18,7 @@ export default function AvatarTimer({
   imageScale = 1,
   imageYOffset = 0,
   imageZoom = 1,
+  frameScale = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
   nameCurveRadius = 45,
@@ -46,7 +47,13 @@ export default function AvatarTimer({
         </span>
       )}
       {active && (
-        <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
+        <div
+          className="avatar-timer-ring"
+          style={{
+            '--timer-gradient': gradient,
+            transform: `scale(${frameScale})`
+          }}
+        />
       )}
       <img
         src={getAvatarUrl(photoUrl)}
