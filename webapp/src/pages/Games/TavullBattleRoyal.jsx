@@ -41,6 +41,7 @@ import {
   isTavullOptionUnlocked,
   tavullBattleAccountId
 } from '../../utils/tavullBattleInventory.js';
+import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import {
   BLACK,
   WHITE,
@@ -704,11 +705,16 @@ export default function TavullBattleRoyal() {
     [tavullInventory]
   );
   const ownedHdriOptions = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((option) =>
+    () => {
+      const customVariants = getCustomHdriVariantsForGame(
+        'tavullbattleroyal',
+        accountId
+      );
+      return [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants].filter((option) =>
         isTavullOptionUnlocked('environmentHdri', option.id, tavullInventory)
-      ),
-    [tavullInventory]
+      );
+    },
+    [accountId, tavullInventory]
   );
   const ownedFinishOptions = useMemo(
     () =>

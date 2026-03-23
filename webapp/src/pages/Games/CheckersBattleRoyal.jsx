@@ -50,6 +50,7 @@ import {
   isChessOptionUnlocked,
   setChessBattleEquippedOption
 } from '../../utils/chessBattleInventory.js';
+import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
@@ -103,26 +104,28 @@ const BEAUTIFUL_GAME_BOARD_URLS = Object.freeze([
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const resolveHdriVariant = (value) => {
+  const customVariants = getCustomHdriVariantsForGame('checkersbattleroyal');
+  const allVariants = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
   if (typeof value === 'string') {
     return (
       POOL_ROYALE_HDRI_VARIANT_MAP[value] ||
-      POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === value) ||
-      POOL_ROYALE_HDRI_VARIANTS.find(
+      allVariants.find((variant) => variant.id === value) ||
+      allVariants.find(
         (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
       ) ||
-      POOL_ROYALE_HDRI_VARIANTS[0]
+      allVariants[0]
     );
   }
-  const max = POOL_ROYALE_HDRI_VARIANTS.length - 1;
+  const max = allVariants.length - 1;
   const idx = Number.isFinite(value)
     ? Math.max(0, Math.min(max, Math.round(value)))
     : Math.max(
         0,
-        POOL_ROYALE_HDRI_VARIANTS.findIndex(
+        allVariants.findIndex(
           (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
         )
       );
-  return POOL_ROYALE_HDRI_VARIANTS[idx] || POOL_ROYALE_HDRI_VARIANTS[0];
+  return allVariants[idx] || allVariants[0];
 };
 const CHECKERS_BOARD_THEMES = Object.freeze([
   {
@@ -1241,11 +1244,16 @@ export default function CheckersBattleRoyal() {
     [inventory]
   );
   const unlockedHdriOptions = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((opt) =>
+    () => {
+      const customVariants = getCustomHdriVariantsForGame(
+        'checkersbattleroyal',
+        resolvedAccountId
+      );
+      return [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants].filter((opt) =>
         isChessOptionUnlocked('environmentHdri', opt.id, inventory)
-      ),
-    [inventory]
+      );
+    },
+    [inventory, resolvedAccountId]
   );
 
   const inv = useMemo(
