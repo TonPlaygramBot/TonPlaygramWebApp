@@ -83,4 +83,35 @@ describe('telegram account scoped player ids', () => {
     setTelegramUserId(555);
     expect(getPlayerId()).toBe('legacy-account-id');
   });
+
+  test('uses google scoped ids when running outside Telegram context', () => {
+    setTelegramUserId(null);
+    global.localStorage.setItem('googleId', 'google-user-1');
+
+    const googleOneFirst = getPlayerId();
+    const googleOneSecond = getPlayerId();
+    expect(googleOneFirst).toBeTruthy();
+    expect(googleOneSecond).toBe(googleOneFirst);
+
+    global.localStorage.setItem('googleId', 'google-user-2');
+    const googleTwo = getPlayerId();
+    expect(googleTwo).toBeTruthy();
+    expect(googleTwo).not.toBe(googleOneFirst);
+
+    global.localStorage.setItem('googleId', 'google-user-1');
+    expect(getPlayerId()).toBe(googleOneFirst);
+  });
+
+  test('does not reuse telegram account id for a different google identity in shared storage', () => {
+    setTelegramUserId(101);
+    const telegramScoped = getPlayerId();
+    expect(telegramScoped).toBeTruthy();
+
+    setTelegramUserId(null);
+    global.localStorage.setItem('googleId', 'google-user-99');
+    const googleScoped = getPlayerId();
+
+    expect(googleScoped).toBeTruthy();
+    expect(googleScoped).not.toBe(telegramScoped);
+  });
 });

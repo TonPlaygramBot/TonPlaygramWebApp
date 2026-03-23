@@ -22,23 +22,24 @@ function parseTelegramId(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function getRuntimeTelegramId() {
+  if (typeof window === 'undefined') return null;
+  const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  const telegramId = parseTelegramId(tgId);
+  if (telegramId != null) return telegramId;
+
+  const params = new URLSearchParams(window.location.search);
+  const urlId = params.get('tg') || params.get('telegramId');
+  if (!urlId) return null;
+  return parseTelegramId(urlId);
+}
+
 export function getTelegramId() {
   if (typeof window !== 'undefined') {
-    const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    const telegramId = parseTelegramId(tgId);
+    const telegramId = getRuntimeTelegramId();
     if (telegramId != null) {
       localStorage.setItem('telegramId', telegramId);
       return telegramId;
-    }
-    const params = new URLSearchParams(window.location.search);
-    const urlId = params.get('tg') || params.get('telegramId');
-    if (urlId) {
-      const parsed = parseTelegramId(urlId);
-      if (parsed != null) {
-        localStorage.setItem('telegramId', parsed);
-        return parsed;
-      }
-      localStorage.removeItem('telegramId');
     }
     const stored = localStorage.getItem('telegramId');
     if (stored) {
@@ -64,12 +65,32 @@ function accountIdMapStorageKey(telegramId) {
   return `accountId:tg:${telegramId}`;
 }
 
+function accountIdGoogleStorageKey(googleId) {
+  return `accountId:google:${googleId}`;
+}
+
+function getGoogleIdFromStorage(storage) {
+  try {
+    const direct = storage?.getItem('googleId');
+    if (direct) return String(direct);
+    const rawProfile = storage?.getItem('googleProfile');
+    if (!rawProfile) return '';
+    const parsed = JSON.parse(rawProfile);
+    return parsed?.id ? String(parsed.id) : '';
+  } catch {
+    return '';
+  }
+}
+
 function hasAnyScopedAccountIds(storage) {
   try {
     const len = Number(storage?.length) || 0;
     for (let i = 0; i < len; i += 1) {
       const key = storage.key(i);
-      if (typeof key === 'string' && key.startsWith('accountId:tg:')) {
+      if (
+        typeof key === 'string' &&
+        (key.startsWith('accountId:tg:') || key.startsWith('accountId:google:'))
+      ) {
         return true;
       }
     }
@@ -81,8 +102,11 @@ function hasAnyScopedAccountIds(storage) {
 
 export function getPlayerId() {
   if (typeof window === 'undefined') return null;
-  const telegramId = getTelegramId();
   const globalId = localStorage.getItem('accountId');
+  const googleId = getGoogleIdFromStorage(localStorage);
+  const runtimeTelegramId = getRuntimeTelegramId();
+  const cachedTelegramId = parseTelegramId(localStorage.getItem('telegramId'));
+  const telegramId = runtimeTelegramId ?? (isTelegramWebView() ? cachedTelegramId : null);
 
   if (telegramId != null) {
     const perTelegramKey = accountIdMapStorageKey(telegramId);
@@ -104,6 +128,23 @@ export function getPlayerId() {
     if (telegramScopedId) {
       localStorage.setItem('accountId', telegramScopedId);
       return telegramScopedId;
+    }
+  }
+
+  if (googleId) {
+    const perGoogleKey = accountIdGoogleStorageKey(googleId);
+    let googleScopedId = localStorage.getItem(perGoogleKey);
+    if (!googleScopedId && globalId && !hasAnyScopedAccountIds(localStorage)) {
+      googleScopedId = globalId;
+      localStorage.setItem(perGoogleKey, googleScopedId);
+    }
+    if (!googleScopedId) {
+      googleScopedId = generateAccountId();
+      if (googleScopedId) localStorage.setItem(perGoogleKey, googleScopedId);
+    }
+    if (googleScopedId) {
+      localStorage.setItem('accountId', googleScopedId);
+      return googleScopedId;
     }
   }
 
