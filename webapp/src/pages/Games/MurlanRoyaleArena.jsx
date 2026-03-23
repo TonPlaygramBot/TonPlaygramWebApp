@@ -4777,7 +4777,6 @@ export default function MurlanRoyaleArena({ search }) {
         ) : null}
         <div className="absolute inset-0 pointer-events-none">
           {players.map((player, idx) => {
-            if (idx === humanPlayerIndex) return null;
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
@@ -4785,10 +4784,10 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${anchor.y + (idx === humanPlayerIndex ? -2.2 : 0)}%`,
                   transform: 'translate(-50%, -50%)'
                 }
-              : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
+              : { position: 'absolute', left: fallback.left, top: idx === humanPlayerIndex ? '76.8%' : fallback.top, transform: 'translate(-50%, -50%)' };
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
@@ -5035,26 +5034,6 @@ export default function MurlanRoyaleArena({ search }) {
                 <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
               )}
               {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
-            </div>
-          </div>
-        )}
-
-        {humanPlayer && (
-          <div className="pointer-events-none fixed bottom-[6.65rem] left-1/2 z-30 -translate-x-1/2">
-            <div className="flex flex-col items-center gap-1 rounded-2xl border border-white/20 bg-black/35 px-3 py-1.5 shadow-[0_8px_24px_rgba(2,6,23,0.5)] backdrop-blur-[2px]">
-              <AvatarTimer
-                index={humanPlayerIndex}
-                photoUrl={humanPlayer?.avatar}
-                active={gameState.activePlayer === humanPlayerIndex}
-                isTurn={gameState.activePlayer === humanPlayerIndex}
-                timerPct={1}
-                name={humanPlayer?.name}
-                color={PLAYER_COLORS[humanPlayerIndex % PLAYER_COLORS.length]}
-                size={1.08}
-              />
-              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/90 drop-shadow">
-                {humanPlayer?.hand?.length ?? 0} cards
-              </span>
             </div>
           </div>
         )}
