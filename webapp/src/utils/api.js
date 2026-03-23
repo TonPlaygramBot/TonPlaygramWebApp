@@ -79,7 +79,18 @@ function buildHeaders(base = {}) {
   if (initData) headers['X-Telegram-Init-Data'] = initData;
   const accountId = window?.localStorage?.getItem('accountId');
   if (accountId) headers['X-Tpc-Account-Id'] = accountId;
-  const googleId = window?.localStorage?.getItem('googleId');
+  const googleId =
+    window?.localStorage?.getItem('googleId') ||
+    (() => {
+      try {
+        const rawProfile = window?.localStorage?.getItem('googleProfile');
+        if (!rawProfile) return '';
+        const parsed = JSON.parse(rawProfile);
+        return parsed?.id ? String(parsed.id) : '';
+      } catch {
+        return '';
+      }
+    })();
   if (googleId) headers['X-Google-Id'] = googleId;
   const bridgeHeaders = getNativeBridgeHeaders();
   Object.entries(bridgeHeaders).forEach(([key, value]) => {
