@@ -528,8 +528,55 @@ function isRateLimited(socket, key, cooldownMs) {
   return false;
 }
 
+async function resolveSocketAccountId(socket, fallbackAccountId = null) {
+  const cached =
+    socket?.data?.resolvedAccountId ||
+    socket?.data?.auth?.accountId ||
+    socket?.data?.playerId;
+  if (cached) {
+    const normalized = String(cached);
+    socket.data.resolvedAccountId = normalized;
+    return normalized;
+  }
+
+  const telegramId = socket?.data?.auth?.telegramId;
+  const googleId = socket?.data?.auth?.googleId;
+
+  try {
+    if (telegramId != null) {
+      const user = await User.findOne({ telegramId }).select('accountId').lean();
+      if (user?.accountId) {
+        const normalized = String(user.accountId);
+        socket.data.resolvedAccountId = normalized;
+        return normalized;
+      }
+    }
+    if (googleId) {
+      const user = await User.findOne({ googleId: String(googleId) }).select('accountId').lean();
+      if (user?.accountId) {
+        const normalized = String(user.accountId);
+        socket.data.resolvedAccountId = normalized;
+        return normalized;
+      }
+    }
+  } catch (error) {
+    console.warn('resolveSocketAccountId failed', error);
+  }
+
+  if (fallbackAccountId) {
+    const normalized = String(fallbackAccountId);
+    socket.data.resolvedAccountId = normalized;
+    return normalized;
+  }
+  return null;
+}
+
 function ensureRegistered(socket, accountId) {
   let registered = socket.data?.playerId;
+  if (!registered && socket.data?.resolvedAccountId) {
+    registered = String(socket.data.resolvedAccountId);
+    socket.data.playerId = registered;
+  }
   if (!registered && accountId) {
     registered = String(accountId);
     socket.data.playerId = registered;
@@ -1625,19 +1672,21 @@ function removeSocketFromLiveChat(socket) {
 
 io.on('connection', (socket) => {
   socket.on('register', async ({ playerId } = {}, cb) => {
-    if (!playerId) {
+    const resolvedPlayerId = await resolveSocketAccountId(socket, playerId);
+    if (!resolvedPlayerId) {
       cb && cb({ success: false, error: 'missing_player_id' });
       return;
     }
     try {
-      let set = userSockets.get(String(playerId));
+      let set = userSockets.get(String(resolvedPlayerId));
       if (!set) {
         set = new Set();
-        userSockets.set(String(playerId), set);
+        userSockets.set(String(resolvedPlayerId), set);
       }
       set.add(socket.id);
-      socket.data.playerId = String(playerId);
-      await registerConnection({ userId: String(playerId), socketId: socket.id });
+      socket.data.playerId = String(resolvedPlayerId);
+      socket.data.resolvedAccountId = String(resolvedPlayerId);
+      await registerConnection({ userId: String(resolvedPlayerId), socketId: socket.id });
       cb && cb({ success: true });
     } catch (error) {
       console.error('register socket failed', error);
@@ -1677,11 +1726,12 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
-      if (!ensureRegistered(socket, accountId)) {
+      const resolvedAccountId = await resolveSocketAccountId(socket, accountId);
+      if (!ensureRegistered(socket, resolvedAccountId)) {
         const error =
-          accountId &&
+          resolvedAccountId &&
           socket.data?.playerId &&
-          String(accountId) !== String(socket.data.playerId)
+          String(resolvedAccountId) !== String(socket.data.playerId)
             ? 'identity_mismatch'
             : 'register_required';
         return cb && cb({ success: false, error });
@@ -1715,7 +1765,7 @@ io.on('connection', (socket) => {
       let table;
       if (tableId) {
         table = await seatTableSocket(
-          accountId,
+          resolvedAccountId,
           validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
@@ -1728,7 +1778,7 @@ io.on('connection', (socket) => {
         );
       } else {
         table = await seatTableSocket(
-          accountId,
+          resolvedAccountId,
           validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
@@ -1742,6 +1792,7 @@ io.on('connection', (socket) => {
       if (table && cb) {
         cb({
           success: true,
+          accountId: String(resolvedAccountId),
           tableId: table.id,
           players: table.players,
           currentTurn: table.currentTurn,
@@ -1755,8 +1806,10 @@ io.on('connection', (socket) => {
   );
 
   socket.on('leaveLobby', ({ accountId, tableId }) => {
+    const resolvedAccountId =
+      socket.data?.resolvedAccountId || socket.data?.playerId || accountId;
     if (tableId) {
-      unseatTableSocket(accountId, tableId, socket.id);
+      unseatTableSocket(resolvedAccountId, tableId, socket.id);
     }
   });
 
@@ -1766,14 +1819,18 @@ io.on('connection', (socket) => {
       socket.emit('errorMessage', 'table_not_found');
       return;
     }
-    if (!ensureRegistered(socket, accountId)) return;
-    const seated = table.players.some((player) => String(player.id) === String(accountId));
+    const resolvedAccountId =
+      socket.data?.resolvedAccountId || socket.data?.playerId || accountId;
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const seated = table.players.some(
+      (player) => String(player.id) === String(resolvedAccountId)
+    );
     if (!seated) {
       socket.emit('errorMessage', 'seat_required');
       return;
     }
     if (!table.ready) table.ready = new Set();
-    table.ready.add(String(accountId));
+    table.ready.add(String(resolvedAccountId));
     io.to(tableId).emit('lobbyUpdate', {
       tableId,
       players: table.players,
