@@ -11,7 +11,11 @@ import {
   getTelegramPhotoUrl,
   getTelegramUsername
 } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/api.js';
+import {
+  getAccountBalance,
+  addTransaction,
+  getOnlineCount
+} from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
@@ -27,6 +31,22 @@ const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
 const MATCHMAKING_TIMEOUT_MS = 45000;
+const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
+  'register_required',
+  'rate_limited',
+  'identity_mismatch'
+]);
+
+function resolveTpcAccountNumber(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.tpcAccountNumber ??
+      player.accountId ??
+      player.playerId ??
+      player.id ??
+      ''
+  ).trim();
+}
 
 async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
   if (socket.connected) return true;
@@ -59,7 +79,10 @@ async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
   });
 }
 
-async function ensureSocketRegistered(accountId, timeoutMs = SOCKET_REGISTER_TIMEOUT_MS) {
+async function ensureSocketRegistered(
+  accountId,
+  timeoutMs = SOCKET_REGISTER_TIMEOUT_MS
+) {
   if (!accountId) return false;
   return new Promise((resolve) => {
     let settled = false;
@@ -71,12 +94,20 @@ async function ensureSocketRegistered(accountId, timeoutMs = SOCKET_REGISTER_TIM
     }, timeoutMs);
 
     try {
-      socket.emit('register', { playerId: accountId }, (res) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(Boolean(res?.success));
-      });
+      socket.emit(
+        'register',
+        {
+          playerId: accountId,
+          tpcAccountNumber: accountId,
+          tpcAccountId: accountId
+        },
+        (res) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(Boolean(res?.success));
+        }
+      );
     } catch {
       clearTimeout(timer);
       resolve(false);
@@ -105,7 +136,8 @@ export default function ChessBattleRoyalLobby() {
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
 
-  const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
+  const selectedFlag =
+    playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
 
   useEffect(() => {
@@ -140,7 +172,7 @@ export default function ChessBattleRoyalLobby() {
     ensureAccountId()
       .then((id) => {
         if (cancelled) return;
-        setAccountId(id || '');
+        setAccountId(getTpcAccountId() || id || '');
       })
       .catch(() => {});
     return () => {
@@ -235,6 +267,7 @@ export default function ChessBattleRoyalLobby() {
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
+        trackedAccountId = getTpcAccountId() || trackedAccountId;
         if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
         const balRes = await getAccountBalance(trackedAccountId);
         if ((balRes.balance || 0) < stake.amount) {
@@ -245,12 +278,14 @@ export default function ChessBattleRoyalLobby() {
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'chessbattle',
           players: 2,
-          accountId: trackedAccountId,
+          accountId: trackedAccountId
         });
       } catch {}
 
       if (!trackedAccountId) {
-        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
+        setMatchError(
+          'Unable to resolve your player account. Reopen Telegram and try again.'
+        );
         setMatching(false);
         setMatchStatus('');
         return;
@@ -267,12 +302,17 @@ export default function ChessBattleRoyalLobby() {
     setMatchStatus('Connecting to lobby…');
 
     if (trackedAccountId) {
-      refreshSocketAuthIdentity({ accountId: String(trackedAccountId) }, { reconnect: true });
+      refreshSocketAuthIdentity(
+        { accountId: String(trackedAccountId) },
+        { reconnect: true }
+      );
     }
 
     const socketReady = await ensureSocketConnected();
     if (!socketReady) {
-      setMatchError('Lobby connection failed. Check your network and try again.');
+      setMatchError(
+        'Lobby connection failed. Check your network and try again.'
+      );
       setMatching(false);
       setMatchStatus('');
       return;
@@ -289,7 +329,9 @@ export default function ChessBattleRoyalLobby() {
 
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
-      const others = list.filter((p) => String(p.id) !== String(seatAccountId));
+      const others = list.filter(
+        (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+      );
       if (others.length > 0) {
         setMatchStatus('Opponent joined. Locking seats…');
       } else {
@@ -299,11 +341,16 @@ export default function ChessBattleRoyalLobby() {
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(seatAccountId));
-      const opp = players.find((p) => String(p.id) !== String(seatAccountId));
+      const meIndex = players.findIndex(
+        (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
+      );
+      const opp = players.find(
+        (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+      );
       const mySide =
-        players.find((p) => String(p.id) === String(seatAccountId))?.side ||
-        (meIndex === 0 ? 'white' : 'black');
+        players.find(
+          (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
+        )?.side || (meIndex === 0 ? 'white' : 'black');
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
       navigateToGame({
         tgId,
@@ -315,7 +362,8 @@ export default function ChessBattleRoyalLobby() {
       });
     };
 
-    cleanupRef.current = () => cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+    cleanupRef.current = () =>
+      cleanupLobby({ account: trackedAccountId, skipRefReset: true });
 
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
@@ -328,41 +376,87 @@ export default function ChessBattleRoyalLobby() {
     }, MATCHMAKING_TIMEOUT_MS);
     matchmakingTimeoutRef.current = matchTimeout;
 
-    const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
-    socket.emit(
-      'seatTable',
-      {
-        accountId: trackedAccountId || accountId,
-        tpcAccountId: seatAccountId,
-        gameType: 'chess',
-        stake: stake.amount ?? 0,
-        maxPlayers: 2,
-        mode: 'online',
-        playerName: friendlyName,
-        avatar,
-        preferredSide,
-        token: stake.token
-      },
-      (res) => {
-        if (!res?.success || !res.tableId) {
-          setMatchError('Could not join the online lobby. Please try again.');
-          cleanupLobby({ account: trackedAccountId });
-          return;
-        }
-        pendingTableRef.current = res.tableId;
-        setMatchStatus('Waiting for another player…');
-        socket.emit('confirmReady', {
+    const friendlyName =
+      getTelegramFirstName() || getTelegramUsername() || 'Player';
+    let seatAttempts = 0;
+    const maxSeatAttempts = 2;
+    const seatPlayer = () => {
+      seatAttempts += 1;
+      socket.emit(
+        'seatTable',
+        {
           accountId: seatAccountId,
+          tpcAccountNumber: seatAccountId,
           tpcAccountId: seatAccountId,
-          tableId: res.tableId
-        });
-        cleanupRef.current = () => {
-          clearTimeout(matchTimeout);
-          matchmakingTimeoutRef.current = null;
-          cleanupLobby({ account: trackedAccountId, skipRefReset: true });
-        };
-      }
-    );
+          gameType: 'chess',
+          stake: stake.amount ?? 0,
+          maxPlayers: 2,
+          mode: 'online',
+          playerName: friendlyName,
+          avatar,
+          preferredSide,
+          token: stake.token
+        },
+        async (res) => {
+          if (!res?.success || !res.tableId) {
+            const shouldRetry =
+              MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
+              seatAttempts < maxSeatAttempts;
+            if (shouldRetry) {
+              setMatchStatus('Retrying online seat…');
+              if (res?.error === 'identity_mismatch' && seatAccountId) {
+                refreshSocketAuthIdentity(
+                  { accountId: String(seatAccountId) },
+                  { reconnect: true }
+                );
+              }
+              setTimeout(async () => {
+                const restored = await ensureSocketConnected();
+                if (!restored) {
+                  cleanupLobby({ account: trackedAccountId });
+                  setMatchError(
+                    'Lobby connection dropped while retrying. Please try again.'
+                  );
+                  setMatchStatus('');
+                  return;
+                }
+                if (res?.error === 'identity_mismatch' && seatAccountId) {
+                  const reRegistered =
+                    await ensureSocketRegistered(seatAccountId);
+                  if (!reRegistered) {
+                    cleanupLobby({ account: trackedAccountId });
+                    setMatchError(
+                      'Could not restore your online identity. Please try again.'
+                    );
+                    setMatchStatus('');
+                    return;
+                  }
+                }
+                seatPlayer();
+              }, 400);
+              return;
+            }
+            setMatchError('Could not join the online lobby. Please try again.');
+            cleanupLobby({ account: trackedAccountId });
+            return;
+          }
+          pendingTableRef.current = res.tableId;
+          setMatchStatus('Waiting for another player…');
+          socket.emit('confirmReady', {
+            accountId: seatAccountId,
+            tpcAccountId: seatAccountId,
+            tableId: res.tableId
+          });
+          cleanupRef.current = () => {
+            clearTimeout(matchTimeout);
+            matchmakingTimeoutRef.current = null;
+            cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+          };
+        }
+      );
+    };
+
+    seatPlayer();
   };
 
   return (
@@ -376,18 +470,30 @@ export default function ChessBattleRoyalLobby() {
         />
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">
+            Player Profile
+          </p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
               {avatar ? (
-                <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                <img
+                  src={avatar}
+                  alt="Your avatar"
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                <div className="flex h-full w-full items-center justify-center text-lg">
+                  🙂
+                </div>
               )}
             </div>
             <div className="text-sm text-white/80">
-              <p className="font-semibold">{getTelegramFirstName() || 'Player'} ready</p>
-              <p className="text-xs text-white/50">Flag: {selectedFlag || 'Auto'}</p>
+              <p className="font-semibold">
+                {getTelegramFirstName() || 'Player'} ready
+              </p>
+              <p className="text-xs text-white/50">
+                Flag: {selectedFlag || 'Auto'}
+              </p>
             </div>
           </div>
           <div className="mt-3 grid gap-2">
@@ -396,10 +502,14 @@ export default function ChessBattleRoyalLobby() {
               onClick={() => setShowFlagPicker(true)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
             >
-              <div className="text-[11px] uppercase tracking-wide text-white/50">Flag</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">
+                Flag
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold">
                 <span className="text-lg">{selectedFlag || '🌐'}</span>
-                <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+                <span>
+                  {selectedFlag ? 'Custom flag' : 'Auto-detect & save'}
+                </span>
               </div>
             </button>
             <button
@@ -407,20 +517,28 @@ export default function ChessBattleRoyalLobby() {
               onClick={() => setShowAiFlagPicker(true)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
             >
-              <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flag</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">
+                AI Flag
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold">
                 <span className="text-lg">{selectedAiFlag || '🌐'}</span>
-                <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick opponent'}</span>
+                <span>
+                  {selectedAiFlag ? 'Custom AI flag' : 'Auto-pick opponent'}
+                </span>
               </div>
             </button>
           </div>
-          <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the match start screen.</p>
+          <p className="mt-3 text-xs text-white/60">
+            Your lobby choices persist into the match start screen.
+          </p>
         </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Choose Mode</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Queue
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
@@ -448,10 +566,14 @@ export default function ChessBattleRoyalLobby() {
                   type="button"
                   onClick={() => setMode(key)}
                   className={`lobby-option-card ${
-                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                    active
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                  <div
+                    className={`lobby-option-thumb bg-gradient-to-br ${accent}`}
+                  >
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
@@ -470,7 +592,8 @@ export default function ChessBattleRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
+            AI matches stay offline. Online mode uses your TPC stake and pairs
+            you with another player.
           </p>
         </div>
 
@@ -484,14 +607,21 @@ export default function ChessBattleRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC to lock a table.</p>
+                <p className="text-xs text-white/60">
+                  Stake your TPC to lock a table.
+                </p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector
+                selected={stake}
+                onSelect={setStake}
+                tokens={['TPC']}
+              />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+              Staking uses your TPC account{accountId ? ` #${accountId}` : ''}{' '}
+              as escrow for every online round.
             </p>
           </div>
         )}
@@ -500,7 +630,9 @@ export default function ChessBattleRoyalLobby() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Pick Your Pieces</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Sides</span>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Sides
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -538,7 +670,9 @@ export default function ChessBattleRoyalLobby() {
                         : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                     }`}
                   >
-                    <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                    <div
+                      className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}
+                    >
                       <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
                         {icon}
                       </div>
@@ -546,7 +680,11 @@ export default function ChessBattleRoyalLobby() {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="font-semibold">{label}</span>
-                        {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                        {active && (
+                          <span className="text-[10px] font-bold uppercase">
+                            Selected
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-white/60">{desc}</div>
                     </div>
@@ -555,17 +693,18 @@ export default function ChessBattleRoyalLobby() {
               })}
             </div>
             <p className="text-xs text-white/60 text-center">
-              Auto randomizes colors while ensuring both players get different sides.
+              Auto randomizes colors while ensuring both players get different
+              sides.
             </p>
           </div>
         )}
 
-        
-
         {mode === 'online' && matching && (
           <div className="space-y-2 rounded-2xl border border-primary/40 bg-primary/5 p-4 shadow">
             <h3 className="font-semibold text-primary">Matching players…</h3>
-            <p className="text-sm text-white/60">{matchStatus || 'Syncing with the lobby…'}</p>
+            <p className="text-sm text-white/60">
+              {matchStatus || 'Syncing with the lobby…'}
+            </p>
             {matchError && <p className="text-sm text-red-400">{matchError}</p>}
             <button
               type="button"
@@ -598,7 +737,10 @@ export default function ChessBattleRoyalLobby() {
             setPlayerFlagIndex(idx);
             try {
               if (idx != null) {
-                window.localStorage?.setItem('chessBattleRoyalPlayerFlag', FLAG_EMOJIS[idx]);
+                window.localStorage?.setItem(
+                  'chessBattleRoyalPlayerFlag',
+                  FLAG_EMOJIS[idx]
+                );
               }
             } catch {}
           }}
@@ -614,7 +756,10 @@ export default function ChessBattleRoyalLobby() {
             setAiFlagIndex(idx);
             try {
               if (idx != null) {
-                window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+                window.localStorage?.setItem(
+                  AI_FLAG_STORAGE_KEY,
+                  FLAG_EMOJIS[idx]
+                );
               }
             } catch {}
           }}
