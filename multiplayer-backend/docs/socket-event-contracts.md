@@ -1,10 +1,11 @@
 # Socket Event Contracts
 
-Authentication uses `handshake.auth.token` formatted as `userId:username`.
+Authentication uses `handshake.auth.token` formatted as `userId:username` or `userId:username:tpcAccountNumber`.
+When `tpcAccountNumber` is present (either in token or `handshake.auth.tpcAccountNumber`), it becomes the canonical user identity used for lobby tracking, queueing, and room seating.
 
 ## Client -> Server
 - `player:queue_join`
-  - `{ gameMode: string, region?: string }`
+  - `{ gameMode: string, region?: string, tpcAccountNumber?: string }`
 - `player:queue_leave`
   - `void`
 - `room:create`

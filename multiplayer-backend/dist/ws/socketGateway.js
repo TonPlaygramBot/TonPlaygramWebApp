@@ -37,13 +37,13 @@ export function createRealtimeServer(app) {
     });
     io.on('connection', async (socket) => {
         const user = socket.data.user;
-        sessions.setSocket(user.id, socket.id);
-        await upsertUser(user.id, user.username);
-        await logConnectionEvent({ userId: user.id, socketId: socket.id, event: 'connected' });
-        socket.emit('player:connect', { userId: user.id, socketId: socket.id });
-        const room = roomService.getRoomByUser(user.id);
+        sessions.setSocket(user.canonicalUserId, socket.id);
+        await upsertUser(user.canonicalUserId, user.username);
+        await logConnectionEvent({ userId: user.canonicalUserId, socketId: socket.id, event: 'connected', metadata: user.tpcAccountNumber ? { tpcAccountNumber: user.tpcAccountNumber, providerUserId: user.id } : undefined });
+        socket.emit('player:connect', { userId: user.canonicalUserId, socketId: socket.id });
+        const room = roomService.getRoomByUser(user.canonicalUserId);
         if (room) {
-            socket.emit('player:reconnect', { userId: user.id, matchId: room.matchId });
+            socket.emit('player:reconnect', { userId: user.canonicalUserId, matchId: room.matchId });
         }
         socket.on('player:queue_join', async (payload) => {
             const parsed = queueJoinSchema.safeParse(payload);
@@ -52,14 +52,15 @@ export function createRealtimeServer(app) {
                 return;
             }
             const queueEntry = {
-                userId: user.id,
+                userId: user.canonicalUserId,
                 username: user.username,
                 gameMode: parsed.data.gameMode,
                 region: parsed.data.region,
                 joinedAt: Date.now(),
+                tpcAccountNumber: parsed.data.tpcAccountNumber ?? user.tpcAccountNumber,
             };
             await matchmaking.joinQueue(queueEntry);
-            const pair = await matchmaking.popMatchPair(user.id);
+            const pair = await matchmaking.popMatchPair(user.canonicalUserId);
             if (!pair) {
                 return;
             }
@@ -109,7 +110,7 @@ export function createRealtimeServer(app) {
             });
         });
         socket.on('player:queue_leave', async () => {
-            await matchmaking.leaveQueue(user.id);
+            await matchmaking.leaveQueue(user.canonicalUserId);
         });
         socket.on('room:create', async (payload) => {
             const parsed = roomCreateSchema.safeParse(payload);
@@ -120,10 +121,10 @@ export function createRealtimeServer(app) {
             const dbMatch = await createMatch({
                 roomCode: `PR-${Date.now().toString().slice(-6)}`,
                 isPrivate: parsed.data.isPrivate,
-                createdByUser: user.id,
-                players: [{ userId: user.id, role: 'host' }],
+                createdByUser: user.canonicalUserId,
+                players: [{ userId: user.canonicalUserId, role: 'host' }],
             });
-            const created = roomService.createRoom(user.id, parsed.data.isPrivate, dbMatch.id);
+            const created = roomService.createRoom(user.canonicalUserId, parsed.data.isPrivate, dbMatch.id);
             socket.join(created.roomCode);
             socket.emit('match:found', { matchId: dbMatch.id, roomCode: created.roomCode, opponentUserId: '' });
         });
@@ -133,7 +134,7 @@ export function createRealtimeServer(app) {
                 socket.emit('error', { code: 'ROOM_JOIN_INVALID', message: 'Invalid room:join payload' });
                 return;
             }
-            const joined = roomService.joinRoom(user.id, parsed.data.roomCode);
+            const joined = roomService.joinRoom(user.canonicalUserId, parsed.data.roomCode);
             if (!joined) {
                 socket.emit('error', { code: 'ROOM_JOIN_FAILED', message: 'Room unavailable' });
                 return;
@@ -144,7 +145,7 @@ export function createRealtimeServer(app) {
             io.to(joined.roomCode).emit('match:start', { matchId: joined.matchId, initialState: state });
         });
         socket.on('room:leave', () => {
-            const leftRoom = roomService.leaveRoom(user.id);
+            const leftRoom = roomService.leaveRoom(user.canonicalUserId);
             if (leftRoom) {
                 socket.leave(leftRoom.roomCode);
             }
@@ -156,14 +157,14 @@ export function createRealtimeServer(app) {
                 return;
             }
             const state = stateService.getState(parsed.data.matchId);
-            const result = validator.validateAction(parsed.data, state, user.id);
+            const result = validator.validateAction(parsed.data, state, user.canonicalUserId);
             if (!result.valid) {
                 socket.emit('match:validated_action', { matchId: parsed.data.matchId, tick: parsed.data.tick, accepted: false });
                 return;
             }
             try {
-                const updatedState = stateService.applyValidatedAction(parsed.data, user.id);
-                const room = roomService.getRoomByUser(user.id);
+                const updatedState = stateService.applyValidatedAction(parsed.data, user.canonicalUserId);
+                const room = roomService.getRoomByUser(user.canonicalUserId);
                 if (room) {
                     io.to(room.roomCode).emit('match:state_update', updatedState);
                 }
@@ -179,7 +180,7 @@ export function createRealtimeServer(app) {
                 socket.emit('error', { code: 'MATCH_END_INVALID', message: 'Invalid match result payload' });
                 return;
             }
-            const room = roomService.getRoomByUser(user.id);
+            const room = roomService.getRoomByUser(user.canonicalUserId);
             if (!room || room.matchId !== parsed.data.matchId) {
                 socket.emit('error', { code: 'MATCH_END_SPOOFED', message: 'You are not in this match' });
                 return;
@@ -201,14 +202,14 @@ export function createRealtimeServer(app) {
             socket.emit('match:validated_action', { matchId: 'heartbeat', tick: Date.now(), accepted: true });
         });
         socket.on('disconnect', async () => {
-            sessions.removeSocket(user.id);
-            await matchmaking.leaveQueue(user.id);
-            await logConnectionEvent({ userId: user.id, socketId: socket.id, event: 'disconnected' });
-            const activeRoom = roomService.getRoomByUser(user.id);
+            sessions.removeSocket(user.canonicalUserId);
+            await matchmaking.leaveQueue(user.canonicalUserId);
+            await logConnectionEvent({ userId: user.canonicalUserId, socketId: socket.id, event: 'disconnected' });
+            const activeRoom = roomService.getRoomByUser(user.canonicalUserId);
             if (activeRoom) {
-                socket.to(activeRoom.roomCode).emit('player:disconnect', { userId: user.id });
+                socket.to(activeRoom.roomCode).emit('player:disconnect', { userId: user.canonicalUserId });
             }
-            logger.info({ userId: user.id, socketId: socket.id }, 'Socket disconnected');
+            logger.info({ userId: user.canonicalUserId, socketId: socket.id }, 'Socket disconnected');
         });
     });
     return { io, httpServer };
