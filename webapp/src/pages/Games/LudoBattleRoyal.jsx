@@ -1519,6 +1519,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.9;
 const CAMERA_EXTRA_ZOOM_OUT = 1.1;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4385,6 +4386,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
     const boardLookTarget = new THREE.Vector3(0, tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE, 0);
     boardLookTargetRef.current = boardLookTarget;
+    const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
+    const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+    camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
