@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
+  '.seat-badge.is-self .seat-badge-core',
+  '.seat-badge.is-self',
   '[data-self-player="true"] .seat-badge-core',
   '[data-self-player="true"] .score-avatar',
   '[data-self-player="true"] .avatar-timer-avatar',
@@ -87,6 +89,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     let frameId = 0;
     const resizeObservers = [];
     const mutationObservers = [];
+    const iframeLoadListeners = [];
 
     const getIframeContexts = (rootDocument = document, offset = { x: 0, y: 0 }) => {
       const contexts = [{ doc: rootDocument, offsetX: offset.x, offsetY: offset.y }];
@@ -189,8 +192,12 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const observeContexts = () => {
       mutationObservers.forEach((observer) => observer.disconnect());
       resizeObservers.forEach((observer) => observer.disconnect());
+      iframeLoadListeners.forEach(({ iframe, listener }) => {
+        iframe.removeEventListener('load', listener);
+      });
       mutationObservers.length = 0;
       resizeObservers.length = 0;
+      iframeLoadListeners.length = 0;
 
       const contexts = getIframeContexts();
       contexts.forEach((context) => {
@@ -207,6 +214,15 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         resizeObserver.observe(context.doc.body);
         resizeObservers.push(resizeObserver);
       });
+
+      document.querySelectorAll('iframe').forEach((iframe) => {
+        const listener = () => {
+          observeContexts();
+          scheduleApply();
+        };
+        iframe.addEventListener('load', listener);
+        iframeLoadListeners.push({ iframe, listener });
+      });
     };
 
     observeContexts();
@@ -214,6 +230,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     window.addEventListener('orientationchange', scheduleApply);
     window.addEventListener('scroll', scheduleApply, true);
     const reobserveTimer = window.setTimeout(observeContexts, 450);
+    const fallbackScanTimer = window.setInterval(scheduleApply, 1200);
 
     scheduleApply();
 
@@ -221,7 +238,11 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       cancelAnimationFrame(frameId);
       mutationObservers.forEach((observer) => observer.disconnect());
       resizeObservers.forEach((observer) => observer.disconnect());
+      iframeLoadListeners.forEach(({ iframe, listener }) => {
+        iframe.removeEventListener('load', listener);
+      });
       window.clearTimeout(reobserveTimer);
+      window.clearInterval(fallbackScanTimer);
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
