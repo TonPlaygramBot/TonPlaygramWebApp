@@ -157,7 +157,10 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
 
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
-      if (!rect) return;
+      if (!rect || !node) {
+        setAnchorElement(null);
+        return;
+      }
       const width = Math.max(POOL_ROYALE_VIDEO_FRAME_SIZE, 32);
       const height = Math.max(POOL_ROYALE_VIDEO_FRAME_SIZE, 32);
       const left = Math.max(
@@ -214,6 +217,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     window.addEventListener('resize', scheduleApply);
     window.addEventListener('orientationchange', scheduleApply);
     window.addEventListener('scroll', scheduleApply, true);
+    const recheckTimer = window.setInterval(scheduleApply, 800);
     const reobserveTimer = window.setTimeout(observeContexts, 450);
 
     scheduleApply();
@@ -222,6 +226,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       cancelAnimationFrame(frameId);
       mutationObservers.forEach((observer) => observer.disconnect());
       resizeObservers.forEach((observer) => observer.disconnect());
+      window.clearInterval(recheckTimer);
       window.clearTimeout(reobserveTimer);
       window.removeEventListener('resize', scheduleApply);
       window.removeEventListener('orientationchange', scheduleApply);
@@ -230,25 +235,45 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [gameSlug, search]);
 
   useEffect(() => {
-    if (!anchorElement) return undefined;
-    const onToggle = (event) => {
+    if (typeof window === 'undefined') return undefined;
+
+    const onToggleFromAvatar = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!anchorElement || !anchorElement.isConnected) return;
+      if (!anchorElement.contains(target) && target !== anchorElement) return;
       event.preventDefault();
       event.stopPropagation();
       setLiveMode((prev) => !prev);
     };
-    anchorElement.style.cursor = 'pointer';
-    anchorElement.addEventListener('click', onToggle);
+
+    const onPointerDownFromAvatar = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!anchorElement || !anchorElement.isConnected) return;
+      if (!anchorElement.contains(target) && target !== anchorElement) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    document.addEventListener('click', onToggleFromAvatar, true);
+    document.addEventListener('pointerdown', onPointerDownFromAvatar, true);
+
     return () => {
-      anchorElement.removeEventListener('click', onToggle);
+      document.removeEventListener('click', onToggleFromAvatar, true);
+      document.removeEventListener('pointerdown', onPointerDownFromAvatar, true);
     };
   }, [anchorElement]);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
+    const previousCursor = anchorElement.style.cursor;
     const previousVisibility = anchorElement.style.visibility;
+    anchorElement.style.cursor = 'pointer';
     if (liveMode) anchorElement.style.visibility = 'hidden';
     else anchorElement.style.visibility = previousVisibility || '';
     return () => {
+      anchorElement.style.cursor = previousCursor || '';
       anchorElement.style.visibility = previousVisibility || '';
     };
   }, [anchorElement, liveMode]);
