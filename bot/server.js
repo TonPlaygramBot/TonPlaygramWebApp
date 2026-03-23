@@ -1624,20 +1624,21 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('register', async ({ playerId } = {}, cb) => {
-    if (!playerId) {
+  socket.on('register', async ({ playerId, accountId, tpcAccountId } = {}, cb) => {
+    const resolvedPlayerId = playerId || tpcAccountId || accountId;
+    if (!resolvedPlayerId) {
       cb && cb({ success: false, error: 'missing_player_id' });
       return;
     }
     try {
-      let set = userSockets.get(String(playerId));
+      let set = userSockets.get(String(resolvedPlayerId));
       if (!set) {
         set = new Set();
-        userSockets.set(String(playerId), set);
+        userSockets.set(String(resolvedPlayerId), set);
       }
       set.add(socket.id);
-      socket.data.playerId = String(playerId);
-      await registerConnection({ userId: String(playerId), socketId: socket.id });
+      socket.data.playerId = String(resolvedPlayerId);
+      await registerConnection({ userId: String(resolvedPlayerId), socketId: socket.id });
       cb && cb({ success: true });
     } catch (error) {
       console.error('register socket failed', error);
@@ -1661,6 +1662,7 @@ io.on('connection', (socket) => {
     async (
       {
         accountId,
+        tpcAccountId,
         gameType,
         stake,
         maxPlayers = 4,
@@ -1677,11 +1679,12 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
-      if (!ensureRegistered(socket, accountId)) {
+      const resolvedAccountId = tpcAccountId || accountId;
+      if (!ensureRegistered(socket, resolvedAccountId)) {
         const error =
-          accountId &&
+          resolvedAccountId &&
           socket.data?.playerId &&
-          String(accountId) !== String(socket.data.playerId)
+          String(resolvedAccountId) !== String(socket.data.playerId)
             ? 'identity_mismatch'
             : 'register_required';
         return cb && cb({ success: false, error });
@@ -1715,7 +1718,7 @@ io.on('connection', (socket) => {
       let table;
       if (tableId) {
         table = await seatTableSocket(
-          accountId,
+          resolvedAccountId,
           validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
@@ -1728,7 +1731,7 @@ io.on('connection', (socket) => {
         );
       } else {
         table = await seatTableSocket(
-          accountId,
+          resolvedAccountId,
           validation.normalizedGameType,
           validation.normalizedStake,
           validation.normalizedMaxPlayers,
@@ -1754,26 +1757,28 @@ io.on('connection', (socket) => {
     }
   );
 
-  socket.on('leaveLobby', ({ accountId, tableId }) => {
+  socket.on('leaveLobby', ({ accountId, tpcAccountId, tableId }) => {
+    const resolvedAccountId = tpcAccountId || accountId;
     if (tableId) {
-      unseatTableSocket(accountId, tableId, socket.id);
+      unseatTableSocket(resolvedAccountId, tableId, socket.id);
     }
   });
 
-  socket.on('confirmReady', ({ accountId, tableId }) => {
+  socket.on('confirmReady', ({ accountId, tpcAccountId, tableId }) => {
+    const resolvedAccountId = tpcAccountId || accountId;
     const table = tableMap.get(tableId);
     if (!table) {
       socket.emit('errorMessage', 'table_not_found');
       return;
     }
-    if (!ensureRegistered(socket, accountId)) return;
-    const seated = table.players.some((player) => String(player.id) === String(accountId));
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const seated = table.players.some((player) => String(player.id) === String(resolvedAccountId));
     if (!seated) {
       socket.emit('errorMessage', 'seat_required');
       return;
     }
     if (!table.ready) table.ready = new Set();
-    table.ready.add(String(accountId));
+    table.ready.add(String(resolvedAccountId));
     io.to(tableId).emit('lobbyUpdate', {
       tableId,
       players: table.players,

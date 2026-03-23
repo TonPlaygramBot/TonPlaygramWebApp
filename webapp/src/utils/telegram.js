@@ -118,6 +118,11 @@ export function getPlayerId() {
     const perTelegramKey = accountIdMapStorageKey(telegramId);
     let telegramScopedId = localStorage.getItem(perTelegramKey);
 
+    if (globalId && (!telegramScopedId || telegramScopedId !== globalId)) {
+      telegramScopedId = globalId;
+      localStorage.setItem(perTelegramKey, telegramScopedId);
+    }
+
     // Backward compatibility:
     // if this Telegram user already had a single legacy accountId stored, bind it
     // once to the per-user key instead of generating a new id.
@@ -140,6 +145,10 @@ export function getPlayerId() {
   if (googleId) {
     const perGoogleKey = accountIdGoogleStorageKey(googleId);
     let googleScopedId = localStorage.getItem(perGoogleKey);
+    if (globalId && (!googleScopedId || googleScopedId !== globalId)) {
+      googleScopedId = globalId;
+      localStorage.setItem(perGoogleKey, googleScopedId);
+    }
     if (!googleScopedId && globalId && !hasAnyScopedAccountIds(localStorage)) {
       googleScopedId = globalId;
       localStorage.setItem(perGoogleKey, googleScopedId);
@@ -163,6 +172,11 @@ export function getPlayerId() {
 export async function ensureAccountId() {
   if (typeof window === 'undefined') return null;
   return getPlayerId();
+}
+
+export function getTpcAccountId() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('accountId') || getPlayerId();
 }
 
 export function getTelegramUsername() {
