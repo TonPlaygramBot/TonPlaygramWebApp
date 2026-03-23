@@ -32,10 +32,6 @@ const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'rate_limited',
   'identity_mismatch'
 ]);
-const MATCHMAKING_REQUIRES_REGISTER_REFRESH = new Set([
-  'register_required',
-  'identity_mismatch'
-]);
 
 function normalizeHostCode(code = '') {
   return String(code || '')
@@ -56,8 +52,6 @@ async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
 
   return new Promise((resolve) => {
     let settled = false;
-    let timer = null;
-    let lastError = null;
 
     const cleanup = () => {
       socket.off('connect', handleConnect);
@@ -68,26 +62,18 @@ async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
       cleanup();
-      if (!result && lastError) {
-        // Keep a support signal in devtools without exposing low-level errors in UI.
-        console.warn('[CheckersLobby] socket connect failed', lastError);
-      }
       resolve(result);
     };
 
     const handleConnect = () => finish(true);
-    const handleError = (error) => {
-      // Some mobile networks emit a temporary connect_error before a successful
-      // connect event. Keep listening until timeout to avoid false negatives.
-      lastError = error || lastError;
-    };
+    const handleError = () => finish(false);
 
-    timer = setTimeout(() => finish(socket.connected), timeoutMs);
+    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
     socket.once('connect', handleConnect);
-    socket.on('connect_error', handleError);
-    socket.on('error', handleError);
+    socket.once('connect_error', handleError);
+    socket.once('error', handleError);
     socket.connect?.();
   });
 }
@@ -462,10 +448,7 @@ export default function CheckersBattleRoyalLobby() {
               seatAttempts < maxSeatAttempts;
             if (shouldRetry) {
               setMatchStatus('Retrying online seat…');
-              if (
-                MATCHMAKING_REQUIRES_REGISTER_REFRESH.has(res?.error) &&
-                trackedAccountId
-              ) {
+              if (res?.error === 'identity_mismatch' && trackedAccountId) {
                 refreshSocketAuthIdentity(
                   { accountId: String(trackedAccountId) },
                   { reconnect: true }
@@ -481,10 +464,7 @@ export default function CheckersBattleRoyalLobby() {
                   cleanupLobby({ account: trackedAccountId });
                   return;
                 }
-                if (
-                  MATCHMAKING_REQUIRES_REGISTER_REFRESH.has(res?.error) &&
-                  trackedAccountId
-                ) {
+                if (res?.error === 'identity_mismatch' && trackedAccountId) {
                   const reRegistered = await ensureSocketRegistered(trackedAccountId);
                   if (!reRegistered) {
                     clearTimeout(matchTimeout);
