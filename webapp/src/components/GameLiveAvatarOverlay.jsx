@@ -4,13 +4,8 @@ import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
   '[data-self-player="true"] .seat-badge-core',
-  '[data-self-player="true"].seat-badge-core',
-  '.seat-badge.is-self .seat-badge-core',
-  '.seat-badge.is-self',
   '[data-self-player="true"] .score-avatar',
-  '[data-self-player="true"].score-avatar',
   '[data-self-player="true"] .avatar-timer-avatar',
-  '[data-self-player="true"].avatar-timer-avatar',
   '[data-self-player="true"] img',
   '[data-self-player="true"] .avatar',
   '[data-self-player="true"]',
@@ -22,7 +17,6 @@ const AVATAR_ANCHOR_SELECTORS = [
   '[data-player-index="0"] .avatar',
   '[data-player-index="0"]',
   '#p1AvatarTop',
-  '#p1Avatar',
   '.player-avatar.you img',
   '.player-avatar.you',
   '.hud-player-you img',
@@ -87,19 +81,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     localVideoRef.current.srcObject = liveChat.localStream || null;
   }, [liveChat.localStream]);
 
-  const prioritizedSelectors = useMemo(() => {
-    if (gameSlug === 'goalrush') {
-      return ['#p1AvatarTop', '#p1Avatar', '[data-self-player="true"]', ...AVATAR_ANCHOR_SELECTORS];
-    }
-    if (gameSlug === 'domino-royal') {
-      return ['.seat-badge.is-self .seat-badge-core', '.seat-badge.is-self', ...AVATAR_ANCHOR_SELECTORS];
-    }
-    if (gameSlug === 'fourinrowroyale') {
-      return ['[data-self-player="true"] .avatar-timer-avatar', '[data-self-player="true"]', ...AVATAR_ANCHOR_SELECTORS];
-    }
-    return AVATAR_ANCHOR_SELECTORS;
-  }, [gameSlug]);
-
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
@@ -147,7 +128,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       const seen = new Set();
       const contexts = getIframeContexts();
       for (const context of contexts) {
-        for (const selector of prioritizedSelectors) {
+        for (const selector of AVATAR_ANCHOR_SELECTORS) {
           const nodes = context.doc.querySelectorAll(selector);
           for (const candidate of nodes) {
             if (seen.has(candidate)) continue;
@@ -245,7 +226,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
     };
-  }, [gameSlug, prioritizedSelectors, search]);
+  }, [gameSlug, search]);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
