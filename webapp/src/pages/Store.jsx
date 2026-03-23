@@ -308,31 +308,52 @@ const HDRI_PUBLISH_TARIFF_TPC = 2500;
 const HDRI_PUBLISH_TARIFF_PER_GAME_TPC = 900;
 const HDRI_CREATOR_STEPS = [
   {
-    id: 'upload',
-    title: '1) Upload 360 photos',
-    description: 'Add one or more equirectangular shots of your environment.'
-  },
-  {
-    id: 'style',
-    title: '2) Optimize look',
-    description: 'Tune mood and lighting for gameplay visibility.'
+    id: 'lighting',
+    title: '1) Pick lighting type',
+    description: 'Choose a lighting profile from current HDRIs in the store.'
   },
   {
     id: 'ownership',
-    title: '3) Choose ownership',
+    title: '2) Choose ownership',
     description: 'Keep it private or publish in marketplace.'
   },
   {
     id: 'create',
-    title: '4) Pay & create',
+    title: '3) Pay & create',
     description: 'Pay premium tariff to mint and activate your HDRI.'
   }
 ];
-const HDRI_CREATOR_PRESETS = [
-  { label: 'Arena daylight', mood: 'Competitive', lighting: 'Natural', timeOfDay: 'Day' },
-  { label: 'Neon night', mood: 'Sci-fi', lighting: 'Neon', timeOfDay: 'Night' },
-  { label: 'Studio clean', mood: 'Minimal', lighting: 'Softbox', timeOfDay: 'Sunset' }
-];
+const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
+  [...POOL_ROYALE_HDRI_VARIANTS, ...SNOOKER_ROYALE_HDRI_VARIANTS].reduce(
+    (acc, variant) => {
+      if (!variant?.id || acc.some((entry) => entry.id === variant.id)) {
+        return acc;
+      }
+      acc.push({
+        id: variant.id,
+        label: variant.name || variant.id,
+        description: variant.description || 'Lighting profile from current store HDRIs.',
+        thumbnail:
+          variant.thumbnail ||
+          variant.assetUrl ||
+          Object.values(variant.assetUrls || {}).find(
+            (value) => typeof value === 'string' && value.length
+          ) ||
+          '',
+        environmentUrl:
+          variant.assetUrl ||
+          Object.values(variant.assetUrls || {}).find(
+            (value) => typeof value === 'string' && value.length
+          ) ||
+          variant.thumbnail ||
+          '',
+        swatches: Array.isArray(variant.swatches) ? variant.swatches : []
+      });
+      return acc;
+    },
+    []
+  )
+);
 const HDRI_TARGET_GAMES = Object.freeze([
   { slug: 'poolroyale', label: 'Pool Royale' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
@@ -349,6 +370,8 @@ const HDRI_TARGET_GAMES = Object.freeze([
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
 const formatTpcAmount = (value) => Number(value || 0).toLocaleString();
+const normalizeAccount = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId])
@@ -1086,12 +1109,7 @@ export default function Store() {
   const [hdriCreatorStep, setHdriCreatorStep] = useState(0);
   const [hdriDraft, setHdriDraft] = useState({
     name: '',
-    mood: 'Competitive',
-    lighting: 'Natural',
-    timeOfDay: 'Day',
-    intensity: 60,
-    tone: 'Balanced',
-    resolution: '2K',
+    sourceHdriId: HDRI_LIGHTING_SOURCE_OPTIONS[0]?.id || '',
     visibility: 'private',
     storePrice: 600
   });
@@ -1287,7 +1305,7 @@ export default function Store() {
   );
   const canPublishHdri =
     hdriDraft.name.trim().length >= 3 &&
-    hdriUploadFiles.length > 0 &&
+    hdriDraft.sourceHdriId &&
     hdriSelectedGames.length > 0 &&
     hdriPreviewUnlocked &&
     !hdriPublished;
@@ -1297,7 +1315,13 @@ export default function Store() {
     typeof accountBalance === 'number'
       ? Math.max(0, hdriPublishTotalTariff - accountBalance)
       : null;
-  const hdriPrimaryUpload = hdriUploadFiles[0] || null;
+  const selectedHdriLighting = useMemo(
+    () =>
+      HDRI_LIGHTING_SOURCE_OPTIONS.find(
+        (option) => option.id === hdriDraft.sourceHdriId
+      ) || HDRI_LIGHTING_SOURCE_OPTIONS[0] || null,
+    [hdriDraft.sourceHdriId]
+  );
 
   useEffect(
     () => () => {
@@ -1523,37 +1547,25 @@ export default function Store() {
     setHdriPublished(false);
   }, []);
 
-  const applyHdriPreset = useCallback((preset) => {
-    setHdriDraft((prev) => ({
-      ...prev,
-      mood: preset.mood,
-      lighting: preset.lighting,
-      timeOfDay: preset.timeOfDay
-    }));
-    setHdriPreviewUnlocked(false);
-    setHdriPublished(false);
-    setHdriCreatorStep(1);
-  }, []);
-
   const handleHdriPreview = useCallback(() => {
     if (hdriDraft.name.trim().length < 3) {
       setTransactionState('error');
       setTransactionStatus('Give your HDRI a name (min 3 chars) before preview.');
       return;
     }
-    if (!hdriUploadFiles.length) {
+    if (!selectedHdriLighting) {
       setTransactionState('error');
-      setTransactionStatus('Upload at least one 360 photo before preview.');
+      setTransactionStatus('Choose a lighting profile before preview.');
       return;
     }
     setHdriPreviewUnlocked(true);
     setHdriPublished(false);
-    setHdriCreatorStep(2);
+    setHdriCreatorStep(HDRI_CREATOR_STEPS.length - 1);
     setTransactionState('success');
     setTransactionStatus(
-      `Preview ready: "${hdriDraft.name.trim()}". Test it for free before publishing.`
+      `Preview ready: "${hdriDraft.name.trim()}" with ${selectedHdriLighting.label} lighting.`
     );
-  }, [hdriDraft.name, hdriUploadFiles.length]);
+  }, [hdriDraft.name, selectedHdriLighting]);
 
   const handleHdriPublish = useCallback(async () => {
     if (!canPublishHdri || hdriPublishing) return;
@@ -1575,7 +1587,11 @@ export default function Store() {
       setHdriPublishing(true);
       setTransactionState('processing');
       setTransactionStatus('Minting your HDRI NFT and activating it in selected games…');
-      const uploadedImageDataUrl = preparedMintDataUrl || (await fileToDataUrl(mainUpload));
+      const uploadedImageDataUrl =
+        preparedMintDataUrl ||
+        selectedHdriLighting?.environmentUrl ||
+        selectedHdriLighting?.thumbnail ||
+        (mainUpload ? await fileToDataUrl(mainUpload) : '');
       const createdAt = Date.now();
       const storableImageDataUrl = await compressHdriDataUrlForStorage(uploadedImageDataUrl);
       const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
@@ -1591,6 +1607,8 @@ export default function Store() {
           price: Number(hdriDraft.storePrice || 0),
           createdBy: accountId || 'guest',
           visibility: hdriDraft.visibility,
+          sourceHdriId: selectedHdriLighting?.id || '',
+          sourceHdriLabel: selectedHdriLighting?.label || '',
           supportedGames: hdriSelectedGames,
           optionIdByGame,
           thumbnailUrl: storableImageDataUrl,
@@ -1614,6 +1632,8 @@ export default function Store() {
               price: Number(hdriDraft.storePrice || 0),
               createdBy: accountId || 'guest',
               visibility: hdriDraft.visibility,
+              sourceHdriId: selectedHdriLighting?.id || '',
+              sourceHdriLabel: selectedHdriLighting?.label || '',
               supportedGames: hdriSelectedGames,
               optionIdByGame,
               thumbnailUrl: emergencyCompressedDataUrl,
@@ -1694,6 +1714,7 @@ export default function Store() {
     hdriDraft,
     hdriPublishing,
     hdriPublishTotalTariff,
+    selectedHdriLighting,
     hdriSelectedGames,
     hdriUploadFiles
   ]);
@@ -2104,25 +2125,39 @@ export default function Store() {
     () =>
       userListings.flatMap((listing) => {
         const games = Array.isArray(listing.supportedGames) ? listing.supportedGames : [];
+        const listingOwner = normalizeAccount(listing.createdBy);
+        const isListingOwner =
+          listingOwner && listingOwner === normalizeAccount(accountId || 'guest');
         return games.map((slug) =>
-          decorateMarketplaceItem(
-            {
-              ...listing,
-              id: `${listing.id}-${slug}`,
-              slug,
-              optionId: listing.optionIdByGame?.[slug] || listing.optionId,
-              gameName: storeMeta[slug]?.name || 'Player listing',
-              typeLabel: 'Custom HDRI',
-              displayLabel: listing.name || listing.displayLabel || 'Player NFT',
-              thumbnail: listing.thumbnailUrl || listing.environmentUrl || '',
-              owned: true,
-              seller: 'You'
-            },
-            { scalePrice: false }
-          )
+          {
+            const optionId = listing.optionIdByGame?.[slug] || listing.optionId;
+            const alreadyOwned = ownedCheckers[slug]
+              ? ownedCheckers[slug]('environmentHdri', optionId)
+              : false;
+            return decorateMarketplaceItem(
+              {
+                ...listing,
+                id: `${listing.id}-${slug}`,
+                slug,
+                optionId,
+                gameName: storeMeta[slug]?.name || 'Player listing',
+                typeLabel: 'Custom HDRI',
+                displayLabel: listing.name || listing.displayLabel || 'Player NFT',
+                thumbnail: listing.thumbnailUrl || listing.environmentUrl || '',
+                owned: Boolean(isListingOwner || alreadyOwned),
+                seller: isListingOwner ? 'You' : `Creator ${listing.createdBy || 'player'}`,
+                isCreatorListingOwner: Boolean(isListingOwner)
+              },
+              { scalePrice: false }
+            );
+          }
         );
       }),
-    [userListings]
+    [accountId, ownedCheckers, userListings]
+  );
+  const myCreatorListings = useMemo(
+    () => decoratedUserListings.filter((item) => item.isCreatorListingOwner),
+    [decoratedUserListings]
   );
 
   const allMarketplaceItems = useMemo(
@@ -2178,8 +2213,8 @@ export default function Store() {
     [allMarketplaceItems, applyFilters]
   );
   const filteredUserListings = useMemo(
-    () => applyFilters(decoratedUserListings),
-    [applyFilters, decoratedUserListings]
+    () => applyFilters(myCreatorListings),
+    [applyFilters, myCreatorListings]
   );
   const visibleItems = showMyListings ? filteredUserListings : filteredItems;
 
@@ -2240,18 +2275,18 @@ export default function Store() {
   const clearSelection = useCallback(() => setSelectedKeys([]), []);
 
   const userListingStats = useMemo(() => {
-    const total = decoratedUserListings.length;
-    const prices = decoratedUserListings.map((item) => Number(item.price) || 0);
+    const total = myCreatorListings.length;
+    const prices = myCreatorListings.map((item) => Number(item.price) || 0);
     const totalValue = prices.reduce((sum, price) => sum + price, 0);
     const avgPrice = total ? Math.round((totalValue / total) * 100) / 100 : 0;
     const floorPrice = total ? Math.min(...prices) : 0;
     return { total, totalValue, avgPrice, floorPrice };
-  }, [decoratedUserListings]);
+  }, [myCreatorListings]);
 
   const typeFilters = useMemo(() => {
     const types = new Set();
     const scopedItems = showMyListings
-      ? decoratedUserListings
+      ? myCreatorListings
       : allMarketplaceItems;
     scopedItems.forEach((item) => {
       if (item.typeLabel) {
@@ -2259,7 +2294,7 @@ export default function Store() {
       }
     });
     return ['all', ...Array.from(types)];
-  }, [activeGame, allMarketplaceItems, decoratedUserListings, showMyListings]);
+  }, [activeGame, allMarketplaceItems, myCreatorListings, showMyListings]);
 
   useEffect(() => {
     if (!typeFilters.includes(activeType)) {
@@ -4127,10 +4162,10 @@ export default function Store() {
                 Premium Feature
               </p>
               <h2 className="mt-2 text-lg font-semibold text-white md:text-xl">
-                Upload your own 360° environment HDRI
+                Create custom HDRI with existing lighting profiles
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-fuchsia-100/80">
-                Free-test your uploaded photos, then pay once to create it. Keep private or publish it so others can buy it.
+                Faster flow: choose one existing HDRI lighting type, set visibility, and publish.
               </p>
             </div>
             <div className="rounded-2xl border border-fuchsia-200/40 bg-black/35 px-3 py-2 text-xs text-fuchsia-100">
@@ -4168,114 +4203,28 @@ export default function Store() {
                 />
               </label>
               <label className="text-xs text-white/80">
-                Upload 360° photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleHdriUploads}
-                  className="mt-1 w-full rounded-xl border border-dashed border-fuchsia-200/40 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-fuchsia-400/25 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-fuchsia-100"
-                />
-              </label>
-              <p className="text-[11px] text-white/60">
-                {hdriUploadFiles.length
-                  ? `${hdriUploadFiles.length} photo${hdriUploadFiles.length === 1 ? '' : 's'} uploaded`
-                  : 'No 360 photos uploaded yet'}
-              </p>
-              <label className="text-xs text-white/80">
-                Mood
+                Lighting type
                 <select
-                  value={hdriDraft.mood}
-                  onChange={(e) => handleHdriDraftChange('mood', e.target.value)}
+                  value={hdriDraft.sourceHdriId}
+                  onChange={(e) =>
+                    handleHdriDraftChange('sourceHdriId', e.target.value)
+                  }
                   className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
                 >
-                  <option>Competitive</option>
-                  <option>Cinematic</option>
-                  <option>Sci-fi</option>
-                  <option>Minimal</option>
+                  {HDRI_LIGHTING_SOURCE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {HDRI_CREATOR_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => applyHdriPreset(preset)}
-                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-fuchsia-200/30 hover:text-white"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[11px] text-white/65">
+                {selectedHdriLighting?.description ||
+                  'Pick lighting from current store HDRIs.'}
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Lighting
-                  <select
-                    value={hdriDraft.lighting}
-                    onChange={(e) => handleHdriDraftChange('lighting', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>Natural</option>
-                    <option>Neon</option>
-                    <option>Softbox</option>
-                    <option>Contrast</option>
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Time
-                  <select
-                    value={hdriDraft.timeOfDay}
-                    onChange={(e) => handleHdriDraftChange('timeOfDay', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>Day</option>
-                    <option>Sunset</option>
-                    <option>Night</option>
-                  </select>
-                </label>
-              </div>
-              <label className="text-xs text-white/80">
-                Light intensity ({hdriDraft.intensity}%)
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={hdriDraft.intensity}
-                  onChange={(e) => handleHdriDraftChange('intensity', Number(e.target.value))}
-                  className="mt-1 w-full accent-fuchsia-400"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Tone mapping
-                  <select
-                    value={hdriDraft.tone}
-                    onChange={(e) => handleHdriDraftChange('tone', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>Balanced</option>
-                    <option>Filmic</option>
-                    <option>ACES</option>
-                    <option>Vivid</option>
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Output
-                  <select
-                    value={hdriDraft.resolution}
-                    onChange={(e) => handleHdriDraftChange('resolution', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>1K</option>
-                    <option>2K</option>
-                    <option>4K</option>
-                  </select>
-                </label>
-              </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-white/80">
                   Visibility
@@ -4336,24 +4285,7 @@ export default function Store() {
             </div>
           </div>
 
-          {hdriUploadFiles.length ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-6">
-              {hdriUploadFiles.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="overflow-hidden rounded-xl border border-white/10 bg-black/30"
-                >
-                  <img
-                    src={entry.previewUrl}
-                    alt={entry.file?.name || 'HDRI upload'}
-                    className="h-20 w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {hdriPreviewUnlocked && hdriPrimaryUpload?.previewUrl ? (
+          {hdriPreviewUnlocked && selectedHdriLighting?.thumbnail ? (
             <div className="mt-3 overflow-hidden rounded-2xl border border-fuchsia-200/40 bg-black/35">
               <div className="flex items-center justify-between border-b border-fuchsia-200/20 px-3 py-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100/90">
@@ -4364,11 +4296,11 @@ export default function Store() {
                 </span>
               </div>
               <HdriEquirectangularPreview
-                src={hdriPrimaryUpload.previewUrl}
+                src={selectedHdriLighting.thumbnail}
                 title={hdriDraft.name.trim() || 'Untitled HDRI'}
               />
               <p className="px-3 py-2 text-[11px] text-fuchsia-100/75">
-                This is your live 360° skybox preview before minting/publishing.
+                Lighting source: {selectedHdriLighting.label}. This profile will be used when minting.
               </p>
             </div>
           ) : null}
@@ -4379,7 +4311,7 @@ export default function Store() {
               onClick={handleHdriPreview}
               className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-400/20 px-4 py-2 text-sm font-semibold text-fuchsia-50 hover:bg-fuchsia-400/30"
             >
-              Free preview
+              Preview lighting
             </button>
             <button
               type="button"
@@ -4397,8 +4329,8 @@ export default function Store() {
                   ? `Live now: ${hdriDraft.name || 'Custom HDRI'} is listed in Store and earns revenue to you.`
                   : `Live now: ${hdriDraft.name || 'Custom HDRI'} is private and active on your account.`
                 : hdriPreviewUnlocked
-                  ? 'Preview enabled. If you like it, publish to use it in game.'
-                  : 'Try every configuration for free before paying tariff.'}
+                  ? 'Lighting locked in. Publish to mint and activate in your selected games.'
+                  : 'Pick a lighting type and preview before paying tariff.'}
             </span>
           </div>
 
