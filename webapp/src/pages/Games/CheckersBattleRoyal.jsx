@@ -1157,6 +1157,7 @@ export default function CheckersBattleRoyal() {
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const pointerDownRef = useRef(null);
+  const pendingMoveRef = useRef(null);
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1712,27 +1713,31 @@ export default function CheckersBattleRoyal() {
           );
       const move = legalMoves.find((m) => m.r === r && m.c === c);
       if (!move) return;
+      if (isOnlineGame && onlineRef.current.tableId) {
+        const clientMoveId = `${onlineRef.current.accountId || 'guest'}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        pendingMoveRef.current = clientMoveId;
+        socket.emit('checkersMove', {
+          tableId: onlineRef.current.tableId,
+          move: {
+            from: { ...selected },
+            to: { r, c },
+            clientMoveId
+          }
+        });
+        selectedRef.current = null;
+        renderHighlights();
+        setStatus('Move submitted…');
+        return;
+      }
+
       const beforeBoard = copyBoard(board);
       const applied = applyMoveToBoard(board, {
         from: { ...selected },
         ...move
       });
       if (!applied) return;
-      const emitOnlineMove = (nextBoard, nextTurn) => {
-        if (!onlineRef.current.enabled || !onlineRef.current.tableId) return;
-        socket.emit('checkersMove', {
-          tableId: onlineRef.current.tableId,
-          move: {
-            board: nextBoard,
-            turn: nextTurn,
-            lastMove: {
-              from: { ...selected },
-              to: { r, c },
-              capture: move.capture || null
-            }
-          }
-        });
-      };
 
       if (Array.isArray(move.capture)) {
         const [captureR, captureC] = move.capture;
@@ -1798,7 +1803,6 @@ export default function CheckersBattleRoyal() {
             : 'AI is thinking…'
         );
       }
-      emitOnlineMove(copyBoard(applied.board), nextTurn);
       renderHighlights();
     };
 
@@ -2159,6 +2163,45 @@ export default function CheckersBattleRoyal() {
       const myTurn = (remoteTurn === 'dark' ? 'dark' : 'light') === onlineRef.current.side;
       setStatus(myTurn ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
     };
+    const handleMoveAccepted = ({ tableId: eventTableId, clientMoveId, chainCapture } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      if (pendingMoveRef.current && clientMoveId && pendingMoveRef.current !== clientMoveId) return;
+      pendingMoveRef.current = null;
+      if (chainCapture) {
+        setStatus('Chain capture required.');
+      }
+    };
+    const handleMoveRejected = ({ tableId: eventTableId, clientMoveId, error } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      if (pendingMoveRef.current && clientMoveId && pendingMoveRef.current !== clientMoveId) return;
+      pendingMoveRef.current = null;
+      const msg =
+        error === 'move_rate_limited'
+          ? 'Too fast. Wait a moment and retry.'
+          : error === 'not_your_turn'
+          ? 'Not your turn.'
+          : error === 'duplicate_move'
+          ? 'Duplicate move ignored.'
+          : error === 'chain_capture_required_piece'
+          ? 'You must continue with the same piece for chain capture.'
+          : 'Move rejected. Syncing board…';
+      setStatus(msg);
+      socket.emit('checkersSyncRequest', { tableId });
+    };
+    const handleMatchEnded = ({ tableId: eventTableId, winnerId } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      pendingMoveRef.current = null;
+      const meWon = winnerId && String(winnerId) === String(accountId);
+      setGameOver(meWon ? HUMAN_SIDE : AI_SIDE);
+      setStatus(meWon ? 'You won the match!' : 'You lost the match.');
+    };
+    const handleSettlementConfirmed = ({ tableId: eventTableId, payoutAmount, winnerId, status: settlementStatus } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      if (String(winnerId || '') !== String(accountId || '')) return;
+      if (settlementStatus === 'settled' && Number(payoutAmount) > 0) {
+        setStatus(`Match settled. +${Number(payoutAmount)} TPC paid.`);
+      }
+    };
     const handleSocketDisconnect = () => {
       setOnlineStatus('reconnecting');
       setStatus('Connection lost. Reconnecting to table…');
@@ -2172,6 +2215,10 @@ export default function CheckersBattleRoyal() {
     let cancelled = false;
     socket.on('gameStart', handleGameStart);
     socket.on('checkersState', handleCheckersState);
+    socket.on('checkersMoveAccepted', handleMoveAccepted);
+    socket.on('checkersMoveRejected', handleMoveRejected);
+    socket.on('matchEnded', handleMatchEnded);
+    socket.on('settlementConfirmed', handleSettlementConfirmed);
     socket.on('disconnect', handleSocketDisconnect);
     socket.on('reconnect', handleSocketReconnect);
 
@@ -2194,6 +2241,10 @@ export default function CheckersBattleRoyal() {
       cancelled = true;
       socket.off('gameStart', handleGameStart);
       socket.off('checkersState', handleCheckersState);
+      socket.off('checkersMoveAccepted', handleMoveAccepted);
+      socket.off('checkersMoveRejected', handleMoveRejected);
+      socket.off('matchEnded', handleMatchEnded);
+      socket.off('settlementConfirmed', handleSettlementConfirmed);
       socket.off('disconnect', handleSocketDisconnect);
       socket.off('reconnect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });

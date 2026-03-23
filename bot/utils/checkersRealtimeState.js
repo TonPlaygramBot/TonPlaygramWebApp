@@ -1,33 +1,7 @@
-const SIZE = 8;
+import { createInitialBoard, normalizeBoard, SIDES } from './checkersAuthoritativeEngine.js';
 
 export function createInitialCheckersBoard() {
-  const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
-  for (let r = 0; r < 3; r += 1) {
-    for (let c = 0; c < SIZE; c += 1) {
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
-    }
-  }
-  for (let r = 5; r < SIZE; r += 1) {
-    for (let c = 0; c < SIZE; c += 1) {
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
-    }
-  }
-  return board;
-}
-
-function normalizeBoard(board) {
-  if (!Array.isArray(board) || board.length !== SIZE) return null;
-  const normalized = board.map((row) => {
-    if (!Array.isArray(row) || row.length !== SIZE) return null;
-    return row.map((cell) => {
-      if (!cell || typeof cell !== 'object') return null;
-      const side = cell.side === 'light' || cell.side === 'dark' ? cell.side : null;
-      if (!side) return null;
-      return { side, king: Boolean(cell.king) };
-    });
-  });
-  if (normalized.some((row) => row == null)) return null;
-  return normalized;
+  return createInitialBoard();
 }
 
 export function createCheckersRealtimeStore() {
@@ -37,15 +11,19 @@ export function createCheckersRealtimeStore() {
     if (!stateByTable.has(tableId)) {
       stateByTable.set(tableId, {
         board: createInitialCheckersBoard(),
-        turn: 'light',
+        turn: SIDES.LIGHT,
         lastMove: null,
+        requiredFrom: null,
+        winner: null,
+        reason: null,
+        moveSeq: 0,
         updatedAt: Date.now()
       });
     }
     return stateByTable.get(tableId);
   };
 
-  const updateState = (tableId, nextState = {}) => {
+  const setState = (tableId, nextState = {}) => {
     const base = getState(tableId);
     const merged = {
       ...base,
@@ -55,16 +33,24 @@ export function createCheckersRealtimeStore() {
     if (nextState.board) {
       merged.board = normalizeBoard(nextState.board) || base.board;
     }
-    if (nextState.turn !== 'light' && nextState.turn !== 'dark') {
+    if (nextState.turn !== SIDES.LIGHT && nextState.turn !== SIDES.DARK) {
       merged.turn = base.turn;
+    }
+    if (
+      nextState.requiredFrom &&
+      (!Number.isInteger(nextState.requiredFrom.r) || !Number.isInteger(nextState.requiredFrom.c))
+    ) {
+      merged.requiredFrom = base.requiredFrom;
     }
     stateByTable.set(tableId, merged);
     return merged;
   };
 
+  const updateState = (tableId, nextState = {}) => setState(tableId, nextState);
+
   const clearState = (tableId) => {
     stateByTable.delete(tableId);
   };
 
-  return { getState, updateState, clearState };
+  return { getState, setState, updateState, clearState };
 }

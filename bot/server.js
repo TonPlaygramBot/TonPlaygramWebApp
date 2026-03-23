@@ -61,12 +61,15 @@ import {
 } from './services/connectionService.js';
 import { GAME_ONLINE_POLICY, validateSeatTableRequest } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
+import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
 
 validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
 const checkersRealtimeStore = createCheckersRealtimeStore();
+const checkersMatchSessions = new Map();
+const checkersSettlementLedger = new Map();
 const AUTHENTIC_ACCOUNT_QUERY = {
   isBanned: { $ne: true },
   $or: [
@@ -479,6 +482,8 @@ const snookerStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
+const checkersMoveRateLimitMs =
+  Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
 
@@ -759,6 +764,109 @@ function assignChessSides(players = []) {
   }));
 }
 
+function ensureCheckersSession(tableId, table = null) {
+  let session = checkersMatchSessions.get(tableId);
+  if (!session) {
+    session = {
+      tableId,
+      stake: Number(table?.stake || 0),
+      token: table?.meta?.token || 'TPC',
+      playersBySide: {
+        light: table?.players?.find((p) => p.side === 'light')?.id || null,
+        dark: table?.players?.find((p) => p.side === 'dark')?.id || null
+      },
+      processedMoveIds: new Set(),
+      lastMoveAtByPlayer: new Map()
+    };
+    checkersMatchSessions.set(tableId, session);
+  }
+  return session;
+}
+
+async function settleCheckersMatch({
+  tableId,
+  winnerId,
+  loserId,
+  reason = 'match_end',
+  stake = 0,
+  token = 'TPC'
+} = {}) {
+  if (!winnerId || !loserId || !stake) {
+    return {
+      ok: true,
+      status: 'skipped',
+      reason: stake ? 'missing_players' : 'zero_stake'
+    };
+  }
+
+  const round = 1;
+  const settlementKey = `${tableId}:${round}`;
+  if (checkersSettlementLedger.has(settlementKey)) {
+    return {
+      ok: true,
+      status: 'duplicate',
+      settlement: checkersSettlementLedger.get(settlementKey)
+    };
+  }
+
+  const now = new Date();
+  const payoutAmount = Number(stake) * 2;
+  const detail = `checkers:${tableId}:${reason}`;
+  const result = await User.bulkWrite([
+    {
+      updateOne: {
+        filter: { accountId: String(winnerId), isBanned: { $ne: true } },
+        update: {
+          $inc: { balance: payoutAmount },
+          $push: {
+            transactions: {
+              amount: payoutAmount,
+              type: 'game_win',
+              token,
+              game: 'checkersbattle',
+              players: 2,
+              detail,
+              date: now
+            }
+          }
+        }
+      }
+    },
+    {
+      updateOne: {
+        filter: { accountId: String(loserId), isBanned: { $ne: true } },
+        update: {
+          $push: {
+            transactions: {
+              amount: 0,
+              type: 'game_loss',
+              token,
+              game: 'checkersbattle',
+              players: 2,
+              detail,
+              date: now
+            }
+          }
+        }
+      }
+    }
+  ]);
+
+  const settlement = {
+    idempotencyKey: settlementKey,
+    winnerId: String(winnerId),
+    loserId: String(loserId),
+    payoutAmount,
+    token,
+    reason,
+    matched: result.matchedCount || 0,
+    modified: result.modifiedCount || 0,
+    settledAt: now.toISOString()
+  };
+  checkersSettlementLedger.set(settlementKey, settlement);
+  return { ok: true, status: 'settled', settlement };
+}
+
 async function seatTableSocket(
   accountId,
   gameType,
@@ -864,10 +972,15 @@ function maybeStartGame(table) {
         table.players = assignCheckersSides(table.players);
         const lightPlayer = table.players.find((p) => p.side === 'light');
         if (lightPlayer) table.currentTurn = lightPlayer.id;
-        const initial = checkersRealtimeStore.updateState(table.id, {
-          turn: 'light',
-          lastMove: null
+        const initial = checkersRealtimeStore.setState(table.id, {
+          turn: SIDES.LIGHT,
+          lastMove: null,
+          requiredFrom: null,
+          winner: null,
+          reason: null,
+          moveSeq: 0
         });
+        ensureCheckersSession(table.id, table);
         io.to(table.id).emit('checkersState', { tableId: table.id, ...initial });
       }
       io.to(table.id).emit('gameStart', {
@@ -919,6 +1032,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
     if (table.players.length === 0) {
       if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
+        checkersMatchSessions.delete(tableId);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -1900,14 +2014,158 @@ io.on('connection', (socket) => {
     socket.to(tableId).emit('chessMove', { tableId, ...next });
   });
 
-  socket.on('checkersMove', ({ tableId, move }) => {
+  socket.on('checkersMove', async ({ tableId, move }) => {
     if (!tableId || !move) return;
-    const next = checkersRealtimeStore.updateState(tableId, {
-      board: move.board,
-      turn: move.turn,
-      lastMove: move.lastMove || null
+
+    const playerId = String(socket.data?.playerId || '');
+    if (!playerId) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        error: 'register_required'
+      });
+      return;
+    }
+
+    const table = tableMap.get(tableId);
+    if (!table || table.gameType !== 'checkers') {
+      socket.emit('checkersMoveRejected', { tableId, error: 'table_not_found' });
+      return;
+    }
+
+    const session = ensureCheckersSession(tableId, table);
+    const now = Date.now();
+    const lastActionAt = session.lastMoveAtByPlayer.get(playerId) || 0;
+    if (now - lastActionAt < checkersMoveRateLimitMs) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        error: 'move_rate_limited'
+      });
+      return;
+    }
+    session.lastMoveAtByPlayer.set(playerId, now);
+
+    const clientMoveId =
+      typeof move.clientMoveId === 'string' ? move.clientMoveId.slice(0, 120) : '';
+    if (clientMoveId && session.processedMoveIds.has(clientMoveId)) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        error: 'duplicate_move'
+      });
+      return;
+    }
+
+    const state = checkersRealtimeStore.getState(tableId);
+    const activeSide = state.turn === SIDES.DARK ? SIDES.DARK : SIDES.LIGHT;
+    const sideForPlayer =
+      String(session.playersBySide.light) === playerId
+        ? SIDES.LIGHT
+        : String(session.playersBySide.dark) === playerId
+          ? SIDES.DARK
+          : null;
+    if (!sideForPlayer) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        error: 'seat_required'
+      });
+      return;
+    }
+    if (sideForPlayer !== activeSide) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        error: 'not_your_turn'
+      });
+      return;
+    }
+
+    const authoritative = applyAuthoritativeMove(state, move);
+    if (!authoritative.ok) {
+      socket.emit('checkersMoveRejected', {
+        tableId,
+        clientMoveId: clientMoveId || null,
+        error: authoritative.error
+      });
+      return;
+    }
+
+    if (clientMoveId) {
+      session.processedMoveIds.add(clientMoveId);
+      if (session.processedMoveIds.size > 500) {
+        session.processedMoveIds = new Set(
+          Array.from(session.processedMoveIds).slice(-200)
+        );
+      }
+    }
+
+    const nextMoveSeq = Number(state.moveSeq || 0) + 1;
+    const nextState = checkersRealtimeStore.setState(tableId, {
+      board: authoritative.board,
+      turn: authoritative.turn,
+      lastMove: authoritative.lastMove,
+      requiredFrom: authoritative.requiredFrom,
+      winner: authoritative.winner,
+      reason: authoritative.reason,
+      moveSeq: nextMoveSeq
     });
-    io.to(tableId).emit('checkersState', { tableId, ...next });
+
+    table.currentTurn =
+      nextState.turn === SIDES.LIGHT
+        ? session.playersBySide.light
+        : session.playersBySide.dark;
+
+    socket.emit('checkersMoveAccepted', {
+      tableId,
+      clientMoveId: clientMoveId || null,
+      moveSeq: nextMoveSeq,
+      chainCapture: Boolean(authoritative.chainCapture)
+    });
+
+    io.to(tableId).emit('checkersState', { tableId, ...nextState });
+
+    if (!authoritative.winner) return;
+
+    const winnerSide = authoritative.winner;
+    const loserSide = winnerSide === SIDES.LIGHT ? SIDES.DARK : SIDES.LIGHT;
+    const winnerId = session.playersBySide[winnerSide];
+    const loserId = session.playersBySide[loserSide];
+    const matchEndPayload = {
+      tableId,
+      winnerSide,
+      winnerId: winnerId ? String(winnerId) : null,
+      loserId: loserId ? String(loserId) : null,
+      reason: authoritative.reason || 'match_end'
+    };
+    io.to(tableId).emit('matchEnded', matchEndPayload);
+
+    try {
+      const settlementResult = await settleCheckersMatch({
+        tableId,
+        winnerId,
+        loserId,
+        reason: matchEndPayload.reason,
+        stake: Number(session.stake || table.stake || 0),
+        token: session.token || table.meta?.token || 'TPC'
+      });
+      io.to(tableId).emit('settlementConfirmed', {
+        tableId,
+        idempotencyKey: settlementResult.settlement?.idempotencyKey || `${tableId}:1`,
+        winnerId: winnerId ? String(winnerId) : null,
+        loserId: loserId ? String(loserId) : null,
+        payoutAmount: settlementResult.settlement?.payoutAmount || 0,
+        token: settlementResult.settlement?.token || session.token || 'TPC',
+        status: settlementResult.status || 'skipped'
+      });
+    } catch (error) {
+      console.error('checkers settlement failed', error);
+      io.to(tableId).emit('settlementConfirmed', {
+        tableId,
+        idempotencyKey: `${tableId}:1`,
+        winnerId: winnerId ? String(winnerId) : null,
+        loserId: loserId ? String(loserId) : null,
+        payoutAmount: 0,
+        token: session.token || 'TPC',
+        status: 'failed'
+      });
+    }
   });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
