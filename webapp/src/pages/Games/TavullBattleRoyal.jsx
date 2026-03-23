@@ -1841,6 +1841,14 @@ export default function TavullBattleRoyal() {
 
   return (
     <div className="fixed inset-0 bg-[#060b16] px-3 py-3 text-white touch-none select-none">
+      {message ? (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 px-4">
+          <div className="max-w-[80vw] rounded-full border border-white/15 bg-black/55 px-4 py-2 text-center text-xs font-semibold text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
+            {message}
+          </div>
+        </div>
+      ) : null}
+
       <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
         <button
           type="button"
@@ -2019,7 +2027,7 @@ export default function TavullBattleRoyal() {
         <div ref={canvasHostRef} className="h-full w-full" />
       </div>
 
-      <div className="absolute left-1/2 top-[79%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+      <div className="absolute left-1/2 top-[81%] z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
         <button
           type="button"
           onClick={roll}
@@ -2126,7 +2134,7 @@ export default function TavullBattleRoyal() {
               <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
                 {player.name}
               </span>
-              {player.index === 1 && (
+              {player.index === 1 && winner && (
                 <span
                   className="mt-0.5 max-w-[120px] text-center text-[0.52rem] font-semibold leading-[1.2] text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.75)]"
                   style={{
@@ -2136,7 +2144,7 @@ export default function TavullBattleRoyal() {
                     overflow: 'hidden'
                   }}
                 >
-                  {winner ? `${winner === WHITE ? 'You' : 'AI'} win!` : message}
+                  {winner === WHITE ? 'You win!' : 'AI wins!'}
                 </span>
               )}
             </div>
