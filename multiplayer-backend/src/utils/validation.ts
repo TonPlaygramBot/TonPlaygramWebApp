@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const queueJoinSchema = z.object({
   gameMode: z.string().min(2).max(32),
   region: z.string().min(2).max(16).optional(),
+  tpcAccountNumber: z.string().min(2).max(64).optional(),
 });
 
 export const roomCreateSchema = z.object({
