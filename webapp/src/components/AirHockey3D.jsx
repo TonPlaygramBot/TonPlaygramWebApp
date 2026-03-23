@@ -10,7 +10,6 @@ import { bombSound, chatBeep } from '../assets/soundData.js';
 import GiftPopup from './GiftPopup.jsx';
 import QuickMessagePopup from './QuickMessagePopup.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
-import { AiOutlineMessage } from 'react-icons/ai';
 import LiveVideoChatPanel from './LiveVideoChatPanel.jsx';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
@@ -723,6 +722,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     if (!topLiveVideoRef.current) return;
     topLiveVideoRef.current.srcObject = liveChat.localStream || null;
   }, [liveChat.localStream]);
+  const toggleLiveFromAvatar = useCallback(() => {
+    setLiveMode((prev) => {
+      const nextLiveMode = !prev;
+      setShowLivePanel((panelOpen) => (nextLiveMode ? true : panelOpen));
+      return nextLiveMode;
+    });
+  }, []);
   const updateRendererSettings = useCallback(() => {
     const renderer = rendererRef.current;
     const host = hostRef.current;
@@ -2579,8 +2585,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         style={isTopDownView ? undefined : { top: `${2.35 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
       >
         <div
-          className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
+          className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs cursor-pointer"
           data-player-index="0"
+          data-self-player="true"
+          role="button"
+          tabIndex={0}
+          aria-label={liveMode ? 'Turn off live avatar video' : 'Turn on live avatar video'}
+          onClick={toggleLiveFromAvatar}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              toggleLiveFromAvatar();
+            }
+          }}
         >
           {liveMode ? (
             <video
@@ -2662,19 +2679,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             : 'bottom-2 left-2 items-start'
         }`}
       >
-        <button
-          type="button"
-          onClick={() => {
-            setLiveMode((prev) => !prev);
-            setShowLivePanel((prev) => (!liveMode ? true : prev));
-          }}
-          className={`flex flex-col items-center rounded px-2 py-1 text-[10px] font-semibold ${
-            liveMode ? 'bg-emerald-500/25 text-emerald-100' : 'bg-transparent text-white hover:bg-white/10'
-          }`}
-        >
-          <AiOutlineMessage className="text-xl" />
-          <span>{liveMode ? 'Avatar' : 'Live'}</span>
-        </button>
         <button
           type="button"
           onClick={() => setShowChat(true)}
