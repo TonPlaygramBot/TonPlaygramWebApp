@@ -6014,11 +6014,7 @@ function updateSeatBadgePositions() {
       CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
     world.project(camera);
     const x = (world.x * 0.5 + 0.5) * rect.width + rect.left;
-    let y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
-    if (idx === human) {
-      const maxBottomY = rect.top + rect.height - 92;
-      y = Math.min(y + 52, maxBottomY);
-    }
+    const y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
     badge.style.opacity = world.z > 1 || world.z < -1 ? '0' : '1';
