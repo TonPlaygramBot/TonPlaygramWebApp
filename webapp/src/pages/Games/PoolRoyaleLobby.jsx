@@ -33,6 +33,17 @@ import {
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 
+function resolveTpcAccountNumber(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.tpcAccountNumber ??
+      player.accountId ??
+      player.playerId ??
+      player.id ??
+      ''
+  ).trim();
+}
+
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -133,10 +144,18 @@ export default function PoolRoyaleLobby() {
     currentTurn
   }) => {
     const selfId = accountId || accountIdRef.current;
-    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
-    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
-    const starterId = currentTurn || roster?.[0]?.id || null;
-    const selfIndex = roster.findIndex((p) => String(p.id) === String(selfId));
+    const safeRoster = Array.isArray(roster) ? roster.filter(Boolean) : [];
+    const selfEntry = safeRoster.find(
+      (p) => resolveTpcAccountNumber(p) === String(selfId)
+    );
+    const opponentEntry = safeRoster.find(
+      (p) => resolveTpcAccountNumber(p) !== String(selfId)
+    );
+    const starterId =
+      currentTurn || resolveTpcAccountNumber(safeRoster?.[0]) || null;
+    const selfIndex = safeRoster.findIndex(
+      (p) => resolveTpcAccountNumber(p) === String(selfId)
+    );
     const seat = selfIndex === 1 ? 'B' : 'A';
     const starterSeat =
       starterId && String(starterId) === String(selfId)
@@ -154,7 +173,9 @@ export default function PoolRoyaleLobby() {
       opponentEntry?.name ||
       opponentEntry?.username ||
       opponentEntry?.telegramName ||
-      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+      (resolveTpcAccountNumber(opponentEntry)
+        ? `TPC ${resolveTpcAccountNumber(opponentEntry)}`
+        : '');
     const opponentAvatar = opponentEntry?.avatar || '';
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
@@ -351,13 +372,17 @@ export default function PoolRoyaleLobby() {
 
   const matchingCandidates = useMemo(() => {
     const base = (onlinePlayers || []).map((p) => ({
-      id: p.accountId || p.playerId || p.id,
+      id: resolveTpcAccountNumber(p),
       name:
-        p.username || p.name || p.telegramName || p.telegramId || p.accountId
+        p.username ||
+        p.name ||
+        p.telegramName ||
+        p.telegramId ||
+        resolveTpcAccountNumber(p)
     }));
     const lobbyEntries = (matchPlayers || []).map((p) => ({
-      id: p.id,
-      name: p.name || p.id
+      id: resolveTpcAccountNumber(p),
+      name: p?.name || resolveTpcAccountNumber(p)
     }));
     const merged = [...base, ...lobbyEntries].filter((p) => p.id);
     const seen = new Set();

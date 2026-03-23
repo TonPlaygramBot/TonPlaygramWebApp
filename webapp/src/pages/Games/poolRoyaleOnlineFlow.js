@@ -7,6 +7,17 @@ const DEFAULT_MATCH_TIMEOUT_MS = 30000;
 const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 15000;
 const DEFAULT_REGISTER_TIMEOUT_MS = 6000;
 
+function resolveTpcAccountNumber(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.tpcAccountNumber ??
+      player.accountId ??
+      player.playerId ??
+      player.id ??
+      ''
+  ).trim();
+}
+
 function logSupportError(message, error, context = {}) {
   // Surface in console for support teams; caller will also show inline errors.
   console.error('[PoolRoyaleLobby]', message, { ...context, error });
@@ -98,7 +109,7 @@ async function ensureSocketRegistered(
     }, timeoutMs);
 
     try {
-      socketInstance.emit('register', { playerId: accountId }, (res) => {
+      socketInstance.emit('register', { playerId: accountId, tpcAccountId: accountId }, (res) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -289,7 +300,11 @@ export async function runPoolRoyaleOnlineFlow({
     setMatchPlayers(list);
     matchPlayersRef.current = list;
     setReadyList(ready);
-    const others = list.filter((p) => String(p.id) !== String(accountId));
+    const others = list.filter(
+      (p) =>
+        resolveTpcAccountNumber(p) &&
+        resolveTpcAccountNumber(p) !== String(accountId)
+    );
     setMatchStatus(
       others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
     );
@@ -306,7 +321,11 @@ export async function runPoolRoyaleOnlineFlow({
     socketInstance.off('lobbyUpdate', handleLobbyUpdate);
     socketInstance.off('gameStart', handleGameStart);
     if (pendingTableRef.current && account) {
-      socketInstance.emit('leaveLobby', { accountId: account, tableId: pendingTableRef.current });
+      socketInstance.emit('leaveLobby', {
+        accountId: account,
+        tpcAccountId: account,
+        tableId: pendingTableRef.current
+      });
     }
     pendingTableRef.current = '';
     clearSpinInterval();
@@ -372,6 +391,7 @@ export async function runPoolRoyaleOnlineFlow({
       'seatTable',
       {
         accountId,
+        tpcAccountId: accountId,
         stake: stake.amount,
         token: stake.token,
         gameType: 'poolroyale',
@@ -431,12 +451,13 @@ export async function runPoolRoyaleOnlineFlow({
         }
         pendingTableRef.current = res.tableId;
         setMatchStatus('Waiting for another player…');
-        const playersList = res.players || [];
+        const playersList = Array.isArray(res.players) ? res.players.filter(Boolean) : [];
         setMatchPlayers(playersList);
         matchPlayersRef.current = playersList;
         setReadyList(res.ready || []);
         socketInstance.emit('confirmReady', {
           accountId,
+          tpcAccountId: accountId,
           tableId: res.tableId
         });
         startMatchTimeout(res.tableId);
