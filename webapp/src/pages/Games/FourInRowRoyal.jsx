@@ -47,6 +47,7 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const BOARD_TABLE_CLEARANCE = 0.2;
+const BOARD_VERTICAL_LIFT = 0.12;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -375,7 +376,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_VERTICAL_LIFT;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -525,14 +526,24 @@ export default function FourInRowRoyal() {
     rendererRef.current = renderer;
 
     const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
-    perspective.position.set(0, TABLE_HEIGHT + 1.8, CHAIR_DISTANCE + 2.8);
+    const isPortrait = mount.clientHeight > mount.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
+    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
+    perspective.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius,
+      TABLE_HEIGHT + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius
+    );
     perspectiveCameraRef.current = perspective;
 
     const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, TABLE_HEIGHT + 0.6, 0);
+    controls.target.set(0, TABLE_HEIGHT, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
     controls.rotateSpeed = 0.85;
@@ -677,7 +688,7 @@ export default function FourInRowRoyal() {
     legRight.position.x = sideOffset;
     boardGroup.add(legLeft, legRight);
 
-    const footY = TABLE_HEIGHT - 0.08;
+    const footY = TABLE_HEIGHT + 0.02;
     const footGeo = new THREE.BoxGeometry(0.54, 0.16, 0.28);
     const leftFoot = new THREE.Mesh(footGeo, railMat);
     leftFoot.position.set(-sideOffset - 0.04, footY, BOARD_FRAME_CENTER_Z);
@@ -685,8 +696,8 @@ export default function FourInRowRoyal() {
     rightFoot.position.x = sideOffset + 0.04;
     boardGroup.add(leftFoot, rightFoot);
 
-    // Keep the board and frame visually straight from the default portrait camera angle.
-    boardGroup.rotation.y = Math.PI / 2;
+    // Keep the board and frame facing the player at the default start camera.
+    boardGroup.rotation.y = 0;
 
     const holeRimGeo = new THREE.TorusGeometry(slotRadius * 0.97, 0.018, 16, 42);
     for (let r = 0; r < rows; r += 1) {
