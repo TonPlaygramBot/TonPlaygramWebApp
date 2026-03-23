@@ -5879,6 +5879,7 @@ let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
+let fixedHumanBadgeAnchor = null;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
@@ -6013,11 +6014,24 @@ function updateSeatBadgePositions() {
     world.y +=
       CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
     world.project(camera);
-    const x = (world.x * 0.5 + 0.5) * rect.width + rect.left;
-    const y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
+    let x = (world.x * 0.5 + 0.5) * rect.width + rect.left;
+    let y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
+    if (idx === human) {
+      const hasHumanCards = (players?.[human]?.hand?.length || 0) > 0;
+      if (!fixedHumanBadgeAnchor && hasHumanCards) {
+        fixedHumanBadgeAnchor = {
+          xRatio: rect.width > 0 ? (x - rect.left) / rect.width : 0.5,
+          yRatio: rect.height > 0 ? (y - rect.top) / rect.height : 0.5
+        };
+      }
+      if (fixedHumanBadgeAnchor) {
+        x = rect.left + fixedHumanBadgeAnchor.xRatio * rect.width;
+        y = rect.top + fixedHumanBadgeAnchor.yRatio * rect.height;
+      }
+    }
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
-    badge.style.opacity = world.z > 1 || world.z < -1 ? '0' : '1';
+    badge.style.opacity = idx === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
   });
 }
 
@@ -6048,6 +6062,7 @@ function disposeSeatNameTags() {
 }
 
 function disposeSeatBadges() {
+  fixedHumanBadgeAnchor = null;
   while (seatBadges.length) {
     const badge = seatBadges.pop();
     badge?.remove?.();
