@@ -29,6 +29,32 @@ export function parseTwitterHandle(input) {
 
 const router = Router();
 
+export function canManageUserTransactions(reqAuth = {}, user = null, requestedTelegramId = null) {
+  if (!user) return false;
+  if (reqAuth?.apiToken) return true;
+
+  const authTelegramId = reqAuth?.telegramId;
+  if (authTelegramId != null) {
+    if (requestedTelegramId != null && Number(requestedTelegramId) !== Number(authTelegramId)) {
+      return false;
+    }
+    if (user.telegramId != null) {
+      return Number(user.telegramId) === Number(authTelegramId);
+    }
+    return requestedTelegramId != null;
+  }
+
+  if (reqAuth?.accountId && user.accountId) {
+    return String(reqAuth.accountId) === String(user.accountId);
+  }
+
+  if (reqAuth?.googleId && user.googleId) {
+    return String(reqAuth.googleId) === String(user.googleId);
+  }
+
+  return false;
+}
+
 router.post('/register-wallet', async (req, res) => {
   const { walletAddress } = req.body;
   if (!walletAddress) {
@@ -200,34 +226,31 @@ router.post('/addTransaction', authenticate, async (req, res) => {
       .status(400)
       .json({ error: 'telegramId or accountId, amount and type required' });
   }
-  if (!req.auth?.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
+
   let user = null;
-  if (telegramId != null) {
-    if (req.auth.telegramId !== telegramId) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-    user = await User.findOne({ telegramId });
-  }
+  if (telegramId != null) user = await User.findOne({ telegramId });
   if (!user && accountId) user = await User.findOne({ accountId });
+
   if (!user) {
     const data = {
-      accountId,
+      accountId: accountId || uuidv4(),
       referralCode: String(telegramId || accountId)
     };
     if (telegramId != null) data.telegramId = telegramId;
+    if (req.auth?.googleId) data.googleId = req.auth.googleId;
     user = new User(data);
   }
+
+  if (!canManageUserTransactions(req.auth, user, telegramId)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
   ensureTransactionArray(user);
   const tx = { amount, type, date: new Date() };
   if (game) tx.game = game;
   if (players) tx.players = players;
   user.transactions.push(tx);
   await user.save();
-  if (!user.telegramId || user.telegramId !== req.auth.telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   res.json({ transactions: user.transactions });
 });
 
