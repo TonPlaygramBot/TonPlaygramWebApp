@@ -10,6 +10,7 @@ import { bombSound, chatBeep } from '../assets/soundData.js';
 import GiftPopup from './GiftPopup.jsx';
 import QuickMessagePopup from './QuickMessagePopup.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
+import { AiOutlineMessage } from 'react-icons/ai';
 import LiveVideoChatPanel from './LiveVideoChatPanel.jsx';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
@@ -2565,14 +2566,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     );
   };
 
-  const toggleLiveAvatar = () => {
-    setLiveMode((prev) => {
-      const next = !prev;
-      setShowLivePanel(next);
-      return next;
-    });
-  };
-
   return (
     <div
       ref={hostRef}
@@ -2589,28 +2582,21 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs"
           data-player-index="0"
         >
-          <button
-            type="button"
-            onClick={toggleLiveAvatar}
-            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
-            aria-label={liveMode ? 'Turn off live avatar video' : 'Turn on live avatar video'}
-          >
-            {liveMode ? (
-              <video
-                ref={topLiveVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-10 w-10 rounded-full border border-emerald-300/70 object-cover bg-black scale-x-[-1]"
-              />
-            ) : (
-              <img
-                src={getAvatarUrl(player.avatar)}
-                alt=""
-                className="h-5 w-5 rounded-full object-cover"
-              />
-            )}
-          </button>
+          {liveMode ? (
+            <video
+              ref={topLiveVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-10 w-10 rounded-full border border-emerald-300/70 object-cover bg-black scale-x-[-1]"
+            />
+          ) : (
+            <img
+              src={getAvatarUrl(player.avatar)}
+              alt=""
+              className="h-5 w-5 rounded-full object-cover"
+            />
+          )}
           <span className="truncate">
             {player.name}: {ui.left}
             {liveMode ? <span className="ml-1 text-emerald-200">• Live</span> : null}
@@ -2676,6 +2662,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             : 'bottom-2 left-2 items-start'
         }`}
       >
+        <button
+          type="button"
+          onClick={() => {
+            setLiveMode((prev) => !prev);
+            setShowLivePanel((prev) => (!liveMode ? true : prev));
+          }}
+          className={`flex flex-col items-center rounded px-2 py-1 text-[10px] font-semibold ${
+            liveMode ? 'bg-emerald-500/25 text-emerald-100' : 'bg-transparent text-white hover:bg-white/10'
+          }`}
+        >
+          <AiOutlineMessage className="text-xl" />
+          <span>{liveMode ? 'Avatar' : 'Live'}</span>
+        </button>
         <button
           type="button"
           onClick={() => setShowChat(true)}
