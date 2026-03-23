@@ -2695,6 +2695,9 @@ export default function CheckersBattleRoyal() {
               key={`checkers-seat-${player.index}`}
               className="absolute pointer-events-auto flex flex-col items-center"
               data-player-index={player.index}
+              data-self-player={player.index === 1 ? 'true' : 'false'}
+              data-is-user={player.index === 1 ? 'true' : 'false'}
+              aria-label={player.index === 1 ? 'You' : player.name}
               style={{
                 left: FALLBACK_SEAT_POSITIONS[player.index].left,
                 top: FALLBACK_SEAT_POSITIONS[player.index].top,

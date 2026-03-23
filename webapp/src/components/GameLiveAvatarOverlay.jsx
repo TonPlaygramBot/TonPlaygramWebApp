@@ -86,10 +86,9 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const scoreAnchor = (element, rect) => {
       let score = 0;
       const marker =
-        `${element.getAttribute('data-self-player') || ''} ${element.getAttribute('data-player-index') || ''} ${element.className || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('alt') || ''}`.toLowerCase();
+        `${element.getAttributeNames().join(' ')} ${element.getAttribute('data-self-player') || ''} ${element.getAttribute('data-is-user') || ''} ${element.getAttribute('data-player-index') || ''} ${element.className || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('alt') || ''}`.toLowerCase();
       if (marker.includes('self')) score += 100;
       if (marker.includes('you')) score += 80;
-      if (marker.includes('player-index') || marker.includes('0')) score += 40;
       if (rect.top > window.innerHeight * 0.45) score += 25;
       if (rect.left < window.innerWidth * 0.65) score += 15;
       score += Math.min(rect.width, rect.height);
