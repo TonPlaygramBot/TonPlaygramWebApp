@@ -27,6 +27,11 @@ const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
 const MATCHMAKING_TIMEOUT_MS = 45000;
+const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
+  'register_required',
+  'rate_limited',
+  'identity_mismatch'
+]);
 
 function normalizeHostCode(code = '') {
   return String(code || '')
@@ -339,7 +344,10 @@ export default function CheckersBattleRoyalLobby() {
     setMatchStatus('Connecting to lobby…');
 
     if (trackedAccountId) {
-      refreshSocketAuthIdentity({ accountId: String(trackedAccountId) });
+      refreshSocketAuthIdentity(
+        { accountId: String(trackedAccountId) },
+        { reconnect: true }
+      );
     }
 
     const socketReady = await ensureSocketConnected();
@@ -436,17 +444,49 @@ export default function CheckersBattleRoyalLobby() {
         async (res) => {
           if (!res?.success || !res.tableId) {
             const shouldRetry =
-              (res?.error === 'register_required' || res?.error === 'rate_limited') &&
+              MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
               seatAttempts < maxSeatAttempts;
             if (shouldRetry) {
               setMatchStatus('Retrying online seat…');
-              setTimeout(() => seatPlayer(), 400);
+              if (res?.error === 'identity_mismatch' && trackedAccountId) {
+                refreshSocketAuthIdentity(
+                  { accountId: String(trackedAccountId) },
+                  { reconnect: true }
+                );
+              }
+              setTimeout(async () => {
+                const restored = await ensureSocketConnected();
+                if (!restored) {
+                  clearTimeout(matchTimeout);
+                  matchmakingTimeoutRef.current = null;
+                  await refundStakeIfNeeded();
+                  setMatchError('Lobby connection dropped while retrying. Your stake was refunded.');
+                  cleanupLobby({ account: trackedAccountId });
+                  return;
+                }
+                if (res?.error === 'identity_mismatch' && trackedAccountId) {
+                  const reRegistered = await ensureSocketRegistered(trackedAccountId);
+                  if (!reRegistered) {
+                    clearTimeout(matchTimeout);
+                    matchmakingTimeoutRef.current = null;
+                    await refundStakeIfNeeded();
+                    setMatchError('Could not restore your online identity. Your stake was refunded.');
+                    cleanupLobby({ account: trackedAccountId });
+                    return;
+                  }
+                }
+                seatPlayer();
+              }, 400);
               return;
             }
             clearTimeout(matchTimeout);
             matchmakingTimeoutRef.current = null;
             await refundStakeIfNeeded();
-            setMatchError('Could not join the online lobby. Please try again.');
+            const serverMessage =
+              typeof res?.error === 'string' && res.error.trim()
+                ? ` (${res.error.replace(/_/g, ' ')})`
+                : '';
+            setMatchError(`Could not join the online lobby. Please try again${serverMessage}.`);
             cleanupLobby({ account: trackedAccountId });
             return;
           }
