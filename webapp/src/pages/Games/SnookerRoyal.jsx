@@ -11705,7 +11705,11 @@ function SnookerRoyalGame({
   );
   const availableEnvironmentHdris = useMemo(
     () => {
-      const customVariants = getCustomHdriVariantsForGame('snookerroyale', accountId);
+      const customVariants = getCustomHdriVariantsForGame(
+        'snookerroyale',
+        accountId,
+        snookerInventory?.environmentHdri
+      );
       const merged = [...SNOOKER_ROYALE_HDRI_VARIANTS, ...customVariants];
       return merged.filter((variant) =>
         isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)

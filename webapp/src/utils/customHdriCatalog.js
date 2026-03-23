@@ -50,25 +50,69 @@ export const saveCustomHdriEntry = (entry) => {
   return nextEntry;
 };
 
-export const getCustomHdriVariantsForGame = (slug, viewerAccountId = null) =>
-  getCustomHdriCatalog(viewerAccountId)
+const toVariant = (entry, slug, optionIdOverride = null) => {
+  const optionId = optionIdOverride || entry?.optionIdByGame?.[slug];
+  if (typeof optionId !== 'string' || !optionId) return null;
+  const name =
+    typeof entry?.name === 'string' && entry.name.trim()
+      ? entry.name.trim()
+      : 'Premium HDRI';
+  const environmentUrl =
+    typeof entry?.environmentUrl === 'string' ? entry.environmentUrl : '';
+  const thumbnailUrl =
+    typeof entry?.thumbnailUrl === 'string' ? entry.thumbnailUrl : '';
+  return {
+    id: optionId,
+    name,
+    assetUrl: environmentUrl,
+    thumbnail: thumbnailUrl || environmentUrl || '',
+    preferredResolutions: ['2k'],
+    fallbackResolution: '2k',
+    exposure: 1.02,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.98,
+    swatches: ['#d946ef', '#7c3aed'],
+    description: `Creator HDRI · ${name}`,
+    isCustomUpload: true
+  };
+};
+
+export const getCustomHdriVariantsForGame = (
+  slug,
+  viewerAccountId = null,
+  ownedOptionIds = []
+) => {
+  const catalogVariants = getCustomHdriCatalog(viewerAccountId)
     .filter(
       (entry) =>
         Array.isArray(entry.supportedGames) &&
         entry.supportedGames.includes(slug) &&
         typeof entry.optionIdByGame?.[slug] === 'string'
     )
-    .map((entry) => ({
-      id: entry.optionIdByGame[slug],
-      name: entry.name,
-      assetUrl: entry.environmentUrl,
-      thumbnail: entry.thumbnailUrl || entry.environmentUrl || '',
-      preferredResolutions: ['2k'],
-      fallbackResolution: '2k',
-      exposure: 1.02,
-      environmentIntensity: 1.04,
-      backgroundIntensity: 0.98,
-      swatches: ['#d946ef', '#7c3aed'],
-      description: `Creator HDRI · ${entry.name}`,
-      isCustomUpload: true
-    }));
+    .map((entry) => toVariant(entry, slug))
+    .filter(Boolean);
+
+  const seenIds = new Set(catalogVariants.map((variant) => variant.id));
+  const fallbackOwnedVariants = Array.isArray(ownedOptionIds)
+    ? ownedOptionIds
+        .filter(
+          (optionId) =>
+            typeof optionId === 'string' &&
+            optionId.startsWith('custom-hdri:') &&
+            !seenIds.has(optionId)
+        )
+        .map((optionId) =>
+          toVariant(
+            {
+              name: 'Premium HDRI',
+              optionIdByGame: { [slug]: optionId }
+            },
+            slug,
+            optionId
+          )
+        )
+        .filter(Boolean)
+    : [];
+
+  return [...catalogVariants, ...fallbackOwnedVariants];
+};
