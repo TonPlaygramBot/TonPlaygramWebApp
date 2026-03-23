@@ -1500,6 +1500,9 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.014;
 const BALL_BALL_FRICTION = 0.18;
+const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
+const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
+const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.012;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -6696,12 +6699,21 @@ function reflectRails(ball) {
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
       if (penetration <= 0) continue;
+      TMP_VEC2_LIMIT.copy(TMP_VEC2_D);
+      if (TMP_VEC2_LIMIT.lengthSq() > 1e-10) {
+        TMP_VEC2_LIMIT.normalize();
+        if (TMP_VEC2_LIMIT.dot(segment.normal) < 0) {
+          TMP_VEC2_LIMIT.multiplyScalar(-1);
+        }
+      } else {
+        TMP_VEC2_LIMIT.copy(segment.normal);
+      }
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
         bestImpact = {
           type: segment.type === 'cut' ? 'cut' : 'rail',
-          normal: segment.normal.clone(),
-          tangent: new THREE.Vector2(-segment.normal.y, segment.normal.x)
+          normal: TMP_VEC2_LIMIT.clone(),
+          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
         };
       }
     }
@@ -29868,12 +29880,33 @@ const powerRef = useRef(hud.power);
               const dx = b.pos.x - a.pos.x,
                 dy = b.pos.y - a.pos.y;
               const d2 = dx * dx + dy * dy;
-              const min = (BALL_R * 2) ** 2;
-              if (d2 > 0 && d2 < min) {
-                const d = Math.sqrt(d2) || 1e-4;
-                const nx = dx / d,
+              const targetDist = BALL_R * 2;
+              const minDist = targetDist + BALL_CONTACT_EPS;
+              const min = minDist ** 2;
+              if (d2 <= min) {
+                let d = Math.sqrt(Math.max(d2, 0));
+                let nx = 0;
+                let ny = 0;
+                if (d > 1e-8) {
+                  nx = dx / d;
                   ny = dy / d;
-                const overlap = (BALL_R * 2 - d) / 2;
+                } else {
+                  TMP_VEC2_A.set(b.vel.x - a.vel.x, b.vel.y - a.vel.y);
+                  if (TMP_VEC2_A.lengthSq() > 1e-10) {
+                    TMP_VEC2_A.normalize();
+                    nx = TMP_VEC2_A.x;
+                    ny = TMP_VEC2_A.y;
+                  } else {
+                    nx = 1;
+                    ny = 0;
+                  }
+                  d = 0;
+                }
+                const penetration = Math.max(0, targetDist - d);
+                const overlap =
+                  penetration > BALL_COLLISION_SLOP
+                    ? ((penetration - BALL_COLLISION_SLOP) * BALL_COLLISION_BAUMGARTE) / 2
+                    : 0;
                 const pairKey =
                   (a.id ?? i) < (b.id ?? j)
                     ? `${a.id ?? i}:${b.id ?? j}`
@@ -29882,10 +29915,12 @@ const powerRef = useRef(hud.power);
                 newCollisions.add(pairKey);
                 const wasColliding = prevCollisions.has(pairKey);
                 const isNewImpact = firstPairCollision && !wasColliding;
-                a.pos.x -= nx * overlap;
-                a.pos.y -= ny * overlap;
-                b.pos.x += nx * overlap;
-                b.pos.y += ny * overlap;
+                if (overlap > 0) {
+                  a.pos.x -= nx * overlap;
+                  a.pos.y -= ny * overlap;
+                  b.pos.x += nx * overlap;
+                  b.pos.y += ny * overlap;
+                }
                 TMP_VEC3_A.set(nx, 0, ny);
                 TMP_VEC3_B.copy(TMP_VEC3_A).multiplyScalar(BALL_R);
                 TMP_VEC3_C.copy(TMP_VEC3_A).multiplyScalar(-BALL_R);
