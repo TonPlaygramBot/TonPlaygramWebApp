@@ -466,16 +466,16 @@ export function getSnakeResults() {
   return get('/api/snake/results');
 }
 
-export function seatTable(playerId, tableId, name) {
-  return post('/api/snake/table/seat', { playerId, tableId, name });
+export function seatTable(tpcAccountNumber, tableId, name) {
+  return post('/api/snake/table/seat', { tpcAccountNumber, tableId, name });
 }
 
-export function unseatTable(playerId, tableId) {
-  return post('/api/snake/table/unseat', { playerId, tableId });
+export function unseatTable(tpcAccountNumber, tableId) {
+  return post('/api/snake/table/unseat', { tpcAccountNumber, tableId });
 }
 
-export function pingOnline(playerId, status) {
-  return post('/api/online/ping', { playerId, status });
+export function pingOnline(tpcAccountNumber, status) {
+  return post('/api/online/ping', { tpcAccountNumber, status });
 }
 
 export function registerPushToken({ token, platform, accountId, telegramId }) {

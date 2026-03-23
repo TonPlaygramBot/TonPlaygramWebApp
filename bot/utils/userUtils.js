@@ -43,6 +43,7 @@ export function sanitizeUser(user) {
   if (!user) return null;
   return {
     accountId: user.accountId,
+    tpcAccountNumber: user.tpcAccountNumber || user.accountId,
     walletAddress: user.walletAddress,
     walletPublicKey: user.walletPublicKey,
     nickname: user.nickname,

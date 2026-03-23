@@ -5,9 +5,9 @@ import { buildReadinessSnapshot } from '../config/onlineGamePolicy.js';
 const router = Router();
 
 router.post('/ping', async (req, res) => {
-  const { playerId, accountId, roomId, status } = req.body || {};
-  const id = playerId || accountId;
-  if (!id) return res.status(400).json({ error: 'playerId required' });
+  const { playerId, accountId, tpcAccountId, tpcAccountNumber, roomId, status } = req.body || {};
+  const id = tpcAccountNumber || tpcAccountId || accountId || playerId;
+  if (!id) return res.status(400).json({ error: 'tpcAccountNumber required' });
   await ping({ userId: String(id), roomId: roomId || null, status: status || 'online' });
   res.json({ success: true });
 });

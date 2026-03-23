@@ -109,7 +109,7 @@ async function ensureSocketRegistered(
     }, timeoutMs);
 
     try {
-      socketInstance.emit('register', { playerId: accountId, tpcAccountId: accountId }, (res) => {
+      socketInstance.emit('register', { tpcAccountNumber: accountId, tpcAccountId: accountId }, (res) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -322,7 +322,7 @@ export async function runPoolRoyaleOnlineFlow({
     socketInstance.off('gameStart', handleGameStart);
     if (pendingTableRef.current && account) {
       socketInstance.emit('leaveLobby', {
-        accountId: account,
+        tpcAccountNumber: account,
         tpcAccountId: account,
         tableId: pendingTableRef.current
       });
@@ -391,6 +391,7 @@ export async function runPoolRoyaleOnlineFlow({
       'seatTable',
       {
         accountId,
+        tpcAccountNumber: accountId,
         tpcAccountId: accountId,
         stake: stake.amount,
         token: stake.token,
@@ -456,7 +457,7 @@ export async function runPoolRoyaleOnlineFlow({
         matchPlayersRef.current = playersList;
         setReadyList(res.ready || []);
         socketInstance.emit('confirmReady', {
-          accountId,
+          tpcAccountNumber: accountId,
           tpcAccountId: accountId,
           tableId: res.tableId
         });
