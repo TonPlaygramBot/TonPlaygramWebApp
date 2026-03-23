@@ -41,11 +41,17 @@ export function getTelegramId() {
       localStorage.setItem('telegramId', telegramId);
       return telegramId;
     }
-    const stored = localStorage.getItem('telegramId');
-    if (stored) {
-      const parsed = parseTelegramId(stored);
-      if (parsed != null) return parsed;
-      localStorage.removeItem('telegramId');
+    // Important identity isolation:
+    // when running outside Telegram (for example Google login in a browser),
+    // we must not reuse stale telegramId values from previous sessions.
+    const canUseStoredTelegramId = isTelegramWebView();
+    if (canUseStoredTelegramId) {
+      const stored = localStorage.getItem('telegramId');
+      if (stored) {
+        const parsed = parseTelegramId(stored);
+        if (parsed != null) return parsed;
+        localStorage.removeItem('telegramId');
+      }
     }
   }
   return null;

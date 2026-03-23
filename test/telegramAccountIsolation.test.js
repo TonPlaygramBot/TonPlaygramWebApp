@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
-import { getPlayerId } from '../webapp/src/utils/telegram.js';
+import { getPlayerId, getTelegramId } from '../webapp/src/utils/telegram.js';
 
 class MemoryStorage {
   constructor() {
@@ -113,5 +113,23 @@ describe('telegram account scoped player ids', () => {
 
     expect(googleScoped).toBeTruthy();
     expect(googleScoped).not.toBe(telegramScoped);
+  });
+
+  test('does not return cached telegramId outside Telegram webview', () => {
+    setTelegramUserId(null);
+    global.window.Telegram = undefined;
+    global.localStorage.setItem('telegramId', '5555');
+
+    expect(getTelegramId()).toBeNull();
+  });
+
+  test('returns cached telegramId only while Telegram webview is present', () => {
+    setTelegramUserId(1234);
+    expect(getTelegramId()).toBe(1234);
+
+    // Runtime Telegram id disappears but Telegram WebApp context still exists.
+    global.window.Telegram = { WebApp: { initDataUnsafe: {}, platform: 'ios' } };
+
+    expect(getTelegramId()).toBe(1234);
   });
 });
