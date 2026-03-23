@@ -47,20 +47,12 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const BOARD_TABLE_CLEARANCE = 0.2;
-const BOARD_LIFT_OFFSET = 0.16;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
 const BOARD_SLOT_GAP = 0.15;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
 const BOARD_FRAME_CENTER_Z = 0;
-const CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PORTRAIT_CAMERA_BACK_OFFSET = 2.9;
-const LANDSCAPE_CAMERA_BACK_OFFSET = 2.13;
-const PORTRAIT_CAMERA_FORWARD_OFFSET = 0.08;
-const LANDSCAPE_CAMERA_FORWARD_OFFSET = 0.2;
-const PORTRAIT_CAMERA_HEIGHT_OFFSET = 1.72;
-const LANDSCAPE_CAMERA_HEIGHT_OFFSET = 1.34;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -383,7 +375,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_LIFT_OFFSET;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -533,23 +525,14 @@ export default function FourInRowRoyal() {
     rendererRef.current = renderer;
 
     const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
-    const isPortrait = mount.clientHeight > mount.clientWidth;
-    const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_BACK_OFFSET : LANDSCAPE_CAMERA_BACK_OFFSET;
-    const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_FORWARD_OFFSET : LANDSCAPE_CAMERA_FORWARD_OFFSET;
-    const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_HEIGHT_OFFSET : LANDSCAPE_CAMERA_HEIGHT_OFFSET;
-    const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
-    perspective.position.set(
-      Math.cos(CAMERA_SEAT_ANGLE) * cameraRadius,
-      TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(CAMERA_SEAT_ANGLE) * cameraRadius
-    );
+    perspective.position.set(0, TABLE_HEIGHT + 1.8, CHAIR_DISTANCE + 2.8);
     perspectiveCameraRef.current = perspective;
 
     const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    controls.target.set(0, TABLE_HEIGHT + 0.6, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
     controls.rotateSpeed = 0.85;
@@ -694,7 +677,7 @@ export default function FourInRowRoyal() {
     legRight.position.x = sideOffset;
     boardGroup.add(legLeft, legRight);
 
-    const footY = boardBaseY + 0.04;
+    const footY = TABLE_HEIGHT - 0.08;
     const footGeo = new THREE.BoxGeometry(0.54, 0.16, 0.28);
     const leftFoot = new THREE.Mesh(footGeo, railMat);
     leftFoot.position.set(-sideOffset - 0.04, footY, BOARD_FRAME_CENTER_Z);
