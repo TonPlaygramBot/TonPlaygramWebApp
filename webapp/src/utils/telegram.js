@@ -1,4 +1,4 @@
-import { createAccount, fetchTelegramInfo } from "./api.js";
+import { fetchTelegramInfo } from "./api.js";
 
 export function isTelegramWebView() {
   if (typeof window === 'undefined') return false;
@@ -160,52 +160,9 @@ export function getPlayerId() {
   return id;
 }
 
-let ensureAccountIdInFlight = null;
-
-function loadGoogleProfileFromStorage() {
-  if (typeof window === 'undefined') return null;
-  try {
-    const rawProfile = window.localStorage?.getItem('googleProfile');
-    if (!rawProfile) return null;
-    const parsed = JSON.parse(rawProfile);
-    if (!parsed?.id) return null;
-    return {
-      id: String(parsed.id),
-      email: parsed.email || undefined,
-      firstName: parsed.firstName || undefined,
-      lastName: parsed.lastName || undefined,
-      photo: parsed.photo || undefined
-    };
-  } catch {
-    return null;
-  }
-}
-
 export async function ensureAccountId() {
   if (typeof window === 'undefined') return null;
-  if (ensureAccountIdInFlight) return ensureAccountIdInFlight;
-
-  const localScopedId = getPlayerId();
-  const telegramId = getTelegramId();
-  const googleProfile = telegramId ? null : loadGoogleProfileFromStorage();
-
-  ensureAccountIdInFlight = createAccount(
-    telegramId,
-    googleProfile,
-    localScopedId || undefined
-  )
-    .then((response) => {
-      if (response?.accountId && typeof response.accountId === 'string') {
-        return response.accountId;
-      }
-      return localScopedId || null;
-    })
-    .catch(() => localScopedId || null)
-    .finally(() => {
-      ensureAccountIdInFlight = null;
-    });
-
-  return ensureAccountIdInFlight;
+  return getPlayerId();
 }
 
 export function getTelegramUsername() {
