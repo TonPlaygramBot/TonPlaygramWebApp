@@ -294,10 +294,10 @@ export default function CheckersBattleRoyalLobby() {
     let trackedAccountId;
     let stakeCharged = false;
     const refundStakeIfNeeded = async (reason = 'stake_refund') => {
-      if (!isOnline || !stakeCharged || !trackedAccountId || !tgId || !stake.amount) return;
+      if (!isOnline || !stakeCharged || !trackedAccountId || !stake.amount) return;
       stakeCharged = false;
       try {
-        await addTransaction(tgId, stake.amount, reason, {
+        await addTransaction(tgId ?? undefined, stake.amount, reason, {
           game: 'checkersbattle',
           players: 2,
           accountId: trackedAccountId
@@ -312,7 +312,7 @@ export default function CheckersBattleRoyalLobby() {
 
       if (!trackedAccountId) {
         await refundStakeIfNeeded();
-        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
+        setMatchError('Unable to resolve your TPC account number. Reopen app and try again.');
         setMatching(false);
         setMatchStatus('');
         return;
@@ -333,7 +333,7 @@ export default function CheckersBattleRoyalLobby() {
 
       try {
         tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
+        await addTransaction(tgId ?? undefined, -stake.amount, 'stake', {
           game: 'checkersbattle',
           players: 2,
           accountId: trackedAccountId,
