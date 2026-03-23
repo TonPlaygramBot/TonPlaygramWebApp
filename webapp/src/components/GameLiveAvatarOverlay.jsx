@@ -175,7 +175,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const FRAME_SCALE = 1.2;
+      const FRAME_SCALE = 1;
       const width = Math.max(Math.round(rect.width * FRAME_SCALE), 32);
       const height = Math.max(Math.round(rect.height * FRAME_SCALE), 32);
       const left = Math.max(
