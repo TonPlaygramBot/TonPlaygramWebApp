@@ -540,7 +540,19 @@ function normalizeMatchMeta(rawMeta = {}) {
   return normalized;
 }
 
-function isMatchMetaCompatible(existing = {}, requested = {}) {
+function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
+  const normalizedGameType = String(gameType || '').trim().toLowerCase();
+
+  if (normalizedGameType === 'poolroyale') {
+    const existingVariant = existing?.variant || '';
+    const requestedVariant = requested?.variant || '';
+    // Pool Royale quick matchmaking now only partitions by stake + variant.
+    // Stake is checked outside this helper (see getAvailableTable).
+    // Keep missing variants as wildcards for backward compatibility.
+    if (!existingVariant || !requestedVariant) return true;
+    return existingVariant === requestedVariant;
+  }
+
   const allKeys = new Set([
     ...Object.keys(existing || {}),
     ...Object.keys(requested || {})
@@ -651,7 +663,7 @@ function getAvailableTable(
     (t) =>
       t.stake === stake &&
       t.players.length < t.maxPlayers &&
-      isMatchMetaCompatible(t.meta, normalizedMeta)
+      isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
   );
   if (open) return open;
   const table = {
