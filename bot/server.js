@@ -512,10 +512,11 @@ function normalizeBallSetMeta(value = '') {
 function normalizeVariantMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return '';
+  const compact = normalized.replace(/[\s_-]+/g, '');
   if (normalized === 'us' || normalized === 'usa') return 'american';
   if (normalized === 'english') return 'uk';
-  if (normalized === 'eightball' || normalized === '8-ball') return '8ball';
-  if (normalized === 'nineball' || normalized === '9-ball') return '9ball';
+  if (compact === 'eightball' || compact === '8ball') return '8ball';
+  if (compact === 'nineball' || compact === '9ball') return '9ball';
   return normalized;
 }
 

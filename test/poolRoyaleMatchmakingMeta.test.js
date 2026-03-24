@@ -158,6 +158,76 @@ test('pool royale players using variant aliases still share a table', { concurre
   }
 });
 
+test('pool royale players using spaced variant aliases still share a table', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3217',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    API_AUTH_TOKEN: apiToken,
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1'
+  };
+
+  const server = await startServer(env);
+  const s1 = connectClient(3217);
+  const s2 = connectClient(3217);
+
+  try {
+    await Promise.all([
+      new Promise((resolve) => s1.on('connect', resolve)),
+      new Promise((resolve) => s2.on('connect', resolve))
+    ]);
+
+    s1.emit('register', { playerId: 'acct-variant-space-1' });
+    s2.emit('register', { playerId: 'acct-variant-space-2' });
+
+    const firstSeat = await new Promise((resolve) => {
+      s1.emit(
+        'seatTable',
+        {
+          accountId: 'acct-variant-space-1',
+          gameType: 'poolroyale',
+          stake: 250,
+          maxPlayers: 2,
+          mode: 'online',
+          variant: '8 ball',
+          playerName: 'VariantSpaceA'
+        },
+        resolve
+      );
+    });
+
+    const secondSeat = await new Promise((resolve) => {
+      s2.emit(
+        'seatTable',
+        {
+          accountId: 'acct-variant-space-2',
+          gameType: 'poolroyale',
+          stake: 250,
+          maxPlayers: 2,
+          mode: 'online',
+          variant: '8_ball',
+          playerName: 'VariantSpaceB'
+        },
+        resolve
+      );
+    });
+
+    assert.equal(firstSeat.success, true);
+    assert.equal(secondSeat.success, true);
+    assert.equal(secondSeat.tableId, firstSeat.tableId);
+    assert.equal(secondSeat.players.length, 2);
+  } finally {
+    s1.disconnect();
+    s2.disconnect();
+    server.kill();
+  }
+});
+
 test('pool royale quick matchmaking ignores non-variant metadata when stake+variant match', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
