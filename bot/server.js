@@ -540,23 +540,10 @@ function normalizeMatchMeta(rawMeta = {}) {
   return normalized;
 }
 
-function getMatchmakingPartitionKeys(gameType = '') {
-  const normalizedGameType = normalizeOnlineGameType(gameType);
-  if (normalizedGameType === 'poolroyale') {
-    // Pool Royale variants must pair quickly by stake + variant only.
-    return ['variant'];
-  }
-  return MATCH_META_KEYS;
-}
-
-function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
-  const partitionKeys = getMatchmakingPartitionKeys(gameType);
+function isMatchMetaCompatible(existing = {}, requested = {}) {
   const allKeys = new Set([
-    ...partitionKeys.filter(
-      (key) =>
-        key in (existing || {}) ||
-        key in (requested || {})
-    )
+    ...Object.keys(existing || {}),
+    ...Object.keys(requested || {})
   ]);
   for (const key of allKeys) {
     if (key === 'preferredSide') {
@@ -664,7 +651,7 @@ function getAvailableTable(
     (t) =>
       t.stake === stake &&
       t.players.length < t.maxPlayers &&
-      isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
+      isMatchMetaCompatible(t.meta, normalizedMeta)
   );
   if (open) return open;
   const table = {
