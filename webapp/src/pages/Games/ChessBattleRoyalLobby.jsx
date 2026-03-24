@@ -139,7 +139,7 @@ export default function ChessBattleRoyalLobby() {
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
-  const [preferredSide, setPreferredSide] = useState('auto');
+  const preferredSide = 'auto';
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
@@ -704,79 +704,6 @@ export default function ChessBattleRoyalLobby() {
             <p className="text-center text-white/60 text-xs">
               Staking uses your TPC account{accountId ? ` #${accountId}` : ''}{' '}
               as escrow for every online round.
-            </p>
-          </div>
-        )}
-
-        {mode === 'online' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Pick Your Pieces</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                Sides
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                {
-                  key: 'auto',
-                  label: 'Auto',
-                  desc: 'Random seats, no duplicates',
-                  accent: 'from-slate-400/30 via-slate-500/10 to-transparent',
-                  icon: '🎲'
-                },
-                {
-                  key: 'white',
-                  label: 'White',
-                  desc: 'You start first',
-                  accent: 'from-white/40 via-white/10 to-transparent',
-                  icon: '♔'
-                },
-                {
-                  key: 'black',
-                  label: 'Black',
-                  desc: 'Opponent opens',
-                  accent: 'from-gray-500/30 via-gray-700/10 to-transparent',
-                  icon: '♚'
-                }
-              ].map(({ key, label, desc, accent, icon }) => {
-                const active = preferredSide === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setPreferredSide(key)}
-                    className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                    }`}
-                  >
-                    <div
-                      className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}
-                    >
-                      <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                        {icon}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{label}</span>
-                        {active && (
-                          <span className="text-[10px] font-bold uppercase">
-                            Selected
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-white/60">{desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-white/60 text-center">
-              Auto randomizes colors while ensuring both players get different
-              sides.
             </p>
           </div>
         )}

@@ -706,11 +706,47 @@ function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPl
 
 function cleanupSeats() {
   const now = Date.now();
-  for (const [tableId, players] of tableSeats) {
-    for (const [pid, info] of players) {
-      if (now - info.ts > 60_000) players.delete(pid);
+  for (const [tableId, seats] of tableSeats) {
+    const stalePlayerIds = [];
+    for (const [pid, info] of seats) {
+      if (now - info.ts > 60_000) stalePlayerIds.push(String(pid));
     }
-    if (players.size === 0) tableSeats.delete(tableId);
+    if (stalePlayerIds.length === 0) continue;
+
+    stalePlayerIds.forEach((pid) => seats.delete(pid));
+
+    const table = tableMap.get(tableId);
+    if (table) {
+      table.players = (table.players || []).filter(
+        (player) => !stalePlayerIds.includes(String(player.id))
+      );
+      if (table.ready) {
+        stalePlayerIds.forEach((pid) => table.ready.delete(pid));
+      }
+      if (
+        table.currentTurn &&
+        stalePlayerIds.includes(String(table.currentTurn))
+      ) {
+        table.currentTurn = table.players[0]?.id || null;
+      }
+      io.to(tableId).emit('lobbyUpdate', {
+        tableId,
+        players: table.players,
+        currentTurn: table.currentTurn,
+        ready: Array.from(table.ready || []),
+        meta: table.meta
+      });
+    }
+
+    if (seats.size === 0) tableSeats.delete(tableId);
+
+    if (table && table.players.length === 0) {
+      tableMap.delete(tableId);
+      const key = `${table.gameType}-${table.maxPlayers}`;
+      lobbyTables[key] = (lobbyTables[key] || []).filter(
+        (entry) => entry.id !== tableId
+      );
+    }
   }
 }
 
