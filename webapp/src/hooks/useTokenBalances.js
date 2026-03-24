@@ -88,16 +88,27 @@ export default function useTokenBalances() {
         return;
       }
       try {
-        const ton = await getTonBalance(walletAddress);
-        if (ton?.error) throw new Error(ton.error);
-        setTonBalance(ton.balance ?? 0);
+        const tonapiRes = await fetch(
+          `https://tonapi.io/v2/accounts/${encodeURIComponent(walletAddress)}`
+        );
+        if (!tonapiRes.ok) throw new Error(`tonapi account request failed (${tonapiRes.status})`);
+        const tonapiData = await tonapiRes.json();
+        const nanoTonBalance = Number(tonapiData?.balance ?? 0);
+        setTonBalance(Number.isFinite(nanoTonBalance) ? nanoTonBalance / 1e9 : 0);
       } catch (err) {
-        console.error('Failed to load TON balance:', err);
-        setTonBalance(0);
+        console.error('Failed to load TON balance from tonapi:', err);
+        try {
+          const ton = await getTonBalance(walletAddress);
+          if (ton?.error) throw new Error(ton.error);
+          setTonBalance(ton.balance ?? 0);
+        } catch (fallbackErr) {
+          console.error('Failed to load TON balance from backend fallback:', fallbackErr);
+          setTonBalance(0);
+        }
       }
       try {
         const res = await fetch(
-          `https://tonapi.io/v2/accounts/${walletAddress}/jettons/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`
+          `https://tonapi.io/v2/accounts/${encodeURIComponent(walletAddress)}/jettons/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`
         );
         if (!res.ok) throw new Error('request failed');
         const data = await res.json();
