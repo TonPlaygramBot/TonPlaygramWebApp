@@ -546,6 +546,11 @@ function isMatchMetaCompatible(existing = {}, requested = {}) {
     ...Object.keys(requested || {})
   ]);
   for (const key of allKeys) {
+    if (key === 'preferredSide') {
+      // Side is a seat preference, not a matchmaking partition. Keep players
+      // in the same queue even when they pick opposite colors.
+      continue;
+    }
     const existingValue = existing?.[key];
     const requestedValue = requested?.[key];
     // Treat missing keys as wildcards so players can still pair when one client
