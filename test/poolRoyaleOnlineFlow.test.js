@@ -416,11 +416,55 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
     timeouts: { seat: 50, matchmaking: 100, register: 40 }
   });
 
-  assert.equal(mockSocket.registerRequests.length, 1);
+  assert.equal(mockSocket.registerRequests.length, 3);
   assert.equal(mockSocket.seatRequests.length, 0);
   assert.equal(addCalls.length, 2, 'should debit then refund when register ack fails');
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('online session'));
+});
+
+test('runPoolRoyaleOnlineFlow retries register after transient ack failure', async () => {
+  class FlakyRegisterSocket extends MockSocket {
+    emit(event, payload, cb) {
+      if (event === 'register') {
+        this.registerRequests.push(payload);
+        const attempt = this.registerRequests.length;
+        if (typeof cb === 'function') {
+          cb(attempt === 1 ? { success: false, error: 'temporary_failure' } : { success: true });
+        }
+        return true;
+      }
+      return super.emit(event, payload, cb);
+    }
+  }
+
+  const mockSocket = new FlakyRegisterSocket();
+  const refs = createRefs();
+  const state = createState();
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-17'),
+      getAccountBalance: () => Promise.resolve({ balance: 200 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'tg-17',
+      getTelegramFirstName: () => 'Nora',
+      socket: mockSocket
+    },
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 100, register: 40 }
+  });
+
+  assert.equal(mockSocket.registerRequests.length, 2, 'should retry register once after transient failure');
+  assert.equal(mockSocket.seatRequests.length, 1, 'should continue to seat after register retry succeeds');
 });
 
 test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts match', async () => {
