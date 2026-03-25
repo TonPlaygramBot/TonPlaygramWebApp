@@ -6,6 +6,8 @@ const DEFAULT_SEAT_TIMEOUT_MS = 12000;
 const DEFAULT_MATCH_TIMEOUT_MS = 30000;
 const DEFAULT_SOCKET_CONNECT_TIMEOUT_MS = 15000;
 const DEFAULT_REGISTER_TIMEOUT_MS = 6000;
+const DEFAULT_SOCKET_READY_ATTEMPTS = 3;
+const DEFAULT_REGISTER_ATTEMPTS = 3;
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -121,6 +123,37 @@ async function ensureSocketRegistered(
       resolve(false);
     }
   });
+}
+
+async function ensureSocketReadyWithRetry(
+  socketInstance,
+  timeoutMs = DEFAULT_SOCKET_CONNECT_TIMEOUT_MS,
+  maxAttempts = DEFAULT_SOCKET_READY_ATTEMPTS
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const ready = await ensureSocketReady(socketInstance, timeoutMs);
+    if (ready) return true;
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  return false;
+}
+
+async function ensureSocketRegisteredWithRetry(
+  socketInstance,
+  accountId,
+  timeoutMs = DEFAULT_REGISTER_TIMEOUT_MS,
+  maxAttempts = DEFAULT_REGISTER_ATTEMPTS
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const registered = await ensureSocketRegistered(socketInstance, accountId, timeoutMs);
+    if (registered) return true;
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  return false;
 }
 
 async function recoverSocketIdentity({
@@ -273,7 +306,10 @@ export async function runPoolRoyaleOnlineFlow({
     return { success: false };
   }
 
-  const socketReady = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
+  const socketReady = await ensureSocketReadyWithRetry(
+    socketInstance,
+    socketConnectTimeoutMs
+  );
   if (!socketReady) {
     setMatchStatus('');
     setMatchingError('Unable to reach the online arena. We refunded your stake.');
@@ -283,7 +319,7 @@ export async function runPoolRoyaleOnlineFlow({
     return { success: false };
   }
 
-  const socketRegistered = await ensureSocketRegistered(
+  const socketRegistered = await ensureSocketRegisteredWithRetry(
     socketInstance,
     accountId,
     registerTimeoutMs
