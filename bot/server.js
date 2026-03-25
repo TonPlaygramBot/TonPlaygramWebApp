@@ -646,19 +646,8 @@ function getAvailableTable(
   if (forcedTableId) {
     const existing = tableMap.get(forcedTableId);
     if (existing) return existing;
-    const table = {
-      id: forcedTableId,
-      gameType,
-      stake,
-      maxPlayers,
-      players: [],
-      currentTurn: null,
-      ready: new Set(),
-      meta: normalizedMeta
-    };
-    lobbyTables[key].push(table);
-    tableMap.set(table.id, table);
-    return table;
+    // Ignore stale/non-existent forced ids so quick matchmaking can still pair
+    // users by game type + stake instead of trapping them in a private table.
   }
   const open = lobbyTables[key].find(
     (t) =>
