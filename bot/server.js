@@ -544,6 +544,12 @@ function normalizeMatchMeta(rawMeta = {}) {
 function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
   const normalizedGameType = String(gameType || '').trim().toLowerCase();
 
+  if (normalizedGameType === 'checkers' || normalizedGameType === 'chess') {
+    // Checkers/Chess public queue should prioritize "same stake, first available
+    // opponent" so players don't get split by optional metadata fields.
+    return true;
+  }
+
   if (normalizedGameType === 'poolroyale') {
     const existingVariant = existing?.variant || '';
     const requestedVariant = requested?.variant || '';
