@@ -1735,6 +1735,10 @@ io.on('connection', (socket) => {
       payload = {},
       cb
     ) => {
+      const payloadMatchMeta =
+        payload?.matchMeta && typeof payload.matchMeta === 'object'
+          ? payload.matchMeta
+          : {};
       const {
         gameType,
         stake,
@@ -1750,6 +1754,14 @@ io.on('connection', (socket) => {
         ballSet,
         token
       } = payload;
+      const resolvedVariant = payloadMatchMeta.variant ?? variant;
+      const resolvedMode = payloadMatchMeta.mode ?? mode;
+      const resolvedPlayType = payloadMatchMeta.playType ?? playType;
+      const resolvedTableSize = payloadMatchMeta.tableSize ?? tableSize;
+      const resolvedBallSet = payloadMatchMeta.ballSet ?? ballSet;
+      const resolvedToken = payloadMatchMeta.token ?? token;
+      const resolvedPreferredSide =
+        payloadMatchMeta.preferredSide ?? preferredSide;
       const resolvedAccountId = resolveTpcIdentity(payload);
       if (hasConflictingIdentities(payload)) {
         return cb && cb({ success: false, error: 'identity_mismatch' });
@@ -1774,7 +1786,15 @@ io.on('connection', (socket) => {
         gameType: resolvedGameType,
         stake,
         maxPlayers: resolvedMaxPlayers,
-        matchMeta: { variant, mode, playType, tableSize, ballSet, token, preferredSide }
+        matchMeta: {
+          variant: resolvedVariant,
+          mode: resolvedMode,
+          playType: resolvedPlayType,
+          tableSize: resolvedTableSize,
+          ballSet: resolvedBallSet,
+          token: resolvedToken,
+          preferredSide: resolvedPreferredSide
+        }
       });
       if (!validation.ok) {
         return cb && cb({ success: false, error: validation.error });
@@ -1799,7 +1819,7 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide,
+          resolvedPreferredSide,
           safeMeta,
           tableId
         );
@@ -1812,7 +1832,7 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide,
+          resolvedPreferredSide,
           safeMeta
         );
       }
