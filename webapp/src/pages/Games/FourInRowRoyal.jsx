@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -48,6 +48,7 @@ const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const BOARD_TABLE_CLEARANCE = 0.2;
 const BOARD_VERTICAL_LIFT = 0.06;
+const INTRO_MESSAGE_DURATION_MS = 2200;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -400,10 +401,12 @@ export default function FourInRowRoyal() {
   const [winner, setWinner] = useState(null);
   const [showWinnerActions, setShowWinnerActions] = useState(false);
   const [winningCells, setWinningCells] = useState([]);
+  const [showIntroBanner, setShowIntroBanner] = useState(true);
   const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const introBannerTimeoutRef = useRef(null);
 
   useEffect(() => {
     hoverColRef.current = hoverCol;
@@ -431,11 +434,23 @@ export default function FourInRowRoyal() {
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
 
+  const triggerIntroBanner = useCallback(() => {
+    setShowIntroBanner(true);
+    if (introBannerTimeoutRef.current) {
+      window.clearTimeout(introBannerTimeoutRef.current);
+    }
+    introBannerTimeoutRef.current = window.setTimeout(() => {
+      setShowIntroBanner(false);
+      introBannerTimeoutRef.current = null;
+    }, INTRO_MESSAGE_DURATION_MS);
+  }, []);
+
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
+    triggerIntroBanner();
   };
 
   const worldFromCell = (r, c) => [
@@ -508,7 +523,17 @@ export default function FourInRowRoyal() {
     setWinner(null);
     setWinningCells([]);
     displayedBoardRef.current = createBoard(rows, cols);
-  }, [rows, cols]);
+    triggerIntroBanner();
+  }, [rows, cols, triggerIntroBanner]);
+
+  useEffect(
+    () => () => {
+      if (introBannerTimeoutRef.current) {
+        window.clearTimeout(introBannerTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
 
@@ -530,7 +555,7 @@ export default function FourInRowRoyal() {
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
     const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraHeightOffset = isPortrait ? 1.86 : 1.44;
     const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
     perspective.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
@@ -543,9 +568,9 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    controls.target.set(0, TABLE_HEIGHT - 0.1, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(8);
+    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     renderer.domElement.style.touchAction = 'none';
@@ -565,8 +590,8 @@ export default function FourInRowRoyal() {
     const chairTheme = FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === appearance.chairId) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     const chairPositions = [
-      [-CHAIR_DISTANCE, 0, 0],
-      [CHAIR_DISTANCE, 0, 0]
+      [0, 0, -CHAIR_DISTANCE],
+      [0, 0, CHAIR_DISTANCE]
     ];
     chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();
@@ -842,7 +867,13 @@ export default function FourInRowRoyal() {
       scene.environment = envMap;
       scene.background = envMap;
       if (envRef.current.skybox) scene.remove(envRef.current.skybox);
-      const skybox = new GroundedSkybox(envMap, 16, Math.max(TABLE_RADIUS * 40, 32), 112);
+      const groundedHeight = Math.max(variant?.cameraHeightM ?? 1.5, 1.45);
+      const groundedRadius = Math.max(TABLE_RADIUS * (variant?.groundRadiusMultiplier ?? 40), 32);
+      const groundedResolution = Math.max(96, Math.floor(variant?.groundResolution ?? 112));
+      const skybox = new GroundedSkybox(envMap, groundedHeight, groundedRadius, groundedResolution);
+      if (Number.isFinite(variant?.rotationY)) {
+        skybox.rotation.y = variant.rotationY;
+      }
       scene.add(skybox);
       envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
     };
@@ -1052,9 +1083,6 @@ export default function FourInRowRoyal() {
     applyFinish(trimMat, boardFrameFinish, 'frame', { x: 1, y: 1 });
   }, [appearance.boardTheme, appearance.boardFinish, appearance.boardFrameFinish, appearance.ringFinish]);
 
-  const playerCount = board.flat().filter((x) => x === 'player').length;
-  const aiCount = board.flat().filter((x) => x === 'ai').length;
-
   const optionGroups = [
     { key: 'chairId', label: 'Chairs', options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
     { key: 'tableFinish', label: 'Table Cloth', options: MURLAN_TABLE_FINISHES.map((item) => ({ id: item.id, label: item.label, thumbnail: item.thumbnail })) },
@@ -1083,10 +1111,7 @@ export default function FourInRowRoyal() {
             <span className="text-base leading-none" aria-hidden="true">☰</span>
             <span className="leading-none">Menu</span>
           </button>
-          <div className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 p-3 text-xs">
-            <h1 className="text-sm font-semibold uppercase tracking-[0.18em]">4 in a Row</h1>
-            <p className="mt-1 text-white/80">Board: {cols}×{rows} • You:{playerCount} • AI:{aiCount}</p>
-          </div>
+          <h1 className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">4 in a Row</h1>
         </div>
 
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
@@ -1132,12 +1157,15 @@ export default function FourInRowRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[12%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
+        <div className="absolute left-1/2 top-[17%] -translate-x-1/2"><AvatarTimer photoUrl="🤖" name="AI Rival" active isTurn={turn === 'ai'} size={1} /></div>
         <div data-self-player="true" className="absolute left-1/2 top-[85%] -translate-x-1/2"><AvatarTimer photoUrl={avatar} name={username} active isTurn={turn === 'player'} size={1} /></div>
       </div>
 
-
-
+      {showIntroBanner && !winner && (
+        <div className="pointer-events-none absolute left-1/2 top-[8%] z-30 -translate-x-1/2 rounded-full border border-cyan-200/35 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">
+          Match 4 in row to win
+        </div>
+      )}
       {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
