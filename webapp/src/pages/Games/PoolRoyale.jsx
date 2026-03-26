@@ -14448,6 +14448,7 @@ function PoolRoyaleGame({
     active: false,
     pointerId: null,
     lastPos: null,
+    smoothedPos: null,
     lastScreen: null,
     deferred: false,
     source: null
@@ -24406,8 +24407,12 @@ const powerRef = useRef(hud.power);
         cue.active = true;
         updateCuePlacement(next);
         inHandDrag.lastPos = next;
+        if (!commit) {
+          inHandDrag.smoothedPos = next.clone();
+        }
         if (commit) {
           inHandDrag.lastPos = null;
+          inHandDrag.smoothedPos = null;
           cueBallPlacedFromHandRef.current = true;
         }
         return true;
@@ -24418,7 +24423,17 @@ const powerRef = useRef(hud.power);
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
         inHandDrag.lastScreen = client;
-        return currentProjected;
+        const anchor = inHandDrag.smoothedPos ?? inHandDrag.lastPos;
+        if (!anchor) return currentProjected;
+        const step = TMP_VEC2_B.copy(currentProjected).sub(anchor);
+        const stepLen = step.length();
+        if (stepLen <= 1e-4) return anchor.clone();
+        const maxStep = BALL_R * 0.82;
+        if (stepLen > maxStep) {
+          step.multiplyScalar(maxStep / stepLen);
+        }
+        const alpha = stepLen > BALL_R * 0.95 ? 0.92 : 0.65;
+        return anchor.clone().add(step.multiplyScalar(alpha));
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
@@ -24658,6 +24673,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
+        inHandDrag.smoothedPos = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -24681,6 +24697,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
+          inHandDrag.smoothedPos = null;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -24719,6 +24736,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
+          inHandDrag.smoothedPos = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
