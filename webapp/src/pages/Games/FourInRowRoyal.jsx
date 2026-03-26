@@ -47,7 +47,7 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const BOARD_TABLE_CLEARANCE = 0.2;
-const BOARD_VERTICAL_LIFT = 0.12;
+const BOARD_VERTICAL_LIFT = 0.06;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -545,7 +545,7 @@ export default function FourInRowRoyal() {
     controls.dampingFactor = 0.08;
     controls.target.set(0, TABLE_HEIGHT, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
-    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
+    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(8);
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     renderer.domElement.style.touchAction = 'none';
