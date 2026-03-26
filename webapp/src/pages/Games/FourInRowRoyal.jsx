@@ -48,7 +48,6 @@ const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const BOARD_TABLE_CLEARANCE = 0.2;
 const BOARD_VERTICAL_LIFT = 0.12;
-const BOARD_SCREEN_DROP = 0.08;
 const BOARD_BASE_THICKNESS = 0.12;
 const BOARD_FRAME_THICKNESS = 0.12;
 const BOARD_FACE_THICKNESS = 0.028;
@@ -67,7 +66,6 @@ const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
-const CAMERA_EXTRA_LOWER_RANGE = THREE.MathUtils.degToRad(5);
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -378,7 +376,7 @@ export default function FourInRowRoyal() {
   const cols = selectedLayout.cols;
   const boardWidth = 1.08 + cols * 0.19;
   const boardHeight = 0.92 + rows * 0.2;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_VERTICAL_LIFT - BOARD_SCREEN_DROP;
+  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_VERTICAL_LIFT;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -547,10 +545,7 @@ export default function FourInRowRoyal() {
     controls.dampingFactor = 0.08;
     controls.target.set(0, TABLE_HEIGHT, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
-    controls.maxPolarAngle = Math.min(
-      ARENA_CAMERA_DEFAULTS.phiMax + CAMERA_EXTRA_LOWER_RANGE,
-      THREE.MathUtils.degToRad(82)
-    );
+    controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     renderer.domElement.style.touchAction = 'none';
