@@ -9228,23 +9228,6 @@ const cameraLookPointerState = {
   lastX: 0,
   lastY: 0
 };
-function syncCameraLookPointerAfterMultiTouch() {
-  if (cameraViewMode !== VIEW_MODES.threeD) {
-    cameraLookPointerState.pointerId = null;
-    return;
-  }
-  if (activePointers.size !== 1) {
-    return;
-  }
-  const [remainingPointerId] = activePointers;
-  const point = activePointerPositions.get(remainingPointerId);
-  if (!point) {
-    return;
-  }
-  cameraLookPointerState.pointerId = remainingPointerId;
-  cameraLookPointerState.lastX = point.x;
-  cameraLookPointerState.lastY = point.y;
-}
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -9405,15 +9388,6 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
   }
 
   if (
-    cameraViewMode === VIEW_MODES.threeD &&
-    ev.pointerType === 'touch' &&
-    activePointers.size === 1 &&
-    cameraLookPointerState.pointerId == null
-  ) {
-    syncCameraLookPointerAfterMultiTouch();
-  }
-
-  if (
     cameraViewMode !== VIEW_MODES.threeD ||
     cameraLookPointerState.pointerId !== ev.pointerId
   ) {
@@ -9435,10 +9409,8 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
-  syncCameraLookPointerAfterMultiTouch();
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
   activePointers.delete(ev.pointerId);
@@ -9449,10 +9421,8 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
-  syncCameraLookPointerAfterMultiTouch();
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
   activePointers.delete(ev.pointerId);
@@ -9463,10 +9433,8 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
-  syncCameraLookPointerAfterMultiTouch();
 });
 
 btnDraw.addEventListener('click', () => {
