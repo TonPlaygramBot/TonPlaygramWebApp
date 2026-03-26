@@ -24417,8 +24417,60 @@ const powerRef = useRef(hud.power);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
+        const previousScreen = inHandDrag.lastScreen;
+        const previousPos = inHandDrag.lastPos?.clone?.() ?? null;
         inHandDrag.lastScreen = client;
-        return currentProjected;
+        if (!previousScreen || !previousPos) {
+          return currentProjected;
+        }
+        const deltaX = client.x - previousScreen.x;
+        const deltaY = client.y - previousScreen.y;
+        if (Math.abs(deltaX) < 1e-4 && Math.abs(deltaY) < 1e-4) {
+          return previousPos;
+        }
+        const renderCam = cameraRef.current ?? activeRenderCameraRef.current ?? camera;
+        if (!renderCam?.isPerspectiveCamera) {
+          return currentProjected;
+        }
+        const viewport = dom.getBoundingClientRect();
+        if (!(viewport.width > 0 && viewport.height > 0)) {
+          return currentProjected;
+        }
+        const cueWorld = TMP_VEC3_B.set(
+          previousPos.x * worldScaleFactor,
+          TABLE_Y * worldScaleFactor,
+          previousPos.y * worldScaleFactor
+        );
+        const camPos = renderCam.position;
+        const camForward = TMP_VEC3_C.set(0, 0, -1).applyQuaternion(renderCam.quaternion);
+        let depth = cueWorld.clone().sub(camPos).dot(camForward);
+        if (!Number.isFinite(depth) || depth <= 1e-5) {
+          depth = Math.max(
+            renderCam.position.distanceTo(cueWorld),
+            renderCam.near + 1e-3
+          );
+        }
+        const fovRad = THREE.MathUtils.degToRad(renderCam.fov || 50);
+        const worldPerPixelY =
+          (2 * depth * Math.tan(fovRad * 0.5)) / viewport.height;
+        const worldPerPixelX = worldPerPixelY * (renderCam.aspect || viewport.width / viewport.height);
+        const camRight = TMP_VEC3_D.set(1, 0, 0).applyQuaternion(renderCam.quaternion);
+        const camUp = TMP_VEC3_E.set(0, 1, 0).applyQuaternion(renderCam.quaternion);
+        const worldDelta = TMP_VEC3_A
+          .copy(camRight)
+          .multiplyScalar(deltaX * worldPerPixelX)
+          .addScaledVector(camUp, -deltaY * worldPerPixelY);
+        worldDelta.y = 0;
+        const next = previousPos.add(
+          new THREE.Vector2(
+            worldDelta.x / worldScaleFactor,
+            worldDelta.z / worldScaleFactor
+          )
+        );
+        if (!Number.isFinite(next.x) || !Number.isFinite(next.y)) {
+          return currentProjected;
+        }
+        return next;
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
