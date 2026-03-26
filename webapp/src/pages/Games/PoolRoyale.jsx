@@ -3271,6 +3271,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const HIGH_FPS_TEXTURE_THRESHOLD = 105;
+const HIGH_FPS_TEXTURE_SIZE = 6144;
+const HIGH_FPS_CLOTH_PATTERN_SCALE = 0.68;
+const isHighFpsTextureProfile = (fps) => Number.isFinite(fps) && fps >= HIGH_FPS_TEXTURE_THRESHOLD;
+const resolveHighFpsTextureSize = (textureSize, fps) => {
+  if (!isHighFpsTextureProfile(fps)) return textureSize;
+  const baseSize = Number.isFinite(textureSize) && textureSize > 0 ? textureSize : HIGH_FPS_TEXTURE_SIZE;
+  return Math.max(baseSize, HIGH_FPS_TEXTURE_SIZE);
+};
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -3424,6 +3433,35 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({});
+let clothTextureRuntimeProfile = Object.freeze({
+  textureSize: CLOTH_TEXTURE_SIZE,
+  patternScale: CLOTH_PATTERN_SCALE
+});
+const resolveClothTextureRuntimeProfile = ({ fps } = {}) => {
+  const useHighFpsTextures = isHighFpsTextureProfile(fps);
+  return {
+    textureSize: useHighFpsTextures
+      ? resolveHighFpsTextureSize(CLOTH_TEXTURE_SIZE, fps)
+      : CLOTH_TEXTURE_SIZE,
+    patternScale: useHighFpsTextures ? HIGH_FPS_CLOTH_PATTERN_SCALE : CLOTH_PATTERN_SCALE
+  };
+};
+const setClothTextureRuntimeProfile = (profile = {}) => {
+  const textureSize =
+    Number.isFinite(profile.textureSize) && profile.textureSize > 0
+      ? Math.round(profile.textureSize)
+      : CLOTH_TEXTURE_SIZE;
+  const patternScale =
+    Number.isFinite(profile.patternScale) && profile.patternScale > 0
+      ? profile.patternScale
+      : CLOTH_PATTERN_SCALE;
+  clothTextureRuntimeProfile = Object.freeze({
+    textureSize,
+    patternScale
+  });
+};
+const getActiveClothTextureSize = () => clothTextureRuntimeProfile.textureSize;
+const getActiveClothPatternScale = () => clothTextureRuntimeProfile.patternScale;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3783,8 +3821,8 @@ const createClothTextures = (() => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
     }
-    const SIZE = CLOTH_TEXTURE_SIZE;
-    const THREAD_PITCH = CLOTH_THREAD_PITCH / CLOTH_PATTERN_SCALE;
+    const SIZE = getActiveClothTextureSize();
+    const THREAD_PITCH = CLOTH_THREAD_PITCH / getActiveClothPatternScale();
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -4058,7 +4096,9 @@ const createClothTextures = (() => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    const cacheKey = preset.sourceId || preset.id;
+    const runtimeTextureSize = getActiveClothTextureSize();
+    const runtimePatternScale = getActiveClothPatternScale();
+    const cacheKey = `${preset.sourceId || preset.id}|${runtimeTextureSize}|${runtimePatternScale.toFixed(3)}`;
     let entry = cache.get(cacheKey);
     if (!entry) {
       const procedural = generateProceduralClothTextures(preset);
@@ -7687,6 +7727,9 @@ export function Table3D(
   applyTablePhysicsSpec(tableSizeMeta);
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
+  const targetGraphicsFps = Number.isFinite(resolvedTableOptions?.graphicsProfile?.fps)
+    ? resolvedTableOptions.graphicsProfile.fps
+    : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
@@ -7808,13 +7851,14 @@ export function Table3D(
     initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     CUE_WOOD_TEXTURE_SIZE
   );
+  const highFpsTextureSize = resolveHighFpsTextureSize(synchronizedTextureSize, targetGraphicsFps);
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: synchronizedTextureSize,
+    textureSize: highFpsTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -7826,7 +7870,7 @@ export function Table3D(
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: synchronizedTextureSize,
+    textureSize: highFpsTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -11762,7 +11806,7 @@ export function Table3D(
   };
 }
 
-function applyTableFinishToTable(table, finish) {
+function applyTableFinishToTable(table, finish, options = null) {
   if (!table || !finish) return;
   const finishInfo = table.userData?.finish;
   if (!finishInfo?.parts) return;
@@ -11772,6 +11816,9 @@ function applyTableFinishToTable(table, finish) {
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const targetGraphicsFps = Number.isFinite(options?.graphicsProfile?.fps)
+    ? options.graphicsProfile.fps
+    : null;
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
       ? resolvedFinish.createMaterials
@@ -11929,7 +11976,7 @@ function applyTableFinishToTable(table, finish) {
         nextFrameSurface.repeat.y
       ),
       rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize,
+      textureSize: resolveHighFpsTextureSize(nextFrameSurface.textureSize, targetGraphicsFps),
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
@@ -11938,7 +11985,7 @@ function applyTableFinishToTable(table, finish) {
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize,
+      textureSize: resolveHighFpsTextureSize(nextFrameSurface.textureSize, targetGraphicsFps),
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
@@ -12677,6 +12724,7 @@ function PoolRoyaleGame({
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
+    setClothTextureRuntimeProfile(resolveClothTextureRuntimeProfile({ fps: frameQualityProfile?.fps }));
   }, [frameQualityProfile]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
@@ -22714,6 +22762,9 @@ const powerRef = useRef(hud.power);
       addMobileLighting();
 
       pocketRestIndexRef.current.clear();
+      setClothTextureRuntimeProfile(
+        resolveClothTextureRuntimeProfile({ fps: frameQualityRef.current?.fps })
+      );
 
       // Table
       const finishForScene = tableFinishRef.current;
@@ -22732,7 +22783,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { graphicsProfile: frameQualityRef.current }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -22786,7 +22838,8 @@ const powerRef = useRef(hud.power);
         tableSizeMeta,
         railMarkerStyleRef.current,
         activeTableBase,
-        rendererRef.current
+        rendererRef.current,
+        { graphicsProfile: frameQualityRef.current }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -22980,7 +23033,8 @@ const powerRef = useRef(hud.power);
           tableSizeMeta,
           railMarkerStyleRef.current,
           activeTableBase,
-          rendererRef.current
+          rendererRef.current,
+          { graphicsProfile: frameQualityRef.current }
         );
         const tableGroup = entry?.group;
         if (!tableGroup) return null;
@@ -22999,7 +23053,9 @@ const powerRef = useRef(hud.power);
         tableGroup.position.set(position.x ?? 0, tableGroup.position.y, position.z ?? 0);
         tableGroup.rotation.y = rotationY;
         markDecorativeTable(tableGroup);
-        applyTableFinishToTable(tableGroup, finishForLayout);
+        applyTableFinishToTable(tableGroup, finishForLayout, {
+          graphicsProfile: frameQualityRef.current
+        });
         const decor = buildDecorGroup({ table: tableGroup, variant });
         decorativeTablesRef.current.push({
           group: tableGroup,
@@ -23203,14 +23259,20 @@ const powerRef = useRef(hud.power);
       highlightChalks(activeChalkIndexRef.current);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
-          applyTableFinishToTable(table, nextFinish);
+          applyTableFinishToTable(table, nextFinish, {
+            graphicsProfile: frameQualityRef.current
+          });
         }
         if (secondaryTableRef.current && nextFinish) {
-          applyTableFinishToTable(secondaryTableRef.current, nextFinish);
+          applyTableFinishToTable(secondaryTableRef.current, nextFinish, {
+            graphicsProfile: frameQualityRef.current
+          });
         }
         decorativeTablesRef.current.forEach((entry) => {
           if (entry?.group && nextFinish) {
-            applyTableFinishToTable(entry.group, nextFinish);
+            applyTableFinishToTable(entry.group, nextFinish, {
+              graphicsProfile: frameQualityRef.current
+            });
           }
         });
       };
@@ -31302,6 +31364,9 @@ const powerRef = useRef(hud.power);
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
+  useEffect(() => {
+    applyFinishRef.current?.(tableFinishRef.current || tableFinish);
+  }, [frameQualityProfile, tableFinish]);
   useEffect(() => {
     applyBaseRef.current?.(activeTableBase);
   }, [activeTableBase]);
