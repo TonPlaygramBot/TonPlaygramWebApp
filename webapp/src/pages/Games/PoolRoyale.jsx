@@ -1480,14 +1480,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.08,
+  restitution: 1.06,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.995;
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1498,7 +1498,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.014;
+const ROLLING_RESISTANCE = 0.016;
 const BALL_BALL_FRICTION = 0.18;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
@@ -1545,7 +1545,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.9; // increase jaw rebound energy so cushion cuts feel a bit bouncier
+const CUSHION_CUT_RESTITUTION_SCALE = 0.86; // slightly lower jaw rebound so cushion reactions are less springy
 const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1887,24 +1887,24 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly 
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.34; // lift cue-butt helpers higher so the stick never grazes raised cushions
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.31; // add more helper lift so cue trajectories clear cushions and nearby balls
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.65;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.9;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
-const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.6;
+const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
-const CUE_OBSTRUCTION_SAMPLE_MAX = 18;
+const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
 const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.16;
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.2;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -25999,6 +25999,11 @@ const powerRef = useRef(hud.power);
           };
           const isAimLaneBlocked = (plan) => {
             if (!plan?.aimDir || !plan?.cueToTarget) return false;
+            if (plan.viaCushion && plan.cushionPoint) {
+              const ignore = new Set([cueBall.id]);
+              if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
+              return !isPathClear(cuePos, plan.cushionPoint, ignore);
+            }
             if (plan.viaCushion) return false;
             const aimTarget = cuePos.clone().add(
               plan.aimDir.clone().normalize().multiplyScalar(plan.cueToTarget)
@@ -26009,7 +26014,12 @@ const powerRef = useRef(hud.power);
           };
           const isFirstContactLegal = (plan) => {
             if (!plan?.aimDir) return false;
-            if (plan.viaCushion) return true;
+            if (plan.viaCushion) {
+              if (!plan.cushionPoint) return false;
+              const ignore = new Set([cueBall.id]);
+              if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
+              return isPathClear(cuePos, plan.cushionPoint, ignore);
+            }
             const contact = calcTarget(cueBall, plan.aimDir, activeBalls);
             const hitBall = contact?.targetBall ?? null;
             if (!hitBall) return false;
@@ -26187,6 +26197,7 @@ const powerRef = useRef(hud.power);
                 difficulty: baseDifficulty / entranceFavor,
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
+                cushionPoint: cushionAid?.cushionPoint?.clone?.() ?? null,
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
               };
@@ -26240,6 +26251,33 @@ const powerRef = useRef(hud.power);
             const cueDist = cueToBall.length();
             const safetyDist = targetBall.pos.distanceTo(safetyAnchor);
             if (!directClear) {
+              const safetyCushionAid = tryCushionRoute(cuePos, targetBall.pos, ignore);
+              if (safetyCushionAid) {
+                const cueToCushion = safetyCushionAid.cushionPoint.clone().sub(cuePos);
+                const safetyPlanViaCushion = {
+                  type: 'safety',
+                  aimDir: cueToCushion.clone().normalize(),
+                  power: computePowerFromDistance(
+                    (cueToCushion.length() + safetyDist) * 0.8 + safetyCushionAid.totalDist * 0.12
+                  ),
+                  target: colorId,
+                  targetBall,
+                  pocketId: 'SAFETY',
+                  difficulty: cueDist + safetyDist * 1.55 + BALL_R * 80,
+                  cueToTarget: cueToCushion.length(),
+                  targetToPocket: safetyDist,
+                  spin: { x: 0, y: -0.12 },
+                  quality: Math.max(
+                    0,
+                    1 - (cueDist + safetyDist * 1.4) / (PLAY_W + PLAY_H)
+                  ),
+                  cushionPoint: safetyCushionAid.cushionPoint.clone(),
+                  railNormal: safetyCushionAid.railNormal.clone(),
+                  viaCushion: true
+                };
+                safetyShots.push(safetyPlanViaCushion);
+                return;
+              }
               const blockedPlan = {
                 type: 'safety',
                 aimDir: cueToBall.clone().normalize(),
@@ -30416,7 +30454,6 @@ const powerRef = useRef(hud.power);
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
                 const shouldForceCornerPocketView =
-                  !suppressPocketCameras &&
                   !topViewRef.current &&
                   pocketIndex < 4;
                 if (shouldForceCornerPocketView) {
@@ -30604,7 +30641,6 @@ const powerRef = useRef(hud.power);
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
               const shouldForceCornerPocketView =
-                !suppressPocketCameras &&
                 !topViewRef.current &&
                 pocketIndex < 4;
               if (shouldForceCornerPocketView) {
