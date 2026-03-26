@@ -2780,16 +2780,23 @@ export default function CheckersBattleRoyal() {
           ))}
         </div>
 
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {status} • Turn: {turn}
+        <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 pointer-events-none px-4">
+          <div
+            className="mx-auto w-full max-w-[88vw] rounded-2xl border border-white/20 bg-[linear-gradient(135deg,rgba(10,16,28,0.78),rgba(27,42,67,0.64))] px-4 py-2 text-center shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur"
+            style={{
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              display: '-webkit-box',
+              overflow: 'hidden'
+            }}
+          >
+            <p className="text-[11px] font-semibold leading-4 tracking-[0.02em] text-white/95">
+              {status} • Turn: {turn}
+              {mode === 'online'
+                ? ` • Online: ${onlineStatus}${tableId ? ` • Table ${tableId.slice(0, 8)}` : ''}`
+                : ''}
+            </p>
           </div>
-          {mode === 'online' && (
-            <div className="mt-2 text-center text-[11px] text-emerald-100/80">
-              Online: {onlineStatus}
-              {tableId ? ` • Table ${tableId.slice(0, 8)}` : ''}
-            </div>
-          )}
         </div>
 
         {gameOver ? (
