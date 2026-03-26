@@ -14449,6 +14449,7 @@ function PoolRoyaleGame({
     pointerId: null,
     lastPos: null,
     lastScreen: null,
+    smoothScreen: null,
     deferred: false,
     source: null
   });
@@ -24415,9 +24416,22 @@ const powerRef = useRef(hud.power);
       const resolveInHandDragPosition = (e) => {
         const client = getPointerClient(e);
         if (!client) return null;
-        const currentProjected = projectFromClient(client.x, client.y);
+        const previousSmoothed = inHandDrag.smoothScreen;
+        const smoothedClient = previousSmoothed
+          ? { x: previousSmoothed.x, y: previousSmoothed.y }
+          : { x: client.x, y: client.y };
+        if (previousSmoothed) {
+          const dx = client.x - previousSmoothed.x;
+          const dy = client.y - previousSmoothed.y;
+          const dist = Math.hypot(dx, dy);
+          const alpha = dist < 1.25 ? 0.18 : dist < 6 ? 0.32 : 0.52;
+          smoothedClient.x = THREE.MathUtils.lerp(previousSmoothed.x, client.x, alpha);
+          smoothedClient.y = THREE.MathUtils.lerp(previousSmoothed.y, client.y, alpha);
+        }
+        const currentProjected = projectFromClient(smoothedClient.x, smoothedClient.y);
         if (!currentProjected) return null;
         inHandDrag.lastScreen = client;
+        inHandDrag.smoothScreen = smoothedClient;
         return currentProjected;
       };
       const findAiInHandPlacement = () => {
@@ -24620,6 +24634,9 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = 'table';
         inHandDrag.lastScreen = getPointerClient(e);
+        inHandDrag.smoothScreen = inHandDrag.lastScreen
+          ? { ...inHandDrag.lastScreen }
+          : null;
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -24658,6 +24675,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
+        inHandDrag.smoothScreen = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -24681,6 +24699,9 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
+          inHandDrag.smoothScreen = inHandDrag.lastScreen
+            ? { ...inHandDrag.lastScreen }
+            : null;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -24719,6 +24740,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
+          inHandDrag.smoothScreen = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -26849,9 +26871,7 @@ const powerRef = useRef(hud.power);
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 920),
-            maxCutAngle: Math.PI / 4.4,
-            minViewScore: 0.5
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
           });
           if (!decision?.aimPoint) return null;
           const aimPoint = new THREE.Vector2(
@@ -27070,46 +27090,16 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
-          const targetId =
-            plan.targetBall?.id != null ? String(plan.targetBall.id) : null;
-          if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              const normalizedGhostAim = compensatedAim.aimDir.clone().normalize();
-              const ghostContact = calcTarget(cueBall, normalizedGhostAim, activeBalls);
-              if (
-                ghostContact?.targetBall &&
-                targetId != null &&
-                String(ghostContact.targetBall.id) === targetId
-              ) {
-                corrected = normalizedGhostAim;
-                if (compensatedAim.ghost) {
-                  plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
-                }
-              }
-            }
-          }
           if (
-            !corrected &&
             plan.suggestedAimDir &&
             typeof plan.suggestedAimDir.lengthSq === 'function' &&
             plan.suggestedAimDir.lengthSq() > 1e-6
           ) {
-            const suggestedNorm = plan.suggestedAimDir.clone().normalize();
-            const suggestedContact = calcTarget(cueBall, suggestedNorm, activeBalls);
-            if (
-              suggestedContact?.targetBall &&
-              isLegalTargetBall(suggestedContact.targetBall) &&
-              (targetId == null || String(suggestedContact.targetBall.id) === targetId)
-            ) {
-              corrected = suggestedNorm;
+            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
+            if (suggestedContact?.targetBall && isLegalTargetBall(suggestedContact.targetBall)) {
+              corrected = plan.suggestedAimDir.clone().normalize();
+              plan.targetBall = suggestedContact.targetBall;
+              plan.target = toBallColorId(suggestedContact.targetBall.id);
             }
           }
           if (!plan.targetBall && plan.target) {
@@ -27123,18 +27113,27 @@ const powerRef = useRef(hud.power);
           if (!plan.targetBall) {
             plan.targetBall = pickLegalTargetBall();
           }
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const compensatedAim = resolveAiPotGhostAim({
+              cuePos: cueBall.pos,
+              targetPos: plan.targetBall.pos,
+              pocketPos: plan.pocketCenter,
+              ballRadius: BALL_R,
+              spin: plan.spin,
+              power: plan.power
+            });
+            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
+              corrected = compensatedAim.aimDir.clone();
+              if (compensatedAim.ghost) {
+                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
+              }
+            }
+          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
-              const directNorm = direct.normalize();
-              const directContact = calcTarget(cueBall, directNorm, activeBalls);
-              if (
-                directContact?.targetBall &&
-                String(directContact.targetBall.id) === String(plan.targetBall.id)
-              ) {
-                corrected = directNorm;
-                plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
-              }
+              corrected = direct.normalize();
+              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
           }
           if (!corrected && !plan.targetBall) {
@@ -27836,7 +27835,6 @@ const powerRef = useRef(hud.power);
                 spin: { x: 0, y: 0 }
               };
             }
-            plan = refineAiPotAimLine(plan);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakState = frameSnapshot?.meta?.state ?? null;
             const variantBreakInProgress = Boolean(
@@ -28001,55 +27999,6 @@ const powerRef = useRef(hud.power);
             setInHandPlacementMode(true);
           }
         };
-        const refineAiPotAimLine = (plan) => {
-          if (!plan?.aimDir || plan.type !== 'pot' || !cue?.active) return plan;
-          if (!plan.targetBall?.active || !plan.pocketCenter) return plan;
-          const cuePos = cue.pos?.clone?.();
-          if (!cuePos) return plan;
-          const compensated = resolveAiPotGhostAim({
-            cuePos,
-            targetPos: plan.targetBall.pos,
-            pocketPos: plan.pocketCenter,
-            ballRadius: BALL_R,
-            spin: plan.spin,
-            power: plan.power,
-            contactCalibration: 0
-          });
-          const baseDir =
-            compensated?.aimDir?.lengthSq?.() > 1e-6
-              ? compensated.aimDir.clone().normalize()
-              : plan.aimDir.clone().normalize();
-          if (baseDir.lengthSq() < 1e-6) return plan;
-          const targetId = String(plan.targetBall.id);
-          const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
-          const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
-          scanDegrees.forEach((deg) => {
-            const rotated = baseDir
-              .clone()
-              .rotateAround(new THREE.Vector2(0, 0), THREE.MathUtils.degToRad(deg));
-            if (rotated.lengthSq() < 1e-6) return;
-            rotated.normalize();
-            const contact = calcTarget(cue, rotated, ballsRef.current?.length ? ballsRef.current : balls);
-            if (!contact?.targetBall || String(contact.targetBall.id) !== targetId) return;
-            const toPocket = plan.pocketCenter.clone().sub(contact.targetBall.pos);
-            const pocketAlignment =
-              toPocket.lengthSq() > 1e-6 && toPocketRef.lengthSq() > 1e-6
-                ? toPocket.clone().normalize().dot(toPocketRef.clone().normalize())
-                : 0;
-            const depthScore = Number.isFinite(contact?.tHit)
-              ? 1 - Math.min(Math.abs(contact.tHit - cuePos.distanceTo(plan.targetBall.pos)) / (BALL_R * 14), 1)
-              : 0;
-            const score = pocketAlignment * 0.78 + depthScore * 0.22;
-            if (score > bestRef.score) {
-              bestRef.dir = rotated;
-              bestRef.score = score;
-            }
-          });
-          plan.aimDir = bestRef.dir.clone().normalize();
-          return plan;
-        };
-
         fireRef.current = fire;
 
         const selectReplayBanner = (tag = 'default') => {
