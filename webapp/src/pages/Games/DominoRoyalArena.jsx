@@ -104,41 +104,7 @@ export default function DominoRoyalArena() {
           bottom: auto !important;
         }
         #railControls {
-          bottom: calc(
-            env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-              clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
-          ) !important;
-        }
-        #status {
-          top: calc(4.4rem + env(safe-area-inset-top, 0px)) !important;
-          bottom: auto !important;
-          left: 50% !important;
-          transform: translateX(-50%) !important;
-          z-index: 7 !important;
-          min-width: min(88vw, 22rem);
-          text-align: center;
-          letter-spacing: 0.02em;
-          font-weight: 900 !important;
-          color: #f8fafc !important;
-          border: 1px solid rgba(125, 211, 252, 0.55) !important;
-          background:
-            linear-gradient(120deg, rgba(14, 116, 144, 0.9), rgba(30, 41, 59, 0.92))
-            !important;
-          box-shadow:
-            0 14px 30px rgba(2, 132, 199, 0.28),
-            inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-          text-shadow: 0 2px 8px rgba(2, 6, 23, 0.58);
-        }
-        .seat-badge-avatar {
-          width: 2.25rem !important;
-          height: 2.25rem !important;
-        }
-        .seat-badge-core {
-          font-size: 1rem !important;
-        }
-        .seat-badge-name {
-          font-size: 0.72rem !important;
-          padding: 0.16rem 0.46rem !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
         }
         #quickActions {
           position: static !important;
@@ -247,8 +213,11 @@ export default function DominoRoyalArena() {
             left: 54.9%;
           }
           #status {
-            top: calc(4.45rem + env(safe-area-inset-top, 0px)) !important;
-            bottom: auto !important;
+            top: auto !important;
+            bottom: calc(
+              env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
+                clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
+            ) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
             z-index: 7 !important;

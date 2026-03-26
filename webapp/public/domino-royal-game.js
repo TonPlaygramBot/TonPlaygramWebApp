@@ -119,7 +119,7 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(2048, Math.min(4096, mappedSize));
+  return Math.max(768, Math.min(4096, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -9328,14 +9328,6 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
     activePointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   }
 
-  if (cameraViewMode === VIEW_MODES.threeD && ev.pointerType === 'touch') {
-    if (activePointers.size <= 1 && cameraLookPointerState.pointerId == null) {
-      cameraLookPointerState.pointerId = ev.pointerId;
-      cameraLookPointerState.lastX = ev.clientX;
-      cameraLookPointerState.lastY = ev.clientY;
-    }
-  }
-
   if (cameraViewMode === VIEW_MODES.twoD && ev.pointerType === 'touch') {
     const touchPoints = [];
     for (const pointerId of activePointers) {
@@ -9417,7 +9409,6 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
 });
@@ -9430,7 +9421,6 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
 });
@@ -9443,7 +9433,6 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastX = 0;
     cameraLookPointerState.lastY = 0;
   }
 });
