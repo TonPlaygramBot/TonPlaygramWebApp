@@ -5880,6 +5880,8 @@ const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
 let humanSeatBadgeAnchor = null;
+const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 118;
+const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
@@ -6019,9 +6021,12 @@ function updateSeatBadgePositions() {
     let x = projectedX;
     let y = projectedY;
     if (idx === human) {
-      if (!humanSeatBadgeAnchor) {
-        humanSeatBadgeAnchor = { x: projectedX, y: projectedY };
-      }
+      const anchorX =
+        rect.left + rect.width * 0.5 + HUMAN_SEAT_BADGE_LEFT_OFFSET;
+      const anchorY = rect.top + rect.height - HUMAN_SEAT_BADGE_BOTTOM_OFFSET;
+      if (!humanSeatBadgeAnchor) humanSeatBadgeAnchor = { x: anchorX, y: anchorY };
+      humanSeatBadgeAnchor.x = anchorX;
+      humanSeatBadgeAnchor.y = anchorY;
       x = humanSeatBadgeAnchor.x;
       y = humanSeatBadgeAnchor.y;
     }

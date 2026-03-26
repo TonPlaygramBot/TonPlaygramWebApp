@@ -227,6 +227,10 @@ export default function DominoRoyalArena() {
           height: 1.95rem !important;
           font-size: 0.86rem !important;
         }
+        .seat-badge.is-self .seat-badge-avatar,
+        .seat-badge.is-self .seat-badge-core {
+          transform: none !important;
+        }
         .seat-badge-name {
           font-size: 0.69rem !important;
         }
@@ -247,7 +251,7 @@ export default function DominoRoyalArena() {
           #status {
             top: auto !important;
             bottom: calc(
-              env(safe-area-inset-bottom, 0px) + clamp(8rem, 18vh, 10.4rem)
+              env(safe-area-inset-bottom, 0px) + clamp(6.9rem, 15vh, 8.8rem)
             ) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
