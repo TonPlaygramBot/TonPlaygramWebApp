@@ -2297,6 +2297,15 @@ const CLOTH_TEXTURE_INTENSITY = 2.1;
 const CLOTH_HAIR_INTENSITY = 1.35;
 const CLOTH_BUMP_INTENSITY = 2.1;
 const CLOTH_SOFT_BLEND = 0.4;
+const HIGH_REFRESH_TEXTURE_PROFILE_IDS = new Set(['qhd90', 'uhd120']);
+let activeTextureProfileId = 'fhd90';
+
+const setActiveTextureProfileId = (profileId) => {
+  activeTextureProfileId = `${profileId || ''}`.trim() || 'fhd90';
+};
+
+const shouldUseHighRefresh6kTextures = () =>
+  HIGH_REFRESH_TEXTURE_PROFILE_IDS.has(activeTextureProfileId);
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -3409,15 +3418,16 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
+const resolveClothTextureSize = () =>
+  shouldUseHighRefresh6kTextures() ? 6144 : CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
-const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.72; // slightly increase repeat so procedural weave reads a bit finer/smaller
+const resolveClothThreadsPerTile = () => resolveClothTextureSize() / CLOTH_THREAD_PITCH;
+const CLOTH_PATTERN_SCALE = 0.64; // make the weave pattern read a little larger on the cloth
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
-const POLYHAVEN_TEXTURE_RESOLUTION =
-  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
+const resolvePolyHavenTextureResolution = () =>
+  resolveClothTextureSize() >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -3783,7 +3793,7 @@ const createClothTextures = (() => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
     }
-    const SIZE = CLOTH_TEXTURE_SIZE;
+    const SIZE = resolveClothTextureSize();
     const THREAD_PITCH = CLOTH_THREAD_PITCH / CLOTH_PATTERN_SCALE;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
@@ -3970,7 +3980,7 @@ const createClothTextures = (() => {
           if (response?.ok) {
             const json = await response.json();
             urls =
-              pickPolyHavenTextureUrlsAtResolution(json, POLYHAVEN_TEXTURE_RESOLUTION) ||
+              pickPolyHavenTextureUrlsAtResolution(json, resolvePolyHavenTextureResolution()) ||
               pickPolyHavenTextureUrls(json);
           }
         } catch (error) {
@@ -4332,18 +4342,21 @@ function resolveRotation(settings, material) {
 }
 
 function resolveTextureSize(settings, material) {
+  const ensureHighRefreshTextureSize = (size) =>
+    shouldUseHighRefresh6kTextures() ? Math.max(size ?? DEFAULT_WOOD_TEXTURE_SIZE, 6144) : size;
+
   if (settings && typeof settings.textureSize === 'number') {
-    return settings.textureSize;
+    return ensureHighRefreshTextureSize(settings.textureSize);
   }
   const existing = material?.userData?.__woodOptions?.textureSize;
   if (typeof existing === 'number') {
-    return existing;
+    return ensureHighRefreshTextureSize(existing);
   }
   const stored = material?.userData?.woodTextureSize;
   if (typeof stored === 'number') {
-    return stored;
+    return ensureHighRefreshTextureSize(stored);
   }
-  return undefined;
+  return ensureHighRefreshTextureSize(undefined);
 }
 
 function ensureMaterialWoodOptions(material, targetSettings) {
@@ -7900,7 +7913,7 @@ export function Table3D(
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   let baseRepeat =
-    ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
+    ((threadsPerBallTarget * ballsAcrossWidth) / resolveClothThreadsPerTile()) *
     clothTextureScale;
   const repeatScale =
     patternOverride?.repeatScale && patternOverride.repeatScale > 0
@@ -12678,6 +12691,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
+  useEffect(() => {
+    setActiveTextureProfileId(frameRateId);
+  }, [frameRateId]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -31299,9 +31315,10 @@ const powerRef = useRef(hud.power);
   }, [renderResetKey]);
 
   useEffect(() => {
+    setActiveTextureProfileId(frameRateId);
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
-  }, [tableFinish]);
+  }, [tableFinish, frameRateId]);
   useEffect(() => {
     applyBaseRef.current?.(activeTableBase);
   }, [activeTableBase]);
