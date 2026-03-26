@@ -27,6 +27,13 @@ const AVATAR_ANCHOR_SELECTORS = [
 
 const FRAME_SCALE = 2;
 const ACTIVATION_TOUCH_PADDING = 8;
+const AVATAR_FRAME_STYLES = Object.freeze({
+  borderRadius: '999px',
+  border: '2px solid rgba(255,255,255,.32)',
+  boxShadow: '0 8px 18px rgba(0,0,0,.35),0 0 0 2px rgba(6,12,24,.45)',
+  background:
+    'radial-gradient(circle at 30% 30%,rgba(255,255,255,.2),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e)'
+});
 
 export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const { search } = useLocation();
@@ -272,12 +279,20 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           type="button"
           aria-label="Turn off live avatar video"
           onClick={() => setLiveMode(false)}
-          className="fixed z-[65] overflow-hidden rounded-full border border-emerald-300 bg-black/30 touch-manipulation"
+          className="fixed z-[65] overflow-hidden touch-manipulation"
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
             width: `${overlayRect.width}px`,
-            height: `${overlayRect.height}px`
+            height: `${overlayRect.height}px`,
+            ...(gameSlug === 'domino-royal' ? AVATAR_FRAME_STYLES : {}),
+            ...(gameSlug !== 'domino-royal'
+              ? {
+                  borderRadius: '999px',
+                  border: '1px solid rgb(110 231 183 / 1)',
+                  background: 'rgb(0 0 0 / 0.3)'
+                }
+              : {})
           }}
         >
           <video
