@@ -796,11 +796,11 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // mirror the middle-pocket chrome rounded cut so corner pocket arches match the side-pocket layout
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rounded cut a touch so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1.008; // align corner wooden rounded cuts with the middle-pocket wooden relief size
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -1261,8 +1261,8 @@ const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch mo
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_SIDE_INNER_SCALE = 1.4832; // keep the middle-pocket jaw inner profile as the visual reference
-const POCKET_JAW_CORNER_INNER_SCALE = POCKET_JAW_SIDE_INNER_SCALE; // align corner inner jaw profile with the middle-pocket jaw profile
+const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thinner while keeping the outside profile intact
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.69; // pull corner jaws inward a tiny bit while preserving the playable mouth
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -1292,7 +1292,7 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // mirror middle-pocket jaw lateral expansion on the corner pockets
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
@@ -14448,7 +14448,6 @@ function PoolRoyaleGame({
     active: false,
     pointerId: null,
     lastPos: null,
-    smoothPos: null,
     lastScreen: null,
     deferred: false,
     source: null
@@ -24404,19 +24403,11 @@ const powerRef = useRef(hud.power);
           next = inHandDrag.lastPos?.clone?.() ?? null;
         }
         if (!next) return false;
-        if (!commit) {
-          const anchor = inHandDrag.smoothPos?.clone?.() ?? inHandDrag.lastPos?.clone?.() ?? next.clone();
-          const blend = inHandDrag.source === 'icon' ? 0.52 : 0.44;
-          anchor.lerp(next, blend);
-          next = anchor;
-        }
         cue.active = true;
         updateCuePlacement(next);
         inHandDrag.lastPos = next;
-        inHandDrag.smoothPos = next.clone();
         if (commit) {
           inHandDrag.lastPos = null;
-          inHandDrag.smoothPos = null;
           cueBallPlacedFromHandRef.current = true;
         }
         return true;
@@ -24667,7 +24658,6 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
-        inHandDrag.smoothPos = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -24691,7 +24681,6 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
-          inHandDrag.smoothPos = null;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -24730,7 +24719,6 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
-          inHandDrag.smoothPos = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -27082,19 +27070,46 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
+          const targetId =
+            plan.targetBall?.id != null ? String(plan.targetBall.id) : null;
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const compensatedAim = resolveAiPotGhostAim({
+              cuePos: cueBall.pos,
+              targetPos: plan.targetBall.pos,
+              pocketPos: plan.pocketCenter,
+              ballRadius: BALL_R,
+              spin: plan.spin,
+              power: plan.power
+            });
+            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
+              const normalizedGhostAim = compensatedAim.aimDir.clone().normalize();
+              const ghostContact = calcTarget(cueBall, normalizedGhostAim, activeBalls);
+              if (
+                ghostContact?.targetBall &&
+                targetId != null &&
+                String(ghostContact.targetBall.id) === targetId
+              ) {
+                corrected = normalizedGhostAim;
+                if (compensatedAim.ghost) {
+                  plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
+                }
+              }
+            }
+          }
           if (
+            !corrected &&
             plan.suggestedAimDir &&
             typeof plan.suggestedAimDir.lengthSq === 'function' &&
             plan.suggestedAimDir.lengthSq() > 1e-6
           ) {
-            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
+            const suggestedNorm = plan.suggestedAimDir.clone().normalize();
+            const suggestedContact = calcTarget(cueBall, suggestedNorm, activeBalls);
             if (
               suggestedContact?.targetBall &&
-              isLegalTargetBall(suggestedContact.targetBall)
+              isLegalTargetBall(suggestedContact.targetBall) &&
+              (targetId == null || String(suggestedContact.targetBall.id) === targetId)
             ) {
-              corrected = plan.suggestedAimDir.clone().normalize();
-              plan.targetBall = suggestedContact.targetBall;
-              plan.target = toBallColorId(suggestedContact.targetBall.id);
+              corrected = suggestedNorm;
             }
           }
           if (!plan.targetBall && plan.target) {
@@ -27108,27 +27123,18 @@ const powerRef = useRef(hud.power);
           if (!plan.targetBall) {
             plan.targetBall = pickLegalTargetBall();
           }
-          if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              corrected = compensatedAim.aimDir.clone();
-              if (compensatedAim.ghost) {
-                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
-              }
-            }
-          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
-              corrected = direct.normalize();
-              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
+              const directNorm = direct.normalize();
+              const directContact = calcTarget(cueBall, directNorm, activeBalls);
+              if (
+                directContact?.targetBall &&
+                String(directContact.targetBall.id) === String(plan.targetBall.id)
+              ) {
+                corrected = directNorm;
+                plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
+              }
             }
           }
           if (!corrected && !plan.targetBall) {
