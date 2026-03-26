@@ -1480,7 +1480,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.15,
+  restitution: 1.12,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -1498,13 +1498,13 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0102;
+const ROLLING_RESISTANCE = 0.0116;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.0074;
+const STOP_EPS = 0.0092;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
@@ -1546,7 +1546,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
 const CUSHION_CUT_RESTITUTION_SCALE = 0.93; // keep a livelier jaw rebound so rails feel less dead
-const CUSHION_CUT_FRICTION_SCALE = 1.06; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -13603,8 +13603,8 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = portraitViewport ? 24 : 12;
-  const bottomHudLeftPx = -46;
+  const rightHudShiftPx = portraitViewport ? 18 : 8;
+  const bottomHudLeftPx = -36;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -19075,7 +19075,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = {
             ballId: ball.id,
             forced: true,
-            allowEarly: true,
+            allowEarly: false,
             createdAt: now
           };
         };
@@ -31011,8 +31011,8 @@ const powerRef = useRef(hud.power);
                 (TMP_VEC3_IN_HAND_ICON.x * 0.5 + 0.5) * rect.width + rect.left;
               const screenY =
                 (-TMP_VEC3_IN_HAND_ICON.y * 0.5 + 0.5) * rect.height + rect.top;
-              const offsetX = 0;
-              const offsetY = 0;
+              const offsetX = 30;
+              const offsetY = -28;
               const clampedX = clamp(
                 screenX + offsetX,
                 rect.left + 16,
@@ -31437,7 +31437,7 @@ const powerRef = useRef(hud.power);
       cueBallPlacedFromHandRef.current = false;
       inHandPlacementModeRef.current = true;
       setInHandPlacementMode(true);
-      inHandPlacementApiRef.current?.begin?.(event, { deferPlacement: false });
+      inHandPlacementApiRef.current?.begin?.(event, { deferPlacement: true });
       if (event.pointerId != null) {
         try {
           event.currentTarget?.setPointerCapture?.(event.pointerId);
