@@ -1292,8 +1292,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = SIDE_POCKET_JAW_LATERAL_EXPANSION; // keep corner jaw lateral spread identical to middle pockets
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
@@ -1305,7 +1305,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs identical to the rendered jaw geometry
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -6679,8 +6679,7 @@ function reflectRails(ball) {
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
-      // Keep rail segments active near pockets too; disabling these created
-      // tiny escape corridors where balls could visually cross jaw/cut mapping.
+      if (nearPocket && segment.type === 'rail') continue;
       if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
@@ -6712,12 +6711,7 @@ function reflectRails(ball) {
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
         bestImpact = {
-          type:
-            segment.type === 'cut'
-              ? 'cut'
-              : segment.type === 'jaw'
-                ? 'jaw'
-                : 'rail',
+          type: segment.type === 'cut' ? 'cut' : 'rail',
           normal: TMP_VEC2_LIMIT.clone(),
           tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
         };
@@ -7542,7 +7536,7 @@ function updateCushionSegmentsFromTable(table) {
       MICRO_EPS,
       jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
     );
-    const steps = Math.max(16, Math.ceil((jaw.jawAngle / Math.PI) * 48));
+    const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
     let prev = null;
@@ -14448,6 +14442,7 @@ function PoolRoyaleGame({
     active: false,
     pointerId: null,
     lastPos: null,
+    smoothedPos: null,
     lastScreen: null,
     deferred: false,
     source: null
@@ -24408,6 +24403,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.lastPos = next;
         if (commit) {
           inHandDrag.lastPos = null;
+          inHandDrag.smoothedPos = null;
           cueBallPlacedFromHandRef.current = true;
         }
         return true;
@@ -24418,7 +24414,18 @@ const powerRef = useRef(hud.power);
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
         inHandDrag.lastScreen = client;
-        return currentProjected;
+        if (!inHandDrag.smoothedPos) {
+          inHandDrag.smoothedPos = currentProjected.clone();
+          return currentProjected;
+        }
+        const delta = inHandDrag.smoothedPos.distanceTo(currentProjected);
+        if (delta <= BALL_R * 0.03) {
+          inHandDrag.smoothedPos.copy(currentProjected);
+          return currentProjected;
+        }
+        const blend = inHandDrag.source === 'icon' ? 0.42 : 0.5;
+        inHandDrag.smoothedPos.lerp(currentProjected, blend);
+        return inHandDrag.smoothedPos.clone();
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
@@ -24620,6 +24627,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = 'table';
         inHandDrag.lastScreen = getPointerClient(e);
+        inHandDrag.smoothedPos = null;
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -24658,6 +24666,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
+        inHandDrag.smoothedPos = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -24681,6 +24690,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
+          inHandDrag.smoothedPos = null;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -24719,6 +24729,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
+          inHandDrag.smoothedPos = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -27070,46 +27081,19 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
-          const targetId =
-            plan.targetBall?.id != null ? String(plan.targetBall.id) : null;
-          if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              const normalizedGhostAim = compensatedAim.aimDir.clone().normalize();
-              const ghostContact = calcTarget(cueBall, normalizedGhostAim, activeBalls);
-              if (
-                ghostContact?.targetBall &&
-                targetId != null &&
-                String(ghostContact.targetBall.id) === targetId
-              ) {
-                corrected = normalizedGhostAim;
-                if (compensatedAim.ghost) {
-                  plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
-                }
-              }
-            }
-          }
           if (
-            !corrected &&
             plan.suggestedAimDir &&
             typeof plan.suggestedAimDir.lengthSq === 'function' &&
             plan.suggestedAimDir.lengthSq() > 1e-6
           ) {
-            const suggestedNorm = plan.suggestedAimDir.clone().normalize();
-            const suggestedContact = calcTarget(cueBall, suggestedNorm, activeBalls);
+            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
             if (
               suggestedContact?.targetBall &&
-              isLegalTargetBall(suggestedContact.targetBall) &&
-              (targetId == null || String(suggestedContact.targetBall.id) === targetId)
+              isLegalTargetBall(suggestedContact.targetBall)
             ) {
-              corrected = suggestedNorm;
+              corrected = plan.suggestedAimDir.clone().normalize();
+              plan.targetBall = suggestedContact.targetBall;
+              plan.target = toBallColorId(suggestedContact.targetBall.id);
             }
           }
           if (!plan.targetBall && plan.target) {
@@ -27123,18 +27107,27 @@ const powerRef = useRef(hud.power);
           if (!plan.targetBall) {
             plan.targetBall = pickLegalTargetBall();
           }
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const compensatedAim = resolveAiPotGhostAim({
+              cuePos: cueBall.pos,
+              targetPos: plan.targetBall.pos,
+              pocketPos: plan.pocketCenter,
+              ballRadius: BALL_R,
+              spin: plan.spin,
+              power: plan.power
+            });
+            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
+              corrected = compensatedAim.aimDir.clone();
+              if (compensatedAim.ghost) {
+                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
+              }
+            }
+          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
-              const directNorm = direct.normalize();
-              const directContact = calcTarget(cueBall, directNorm, activeBalls);
-              if (
-                directContact?.targetBall &&
-                String(directContact.targetBall.id) === String(plan.targetBall.id)
-              ) {
-                corrected = directNorm;
-                plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
-              }
+              corrected = direct.normalize();
+              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
           }
           if (!corrected && !plan.targetBall) {
