@@ -6469,9 +6469,12 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = Math.min(
-      4096,
-      getAdaptiveDominoTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
+    const targetSize = Math.max(
+      2048,
+      Math.min(
+        4096,
+        getAdaptiveDominoTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
+      )
     );
     if (cache && cachedSize === targetSize) return cache;
     disposeCachedTextures();
@@ -6480,16 +6483,16 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(512, Math.min(sizeCap, targetSize));
+    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
-    let size = lowMemoryDevice ? Math.min(preferredSize, 3072) : preferredSize;
+    let size = lowMemoryDevice ? Math.max(2048, Math.min(preferredSize, 3072)) : preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
-    while (!pctx && size > 512) {
-      size = Math.max(512, Math.floor(size / 2));
+    while (!pctx && size > 1024) {
+      size = Math.max(1024, Math.floor(size / 2));
       porcelainCanvas = document.createElement('canvas');
       porcelainCanvas.width = porcelainCanvas.height = size;
       pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
@@ -9228,6 +9231,27 @@ const cameraLookPointerState = {
   lastX: 0,
   lastY: 0
 };
+function assignCameraLookPointerFromActivePointers(excludedPointerId = null) {
+  if (cameraViewMode !== VIEW_MODES.threeD) {
+    return;
+  }
+  for (const pointerId of activePointers) {
+    if (pointerId === excludedPointerId) {
+      continue;
+    }
+    const point = activePointerPositions.get(pointerId);
+    if (!point) {
+      continue;
+    }
+    cameraLookPointerState.pointerId = pointerId;
+    cameraLookPointerState.lastX = point.x;
+    cameraLookPointerState.lastY = point.y;
+    return;
+  }
+  cameraLookPointerState.pointerId = null;
+  cameraLookPointerState.lastX = 0;
+  cameraLookPointerState.lastY = 0;
+}
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -9408,8 +9432,7 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    assignCameraLookPointerFromActivePointers(ev.pointerId);
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
@@ -9420,8 +9443,7 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    assignCameraLookPointerFromActivePointers(ev.pointerId);
   }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
@@ -9432,8 +9454,7 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    assignCameraLookPointerFromActivePointers(ev.pointerId);
   }
 });
 

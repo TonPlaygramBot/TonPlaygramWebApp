@@ -204,6 +204,32 @@ export default function DominoRoyalArena() {
           font-size: 0.61rem;
           letter-spacing: 0.01em;
         }
+        #status {
+          background: linear-gradient(
+            145deg,
+            rgba(8, 18, 40, 0.96),
+            rgba(15, 23, 42, 0.88)
+          ) !important;
+          border: 1px solid rgba(56, 189, 248, 0.52) !important;
+          box-shadow:
+            0 12px 28px rgba(2, 6, 23, 0.55),
+            inset 0 0 0 1px rgba(148, 163, 184, 0.22) !important;
+          font-size: clamp(0.82rem, 2.6vw, 1rem) !important;
+          letter-spacing: 0.03em !important;
+          text-transform: uppercase;
+        }
+        .seat-badge-avatar {
+          width: 2.3rem !important;
+          height: 2.3rem !important;
+        }
+        .seat-badge-core {
+          width: 1.95rem !important;
+          height: 1.95rem !important;
+          font-size: 0.86rem !important;
+        }
+        .seat-badge-name {
+          font-size: 0.69rem !important;
+        }
         @media (orientation: portrait) {
           #configButton {
             left: calc(0.1rem + env(safe-area-inset-left, 0px)) !important;
@@ -212,11 +238,16 @@ export default function DominoRoyalArena() {
             top: calc(0.62rem + env(safe-area-inset-top, 0px));
             left: 54.9%;
           }
+          #railControls {
+            bottom: calc(
+              env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
+                clamp(2.8rem, 8vh, 3.4rem) + 1.35rem
+            ) !important;
+          }
           #status {
             top: auto !important;
             bottom: calc(
-              env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-                clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
+              env(safe-area-inset-bottom, 0px) + clamp(8rem, 18vh, 10.4rem)
             ) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
