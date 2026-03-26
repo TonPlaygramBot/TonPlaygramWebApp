@@ -9228,6 +9228,33 @@ const cameraLookPointerState = {
   lastX: 0,
   lastY: 0
 };
+function syncCameraLookPointerToActiveTouch() {
+  if (cameraViewMode !== VIEW_MODES.threeD) {
+    cameraLookPointerState.pointerId = null;
+    cameraLookPointerState.lastX = 0;
+    cameraLookPointerState.lastY = 0;
+    return;
+  }
+  if (activePointers.size !== 1) {
+    cameraLookPointerState.pointerId = null;
+    cameraLookPointerState.lastX = 0;
+    cameraLookPointerState.lastY = 0;
+    return;
+  }
+  for (const pointerId of activePointers) {
+    const point = activePointerPositions.get(pointerId);
+    if (!point) {
+      continue;
+    }
+    cameraLookPointerState.pointerId = pointerId;
+    cameraLookPointerState.lastX = point.x;
+    cameraLookPointerState.lastY = point.y;
+    return;
+  }
+  cameraLookPointerState.pointerId = null;
+  cameraLookPointerState.lastX = 0;
+  cameraLookPointerState.lastY = 0;
+}
 function findPickRoot(o) {
   let n = o;
   while (n) {
@@ -9408,8 +9435,7 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    syncCameraLookPointerToActiveTouch();
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {
@@ -9420,8 +9446,7 @@ renderer.domElement.addEventListener('pointercancel', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    syncCameraLookPointerToActiveTouch();
   }
 });
 renderer.domElement.addEventListener('pointerleave', (ev) => {
@@ -9432,8 +9457,7 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
     pinchZoomState.mode = null;
   }
   if (cameraLookPointerState.pointerId === ev.pointerId) {
-    cameraLookPointerState.pointerId = null;
-    cameraLookPointerState.lastY = 0;
+    syncCameraLookPointerToActiveTouch();
   }
 });
 
