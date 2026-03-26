@@ -1292,7 +1292,7 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // match corner-jaw flank spread to the middle-pocket jaw baseline
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
@@ -1375,7 +1375,6 @@ const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // push middle pocket centre
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // keep chrome plate, wood cut, nets and holder alignment with the farther-out middle pockets
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = -TABLE.THICK * 0.03; // nudge middle cloth cutouts outward with the shifted side-pocket centreline
-const MATCH_CORNER_LAYOUT_TO_MIDDLE_POCKETS = true; // mirror corner-pocket dimensions and cushion spacing to the middle-pocket baseline
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1398,11 +1397,9 @@ const POCKET_SIDE_MOUTH_SCALE =
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
 const SIDE_POCKET_CUT_SCALE = 1; // keep side pocket cut radius identical to the physical mouth geometry
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_CORNER_MOUTH =
-  MATCH_CORNER_LAYOUT_TO_MIDDLE_POCKETS
-    ? POCKET_SIDE_MOUTH
-    : CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const CORNER_POCKET_RADIUS_SCALE = 1; // keep corner pocket radius identical to the physical mouth geometry
 const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
@@ -1411,9 +1408,7 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_CENTER_OUTWARD_SHIFT = TABLE.THICK * 0.02; // shift pocket centers outward to keep the pocket stack aligned away from the playfield
 const CORNER_POCKET_CENTER_INSET = Math.max(
   0,
-  MATCH_CORNER_LAYOUT_TO_MIDDLE_POCKETS
-    ? SIDE_POCKET_EXTRA_SHIFT
-    : POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION - POCKET_CENTER_OUTWARD_SHIFT
+  POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION - POCKET_CENTER_OUTWARD_SHIFT
 ); // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
@@ -14449,9 +14444,6 @@ function PoolRoyaleGame({
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const inHandIconRef = useRef(null);
-  const IN_HAND_DRAG_DEADZONE_WORLD = BALL_R * 0.035;
-  const IN_HAND_DRAG_SMOOTH_MIN_ALPHA = 0.28;
-  const IN_HAND_DRAG_SMOOTH_MAX_ALPHA = 0.84;
   const inHandDragRef = useRef({
     active: false,
     pointerId: null,
@@ -24425,27 +24417,6 @@ const powerRef = useRef(hud.power);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
-        const previousProjected =
-          inHandDrag.lastPos?.clone?.() ?? null;
-        if (!previousProjected) {
-          inHandDrag.lastScreen = client;
-          return currentProjected;
-        }
-        const worldDelta = currentProjected.clone().sub(previousProjected);
-        if (worldDelta.lengthSq() <= IN_HAND_DRAG_DEADZONE_WORLD * IN_HAND_DRAG_DEADZONE_WORLD) {
-          inHandDrag.lastScreen = client;
-          return previousProjected;
-        }
-        const prevScreen = inHandDrag.lastScreen;
-        const screenDelta = prevScreen
-          ? Math.hypot(client.x - prevScreen.x, client.y - prevScreen.y)
-          : 0;
-        const adaptiveAlpha = THREE.MathUtils.clamp(
-          IN_HAND_DRAG_SMOOTH_MIN_ALPHA + screenDelta * 0.018,
-          IN_HAND_DRAG_SMOOTH_MIN_ALPHA,
-          IN_HAND_DRAG_SMOOTH_MAX_ALPHA
-        );
-        currentProjected.lerp(previousProjected, 1 - adaptiveAlpha);
         inHandDrag.lastScreen = client;
         return currentProjected;
       };
