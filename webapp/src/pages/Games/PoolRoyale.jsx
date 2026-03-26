@@ -1781,7 +1781,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
+const SHOT_POWER_ADJUSTMENT = 0.576; // reduce current Pool Royale shot power by a further 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -26614,29 +26614,29 @@ const powerRef = useRef(hud.power);
         const mapSpeedPresetScale = (speed) => {
           switch (speed) {
             case 'soft':
-              return 0.78;
+              return 0.72;
             case 'firm':
-              return 1.18;
+              return 1.05;
             case 'med':
             default:
-              return 1;
+              return 0.9;
           }
         };
 
         const mapSpinPreset = (preset) => {
           switch (preset) {
             case 'followS':
-              return { x: 0, y: -0.18 };
+              return { x: 0, y: -0.15 };
             case 'followL':
-              return { x: 0, y: -0.32 };
+              return { x: 0, y: -0.24 };
             case 'drawS':
-              return { x: 0, y: 0.22 };
+              return { x: 0, y: 0.18 };
             case 'drawL':
-              return { x: 0, y: 0.42 };
+              return { x: 0, y: 0.3 };
             case 'sideL':
-              return { x: -0.35, y: -0.06 };
+              return { x: -0.22, y: -0.04 };
             case 'sideR':
-              return { x: 0.35, y: -0.06 };
+              return { x: 0.22, y: -0.04 };
             default:
               return { x: 0, y: 0 };
           }
