@@ -88,3 +88,89 @@ test(
     }
   }
 );
+
+test(
+  'chess quick matchmaking ignores forced table ids when stake mismatches',
+  { concurrency: false, timeout: 20000 },
+  async () => {
+    fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+    fs.writeFileSync(new URL('index.html', distDir), '');
+    const env = {
+      ...process.env,
+      PORT: '3213',
+      MONGO_URI: 'memory',
+      BOT_TOKEN: 'dummy',
+      API_AUTH_TOKEN: apiToken,
+      SKIP_WEBAPP_BUILD: '1',
+      SKIP_BOT_LAUNCH: '1'
+    };
+    const server = await startServer(env);
+    const s1 = io('http://localhost:3213', { auth: { token: apiToken } });
+    const s2 = io('http://localhost:3213', { auth: { token: apiToken } });
+    const s3 = io('http://localhost:3213', { auth: { token: apiToken } });
+
+    try {
+      await Promise.all([
+        new Promise((resolve) => s1.on('connect', resolve)),
+        new Promise((resolve) => s2.on('connect', resolve)),
+        new Promise((resolve) => s3.on('connect', resolve))
+      ]);
+
+      const register = (socket, playerId) =>
+        new Promise((resolve) => {
+          socket.emit('register', { playerId }, resolve);
+        });
+
+      await Promise.all([
+        register(s1, 'chess-stake-a'),
+        register(s2, 'chess-stake-b'),
+        register(s3, 'chess-stake-c')
+      ]);
+
+      const seat = (socket, payload) =>
+        new Promise((resolve) => {
+          socket.emit('seatTable', payload, resolve);
+        });
+
+      const firstSeat = await seat(s1, {
+        accountId: 'chess-stake-a',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC'
+      });
+
+      const mismatchedStakeSeat = await seat(s2, {
+        accountId: 'chess-stake-b',
+        gameType: 'chess',
+        stake: 500,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC',
+        tableId: firstSeat.tableId
+      });
+
+      const matchingStakeSeat = await seat(s3, {
+        accountId: 'chess-stake-c',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC',
+        tableId: firstSeat.tableId
+      });
+
+      assert.equal(firstSeat.success, true);
+      assert.equal(mismatchedStakeSeat.success, true);
+      assert.notEqual(mismatchedStakeSeat.tableId, firstSeat.tableId);
+      assert.equal(matchingStakeSeat.success, true);
+      assert.equal(matchingStakeSeat.tableId, firstSeat.tableId);
+    } finally {
+      s1.disconnect();
+      s2.disconnect();
+      s3.disconnect();
+      server.kill();
+    }
+  }
+);
