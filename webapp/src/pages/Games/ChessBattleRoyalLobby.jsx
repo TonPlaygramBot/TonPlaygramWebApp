@@ -32,6 +32,7 @@ const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
 const MATCHMAKING_TIMEOUT_MS = 45000;
+const SEAT_RETRY_BASE_DELAY_MS = 700;
 const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'register_required',
   'rate_limited',
@@ -457,7 +458,7 @@ export default function ChessBattleRoyalLobby() {
     const friendlyName =
       getTelegramFirstName() || getTelegramUsername() || 'Player';
     let seatAttempts = 0;
-    const maxSeatAttempts = 2;
+    const maxSeatAttempts = 4;
     const seatPlayer = () => {
       seatAttempts += 1;
       socket.emit(
@@ -482,7 +483,11 @@ export default function ChessBattleRoyalLobby() {
               MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
               seatAttempts < maxSeatAttempts;
             if (shouldRetry) {
-              setMatchStatus('Retrying online seat…');
+              const retryDelay = Math.min(
+                SEAT_RETRY_BASE_DELAY_MS * 2 ** (seatAttempts - 1),
+                3000
+              );
+              setMatchStatus('Retrying matchmaking request…');
               if (res?.error === 'identity_mismatch' && seatAccountId) {
                 refreshSocketAuthIdentity(
                   { accountId: String(seatAccountId) },
@@ -512,7 +517,7 @@ export default function ChessBattleRoyalLobby() {
                   }
                 }
                 seatPlayer();
-              }, 400);
+              }, retryDelay);
               return;
             }
             setMatchError('Could not join the online lobby. Please try again.');

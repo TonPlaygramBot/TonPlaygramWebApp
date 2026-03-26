@@ -645,7 +645,15 @@ function getAvailableTable(
   if (!lobbyTables[key]) lobbyTables[key] = [];
   if (forcedTableId) {
     const existing = tableMap.get(forcedTableId);
-    if (existing) return existing;
+    if (existing) {
+      const normalizedStake = Number(stake) || 0;
+      const canJoinForced =
+        existing.gameType === gameType &&
+        Number(existing.stake || 0) === normalizedStake &&
+        existing.players.length < existing.maxPlayers &&
+        isMatchMetaCompatible(existing.meta, normalizedMeta, gameType);
+      if (canJoinForced) return existing;
+    }
     // Ignore stale/non-existent forced ids so quick matchmaking can still pair
     // users by game type + stake instead of trapping them in a private table.
   }
