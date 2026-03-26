@@ -25828,7 +25828,12 @@ const powerRef = useRef(hud.power);
           const cueEase = Math.max(0, 1 - cueDist / Math.max(PLAY_W, PLAY_H));
           return pocketEase * 0.65 + cueEase * 0.35;
         };
-        const pickPreferredBall = (targets, candidateBalls, cuePos) => {
+        const pickPreferredBall = (
+          targets,
+          candidateBalls,
+          cuePos,
+          laneOpenEvaluator = () => false
+        ) => {
           for (const targetId of targets) {
             const matches = candidateBalls.filter((ball) => matchesTargetId(ball, targetId));
             if (matches.length > 0) {
@@ -25836,10 +25841,10 @@ const powerRef = useRef(hud.power);
                 if (!best) return ball;
                 const bestScore =
                   scoreBallForAim(best, cuePos) *
-                  (isDirectLaneOpen(best) ? 1 : 0.35);
+                  (laneOpenEvaluator(best) ? 1 : 0.35);
                 const score =
                   scoreBallForAim(ball, cuePos) *
-                  (isDirectLaneOpen(ball) ? 1 : 0.35);
+                  (laneOpenEvaluator(ball) ? 1 : 0.35);
                 return score > bestScore ? ball : best;
               }, null);
             }
@@ -27375,7 +27380,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, candidateBalls, cuePos);
+              pickPreferredBall(combinedTargets, candidateBalls, cuePos, isDirectLaneOpen);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -27391,12 +27396,17 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, candidateBalls, cuePos);
+                pickPreferredBall(preferredColours, candidateBalls, cuePos, isDirectLaneOpen);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], candidateBalls, cuePos);
+            targetBall = pickPreferredBall(
+              ['BLACK'],
+              candidateBalls,
+              cuePos,
+              isDirectLaneOpen
+            );
           }
 
           if (!targetBall) {
@@ -27405,7 +27415,8 @@ const powerRef = useRef(hud.power);
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
               candidateBalls,
-              cuePos
+              cuePos,
+              isDirectLaneOpen
             );
           }
 
@@ -27416,7 +27427,12 @@ const powerRef = useRef(hud.power);
           if (targetBall && !isDirectFirstContact(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, candidateBalls, cuePos) ||
+              pickPreferredBall(
+                combinedTargets,
+                candidateBalls,
+                cuePos,
+                isDirectLaneOpen
+              ) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
