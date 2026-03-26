@@ -99,7 +99,7 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 2048,
+  hd50: 3072,
   fhd60: 4096,
   qhd90: 4096,
   uhd120: 4096,
@@ -119,7 +119,7 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(2048, Math.min(4096, mappedSize));
+  return Math.max(768, Math.min(4096, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -9328,17 +9328,6 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
     activePointerPositions.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
   }
 
-  if (
-    cameraViewMode === VIEW_MODES.threeD &&
-    ev.pointerType === 'touch' &&
-    activePointers.size === 1 &&
-    cameraLookPointerState.pointerId == null
-  ) {
-    cameraLookPointerState.pointerId = ev.pointerId;
-    cameraLookPointerState.lastX = ev.clientX;
-    cameraLookPointerState.lastY = ev.clientY;
-  }
-
   if (cameraViewMode === VIEW_MODES.twoD && ev.pointerType === 'touch') {
     const touchPoints = [];
     for (const pointerId of activePointers) {
@@ -9421,19 +9410,6 @@ renderer.domElement.addEventListener('pointerup', (ev) => {
   if (cameraLookPointerState.pointerId === ev.pointerId) {
     cameraLookPointerState.pointerId = null;
     cameraLookPointerState.lastY = 0;
-  }
-  if (
-    cameraViewMode === VIEW_MODES.threeD &&
-    activePointers.size === 1 &&
-    cameraLookPointerState.pointerId == null
-  ) {
-    const [remainingPointerId] = activePointers;
-    const remainingPoint = activePointerPositions.get(remainingPointerId);
-    if (Number.isFinite(remainingPoint?.x) && Number.isFinite(remainingPoint?.y)) {
-      cameraLookPointerState.pointerId = remainingPointerId;
-      cameraLookPointerState.lastX = remainingPoint.x;
-      cameraLookPointerState.lastY = remainingPoint.y;
-    }
   }
 });
 renderer.domElement.addEventListener('pointercancel', (ev) => {

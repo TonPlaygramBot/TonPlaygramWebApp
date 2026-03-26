@@ -25,8 +25,7 @@ const AVATAR_ANCHOR_SELECTORS = [
   '[aria-label="You"]'
 ];
 
-const DEFAULT_FRAME_SCALE = 2;
-const DOMINO_FRAME_SCALE = 1.1;
+const FRAME_SCALE = 2;
 const ACTIVATION_TOUCH_PADDING = 8;
 const AVATAR_FRAME_STYLES = Object.freeze({
   borderRadius: '999px',
@@ -167,10 +166,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      const frameScale =
-        gameSlug === 'domino-royal' ? DOMINO_FRAME_SCALE : DEFAULT_FRAME_SCALE;
       const avatarDiameter = Math.min(rect.width, rect.height);
-      const frameDiameter = Math.max(Math.round(avatarDiameter * frameScale), 32);
+      const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
       const height = frameDiameter;
       const left = Math.max(
