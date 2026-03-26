@@ -14448,6 +14448,7 @@ function PoolRoyaleGame({
     active: false,
     pointerId: null,
     lastPos: null,
+    smoothedPos: null,
     lastScreen: null,
     deferred: false,
     source: null
@@ -24408,6 +24409,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.lastPos = next;
         if (commit) {
           inHandDrag.lastPos = null;
+          inHandDrag.smoothedPos = null;
           cueBallPlacedFromHandRef.current = true;
         }
         return true;
@@ -24418,7 +24420,18 @@ const powerRef = useRef(hud.power);
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
         inHandDrag.lastScreen = client;
-        return currentProjected;
+        if (!inHandDrag.smoothedPos) {
+          inHandDrag.smoothedPos = currentProjected.clone();
+          return currentProjected;
+        }
+        const delta = inHandDrag.smoothedPos.distanceTo(currentProjected);
+        if (delta <= BALL_R * 0.03) {
+          inHandDrag.smoothedPos.copy(currentProjected);
+          return currentProjected;
+        }
+        const blend = inHandDrag.source === 'icon' ? 0.42 : 0.5;
+        inHandDrag.smoothedPos.lerp(currentProjected, blend);
+        return inHandDrag.smoothedPos.clone();
       };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
@@ -24620,6 +24633,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = 'table';
         inHandDrag.lastScreen = getPointerClient(e);
+        inHandDrag.smoothedPos = null;
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -24658,6 +24672,7 @@ const powerRef = useRef(hud.power);
         inHandDrag.deferred = false;
         inHandDrag.source = null;
         inHandDrag.lastScreen = null;
+        inHandDrag.smoothedPos = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
@@ -24681,6 +24696,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = deferredPlacement;
           inHandDrag.source = 'icon';
           inHandDrag.lastScreen = getPointerClient(e);
+          inHandDrag.smoothedPos = null;
           if (deferredPlacement) {
             inHandDrag.lastPos = p;
           }
@@ -24719,6 +24735,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.deferred = false;
           inHandDrag.source = null;
           inHandDrag.lastScreen = null;
+          inHandDrag.smoothedPos = null;
           const pos = inHandDrag.lastPos;
           if (pos) {
             tryUpdatePlacement(pos, true);
@@ -27070,46 +27087,19 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
-          const targetId =
-            plan.targetBall?.id != null ? String(plan.targetBall.id) : null;
-          if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              const normalizedGhostAim = compensatedAim.aimDir.clone().normalize();
-              const ghostContact = calcTarget(cueBall, normalizedGhostAim, activeBalls);
-              if (
-                ghostContact?.targetBall &&
-                targetId != null &&
-                String(ghostContact.targetBall.id) === targetId
-              ) {
-                corrected = normalizedGhostAim;
-                if (compensatedAim.ghost) {
-                  plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
-                }
-              }
-            }
-          }
           if (
-            !corrected &&
             plan.suggestedAimDir &&
             typeof plan.suggestedAimDir.lengthSq === 'function' &&
             plan.suggestedAimDir.lengthSq() > 1e-6
           ) {
-            const suggestedNorm = plan.suggestedAimDir.clone().normalize();
-            const suggestedContact = calcTarget(cueBall, suggestedNorm, activeBalls);
+            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
             if (
               suggestedContact?.targetBall &&
-              isLegalTargetBall(suggestedContact.targetBall) &&
-              (targetId == null || String(suggestedContact.targetBall.id) === targetId)
+              isLegalTargetBall(suggestedContact.targetBall)
             ) {
-              corrected = suggestedNorm;
+              corrected = plan.suggestedAimDir.clone().normalize();
+              plan.targetBall = suggestedContact.targetBall;
+              plan.target = toBallColorId(suggestedContact.targetBall.id);
             }
           }
           if (!plan.targetBall && plan.target) {
@@ -27123,18 +27113,27 @@ const powerRef = useRef(hud.power);
           if (!plan.targetBall) {
             plan.targetBall = pickLegalTargetBall();
           }
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const compensatedAim = resolveAiPotGhostAim({
+              cuePos: cueBall.pos,
+              targetPos: plan.targetBall.pos,
+              pocketPos: plan.pocketCenter,
+              ballRadius: BALL_R,
+              spin: plan.spin,
+              power: plan.power
+            });
+            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
+              corrected = compensatedAim.aimDir.clone();
+              if (compensatedAim.ghost) {
+                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
+              }
+            }
+          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
-              const directNorm = direct.normalize();
-              const directContact = calcTarget(cueBall, directNorm, activeBalls);
-              if (
-                directContact?.targetBall &&
-                String(directContact.targetBall.id) === String(plan.targetBall.id)
-              ) {
-                corrected = directNorm;
-                plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
-              }
+              corrected = direct.normalize();
+              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
           }
           if (!corrected && !plan.targetBall) {
