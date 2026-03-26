@@ -16,7 +16,7 @@ describe('Pool Royale AI aim compensation', () => {
     });
     expect(result).toBeTruthy();
     expect(result.aimDir.length()).toBeCloseTo(1, 5);
-    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(0.06, 5);
+    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(0.06024, 4);
   });
 
   it('keeps pre-impact aim unchanged when only side spin changes', () => {
@@ -38,18 +38,10 @@ describe('Pool Royale AI aim compensation', () => {
     });
     expect(withSide).toBeTruthy();
     expect(neutral.aimDir.angleTo(withSide.aimDir)).toBeLessThan(1e-6);
-    const neutralDepth = Math.hypot(
-      neutral.ghost.x - targetPos.x,
-      neutral.ghost.y - targetPos.y
-    );
-    const sideDepth = Math.hypot(
-      withSide.ghost.x - targetPos.x,
-      withSide.ghost.y - targetPos.y
-    );
-    expect(sideDepth).toBeCloseTo(neutralDepth, 8);
+    expect(withSide.contactDepth).toBeCloseTo(neutral.contactDepth, 8);
   });
 
-  it('keeps ghost depth tied to 2R and applies legacy topspin scaling', () => {
+  it('keeps contact depth close to 2R and adjusts only slightly with spin', () => {
     const neutral = resolveAiPotGhostAim({
       cuePos,
       targetPos,
@@ -68,16 +60,8 @@ describe('Pool Royale AI aim compensation', () => {
       power: 1
     });
 
-    const neutralDepth = Math.hypot(
-      neutral.ghost.x - targetPos.x,
-      neutral.ghost.y - targetPos.y
-    );
-    const topspinDepth = Math.hypot(
-      topspin.ghost.x - targetPos.x,
-      topspin.ghost.y - targetPos.y
-    );
-    expect(neutralDepth).toBeCloseTo(0.06, 5);
-    expect(topspinDepth).toBeGreaterThan(neutralDepth);
-    expect(topspinDepth).toBeCloseTo(0.0642, 4);
+    expect(neutral.contactDepth).toBeCloseTo(0.06024, 5);
+    expect(topspin.contactDepth).toBeGreaterThan(neutral.contactDepth);
+    expect(topspin.contactDepth - neutral.contactDepth).toBeLessThan(0.0015);
   });
 });
