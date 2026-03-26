@@ -1480,14 +1480,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.12,
+  restitution: 1.15,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.9954;
+const FRICTION = 0.9961;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1498,13 +1498,13 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0116;
+const ROLLING_RESISTANCE = 0.0104;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.0092;
+const STOP_EPS = 0.0076;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
@@ -1545,8 +1545,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.93; // keep a livelier jaw rebound so rails feel less dead
-const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_RESTITUTION_SCALE = 0.97; // keep a livelier jaw rebound so rails feel less dead
+const CUSHION_CUT_FRICTION_SCALE = 1.05; // trim grab slightly so added bounce is visible without making cuts skid
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -5573,7 +5573,7 @@ const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
 const STROKE_CAMERA_MIN_HOLD_MS = 210;
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 38;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
 const BREAK_DIE_CORNER_RADIUS = BREAK_DIE_SIZE * 0.17;
@@ -13603,8 +13603,8 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = portraitViewport ? 18 : 8;
-  const bottomHudLeftPx = -36;
+  const rightHudShiftPx = portraitViewport ? 12 : 8;
+  const bottomHudLeftPx = -44;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -19075,7 +19075,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = {
             ballId: ball.id,
             forced: true,
-            allowEarly: false,
+            allowEarly: true,
             createdAt: now
           };
         };
@@ -24389,12 +24389,14 @@ const powerRef = useRef(hud.power);
         const directClamped = clampInHandPosition(raw);
         if (!directClamped) return false;
         let next = null;
-        if (isSpotFree(directClamped)) {
-          next = directClamped;
-        } else if (commit) {
-          next = resolveInHandPlacement(raw);
+        if (commit) {
+          next = isSpotFree(directClamped)
+            ? directClamped
+            : resolveInHandPlacement(raw);
         } else {
-          next = inHandDrag.lastPos?.clone?.() ?? null;
+          // Keep drag motion locked to the finger and defer collision resolution
+          // to release time for fully precise on-screen movement.
+          next = directClamped;
         }
         if (!next) return false;
         cue.active = true;
@@ -26843,7 +26845,7 @@ const powerRef = useRef(hud.power);
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 920),
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 1300),
             maxCutAngle: Math.PI / 4.4,
             minViewScore: 0.5
           });
