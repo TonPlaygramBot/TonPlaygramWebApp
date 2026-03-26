@@ -1778,13 +1778,11 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
 // Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
-// Requested balance pass: trim an additional 20% from the current strike power.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_POWER_BALANCE_SCALE = 0.8; // global 20% reduction from the previous live tuning
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1796,8 +1794,7 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_MULTIPLIER *
   SHOT_POWER_INCREASE *
   SHOT_POWER_ADJUSTMENT *
-  SHOT_POWER_BOOST *
-  SHOT_POWER_BALANCE_SCALE;
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
