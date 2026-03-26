@@ -351,6 +351,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
+const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 2;
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
@@ -6034,17 +6035,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
+            const selfBottomOffset = player.index === 0 ? SELF_AVATAR_BOTTOM_OFFSET_PERCENT : 0;
             const positionStyle = anchor
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${anchor.y + selfBottomOffset}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
                   position: 'absolute',
                   left: fallback.left,
-                  top: fallback.top,
+                  top: `calc(${fallback.top} + ${selfBottomOffset}%)`,
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
