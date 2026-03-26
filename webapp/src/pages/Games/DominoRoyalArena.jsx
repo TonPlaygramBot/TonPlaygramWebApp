@@ -106,24 +106,6 @@ export default function DominoRoyalArena() {
         #railControls {
           bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem)) !important;
         }
-        #status {
-          border-radius: 16px !important;
-          border: 1px solid rgba(103, 232, 249, 0.55) !important;
-          background: linear-gradient(
-            135deg,
-            rgba(10, 18, 36, 0.95),
-            rgba(8, 47, 73, 0.9)
-          ) !important;
-          box-shadow:
-            0 14px 28px rgba(2, 6, 23, 0.55),
-            0 0 0 1px rgba(56, 189, 248, 0.28) !important;
-          color: #f8fafc !important;
-          font-weight: 900 !important;
-          letter-spacing: 0.04em !important;
-          text-transform: uppercase !important;
-          text-shadow: 0 1px 8px rgba(15, 23, 42, 0.6) !important;
-          padding: 0.52rem 1rem !important;
-        }
         #quickActions {
           position: static !important;
         }
@@ -234,17 +216,11 @@ export default function DominoRoyalArena() {
             top: auto !important;
             bottom: calc(
               env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-                clamp(2.8rem, 8vh, 3.4rem) + clamp(6.1rem, 15vh, 8.2rem)
+                clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
             ) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
             z-index: 7 !important;
-          }
-          #railControls {
-            bottom: calc(
-              env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-                clamp(2.8rem, 8vh, 3.4rem) + 1.4rem
-            ) !important;
           }
         }
         #winnerOverlay {
