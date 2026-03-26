@@ -1480,14 +1480,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.06,
+  restitution: 1.12,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.993;
+const FRICTION = 0.9954;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1498,13 +1498,13 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.016;
-const BALL_BALL_FRICTION = 0.18;
+const ROLLING_RESISTANCE = 0.0116;
+const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.012;
+const STOP_EPS = 0.0092;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
@@ -1545,7 +1545,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.86; // slightly lower jaw rebound so cushion reactions are less springy
+const CUSHION_CUT_RESTITUTION_SCALE = 0.93; // keep a livelier jaw rebound so rails feel less dead
 const CUSHION_CUT_FRICTION_SCALE = 1.12; // trim grab slightly so added bounce is visible without making cuts skid
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1679,7 +1679,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.45; // switch to rail overhead broadcast a little earlier on incoming pocket shots
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // switch pocket cams in earlier so the target-ball run is visible from the pocket angle
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -1755,8 +1755,8 @@ const POCKET_VIEW_MIN_DURATION_MS = 320;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
 const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
-const POCKET_VIEW_MAX_HOLD_MS = 900;
-const POCKET_VIEW_EARLY_HOLD_MS = 160;
+const POCKET_VIEW_MAX_HOLD_MS = 2200;
+const POCKET_VIEW_EARLY_HOLD_MS = 320;
 const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -13594,8 +13594,8 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
-  const sharedHudLiftPx = portraitViewport ? 20 : 30;
-  const spinControllerLiftPx = portraitViewport ? 12 : 14;
+  const sharedHudLiftPx = portraitViewport ? 24 : 34;
+  const spinControllerLiftPx = portraitViewport ? 14 : 16;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -13604,7 +13604,7 @@ function PoolRoyaleGame({
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 18 : 8;
-  const bottomHudLeftPx = -30;
+  const bottomHudLeftPx = -36;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -14584,7 +14584,7 @@ const powerRef = useRef(hud.power);
       setBreakRollMessage(`${seatLabel} rolling from behind the line...`);
       await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
       playBreakDiceRollSfx();
-      const value = await rollBreakDie3DRef.current(seat);
+      let value = await rollBreakDie3DRef.current(seat);
       setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
       await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
       if (seat === 'user') {
@@ -14604,18 +14604,18 @@ const powerRef = useRef(hud.power);
       }
 
       if (userValue === value) {
-        setBreakRollState('user');
-        setBreakRollMessage(`Tie at ${value}. You reroll first.`);
-        setBreakDiceValues({ ai: null, user: null });
-        breakRollBusyRef.current = false;
-        return;
+        const rerollValue = await rollBreakDie3DRef.current(seat);
+        setBreakDiceValues((prev) => ({ ...prev, [seat]: rerollValue }));
+        await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
+        value = rerollValue === userValue ? ((rerollValue % 6) + 1) : rerollValue;
+        setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
       }
 
       const breakerSeat = userValue > value ? 'A' : 'B';
       const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
       breakWinnerSeatRef.current = breakerSeat;
       setBreakRollState('done');
-      setBreakRollMessage(`${breakerLabel} wins (${userValue}-${value}) and breaks.`);
+      setBreakRollMessage(`${breakerLabel} wins (${userValue}-${value}). Highest result breaks.`);
       setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
       setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
       breakRollBusyRef.current = false;
@@ -17404,7 +17404,7 @@ const powerRef = useRef(hud.power);
             if (!shooting) return;
             topViewRef.current = true;
             topViewLockedRef.current = true;
-            enterTopView(true, { variant: 'replay' });
+            enterTopView(true, { variant: 'rail' });
           }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
@@ -21000,6 +21000,9 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
+            minDistanceToPocket: best.dist,
+            escapeDistance: Math.max(BALL_R * 3.4, best.dist * 0.3),
+            escapedAt: null,
             forcedEarly: false
           };
         };
@@ -24165,7 +24168,10 @@ const powerRef = useRef(hud.power);
         const cx = (((clientX - r.left) / r.width) * 2 - 1);
         const cy = -(((clientY - r.top) / r.height) * 2 - 1);
         pointer.set(cx, cy);
-        const activeCamera = activeRenderCameraRef.current ?? camera;
+        const inHandActive = Boolean(hudRef.current?.inHand);
+        const activeCamera = inHandActive
+          ? (cameraRef.current ?? camera)
+          : (activeRenderCameraRef.current ?? camera);
         ray.setFromCamera(pointer, activeCamera);
         const pt = new THREE.Vector3();
         ray.ray.intersectPlane(plane, pt);
@@ -24264,7 +24270,7 @@ const powerRef = useRef(hud.power);
         if (breakPlacementRestricted) {
           return false;
         }
-        return variant !== 'uk';
+        return true;
       };
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
@@ -25307,7 +25313,7 @@ const powerRef = useRef(hud.power);
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
-              enterTopView(true, { variant: 'replay' });
+              enterTopView(true, { variant: 'rail' });
               setIsTopDownView(true);
             } else {
               topViewRef.current = false;
@@ -25464,9 +25470,7 @@ const powerRef = useRef(hud.power);
               now + CAMERA_SWITCH_MIN_HOLD_MS + CUE_STROKE_POST_HIT_CAMERA_HOLD_MS
             );
             const strokeReadyAt = Math.max(cameraHoldUntil, now + STROKE_CAMERA_MIN_HOLD_MS);
-            const requiresCueBallMovementTrigger =
-              forceImmediateRailOverheadView ||
-              (!earlyPocketView && !suppressPocketCameras);
+            const requiresCueBallMovementTrigger = false;
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
               (!isLongShot || forceActionActivation) &&
@@ -26839,7 +26843,9 @@ const powerRef = useRef(hud.power);
           const decision = planShot({
             game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
             state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 320)
+            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 920),
+            maxCutAngle: Math.PI / 4.4,
+            minViewScore: 0.5
           });
           if (!decision?.aimPoint) return null;
           const aimPoint = new THREE.Vector2(
@@ -27803,6 +27809,7 @@ const powerRef = useRef(hud.power);
                 spin: { x: 0, y: 0 }
               };
             }
+            plan = refineAiPotAimLine(plan);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakState = frameSnapshot?.meta?.state ?? null;
             const variantBreakInProgress = Boolean(
@@ -27966,6 +27973,54 @@ const powerRef = useRef(hud.power);
             setFrameState((prev) => ({ ...prev, activePlayer: 'A' }));
             setInHandPlacementMode(true);
           }
+        };
+        const refineAiPotAimLine = (plan) => {
+          if (!plan?.aimDir || plan.type !== 'pot' || !cue?.active) return plan;
+          if (!plan.targetBall?.active || !plan.pocketCenter) return plan;
+          const cuePos = cue.pos?.clone?.();
+          if (!cuePos) return plan;
+          const compensated = resolveAiPotGhostAim({
+            cuePos,
+            targetPos: plan.targetBall.pos,
+            pocketPos: plan.pocketCenter,
+            ballRadius: BALL_R,
+            spin: plan.spin,
+            power: plan.power,
+            contactCalibration: 0
+          });
+          const baseDir =
+            compensated?.aimDir?.lengthSq?.() > 1e-6
+              ? compensated.aimDir.clone().normalize()
+              : plan.aimDir.clone().normalize();
+          if (baseDir.lengthSq() < 1e-6) return plan;
+          const targetId = String(plan.targetBall.id);
+          const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+          const bestRef = { dir: baseDir, score: -Infinity };
+          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
+          scanDegrees.forEach((deg) => {
+            const rotated = baseDir
+              .clone()
+              .rotateAround(new THREE.Vector2(0, 0), THREE.MathUtils.degToRad(deg));
+            if (rotated.lengthSq() < 1e-6) return;
+            rotated.normalize();
+            const contact = calcTarget(cue, rotated, ballsRef.current?.length ? ballsRef.current : balls);
+            if (!contact?.targetBall || String(contact.targetBall.id) !== targetId) return;
+            const toPocket = plan.pocketCenter.clone().sub(contact.targetBall.pos);
+            const pocketAlignment =
+              toPocket.lengthSq() > 1e-6 && toPocketRef.lengthSq() > 1e-6
+                ? toPocket.clone().normalize().dot(toPocketRef.clone().normalize())
+                : 0;
+            const depthScore = Number.isFinite(contact?.tHit)
+              ? 1 - Math.min(Math.abs(contact.tHit - cuePos.distanceTo(plan.targetBall.pos)) / (BALL_R * 14), 1)
+              : 0;
+            const score = pocketAlignment * 0.78 + depthScore * 0.22;
+            if (score > bestRef.score) {
+              bestRef.dir = rotated;
+              bestRef.score = score;
+            }
+          });
+          plan.aimDir = bestRef.dir.clone().normalize();
+          return plan;
         };
 
         fireRef.current = fire;
@@ -30428,7 +30483,16 @@ const powerRef = useRef(hud.power);
                 } else {
                   // Keep the cue ball on-table in ball-in-hand mode so placement feels immediate.
                   removePocketDropEntry(b.id);
-                  respawnCueBallForInHand({ preferCenter: true });
+                  const suggestedInHandPos = findAiInHandPlacement();
+                  if (suggestedInHandPos) {
+                    cue.active = true;
+                    updateCuePlacement(suggestedInHandPos);
+                    cueBallPlacedFromHandRef.current = false;
+                    pendingInHandResetRef.current = true;
+                    inHandDrag.lastPos = suggestedInHandPos.clone();
+                  } else {
+                    respawnCueBallForInHand({ preferCenter: true });
+                  }
                 }
                 if (isTraining && table) {
                   const scratchPopup = createTrainingScratchPopupMesh();
@@ -30751,12 +30815,30 @@ const powerRef = useRef(hud.power);
             } else {
               const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
               const dist = toPocket.length();
+              pocketView.minDistanceToPocket = Math.min(
+                pocketView.minDistanceToPocket ?? dist,
+                dist
+              );
               if (dist > 1e-4) {
                 const approachDir = toPocket.clone().normalize();
                 pocketView.approach.copy(approachDir);
               }
               const speed = focusBall.vel.length() * frameScale;
-              if (speed > STOP_EPS) {
+              const escapedPocketLane =
+                dist >
+                  (pocketView.minDistanceToPocket ?? dist) +
+                    (pocketView.escapeDistance ?? BALL_R * 3.4) &&
+                speed > STOP_EPS * 0.6;
+              if (escapedPocketLane && pocketView.escapedAt == null) {
+                pocketView.escapedAt = now;
+              }
+              if (pocketView.escapedAt != null) {
+                const holdTarget = pocketView.escapedAt + POCKET_VIEW_POST_POT_HOLD_MS;
+                pocketView.holdUntil = Math.max(pocketView.holdUntil ?? now, holdTarget);
+                if (now >= holdTarget || maxHoldReached) {
+                  resumeAfterPocket(pocketView, now);
+                }
+              } else if (speed > STOP_EPS) {
                 const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
                 pocketView.holdUntil =
                   pocketView.holdUntil != null
@@ -30765,9 +30847,10 @@ const powerRef = useRef(hud.power);
               } else if (maxHoldReached) {
                 resumeAfterPocket(pocketView, now);
               } else {
+                const nearMouth = dist <= Math.max(BALL_R * 2.4, pocketView.escapeDistance ?? BALL_R * 3.4);
                 const holdTarget = Math.max(
                   pocketView.holdUntil ?? now,
-                  now + POCKET_VIEW_POST_POT_HOLD_MS
+                  now + (nearMouth ? POCKET_VIEW_ACTIVE_EXTENSION_MS : POCKET_VIEW_POST_POT_HOLD_MS)
                 );
                 pocketView.holdUntil = holdTarget;
                 if (now >= holdTarget) {
@@ -31941,15 +32024,15 @@ const powerRef = useRef(hud.power);
 
       {!isTraining && breakRollState !== 'done' && !hud.over && (
         <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(20rem,88vw)] rounded-2xl border border-cyan-300/45 bg-slate-950/82 p-4 text-center shadow-[0_14px_32px_rgba(0,0,0,0.58)] backdrop-blur">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Break dice roll</p>
+          <div className="pointer-events-auto w-[min(18rem,84vw)] text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Highest result breaks</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
             {breakRollState === 'user' && (
               <button
                 type="button"
                 onClick={() => rollBreakDie('user')}
                 disabled={breakRollBusyRef.current}
-                className="mt-4 rounded-full border border-cyan-200 bg-cyan-200 px-5 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-950 shadow-[0_0_16px_rgba(34,211,238,0.45)] transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
+                className="mt-4 rounded-full border border-cyan-200/75 bg-cyan-200/95 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
               >
                 Roll your die
               </button>
