@@ -3516,9 +3516,22 @@ function broadcastClothTextureReady(sourceId) {
   });
 }
 
-const buildPolyHavenTextureUrls = (sourceId, resolution) => {
+const POLYHAVEN_CLOTH_SOURCE_ALIASES = Object.freeze({
+  caban_wool: 'caban',
+  caban: 'caban',
+  polar_fleece: 'polar_fleece',
+  terry_cloth: 'terry_cloth'
+});
+
+const normalizePolyHavenSourceId = (sourceId) => {
   if (!sourceId) return null;
-  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const normalized = String(sourceId).trim().toLowerCase().replace(/\s+/g, '_');
+  return POLYHAVEN_CLOTH_SOURCE_ALIASES[normalized] || normalized;
+};
+
+const buildPolyHavenTextureUrls = (sourceId, resolution) => {
+  const normalized = normalizePolyHavenSourceId(sourceId);
+  if (!normalized) return null;
   const res = String(resolution).toLowerCase();
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}`;
   return {
@@ -3601,8 +3614,8 @@ const tintPolyHavenClothDiffuseToPalette = (texture, preset) => {
 };
 
 const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
-  if (!sourceId) return null;
-  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const normalized = normalizePolyHavenSourceId(sourceId);
+  if (!normalized) return null;
   const res = String(resolution).toUpperCase();
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
   return {
@@ -3611,6 +3624,36 @@ const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
     roughness: `${base}_Roughness.jpg`
   };
 };
+
+const pickPolyHavenMapUrl = (apiJson, mapKey, resolution) => {
+  if (!apiJson || typeof apiJson !== 'object') return null;
+  const map = apiJson[mapKey];
+  if (!map || typeof map !== 'object') return null;
+  const target = String(resolution || '').toLowerCase();
+  const preferred = target && map[target] && typeof map[target] === 'object'
+    ? map[target]
+    : null;
+  const resolutionEntry =
+    preferred ||
+    Object.entries(map)
+      .filter(([, value]) => value && typeof value === 'object')
+      .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))[0]?.[1];
+  if (!resolutionEntry || typeof resolutionEntry !== 'object') return null;
+  return resolutionEntry.jpg?.url || resolutionEntry.png?.url || null;
+};
+
+const pickPolyHavenTextureUrlsFromOfficialMaps = (apiJson, resolution) => ({
+  diffuse:
+    pickPolyHavenMapUrl(apiJson, 'Diffuse', resolution) ||
+    pickPolyHavenMapUrl(apiJson, 'diffuse', resolution),
+  normal:
+    pickPolyHavenMapUrl(apiJson, 'nor_gl', resolution) ||
+    pickPolyHavenMapUrl(apiJson, 'Nor_GL', resolution) ||
+    pickPolyHavenMapUrl(apiJson, 'normal_gl', resolution),
+  roughness:
+    pickPolyHavenMapUrl(apiJson, 'Rough', resolution) ||
+    pickPolyHavenMapUrl(apiJson, 'roughness', resolution)
+});
 
 const collectPolyHavenUrls = (apiJson) => {
   const urls = [];
@@ -3997,11 +4040,13 @@ const createClothTextures = (() => {
       try {
         let urls = {};
         try {
-          const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
+          const sourceId = normalizePolyHavenSourceId(preset.sourceId);
+          const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(sourceId)}`);
           if (response?.ok) {
             const json = await response.json();
             const profile = getRuntimeTextureProfile();
             urls =
+              pickPolyHavenTextureUrlsFromOfficialMaps(json, profile.polyHavenResolution) ||
               pickPolyHavenTextureUrlsAtResolution(json, profile.polyHavenResolution) ||
               pickPolyHavenTextureUrls(json);
           }
