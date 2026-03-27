@@ -3271,6 +3271,41 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const HIGH_FPS_6K_MIN_FPS = 105;
+const HIGH_FPS_6K_TEXTURE_SIZE = 6144;
+let runtimeTextureProfile = Object.freeze({
+  textureSize: CLOTH_QUALITY.textureSize,
+  anisotropy: CLOTH_QUALITY.anisotropy,
+  generateMipmaps: CLOTH_QUALITY.generateMipmaps,
+  polyHavenResolution: CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k',
+  enforceTableFinishTextureSize: null
+});
+
+const isHighFpsTextureTier = (fps) =>
+  Number.isFinite(fps) && fps >= HIGH_FPS_6K_MIN_FPS;
+
+const updateRuntimeTextureProfile = ({ fps } = {}) => {
+  const highFpsTier = isHighFpsTextureTier(fps);
+  const textureSize = highFpsTier
+    ? Math.max(CLOTH_QUALITY.textureSize, HIGH_FPS_6K_TEXTURE_SIZE)
+    : CLOTH_QUALITY.textureSize;
+  runtimeTextureProfile = Object.freeze({
+    textureSize,
+    anisotropy: CLOTH_QUALITY.anisotropy,
+    generateMipmaps: CLOTH_QUALITY.generateMipmaps,
+    polyHavenResolution: textureSize >= 6144 ? '8k' : textureSize >= 4096 ? '8k' : '4k',
+    enforceTableFinishTextureSize: highFpsTier ? HIGH_FPS_6K_TEXTURE_SIZE : null
+  });
+};
+
+const getRuntimeTextureProfile = () => runtimeTextureProfile;
+
+const enforceHighFpsTableTextureSize = (size) => {
+  const minSize = getRuntimeTextureProfile().enforceTableFinishTextureSize;
+  if (!Number.isFinite(minSize) || minSize <= 0) return size;
+  if (!Number.isFinite(size) || size <= 0) return minSize;
+  return Math.max(size, minSize);
+};
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -3412,7 +3447,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.72; // slightly increase repeat so procedural weave reads a bit finer/smaller
+const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
@@ -3709,14 +3744,15 @@ const createClothTextures = (() => {
 
   const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
     if (!texture) return;
+    const profile = getRuntimeTextureProfile();
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(CLOTH_TEXTURE_REPEAT_HINT, CLOTH_TEXTURE_REPEAT_HINT);
     const anisotropyBoost = isPolyHaven ? POLYHAVEN_ANISOTROPY_BOOST : 1;
-    const requestedAnisotropy = CLOTH_QUALITY.anisotropy * anisotropyBoost;
+    const requestedAnisotropy = profile.anisotropy * anisotropyBoost;
     texture.anisotropy = resolveTextureAnisotropy(requestedAnisotropy);
-    texture.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
-    texture.minFilter = CLOTH_QUALITY.generateMipmaps
+    texture.generateMipmaps = profile.generateMipmaps;
+    texture.minFilter = profile.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
       : THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
@@ -3783,7 +3819,7 @@ const createClothTextures = (() => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
     }
-    const SIZE = CLOTH_TEXTURE_SIZE;
+    const SIZE = getRuntimeTextureProfile().textureSize;
     const THREAD_PITCH = CLOTH_THREAD_PITCH / CLOTH_PATTERN_SCALE;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
@@ -3969,8 +4005,9 @@ const createClothTextures = (() => {
           const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
           if (response?.ok) {
             const json = await response.json();
+            const profile = getRuntimeTextureProfile();
             urls =
-              pickPolyHavenTextureUrlsAtResolution(json, POLYHAVEN_TEXTURE_RESOLUTION) ||
+              pickPolyHavenTextureUrlsAtResolution(json, profile.polyHavenResolution) ||
               pickPolyHavenTextureUrls(json);
           }
         } catch (error) {
@@ -4058,7 +4095,8 @@ const createClothTextures = (() => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    const cacheKey = preset.sourceId || preset.id;
+    const profile = getRuntimeTextureProfile();
+    const cacheKey = `${preset.sourceId || preset.id}|${profile.textureSize}|${profile.polyHavenResolution}`;
     let entry = cache.get(cacheKey);
     if (!entry) {
       const procedural = generateProceduralClothTextures(preset);
@@ -7808,13 +7846,14 @@ export function Table3D(
     initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     CUE_WOOD_TEXTURE_SIZE
   );
+  const finalWoodTextureSize = enforceHighFpsTableTextureSize(synchronizedTextureSize);
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: synchronizedTextureSize,
+    textureSize: finalWoodTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -7826,7 +7865,7 @@ export function Table3D(
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: synchronizedTextureSize,
+    textureSize: finalWoodTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -11058,7 +11097,7 @@ export function Table3D(
   const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
-    textureSize: woodFrameSurface.textureSize,
+    textureSize: enforceHighFpsTableTextureSize(woodFrameSurface.textureSize),
     mapUrl: woodFrameSurface.mapUrl,
     roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
     normalMapUrl: woodFrameSurface.normalMapUrl,
@@ -11923,13 +11962,14 @@ function applyTableFinishToTable(table, finish) {
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
+    const highFpsTextureSize = enforceHighFpsTableTextureSize(nextFrameSurface.textureSize);
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
         nextFrameSurface.repeat.x,
         nextFrameSurface.repeat.y
       ),
       rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize,
+      textureSize: highFpsTextureSize,
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
@@ -11938,7 +11978,7 @@ function applyTableFinishToTable(table, finish) {
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize,
+      textureSize: highFpsTextureSize,
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
@@ -12677,6 +12717,7 @@ function PoolRoyaleGame({
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
+    updateRuntimeTextureProfile({ fps: frameQualityProfile?.fps });
   }, [frameQualityProfile]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
@@ -15154,6 +15195,23 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     applyRendererQuality();
   }, [applyRendererQuality, frameQualityProfile]);
+  useEffect(() => {
+    const finish = tableFinishRef.current;
+    if (!finish) return;
+    if (trainingTableRef.current) {
+      applyTableFinishToTable(trainingTableRef.current, finish);
+    }
+    if (secondaryTableRef.current) {
+      applyTableFinishToTable(secondaryTableRef.current, finish);
+    }
+    if (Array.isArray(decorativeTablesRef.current)) {
+      decorativeTablesRef.current.forEach((entry) => {
+        if (entry?.group) {
+          applyTableFinishToTable(entry.group, finish);
+        }
+      });
+    }
+  }, [frameQualityProfile]);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const timerWarnedRef = useRef(false);
