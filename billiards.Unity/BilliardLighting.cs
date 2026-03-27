@@ -134,26 +134,83 @@ public class BilliardLighting : MonoBehaviour
             if (renderer != null)
             {
                 Material mat = renderer.material;
-                mat.color = new Color(0f, 0.3f, 0f, 1f); // deep green cloth
+                mat.color = new Color(0f, 0.3f, 0f, 1f); // deep green cloth base tint
                 mat.SetFloat("_Metallic", 0f);
                 mat.SetFloat("_Glossiness", 0.2f);
+                mat.mainTexture = CreateProceduralClothTexture(512, 512);
+                mat.mainTextureScale *= 1.2f;
 
-                Texture clothTex = Resources.Load<Texture>("Textures/green_cloth");
-                if (clothTex != null)
+                if (mat.HasProperty("_BumpMap"))
                 {
-                    mat.mainTexture = clothTex;
-                    mat.mainTextureScale *= 1.2f;
-                }
-
-                Texture bump = Resources.Load<Texture>("Textures/green_cloth_normal");
-                if (bump != null && mat.HasProperty("_BumpMap"))
-                {
-                    mat.SetTexture("_BumpMap", bump);
+                    mat.SetTexture("_BumpMap", CreateProceduralClothNormalMap(512, 512));
                     float scale = mat.HasProperty("_BumpScale") ? mat.GetFloat("_BumpScale") : 1f;
-                    mat.SetFloat("_BumpScale", scale * 1.2f);
+                    mat.SetFloat("_BumpScale", scale * 0.65f);
                 }
             }
         }
+    }
+
+    Texture2D CreateProceduralClothTexture(int width, int height)
+    {
+        Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Bilinear;
+
+        Color baseColor = new Color(0.02f, 0.26f, 0.08f, 1f);
+        Color threadColor = new Color(0.08f, 0.35f, 0.14f, 1f);
+        Color lintColor = new Color(0.12f, 0.42f, 0.18f, 1f);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float u = x / (float)width;
+                float v = y / (float)height;
+
+                float weaveX = Mathf.Sin(u * 420f) * 0.5f + 0.5f;
+                float weaveY = Mathf.Sin(v * 420f + 1.2f) * 0.5f + 0.5f;
+                float weave = Mathf.Lerp(weaveX, weaveY, 0.5f);
+                float grain = Mathf.PerlinNoise(u * 48f, v * 48f);
+                float lint = Mathf.PerlinNoise(u * 155f + 4.1f, v * 155f + 8.7f);
+
+                Color weaveMix = Color.Lerp(baseColor, threadColor, weave * 0.22f);
+                Color grainMix = Color.Lerp(weaveMix, lintColor, grain * 0.16f);
+                Color finalColor = Color.Lerp(grainMix, lintColor, Mathf.SmoothStep(0.85f, 1f, lint) * 0.18f);
+
+                texture.SetPixel(x, y, finalColor);
+            }
+        }
+
+        texture.Apply();
+        return texture;
+    }
+
+    Texture2D CreateProceduralClothNormalMap(int width, int height)
+    {
+        Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false, true);
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Bilinear;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float u = x / (float)width;
+                float v = y / (float)height;
+
+                float left = Mathf.PerlinNoise((u - 1f / width) * 52f, v * 52f);
+                float right = Mathf.PerlinNoise((u + 1f / width) * 52f, v * 52f);
+                float down = Mathf.PerlinNoise(u * 52f, (v - 1f / height) * 52f);
+                float up = Mathf.PerlinNoise(u * 52f, (v + 1f / height) * 52f);
+
+                Vector3 normal = new Vector3(left - right, down - up, 1f).normalized;
+                Color packedNormal = new Color(normal.x * 0.5f + 0.5f, normal.y * 0.5f + 0.5f, normal.z * 0.5f + 0.5f, 1f);
+                texture.SetPixel(x, y, packedNormal);
+            }
+        }
+
+        texture.Apply();
+        return texture;
     }
 }
 #endif
