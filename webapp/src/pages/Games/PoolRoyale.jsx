@@ -1757,7 +1757,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
+const SPIN_GLOBAL_SCALE = 1.035; // increase overall spin effect by 15%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1782,7 +1782,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
+const SHOT_POWER_BOOST = 1.275; // reduce overall shot power by 15%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -27193,7 +27193,7 @@ const powerRef = useRef(hud.power);
               ballRadius: BALL_R,
               spin: plan.spin,
               power: plan.power,
-              contactCalibration: 0.004
+              contactCalibration: 0
             });
             if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
               corrected = compensatedAim.aimDir.clone();
@@ -27796,7 +27796,7 @@ const powerRef = useRef(hud.power);
                 ballRadius: BALL_R,
                 spin: plan.spin,
                 power: plan.power,
-                contactCalibration: 0.004
+                contactCalibration: 0
               });
               if (compensatedAim?.aimDir?.lengthSq?.() > 1e-6) {
                 suggestedDir = compensatedAim.aimDir.clone();
@@ -28096,7 +28096,7 @@ const powerRef = useRef(hud.power);
           const targetId = String(plan.targetBall.id);
           const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
           const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
+          const scanDegrees = [-4, -3, -2.2, -1.4, -0.8, -0.35, 0, 0.35, 0.8, 1.4, 2.2, 3, 4];
           scanDegrees.forEach((deg) => {
             const rotated = baseDir
               .clone()
@@ -32544,6 +32544,16 @@ const powerRef = useRef(hud.power);
                 </svg>
               </button>
             </div>
+            {isFreePractice && (
+              <button
+                type="button"
+                onClick={handlePracticeRestart}
+                className="mt-3 flex w-full items-center justify-between rounded-full border border-emerald-300/55 bg-emerald-400/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-100 transition hover:bg-emerald-300/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                <span>Restart practice</span>
+                <span aria-hidden="true">↻</span>
+              </button>
+            )}
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -33602,26 +33612,14 @@ const powerRef = useRef(hud.power);
           >
             <span aria-hidden="true">☰</span>
           </button>
-          {isFreePractice ? (
-            <button
-              type="button"
-              onClick={handlePracticeRestart}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Restart practice"
-              title="Restart practice"
-            >
-              <span aria-hidden="true">↻</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowChat(true)}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Open chat"
-            >
-              <span aria-hidden="true">💬</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowChat(true)}
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label="Open chat"
+          >
+            <span aria-hidden="true">💬</span>
+          </button>
         </div>
       )}
 
