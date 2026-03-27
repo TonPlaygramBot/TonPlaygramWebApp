@@ -3445,6 +3445,11 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.08;
+const POLYHAVEN_REFERENCE_TABLE_INCHES = Object.freeze({
+  width: 100,
+  height: 50
+});
+const CM_TO_INCH = 0.3937007874;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -3466,6 +3471,8 @@ const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
 
 const CLOTH_TEXTURE_CONSUMERS = new Map();
 const CLOTH_CONSUMER_KEYS = new Map();
+const POLYHAVEN_INFO_CACHE = new Map();
+const POLYHAVEN_INFO_PENDING = new Map();
 
 const resolveClothPatternOverride = (textureKey) => {
   const preset =
@@ -3610,6 +3617,52 @@ const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
     normal: `${base}_NormalGL.jpg`,
     roughness: `${base}_Roughness.jpg`
   };
+};
+
+const fetchPolyHavenInfo = async (sourceId) => {
+  if (!sourceId) return null;
+  if (POLYHAVEN_INFO_CACHE.has(sourceId)) {
+    return POLYHAVEN_INFO_CACHE.get(sourceId);
+  }
+  if (POLYHAVEN_INFO_PENDING.has(sourceId)) {
+    return POLYHAVEN_INFO_PENDING.get(sourceId);
+  }
+  if (typeof fetch !== 'function') return null;
+  const pending = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/info/${encodeURIComponent(sourceId)}`);
+      if (!response?.ok) {
+        POLYHAVEN_INFO_CACHE.set(sourceId, null);
+        return null;
+      }
+      const info = await response.json();
+      POLYHAVEN_INFO_CACHE.set(sourceId, info);
+      return info;
+    } catch (error) {
+      POLYHAVEN_INFO_CACHE.set(sourceId, null);
+      return null;
+    } finally {
+      POLYHAVEN_INFO_PENDING.delete(sourceId);
+    }
+  })();
+  POLYHAVEN_INFO_PENDING.set(sourceId, pending);
+  return pending;
+};
+
+const resolvePolyHavenRepeatScaleFromInfo = (info) => {
+  const dimensionsCm = Array.isArray(info?.dimensions) ? info.dimensions : null;
+  if (!dimensionsCm || dimensionsCm.length < 2) return POLYHAVEN_PATTERN_REPEAT_SCALE;
+  const [widthCm, heightCm] = dimensionsCm;
+  if (!Number.isFinite(widthCm) || !Number.isFinite(heightCm) || widthCm <= 0 || heightCm <= 0) {
+    return POLYHAVEN_PATTERN_REPEAT_SCALE;
+  }
+  const texWidthInches = widthCm * CM_TO_INCH;
+  const texHeightInches = heightCm * CM_TO_INCH;
+  if (texWidthInches <= 0 || texHeightInches <= 0) return POLYHAVEN_PATTERN_REPEAT_SCALE;
+  const repeatX = POLYHAVEN_REFERENCE_TABLE_INCHES.width / texWidthInches;
+  const repeatY = POLYHAVEN_REFERENCE_TABLE_INCHES.height / texHeightInches;
+  const averageRepeat = (repeatX + repeatY) * 0.5;
+  return THREE.MathUtils.clamp(averageRepeat, 0.35, 2.2);
 };
 
 const collectPolyHavenUrls = (apiJson) => {
@@ -3996,6 +4049,7 @@ const createClothTextures = (() => {
     const promise = (async () => {
       try {
         let urls = {};
+        let sourceInfo = null;
         try {
           const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
           if (response?.ok) {
@@ -4008,6 +4062,7 @@ const createClothTextures = (() => {
         } catch (error) {
           urls = {};
         }
+        sourceInfo = await fetchPolyHavenInfo(preset.sourceId);
 
         const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
@@ -4065,6 +4120,7 @@ const createClothTextures = (() => {
         );
 
         const existing = cache.get(cacheKey) || {};
+        const realWorldRepeatScale = resolvePolyHavenRepeatScaleFromInfo(sourceInfo);
         cache.set(cacheKey, {
           ...existing,
           map: map ?? existing.map ?? null,
@@ -4073,6 +4129,14 @@ const createClothTextures = (() => {
           roughness: roughness ?? existing.roughness ?? null,
           presetId: preset.id,
           sourceId: preset.sourceId,
+          sourceName:
+            typeof sourceInfo?.name === 'string' && sourceInfo.name.trim()
+              ? sourceInfo.name.trim()
+              : null,
+          sourceDimensionsCm: Array.isArray(sourceInfo?.dimensions)
+            ? sourceInfo.dimensions.slice(0, 2)
+            : null,
+          realWorldRepeatScale,
           mapSource: map ? 'polyhaven' : existing.mapSource ?? 'procedural',
           ready: Boolean(map || normal || roughness)
         });
@@ -4122,6 +4186,14 @@ const createClothTextures = (() => {
       roughness: cloneTexture(entry.roughness),
       presetId: preset.id,
       sourceId: entry.sourceId,
+      sourceName: entry.sourceName ?? null,
+      sourceDimensionsCm: Array.isArray(entry.sourceDimensionsCm)
+        ? entry.sourceDimensionsCm.slice(0, 2)
+        : null,
+      realWorldRepeatScale:
+        Number.isFinite(entry.realWorldRepeatScale)
+          ? entry.realWorldRepeatScale
+          : POLYHAVEN_PATTERN_REPEAT_SCALE,
       mapSource:
         normalizedSource === DEFAULT_CLOTH_TEXTURE_SOURCE_ID
           ? entry.mapSource ?? 'procedural'
@@ -4185,7 +4257,12 @@ function updateClothTexturesForFinish (
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
-  const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const textureScale =
+    textures.mapSource === 'polyhaven'
+      ? Number.isFinite(textures.realWorldRepeatScale)
+        ? textures.realWorldRepeatScale
+        : POLYHAVEN_PATTERN_REPEAT_SCALE
+      : 1;
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
       ? POLYHAVEN_NORMAL_SCALE
@@ -4243,6 +4320,12 @@ function updateClothTexturesForFinish (
   }
   if (finishInfo.clothMat.userData) {
     finishInfo.clothMat.userData.polyRepeatScale = textureScale;
+    finishInfo.clothMat.userData.polySourceName = textures.sourceName ?? null;
+    finishInfo.clothMat.userData.polySourceDimensionsCm = Array.isArray(
+      textures.sourceDimensionsCm
+    )
+      ? textures.sourceDimensionsCm.slice(0, 2)
+      : null;
     finishInfo.clothMat.userData.baseRepeat = baseRepeatValue;
     finishInfo.clothMat.userData.baseRepeatRaw = baseRepeatRaw;
     finishInfo.clothMat.userData.nearRepeat = baseRepeatValue * 1.12;
