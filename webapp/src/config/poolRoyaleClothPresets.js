@@ -52,7 +52,7 @@ const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
 const MATERIAL_SERIES = [
   {
     prefix: 'caban',
-    label: 'Caban',
+    label: 'Caban Wool',
     sourceId: 'caban',
     basePrice: 690,
     priceStep: 10,
@@ -90,7 +90,7 @@ const MATERIAL_SERIES = [
   },
   {
     prefix: 'polarFleecePlush',
-    label: 'Polar Fleece',
+    label: 'Polar Fleece Plush',
     sourceId: 'polar_fleece',
     basePrice: 700,
     priceStep: 10,
@@ -109,7 +109,7 @@ const MATERIAL_SERIES = [
   },
   {
     prefix: 'polarFleeceNatureOcean',
-    label: 'Polar Fleece',
+    label: 'Polar Fleece Nature & Ocean',
     sourceId: 'polar_fleece',
     basePrice: 660,
     priceStep: 10,
@@ -130,7 +130,7 @@ const MATERIAL_SERIES = [
   },
   {
     prefix: 'terryCloth',
-    label: 'Terry Cloth',
+    label: 'Polyhaven Terry Cloth',
     sourceId: 'terry_cloth',
     basePrice: 740,
     priceStep: 12,
