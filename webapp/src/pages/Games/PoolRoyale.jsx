@@ -3091,7 +3091,7 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
 const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -4109,24 +4109,20 @@ const createClothTextures = (() => {
       cache.set(cacheKey, entry);
     }
 
-    const normalizedSource =
-      textureSource === 'procedural'
-        ? DEFAULT_CLOTH_TEXTURE_SOURCE_ID
-        : textureSource;
-    ensurePolyHavenTextures(preset, cacheKey);
+    const useProcedural = textureSource === 'procedural';
+    if (!useProcedural) {
+      ensurePolyHavenTextures(preset, cacheKey);
+    }
 
     return {
-      map: cloneTexture(entry.map),
-      bump: cloneTexture(entry.bump),
-      normal: cloneTexture(entry.normal),
-      roughness: cloneTexture(entry.roughness),
+      map: cloneTexture(useProcedural ? entry.proceduralMap ?? entry.map : entry.map),
+      bump: cloneTexture(useProcedural ? entry.proceduralBump ?? entry.bump : entry.bump),
+      normal: cloneTexture(useProcedural ? null : entry.normal),
+      roughness: cloneTexture(useProcedural ? null : entry.roughness),
       presetId: preset.id,
       sourceId: entry.sourceId,
-      mapSource:
-        normalizedSource === DEFAULT_CLOTH_TEXTURE_SOURCE_ID
-          ? entry.mapSource ?? 'procedural'
-          : entry.mapSource ?? 'procedural',
-      ready: Boolean(entry.ready)
+      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'procedural',
+      ready: useProcedural ? true : Boolean(entry.ready)
     };
   };
 })();
