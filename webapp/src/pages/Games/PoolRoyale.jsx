@@ -1757,7 +1757,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 1.035; // increase overall spin effect by 15%
+const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1781,7 +1781,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.612; // reduce overall Pool Royale shot strength by an additional 15%
+const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -28094,9 +28094,7 @@ const powerRef = useRef(hud.power);
           const targetId = String(plan.targetBall.id);
           const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
           const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [
-            -6, -4.5, -3.2, -2.4, -1.6, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 1.6, 2.4, 3.2, 4.5, 6
-          ];
+          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
           scanDegrees.forEach((deg) => {
             const rotated = baseDir
               .clone()
@@ -28105,34 +28103,15 @@ const powerRef = useRef(hud.power);
             rotated.normalize();
             const contact = calcTarget(cue, rotated, ballsRef.current?.length ? ballsRef.current : balls);
             if (!contact?.targetBall || String(contact.targetBall.id) !== targetId) return;
-            if (!isPathClear(contact.targetBall.pos, plan.pocketCenter, new Set([cue?.id, plan.targetBall?.id]))) {
-              return;
-            }
-            const impactPoint =
-              Number.isFinite(contact?.tHit) && contact.tHit > 0
-                ? cuePos.clone().add(rotated.clone().multiplyScalar(contact.tHit))
-                : cuePos.clone();
-            const objectDir = contact.targetBall.pos.clone().sub(impactPoint);
+            const toPocket = plan.pocketCenter.clone().sub(contact.targetBall.pos);
             const pocketAlignment =
-              objectDir.lengthSq() > 1e-6 && toPocketRef.lengthSq() > 1e-6
-                ? objectDir.clone().normalize().dot(toPocketRef.clone().normalize())
+              toPocket.lengthSq() > 1e-6 && toPocketRef.lengthSq() > 1e-6
+                ? toPocket.clone().normalize().dot(toPocketRef.clone().normalize())
                 : 0;
             const depthScore = Number.isFinite(contact?.tHit)
               ? 1 - Math.min(Math.abs(contact.tHit - cuePos.distanceTo(plan.targetBall.pos)) / (BALL_R * 14), 1)
               : 0;
-            const ghost =
-              pocketAlignment > -1
-                ? plan.targetBall.pos
-                    .clone()
-                    .sub(toPocketRef.clone().normalize().multiplyScalar(BALL_R * 2))
-                : null;
-            const cueLaneClear = ghost
-              ? isPathClear(cuePos, ghost, new Set([cue?.id, plan.targetBall?.id]))
-              : true;
-            const score =
-              pocketAlignment * 0.7 +
-              depthScore * 0.2 +
-              (cueLaneClear ? 0.1 : -0.25);
+            const score = pocketAlignment * 0.78 + depthScore * 0.22;
             if (score > bestRef.score) {
               bestRef.dir = rotated;
               bestRef.score = score;
