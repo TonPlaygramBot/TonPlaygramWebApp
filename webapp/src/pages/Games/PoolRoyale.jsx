@@ -3444,8 +3444,8 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.08;
-const POLYHAVEN_ANISOTROPY_BOOST = 9;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const POLYHAVEN_ANISOTROPY_BOOST = 7;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
@@ -3454,6 +3454,37 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({});
+const POLYHAVEN_CLOTH_SOURCE_CONFIG = Object.freeze({
+  caban: Object.freeze({
+    sourceName: 'caban',
+    sourceLabel: 'Poly Haven Caban',
+    repeatScale: 1,
+    anisotropyBoost: 7,
+    normalScale: Object.freeze({ x: 1.68, y: 1.68 }),
+    roughnessTarget: 0.79
+  }),
+  polar_fleece: Object.freeze({
+    sourceName: 'polar_fleece',
+    sourceLabel: 'Poly Haven Polar Fleece',
+    repeatScale: 1,
+    anisotropyBoost: 7.5,
+    normalScale: Object.freeze({ x: 1.75, y: 1.75 }),
+    roughnessTarget: 0.8
+  }),
+  terry_cloth: Object.freeze({
+    sourceName: 'terry_cloth',
+    sourceLabel: 'Poly Haven Terry Cloth',
+    repeatScale: 1,
+    anisotropyBoost: 8,
+    normalScale: Object.freeze({ x: 1.8, y: 1.8 }),
+    roughnessTarget: 0.82
+  })
+});
+
+const resolvePolyHavenClothSourceConfig = (sourceId) => {
+  if (!sourceId) return null;
+  return POLYHAVEN_CLOTH_SOURCE_CONFIG[String(sourceId).toLowerCase()] ?? null;
+};
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3737,13 +3768,22 @@ const createClothTextures = (() => {
     return null;
   };
 
-  const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
+  const applyTextureDefaults = (texture, { isPolyHaven = false, sourceId = null } = {}) => {
     if (!texture) return;
     const profile = getRuntimeTextureProfile();
+    const sourceConfig = isPolyHaven
+      ? resolvePolyHavenClothSourceConfig(sourceId)
+      : null;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(CLOTH_TEXTURE_REPEAT_HINT, CLOTH_TEXTURE_REPEAT_HINT);
-    const anisotropyBoost = isPolyHaven ? POLYHAVEN_ANISOTROPY_BOOST : 1;
+    const polyHavenRepeat =
+      CLOTH_TEXTURE_REPEAT_HINT *
+      (sourceConfig?.repeatScale ?? POLYHAVEN_PATTERN_REPEAT_SCALE);
+    const baseRepeat = isPolyHaven ? polyHavenRepeat : CLOTH_TEXTURE_REPEAT_HINT;
+    texture.repeat.set(baseRepeat, baseRepeat);
+    const anisotropyBoost = isPolyHaven
+      ? sourceConfig?.anisotropyBoost ?? POLYHAVEN_ANISOTROPY_BOOST
+      : 1;
     const requestedAnisotropy = profile.anisotropy * anisotropyBoost;
     texture.anisotropy = resolveTextureAnisotropy(requestedAnisotropy);
     texture.generateMipmaps = profile.generateMipmaps;
@@ -3753,7 +3793,8 @@ const createClothTextures = (() => {
     texture.magFilter = THREE.LinearFilter;
     texture.userData = {
       ...(texture.userData || {}),
-      clothSource: isPolyHaven ? 'polyhaven' : 'procedural'
+      clothSource: isPolyHaven ? 'polyhaven' : 'procedural',
+      clothSourceId: sourceId ?? null
     };
     texture.needsUpdate = true;
   };
@@ -4061,7 +4102,7 @@ const createClothTextures = (() => {
         map = tintPolyHavenClothDiffuseToPalette(map, preset);
 
         [map, normal, roughness].forEach((tex) =>
-          applyTextureDefaults(tex, { isPolyHaven: true })
+          applyTextureDefaults(tex, { isPolyHaven: true, sourceId: preset.sourceId })
         );
 
         const existing = cache.get(cacheKey) || {};
@@ -4185,15 +4226,27 @@ function updateClothTexturesForFinish (
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
-  const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const polyHavenSourceConfig =
+    textures.mapSource === 'polyhaven'
+      ? resolvePolyHavenClothSourceConfig(textures.sourceId)
+      : null;
+  const textureScale =
+    textures.mapSource === 'polyhaven'
+      ? polyHavenSourceConfig?.repeatScale ?? POLYHAVEN_PATTERN_REPEAT_SCALE
+      : 1;
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
-      ? POLYHAVEN_NORMAL_SCALE
+      ? new THREE.Vector2(
+          polyHavenSourceConfig?.normalScale?.x ?? POLYHAVEN_NORMAL_SCALE.x,
+          polyHavenSourceConfig?.normalScale?.y ?? POLYHAVEN_NORMAL_SCALE.y
+        )
       : CLOTH_NORMAL_SCALE;
   const roughnessBase =
     finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
   const roughnessTarget =
-    finishInfo.clothBase?.roughnessTarget ?? CLOTH_ROUGHNESS_TARGET;
+    finishInfo.clothBase?.roughnessTarget ??
+    polyHavenSourceConfig?.roughnessTarget ??
+    CLOTH_ROUGHNESS_TARGET;
   const baseRepeatRaw =
     finishInfo.clothMat.userData?.baseRepeatRaw ??
     finishInfo.clothBase?.baseRepeatRaw ??
