@@ -1757,7 +1757,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
+const SPIN_GLOBAL_SCALE = 1.035; // increase overall spin effect by 15%
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1782,7 +1782,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
+const SHOT_POWER_BOOST = 1.275; // reduce overall shot power by 15%
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -27192,7 +27192,8 @@ const powerRef = useRef(hud.power);
               pocketPos: plan.pocketCenter,
               ballRadius: BALL_R,
               spin: plan.spin,
-              power: plan.power
+              power: plan.power,
+              contactCalibration: 0
             });
             if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
               corrected = compensatedAim.aimDir.clone();
@@ -27794,7 +27795,8 @@ const powerRef = useRef(hud.power);
                 pocketPos: plan.pocketCenter,
                 ballRadius: BALL_R,
                 spin: plan.spin,
-                power: plan.power
+                power: plan.power,
+                contactCalibration: 0
               });
               if (compensatedAim?.aimDir?.lengthSq?.() > 1e-6) {
                 suggestedDir = compensatedAim.aimDir.clone();
@@ -28094,7 +28096,7 @@ const powerRef = useRef(hud.power);
           const targetId = String(plan.targetBall.id);
           const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
           const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
+          const scanDegrees = [-4, -3, -2.2, -1.4, -0.8, -0.35, 0, 0.35, 0.8, 1.4, 2.2, 3, 4];
           scanDegrees.forEach((deg) => {
             const rotated = baseDir
               .clone()
