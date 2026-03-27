@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const MIN_VECTOR_EPS = 1e-6;
-const DEFAULT_CONTACT_CALIBRATION = 0.004;
+const DEFAULT_CONTACT_CALIBRATION = 0;
 
 export const resolveAiPotGhostAim = ({
   cuePos,
