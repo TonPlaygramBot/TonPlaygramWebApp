@@ -559,32 +559,32 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return '2k60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return '2k60';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
-      return 'uhd120';
+      return '8k120';
     }
     if (
       highRefresh ||
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return '6k105';
     }
-    return 'fhd60';
+    return '4k90';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'uhd120';
+    return '8k120';
   }
 
   if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return '6k105';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -3227,79 +3227,96 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 );
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const GRAPHICS_RESOLUTION_PROFILES = Object.freeze([
+  Object.freeze({ fps: 60, resolutionId: '2k', textureSize: 2048, hdriResolution: '2k' }),
+  Object.freeze({ fps: 90, resolutionId: '4k', textureSize: 4096, hdriResolution: '4k' }),
+  Object.freeze({ fps: 105, resolutionId: '6k', textureSize: 6144, hdriResolution: '6k' }),
+  Object.freeze({ fps: 120, resolutionId: '8k', textureSize: 8192, hdriResolution: '8k' })
+]);
+const LEGACY_FRAME_RATE_ID_MAP = Object.freeze({
+  hd50: '2k60',
+  fhd60: '2k60',
+  fhd90: '4k90',
+  qhd90: '6k105',
+  uhd120: '8k120'
+});
+const normalizeFrameRateId = (id) => LEGACY_FRAME_RATE_ID_MAP[id] ?? id;
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
+    id: '2k60',
+    label: '2K Quality (60 FPS)',
+    fps: 60,
     renderScale: 1,
     pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
+    resolution: '2K assets • 60 FPS',
+    description: 'Balanced profile using 2K cloth, balls, cue, table finish, chrome, jaws, and HDRI.'
   },
   {
-    id: 'fhd90',
-    label: 'Full HD (90 Hz)',
+    id: '4k90',
+    label: '4K Quality (90 FPS)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+    resolution: '4K assets • 90 FPS',
+    description: 'High-detail profile using 4K cloth, balls, cue, table finish, chrome, jaws, and HDRI.'
   },
   {
-    id: 'qhd90',
-    label: 'Quad HD (105 Hz)',
+    id: '6k105',
+    label: '6K Quality (105 FPS)',
     fps: 105,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: 'QHD render • DPR 1.72 cap',
-    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
+    resolution: '6K assets • 105 FPS',
+    description: 'Ultra-detail profile using 6K cloth, balls, cue, table finish, chrome, jaws, and HDRI.'
   },
   {
-    id: 'uhd120',
-    label: 'Ultra HD (120 Hz cap)',
+    id: '8k120',
+    label: '8K Quality (120 FPS)',
     fps: 120,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: 'Ultra HD render • DPR 1.85 cap',
-    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
+    resolution: '8K assets • 120 FPS',
+    description: 'Maximum profile using 8K cloth, balls, cue, table finish, chrome, jaws, and HDRI.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
-const HIGH_FPS_6K_MIN_FPS = 105;
-const HIGH_FPS_6K_TEXTURE_SIZE = 6144;
+const DEFAULT_FRAME_RATE_ID = '4k90';
+const resolveGraphicsResolutionProfile = (fps) => {
+  const safeFps = Number.isFinite(fps) ? fps : 90;
+  return (
+    GRAPHICS_RESOLUTION_PROFILES.find((profile) => profile.fps === safeFps) ??
+    GRAPHICS_RESOLUTION_PROFILES.reduce((best, profile) => {
+      if (!best) return profile;
+      return Math.abs(profile.fps - safeFps) < Math.abs(best.fps - safeFps) ? profile : best;
+    }, GRAPHICS_RESOLUTION_PROFILES[0])
+  );
+};
 let runtimeTextureProfile = Object.freeze({
-  textureSize: CLOTH_QUALITY.textureSize,
+  textureSize: resolveGraphicsResolutionProfile(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k',
-  enforceTableFinishTextureSize: null
+  polyHavenResolution: resolveGraphicsResolutionProfile(90).resolutionId,
+  hdriResolution: resolveGraphicsResolutionProfile(90).hdriResolution,
+  targetFps: 90
 });
 
-const isHighFpsTextureTier = (fps) =>
-  Number.isFinite(fps) && fps >= HIGH_FPS_6K_MIN_FPS;
-
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
-  const highFpsTier = isHighFpsTextureTier(fps);
-  const textureSize = highFpsTier
-    ? Math.max(CLOTH_QUALITY.textureSize, HIGH_FPS_6K_TEXTURE_SIZE)
-    : CLOTH_QUALITY.textureSize;
+  const resolutionProfile = resolveGraphicsResolutionProfile(fps);
   runtimeTextureProfile = Object.freeze({
-    textureSize,
+    textureSize: resolutionProfile.textureSize,
     anisotropy: CLOTH_QUALITY.anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-    polyHavenResolution: textureSize >= 6144 ? '8k' : textureSize >= 4096 ? '8k' : '4k',
-    enforceTableFinishTextureSize: highFpsTier ? HIGH_FPS_6K_TEXTURE_SIZE : null
+    polyHavenResolution: resolutionProfile.resolutionId,
+    hdriResolution: resolutionProfile.hdriResolution,
+    targetFps: resolutionProfile.fps
   });
 };
 
 const getRuntimeTextureProfile = () => runtimeTextureProfile;
 
-const enforceHighFpsTableTextureSize = (size) => {
-  const minSize = getRuntimeTextureProfile().enforceTableFinishTextureSize;
-  if (!Number.isFinite(minSize) || minSize <= 0) return size;
-  if (!Number.isFinite(size) || size <= 0) return minSize;
-  return Math.max(size, minSize);
+const enforceGraphicsTextureSize = (size) => {
+  const profileTextureSize = Number(getRuntimeTextureProfile().textureSize) || 0;
+  if (!Number.isFinite(profileTextureSize) || profileTextureSize <= 0) return size;
+  return profileTextureSize;
 };
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
@@ -7841,7 +7858,7 @@ export function Table3D(
     initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     CUE_WOOD_TEXTURE_SIZE
   );
-  const finalWoodTextureSize = enforceHighFpsTableTextureSize(synchronizedTextureSize);
+  const finalWoodTextureSize = enforceGraphicsTextureSize(synchronizedTextureSize);
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
@@ -11092,7 +11109,7 @@ export function Table3D(
   const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
-    textureSize: enforceHighFpsTableTextureSize(woodFrameSurface.textureSize),
+    textureSize: enforceGraphicsTextureSize(woodFrameSurface.textureSize),
     mapUrl: woodFrameSurface.mapUrl,
     roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
     normalMapUrl: woodFrameSurface.normalMapUrl,
@@ -11957,7 +11974,7 @@ function applyTableFinishToTable(table, finish) {
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
-    const highFpsTextureSize = enforceHighFpsTableTextureSize(nextFrameSurface.textureSize);
+    const highFpsTextureSize = enforceGraphicsTextureSize(nextFrameSurface.textureSize);
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
         nextFrameSurface.repeat.x,
@@ -12650,12 +12667,14 @@ function PoolRoyaleGame({
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
-      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
+      const normalizedStored = normalizeFrameRateId(stored);
+      if (normalizedStored && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalizedStored)) {
+        return normalizedStored;
       }
       const detected = detectPreferredFrameRateId();
-      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
-        return detected;
+      const normalizedDetected = normalizeFrameRateId(detected);
+      if (normalizedDetected && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalizedDetected)) {
+        return normalizedDetected;
       }
     }
     return DEFAULT_FRAME_RATE_ID;
@@ -12702,10 +12721,20 @@ function PoolRoyaleGame({
     };
   }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
+  const selectedGraphicsResolutionProfile = useMemo(
+    () => resolveGraphicsResolutionProfile(frameQualityProfile?.fps),
+    [frameQualityProfile?.fps]
+  );
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
     updateRuntimeTextureProfile({ fps: frameQualityProfile?.fps });
   }, [frameQualityProfile]);
+  useEffect(() => {
+    const mappedHdriResolution = selectedGraphicsResolutionProfile?.hdriResolution;
+    if (!mappedHdriResolution) return;
+    if (hdriResolutionId === mappedHdriResolution) return;
+    setHdriResolutionId(mappedHdriResolution);
+  }, [hdriResolutionId, selectedGraphicsResolutionProfile]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -32450,7 +32479,7 @@ const powerRef = useRef(hud.power);
         </>
       )}
 
-      {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
+      {(!isPortrait || (isPortrait && configOpen && !hideNonEssentialHud)) && (
       <div
         className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
@@ -32937,10 +32966,12 @@ const powerRef = useRef(hud.power);
                 </p>
                 <div className="mt-3">
                   <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
-                    HDRI Resolution
+                    HDRI Resolution (synced)
                   </h4>
                   <p className="mt-1 text-[0.7rem] text-white/60">
                     Active: {resolvedHdriResolution?.toUpperCase() || activeHdriResolutionOption.label}
+                    {' • '}
+                    FPS profile controls cloth, balls, cue, table finish, chrome, jaws, and HDRI resolution together.
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {HDRI_RESOLUTION_OPTIONS.map((option) => {
@@ -32949,13 +32980,13 @@ const powerRef = useRef(hud.power);
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setHdriResolutionId(option.id)}
                           aria-pressed={active}
+                          disabled
                           className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
                               ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
+                              : 'border-white/20 bg-white/10 text-white/80'
+                          } opacity-70 cursor-not-allowed`}
                         >
                           {option.label}
                         </button>
