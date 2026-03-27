@@ -1487,7 +1487,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.9954;
+const FRICTION = 0.9951;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1498,7 +1498,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0102;
+const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
@@ -1942,7 +1942,7 @@ const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 4, 0.44 / 3 * 0.7 * 4); // shrink finish grain 2x more so the pattern reads tighter on the table surface
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 5, 0.44 / 3 * 0.7 * 5); // tighten finish grain further so rails read crisper on portrait screens
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -3091,11 +3091,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
 const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
-const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
-const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
-  { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
-  { id: 'procedural', label: 'Procedural Cloth' }
-]);
 const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
@@ -3448,9 +3443,9 @@ const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
-const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
-const POLYHAVEN_ANISOTROPY_BOOST = 7;
+const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.08;
+const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
@@ -4114,20 +4109,24 @@ const createClothTextures = (() => {
       cache.set(cacheKey, entry);
     }
 
-    const useProcedural = textureSource === 'procedural';
-    if (!useProcedural) {
-      ensurePolyHavenTextures(preset, cacheKey);
-    }
+    const normalizedSource =
+      textureSource === 'procedural'
+        ? DEFAULT_CLOTH_TEXTURE_SOURCE_ID
+        : textureSource;
+    ensurePolyHavenTextures(preset, cacheKey);
 
     return {
-      map: cloneTexture(useProcedural ? entry.proceduralMap ?? entry.map : entry.map),
-      bump: cloneTexture(useProcedural ? entry.proceduralBump ?? entry.bump : entry.bump),
-      normal: cloneTexture(useProcedural ? null : entry.normal),
-      roughness: cloneTexture(useProcedural ? null : entry.roughness),
+      map: cloneTexture(entry.map),
+      bump: cloneTexture(entry.bump),
+      normal: cloneTexture(entry.normal),
+      roughness: cloneTexture(entry.roughness),
       presetId: preset.id,
       sourceId: entry.sourceId,
-      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'procedural',
-      ready: useProcedural ? true : Boolean(entry.ready)
+      mapSource:
+        normalizedSource === DEFAULT_CLOTH_TEXTURE_SOURCE_ID
+          ? entry.mapSource ?? 'procedural'
+          : entry.mapSource ?? 'procedural',
+      ready: Boolean(entry.ready)
     };
   };
 })();
@@ -11223,7 +11222,7 @@ export function Table3D(
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.18);
+    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.4);
     texture.anisotropy = boostedAniso;
     texture.needsUpdate = true;
   };
@@ -12536,15 +12535,7 @@ function PoolRoyaleGame({
       DEFAULT_CLOTH_COLOR_ID
     );
   });
-  const [clothTextureSourceId, setClothTextureSourceId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY);
-      if (stored && CLOTH_TEXTURE_SOURCE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-  });
+  const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
@@ -14290,11 +14281,6 @@ function PoolRoyaleGame({
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY, clothTextureSourceId);
-    }
-  }, [clothTextureSourceId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(
@@ -32846,31 +32832,6 @@ const powerRef = useRef(hud.power);
                         </button>
                       );
                     })}
-                  </div>
-                  <div className="mt-3">
-                    <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
-                      Cloth Texture
-                    </h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {CLOTH_TEXTURE_SOURCE_OPTIONS.map((option) => {
-                        const active = option.id === clothTextureSourceId;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setClothTextureSourceId(option.id)}
-                            aria-pressed={active}
-                            className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                              active
-                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
               ) : null}
