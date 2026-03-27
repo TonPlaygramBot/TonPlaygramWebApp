@@ -52,7 +52,7 @@ const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
 const MATERIAL_SERIES = [
   {
     prefix: 'caban',
-    label: 'Caban Wool',
+    label: 'Poly Haven Caban',
     sourceId: 'caban',
     basePrice: 690,
     priceStep: 10,
@@ -173,7 +173,7 @@ const createVariantsForMaterial = (material) => {
         thumbnail: polyHavenThumb(material.sourceId),
         price,
         swatches: createSwatches(hex),
-        description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and detailed scan from ${material.sourceId}.`
+        description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and official Poly Haven scan (${material.sourceId}).`
       };
     });
 
