@@ -12919,7 +12919,8 @@ function PoolRoyaleGame({
     tableFinishId
   ]);
   const isTraining = playType === 'training';
-  const usesCareerAttempts = isTraining && careerMode;
+  const hasCareerTaskId = Boolean(careerStageId);
+  const usesCareerAttempts = isTraining && careerMode && hasCareerTaskId;
   const isFreePractice = isTraining && !usesCareerAttempts;
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
@@ -12955,7 +12956,7 @@ function PoolRoyaleGame({
     bonusAwardedStageIds: []
   });
   const [trainingLevel, setTrainingLevel] = useState(() => {
-    if (isTraining && !careerMode) {
+    if (isTraining && !usesCareerAttempts) {
       return PRACTICE_FREEPLAY_LEVEL;
     }
     const requested = Number(initialTrainingLevel);
@@ -13075,11 +13076,11 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
-    const shouldEnableRules = careerMode;
+    const shouldEnableRules = usesCareerAttempts;
     if (trainingRulesOn !== shouldEnableRules) {
       setTrainingRulesOn(shouldEnableRules);
     }
-  }, [careerMode, isTraining, trainingModeState, trainingRulesOn]);
+  }, [isTraining, trainingModeState, trainingRulesOn, usesCareerAttempts]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
