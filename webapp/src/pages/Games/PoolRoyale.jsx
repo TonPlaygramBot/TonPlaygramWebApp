@@ -559,12 +559,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -2725,7 +2725,7 @@ const pocketPlasticTextureCache = new Map();
 const pocketPlasticConsumers = new Set();
 
 const createProceduralPocketPlasticTextures = ({
-  size = 512,
+  size = getRuntimePocketTextureSize(),
   seed = 1337,
   repeat = POCKET_PLASTIC_TEXTURE_REPEAT
 } = {}) => {
@@ -2827,7 +2827,7 @@ const broadcastPocketPlasticTextures = (textures) => {
 
 
 const ensurePocketPlasticTextures = () => {
-  const cacheKey = 'pocket-plastic';
+  const cacheKey = `pocket-plastic-${getRuntimePocketTextureSize()}`;
   if (!pocketPlasticTextureCache.has(cacheKey)) {
     pocketPlasticTextureCache.set(cacheKey, {
       map: null,
@@ -3229,71 +3229,89 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
+    id: 'fhd60',
+    label: 'Performance (60 Hz)',
+    fps: 60,
     renderScale: 1,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
+    pixelRatioCap: 1.4,
+    resolution: '2K texture pack • 60 FPS',
+    description: 'Balanced battery profile using 2K assets.'
   },
   {
     id: 'fhd90',
-    label: 'Full HD (90 Hz)',
+    label: 'Smooth (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+    resolution: '4K texture pack • 90 FPS',
+    description: 'Sharper 4K assets for fluid 90 FPS play.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (105 Hz)',
+    label: 'Pro (105 Hz)',
     fps: 105,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: 'QHD render • DPR 1.72 cap',
-    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
+    resolution: '6K texture pack • 105 FPS',
+    description: 'High-detail 6K assets for premium devices.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz cap)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: 'Ultra HD render • DPR 1.85 cap',
-    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
+    resolution: '8K texture pack • 120 FPS',
+    description: 'Maximum 8K assets and 120 FPS target.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd90';
-const HIGH_FPS_6K_MIN_FPS = 105;
-const HIGH_FPS_6K_TEXTURE_SIZE = 6144;
+const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
+  { minFps: 120, key: '8k', textureSize: 8192 },
+  { minFps: 105, key: '6k', textureSize: 6144 },
+  { minFps: 90, key: '4k', textureSize: 4096 },
+  { minFps: 0, key: '2k', textureSize: 2048 }
+]);
+const resolveGraphicsResolutionTier = (fps) => {
+  const safeFps = Number.isFinite(fps) ? fps : 60;
+  return (
+    GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
+    GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
+  );
+};
 let runtimeTextureProfile = Object.freeze({
-  textureSize: CLOTH_QUALITY.textureSize,
+  textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k',
-  enforceTableFinishTextureSize: null
+  polyHavenResolution: '4k',
+  hdriResolution: '4k',
+  enforceTableFinishTextureSize: 4096,
+  cueTextureSize: 4096,
+  pocketTextureSize: 1024
 });
 
-const isHighFpsTextureTier = (fps) =>
-  Number.isFinite(fps) && fps >= HIGH_FPS_6K_MIN_FPS;
-
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
-  const highFpsTier = isHighFpsTextureTier(fps);
-  const textureSize = highFpsTier
-    ? Math.max(CLOTH_QUALITY.textureSize, HIGH_FPS_6K_TEXTURE_SIZE)
-    : CLOTH_QUALITY.textureSize;
+  const tier = resolveGraphicsResolutionTier(fps);
+  const textureSize = tier.textureSize;
+  const anisotropyRatio = textureSize / 6144;
+  const anisotropy = Math.max(16, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio));
   runtimeTextureProfile = Object.freeze({
     textureSize,
-    anisotropy: CLOTH_QUALITY.anisotropy,
+    anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-    polyHavenResolution: textureSize >= 6144 ? '8k' : textureSize >= 4096 ? '8k' : '4k',
-    enforceTableFinishTextureSize: highFpsTier ? HIGH_FPS_6K_TEXTURE_SIZE : null
+    polyHavenResolution: tier.key,
+    hdriResolution: tier.key,
+    enforceTableFinishTextureSize: textureSize,
+    cueTextureSize: textureSize,
+    pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
   });
 };
 
 const getRuntimeTextureProfile = () => runtimeTextureProfile;
+const getRuntimeCueTextureSize = () =>
+  getRuntimeTextureProfile().cueTextureSize ?? CUE_WOOD_TEXTURE_SIZE;
+const getRuntimePocketTextureSize = () =>
+  getRuntimeTextureProfile().pocketTextureSize ?? 1024;
 
 const enforceHighFpsTableTextureSize = (size) => {
   const minSize = getRuntimeTextureProfile().enforceTableFinishTextureSize;
@@ -7839,7 +7857,7 @@ export function Table3D(
   );
   const synchronizedTextureSize = Math.max(
     initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-    CUE_WOOD_TEXTURE_SIZE
+    getRuntimeCueTextureSize()
   );
   const finalWoodTextureSize = enforceHighFpsTableTextureSize(synchronizedTextureSize);
   const synchronizedRailSurface = {
@@ -12672,6 +12690,10 @@ function PoolRoyaleGame({
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
+  const activeGraphicsResolutionTier = useMemo(
+    () => resolveGraphicsResolutionTier(activeFrameRateOption?.fps),
+    [activeFrameRateOption]
+  );
   const activeHdriResolutionOption = useMemo(
     () =>
       HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
@@ -12705,7 +12727,13 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
     updateRuntimeTextureProfile({ fps: frameQualityProfile?.fps });
+    ensurePocketPlasticTextures();
   }, [frameQualityProfile]);
+  useEffect(() => {
+    const targetHdriResolution = activeGraphicsResolutionTier?.key;
+    if (!targetHdriResolution || hdriResolutionId === targetHdriResolution) return;
+    setHdriResolutionId(targetHdriResolution);
+  }, [activeGraphicsResolutionTier, hdriResolutionId]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -12803,13 +12831,13 @@ function PoolRoyaleGame({
   );
   const resolvedHdriResolution = useMemo(() => {
     if (hdriResolutionId === 'auto') {
-      return resolveHdriResolutionForTable(responsiveTableSize);
+      return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
     }
     if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
       return hdriResolutionId;
     }
-    return resolveHdriResolutionForTable(responsiveTableSize);
-  }, [hdriResolutionId, responsiveTableSize]);
+    return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
+  }, [activeGraphicsResolutionTier, hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
       const fromAvailable = availableEnvironmentHdris.find(
@@ -13933,7 +13961,7 @@ function PoolRoyaleGame({
         );
         const cueTextureSize = Math.max(
           cueSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-          CUE_WOOD_TEXTURE_SIZE
+          getRuntimeCueTextureSize()
         );
         const cueSurfaceConfig = {
           repeat: cueSurface.repeat,
@@ -13990,6 +14018,9 @@ function PoolRoyaleGame({
     }
     applySelectedCueStyle(cueStyleIndex);
   }, [cueStyleIndex, applySelectedCueStyle]);
+  useEffect(() => {
+    applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
+  }, [frameQualityProfile.id, cueStyleIndex, applySelectedCueStyle]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -32510,6 +32541,16 @@ const powerRef = useRef(hud.power);
                 </svg>
               </button>
             </div>
+            {isFreePractice && (
+              <button
+                type="button"
+                onClick={handlePracticeRestart}
+                className="mt-3 flex w-full items-center justify-between rounded-full border border-emerald-300/55 bg-emerald-400/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-100 transition hover:bg-emerald-300/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                <span>Restart practice</span>
+                <span aria-hidden="true">↻</span>
+              </button>
+            )}
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -33568,26 +33609,14 @@ const powerRef = useRef(hud.power);
           >
             <span aria-hidden="true">☰</span>
           </button>
-          {isFreePractice ? (
-            <button
-              type="button"
-              onClick={handlePracticeRestart}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Restart practice"
-              title="Restart practice"
-            >
-              <span aria-hidden="true">↻</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowChat(true)}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Open chat"
-            >
-              <span aria-hidden="true">💬</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowChat(true)}
+            className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
+            aria-label="Open chat"
+          >
+            <span aria-hidden="true">💬</span>
+          </button>
         </div>
       )}
 
