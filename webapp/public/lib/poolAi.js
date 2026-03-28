@@ -37,9 +37,9 @@
  * @property {{x:number,y:number}} [aimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 5
-const LOOKAHEAD_CANDIDATES = 8
-const MONTE_CARLO_BASE_SAMPLES = 72
+const LOOKAHEAD_DEPTH = 4
+const LOOKAHEAD_CANDIDATES = 6
+const MONTE_CARLO_BASE_SAMPLES = 55
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -99,27 +99,6 @@ function clearanceMargin (a, b, balls, ignoreIds, radius, multiplier = 1.35) {
   if (!Number.isFinite(min)) return 1
   const ratio = min / (radius * multiplier)
   return Math.min(Math.max(ratio, 0), 2)
-}
-
-function objectPathClearance (target, pocketEntryPoint, balls, ignoreIds, radius) {
-  let min = Infinity
-  for (const ball of balls) {
-    if (ball.pocketed) continue
-    if (ignoreIds.includes(ball.id)) continue
-    const apx = ball.x - target.x
-    const apy = ball.y - target.y
-    const abx = pocketEntryPoint.x - target.x
-    const aby = pocketEntryPoint.y - target.y
-    const abLenSq = abx * abx + aby * aby
-    if (abLenSq <= 1e-6) continue
-    const t = (apx * abx + apy * aby) / abLenSq
-    if (t <= 0 || t >= 1) continue
-    const closest = { x: target.x + abx * t, y: target.y + aby * t }
-    const d = dist(closest, ball)
-    if (d < min) min = d
-  }
-  if (!Number.isFinite(min)) return 1
-  return Math.min(Math.max(min / (radius * 2.1), 0), 2)
 }
 
 function scratchRiskAlongLine (cue, aimPoint, pockets, radius) {
@@ -388,14 +367,14 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
 // imprecision and rewards shorter, straighter shots.
-function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 28, rng = Math.random) {
+function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20, rng = Math.random) {
   const r = req.state.ballRadius
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
   const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
-  const jitterScale = 0.008 + 0.014 * distanceFactor
+  const jitterScale = 0.012 + 0.02 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
     const a = baseAngle + (rng() - 0.5) * jitterScale
@@ -478,10 +457,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (laneClearance < 0.5) {
     return null
   }
-  const objectLaneClear = objectPathClearance(target, entry, balls, [0, target.id], r)
-  if (objectLaneClear < 0.45) {
-    return null
-  }
   if (scratchRiskAlongLine(cue, ghost, req.state.pockets || [], r)) {
     return null
   }
@@ -530,22 +505,17 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const runoutPotential = options.skipLookahead
     ? 0
     : estimateRunoutPotential(req, cueAfterClamped, target.id, balls, lookaheadDepth, rng)
-  const pocketControl = Math.max(
-    0,
-    Math.min((objectLaneClear - 0.45) / 0.9, 1)
-  )
   const quality = Math.max(
     0,
     Math.min(
       1,
-      0.44 * potChance +
-        0.16 * pocketOpen +
+      0.38 * potChance +
+        0.18 * pocketOpen +
         0.16 * centerAlign +
         0.06 * nextScore +
         0.06 * nearHole +
         0.08 * runoutPotential +
-        0.06 * clearanceScore +
-        0.04 * pocketControl -
+        0.08 * clearanceScore -
         0.18 * risk -
         difficultyPenalty
     )
@@ -664,12 +634,10 @@ export function planShot (req) {
 
   const spins = [
     { top: 0, side: 0, back: 0 },
-    { top: 0.15, side: 0, back: -0.15 },
-    { top: -0.18, side: 0, back: 0.22 },
-    { top: 0.1, side: 0.12, back: 0 },
-    { top: 0.1, side: -0.12, back: 0 },
-    { top: 0, side: 0.22, back: 0 },
-    { top: 0, side: -0.22, back: 0 }
+    { top: 0.2, side: 0, back: -0.2 },
+    { top: -0.2, side: 0, back: 0 },
+    { top: 0, side: 0.18, back: 0 },
+    { top: 0, side: -0.18, back: 0 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria

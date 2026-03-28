@@ -1757,7 +1757,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 1.02; // raise overall spin response slightly so cue-ball action feels closer to real cloth behavior
+const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1770,10 +1770,10 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = 0.22; // re-enable controlled rail throw so side spin changes rebound angle like real tables
+const RAIL_SPIN_THROW_SCALE = 0; // keep spin active while preventing spin-based rail deflection from shifting cue-ball target line
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
-const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0.18; // blend a small spin deflection into the preview so guides match actual shot outcomes
+const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
@@ -29219,6 +29219,8 @@ const powerRef = useRef(hud.power);
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
+          const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
+          if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
           const powerStrength = THREE.MathUtils.clamp(
             powerRef.current ?? 0,
             0,
@@ -29254,31 +29256,21 @@ const powerRef = useRef(hud.power);
             targetPowerStrength = powerStrength * targetTransfer;
             cuePowerStrength = powerStrength * cueTransfer;
           }
-          const guideAimDir3D = new THREE.Vector3(
-            guideAimDir2D.x,
-            0,
-            guideAimDir2D.y
-          );
-          if (guideAimDir3D.lengthSq() < 1e-8) {
-            guideAimDir3D.copy(baseAimDir);
-          } else {
-            guideAimDir3D.normalize();
-          }
-          const guidePerp = new THREE.Vector3(-guideAimDir3D.z, 0, guideAimDir3D.x);
-          if (guidePerp.lengthSq() > 1e-8) guidePerp.normalize();
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = guideAimDir3D.clone();
+          const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
             start,
             end,
             dir,
-            guidePerp,
+            perp,
             aimPreviewSpin,
             powerStrength,
             swerveActive,
@@ -29369,8 +29361,8 @@ const powerRef = useRef(hud.power);
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           tickGeom.setFromPoints([
-            end.clone().add(guidePerp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
-            end.clone().add(guidePerp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
           if (lookModeRef.current) {
@@ -29386,7 +29378,7 @@ const powerRef = useRef(hud.power);
             : dir.clone();
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
-            aimDir: guideAimDir3D,
+            aimDir: dir,
             spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
@@ -29440,11 +29432,7 @@ const powerRef = useRef(hud.power);
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
-          const spinWorld = new THREE.Vector3(
-            guidePerp.x * side,
-            vert,
-            guidePerp.z * side
-          );
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
             dir,
@@ -29627,6 +29615,8 @@ const powerRef = useRef(hud.power);
             remoteAimDir.normalize();
           }
           const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
+          const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
@@ -29644,18 +29634,6 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const guideAimDir3D = new THREE.Vector3(
-            guideAimDir2D.x,
-            0,
-            guideAimDir2D.y
-          );
-          if (guideAimDir3D.lengthSq() < 1e-8) {
-            guideAimDir3D.copy(baseDir);
-          } else {
-            guideAimDir3D.normalize();
-          }
-          const guidePerp = new THREE.Vector3(-guideAimDir3D.z, 0, guideAimDir3D.x);
-          if (guidePerp.lengthSq() > 1e-8) guidePerp.normalize();
           const impactDir =
             targetDir && (targetDir.x || targetDir.y)
               ? TMP_VEC3_IMPACT.set(targetDir.x, 0, targetDir.y)
@@ -29675,15 +29653,15 @@ const powerRef = useRef(hud.power);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(guideAimDir3D.clone().multiplyScalar(BALL_R));
+            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
             start,
             end,
-            guideAimDir3D,
-            guidePerp,
+            baseDir,
+            perp,
             aimPreviewSpin,
             powerStrength,
             remoteSwerveActive
@@ -29702,8 +29680,8 @@ const powerRef = useRef(hud.power);
             powerStrength
           );
           tickGeom.setFromPoints([
-            end.clone().add(guidePerp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
-            end.clone().add(guidePerp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
           const cueFollowDir = cueDir
@@ -29711,7 +29689,7 @@ const powerRef = useRef(hud.power);
             : baseDir.clone();
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
-            aimDir: guideAimDir3D,
+            aimDir: baseDir,
             spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
@@ -29750,11 +29728,7 @@ const powerRef = useRef(hud.power);
             { x: spinX, y: spinY },
             ranges
           );
-          const spinWorld = new THREE.Vector3(
-            guidePerp.x * side,
-            vert,
-            guidePerp.z * side
-          );
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
             baseDir,
