@@ -166,6 +166,9 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
+const TOKEN_CAMERA_LOOK_AHEAD_TILES = 5;
+const TOKEN_CAMERA_LOOK_BACK_TILES = 5;
+const TOKEN_STEP_HIGHLIGHT_DURATION = 850;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
@@ -192,6 +195,7 @@ const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
+const GROUND_FLOOR_OUTWARD_OFFSET = TILE_SIZE * 0.09;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -1553,8 +1557,17 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   }
   direction.normalize();
 
-  const focusTarget = baseVector.clone();
-  focusTarget.y += TOKEN_HEIGHT * 0.65;
+  const moveDirection = from == null ? 1 : to >= from ? 1 : -1;
+  const clampTile = (value) => clamp(Math.round(value), 1, TOTAL_BOARD_TILES);
+  const aheadIndex = clampTile(to + TOKEN_CAMERA_LOOK_AHEAD_TILES * moveDirection);
+  const backIndex = clampTile(to - TOKEN_CAMERA_LOOK_BACK_TILES * moveDirection);
+  const aheadVector = (indexToPosition.get(aheadIndex) || serpentineIndexToXZ(aheadIndex))?.clone() ?? baseVector.clone();
+  const backVector = (indexToPosition.get(backIndex) || serpentineIndexToXZ(backIndex))?.clone() ?? baseVector.clone();
+  aheadVector.y = baseVector.y;
+  backVector.y = baseVector.y;
+
+  const focusTarget = aheadVector.clone().add(backVector).multiplyScalar(0.5);
+  focusTarget.y += TOKEN_HEIGHT * 0.55;
 
   const boardLookTarget = board?.boardLookTarget ?? new THREE.Vector3();
   const currentDistance = camera ? camera.position.distanceTo(boardLookTarget) : 0;
@@ -1584,9 +1597,9 @@ function shouldFollowTileChange(_fromIndex, toIndex) {
 
 function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
   if (!followState) return null;
-  const { focusTarget } = followState;
+  const { focusTarget, cameraPosition } = followState;
   return createCameraTransitionAnimation(camera, controls, {
-    toPosition: camera.position.clone(),
+    toPosition: cameraPosition,
     toTarget: focusTarget,
     durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
     hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
@@ -2896,6 +2909,14 @@ function buildSnakeBoard(
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
+      if (levelIndex === 0) {
+        const outward = new THREE.Vector3(baseX, 0, baseZ);
+        if (outward.lengthSq() > 1e-6) {
+          outward.normalize().multiplyScalar(GROUND_FLOOR_OUTWARD_OFFSET);
+          tilePosition.x += outward.x;
+          tilePosition.z += outward.z;
+        }
+      }
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
@@ -3128,7 +3149,13 @@ function buildSnakeBoard(
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+function updateTilesHighlight(
+  tileMeshes,
+  highlight,
+  trail,
+  highlightColors = DEFAULT_HIGHLIGHT_COLORS,
+  steppedHighlights = []
+) {
   if (!tileMeshes) return;
   const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
@@ -3148,6 +3175,15 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
       const color = colors[highlight.type] ?? colors.normal;
       applyTileHighlight(tile, color);
     }
+  }
+  if (steppedHighlights?.length) {
+    steppedHighlights.forEach((entry) => {
+      const tile = tileMeshes.get(entry.cell);
+      if (!tile) return;
+      const color = colors[entry.type] ?? colors.normal;
+      const intensity = clamp(entry.intensity ?? 0.52, 0.25, 0.9);
+      applyTileHighlight(tile, color, intensity);
+    });
   }
 }
 
@@ -3841,7 +3877,10 @@ export default function SnakeBoard3D({
   const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
   const cameraTiltRef = useRef(clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2));
+  const steppedTileHighlightsRef = useRef(new Map());
+  const stepHighlightTimersRef = useRef([]);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
+  const [stepHighlightVersion, setStepHighlightVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
@@ -3849,6 +3888,20 @@ export default function SnakeBoard3D({
   const tokenShape = appearanceMemo?.tokenShape;
   const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
+  const markSteppedTileHighlight = (cell, type = 'normal') => {
+    const index = Number(cell);
+    if (!Number.isFinite(index) || index < 1) return;
+    const expiresAt = performance.now() + TOKEN_STEP_HIGHLIGHT_DURATION;
+    steppedTileHighlightsRef.current.set(index, { cell: index, type, expiresAt });
+    setStepHighlightVersion((prev) => prev + 1);
+    const timer = window.setTimeout(() => {
+      const entry = steppedTileHighlightsRef.current.get(index);
+      if (!entry || entry.expiresAt > performance.now()) return;
+      steppedTileHighlightsRef.current.delete(index);
+      setStepHighlightVersion((prev) => prev + 1);
+    }, TOKEN_STEP_HIGHLIGHT_DURATION + 40);
+    stepHighlightTimersRef.current.push(timer);
+  };
 
   useEffect(() => {
     cameraViewModeRef.current = cameraViewMode;
@@ -3863,6 +3916,12 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
+
+  useEffect(() => () => {
+    stepHighlightTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    stepHighlightTimersRef.current = [];
+    steppedTileHighlightsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -4274,7 +4333,16 @@ export default function SnakeBoard3D({
     if (!boardRef.current) return;
     const board = boardRef.current;
     const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
-    updateTilesHighlight(board.tileMeshes, highlight, trail, colors);
+    const now = performance.now();
+    const steppedHighlights = Array.from(steppedTileHighlightsRef.current.values())
+      .map((entry) => {
+        const remaining = (entry.expiresAt - now) / TOKEN_STEP_HIGHLIGHT_DURATION;
+        if (!Number.isFinite(remaining) || remaining <= 0) return null;
+        const eased = 0.4 + 0.6 * clamp01(remaining);
+        return { ...entry, intensity: eased };
+      })
+      .filter(Boolean);
+    updateTilesHighlight(board.tileMeshes, highlight, trail, colors, steppedHighlights);
     if (offsetPopup) {
       const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
@@ -4282,7 +4350,7 @@ export default function SnakeBoard3D({
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup, keyForEffect]);
+  }, [highlight, trail, offsetPopup, keyForEffect, stepHighlightVersion]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -4313,6 +4381,9 @@ export default function SnakeBoard3D({
         const prev = previous[index];
         if (prev == null || pos == null) return;
         if (prev !== pos) movements.push({ index, from: prev, to: pos });
+      });
+      movements.forEach((movementEntry) => {
+        markSteppedTileHighlight(movementEntry.to, 'normal');
       });
       if (movements.length) {
         movement =
