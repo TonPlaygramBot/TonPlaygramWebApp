@@ -236,6 +236,10 @@ const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const BOARD_ROTATION_DRAG_SPEED = 0.0065;
+const BOARD_AUTO_ROTATE_DURATION = 280;
+const BOARD_AUTO_RESET_DURATION = 420;
+const BOARD_AUTO_RESET_DELAY = 180;
+const BOARD_ROTATION_EPSILON = 0.0005;
 const CAMERA_EXTRA_LIFT = 0.12;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -1596,37 +1600,6 @@ function createTokenCameraFollowAnimation(camera, controls, followState, restore
     returnTarget: restoreState?.target,
     onComplete
   });
-}
-
-function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
-  if (!board || !camera) return null;
-  const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
-  const player = Array.isArray(players) ? players[turnIndex] : null;
-  const rawSeatIndex = Number.isFinite(player?.seatIndex)
-    ? Number(player.seatIndex)
-    : Number.isInteger(turnIndex)
-    ? turnIndex
-    : Number(turnIndex);
-  const seatIndex = Math.trunc(rawSeatIndex);
-  if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
-  const anchor = anchors[seatIndex];
-  const boardLookTarget = board.boardLookTarget;
-  if (!anchor || !boardLookTarget) return null;
-
-  const seatWorld = new THREE.Vector3();
-  anchor.getWorldPosition(seatWorld);
-  const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
-  target.y = boardLookTarget.y;
-
-  const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) return null;
-  direction.normalize();
-
-  // Keep the camera exactly where the player left it (including manual zoom distance)
-  // and only rotate the look target for turn-focus cues.
-  const position = camera.position.clone();
-
-  return { position, target };
 }
 
 function computeDiceCameraFocusState(board, camera) {
@@ -3145,10 +3118,53 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
-      const color = colors[highlight.type] ?? colors.normal;
+      const color = highlight.color ? toThreeColor(highlight.color, colors[highlight.type] ?? colors.normal) : (colors[highlight.type] ?? colors.normal);
       applyTileHighlight(tile, color);
     }
   }
+}
+
+function shortestAngleDelta(from, to) {
+  let diff = to - from;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
+}
+
+function computeBoardFacingRotation(board, tileIndex) {
+  if (!board) return null;
+  const numericTile = Number(tileIndex);
+  if (!Number.isFinite(numericTile)) return null;
+  const target = board.indexToPosition.get(numericTile) || board.serpentineIndexToXZ?.(numericTile);
+  if (!target) return null;
+  const angle = Math.atan2(target.x, target.z);
+  return -angle;
+}
+
+function createBoardRotationAnimation(root, toRotationY, duration = BOARD_AUTO_ROTATE_DURATION, onComplete) {
+  if (!root || !Number.isFinite(toRotationY)) return null;
+  const startRotation = root.rotation.y;
+  const delta = shortestAngleDelta(startRotation, toRotationY);
+  if (Math.abs(delta) <= BOARD_ROTATION_EPSILON) {
+    if (typeof onComplete === 'function') onComplete();
+    return null;
+  }
+  const start = performance.now();
+  return {
+    type: 'boardAutoRotate',
+    update: (now) => {
+      const elapsed = now - start;
+      const t = duration > 0 ? Math.min(Math.max(elapsed / duration, 0), 1) : 1;
+      const eased = easeInOut(t);
+      root.rotation.y = startRotation + delta * eased;
+      if (t >= 1) {
+        root.rotation.y = startRotation + delta;
+        if (typeof onComplete === 'function') onComplete();
+        return true;
+      }
+      return false;
+    }
+  };
 }
 
 function updateTokens(
@@ -3836,6 +3852,7 @@ export default function SnakeBoard3D({
   const turnCameraStateRef = useRef(null);
   const cinematicRestoreRef = useRef(null);
   const previousTurnRef = useRef(null);
+  const tokenMoveResetTimeoutRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
@@ -3849,6 +3866,17 @@ export default function SnakeBoard3D({
   const tokenShape = appearanceMemo?.tokenShape;
   const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
+
+  const queueBoardAutoReset = useCallback((board, delay = BOARD_AUTO_RESET_DELAY) => {
+    if (!board?.rotationRoot) return;
+    if (tokenMoveResetTimeoutRef.current) clearTimeout(tokenMoveResetTimeoutRef.current);
+    tokenMoveResetTimeoutRef.current = setTimeout(() => {
+      removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
+      const resetAnim = createBoardRotationAnimation(board.rotationRoot, 0, BOARD_AUTO_RESET_DURATION);
+      if (resetAnim) animationsRef.current.push(resetAnim);
+      tokenMoveResetTimeoutRef.current = null;
+    }, delay);
+  }, []);
 
   useEffect(() => {
     cameraViewModeRef.current = cameraViewMode;
@@ -3873,24 +3901,23 @@ export default function SnakeBoard3D({
     if (previousTurnRef.current === currentTurn) return;
     previousTurnRef.current = currentTurn;
 
-    const focusState = computeTurnCameraFocusState(board, camera, currentTurn, players);
-    if (!focusState) return;
-    turnCameraStateRef.current = {
-      position: focusState.position.clone(),
-      target: focusState.target.clone()
-    };
-
     removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
     removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+    const startState = board.startCameraState || captureCameraState(camera, controls);
+    if (!startState) return;
+    turnCameraStateRef.current = {
+      position: startState.position.clone(),
+      target: startState.target.clone()
+    };
     const turnAnimation = createCameraTransitionAnimation(camera, controls, {
-      toPosition: focusState.position,
-      toTarget: focusState.target,
+      toPosition: startState.position,
+      toTarget: startState.target,
       durationIn: TURN_CAMERA_TURN_IN_DURATION,
       hold: 0,
       durationOut: 0,
       type: 'cameraTurnFocus',
-      returnPosition: focusState.position,
-      returnTarget: focusState.target
+      returnPosition: startState.position,
+      returnTarget: startState.target
     });
     if (turnAnimation) animationsRef.current.push(turnAnimation);
   }, [currentTurn, cameraViewMode]);
@@ -4071,7 +4098,8 @@ export default function SnakeBoard3D({
       const absY = Math.abs(deltaY);
 
       if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
-        const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
+        const requestedTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
+        const nextTilt = Math.min(cameraTiltRef.current, requestedTilt);
         if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
           cameraTiltRef.current = nextTilt;
           onCameraTiltChange(nextTilt);
@@ -4172,6 +4200,10 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
+        const minCameraY = board?.startCameraState?.position?.y;
+        if (Number.isFinite(minCameraY) && camera.position.y < minCameraY) {
+          camera.position.y = minCameraY;
+        }
         if (arena.updateHdriZoom) {
           const target = board?.boardLookTarget ?? arena.boardLookTarget;
           arena.updateHdriZoom(camera, target);
@@ -4245,6 +4277,10 @@ export default function SnakeBoard3D({
       renderer.setAnimationLoop(null);
       handlers.forEach((fn) => fn());
       lastSeatPositionsRef.current = [];
+      if (tokenMoveResetTimeoutRef.current) {
+        clearTimeout(tokenMoveResetTimeoutRef.current);
+        tokenMoveResetTimeoutRef.current = null;
+      }
       seatCallbackRef.current?.([]);
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
@@ -4344,6 +4380,20 @@ export default function SnakeBoard3D({
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
+
+    if (cameraViewMode !== '2d' && movement && board.rotationRoot) {
+      const faceRotation = computeBoardFacingRotation(board, movement.to);
+      if (Number.isFinite(faceRotation)) {
+        if (tokenMoveResetTimeoutRef.current) {
+          clearTimeout(tokenMoveResetTimeoutRef.current);
+          tokenMoveResetTimeoutRef.current = null;
+        }
+        removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
+        const rotateAnim = createBoardRotationAnimation(board.rotationRoot, faceRotation, BOARD_AUTO_ROTATE_DURATION);
+        if (rotateAnim) animationsRef.current.push(rotateAnim);
+      }
+      queueBoardAutoReset(board);
+    }
   }, [
     players,
     burning,
@@ -4354,7 +4404,8 @@ export default function SnakeBoard3D({
     tokenTheme,
     tokenShape,
     tokenPrototypeVersion,
-    cameraViewMode
+    cameraViewMode,
+    queueBoardAutoReset
   ]);
 
   useEffect(() => {
@@ -4428,6 +4479,18 @@ export default function SnakeBoard3D({
       );
       if (followAnimation) animationsRef.current.push(followAnimation);
     }
+    if (cameraViewMode !== '2d' && board.rotationRoot) {
+      const faceRotation = computeBoardFacingRotation(board, slide.to);
+      if (Number.isFinite(faceRotation)) {
+        if (tokenMoveResetTimeoutRef.current) {
+          clearTimeout(tokenMoveResetTimeoutRef.current);
+          tokenMoveResetTimeoutRef.current = null;
+        }
+        removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
+        const rotateAnim = createBoardRotationAnimation(board.rotationRoot, faceRotation, BOARD_AUTO_ROTATE_DURATION);
+        if (rotateAnim) animationsRef.current.push(rotateAnim);
+      }
+    }
     animationsRef.current.push({
       update: (now) => {
         const t = Math.min((now - startTime) / duration, 1);
@@ -4448,13 +4511,14 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           token.userData.isSliding = false;
           token.position.copy(endBase);
+          queueBoardAutoReset(board, BOARD_AUTO_RESET_DELAY + 120);
           onSlideComplete?.(slide.id, true);
           return true;
         }
         return false;
       }
     });
-  }, [slide, onSlideComplete, cameraViewMode]);
+  }, [slide, onSlideComplete, cameraViewMode, queueBoardAutoReset]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
