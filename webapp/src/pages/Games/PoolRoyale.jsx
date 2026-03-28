@@ -1757,7 +1757,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // increase overall spin effect by 25% versus the previous 0.72 tuning
+const SPIN_GLOBAL_SCALE = 0.98; // slightly stronger global spin so english/follow/draw feel closer to real-table response
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -1914,10 +1914,10 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
-const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.28;
+const SIDE_SPIN_MULTIPLIER = 1.56 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = 1.74 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -26923,6 +26923,33 @@ const powerRef = useRef(hud.power);
             ? frameSnapshot.ballOn[0]
             : frameSnapshot?.ballOn ?? null;
           const normalizedBallOn = normalizeAiGroup(rawBallOn);
+          const rawBallOnList = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn
+            : rawBallOn != null
+              ? [rawBallOn]
+              : [];
+          const parseBallIdFromToken = (value) => {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+              return Number(value);
+            }
+            if (typeof value !== 'string') return null;
+            const normalized = value.trim().toUpperCase();
+            const direct = /^BALL_(\d+)$/.exec(normalized);
+            if (direct) return Number.parseInt(direct[1], 10);
+            const plain = /^(\d+)$/.exec(normalized);
+            if (plain) return Number.parseInt(plain[1], 10);
+            if (normalized === 'BLACK') return 8;
+            return null;
+          };
+          const legalBallIds = Array.from(
+            new Set(
+              rawBallOnList
+                .map((entry) => parseBallIdFromToken(entry))
+                .filter((id) => Number.isFinite(id))
+            )
+          );
+          const preferredTargetBallId =
+            legalBallIds.length === 1 ? legalBallIds[0] : null;
           const aiState = {
             balls: aiBalls,
             pockets,
@@ -26934,6 +26961,8 @@ const powerRef = useRef(hud.power);
             ballInHand: Boolean(metaState?.ballInHand),
             myGroup: normalizedAssignment,
             ballOn: normalizedBallOn ?? null,
+            preferredTargetBallId,
+            legalBallIds,
             breakInProgress: Boolean(metaState?.breakInProgress)
           };
           const decision = planShot({
@@ -29258,7 +29287,8 @@ const powerRef = useRef(hud.power);
           }
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = baseAimDir.clone();
+          const guideDir3 = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          const dir = guideDir3.lengthSq() > 1e-8 ? guideDir3.normalize() : baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -29615,8 +29645,6 @@ const powerRef = useRef(hud.power);
             remoteAimDir.normalize();
           }
           const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
-          const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
@@ -29652,15 +29680,19 @@ const powerRef = useRef(hud.power);
           }
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const remoteGuideDir3 = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          const remoteGuideDir = remoteGuideDir3.lengthSq() > 1e-8 ? remoteGuideDir3.normalize() : baseDir.clone();
+          const perp = new THREE.Vector3(-remoteGuideDir.z, 0, remoteGuideDir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
+            end = start.clone().add(remoteGuideDir.clone().multiplyScalar(BALL_R));
           }
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
             start,
             end,
-            baseDir,
+            remoteGuideDir,
             perp,
             aimPreviewSpin,
             powerStrength,
@@ -29689,7 +29721,7 @@ const powerRef = useRef(hud.power);
             : baseDir.clone();
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
-            aimDir: baseDir,
+            aimDir: remoteGuideDir,
             spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
@@ -29721,7 +29753,7 @@ const powerRef = useRef(hud.power);
               powerStrength
             ).pullSmoothing
           });
-          const visualPull = applyVisualPullCompensation(pull, baseDir);
+          const visualPull = applyVisualPullCompensation(pull, remoteGuideDir);
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
@@ -29731,7 +29763,7 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
-            baseDir,
+            remoteGuideDir,
             pull,
             activeRenderCameraRef.current ?? cameraRef.current ?? camera,
             spinWorld
@@ -29740,7 +29772,7 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
+          cueStick.rotation.y = Math.atan2(remoteGuideDir.x, remoteGuideDir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift
@@ -29748,7 +29780,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
+          const tipTarget = resolveCueTipTarget(remoteGuideDir, visualPull, spinWorld);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
