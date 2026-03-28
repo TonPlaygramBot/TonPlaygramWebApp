@@ -99,7 +99,7 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 3072,
+  hd50: 4096,
   fhd60: 4096,
   qhd90: 4096,
   uhd120: 4096,
@@ -6507,7 +6507,7 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = 4096;
+    const targetSize = getAdaptiveDominoTextureSize(4096);
     const sizeCap = getRendererTextureSizeCap();
     const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
     if (cache && cachedPreferredSize === preferredSize) return cache;
@@ -6578,15 +6578,21 @@ const getDominoSurfaceTextures = (() => {
     porcelainMap.colorSpace = THREE.SRGBColorSpace;
     porcelainMap.anisotropy = Math.min(maxAnisotropy, 16);
     porcelainMap.generateMipmaps = true;
+    porcelainMap.minFilter = THREE.LinearMipmapLinearFilter;
+    porcelainMap.magFilter = THREE.LinearFilter;
 
     const porcelainRoughness = new THREE.CanvasTexture(roughCanvas);
     porcelainRoughness.anisotropy = Math.min(maxAnisotropy, 8);
     porcelainRoughness.generateMipmaps = true;
+    porcelainRoughness.minFilter = THREE.LinearMipmapLinearFilter;
+    porcelainRoughness.magFilter = THREE.LinearFilter;
 
     const pipMap = new THREE.CanvasTexture(pipCanvas);
     pipMap.colorSpace = THREE.SRGBColorSpace;
     pipMap.anisotropy = Math.min(maxAnisotropy, 16);
     pipMap.generateMipmaps = true;
+    pipMap.minFilter = THREE.LinearMipmapLinearFilter;
+    pipMap.magFilter = THREE.LinearFilter;
 
     cache = { porcelainMap, porcelainRoughness, pipMap };
     cachedPreferredSize = preferredSize;
