@@ -89,6 +89,8 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   chairClothTextureSize: 2048,
   dominoTextureSize: 4096
 });
+const DOMINO_PIECE_TEXTURE_TARGET_SIZE = 4096;
+const DOMINO_PIECE_TEXTURE_MIN_SIZE = 2048;
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   hd50: 1024,
@@ -6380,7 +6382,7 @@ function getChainSpacing(
 
 /* ---------- Materials ---------- */
 const SHARED_DOMINO_MATERIALS = new Set();
-const DOMINO_BODY_SEGMENTS = 12;
+const DOMINO_BODY_SEGMENTS = 24;
 const DOMINO_PIP_SEGMENTS = 48;
 const DOMINO_PIP_RING_SEGMENTS = 96;
 const SHARED_DOMINO_PIP_GEOMETRY = new THREE.SphereGeometry(
@@ -6507,9 +6509,12 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = 4096;
+    const targetSize = DOMINO_PIECE_TEXTURE_TARGET_SIZE;
     const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
+    const preferredSize = Math.max(
+      DOMINO_PIECE_TEXTURE_MIN_SIZE,
+      Math.min(sizeCap, targetSize)
+    );
     if (cache && cachedPreferredSize === preferredSize) return cache;
     if (typeof document === 'undefined') {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
@@ -6519,12 +6524,18 @@ const getDominoSurfaceTextures = (() => {
     let size = preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
-    let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
-    while (!pctx && size > 1024) {
-      size = Math.max(1024, Math.floor(size / 2));
+    let pctx = porcelainCanvas.getContext('2d');
+    if (!pctx) {
+      pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    while (!pctx && size > DOMINO_PIECE_TEXTURE_MIN_SIZE) {
+      size = Math.max(DOMINO_PIECE_TEXTURE_MIN_SIZE, Math.floor(size / 2));
       porcelainCanvas = document.createElement('canvas');
       porcelainCanvas.width = porcelainCanvas.height = size;
-      pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
+      pctx = porcelainCanvas.getContext('2d');
+      if (!pctx) {
+        pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
+      }
     }
     if (!pctx) {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
