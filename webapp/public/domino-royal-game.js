@@ -6380,6 +6380,39 @@ function getChainSpacing(
 
 /* ---------- Materials ---------- */
 const SHARED_DOMINO_MATERIALS = new Set();
+const DOMINO_BODY_SEGMENTS = 12;
+const DOMINO_PIP_SEGMENTS = 48;
+const DOMINO_PIP_RING_SEGMENTS = 96;
+const SHARED_DOMINO_PIP_GEOMETRY = new THREE.SphereGeometry(
+  DOMINO_STYLE_OPTIONS[0]?.pip?.radius ?? 0.085,
+  DOMINO_PIP_SEGMENTS,
+  DOMINO_PIP_SEGMENTS
+);
+const dominoPipRingGeometryCache = new Map();
+
+function getDominoPipRingGeometry(innerRadius, outerRadius) {
+  const inner = Number(innerRadius.toFixed(4));
+  const outer = Number(outerRadius.toFixed(4));
+  const key = `${inner}:${outer}`;
+  if (!dominoPipRingGeometryCache.has(key)) {
+    dominoPipRingGeometryCache.set(
+      key,
+      new THREE.RingGeometry(inner, outer, DOMINO_PIP_RING_SEGMENTS)
+    );
+  }
+  return dominoPipRingGeometryCache.get(key);
+}
+
+function getDominoPipGeometry(radius) {
+  const nextRadius = Number(radius.toFixed(4));
+  const baseRadius = Number(
+    (DOMINO_STYLE_OPTIONS[0]?.pip?.radius ?? 0.085).toFixed(4)
+  );
+  if (Math.abs(nextRadius - baseRadius) <= 0.0001) {
+    return SHARED_DOMINO_PIP_GEOMETRY;
+  }
+  return new THREE.SphereGeometry(nextRadius, DOMINO_PIP_SEGMENTS, DOMINO_PIP_SEGMENTS);
+}
 let porcelainMat = null;
 let pipMat = null;
 let accentMat = null;
@@ -6465,7 +6498,7 @@ function buildDominoMaterial(options = {}, defaults = {}) {
 
 const getDominoSurfaceTextures = (() => {
   let cache = null;
-  let cachedSize = 0;
+  let cachedPreferredSize = 0;
   const disposeCachedTextures = () => {
     if (!cache) return;
     cache.porcelainMap?.dispose?.();
@@ -6474,25 +6507,16 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = Math.max(
-      2048,
-      Math.min(
-        4096,
-        getAdaptiveDominoTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
-      )
-    );
-    if (cache && cachedSize === targetSize) return cache;
-    disposeCachedTextures();
+    const targetSize = 4096;
+    const sizeCap = getRendererTextureSizeCap();
+    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
+    if (cache && cachedPreferredSize === preferredSize) return cache;
     if (typeof document === 'undefined') {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
       return cache;
     }
-    const sizeCap = getRendererTextureSizeCap();
-    const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
-    const lowMemoryDevice =
-      isLowProfileDevice ||
-      (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
-    let size = lowMemoryDevice ? Math.max(2048, Math.min(preferredSize, 3072)) : preferredSize;
+    disposeCachedTextures();
+    let size = preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
@@ -6565,7 +6589,7 @@ const getDominoSurfaceTextures = (() => {
     pipMap.generateMipmaps = true;
 
     cache = { porcelainMap, porcelainRoughness, pipMap };
-    cachedSize = size;
+    cachedPreferredSize = preferredSize;
     return cache;
   };
 })();
@@ -7502,7 +7526,7 @@ function addPips(dominoFace, count, yOffset) {
   const positions = pipPositions();
   const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
   const pipRadius = dominoStyleProfile.pipRadius ?? 0.085;
-  const pipGeo = new THREE.SphereGeometry(pipRadius, 32, 32);
+  const pipGeo = getDominoPipGeometry(pipRadius);
   idxs.forEach((i) => {
     const [px, py] = positions[i];
     const sphere = new THREE.Mesh(pipGeo, pipMat);
@@ -7512,7 +7536,7 @@ function addPips(dominoFace, count, yOffset) {
     // Luxury accent ring around each pip
     const innerR = dominoStyleProfile.ringInner ?? 0.107;
     const outerR = dominoStyleProfile.ringOuter ?? 0.12;
-    const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
+    const ringGeo = getDominoPipRingGeometry(innerR, outerR);
     const ring = new THREE.Mesh(ringGeo, accentMat.clone());
     ring.material.emissiveIntensity =
       dominoStyleProfile.ringEmissiveIntensity ??
@@ -7541,7 +7565,7 @@ function makeDomino(
   const group = new THREE.Group();
 
   // Body EXACTLY as in your code
-  const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
+  const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, DOMINO_BODY_SEGMENTS, 0.06);
   const bodyMaterial = porcelainMat.clone();
   bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
   const body = new THREE.Mesh(bodyGeo, bodyMaterial);
