@@ -166,6 +166,8 @@ const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
+const TOKEN_CAMERA_LOOK_AHEAD_TILES = 5;
+const TOKEN_CAMERA_LOOK_BEHIND_TILES = 5;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
@@ -192,6 +194,7 @@ const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
+const GROUND_FLOOR_TILE_OUTWARD_SCALE = 1.03;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -1553,8 +1556,24 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   }
   direction.normalize();
 
-  const focusTarget = baseVector.clone();
-  focusTarget.y += TOKEN_HEIGHT * 0.65;
+  const rawStep = to - (from ?? to);
+  const moveSign = rawStep === 0 ? 1 : Math.sign(rawStep) || 1;
+  const aheadIndex = clamp(
+    to + moveSign * TOKEN_CAMERA_LOOK_AHEAD_TILES,
+    1,
+    TOTAL_BOARD_TILES
+  );
+  const behindIndex = clamp(
+    to - moveSign * TOKEN_CAMERA_LOOK_BEHIND_TILES,
+    1,
+    TOTAL_BOARD_TILES
+  );
+
+  const aheadVector = (indexToPosition.get(aheadIndex) || serpentineIndexToXZ(aheadIndex) || baseVector).clone();
+  const behindVector = (indexToPosition.get(behindIndex) || serpentineIndexToXZ(behindIndex) || baseVector).clone();
+
+  const focusTarget = aheadVector.clone().lerp(behindVector, 0.5);
+  focusTarget.y = baseVector.y + TOKEN_HEIGHT * 0.65;
 
   const boardLookTarget = board?.boardLookTarget ?? new THREE.Vector3();
   const currentDistance = camera ? camera.position.distanceTo(boardLookTarget) : 0;
@@ -1584,9 +1603,9 @@ function shouldFollowTileChange(_fromIndex, toIndex) {
 
 function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
   if (!followState) return null;
-  const { focusTarget } = followState;
+  const { focusTarget, cameraPosition } = followState;
   return createCameraTransitionAnimation(camera, controls, {
-    toPosition: camera.position.clone(),
+    toPosition: cameraPosition,
     toTarget: focusTarget,
     durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
     hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
@@ -2888,6 +2907,7 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const offset = levelOffsets[levelIndex];
     const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
+    const outwardScale = levelIndex === 0 ? GROUND_FLOOR_TILE_OUTWARD_SCALE : 1;
     const perimeter = buildPerimeterSequence(size);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
@@ -2896,6 +2916,10 @@ function buildSnakeBoard(
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
+      if (outwardScale !== 1) {
+        tilePosition.x *= outwardScale;
+        tilePosition.z *= outwardScale;
+      }
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
@@ -3128,7 +3152,13 @@ function buildSnakeBoard(
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+function updateTilesHighlight(
+  tileMeshes,
+  highlight,
+  trail,
+  occupiedPositions = [],
+  highlightColors = DEFAULT_HIGHLIGHT_COLORS
+) {
   if (!tileMeshes) return;
   const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
@@ -3140,6 +3170,13 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
       if (!tile) return;
       const color = colors[segment.type] ?? colors.normal;
       applyTileHighlight(tile, color, 0.35);
+    });
+  }
+  if (occupiedPositions?.length) {
+    occupiedPositions.forEach((cell) => {
+      const tile = tileMeshes.get(cell);
+      if (!tile) return;
+      applyTileHighlight(tile, colors.normal, 0.22);
     });
   }
   if (highlight) {
@@ -4274,7 +4311,12 @@ export default function SnakeBoard3D({
     if (!boardRef.current) return;
     const board = boardRef.current;
     const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
-    updateTilesHighlight(board.tileMeshes, highlight, trail, colors);
+    const occupiedTiles = Array.isArray(players)
+      ? players
+          .map((player) => Math.floor(Number(player?.position)))
+          .filter((position) => Number.isFinite(position) && position > 0 && position <= TOTAL_BOARD_TILES)
+      : [];
+    updateTilesHighlight(board.tileMeshes, highlight, trail, occupiedTiles, colors);
     if (offsetPopup) {
       const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
@@ -4282,7 +4324,7 @@ export default function SnakeBoard3D({
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup, keyForEffect]);
+  }, [highlight, trail, offsetPopup, keyForEffect, players]);
 
   useEffect(() => {
     if (!boardRef.current) return;
