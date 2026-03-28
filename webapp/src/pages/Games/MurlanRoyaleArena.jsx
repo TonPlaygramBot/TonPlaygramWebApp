@@ -3282,23 +3282,15 @@ export default function MurlanRoyaleArena({ search }) {
           : 0;
         const lateral = humanLineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : 0;
+        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
-        const fanYaw = isHumanCard
-          ? (
-              HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
-                ? HUMAN_HAND_FAN_MAX_YAW
-                : normalizedOffset * HUMAN_HAND_FAN_MAX_YAW * fanDirection
-            )
-          : 0;
+        const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+          ? HUMAN_HAND_FAN_MAX_YAW
+          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(horizontalLayoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
         target.addScaledVector(horizontalLayoutAxis, HUMAN_HAND_LEFT_SHIFT);
-        target.y = baseHeight
-          + centerWeight * fanArcLift
-          + HUMAN_HAND_BOTTOM_SHIFT_Y
-          + HUMAN_HAND_UP_SHIFT_Y
-          + (isHumanCard ? leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0);
+        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3315,7 +3307,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
+            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
           },
           immediate,
           three.animations,
