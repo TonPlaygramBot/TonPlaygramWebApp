@@ -159,17 +159,13 @@ const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
 
-const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
-const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
-const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
-const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
-const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
-const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
-const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
 const DICE_CAMERA_LOOK_OUT_DURATION = 420;
+const BOARD_AUTO_ROTATE_IN_DURATION = 520;
+const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
+const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -1520,82 +1516,66 @@ function createCameraTransitionAnimation(
   };
 }
 
-function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
-  if (!board) return null;
-  const { indexToPosition, serpentineIndexToXZ } = board;
-  const sanitizeIndex = (value) => {
-    const num = Number(value);
-    return Number.isFinite(num) ? num : null;
-  };
-  const from = sanitizeIndex(fromIndex);
-  const to = sanitizeIndex(toIndex);
-  if (to == null) return null;
-  const baseVector = (indexToPosition.get(to) || serpentineIndexToXZ(to))?.clone();
-  if (!baseVector) return null;
-  baseVector.y += TOKEN_HEIGHT * 0.02;
-
-  let fromVector = null;
-  if (from != null) {
-    const ref = indexToPosition.get(from) || serpentineIndexToXZ(from);
-    if (ref) fromVector = ref.clone();
-  }
-  if (!fromVector) {
-    fromVector = baseVector.clone();
-    fromVector.x += 1e-3;
-  }
-  fromVector.y += TOKEN_HEIGHT * 0.02;
-
-  const direction = baseVector.clone().sub(fromVector);
-  direction.y = 0;
-  if (direction.lengthSq() < 1e-6) {
-    direction.set(baseVector.x, 0, baseVector.z);
-    if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  }
-  direction.normalize();
-
-  const focusTarget = baseVector.clone();
-  focusTarget.y += TOKEN_HEIGHT * 0.65;
-
-  const boardLookTarget = board?.boardLookTarget ?? new THREE.Vector3();
-  const currentDistance = camera ? camera.position.distanceTo(boardLookTarget) : 0;
-  const followDistance = Math.max(
-    TOKEN_CAMERA_FOLLOW_DISTANCE,
-    currentDistance * TOKEN_CAMERA_CURRENT_DISTANCE_BLEND
-  );
-
-  const backward = direction.clone().multiplyScalar(-followDistance);
-  const lateral = new THREE.Vector3().crossVectors(direction, WORLD_UP).normalize();
-  const cameraPosition = focusTarget
-    .clone()
-    .add(backward)
-    .addScaledVector(lateral, TOKEN_CAMERA_LATERAL_OFFSET);
-  if (cameraPosition.y < focusTarget.y + TOKEN_CAMERA_HEIGHT_OFFSET) {
-    cameraPosition.y = focusTarget.y + TOKEN_CAMERA_HEIGHT_OFFSET;
-  }
-
-  return { focusTarget, cameraPosition };
-}
-
 function shouldFollowTileChange(_fromIndex, toIndex) {
   const to = Number(toIndex);
   if (!Number.isFinite(to)) return false;
   return to >= CAMERA_FOLLOW_MIN_TILE;
 }
 
-function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
-  if (!followState) return null;
-  const { focusTarget } = followState;
-  return createCameraTransitionAnimation(camera, controls, {
-    toPosition: camera.position.clone(),
-    toTarget: focusTarget,
-    durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
-    hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
-    durationOut: TOKEN_CAMERA_FOLLOW_OUT_DURATION,
-    type: 'cameraTokenFollow',
-    returnPosition: restoreState?.position,
-    returnTarget: restoreState?.target,
-    onComplete
-  });
+function normalizeAngle(value) {
+  let angle = value;
+  while (angle <= -Math.PI) angle += Math.PI * 2;
+  while (angle > Math.PI) angle -= Math.PI * 2;
+  return angle;
+}
+
+function createBoardRotationAnimation(board, toRotationY, { onComplete } = {}) {
+  const rotationRoot = board?.rotationRoot;
+  if (!rotationRoot || !Number.isFinite(toRotationY)) return null;
+  const fromRotation = rotationRoot.rotation.y;
+  const targetRotation = fromRotation + normalizeAngle(toRotationY - fromRotation);
+  const start = performance.now();
+  const total = BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION + BOARD_AUTO_ROTATE_OUT_DURATION;
+
+  return {
+    type: 'boardAutoRotate',
+    update: (now) => {
+      const elapsed = now - start;
+      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION) {
+        const t = easeInOut(Math.min(Math.max(elapsed / BOARD_AUTO_ROTATE_IN_DURATION, 0), 1));
+        rotationRoot.rotation.y = THREE.MathUtils.lerp(fromRotation, targetRotation, t);
+        return false;
+      }
+      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION) {
+        rotationRoot.rotation.y = targetRotation;
+        return false;
+      }
+      if (elapsed <= total) {
+        const t = BOARD_AUTO_ROTATE_OUT_DURATION > 0
+          ? easeInOut(Math.min(Math.max((elapsed - BOARD_AUTO_ROTATE_IN_DURATION - BOARD_AUTO_ROTATE_HOLD_DURATION) / BOARD_AUTO_ROTATE_OUT_DURATION, 0), 1))
+          : 1;
+        rotationRoot.rotation.y = THREE.MathUtils.lerp(targetRotation, fromRotation, t);
+        return false;
+      }
+      rotationRoot.rotation.y = fromRotation;
+      if (typeof onComplete === 'function') onComplete();
+      return true;
+    }
+  };
+}
+
+function computeBoardFacingRotation(board, camera, tileIndex) {
+  if (!board || !camera || tileIndex == null) return null;
+  const tile = board.indexToPosition.get(tileIndex) || board.serpentineIndexToXZ(tileIndex);
+  const boardLookTarget = board.boardLookTarget;
+  if (!tile || !boardLookTarget) return null;
+  const localDir = tile.clone().setY(0);
+  if (localDir.lengthSq() < 1e-6) return null;
+  const cameraDir = camera.position.clone().sub(boardLookTarget).setY(0);
+  if (cameraDir.lengthSq() < 1e-6) return null;
+  const tileAngle = Math.atan2(localDir.x, localDir.z);
+  const cameraAngle = Math.atan2(cameraDir.x, cameraDir.z);
+  return normalizeAngle(cameraAngle - tileAngle);
 }
 
 function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
@@ -2576,6 +2556,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
+  const initialPolar = new THREE.Spherical().setFromVector3(camera.position.clone().sub(boardLookTarget)).phi;
+  controls.maxPolarAngle = Math.min(controls.maxPolarAngle, initialPolar);
   controls.target.copy(boardLookTarget);
   controls.update();
   const startCameraState = {
@@ -3145,7 +3127,7 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
-      const color = colors[highlight.type] ?? colors.normal;
+      const color = highlight?.color ? toThreeColor(highlight.color, colors.normal) : colors[highlight.type] ?? colors.normal;
       applyTileHighlight(tile, color);
     }
   }
@@ -3834,7 +3816,7 @@ export default function SnakeBoard3D({
   const prevPlayerPositionsRef = useRef([]);
   const cameraRestoreRef = useRef(null);
   const turnCameraStateRef = useRef(null);
-  const cinematicRestoreRef = useRef(null);
+  const startCameraMinYRef = useRef(null);
   const previousTurnRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
@@ -4047,6 +4029,7 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? [],
       startCameraState: arena.startCameraState ?? null
     };
+    startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
 
     const boardRotationRoot = board.rotationRoot || board.root;
     const dragState = {
@@ -4172,6 +4155,11 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
+        const minCameraY = startCameraMinYRef.current;
+        if (Number.isFinite(minCameraY) && camera.position.y < minCameraY) {
+          camera.position.y = minCameraY;
+          arena.controls?.update?.();
+        }
         if (arena.updateHdriZoom) {
           const target = board?.boardLookTarget ?? arena.boardLookTarget;
           arena.updateHdriZoom(camera, target);
@@ -4249,6 +4237,7 @@ export default function SnakeBoard3D({
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
       boardRef.current = null;
+      startCameraMinYRef.current = null;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
@@ -4326,22 +4315,13 @@ export default function SnakeBoard3D({
     if (cameraViewMode !== '2d' && movement && shouldFollowTileChange(movement.from, movement.to)) {
       const camera = cameraRef.current;
       const controls = board.controls;
-      const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
-      if (camera && controls && followState) {
+      const facingRotation = computeBoardFacingRotation(board, camera, movement.to);
+      if (camera && controls && Number.isFinite(facingRotation)) {
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-        const restoreState =
-          turnCameraStateRef.current ||
-          cinematicRestoreRef.current ||
-          captureCameraState(camera, controls);
-        cinematicRestoreRef.current = restoreState;
-        const followAnimation = createTokenCameraFollowAnimation(
-          camera,
-          controls,
-          followState,
-          restoreState
-        );
-        if (followAnimation) animationsRef.current.push(followAnimation);
+        removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
+        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
+        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
       }
     }
   }, [
@@ -4411,22 +4391,15 @@ export default function SnakeBoard3D({
     const lift = TOKEN_HEIGHT * 0.6;
     const camera = cameraRef.current;
     const controls = board.controls;
-    const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
-    if (cameraViewMode !== '2d' && camera && controls && followState && shouldFollowTileChange(slide.from, slide.to)) {
+    if (cameraViewMode !== '2d' && camera && controls && shouldFollowTileChange(slide.from, slide.to)) {
+      const facingRotation = computeBoardFacingRotation(board, camera, slide.to);
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      const restoreState =
-        turnCameraStateRef.current ||
-        cinematicRestoreRef.current ||
-        captureCameraState(camera, controls);
-      cinematicRestoreRef.current = restoreState;
-      const followAnimation = createTokenCameraFollowAnimation(
-        camera,
-        controls,
-        followState,
-        restoreState
-      );
-      if (followAnimation) animationsRef.current.push(followAnimation);
+      removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
+      if (Number.isFinite(facingRotation)) {
+        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
+        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
+      }
     }
     animationsRef.current.push({
       update: (now) => {
