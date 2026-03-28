@@ -1233,7 +1233,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
-const LOCK_RAIL_OVERHEAD_FRAME = true;
+const LOCK_RAIL_OVERHEAD_FRAME = false;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
@@ -5914,6 +5914,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.38; // transfer a portion of top spin into forward roll each physics step for natural follow-through fade
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.54; // accelerate only top-spin decay once forward roll is established so follow naturally settles
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -6976,6 +6978,20 @@ function applySpinController(ball, stepScale, airborne = false) {
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+      if (forwardSpin > 0) {
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * 0.78);
+        const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
+        const transfer =
+          Math.min(
+            forwardSpin,
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.35 + settling * 0.65)
+          );
+        ball.spin.y = Math.max(0, forwardSpin - transfer);
+        const assistedDecay = Math.exp(
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.3 + 0.7 * settling)
+        );
+        ball.spin.y *= assistedDecay;
+      }
     }
   }
   return decaySpin(ball, stepScale, airborne);
@@ -15265,6 +15281,7 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
+  const replayCueHiddenRef = useRef({ hideFrom: Infinity, hideUntil: -Infinity });
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -21411,6 +21428,16 @@ const powerRef = useRef(hud.power);
               if (meshB.visible != null) {
                 ball.mesh.visible = meshB.visible;
               }
+              if (ball.id === 'cue' && replayPlaybackRef.current) {
+                const hidden = replayCueHiddenRef.current;
+                if (
+                  hidden &&
+                  targetTime >= (hidden.hideFrom ?? Infinity) &&
+                  targetTime < (hidden.hideUntil ?? -Infinity)
+                ) {
+                  ball.mesh.visible = false;
+                }
+              }
             }
             if (ball.shadow) {
               ball.shadow.visible = ball.mesh?.visible ?? ball.shadow.visible;
@@ -21961,7 +21988,8 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'recover') {
-            cueStick.position.copy(followPos ?? impactPos);
+            const eased = easeInOutCubic(sample.t);
+            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos ?? impactPos, eased);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -22200,10 +22228,19 @@ const powerRef = useRef(hud.power);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
+          const replayCueStroke = trimmed.cueStroke ?? null;
+          const replayCueHideFrom = replayCueStroke
+            ? Math.max(
+                120,
+                (replayCueStroke.pullback ?? replayCueStroke.pullbackDuration ?? 0) +
+                  (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0) * 0.72
+              )
+            : 180;
+          replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
-            cueStroke: trimmed.cueStroke ?? null,
+            cueStroke: replayCueStroke,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -22286,6 +22323,7 @@ const powerRef = useRef(hud.power);
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
           overheadBroadcastVariantRef.current = 'rail';
+          replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
         };
