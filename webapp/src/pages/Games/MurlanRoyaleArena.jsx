@@ -2004,6 +2004,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_PLAY_FOLLOW_HOLD_MS = 420;
 const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
+const CAMERA_PLAY_CARD_TRACK_DURATION_MS = 560;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
@@ -2956,6 +2957,7 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraTurnHoldTimeoutRef = useRef(null);
   const cameraTurnSuppressUntilRef = useRef(0);
   const cameraPlayFollowTimeoutRef = useRef(null);
+  const cameraPlayTrackFrameRef = useRef(null);
 
   const enforceRotationOnlyCamera = useCallback(() => {
     const { camera, controls } = threeStateRef.current;
@@ -3059,6 +3061,13 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraPlayFollowTimeoutRef.current != null) {
       clearTimeout(cameraPlayFollowTimeoutRef.current);
       cameraPlayFollowTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearCameraPlayTrackFrame = useCallback(() => {
+    if (cameraPlayTrackFrameRef.current != null) {
+      cancelAnimationFrame(cameraPlayTrackFrameRef.current);
+      cameraPlayTrackFrameRef.current = null;
     }
   }, []);
 
@@ -3233,6 +3242,7 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
+    const humanSeatForLayout = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman) ?? null;
 
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
@@ -3262,6 +3272,9 @@ export default function MurlanRoyaleArena({ search }) {
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
         const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cards.length, cardIdx);
+        const isSideSeat =
+          !player.isHuman &&
+          Math.abs(seat?.stoolPosition?.x ?? 0) > Math.abs(seat?.stoolPosition?.z ?? 0);
         const humanLineOffset = cards.length > 1
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
@@ -3269,16 +3282,25 @@ export default function MurlanRoyaleArena({ search }) {
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
-        const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+        const fanYaw = (HUMAN_HAND_UNIFORM_YAW_FROM_LEFT || isSideSeat)
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
-        const lateralAxis = right;
+        const lateralAxis =
+          isSideSeat && humanSeatForLayout?.right
+            ? humanSeatForLayout.right
+            : right;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         if (isHumanCard) {
           target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
           target.addScaledVector(lateralAxis, HUMAN_HAND_LEFT_SHIFT);
         }
-        target.y = baseHeight + centerWeight * fanArcLift + (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0);
+        const useBottomRowHandLayout = isHumanCard || isSideSeat;
+        target.y =
+          baseHeight +
+          centerWeight * fanArcLift +
+          (useBottomRowHandLayout
+            ? HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT
+            : 0);
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = isHumanCard
@@ -4063,12 +4085,31 @@ export default function MurlanRoyaleArena({ search }) {
     if (!action || action.type !== 'PLAY') return;
     clearCameraTurnHoldTimeout();
     clearCameraPlayFollowTimeout();
+    clearCameraPlayTrackFrame();
 
     const store = threeStateRef.current;
     const playedCardId = action.cards?.[0]?.id;
     const playedCardMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
     const centerTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
     turnCameraTowardTarget(centerTarget, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
+
+    const followStart =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    const trackPlacedCard = (now) => {
+      const elapsed = now - followStart;
+      const liveMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
+      if (liveMesh?.position) {
+        turnCameraTowardTarget(liveMesh.position, { animate: false });
+      }
+      if (elapsed < CAMERA_PLAY_CARD_TRACK_DURATION_MS) {
+        cameraPlayTrackFrameRef.current = requestAnimationFrame(trackPlacedCard);
+      } else {
+        cameraPlayTrackFrameRef.current = null;
+      }
+    };
+    cameraPlayTrackFrameRef.current = requestAnimationFrame(trackPlacedCard);
 
     const start =
       typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -4096,8 +4137,12 @@ export default function MurlanRoyaleArena({ search }) {
       cameraPlayFollowTimeoutRef.current = null;
     }, CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS);
 
-    return () => clearCameraPlayFollowTimeout();
+    return () => {
+      clearCameraPlayFollowTimeout();
+      clearCameraPlayTrackFrame();
+    };
   }, [
+    clearCameraPlayTrackFrame,
     clearCameraPlayFollowTimeout,
     clearCameraTurnHoldTimeout,
     gameState?.lastAction,
