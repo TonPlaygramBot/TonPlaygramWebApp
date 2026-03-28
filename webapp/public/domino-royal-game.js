@@ -6474,7 +6474,13 @@ const getDominoSurfaceTextures = (() => {
     cache = null;
   };
   return () => {
-    const targetSize = 4096;
+    const targetSize = Math.max(
+      2048,
+      Math.min(
+        4096,
+        getAdaptiveDominoTextureSize(MURLAN_3D_ASSET_RESOLUTION.dominoTextureSize)
+      )
+    );
     if (cache && cachedSize === targetSize) return cache;
     disposeCachedTextures();
     if (typeof document === 'undefined') {
@@ -6483,7 +6489,10 @@ const getDominoSurfaceTextures = (() => {
     }
     const sizeCap = getRendererTextureSizeCap();
     const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
-    let size = preferredSize;
+    const lowMemoryDevice =
+      isLowProfileDevice ||
+      (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
+    let size = lowMemoryDevice ? Math.max(2048, Math.min(preferredSize, 3072)) : preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
