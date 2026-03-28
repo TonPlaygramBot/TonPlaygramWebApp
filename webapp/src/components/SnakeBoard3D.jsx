@@ -162,7 +162,9 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const TOKEN_CAMERA_FOLLOW_IN_DURATION = 480;
 const TOKEN_CAMERA_FOLLOW_HOLD_DURATION = 820;
 const TOKEN_CAMERA_FOLLOW_OUT_DURATION = 480;
-const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.8;
+const TOKEN_CAMERA_TILE_LOOK_AHEAD = 5;
+const TOKEN_CAMERA_TILE_LOOK_BACK = 5;
+const TOKEN_CAMERA_FOLLOW_DISTANCE = TILE_SIZE * 5.4;
 const TOKEN_CAMERA_HEIGHT_OFFSET = TILE_SIZE * 2.35;
 const TOKEN_CAMERA_LATERAL_OFFSET = TILE_SIZE * 0.28;
 const TOKEN_CAMERA_CURRENT_DISTANCE_BLEND = 0.72;
@@ -191,7 +193,7 @@ const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
-const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
+const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 1.05;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
@@ -1527,33 +1529,43 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
   };
+  const getTileVector = (index) => {
+    if (!Number.isFinite(index) || index < 1) return null;
+    return (indexToPosition.get(index) || serpentineIndexToXZ(index))?.clone() ?? null;
+  };
+
   const from = sanitizeIndex(fromIndex);
   const to = sanitizeIndex(toIndex);
   if (to == null) return null;
-  const baseVector = (indexToPosition.get(to) || serpentineIndexToXZ(to))?.clone();
-  if (!baseVector) return null;
-  baseVector.y += TOKEN_HEIGHT * 0.02;
 
-  let fromVector = null;
-  if (from != null) {
-    const ref = indexToPosition.get(from) || serpentineIndexToXZ(from);
-    if (ref) fromVector = ref.clone();
-  }
-  if (!fromVector) {
-    fromVector = baseVector.clone();
-    fromVector.x += 1e-3;
-  }
-  fromVector.y += TOKEN_HEIGHT * 0.02;
+  const tokenVector = getTileVector(to);
+  if (!tokenVector) return null;
+  tokenVector.y += TOKEN_HEIGHT * 0.02;
 
-  const direction = baseVector.clone().sub(fromVector);
+  const movementSign = from != null && to < from ? -1 : 1;
+  const aheadIndex = to + movementSign * TOKEN_CAMERA_TILE_LOOK_AHEAD;
+  const backIndex = Math.max(1, to - movementSign * TOKEN_CAMERA_TILE_LOOK_BACK);
+
+  const aheadVector = getTileVector(aheadIndex) || tokenVector.clone();
+  const behindVector = getTileVector(backIndex) || tokenVector.clone();
+
+  let direction = aheadVector.clone().sub(behindVector);
   direction.y = 0;
+  if (direction.lengthSq() < 1e-6 && from != null) {
+    const fromVector = getTileVector(from);
+    if (fromVector) {
+      direction = tokenVector.clone().sub(fromVector);
+      direction.y = 0;
+    }
+  }
   if (direction.lengthSq() < 1e-6) {
-    direction.set(baseVector.x, 0, baseVector.z);
+    direction.set(tokenVector.x, 0, tokenVector.z);
     if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
   }
   direction.normalize();
 
-  const focusTarget = baseVector.clone();
+  const lookWindowCenter = aheadVector.clone().add(behindVector).multiplyScalar(0.5);
+  const focusTarget = lookWindowCenter.lerp(tokenVector, 0.45);
   focusTarget.y += TOKEN_HEIGHT * 0.65;
 
   const boardLookTarget = board?.boardLookTarget ?? new THREE.Vector3();
@@ -1565,7 +1577,7 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
 
   const backward = direction.clone().multiplyScalar(-followDistance);
   const lateral = new THREE.Vector3().crossVectors(direction, WORLD_UP).normalize();
-  const cameraPosition = focusTarget
+  const cameraPosition = tokenVector
     .clone()
     .add(backward)
     .addScaledVector(lateral, TOKEN_CAMERA_LATERAL_OFFSET);
@@ -1584,9 +1596,9 @@ function shouldFollowTileChange(_fromIndex, toIndex) {
 
 function createTokenCameraFollowAnimation(camera, controls, followState, restoreState, onComplete) {
   if (!followState) return null;
-  const { focusTarget } = followState;
+  const { focusTarget, cameraPosition } = followState;
   return createCameraTransitionAnimation(camera, controls, {
-    toPosition: camera.position.clone(),
+    toPosition: cameraPosition,
     toTarget: focusTarget,
     durationIn: TOKEN_CAMERA_FOLLOW_IN_DURATION,
     hold: TOKEN_CAMERA_FOLLOW_HOLD_DURATION,
