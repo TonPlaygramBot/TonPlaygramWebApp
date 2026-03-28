@@ -1944,7 +1944,6 @@ const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const AI_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = -0.35 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.145 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
@@ -1955,7 +1954,7 @@ const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
-const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(10);
+const COMMUNITY_CARD_TOP_TILT = 0;
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
 const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
@@ -2001,7 +2000,6 @@ const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2600;
 const CAMERA_PLAYER_SWITCH_HOLD_MS = 1500;
-const CAMERA_CARD_FOLLOW_HOLD_MS = 850;
 const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
@@ -2953,7 +2951,6 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraForwardOffsetScratchRef = useRef(new THREE.Vector3());
   const cameraTurnAnimationRef = useRef(null);
   const cameraTurnHoldTimeoutRef = useRef(null);
-  const cameraCardFollowTimeoutRef = useRef(null);
 
   const enforceRotationOnlyCamera = useCallback(() => {
     const { camera, controls } = threeStateRef.current;
@@ -3050,13 +3047,6 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraTurnHoldTimeoutRef.current != null) {
       clearTimeout(cameraTurnHoldTimeoutRef.current);
       cameraTurnHoldTimeoutRef.current = null;
-    }
-  }, []);
-
-  const clearCameraCardFollowTimeout = useCallback(() => {
-    if (cameraCardFollowTimeoutRef.current != null) {
-      clearTimeout(cameraCardFollowTimeoutRef.current);
-      cameraCardFollowTimeoutRef.current = null;
     }
   }, []);
 
@@ -3267,8 +3257,7 @@ export default function MurlanRoyaleArena({ search }) {
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard ? HUMAN_HAND_FAN_DIRECTION : 1;
-        const useUniformYaw = isHumanCard ? HUMAN_HAND_UNIFORM_YAW_FROM_LEFT : AI_HAND_UNIFORM_YAW_FROM_LEFT;
-        const fanYaw = useUniformYaw
+        const fanYaw = isHumanCard && HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
         const lateralAxis = right;
@@ -3354,12 +3343,13 @@ export default function MurlanRoyaleArena({ search }) {
       );
     });
 
+    const discardSpacing = CARD_W * 0.08;
     const pileRightAxis = humanSeat?.right?.clone()?.normalize?.() ?? new THREE.Vector3(1, 0, 0);
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.95)
-      .addScaledVector(pileRightAxis, CARD_W * 2.24)
+      .addScaledVector(pileForwardAxis, CARD_H * -1.18)
+      .addScaledVector(pileRightAxis, CARD_W * 1.98)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
@@ -3371,8 +3361,8 @@ export default function MurlanRoyaleArena({ search }) {
       setCommunityCardLegibility(mesh, false);
       const layer = idx;
       const target = discardAnchor.clone();
+      target.x += layer * discardSpacing;
       target.y += layer * 0.0015;
-      target.z += layer * 0.0012;
       setMeshPosition(
         mesh,
         target,
@@ -4022,7 +4012,6 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (!basis?.position || !basis?.direction) return;
 
-    clearCameraCardFollowTimeout();
     clearCameraTurnHoldTimeout();
 
     if (gameState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
@@ -4044,7 +4033,6 @@ export default function MurlanRoyaleArena({ search }) {
 
     return () => clearCameraTurnHoldTimeout();
   }, [
-    clearCameraCardFollowTimeout,
     clearCameraTurnHoldTimeout,
     gameState.activePlayer,
     gameState.players,
@@ -4065,39 +4053,7 @@ export default function MurlanRoyaleArena({ search }) {
     const rig = store.characterRigs?.get(action.playerIndex);
     if (!rig) return;
     runCharacterAction(store, rig, action);
-
-    if (action.type !== 'PLAY') return;
-    const tableFocus = store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
-    turnCameraTowardTarget(tableFocus, { animate: true, durationMs: 260 });
-
-    clearCameraCardFollowTimeout();
-    const nextSeatIndex = Number.isInteger(gameState?.activePlayer) ? gameState.activePlayer : null;
-    const nextSeat = nextSeatIndex != null ? store.seatConfigs?.[nextSeatIndex] : null;
-    const nextTurnTarget = nextSeat?.focus
-      ? cameraDefaultTargetRef.current
-        .clone()
-        .lerp(nextSeat.focus, CAMERA_PLAYER_TARGET_WEIGHT)
-      : cameraDefaultTargetRef.current.clone();
-    const sideSign = Math.sign(nextSeat?.stoolPosition?.x ?? 0);
-    if (sideSign !== 0) {
-      nextTurnTarget.x += sideSign * CAMERA_SIDE_LOOK_EXTRA;
-    }
-    cameraCardFollowTimeoutRef.current = setTimeout(() => {
-      turnCameraTowardTarget(nextTurnTarget, { animate: true });
-      cameraCardFollowTimeoutRef.current = null;
-    }, CAMERA_CARD_FOLLOW_HOLD_MS);
-  }, [
-    clearCameraCardFollowTimeout,
-    gameState?.activePlayer,
-    gameState?.lastAction,
-    gameState?.lastActionId,
-    threeReady,
-    turnCameraTowardTarget
-  ]);
-
-  useEffect(() => () => {
-    clearCameraCardFollowTimeout();
-  }, [clearCameraCardFollowTimeout]);
+  }, [gameState?.lastAction, gameState?.lastActionId, threeReady]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
