@@ -3248,9 +3248,6 @@ export default function MurlanRoyaleArena({ search }) {
     } else {
       horizontalLayoutAxis.set(1, 0, 0);
     }
-    const sharedOpponentLookTarget = humanSeatConfig?.focus?.clone?.()
-      ?.addScaledVector(humanSeatConfig?.forward ?? new THREE.Vector3(0, 0, 1), 2.4 * MODEL_SCALE)
-      ?? three.tableAnchor.clone().setY(TABLE_HEIGHT + 0.26 * MODEL_SCALE);
 
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
@@ -3285,7 +3282,7 @@ export default function MurlanRoyaleArena({ search }) {
           : 0;
         const lateral = humanLineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : 0;
+        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
@@ -3296,9 +3293,7 @@ export default function MurlanRoyaleArena({ search }) {
         target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
-        const handLookTarget = isHumanCard
-          ? focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE)
-          : sharedOpponentLookTarget;
+        const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
@@ -3312,7 +3307,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
+            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
           },
           immediate,
           three.animations,
