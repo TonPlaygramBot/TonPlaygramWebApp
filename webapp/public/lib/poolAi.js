@@ -124,19 +124,79 @@ function pocketNormal (pocket, width, height) {
 }
 
 function pocketEntry (pocket, radius, width, height, target) {
-  const normal = pocketNormal(pocket, width, height)
-  let dir = normal
+  const info = resolvePocketEntry(pocket, radius, width, height, target)
+  return info.entry
+}
 
-  if (target) {
-    dir = { x: pocket.x - target.x, y: pocket.y - target.y }
-    const len = Math.hypot(dir.x, dir.y) || 1
-    dir = { x: dir.x / len, y: dir.y / len }
+function pocketMouthHalfWidth (pocket, radius, width, height) {
+  const nearLeft = pocket.x <= radius * 1.6
+  const nearRight = pocket.x >= width - radius * 1.6
+  const nearBottom = pocket.y <= radius * 1.6
+  const nearTop = pocket.y >= height - radius * 1.6
+  const isCorner = (nearLeft || nearRight) && (nearBottom || nearTop)
+  return isCorner ? radius * 1.85 : radius * 2.25
+}
+
+function resolvePocketEntry (pocket, radius, width, height, target, balls = [], ignoreIds = []) {
+  const normal = pocketNormal(pocket, width, height)
+  const tangent = { x: -normal.y, y: normal.x }
+  const depth = radius * 1.06
+  const halfMouth = pocketMouthHalfWidth(pocket, radius, width, height)
+  const sampleSteps = [-1, -0.66, -0.33, 0, 0.33, 0.66, 1]
+  const toTarget =
+    target
+      ? { x: target.x - pocket.x, y: target.y - pocket.y }
+      : { x: normal.x, y: normal.y }
+  const toTargetLen = Math.hypot(toTarget.x, toTarget.y) || 1
+  const targetDir = { x: toTarget.x / toTargetLen, y: toTarget.y / toTargetLen }
+  const targetSide = targetDir.x * tangent.x + targetDir.y * tangent.y
+
+  const samples = sampleSteps.map((step) => {
+    const entry = {
+      x: pocket.x - normal.x * depth + tangent.x * halfMouth * step,
+      y: pocket.y - normal.y * depth + tangent.y * halfMouth * step
+    }
+    const blocked = target
+      ? balls.some(
+        b =>
+          !b.pocketed &&
+          !ignoreIds.includes(b.id) &&
+          lineIntersectsBall(target, entry, b, radius * 1.03)
+      )
+      : false
+    return { step, entry, blocked }
+  })
+
+  const visible = samples.filter(s => !s.blocked)
+  const base = {
+    x: pocket.x - normal.x * depth,
+    y: pocket.y - normal.y * depth
+  }
+  if (visible.length === 0) {
+    return { entry: base, viewClearance: 0 }
   }
 
-  const offset = radius * 1.05
+  let minStep = Infinity
+  let maxStep = -Infinity
+  let weightedStep = 0
+  let totalWeight = 0
+  for (const sample of visible) {
+    minStep = Math.min(minStep, sample.step)
+    maxStep = Math.max(maxStep, sample.step)
+    const sideDelta = Math.abs(sample.step - targetSide)
+    const weight = 1 / (1 + sideDelta * 1.8)
+    weightedStep += sample.step * weight
+    totalWeight += weight
+  }
+  const visibleCenter = (minStep + maxStep) * 0.5
+  const weightedCenter = totalWeight > 0 ? weightedStep / totalWeight : visibleCenter
+  const centerStep = weightedCenter * 0.65 + visibleCenter * 0.35
   return {
-    x: pocket.x - dir.x * offset,
-    y: pocket.y - dir.y * offset
+    entry: {
+      x: base.x + tangent.x * halfMouth * centerStep,
+      y: base.y + tangent.y * halfMouth * centerStep
+    },
+    viewClearance: Math.max(0, Math.min((maxStep - minStep) / 2, 1))
   }
 }
 
@@ -381,10 +441,19 @@ function clearShotCandidates (req) {
 
   for (const target of targets) {
     for (const pocket of pockets) {
-      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+      const entryInfo = resolvePocketEntry(
+        pocket,
+        r,
+        req.state.width,
+        req.state.height,
+        target,
+        req.state.balls,
+        [cueBallId, target.id]
+      )
+      const resolvedEntry = entryInfo.entry
       const ghost = {
-        x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
-        y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
+        x: target.x - (resolvedEntry.x - target.x) * (r * 2 / dist(target, resolvedEntry)),
+        y: target.y - (resolvedEntry.y - target.y) * (r * 2 / dist(target, resolvedEntry))
       }
 
       // ensure ghost is within table bounds
@@ -400,30 +469,32 @@ function clearShotCandidates (req) {
       // check paths from cue->ghost and target->pocket are unobstructed
       if (
         pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1) ||
-        pathBlocked(target, entry, req.state.balls, [cueBallId, target.id], r) ||
+        pathBlocked(target, resolvedEntry, req.state.balls, [cueBallId, target.id], r) ||
         req.state.balls.some(
-          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
+          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, resolvedEntry) < r * 1.1
         )
       ) {
         continue
       }
 
       const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
-      const potVec = { x: entry.x - target.x, y: entry.y - target.y }
+      const potVec = { x: resolvedEntry.x - target.x, y: resolvedEntry.y - target.y }
       let cut = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
       if (cut > Math.PI) cut = Math.abs(cut - Math.PI * 2)
-      const viewAngle = Math.atan2(r * 2, dist(target, entry))
+      const viewAngle = Math.atan2(r * 2, dist(target, resolvedEntry))
       const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
       const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
-      const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
+      const entranceClearance = entryInfo.viewClearance ?? 0
+      const weightedView = viewScore * (0.58 + 0.24 * entryAlignment + 0.18 * entranceClearance)
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
       const rank =
         weightedView * 0.46 +
-        approachStraightness * 0.25 +
+        approachStraightness * 0.29 +
         distanceScore * 0.12 +
-        Math.max(0, 1 - cut / (Math.PI / 3.4)) * 0.17
+        Math.max(0, 1 - cut / (Math.PI / 3.4)) * 0.1 +
+        entranceClearance * 0.03
 
       // require fairly central hit and open pocket view
       if (cut <= maxCut && weightedView >= minView) {
@@ -598,7 +669,6 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
   }
   return best
 }
-
 
 function buildSpinCandidates (cue, target, pocket, req) {
   const base = [
