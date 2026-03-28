@@ -3241,14 +3241,6 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
-    const humanSeatConfig = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman) ?? seatConfigs[0] ?? null;
-    const horizontalLayoutAxis = humanSeatConfig?.right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
-    if (horizontalLayoutAxis.lengthSq() > 1e-6) {
-      horizontalLayoutAxis.normalize();
-    } else {
-      horizontalLayoutAxis.set(1, 0, 0);
-    }
-
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3287,9 +3279,15 @@ export default function MurlanRoyaleArena({ search }) {
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
-        const target = forward.clone().multiplyScalar(radial).addScaledVector(horizontalLayoutAxis, lateral);
+        const layoutAxis = right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
+        if (layoutAxis.lengthSq() > 1e-6) {
+          layoutAxis.normalize();
+        } else {
+          layoutAxis.set(1, 0, 0);
+        }
+        const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
-        target.addScaledVector(horizontalLayoutAxis, HUMAN_HAND_LEFT_SHIFT);
+        target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
         target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
