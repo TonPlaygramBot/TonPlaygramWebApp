@@ -2956,6 +2956,7 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraTurnHoldTimeoutRef = useRef(null);
   const cameraTurnSuppressUntilRef = useRef(0);
   const cameraPlayFollowTimeoutRef = useRef(null);
+  const cameraPlayTrackAnimationRef = useRef(null);
 
   const enforceRotationOnlyCamera = useCallback(() => {
     const { camera, controls } = threeStateRef.current;
@@ -3059,6 +3060,13 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraPlayFollowTimeoutRef.current != null) {
       clearTimeout(cameraPlayFollowTimeoutRef.current);
       cameraPlayFollowTimeoutRef.current = null;
+    }
+  }, []);
+
+  const stopCameraPlayTrackAnimation = useCallback(() => {
+    if (cameraPlayTrackAnimationRef.current != null) {
+      cancelAnimationFrame(cameraPlayTrackAnimationRef.current);
+      cameraPlayTrackAnimationRef.current = null;
     }
   }, []);
 
@@ -3233,6 +3241,13 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
+    const humanSeatConfig = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman) ?? seatConfigs[0] ?? null;
+    const horizontalLayoutAxis = humanSeatConfig?.right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
+    if (horizontalLayoutAxis.lengthSq() > 1e-6) {
+      horizontalLayoutAxis.normalize();
+    } else {
+      horizontalLayoutAxis.set(1, 0, 0);
+    }
 
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
@@ -3272,18 +3287,13 @@ export default function MurlanRoyaleArena({ search }) {
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
-        const lateralAxis = right;
-        const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
-        if (isHumanCard) {
-          target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
-          target.addScaledVector(lateralAxis, HUMAN_HAND_LEFT_SHIFT);
-        }
-        target.y = baseHeight + centerWeight * fanArcLift + (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0);
+        const target = forward.clone().multiplyScalar(radial).addScaledVector(horizontalLayoutAxis, lateral);
+        target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
+        target.addScaledVector(horizontalLayoutAxis, HUMAN_HAND_LEFT_SHIFT);
+        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
-        const handLookTarget = isHumanCard
-          ? focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE)
-          : focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+        const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
@@ -3297,7 +3307,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
+            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
           },
           immediate,
           three.animations,
@@ -4063,6 +4073,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (!action || action.type !== 'PLAY') return;
     clearCameraTurnHoldTimeout();
     clearCameraPlayFollowTimeout();
+    stopCameraPlayTrackAnimation();
 
     const store = threeStateRef.current;
     const playedCardId = action.cards?.[0]?.id;
@@ -4074,6 +4085,17 @@ export default function MurlanRoyaleArena({ search }) {
       typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now();
+    const trackUntil = start + CAMERA_PLAY_FOLLOW_HOLD_MS;
+    const trackCardDuringFlight = (time) => {
+      const cardTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? centerTarget.clone();
+      turnCameraTowardTarget(cardTarget, { animate: false });
+      if (time < trackUntil) {
+        cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
+      } else {
+        cameraPlayTrackAnimationRef.current = null;
+      }
+    };
+    cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
     cameraTurnSuppressUntilRef.current = start + CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS;
 
     cameraPlayFollowTimeoutRef.current = setTimeout(() => {
@@ -4096,12 +4118,16 @@ export default function MurlanRoyaleArena({ search }) {
       cameraPlayFollowTimeoutRef.current = null;
     }, CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS);
 
-    return () => clearCameraPlayFollowTimeout();
+    return () => {
+      clearCameraPlayFollowTimeout();
+      stopCameraPlayTrackAnimation();
+    };
   }, [
     clearCameraPlayFollowTimeout,
     clearCameraTurnHoldTimeout,
     gameState?.lastAction,
     gameState?.lastActionId,
+    stopCameraPlayTrackAnimation,
     threeReady,
     turnCameraTowardTarget
   ]);
