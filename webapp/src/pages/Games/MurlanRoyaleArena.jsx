@@ -2953,6 +2953,7 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraOrbitSphericalRef = useRef({ phi: null, phiMin: null, phiMax: null });
   const cameraForwardOffsetScratchRef = useRef(new THREE.Vector3());
   const cameraTurnAnimationRef = useRef(null);
+  const cameraCardFollowAnimationRef = useRef(null);
   const cameraTurnHoldTimeoutRef = useRef(null);
   const cameraTurnSuppressUntilRef = useRef(0);
   const cameraPlayFollowTimeoutRef = useRef(null);
@@ -3052,6 +3053,13 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraTurnHoldTimeoutRef.current != null) {
       clearTimeout(cameraTurnHoldTimeoutRef.current);
       cameraTurnHoldTimeoutRef.current = null;
+    }
+  }, []);
+
+  const stopCameraCardFollowAnimation = useCallback(() => {
+    if (cameraCardFollowAnimationRef.current != null) {
+      cancelAnimationFrame(cameraCardFollowAnimationRef.current);
+      cameraCardFollowAnimationRef.current = null;
     }
   }, []);
 
@@ -3231,6 +3239,8 @@ export default function MurlanRoyaleArena({ search }) {
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
+    const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
+    const sharedHorizontalAxis = humanSeat?.right?.clone()?.normalize?.() ?? null;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
 
@@ -3272,7 +3282,7 @@ export default function MurlanRoyaleArena({ search }) {
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
-        const lateralAxis = right;
+        const lateralAxis = !isHumanCard && sharedHorizontalAxis ? sharedHorizontalAxis : right;
         const target = forward.clone().multiplyScalar(radial).addScaledVector(lateralAxis, lateral);
         if (isHumanCard) {
           target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
@@ -3312,7 +3322,6 @@ export default function MurlanRoyaleArena({ search }) {
 
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
-    const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
     const bottomCardSpacing = Math.max(humanSeat?.spacing ?? 0, COMMUNITY_CARD_SPACING);
     const bottomCardMaxSpread = Math.max(humanSeat?.maxSpread ?? 0, COMMUNITY_CARD_MAX_SPREAD);
     const tableSpread = tableCount > 1
@@ -4061,6 +4070,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (!threeReady) return;
     const action = gameState?.lastAction;
     if (!action || action.type !== 'PLAY') return;
+    stopCameraCardFollowAnimation();
     clearCameraTurnHoldTimeout();
     clearCameraPlayFollowTimeout();
 
@@ -4074,6 +4084,20 @@ export default function MurlanRoyaleArena({ search }) {
       typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now();
+
+    const followCardFrame = (now) => {
+      if (now - start >= CAMERA_PLAY_FOLLOW_HOLD_MS) {
+        cameraCardFollowAnimationRef.current = null;
+        return;
+      }
+      const liveCardMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
+      if (liveCardMesh?.position) {
+        turnCameraTowardTarget(liveCardMesh.position.clone(), { animate: false });
+      }
+      cameraCardFollowAnimationRef.current = requestAnimationFrame(followCardFrame);
+    };
+    cameraCardFollowAnimationRef.current = requestAnimationFrame(followCardFrame);
+
     cameraTurnSuppressUntilRef.current = start + CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS;
 
     cameraPlayFollowTimeoutRef.current = setTimeout(() => {
@@ -4096,8 +4120,12 @@ export default function MurlanRoyaleArena({ search }) {
       cameraPlayFollowTimeoutRef.current = null;
     }, CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS);
 
-    return () => clearCameraPlayFollowTimeout();
+    return () => {
+      stopCameraCardFollowAnimation();
+      clearCameraPlayFollowTimeout();
+    };
   }, [
+    stopCameraCardFollowAnimation,
     clearCameraPlayFollowTimeout,
     clearCameraTurnHoldTimeout,
     gameState?.lastAction,
