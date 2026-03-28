@@ -99,7 +99,7 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 4096,
+  hd50: 3072,
   fhd60: 4096,
   qhd90: 4096,
   uhd120: 4096,
@@ -6492,9 +6492,7 @@ const getDominoSurfaceTextures = (() => {
     const lowMemoryDevice =
       isLowProfileDevice ||
       (typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4);
-    let size = lowMemoryDevice
-      ? Math.max(2048, Math.min(preferredSize, 4096))
-      : preferredSize;
+    let size = lowMemoryDevice ? Math.max(2048, Math.min(preferredSize, 3072)) : preferredSize;
     let porcelainCanvas = document.createElement('canvas');
     porcelainCanvas.width = porcelainCanvas.height = size;
     let pctx = porcelainCanvas.getContext('2d', { willReadFrequently: true });
