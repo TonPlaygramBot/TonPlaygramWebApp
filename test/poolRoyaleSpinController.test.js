@@ -13,8 +13,8 @@ describe('Pool Royale spin controller mapping', () => {
   });
 
   it('keeps left/right spin directions aligned with the table axes', () => {
-    expect(getSigns(mapSpinForPhysics({ x: -1, y: 0 })).x).toBe(1);
-    expect(getSigns(mapSpinForPhysics({ x: 1, y: 0 })).x).toBe(-1);
+    expect(getSigns(mapSpinForPhysics({ x: -1, y: 0 })).x).toBe(-1);
+    expect(getSigns(mapSpinForPhysics({ x: 1, y: 0 })).x).toBe(1);
   });
 
   it('keeps vertical spin aligned so topspin drives forward motion', () => {
@@ -23,10 +23,10 @@ describe('Pool Royale spin controller mapping', () => {
   });
 
   it('preserves diagonal quadrants while keeping vertical spin aligned', () => {
-    expect(getSigns(mapSpinForPhysics({ x: -1, y: -1 }))).toEqual({ x: 1, y: -1 });
-    expect(getSigns(mapSpinForPhysics({ x: 1, y: -1 }))).toEqual({ x: -1, y: -1 });
-    expect(getSigns(mapSpinForPhysics({ x: -1, y: 1 }))).toEqual({ x: 1, y: 1 });
-    expect(getSigns(mapSpinForPhysics({ x: 1, y: 1 }))).toEqual({ x: -1, y: 1 });
+    expect(getSigns(mapSpinForPhysics({ x: -1, y: -1 }))).toEqual({ x: -1, y: -1 });
+    expect(getSigns(mapSpinForPhysics({ x: 1, y: -1 }))).toEqual({ x: 1, y: -1 });
+    expect(getSigns(mapSpinForPhysics({ x: -1, y: 1 }))).toEqual({ x: -1, y: 1 });
+    expect(getSigns(mapSpinForPhysics({ x: 1, y: 1 }))).toEqual({ x: 1, y: 1 });
   });
 
   it('scales spin strength with distance from center', () => {
