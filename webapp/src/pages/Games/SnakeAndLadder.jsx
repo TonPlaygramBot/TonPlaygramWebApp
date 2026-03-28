@@ -2091,9 +2091,7 @@ export default function SnakeAndLadder() {
       };
       const finalizeMove = (finalPos, type) => {
         updatePosition(finalPos);
-        const playerIndex = playersRef.current.findIndex((pl) => pl.id === playerId);
-        const tokenColor = playerColors[playerIndex >= 0 ? playerIndex : 0] || '#f97316';
-        setHighlight({ cell: finalPos, type, color: tokenColor });
+        setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTimeout(() => setHighlight(null), 2300);
         setMoving(false);
@@ -2126,9 +2124,7 @@ export default function SnakeAndLadder() {
       };
       const finalizeMove = (finalPos, type) => {
         updatePosition(finalPos);
-        const playerIndex = playersRef.current.findIndex((pl) => pl.id === playerId);
-        const tokenColor = playerColors[playerIndex >= 0 ? playerIndex : 0] || '#f97316';
-        setHighlight({ cell: finalPos, type, color: tokenColor });
+        setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTimeout(() => setHighlight(null), 2300);
         setMoving(false);
@@ -2590,9 +2586,11 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = getPreviousTurn(currentTurn);
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-          setMoving(false);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
+          setTimeout(() => setMoving(false), 2000);
           return;
         }
       } else if (current === 0) {
@@ -2606,9 +2604,11 @@ export default function SnakeAndLadder() {
           setTurnMessage("");
           setDiceVisible(false);
           const next = getPreviousTurn(currentTurn);
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 2);
-          setMoving(false);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 2);
+          }, 2000);
+          setTimeout(() => setMoving(false), 2000);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
@@ -2620,9 +2620,11 @@ export default function SnakeAndLadder() {
         setTurnMessage("");
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
-        setCurrentTurn(next);
-        setDiceCount(playerDiceCounts[next] ?? 2);
-        setMoving(false);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
         return;
       }
 
@@ -2672,7 +2674,7 @@ export default function SnakeAndLadder() {
       const finalizeMove = (finalPos, type, effectStart) => {
         const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
         setPos(finalPos);
-        setHighlight({ cell: finalPos, type, color: playerColors[0] || '#f97316' });
+        setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
@@ -2847,9 +2849,11 @@ export default function SnakeAndLadder() {
         enqueueSnakeCommentaryEvent('needSix', { player: playerLabel });
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
-        setCurrentTurn(next);
-        setDiceCount(playerDiceCounts[next] ?? 2);
-        setMoving(false);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
         return;
       }
     } else if (current === 100 && playerDiceCounts[index] === 1) {
@@ -2859,9 +2863,11 @@ export default function SnakeAndLadder() {
         setTurnMessage('');
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
-        setCurrentTurn(next);
-        setDiceCount(playerDiceCounts[next] ?? 2);
-        setMoving(false);
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 2);
+        }, 2000);
+        setTimeout(() => setMoving(false), 2000);
         return;
       }
     } else if (current + value <= FINAL_TILE) {
@@ -2916,7 +2922,7 @@ export default function SnakeAndLadder() {
       const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
       positions[index - 1] = finalPos;
       setAiPositions([...positions]);
-      setHighlight({ cell: finalPos, type, color: playerColors[index] || '#22d3ee' });
+      setHighlight({ cell: finalPos, type });
       setTrail([]);
       const victims = capturePieces(finalPos, index);
       if (victims.length) {
