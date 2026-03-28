@@ -1233,7 +1233,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 });
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
-const LOCK_RAIL_OVERHEAD_FRAME = true;
+const LOCK_RAIL_OVERHEAD_FRAME = false;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
@@ -1770,6 +1770,9 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const TOPSPIN_FOLLOW_GAIN = 1.16; // let topspin carry naturally through contact
+const TOPSPIN_ROLLING_DECAY_SPEED = SHOT_BASE_SPEED * 0.34; // bleed forward spin once the cue ball settles into pure roll
+const TOPSPIN_ROLLING_DECAY_RATE = 2.6; // stop unrealistic endless follow while preserving natural acceleration
 const RAIL_SPIN_THROW_SCALE = 0; // keep spin active while preventing spin-based rail deflection from shifting cue-ball target line
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
@@ -6973,6 +6976,20 @@ function applySpinController(ball, stepScale, airborne = false) {
       const backspinBoost =
         ball.id === 'cue' && ball.impacted ? CUE_BACKSPIN_ROLL_BOOST : BACKSPIN_ROLL_BOOST;
       rollAccel *= backspinBoost;
+    } else if (forwardSpin > 0) {
+      rollAccel *= TOPSPIN_FOLLOW_GAIN;
+      if (speed <= TOPSPIN_ROLLING_DECAY_SPEED) {
+        const rollingBlend = THREE.MathUtils.clamp(
+          1 - speed / Math.max(TOPSPIN_ROLLING_DECAY_SPEED, 1e-6),
+          0,
+          1
+        );
+        const forwardDecay = Math.exp(
+          -TOPSPIN_ROLLING_DECAY_RATE * rollingBlend * Math.max(stepScale, 0)
+        );
+        forwardSpin *= forwardDecay;
+        ball.spin.y = forwardSpin;
+      }
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
@@ -21463,6 +21480,14 @@ const powerRef = useRef(hud.power);
           const hasCueSnapshots = frames.some(
             (frame) => Boolean(frame?.cue && frame.cue.position)
           );
+          const replayCueBall = cueRef.current || cue;
+          const setReplayCueBallVisible = (visible) => {
+            if (!replayCueBall?.mesh) return;
+            replayCueBall.mesh.visible = Boolean(visible);
+            if (replayCueBall.shadow) {
+              replayCueBall.shadow.visible = Boolean(visible);
+            }
+          };
           if (!cueStick) {
             cueAnimating = false;
             return;
@@ -21553,6 +21578,8 @@ const powerRef = useRef(hud.power);
             const showCue = targetTime <= holdWindow;
             cueStick.visible = showCue;
             cueAnimating = showCue;
+            const hideCueBall = targetTime > pullbackTime + forwardTime && targetTime < replayHoldWindow;
+            setReplayCueBallVisible(!hideCueBall);
             if (showCue) {
               const idlePos = TMP_VEC3_A.set(
                 cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
@@ -21699,6 +21726,10 @@ const powerRef = useRef(hud.power);
             : cueStick.rotation.x;
           cueStick.visible = true;
           cueAnimating = true;
+          const hideCueBall =
+            localTime > impactEnd &&
+            targetTime < (Number.isFinite(playback?.duration) ? playback.duration : recoverEnd);
+          setReplayCueBallVisible(!hideCueBall);
           if (localTime <= 0) {
             cueStick.position.copy(tmpReplayCueA);
             syncCueShadow();
@@ -21763,6 +21794,7 @@ const powerRef = useRef(hud.power);
             return;
           }
           cueStick.visible = false;
+          setReplayCueBallVisible(true);
           cueAnimating = false;
           syncCueShadow();
         };
@@ -21818,6 +21850,7 @@ const powerRef = useRef(hud.power);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const safeRecoverDuration = Math.max(0, recoverDuration ?? 110);
             const impactThreshold = THREE.MathUtils.clamp(
               strikeImpactThreshold ?? 0.9,
               0,
@@ -21877,6 +21910,24 @@ const powerRef = useRef(hud.power);
               stroke.onImpact?.();
             }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
+            if (safeRecoverDuration > 0 && elapsed < safeStrikeDuration + safeHoldDuration + safeRecoverDuration) {
+              const recoverT = THREE.MathUtils.clamp(
+                (elapsed - safeStrikeDuration - safeHoldDuration) / Math.max(safeRecoverDuration, 1e-6),
+                0,
+                1
+              );
+              cueStick.position.lerpVectors(
+                followPos ?? impactPos ?? pullPos,
+                idlePos ?? impactPos ?? pullPos,
+                easeInOutCubic(recoverT)
+              );
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
+              cueStick.visible = true;
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -21961,7 +22012,11 @@ const powerRef = useRef(hud.power);
             return true;
           }
           if (sample.phase === 'recover') {
-            cueStick.position.copy(followPos ?? impactPos);
+            cueStick.position.lerpVectors(
+              followPos ?? impactPos ?? pullPos,
+              idlePos ?? impactPos ?? pullPos,
+              easeInOutCubic(sample.t)
+            );
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -22268,6 +22323,13 @@ const powerRef = useRef(hud.power);
           }
           if (cueStick) {
             cueStick.visible = false;
+          }
+          const cueBall = cueRef.current || cue;
+          if (cueBall?.mesh) {
+            cueBall.mesh.visible = true;
+          }
+          if (cueBall?.shadow) {
+            cueBall.shadow.visible = true;
           }
           cueAnimating = false;
           if (playback.pocketDrops) {
