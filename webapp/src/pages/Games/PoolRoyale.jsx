@@ -2244,7 +2244,7 @@ function getPoolBallId(variant, index) {
   return `ball_${index + 1}`;
 }
 
-function generateRackPositions(ballCount, layout, ballRadius, startZ) {
+function generateRackPositions(ballCount, layout, ballRadius, startZ, options = {}) {
   const positions = [];
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
@@ -2253,9 +2253,27 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
   const minCenterDistance = ballRadius * 2;
+  const clearance = Number.isFinite(options.clearance) ? Math.max(options.clearance, 0) : ballRadius * 0.06;
+  const rackLimitX = Number.isFinite(options.railLimitX)
+    ? Math.max(0, options.railLimitX - ballRadius - clearance)
+    : null;
+  const rackLimitZ = Number.isFinite(options.railLimitZ)
+    ? Math.max(0, options.railLimitZ - ballRadius - clearance)
+    : null;
+  const clampRackPoint = (entry) => {
+    if (!entry) return entry;
+    const result = { ...entry };
+    if (Number.isFinite(rackLimitX)) {
+      result.x = clamp(result.x, -rackLimitX, rackLimitX);
+    }
+    if (Number.isFinite(rackLimitZ)) {
+      result.z = clamp(result.z, -rackLimitZ, rackLimitZ);
+    }
+    return result;
+  };
   const deOverlapRackPositions = (input) => {
     if (!Array.isArray(input) || input.length <= 1) return input;
-    const adjusted = input.map((entry) => ({ ...entry }));
+    const adjusted = input.map((entry) => clampRackPoint(entry));
     const settlePasses = Math.max(2, adjusted.length);
     for (let pass = 0; pass < settlePasses; pass += 1) {
       let shifted = false;
@@ -2276,6 +2294,12 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
           a.z -= nz * overlap;
           b.x += nx * overlap;
           b.z += nz * overlap;
+          const clampedA = clampRackPoint(a);
+          const clampedB = clampRackPoint(b);
+          a.x = clampedA.x;
+          a.z = clampedA.z;
+          b.x = clampedB.x;
+          b.z = clampedB.z;
           shifted = true;
         }
       }
@@ -5946,9 +5970,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.42; // convert topspin into forward roll sooner so natural follow builds progressively instead of feeling delayed
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.74; // keep some residual roll-through after impact before spin naturally settles
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.94; // let topspin carry cue-ball speed farther before settling at natural roll
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.64; // transfer more topspin into forward roll to avoid straight-top shots feeling stun-like
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.56; // reduce early topspin bleed so follow-through remains visible after contact
+const TOPSPIN_ROLL_SPEED_FACTOR = 1.08; // allow natural roll speed to hold a little longer under topspin/top-side inputs
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -23085,7 +23109,10 @@ const powerRef = useRef(hud.power);
         };
         if (variant === 'snooker') {
           const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
-          const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
+          const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ, {
+            railLimitX: RAIL_LIMIT_X,
+            railLimitZ: RAIL_LIMIT_Y
+          });
           const snookerPalette = {
             red: 0xb1262c,
             yellow: 0xf7d000,
@@ -23122,7 +23149,11 @@ const powerRef = useRef(hud.power);
             rackColors.length,
             'triangle',
             BALL_R,
-            rackStartZ
+            rackStartZ,
+            {
+              railLimitX: RAIL_LIMIT_X,
+              railLimitZ: RAIL_LIMIT_Y
+            }
           );
           rackColors.forEach((color, index) => {
             const pos =
@@ -23615,7 +23646,11 @@ const powerRef = useRef(hud.power);
           rackColors.length,
           rackLayout,
           BALL_R,
-          rackStartZ
+          rackStartZ,
+          {
+            railLimitX: RAIL_LIMIT_X,
+            railLimitZ: RAIL_LIMIT_Y
+          }
         );
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
@@ -28398,7 +28433,11 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hasReplaySignal = hadObjectPot || tags.size > 0;
+          const hasReplaySignal =
+            hadObjectPot ||
+            tags.size > 0 ||
+            Boolean(recording?.cueStroke) ||
+            (recording?.frames?.length ?? 0) > 6;
           return {
             shouldReplay: hasReplaySignal,
             banner: selectReplayBanner(primary),
