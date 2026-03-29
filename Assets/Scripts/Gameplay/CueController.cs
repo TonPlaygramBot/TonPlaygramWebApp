@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using Aiming.Pockets;
 
 namespace Aiming
 {
@@ -16,9 +15,6 @@ namespace Aiming
         public AdaptiveAimingEngine aiming;
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
-        [Header("AI pocket mapping")]
-        public PocketMouth[] pocketMouths;
-        public Transform[] pocketFallbacks;
         public Rigidbody cueBallBody;
         public Bounds tableBounds;
         public float ballRadius = 0.028575f;
@@ -55,27 +51,12 @@ namespace Aiming
         float _power;
         float _latchedShotPower;
         ShotState _shotState = ShotState.Idle;
-        Renderer[] _cueRenderers;
-        bool _cueHiddenUntilBallsStop;
 
         void Update()
         {
             if (aiming == null || cueBall == null || objectBall == null || pocket == null)
             {
                 return;
-            }
-
-            if (_cueHiddenUntilBallsStop)
-            {
-                if (!AreBallsMoving())
-                {
-                    SetCueVisualVisible(true);
-                    _cueHiddenUntilBallsStop = false;
-                }
-                else
-                {
-                    return;
-                }
             }
 
             if (_shotState == ShotState.Striking)
@@ -178,10 +159,6 @@ namespace Aiming
                     bool canAdjustAim = _shotState != ShotState.Dragging || allowAimAdjustWhileCharging;
                     if (canAdjustAim)
                     {
-                        float aimPower = Mathf.Max(_power, sol.recommendedPower01);
-                        float deflectionComp = aiming != null && aiming.config != null ? aiming.config.powerDeflectionCompensation : 1f;
-                        float deflection = strikePhysics.ComputeDeflectionDegrees(spinInput.x, aimPower) * deflectionComp;
-                        desiredDirection = Quaternion.AngleAxis(-deflection, Vector3.up) * desiredDirection;
                         _targetDirection = desiredDirection;
                     }
                 }
@@ -222,12 +199,11 @@ namespace Aiming
 
         ShotSolution BuildAimSolution()
         {
-            Vector3 pocketTarget = ResolveBestPocketTarget();
             ShotContext ctx = new ShotContext
             {
                 cueBallPos = cueBall.position,
                 objectBallPos = objectBall.position,
-                pocketPos = pocketTarget,
+                pocketPos = pocket.position,
                 ballRadius = ballRadius,
                 tableBounds = tableBounds,
                 requiresPower = false,
@@ -235,86 +211,6 @@ namespace Aiming
                 collisionMask = aiming.config ? aiming.config.collisionMask : default
             };
             return aiming.GetAimSolution(ctx);
-        }
-
-        Vector3 ResolveBestPocketTarget()
-        {
-            if (objectBall == null)
-            {
-                return pocket != null ? pocket.position : Vector3.zero;
-            }
-
-            float bestScore = float.NegativeInfinity;
-            Vector3 bestTarget = pocket != null ? pocket.position : objectBall.position;
-            bool hasCandidate = false;
-
-            if (pocketMouths != null)
-            {
-                for (int i = 0; i < pocketMouths.Length; i++)
-                {
-                    PocketMouth mouth = pocketMouths[i];
-                    if (mouth == null || !mouth.IsConfigured)
-                    {
-                        continue;
-                    }
-
-                    Vector3 mouthCenter = mouth.MouthCenterWorld;
-                    Vector3 pocketCenter = mouth.PocketCenterWorld;
-                    float bias = aiming != null && aiming.config != null ? aiming.config.pocketEntranceBias : 1f;
-                    Vector3 target = Vector3.Lerp(pocketCenter, mouthCenter, Mathf.Clamp01(bias));
-                    float score = ScorePocketTarget(target);
-                    if (score > bestScore)
-                    {
-                        hasCandidate = true;
-                        bestScore = score;
-                        bestTarget = target;
-                    }
-                }
-            }
-
-            if (!hasCandidate && pocketFallbacks != null)
-            {
-                for (int i = 0; i < pocketFallbacks.Length; i++)
-                {
-                    Transform candidate = pocketFallbacks[i];
-                    if (candidate == null)
-                    {
-                        continue;
-                    }
-
-                    float score = ScorePocketTarget(candidate.position);
-                    if (score > bestScore)
-                    {
-                        hasCandidate = true;
-                        bestScore = score;
-                        bestTarget = candidate.position;
-                    }
-                }
-            }
-
-            return bestTarget;
-        }
-
-        float ScorePocketTarget(Vector3 target)
-        {
-            Vector3 objToPocket = target - objectBall.position;
-            if (objToPocket.sqrMagnitude < 1e-6f)
-            {
-                return float.NegativeInfinity;
-            }
-
-            Vector3 objToCue = cueBall.position - objectBall.position;
-            Vector3 toPocketDir = objToPocket.normalized;
-            Vector3 toCueDir = objToCue.sqrMagnitude > 1e-6f ? objToCue.normalized : -toPocketDir;
-
-            float approach = Mathf.Clamp01((-Vector3.Dot(toPocketDir, toCueDir) + 1f) * 0.5f);
-            float openness = PhysicsUtil.SphereLineClear(objectBall.position, target, ballRadius * 0.98f,
-                aiming != null && aiming.config != null ? aiming.config.collisionMask : default) ? 1f : 0f;
-
-            float straightWeight = aiming != null && aiming.config != null ? aiming.config.straightShotPriority : 1.15f;
-            float clearWeight = aiming != null && aiming.config != null ? aiming.config.clearEntrancePriority : 1.25f;
-            float distancePenalty = objToPocket.magnitude * 0.15f;
-            return (approach * straightWeight) + (openness * clearWeight) - distancePenalty;
         }
 
         bool AreBallsMoving()
@@ -325,7 +221,6 @@ namespace Aiming
         IEnumerator StrikeRoutine(float shotPower)
         {
             _shotState = ShotState.Striking;
-            SetCueVisualVisible(true);
 
             Vector3 strikeDirection = _aimDirection;
             float pull = pullRange * EaseOutCubic(shotPower);
@@ -362,8 +257,6 @@ namespace Aiming
                 {
                     didStrike = true;
                     ApplyStrikeImpulse(strikeDirection, shotPower);
-                    SetCueVisualVisible(false);
-                    _cueHiddenUntilBallsStop = true;
                 }
 
                 yield return null;
@@ -372,8 +265,6 @@ namespace Aiming
             if (!didStrike)
             {
                 ApplyStrikeImpulse(strikeDirection, shotPower);
-                SetCueVisualVisible(false);
-                _cueHiddenUntilBallsStop = true;
             }
 
             _currentCueDepth = contactDepth;
@@ -403,28 +294,6 @@ namespace Aiming
             t = Mathf.Clamp01(t);
             float inv = 1f - t;
             return 1f - (inv * inv * inv);
-        }
-
-        void Awake()
-        {
-            _cueRenderers = GetComponentsInChildren<Renderer>(true);
-            SetCueVisualVisible(true);
-        }
-
-        void SetCueVisualVisible(bool visible)
-        {
-            if (_cueRenderers == null)
-            {
-                return;
-            }
-
-            for (int i = 0; i < _cueRenderers.Length; i++)
-            {
-                if (_cueRenderers[i] != null)
-                {
-                    _cueRenderers[i].enabled = visible;
-                }
-            }
         }
     }
 }
