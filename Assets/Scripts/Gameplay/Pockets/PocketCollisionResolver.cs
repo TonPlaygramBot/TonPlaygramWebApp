@@ -28,16 +28,16 @@ namespace Aiming.Pockets
             bool any = false;
             any |= ResolveJaw(ball, mouth, mouth.LeftJaw);
             any |= ResolveJaw(ball, mouth, mouth.RightJaw);
-            any |= ResolveTip(ball, mouth, mouth.LeftJaw.StartTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
-            any |= ResolveTip(ball, mouth, mouth.LeftJaw.EndTip, mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
-            any |= ResolveTip(ball, mouth, mouth.RightJaw.StartTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
-            any |= ResolveTip(ball, mouth, mouth.RightJaw.EndTip, mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.GetEffectiveStartTip(mouth.LeftJaw), mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.GetEffectiveEndTip(mouth.LeftJaw), mouth.LeftJaw.JawRestitution, mouth.LeftJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.GetEffectiveStartTip(mouth.RightJaw), mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
+            any |= ResolveTip(ball, mouth, mouth.GetEffectiveEndTip(mouth.RightJaw), mouth.RightJaw.JawRestitution, mouth.RightJaw.JawFriction);
             return any;
         }
 
         private bool ResolveJaw(IPoolBallBody ball, PocketMouth mouth, PocketJawDefinition jaw)
         {
-            FiniteJawSegment segment = jaw.Segment;
+            FiniteJawSegment segment = mouth.GetEffectiveJawSegment(jaw);
             if (!PocketGeometry.TryCircleVsCapsule(
                     ball.Position2,
                     ball.Radius,

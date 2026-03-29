@@ -22,8 +22,9 @@ namespace Aiming
             var vOP = (ctx.pocketPos - ctx.objectBallPos).normalized;
             var vOC = (ctx.cueBallPos - ctx.objectBallPos).normalized;
             float dot = Mathf.Clamp(Vector3.Dot(vOP, vOC), -1f, 1f);
-            float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
-            bool isStraight = angle <= cfg.straightAngleDeg;
+            float objectCutAngle = Mathf.Acos(dot) * Mathf.Rad2Deg;
+            float approachError = Mathf.Abs(180f - objectCutAngle);
+            bool isStraight = approachError <= cfg.straightAngleDeg;
 
             float d = Vector3.Distance(ctx.cueBallPos, ctx.objectBallPos);
             DistBucket bucket =
@@ -38,7 +39,7 @@ namespace Aiming
 
             return new ShotInfo
             {
-                angleDeg = angle,
+                angleDeg = approachError,
                 isStraight = isStraight,
                 isRailShot = rail,
                 losCueToObj = losCO,

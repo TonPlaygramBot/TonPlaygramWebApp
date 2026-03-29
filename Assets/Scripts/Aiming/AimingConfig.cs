@@ -19,6 +19,18 @@ namespace Aiming
         public float tipOffsetMax = 0.85f;
         public float elevationForPower = 4f;
 
+        [Header("AI pocketing")]
+        [Tooltip("How much to bias the object-ball target from pocket center toward the visible mouth opening.")]
+        [Range(0f, 1f)] public float pocketEntranceBias = 1f;
+        [Tooltip("Extra score weight for straighter object→pocket lines.")]
+        [Range(0f, 2f)] public float straightShotPriority = 1.15f;
+        [Tooltip("Extra score weight for open pocket entrance visibility.")]
+        [Range(0f, 2f)] public float clearEntrancePriority = 1.25f;
+
+        [Header("AI deflection compensation")]
+        [Tooltip("How strongly AI compensates cue-ball squirt/deflection at higher power.")]
+        [Range(0f, 2f)] public float powerDeflectionCompensation = 1f;
+
         [Header("Debug")]
         public bool showDebugDefault = true;
         public Color lineColor = new Color(0.1f, 0.9f, 0.9f, 0.9f);
