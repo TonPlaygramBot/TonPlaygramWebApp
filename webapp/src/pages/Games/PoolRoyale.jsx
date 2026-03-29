@@ -2249,9 +2249,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  // Keep a small but visible daylight between touching balls so rack visuals
-  // never look overlapped on portrait/mobile views.
-  const contactGap = ballRadius * 0.014;
+  const contactGap = ballRadius * 0.0022;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
   const minCenterDistance = ballRadius * 2 + contactGap;
@@ -5968,10 +5966,10 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.92; // allow fuller top-spin contact so follow-through matches real-table behavior
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.74; // convert topspin into forward roll earlier so straight top spin does not feel stunned
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.72; // keep natural roll-through longer before topspin fully settles
-const TOPSPIN_ROLL_SPEED_FACTOR = 1.14; // allow top spin to carry cue-ball speed forward instead of stalling into a stun look
+const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.58; // convert topspin into forward roll earlier so straight top spin does not feel stunned
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.52; // keep natural roll-through longer before topspin fully settles
+const TOPSPIN_ROLL_SPEED_FACTOR = 1.08; // allow top spin to carry cue-ball speed forward instead of stalling into a stun look
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -12667,7 +12665,14 @@ function PoolRoyaleGame({
     );
   });
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-  const [skipAllReplays, setSkipAllReplays] = useState(false);
+  const [skipAllReplays, setSkipAllReplays] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
