@@ -2166,6 +2166,10 @@ export default function SnakeAndLadder() {
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 1);
+        if (playersRef.current[idx]?.id === myAccountId) {
+          // Keep roll CTA visible for immediate extra turns.
+          setRollCooldown(0);
+        }
       }
     };
     const onStarted = () => {
@@ -2738,6 +2742,10 @@ export default function SnakeAndLadder() {
           const next = extraTurn ? currentTurn : getPreviousTurn(currentTurn);
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
+          if (extraTurn && next === 0) {
+            // Do not delay the local extra roll button after a six/bonus.
+            setRollCooldown(0);
+          }
         }
       };
 
