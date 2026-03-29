@@ -325,28 +325,6 @@ const polyHavenTextureSet = (assetId) => {
   };
 };
 
-const CHESS_BATTLE_ROYAL_GTLF_BASE =
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF';
-const chessPieceTextureSet = ({ baseColor, orm, normal }) => ({
-  mapUrl: `${CHESS_BATTLE_ROYAL_GTLF_BASE}/${baseColor}`,
-  roughnessMapUrl: `${CHESS_BATTLE_ROYAL_GTLF_BASE}/${orm}`,
-  normalMapUrl: `${CHESS_BATTLE_ROYAL_GTLF_BASE}/${normal}`
-});
-const CHESS_PIECE_FINISH_TEXTURES = Object.freeze([
-  Object.freeze({ id: 'chessKingWhite', label: 'Chess King White', baseColor: 'king_white_base_color.jpg', orm: 'King_white_ORM.jpg', normal: 'King_white_normal.jpg' }),
-  Object.freeze({ id: 'chessKingBlack', label: 'Chess King Black', baseColor: 'king_black_base_color.jpg', orm: 'King_black_ORM.jpg', normal: 'King_black_normal.jpg' }),
-  Object.freeze({ id: 'chessQueenWhite', label: 'Chess Queen White', baseColor: 'queen_white_base_color.jpg', orm: 'Queen_white_ORM.jpg', normal: 'Queen_white_normal.jpg' }),
-  Object.freeze({ id: 'chessQueenBlack', label: 'Chess Queen Black', baseColor: 'queen_black_base_color.jpg', orm: 'Queen_black_ORM.jpg', normal: 'Queen_black_normal.jpg' }),
-  Object.freeze({ id: 'chessBishopWhite', label: 'Chess Bishop White', baseColor: 'bishop_white_base_color.jpg', orm: 'Bishop_white_ORM.jpg', normal: 'bishop_white_normal.jpg' }),
-  Object.freeze({ id: 'chessBishopBlack', label: 'Chess Bishop Black', baseColor: 'bishop_black_base_color.jpg', orm: 'Bishop_black_ORM.jpg', normal: 'bishop_black_normal.jpg' }),
-  Object.freeze({ id: 'chessKnightWhite', label: 'Chess Knight White', baseColor: 'knight_white_base_color.jpg', orm: 'Knight_ORM.jpg', normal: 'Knight_normal.jpg' }),
-  Object.freeze({ id: 'chessKnightBlack', label: 'Chess Knight Black', baseColor: 'knight_black_base_color.jpg', orm: 'Knight_ORM.jpg', normal: 'Knight_normal.jpg' }),
-  Object.freeze({ id: 'chessCastleWhite', label: 'Chess Castle White', baseColor: 'castle_white_base_color.jpg', orm: 'Castle_ORM.jpg', normal: 'Castle_normal.jpg' }),
-  Object.freeze({ id: 'chessCastleBlack', label: 'Chess Castle Black', baseColor: 'castle_black_base_color.jpg', orm: 'Castle_ORM.jpg', normal: 'Castle_normal.jpg' }),
-  Object.freeze({ id: 'chessPawnWhite', label: 'Chess Pawn White', baseColor: 'pawn_white_base_color.jpg', orm: 'Pawn_ORM.jpg', normal: 'Pawn_normal.jpg' }),
-  Object.freeze({ id: 'chessPawnBlack', label: 'Chess Pawn Black', baseColor: 'pawn_black_base_color.jpg', orm: 'Pawn_ORM.jpg', normal: 'Pawn_normal.jpg' })
-]);
-
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'acg_walnut_quarter',
@@ -496,26 +474,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       textureSize: 2048,
       ...polyHavenTextureSet('japanese_sycamore')
     }
-  }),
-  ...CHESS_PIECE_FINISH_TEXTURES.map((entry) =>
-    Object.freeze({
-      id: entry.id,
-      label: entry.label,
-      source: 'Chess Battle Royal — ABeautifulGame glTF piece textures',
-      rail: {
-        repeat: { x: 1, y: 1 },
-        rotation: 0,
-        textureSize: 2048,
-        ...chessPieceTextureSet(entry)
-      },
-      frame: {
-        repeat: { x: 1, y: 1 },
-        rotation: 0,
-        textureSize: 2048,
-        ...chessPieceTextureSet(entry)
-      }
-    })
-  )
+  })
 ]);
 
 export const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0].id;
