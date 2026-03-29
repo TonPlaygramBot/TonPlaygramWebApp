@@ -59,7 +59,8 @@ const STOOL_SCALE = 1.5 * 1.3;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const CHAIR_BASE_HEIGHT =
+  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.14 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
@@ -89,7 +90,62 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = 8.8;
+const CHECKERS_ROOM_HALF_SPAN = 11.8;
+const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
+  'checkersBattleRoyalGraphicsProfile';
+const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
+const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
+  {
+    id: 'hz60_fhd',
+    label: '60Hz · Full HD',
+    renderScale: 1,
+    maxFps: 60,
+    fpsHint: '50–60 FPS',
+    preferredResolutions: ['1k'],
+    fallbackResolution: '1k',
+    hdriGroundResolution: 256,
+    hdriRadiusMultiplier: 7.5,
+    description:
+      'Balanced visuals: Full HD target with stable 50–60 FPS at 60Hz.'
+  },
+  {
+    id: 'hz90_2k',
+    label: '90Hz · 2K',
+    renderScale: 1.35,
+    maxFps: 90,
+    fpsHint: '60–90 FPS',
+    preferredResolutions: ['2k', '1k'],
+    fallbackResolution: '2k',
+    hdriGroundResolution: 320,
+    hdriRadiusMultiplier: 8.5,
+    description: 'Sharper arena textures with smooth 60–90 FPS on 90Hz.'
+  },
+  {
+    id: 'hz120_4k',
+    label: '120Hz · 4K',
+    renderScale: 1.85,
+    maxFps: 120,
+    fpsHint: '105–120 FPS',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    hdriGroundResolution: 448,
+    hdriRadiusMultiplier: 9.5,
+    description: 'Ultra quality mode targeting 4K detail and 105–120 FPS.'
+  },
+  {
+    id: 'hz144_6k',
+    label: '144Hz · 6K (auto 4K fallback)',
+    renderScale: 2,
+    maxFps: 144,
+    fpsHint: '120–144 FPS',
+    preferredResolutions: ['6k', '4k', '2k'],
+    fallbackResolution: '4k',
+    hdriGroundResolution: 512,
+    hdriRadiusMultiplier: 10.5,
+    description:
+      'Maximum mode: tries 6K when supported and falls back to 4K automatically.'
+  }
+]);
 const DRACO_DECODER_PATH =
   'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -207,7 +263,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.9173749900311232,
   1.7001562547683715
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_MIN_Y = -1.0370624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const TAP_MAX_DISTANCE_PX = 16;
@@ -1080,6 +1136,44 @@ async function resolveHdriUrl(variant) {
   }
 }
 
+function supportsSixKhdr(renderer) {
+  const maxTextureSize = renderer?.capabilities?.maxTextureSize ?? 0;
+  return Number.isFinite(maxTextureSize) && maxTextureSize >= 6144;
+}
+
+function resolveGraphicsHdriVariant(baseVariant, profile, renderer) {
+  const fallbackProfile =
+    CHECKERS_GRAPHICS_PROFILES.find(
+      (item) => item.id === CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID
+    ) || CHECKERS_GRAPHICS_PROFILES[0];
+  const activeProfile = profile || fallbackProfile;
+  const supports6k = supportsSixKhdr(renderer);
+  const preferred = Array.isArray(activeProfile.preferredResolutions)
+    ? activeProfile.preferredResolutions
+    : [];
+  const safePreferred = preferred.filter((res) => supports6k || res !== '6k');
+  const preferredResolutions = safePreferred.length
+    ? safePreferred
+    : ['4k', '2k'];
+  const fallbackResolution =
+    !supports6k && activeProfile.fallbackResolution === '6k'
+      ? '4k'
+      : activeProfile.fallbackResolution || preferredResolutions[0] || '4k';
+  return {
+    ...(baseVariant || {}),
+    preferredResolutions,
+    fallbackResolution,
+    groundResolution:
+      activeProfile.hdriGroundResolution ??
+      baseVariant?.groundResolution ??
+      DEFAULT_HDRI_GROUNDED_RESOLUTION,
+    groundRadiusMultiplier:
+      activeProfile.hdriRadiusMultiplier ??
+      baseVariant?.groundRadiusMultiplier ??
+      DEFAULT_HDRI_RADIUS_MULTIPLIER
+  };
+}
+
 async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
   if (!renderer) return null;
   const url = await resolveHdriUrl(variant);
@@ -1174,6 +1268,16 @@ export default function CheckersBattleRoyal() {
   const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
+  const [graphicsProfileId, setGraphicsProfileId] = useState(() => {
+    if (typeof window === 'undefined') return CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID;
+    const saved = window.localStorage.getItem(
+      CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY
+    );
+    return (
+      CHECKERS_GRAPHICS_PROFILES.find((profile) => profile.id === saved)?.id ||
+      CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID
+    );
+  });
   const [showGift, setShowGift] = useState(false);
   const [canReplay, setCanReplay] = useState(false);
   const [gameOver, setGameOver] = useState(null);
@@ -1356,6 +1460,25 @@ export default function CheckersBattleRoyal() {
       thickness: 0.44
     };
   }, [inv?.headStyle]);
+  const graphicsProfile = useMemo(
+    () =>
+      CHECKERS_GRAPHICS_PROFILES.find(
+        (profile) => profile.id === graphicsProfileId
+      ) ||
+      CHECKERS_GRAPHICS_PROFILES.find(
+        (profile) => profile.id === CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID
+      ) ||
+      CHECKERS_GRAPHICS_PROFILES[0],
+    [graphicsProfileId]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY,
+      graphicsProfileId
+    );
+  }, [graphicsProfileId]);
 
 
   useEffect(() => {
@@ -1597,7 +1720,12 @@ export default function CheckersBattleRoyal() {
       powerPreference: 'high-performance'
     });
     rendererRef.current = renderer;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const applyRendererQualityProfile = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const renderScale = Math.max(0.8, graphicsProfile?.renderScale || 1);
+      renderer.setPixelRatio(Math.min(dpr * renderScale, 2.5));
+    };
+    applyRendererQualityProfile();
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     applyRendererSRGB(renderer);
@@ -2070,6 +2198,7 @@ export default function CheckersBattleRoyal() {
 
     const onResize = () => {
       if (!mount) return;
+      applyRendererQualityProfile();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
@@ -2084,8 +2213,13 @@ export default function CheckersBattleRoyal() {
     window.addEventListener('resize', onResize);
 
     let raf = 0;
-    const loop = () => {
+    let previousFrameAt = performance.now();
+    const loop = (now = performance.now()) => {
       raf = requestAnimationFrame(loop);
+      const maxFps = Math.max(30, graphicsProfile?.maxFps || 60);
+      const minFrameMs = 1000 / maxFps;
+      if (now - previousFrameAt < minFrameMs) return;
+      previousFrameAt = now;
       controls.update();
       renderer.render(scene, camera);
     };
@@ -2114,7 +2248,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, []);
+  }, [graphicsProfile]);
 
   useEffect(() => {
     const isOnlineGame = mode === 'online';
@@ -2398,7 +2532,11 @@ export default function CheckersBattleRoyal() {
 
     const applyHdri = async () => {
       try {
-        const variant = resolveHdriVariant(appearance.hdriId);
+        const variant = resolveGraphicsHdriVariant(
+          resolveHdriVariant(appearance.hdriId),
+          graphicsProfile,
+          rendererRef.current
+        );
         const envResult = await loadPolyHavenHdriEnvironment(
           rendererRef.current,
           variant
@@ -2458,7 +2596,7 @@ export default function CheckersBattleRoyal() {
     };
 
     void applyHdri();
-  }, [appearance]);
+  }, [appearance, graphicsProfile]);
 
   useEffect(() => {
     const camera = cameraRef.current;
@@ -2700,6 +2838,30 @@ export default function CheckersBattleRoyal() {
                       className={optionButton(appearance.hdriId === opt.id)}
                     >
                       {opt.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
+                  Graphics & FPS
+                </div>
+                <div className="mb-3 grid gap-2">
+                  {CHECKERS_GRAPHICS_PROFILES.map((profile) => (
+                    <button
+                      key={profile.id}
+                      onClick={() => setGraphicsProfileId(profile.id)}
+                      className={`rounded-xl border px-2 py-2 text-left text-[11px] ${
+                        graphicsProfileId === profile.id
+                          ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100'
+                          : 'border-white/15 bg-white/5 text-white/70'
+                      }`}
+                    >
+                      <div className="font-semibold">{profile.label}</div>
+                      <div className="mt-0.5 text-[10px] text-white/65">
+                        {profile.description}
+                      </div>
+                      <div className="mt-1 text-[10px] text-white/55">
+                        Target: {profile.fpsHint}
+                      </div>
                     </button>
                   ))}
                 </div>
