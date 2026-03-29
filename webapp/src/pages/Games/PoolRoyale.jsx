@@ -1113,7 +1113,7 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
-const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -2249,7 +2249,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = ballRadius * 0.0022;
+  const contactGap = ballRadius * 0.018;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
   const minCenterDistance = ballRadius * 2 + contactGap;
@@ -5967,9 +5967,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.58; // convert topspin into forward roll earlier so straight top spin does not feel stunned
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.52; // keep natural roll-through longer before topspin fully settles
-const TOPSPIN_ROLL_SPEED_FACTOR = 1.08; // allow top spin to carry cue-ball speed forward instead of stalling into a stun look
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.72; // stronger follow transfer so topspin produces a clearer forward roll after contact
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.38; // decay topspin a bit slower so cue-ball keeps moving forward like real follow-through
+const TOPSPIN_ROLL_SPEED_FACTOR = 1.2; // raise natural roll target speed so top spin carries the cue-ball farther before settling
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -28420,7 +28420,9 @@ const powerRef = useRef(hud.power);
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           const hadMeaningfulContact = Boolean(shotContext?.contactMade);
+          const hasReplayFrames = (recording?.frames?.length ?? 0) > 1;
           const hasReplaySignal =
+            hasReplayFrames ||
             hadObjectPot ||
             tags.size > 0 ||
             hadMeaningfulContact ||
