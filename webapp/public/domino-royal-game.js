@@ -7692,108 +7692,18 @@ const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
 const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
 const winnerCoinBurst = document.getElementById('winnerCoinBurst');
 const leaderboardToggleButton = document.getElementById('leaderboardToggle');
-let leaderboardExpanded = false;
-const leaderboardCard = document.createElement('div');
-leaderboardCard.id = 'dominoLeaderboardCard';
-leaderboardCard.setAttribute('aria-live', 'polite');
-leaderboardCard.innerHTML =
-  '<div class="leaderboard-title">Leaderboard</div><div class="leaderboard-rows"></div>';
-document.body.appendChild(leaderboardCard);
+const leaderboardCard = null;
 
 function updateLeaderboardVisibility() {
-  if (!leaderboardCard) return;
-  const hideForViewport = isLandscapeViewport();
-  const allowLeaderboard = !hideForViewport;
-  if (leaderboardToggleButton) {
-    leaderboardToggleButton.style.display = !hideForViewport ? 'grid' : 'none';
-    leaderboardToggleButton.classList.toggle('is-active', allowLeaderboard && leaderboardExpanded);
-    leaderboardToggleButton.setAttribute(
-      'aria-pressed',
-      allowLeaderboard && leaderboardExpanded ? 'true' : 'false'
-    );
-  }
-  leaderboardCard.style.display = allowLeaderboard && leaderboardExpanded ? '' : 'none';
-}
-if (leaderboardToggleButton) {
-  leaderboardToggleButton.addEventListener('click', () => {
-    if (isLandscapeViewport()) return;
-    leaderboardExpanded = !leaderboardExpanded;
-    updateLeaderboardVisibility();
-  });
+  if (!leaderboardToggleButton) return;
+  leaderboardToggleButton.style.display = 'none';
+  leaderboardToggleButton.setAttribute('aria-hidden', 'true');
 }
 updateLeaderboardVisibility();
 
-function computePipTotal(hand = []) {
-  return hand.reduce(
-    (sum, tile) => sum + Number(tile?.a || 0) + Number(tile?.b || 0),
-    0
-  );
-}
 
 function updateLeaderboardCard() {
-  if (!leaderboardCard) return;
-  if (!isPointsRace && leaderboardExpanded) leaderboardExpanded = false;
-  updateLeaderboardVisibility();
-  const titleEl = leaderboardCard.querySelector('.leaderboard-title');
-  const rowsHost = leaderboardCard.querySelector('.leaderboard-rows');
-  if (!rowsHost) return;
-  if (titleEl) {
-    titleEl.textContent = isPointsRace
-      ? `Leaderboard • Race to ${raceTargetPoints}`
-      : 'Leaderboard • Single Game';
-  }
-  leaderboardCard.classList.toggle('is-points-race', Boolean(isPointsRace));
-  leaderboardCard.classList.toggle('is-single-game', !isPointsRace);
-  const names = getSeatUsernames(N);
-  const avatars = buildSeatAvatarSources(N);
-  const rows = players
-    .map((player, idx) => ({
-      idx,
-      name: names[idx] || `Player ${idx + 1}`,
-      avatar: avatars[idx] || DEFAULT_AVATAR_EMOJI,
-      piecesLeft: player?.hand?.length ?? 0,
-      pointsLeft: computePipTotal(player?.hand || []),
-      raceTotal: Number.isFinite(racePenaltyTotals[idx]) ? racePenaltyTotals[idx] : 0,
-      disqualified: Boolean(raceDisqualifiedPlayers[idx])
-    }))
-    .sort((a, b) => {
-      if (isPointsRace) {
-        if (gameFinished && Number.isInteger(lastHandWinnerIndex)) {
-          if (a.idx === lastHandWinnerIndex && b.idx !== lastHandWinnerIndex) return -1;
-          if (b.idx === lastHandWinnerIndex && a.idx !== lastHandWinnerIndex) return 1;
-        }
-        if (a.disqualified !== b.disqualified) {
-          return a.disqualified ? 1 : -1;
-        }
-        return a.raceTotal - b.raceTotal || a.pointsLeft - b.pointsLeft || a.piecesLeft - b.piecesLeft;
-      }
-      return a.piecesLeft - b.piecesLeft || a.pointsLeft - b.pointsLeft;
-    });
-  rowsHost.innerHTML = rows
-    .map((entry, rank) => {
-      const avatarClass = isAvatarUrl(entry.avatar)
-        ? 'leaderboard-avatar has-photo'
-        : 'leaderboard-avatar';
-      const avatarStyle = isAvatarUrl(entry.avatar)
-        ? ` style="background-image:url('${entry.avatar}')"`
-        : '';
-      const scoreColumn = isPointsRace
-        ? `<span class="leaderboard-stat">${entry.raceTotal} pts${entry.disqualified ? ' • DQ' : ''}</span>`
-        : '';
-      const avatarLabel = isAvatarUrl(entry.avatar)
-        ? ''
-        : entry.avatar || DEFAULT_AVATAR_EMOJI;
-      return (
-        `<div class="leaderboard-row ${entry.idx === human ? 'is-human' : ''}">` +
-        `<span class="leaderboard-rank">${rank + 1}</span>` +
-        `<span class="${avatarClass}"${avatarStyle}${entry.idx === human ? ' data-self-player="true"' : ''}>${avatarLabel}</span>` +
-        `<span class="leaderboard-name">${entry.name}</span>` +
-        `${scoreColumn}` +
-        `<span class="leaderboard-stat">${entry.piecesLeft} left</span>` +
-        '</div>'
-      );
-    })
-    .join('');
+  return;
 }
 
 function hideWinnerOverlay() {
