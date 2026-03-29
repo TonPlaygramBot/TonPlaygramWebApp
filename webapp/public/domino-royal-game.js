@@ -18,46 +18,46 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 0.82,
-    pixelRatioCap: 1.15,
-    resolution: 'HD adaptive render • DPR 1.15 cap',
-    description: 'Low-power 50 Hz preset tuned for stability on mobile GPUs.'
+    renderScale: 1,
+    pixelRatioCap: 1,
+    resolution: 'Full HD floor render • DPR 1.0 cap',
+    description: '50 Hz fallback with Full HD-quality domino textures.'
   },
   {
     id: 'fhd60',
-    label: 'Full HD Balanced (60 Hz)',
+    label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 0.92,
-    pixelRatioCap: 1.25,
-    resolution: 'Full HD balanced render • DPR 1.25 cap',
-    description: 'Baseline profile matched to Ludo Battle Royal rendering.'
+    renderScale: 1,
+    pixelRatioCap: 1,
+    resolution: 'Full HD render • DPR 1.0 cap',
+    description: 'Full HD baseline profile for 60 Hz devices.'
   },
   {
     id: 'qhd90',
-    label: 'QHD Smooth (90 Hz)',
+    label: '2K (90 Hz)',
     fps: 90,
-    renderScale: 0.98,
-    pixelRatioCap: 1.3,
-    resolution: 'QHD smooth render • DPR 1.3 cap',
-    description: 'Sharper 90 Hz profile for capable devices.'
+    renderScale: 1,
+    pixelRatioCap: 1.5,
+    resolution: '2K render • DPR 1.5 cap',
+    description: '2K profile for 90 Hz displays.'
   },
   {
     id: 'uhd120',
-    label: 'UHD Turbo (120 Hz cap)',
+    label: '4K (120 Hz)',
     fps: 120,
-    renderScale: 1.02,
-    pixelRatioCap: 1.4,
-    resolution: 'UHD turbo render • DPR 1.4 cap',
-    description: 'Highest quality profile for flagship and desktop GPUs.'
+    renderScale: 1,
+    pixelRatioCap: 2,
+    resolution: '4K render • DPR 2.0 cap',
+    description: '4K profile for 120 Hz displays and flagship hardware.'
   },
   {
     id: 'ultra144',
     label: 'Ultra 144 (desktop)',
     fps: 144,
-    renderScale: 1.04,
-    pixelRatioCap: 1.45,
-    resolution: 'Desktop ultra render • DPR 1.45 cap',
-    description: 'Unlocked 144 Hz profile for high-end desktop hardware.'
+    renderScale: 1,
+    pixelRatioCap: 2,
+    resolution: '4K render • DPR 2.0 cap',
+    description: 'Desktop 144 Hz profile with 4K-quality domino rendering.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -99,9 +99,9 @@ const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 4096,
-  fhd60: 4096,
-  qhd90: 4096,
+  hd50: 2048,
+  fhd60: 2048,
+  qhd90: 3072,
   uhd120: 4096,
   ultra144: 4096
 });
@@ -115,8 +115,16 @@ function getAdaptiveTextureSize(baseSize = 2048) {
 }
 
 function getAdaptiveDominoTextureSize(baseSize = 4096) {
+  const selectedProfile = FRAME_RATE_OPTIONS_BY_ID[frameRateId];
+  const selectedFps =
+    Number.isFinite(selectedProfile?.fps) && selectedProfile.fps > 0
+      ? selectedProfile.fps
+      : 60;
+  const mappedByFps =
+    selectedFps >= 120 ? 4096 : selectedFps >= 90 ? 3072 : 2048;
   const mappedSize =
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
+    mappedByFps ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
   return Math.max(768, Math.min(4096, mappedSize));
@@ -125,14 +133,14 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'hd50':
-      return 0.85;
+      return 1;
     case 'fhd60':
       return 1;
     case 'qhd90':
-      return 1.15;
+      return 1.5;
     case 'uhd120':
     case 'ultra144':
-      return 1.25;
+      return 2;
     default:
       return 1;
   }
@@ -303,7 +311,7 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
@@ -311,7 +319,7 @@ function detectPreferredFrameRateId() {
       (deviceMemory !== null && deviceMemory <= 4) ||
       hardwareConcurrency <= 4
     ) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (
       highRefresh &&
@@ -331,11 +339,11 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'ultra144';
+    return highRefresh ? 'uhd120' : 'fhd60';
   }
 
   if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return highRefresh ? 'qhd90' : 'fhd60';
   }
 
   return 'fhd60';
