@@ -5888,7 +5888,7 @@ const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
 let humanSeatBadgeAnchor = null;
-const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 84;
+const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 106;
 const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
@@ -7703,9 +7703,9 @@ document.body.appendChild(leaderboardCard);
 function updateLeaderboardVisibility() {
   if (!leaderboardCard) return;
   const hideForViewport = isLandscapeViewport();
-  const allowLeaderboard = !hideForViewport;
+  const allowLeaderboard = isPointsRace && !hideForViewport;
   if (leaderboardToggleButton) {
-    leaderboardToggleButton.style.display = !hideForViewport ? 'grid' : 'none';
+    leaderboardToggleButton.style.display = isPointsRace && !hideForViewport ? 'grid' : 'none';
     leaderboardToggleButton.classList.toggle('is-active', allowLeaderboard && leaderboardExpanded);
     leaderboardToggleButton.setAttribute(
       'aria-pressed',
@@ -7716,7 +7716,7 @@ function updateLeaderboardVisibility() {
 }
 if (leaderboardToggleButton) {
   leaderboardToggleButton.addEventListener('click', () => {
-    if (isLandscapeViewport()) return;
+    if (!isPointsRace || isLandscapeViewport()) return;
     leaderboardExpanded = !leaderboardExpanded;
     updateLeaderboardVisibility();
   });
@@ -9460,6 +9460,12 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
         second.x - first.x,
         second.y - first.y
       );
+      if (
+        Number.isFinite(pinchZoomState.distance) &&
+        pinchZoomState.mode === VIEW_MODES.threeD
+      ) {
+        applyThreeDZoomFromPinch(currentDistance - pinchZoomState.distance);
+      }
       pinchZoomState.distance = currentDistance;
       pinchZoomState.mode = VIEW_MODES.threeD;
     } else {
