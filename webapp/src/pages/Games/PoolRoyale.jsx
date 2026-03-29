@@ -800,10 +800,10 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // keep the corner wooden rounded cut almost matched to the jaw outside radius with a tiny inward trim
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep corner wooden rounded cuts centered on the jaw arc so only radius controls the trim
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.008; // keep middle rail rounded cuts just a bit tighter while still matching the chrome arc
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
@@ -1364,7 +1364,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 1.08;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
+const BALL_CENTER_LIFT = 0; // keep ball bottoms exactly tangent with the cloth surface for precise rolling contact
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -2249,8 +2249,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const rackGap = Math.max(ballRadius * 0.0025, 0.00008);
+  const columnSpacing = ballRadius * 2 + rackGap;
+  const rowSpacing = Math.sqrt(3) * ballRadius + rackGap;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2984,6 +2985,114 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  chessMarble: createStandardWoodFinish({
+    id: 'chessMarble',
+    label: 'Chess Marble',
+    rail: 0xd5dde8,
+    base: 0xb8c2cf,
+    trim: 0xf3f6fb,
+    woodTextureId: 'wood_table_001',
+    woodRepeatScale: 1
+  }),
+  chessDarkForest: createStandardWoodFinish({
+    id: 'chessDarkForest',
+    label: 'Chess Dark Forest',
+    rail: 0x234031,
+    base: 0x182a22,
+    trim: 0x3a614f,
+    woodTextureId: 'dark_wood',
+    woodRepeatScale: 1
+  }),
+  chessAmberGlow: createStandardWoodFinish({
+    id: 'chessAmberGlow',
+    label: 'Chess Amber Glow',
+    rail: 0xc68a2f,
+    base: 0x9b6522,
+    trim: 0xf1c46a,
+    woodTextureId: 'oak_veneer_01',
+    woodRepeatScale: 1
+  }),
+  chessMintVale: createStandardWoodFinish({
+    id: 'chessMintVale',
+    label: 'Chess Mint Vale',
+    rail: 0x4ea58b,
+    base: 0x2c7c68,
+    trim: 0x9de0cb,
+    woodTextureId: 'wood_peeling_paint_weathered',
+    woodRepeatScale: 1
+  }),
+  chessRoyalWave: createStandardWoodFinish({
+    id: 'chessRoyalWave',
+    label: 'Chess Royal Wave',
+    rail: 0x2d61be,
+    base: 0x1d468f,
+    trim: 0x74abf2,
+    woodTextureId: 'wood_table_001',
+    woodRepeatScale: 1
+  }),
+  chessRoseMist: createStandardWoodFinish({
+    id: 'chessRoseMist',
+    label: 'Chess Rose Mist',
+    rail: 0xbd7f98,
+    base: 0x965f76,
+    trim: 0xe7b4c7,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
+  }),
+  chessAmethyst: createStandardWoodFinish({
+    id: 'chessAmethyst',
+    label: 'Chess Amethyst',
+    rail: 0x7b57b2,
+    base: 0x5d3f8b,
+    trim: 0xb89be3,
+    woodTextureId: 'dark_wood',
+    woodRepeatScale: 1
+  }),
+  chessCinderBlaze: createStandardWoodFinish({
+    id: 'chessCinderBlaze',
+    label: 'Chess Cinder Blaze',
+    rail: 0xaa4a2d,
+    base: 0x7d341f,
+    trim: 0xdd865e,
+    woodTextureId: 'wood_peeling_paint_weathered',
+    woodRepeatScale: 1
+  }),
+  chessArcticDrift: createStandardWoodFinish({
+    id: 'chessArcticDrift',
+    label: 'Chess Arctic Drift',
+    rail: 0x9fb6ce,
+    base: 0x6d8aa8,
+    trim: 0xd8e7f7,
+    woodTextureId: 'oak_veneer_01',
+    woodRepeatScale: 1
+  }),
+  chessObsidianGold: createStandardWoodFinish({
+    id: 'chessObsidianGold',
+    label: 'Chess Obsidian Gold',
+    rail: 0x262328,
+    base: 0x17151a,
+    trim: 0xc3a05a,
+    woodTextureId: 'dark_wood',
+    woodRepeatScale: 1
+  }),
+  chessCoralBloom: createStandardWoodFinish({
+    id: 'chessCoralBloom',
+    label: 'Chess Coral Bloom',
+    rail: 0xca6d66,
+    base: 0xa65251,
+    trim: 0xf2aaa2,
+    woodTextureId: 'wood_peeling_paint_weathered',
+    woodRepeatScale: 1
+  }),
+  chessNeonPulse: createStandardWoodFinish({
+    id: 'chessNeonPulse',
+    label: 'Chess Neon Pulse',
+    rail: 0x1b253f,
+    base: 0x0f172d,
+    trim: 0x39d0f4,
+    woodTextureId: 'wood_table_001',
+    woodRepeatScale: 1
   })
 });
 
@@ -2993,7 +3102,19 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.chessMarble,
+    TABLE_FINISHES.chessDarkForest,
+    TABLE_FINISHES.chessAmberGlow,
+    TABLE_FINISHES.chessMintVale,
+    TABLE_FINISHES.chessRoyalWave,
+    TABLE_FINISHES.chessRoseMist,
+    TABLE_FINISHES.chessAmethyst,
+    TABLE_FINISHES.chessCinderBlaze,
+    TABLE_FINISHES.chessArcticDrift,
+    TABLE_FINISHES.chessObsidianGold,
+    TABLE_FINISHES.chessCoralBloom,
+    TABLE_FINISHES.chessNeonPulse
   ].filter(Boolean)
 );
 
@@ -21312,6 +21433,22 @@ const powerRef = useRef(hud.power);
           const resolvedTarget = targetSnapshot;
           const resolvedFov = fovSnapshot;
           const resolvedMinTargetY = minTargetY;
+          const enforceRailOverheadReplay = isTopDownView && !isRailOverheadView;
+          if (enforceRailOverheadReplay) {
+            const railReplayCamera = resolveReplayTopViewCamera({
+              focusOverride: resolvedTarget,
+              minTargetY: resolvedMinTargetY
+            });
+            if (railReplayCamera?.position && railReplayCamera?.target) {
+              return {
+                position: railReplayCamera.position.clone(),
+                target: railReplayCamera.target.clone(),
+                fov: Number.isFinite(railReplayCamera.fov) ? railReplayCamera.fov : resolvedFov,
+                key: 'broadcast-rail-overhead',
+                minTargetY: resolvedMinTargetY
+              };
+            }
+          }
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
