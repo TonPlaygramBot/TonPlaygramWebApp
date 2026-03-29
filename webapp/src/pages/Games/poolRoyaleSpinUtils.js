@@ -2,7 +2,6 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const MAX_SPIN_OFFSET = 0.75;
 export const SPIN_STUN_RADIUS = 0.12;
-export const SPIN_CENTER_DEFAULT_TOPSPIN = 0.08;
 export const SPIN_RING1_RADIUS = 0.33;
 export const SPIN_RING2_RADIUS = 0.66;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
@@ -200,11 +199,7 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     x: clamp(spin?.x ?? 0, -1, 1),
     y: clamp(spin?.y ?? 0, -1, 1)
   };
-  const inputMagnitude = Math.hypot(adjusted.x, adjusted.y);
-  let quantized = normalizeSpinInput(adjusted);
-  if (inputMagnitude <= SPIN_STUN_RADIUS + 1e-6) {
-    quantized = { x: 0, y: SPIN_CENTER_DEFAULT_TOPSPIN };
-  }
+  const quantized = normalizeSpinInput(adjusted);
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
     -quantized.x,
