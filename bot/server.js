@@ -2446,12 +2446,20 @@ io.on('connection', (socket) => {
       io.to(tableId).emit('diceRolled', {
         accountId,
         dice,
-        newPosition: player.position
+        newPosition: player.position,
+        extraTurn: dice === 6
       });
       const idx = table.players.findIndex((p) => p.id === accountId);
       const nextIndex = (idx + 1) % table.players.length;
-      table.currentTurn = table.players[nextIndex].id;
-      io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
+      const keepTurn = dice === 6;
+      table.currentTurn = keepTurn ? accountId : table.players[nextIndex].id;
+      io.to(tableId).emit('turnUpdate', {
+        currentTurn: table.currentTurn,
+        extraTurn: keepTurn
+      });
+      if (keepTurn) {
+        io.to(tableId).emit('extraTurnGranted', { accountId });
+      }
       return;
     }
 
