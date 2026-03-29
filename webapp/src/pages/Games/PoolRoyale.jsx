@@ -6267,7 +6267,7 @@ const pocketEntranceCenters = () =>
       return center.clone();
     }
     towardField.normalize();
-    const entranceOffset = mouthRadius * 0.6;
+    const entranceOffset = mouthRadius * (index >= 4 ? 0.66 : 0.7);
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
 const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
@@ -6294,10 +6294,10 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
   const sideShift =
     mouthHalfWidth *
-    (pocketIndex >= 4 ? 0.44 : 0.36) *
+    (pocketIndex >= 4 ? 0.26 : 0.22) *
     lateralBias *
-    (0.7 + 0.3 * Math.max(0, inwardAlignment));
-  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
+    (0.62 + 0.38 * Math.max(0, inwardAlignment));
+  const depthShift = baseRadius * 0.24 * Math.max(0, inwardAlignment);
   return entranceBase
     .clone()
     .addScaledVector(lateral, sideShift)
@@ -8819,7 +8819,7 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // keep cushions closer to center to avoid overlap with rails
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.045; // pull short-rail cushions inward so they clear the wood rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.24; // trim side cushions near corner pockets just a bit so the nose stop matches the short-rail/middle-pocket jaw distance
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners

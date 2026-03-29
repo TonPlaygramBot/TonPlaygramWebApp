@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 const MIN_VECTOR_EPS = 1e-6;
 const DEFAULT_CONTACT_CALIBRATION = 0.004;
-const DEFAULT_SIDE_DEFLECTION_SCALE = 0.018;
-const DEFAULT_POWER_DEFLECTION_SCALE = 0.01;
+const DEFAULT_SIDE_DEFLECTION_SCALE = 0.026;
+const DEFAULT_POWER_DEFLECTION_SCALE = 0.014;
 
 export const resolveAiPotGhostAim = ({
   cuePos,
@@ -38,16 +38,17 @@ export const resolveAiPotGhostAim = ({
   cueToTargetDir.normalize();
   const cutAlignment = THREE.MathUtils.clamp(cueToTargetDir.dot(toPocketDir), -1, 1);
   const cutSeverity = Math.sqrt(Math.max(0, 1 - cutAlignment * cutAlignment));
+  const powerCurve = Math.pow(power01, 1.28);
   const sideDeflection =
     sideSpin *
-    power01 *
+    (0.34 + powerCurve * 0.66) *
     DEFAULT_SIDE_DEFLECTION_SCALE *
-    (0.45 + cutSeverity * 0.55);
+    (0.36 + cutSeverity * 0.64);
   const powerDeflection =
     topBackSpin *
-    power01 *
+    (0.28 + powerCurve * 0.72) *
     DEFAULT_POWER_DEFLECTION_SCALE *
-    (0.65 + 0.35 * (1 - cutSeverity));
+    (0.42 + 0.58 * (1 - cutSeverity));
   const lateralUnit = new THREE.Vector2(-toPocketDir.y, toPocketDir.x);
 
   const ghost = new THREE.Vector2()
