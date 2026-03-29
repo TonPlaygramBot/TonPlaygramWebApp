@@ -800,10 +800,10 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner rounded cut radius identical to the outside of the corner jaws
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the corner wood rounded cut centered so it matches the corner jaw outside arc exactly
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.008; // keep middle rail rounded cuts just a bit tighter while still matching the chrome arc
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
@@ -1364,8 +1364,8 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1.12;
-const BALL_SHADOW_OPACITY = 0.34;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.003; // keep ball bottoms almost exactly tangent to the cloth surface while avoiding z-fighting
+const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1463,41 +1463,9 @@ const BALL_SHADOW_GEOMETRY = ENABLE_BALL_FLOOR_SHADOWS
   ? new THREE.CircleGeometry(BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER, 32)
   : null;
 if (BALL_SHADOW_GEOMETRY) BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
-const BALL_SHADOW_TEXTURE = ENABLE_BALL_FLOOR_SHADOWS
-  ? (() => {
-      if (typeof document === 'undefined') return null;
-      const size = 256;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-      const gradient = ctx.createRadialGradient(
-        size / 2,
-        size / 2,
-        size * 0.06,
-        size / 2,
-        size / 2,
-        size / 2
-      );
-      gradient.addColorStop(0, 'rgba(0,0,0,1)');
-      gradient.addColorStop(0.34, 'rgba(0,0,0,0.84)');
-      gradient.addColorStop(0.72, 'rgba(0,0,0,0.26)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.clearRect(0, 0, size, size);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, size, size);
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = THREE.ClampToEdgeWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.needsUpdate = true;
-      return texture;
-    })()
-  : null;
 const BALL_SHADOW_MATERIAL = ENABLE_BALL_FLOOR_SHADOWS
   ? new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      map: BALL_SHADOW_TEXTURE,
+      color: 0x000000,
       transparent: true,
       opacity: BALL_SHADOW_OPACITY,
       depthWrite: false,
@@ -2281,9 +2249,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const tangentEpsilon = Math.max(ballRadius * 0.006, 1e-4);
-  const columnSpacing = ballRadius * 2 + tangentEpsilon;
-  const rowSpacing = Math.sqrt(3) * ballRadius + tangentEpsilon;
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -3017,15 +2984,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  obsidianBlack: createStandardWoodFinish({
-    id: 'obsidianBlack',
-    label: 'Obsidian Black',
-    rail: 0x1f1f1f,
-    base: 0x161616,
-    trim: 0x3a3a3a,
-    woodTextureId: 'dark_wood',
-    woodRepeatScale: 1
   })
 });
 
@@ -3035,8 +2993,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.obsidianBlack
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -5490,6 +5447,36 @@ const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
 const REPLAY_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
+const BROADCAST_TOP_VIEW_PHI = 0;
+const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
+const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
+const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_SNOOKER_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
+const BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
+const BROADCAST_SNOOKER_TOP_VIEW_PHI = 0;
+const BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
+const BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI = BROADCAST_SNOOKER_TOP_VIEW_PHI;
+const BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
+const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
+  pool: Object.freeze({
+    margin: BROADCAST_TOP_VIEW_MARGIN,
+    minRadiusScale: BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE,
+    radiusScale: BROADCAST_TOP_VIEW_RADIUS_SCALE,
+    phi: BROADCAST_TOP_VIEW_RESOLVED_PHI,
+    screenOffset: RAIL_OVERHEAD_SCREEN_OFFSET
+  }),
+  snooker2d: Object.freeze({
+    margin: BROADCAST_SNOOKER_TOP_VIEW_MARGIN,
+    minRadiusScale: BROADCAST_SNOOKER_TOP_VIEW_MIN_RADIUS_SCALE,
+    radiusScale: BROADCAST_SNOOKER_TOP_VIEW_RADIUS_SCALE,
+    phi: BROADCAST_SNOOKER_TOP_VIEW_RESOLVED_PHI,
+    screenOffset: BROADCAST_SNOOKER_TOP_VIEW_SCREEN_OFFSET
+  })
+});
+const resolveBroadcastTopViewVariant = (variant) =>
+  BROADCAST_TOP_VIEW_VARIANTS[variant] ?? BROADCAST_TOP_VIEW_VARIANTS.pool;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -19545,6 +19532,42 @@ const powerRef = useRef(hud.power);
           });
         };
 
+        const resolveBroadcastTopViewCamera = ({
+          focusOverride = null,
+          minTargetY = null
+        } = {}) => {
+          const systemVariant =
+            broadcastSystemRef.current?.topViewVariant ??
+            activeBroadcastSystem?.topViewVariant ??
+            'pool';
+          const topViewConfig = resolveBroadcastTopViewVariant(systemVariant);
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const focusTarget =
+            focusOverride?.clone?.() ??
+            TMP_VEC3_TOP_VIEW
+              .set(
+                playerOffsetRef.current + topViewConfig.screenOffset.x,
+                ORBIT_FOCUS_BASE_Y,
+                topViewConfig.screenOffset.z
+              )
+              .multiplyScalar(scale);
+          if (focusTarget && Number.isFinite(minTargetY)) {
+            focusTarget.y = Math.max(focusTarget.y ?? minTargetY, minTargetY);
+          }
+          const topRadiusBase =
+            fitRadius(camera, topViewConfig.margin) * topViewConfig.radiusScale;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * topViewConfig.minRadiusScale)
+          );
+          const spherical = new THREE.Spherical(
+            topRadius,
+            topViewConfig.phi,
+            Math.PI
+          );
+          const position = new THREE.Vector3().setFromSpherical(spherical).add(focusTarget);
+          return { position, target: focusTarget, fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const resolveRailOverheadReplayCamera = ({
           focusOverride = null,
           minTargetY = null,
@@ -22167,7 +22190,7 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const broadcastReplayCamera = resolveRailOverheadReplayCamera({
+          const broadcastReplayCamera = resolveBroadcastTopViewCamera({
             focusOverride: storedTarget,
             minTargetY
           });
@@ -25197,24 +25220,13 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(null);
         }
         const shotStartTime = performance.now();
-        const frameStateCurrent = frameRef.current ?? null;
-        const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        if (!isBreakShot) {
-          alignStandingCameraToAim(cue, aimDirRef.current);
-        }
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        const preservePlayerBreakCamera = isBreakShot && !forcedCueView;
-        applyCameraBlend(
-          preservePlayerBreakCamera
-            ? cameraBlendRef.current
-            : forcedCueView
-              ? forcedCueBlend
-              : 1
-        );
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -25335,6 +25347,8 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
+          const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -25437,6 +25451,7 @@ const powerRef = useRef(hud.power);
               )
             : null;
           const earlyPocketView =
+            !isBreakShot &&
             !suppressPocketCameras &&
             shotPrediction.ballId &&
             followView
