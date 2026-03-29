@@ -1500,8 +1500,8 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.004; // tighten contact tolerance so racked balls touch without visible overlap
-const BALL_COLLISION_SLOP = BALL_R * 0.0005; // reduce overlap allowance so ball mapping stays precise at the rack
+const BALL_CONTACT_EPS = BALL_R * 0.0025; // tighten contact tolerance so racked balls touch without visible overlap
+const BALL_COLLISION_SLOP = BALL_R * 0.0001; // minimize overlap allowance so rack spacing matches visual ball size
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
@@ -1935,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.42; // push short-rail cushions slightly outward away from table center
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -2249,10 +2249,10 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = ballRadius * 1e-4;
+  const contactGap = ballRadius * 0.015;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
-  const minCenterDistance = ballRadius * 2;
+  const minCenterDistance = ballRadius * 2 + contactGap;
   const rackCushionClearance = ballRadius * 0.08;
   const rackLimitX = Math.max(0, RAIL_LIMIT_X - ballRadius - rackCushionClearance);
   const rackLimitZ = Math.max(0, RAIL_LIMIT_Y - ballRadius - rackCushionClearance);
@@ -5660,14 +5660,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.6; // match Snooker Royal replay cue timing
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // match Snooker Royal replay timeline start
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // match Snooker Royal release timing
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
-const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
+const REPLAY_CUE_MIN_PULLBACK_MS = 0; // match Snooker Royal replay cue interpolation
+const REPLAY_CUE_MIN_RELEASE_MS = 0; // match Snooker Royal replay cue interpolation
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
