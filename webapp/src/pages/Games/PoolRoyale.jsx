@@ -5914,8 +5914,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.38; // transfer a portion of top spin into forward roll each physics step for natural follow-through fade
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.54; // accelerate only top-spin decay once forward roll is established so follow naturally settles
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.31; // transfer topspin to forward roll more progressively for a realistic, less abrupt follow phase
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -6269,6 +6270,39 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
+const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
+  const centers = pocketCenters();
+  const pocketCenter = centers[pocketIndex];
+  if (!pocketCenter) return null;
+  const inward = pocketCenter.clone().multiplyScalar(-1);
+  if (inward.lengthSq() < MICRO_EPS * MICRO_EPS) {
+    return pocketCenter.clone();
+  }
+  inward.normalize();
+  const lateral = new THREE.Vector2(-inward.y, inward.x);
+  const targetVec = targetPos?.clone?.()?.sub?.(pocketCenter) ?? null;
+  const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+  const mouthHalfWidth = (pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH) * 0.5;
+  const entranceBase = pocketCenter
+    .clone()
+    .add(inward.clone().multiplyScalar(baseRadius * 0.62));
+  if (!targetVec || targetVec.lengthSq() < 1e-6) {
+    return entranceBase;
+  }
+  targetVec.normalize();
+  const lateralBias = THREE.MathUtils.clamp(targetVec.dot(lateral), -1, 1);
+  const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
+  const sideShift =
+    mouthHalfWidth *
+    (pocketIndex >= 4 ? 0.44 : 0.36) *
+    lateralBias *
+    (0.7 + 0.3 * Math.max(0, inwardAlignment));
+  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
+  return entranceBase
+    .clone()
+    .addScaledVector(lateral, sideShift)
+    .addScaledVector(inward, depthShift);
+};
 const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
@@ -6979,18 +7013,23 @@ function applySpinController(ball, stepScale, airborne = false) {
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * 0.78);
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
         const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
         const transfer =
           Math.min(
             forwardSpin,
-            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.35 + settling * 0.65)
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
           );
-        ball.spin.y = Math.max(0, forwardSpin - transfer);
+        let remainingSpin = Math.max(0, forwardSpin - transfer);
+        // As the cue ball reaches natural rolling speed, any extra topspin
+        // should quickly collapse instead of continuously forcing acceleration.
+        if (speed >= naturalRollSpeed * 0.98) {
+          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
+        }
         const assistedDecay = Math.exp(
-          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.3 + 0.7 * settling)
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
         );
-        ball.spin.y *= assistedDecay;
+        ball.spin.y = remainingSpin * assistedDecay;
       }
     }
   }
@@ -21845,6 +21884,7 @@ const powerRef = useRef(hud.power);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const safeRecoverDuration = Math.max(90, recoverDuration ?? 0);
             const impactThreshold = THREE.MathUtils.clamp(
               strikeImpactThreshold ?? 0.9,
               0,
@@ -21904,6 +21944,27 @@ const powerRef = useRef(hud.power);
               stroke.onImpact?.();
             }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
+            const recoverStart = safeStrikeDuration + safeHoldDuration;
+            const recoverEnd = recoverStart + safeRecoverDuration;
+            if (elapsed <= recoverEnd) {
+              const t = THREE.MathUtils.clamp(
+                (elapsed - recoverStart) / Math.max(safeRecoverDuration, 1e-6),
+                0,
+                1
+              );
+              const eased = easeInOutCubic(t);
+              cueStick.visible = true;
+              cueStick.position.lerpVectors(
+                followPos ?? impactPos ?? pullPos,
+                idlePos ?? impactPos ?? pullPos,
+                eased
+              );
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -22231,9 +22292,9 @@ const powerRef = useRef(hud.power);
           const replayCueStroke = trimmed.cueStroke ?? null;
           const replayCueHideFrom = replayCueStroke
             ? Math.max(
-                120,
+                0,
                 (replayCueStroke.pullback ?? replayCueStroke.pullbackDuration ?? 0) +
-                  (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0) * 0.72
+                  (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0)
               )
             : 180;
           replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
@@ -26280,19 +26341,31 @@ const powerRef = useRef(hud.power);
             const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
-              const pocketCenter = centers[i];
+              const mappedEntrance =
+                resolvePocketEntranceForTarget(targetBall.pos, i) ?? centers[i];
+              const pocketCenter = mappedEntrance.clone();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               const toPocketLenSq = toPocket.lengthSq();
               if (toPocketLenSq < ballDiameter * ballDiameter * 0.25) continue;
               const toPocketLen = Math.sqrt(toPocketLenSq);
               const toPocketDir = toPocket.clone().divideScalar(toPocketLen);
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
+              let mouthObstructions = 0;
+              const mouthProbeRadius = BALL_R * 2.2;
+              activeBalls.forEach((other) => {
+                if (!other?.active || ignore.has(other.id)) return;
+                const distSq = other.pos.distanceToSquared(pocketCenter);
+                if (distSq <= mouthProbeRadius * mouthProbeRadius) {
+                  mouthObstructions += 1;
+                }
+              });
               const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
               const idealEntryDir = pocketCenter.clone().normalize().multiplyScalar(-1);
               const entryAlignment = Math.max(
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
               );
+              const mouthClarity = THREE.MathUtils.clamp(1 - mouthObstructions * 0.22, 0.1, 1);
               const entranceFavor = THREE.MathUtils.clamp(
                 entryAlignment * (pocketMouth / POCKET_CORNER_MOUTH),
                 0.2,
@@ -26328,7 +26401,11 @@ const powerRef = useRef(hud.power);
               const totalDist = cueDist + toPocketLen;
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
-                cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax;
+                cueDist +
+                toPocketLen * 1.15 +
+                cutAngle * BALL_R * 40 +
+                cushionTax +
+                (1 - mouthClarity) * BALL_R * 30;
               const plan = {
                 type: 'pot',
                 aimDir,
@@ -26337,9 +26414,10 @@ const powerRef = useRef(hud.power);
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty: baseDifficulty / entranceFavor,
+                difficulty: baseDifficulty / Math.max(entranceFavor * mouthClarity, 0.12),
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
+                pocketMouthClarity: mouthClarity,
                 cushionPoint: cushionAid?.cushionPoint?.clone?.() ?? null,
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
@@ -26367,11 +26445,12 @@ const powerRef = useRef(hud.power);
               const cushionPenalty = cushionAid ? 0.18 : 0;
               const potChance = THREE.MathUtils.clamp(
                 0.45 * entryAlignment +
-                  0.25 * (1 - cutSeverity) +
-                  0.15 * viewScore +
-                  0.1 * openLaneNorm +
-                  0.05 * (1 - travelPenalty) -
-                  cushionPenalty,
+                0.25 * (1 - cutSeverity) +
+                0.15 * viewScore +
+                0.1 * openLaneNorm +
+                0.12 * mouthClarity +
+                0.05 * (1 - travelPenalty) -
+                cushionPenalty,
                 0,
                 1
               );
@@ -26380,7 +26459,8 @@ const powerRef = useRef(hud.power);
                   0.24 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
-                  0.14 * viewScore -
+                  0.14 * viewScore +
+                  0.1 * mouthClarity -
                   cushionPenalty,
                 0,
                 1
@@ -27253,6 +27333,18 @@ const powerRef = useRef(hud.power);
           }
           if (!plan.targetBall) {
             plan.targetBall = pickLegalTargetBall();
+          }
+          if (plan.targetBall?.pos && plan.pocketId && plan.pocketId !== 'SAFETY') {
+            const pocketIndex = POCKET_IDS.indexOf(plan.pocketId);
+            if (pocketIndex >= 0) {
+              const resolvedEntrance = resolvePocketEntranceForTarget(
+                plan.targetBall.pos,
+                pocketIndex
+              );
+              if (resolvedEntrance) {
+                plan.pocketCenter = resolvedEntrance.clone();
+              }
+            }
           }
           if (plan.pocketCenter && plan.targetBall?.pos) {
             const compensatedAim = resolveAiPotGhostAim({
