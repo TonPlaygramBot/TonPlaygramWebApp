@@ -296,7 +296,6 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  obsidianBlack: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
 });
 
@@ -373,7 +372,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
-  tableFinish: ['peelingPaintWeathered', 'obsidianBlack'],
+  tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -395,7 +394,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    obsidianBlack: 'Obsidian Black',
     rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
@@ -474,15 +472,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1010,
     description: 'Deep espresso rails with strong grain contrast.',
     thumbnail: TABLE_FINISH_THUMBNAILS.darkWood
-  },
-  {
-    id: 'finish-obsidianBlack',
-    type: 'tableFinish',
-    optionId: 'obsidianBlack',
-    name: 'Obsidian Black Finish',
-    price: 1015,
-    description: 'Jet black finish using the same wood texture profile as Chess Battle piece materials.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.obsidianBlack
   },
   {
     id: 'finish-rosewoodVeneer01',

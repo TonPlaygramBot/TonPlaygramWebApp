@@ -800,7 +800,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner rounded cut radius equal to the outside jaw radius
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -1364,8 +1364,8 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1.14;
-const BALL_SHADOW_OPACITY = 0.34;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
@@ -1436,7 +1436,7 @@ const CLOTH_LIFT = (() => {
   const eps = ballR * microEpsRatio;
   return Math.max(0, RAIL_HEIGHT - ballR - eps);
 })();
-const ACTION_CAMERA_START_BLEND = 0;
+const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.268; // lower the cloth surface a touch more while keeping the rest of the table profile intact
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = 0; // keep the physical ball bottom precisely on the cloth top surface
+const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1463,31 +1463,9 @@ const BALL_SHADOW_GEOMETRY = ENABLE_BALL_FLOOR_SHADOWS
   ? new THREE.CircleGeometry(BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER, 32)
   : null;
 if (BALL_SHADOW_GEOMETRY) BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
-const createBallShadowTexture = () => {
-  if (typeof document === 'undefined') return null;
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.08, size / 2, size / 2, size * 0.5);
-  g.addColorStop(0, 'rgba(0,0,0,0.62)');
-  g.addColorStop(0.4, 'rgba(0,0,0,0.34)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.needsUpdate = true;
-  return texture;
-};
-const BALL_SHADOW_TEXTURE = createBallShadowTexture();
 const BALL_SHADOW_MATERIAL = ENABLE_BALL_FLOOR_SHADOWS
   ? new THREE.MeshBasicMaterial({
       color: 0x000000,
-      map: BALL_SHADOW_TEXTURE,
       transparent: true,
       opacity: BALL_SHADOW_OPACITY,
       depthWrite: false,
@@ -2271,8 +2249,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2.015;
-  const rowSpacing = ballRadius * Math.sqrt(3.05);
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2998,15 +2976,6 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'dark_wood',
     woodRepeatScale: 1
   }),
-  obsidianBlack: createStandardWoodFinish({
-    id: 'obsidianBlack',
-    label: 'Obsidian Black',
-    rail: 0x171717,
-    base: 0x0e0e0e,
-    trim: 0x2e2e2e,
-    woodTextureId: 'dark_wood',
-    woodRepeatScale: 1
-  }),
   rosewoodVeneer01: createStandardWoodFinish({
     id: 'rosewoodVeneer01',
     label: 'Rosewood Veneer 01',
@@ -3024,7 +2993,6 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.obsidianBlack,
     TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
@@ -5459,9 +5427,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // lift the 2D camera slightly higher so portrait top view reads more elevated
-const TOP_VIEW_PHI = 0; // lock top view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.11; // keep top-view framing a little higher so the camera sits a bit farther up
-const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep top-view framing anchored to portrait proportions across rotations
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.11; // keep 2D framing a little higher so the camera sits a bit farther up
+const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.006, // nudge the 2D table a touch left on portrait screens
@@ -5526,7 +5494,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep overhead rail/broadcast framing identical to top view
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep overhead rail/broadcast framing identical to 2D view
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -22446,7 +22414,7 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false, { variant = 'rail' } = {}) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = 'rail';
+          overheadBroadcastVariantRef.current = variant;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
