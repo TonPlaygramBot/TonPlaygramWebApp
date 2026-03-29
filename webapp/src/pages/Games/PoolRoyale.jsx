@@ -6283,24 +6283,21 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const targetVec = targetPos?.clone?.()?.sub?.(pocketCenter) ?? null;
   const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
   const mouthHalfWidth = (pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH) * 0.5;
-  const visibleMouthDepth = baseRadius * (pocketIndex >= 4 ? 0.68 : 0.64);
   const entranceBase = pocketCenter
     .clone()
-    .add(inward.clone().multiplyScalar(visibleMouthDepth));
+    .add(inward.clone().multiplyScalar(baseRadius * 0.62));
   if (!targetVec || targetVec.lengthSq() < 1e-6) {
     return entranceBase;
   }
   targetVec.normalize();
   const lateralBias = THREE.MathUtils.clamp(targetVec.dot(lateral), -1, 1);
   const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
-  const approach = THREE.MathUtils.clamp((inwardAlignment + 1) * 0.5, 0, 1);
-  const visibleHalfWidth = mouthHalfWidth * (0.6 + approach * 0.4);
   const sideShift =
-    visibleHalfWidth *
-    (pocketIndex >= 4 ? 0.31 : 0.27) *
+    mouthHalfWidth *
+    (pocketIndex >= 4 ? 0.44 : 0.36) *
     lateralBias *
-    (0.55 + 0.45 * approach);
-  const depthShift = baseRadius * 0.24 * approach;
+    (0.7 + 0.3 * Math.max(0, inwardAlignment));
+  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
   return entranceBase
     .clone()
     .addScaledVector(lateral, sideShift)
@@ -7016,34 +7013,21 @@ function applySpinController(ball, stepScale, airborne = false) {
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(BALL_R * 2.35, speed * TOPSPIN_ROLL_SPEED_FACTOR);
-        const settling = THREE.MathUtils.clamp(
-          speed / Math.max(naturalRollSpeed, 1e-6),
-          0,
-          1.15
-        );
-        const spinActive = THREE.MathUtils.clamp(forwardSpin / Math.max(MAX_TOPSPIN_INPUT, 1e-6), 0, 1);
-        const rollPhase = THREE.MathUtils.clamp(1 - settling, 0, 1);
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
+        const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
         const transfer =
           Math.min(
             forwardSpin,
-            rollAccel *
-              TOPSPIN_FOLLOW_TRANSFER_RATE *
-              (0.2 + rollPhase * 0.95) *
-              (0.72 + spinActive * 0.38)
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
           );
         let remainingSpin = Math.max(0, forwardSpin - transfer);
-        // Keep a natural follow phase: topspin drives extra travel while the ball
-        // is still below its roll speed, then settles smoothly once that speed is reached.
-        if (speed >= naturalRollSpeed * 0.96) {
-          remainingSpin *= Math.exp(
-            -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (1.1 + settling * 0.7)
-          );
+        // As the cue ball reaches natural rolling speed, any extra topspin
+        // should quickly collapse instead of continuously forcing acceleration.
+        if (speed >= naturalRollSpeed * 0.98) {
+          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
         }
         const assistedDecay = Math.exp(
-          -TOPSPIN_FOLLOW_DECAY_ASSIST *
-            stepScale *
-            (0.22 + 0.78 * settling + (1 - rollPhase) * 0.24)
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
         );
         ball.spin.y = remainingSpin * assistedDecay;
       }
@@ -8838,7 +8822,7 @@ export function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.17; // trim the side cushions near corner jaws a touch more so they stop evenly with the other rail-to-jaw gaps
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
@@ -26414,7 +26398,6 @@ const powerRef = useRef(hud.power);
                 1
               );
               const cutAngle = Math.acos(Math.abs(cutCos));
-              const straightness = Math.max(0, Math.cos(cutAngle));
               const totalDist = cueDist + toPocketLen;
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
@@ -26435,8 +26418,6 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 pocketMouthClarity: mouthClarity,
-                straightness,
-                entranceFavor,
                 cushionPoint: cushionAid?.cushionPoint?.clone?.() ?? null,
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
@@ -26456,30 +26437,30 @@ const powerRef = useRef(hud.power);
               const viewAngle = Math.atan2(ballDiameter, toPocketLen);
               const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
               const openLaneNorm = THREE.MathUtils.clamp(openLaneScore / 3, 0, 1);
+              const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
               const travelPenalty = Math.min(
                 (cueDist + toPocketLen) / Math.max(PLAY_W, PLAY_H, BALL_R),
                 1
               );
               const cushionPenalty = cushionAid ? 0.18 : 0;
               const potChance = THREE.MathUtils.clamp(
-                0.38 * entryAlignment +
-                0.28 * straightness +
+                0.45 * entryAlignment +
+                0.25 * (1 - cutSeverity) +
                 0.15 * viewScore +
                 0.1 * openLaneNorm +
-                0.15 * mouthClarity +
+                0.12 * mouthClarity +
                 0.05 * (1 - travelPenalty) -
                 cushionPenalty,
                 0,
                 1
               );
               plan.quality = THREE.MathUtils.clamp(
-                0.26 * entryAlignment +
-                  0.31 * straightness +
+                0.32 * entryAlignment +
+                  0.24 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
-                  0.1 * viewScore +
-                  0.15 * mouthClarity +
-                  0.08 * THREE.MathUtils.clamp(entranceFavor / 2.8, 0, 1) -
+                  0.14 * viewScore +
+                  0.1 * mouthClarity -
                   cushionPenalty,
                 0,
                 1
@@ -26693,13 +26674,6 @@ const powerRef = useRef(hud.power);
             const potChance = Number.isFinite(plan.potChance)
               ? plan.potChance
               : quality;
-            const straightness = THREE.MathUtils.clamp(plan.straightness ?? 0, 0, 1);
-            const mouthClarity = THREE.MathUtils.clamp(plan.pocketMouthClarity ?? 0.5, 0, 1);
-            const entranceFavor = THREE.MathUtils.clamp(
-              (plan.entranceFavor ?? 1) / 2.8,
-              0,
-              1
-            );
             const routeEase = Math.max(
               0,
               1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
@@ -26720,12 +26694,9 @@ const powerRef = useRef(hud.power);
             const leaveScore = scoreNextShotPosition(plan);
             const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
             return (
-              quality * 0.28 +
-              potChance * 0.26 +
-              straightness * 0.2 +
-              mouthClarity * 0.12 +
-              entranceFavor * 0.08 +
-              difficultyEase * 0.14 +
+              quality * 0.32 +
+              potChance * 0.28 +
+              difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
               priorityBonus * priorityWeight +
