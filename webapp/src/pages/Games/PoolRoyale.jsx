@@ -800,7 +800,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.966; // keep only the wooden corner rounded cut slightly smaller than the jaw outside radius
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -1364,7 +1364,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 1.08;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
+const BALL_CENTER_LIFT = 0; // keep ball bottoms exactly tangent to the cloth surface for precise rolling contact
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1500,8 +1500,8 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
-const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
+const BALL_CONTACT_EPS = BALL_R * 0.004; // tighten contact tolerance so racked balls touch without visible overlap
+const BALL_COLLISION_SLOP = BALL_R * 0.0005; // reduce overlap allowance so ball mapping stays precise at the rack
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
@@ -2249,8 +2249,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const contactGap = ballRadius * 1e-4;
+  const columnSpacing = ballRadius * 2 + contactGap;
+  const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -19536,6 +19537,14 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
+          const railCamera = resolveRailOverheadReplayCamera({
+            focusOverride,
+            minTargetY,
+            preferredRail: railOverheadSideRef.current
+          });
+          if (railCamera?.position && railCamera?.target) {
+            return railCamera;
+          }
           const systemVariant =
             broadcastSystemRef.current?.topViewVariant ??
             activeBroadcastSystem?.topViewVariant ??
@@ -21297,21 +21306,23 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const activeCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(activeCamera?.fov)
-            ? activeCamera.fov
-            : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const railSnapshot = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY,
+            preferredRail: railOverheadSideRef.current
+          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
               : 'broadcast';
-          const resolvedPosition = activeCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot;
-          const resolvedFov = fovSnapshot;
-          const resolvedMinTargetY = minTargetY;
+          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
+          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(railSnapshot?.fov)
+            ? railSnapshot.fov
+            : camera.fov;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
@@ -21319,8 +21330,8 @@ const powerRef = useRef(hud.power);
             fov: resolvedFov,
             key: cameraMode
           };
-          if (Number.isFinite(resolvedMinTargetY)) {
-            snapshot.minTargetY = resolvedMinTargetY;
+          if (Number.isFinite(minTargetY)) {
+            snapshot.minTargetY = minTargetY;
           }
           return snapshot;
         };
