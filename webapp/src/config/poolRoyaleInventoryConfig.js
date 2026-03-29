@@ -298,6 +298,20 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
 });
+const CHESS_PIECE_TABLE_FINISHES = Object.freeze([
+  { id: 'chessKingWhite', label: 'Chess King White', swatches: ['#ece8e1', '#d8d2c7', '#f8f5ef'] },
+  { id: 'chessKingBlack', label: 'Chess King Black', swatches: ['#131315', '#2d2c2f', '#555156'] },
+  { id: 'chessQueenWhite', label: 'Chess Queen White', swatches: ['#ebe7df', '#d7d1c6', '#f7f4ed'] },
+  { id: 'chessQueenBlack', label: 'Chess Queen Black', swatches: ['#111214', '#2a292c', '#545056'] },
+  { id: 'chessBishopWhite', label: 'Chess Bishop White', swatches: ['#e9e5de', '#d5cec4', '#f5f2ea'] },
+  { id: 'chessBishopBlack', label: 'Chess Bishop Black', swatches: ['#111012', '#29272a', '#534e54'] },
+  { id: 'chessKnightWhite', label: 'Chess Knight White', swatches: ['#ebe6de', '#d6cfc4', '#f7f3ea'] },
+  { id: 'chessKnightBlack', label: 'Chess Knight Black', swatches: ['#121114', '#2a282b', '#544f55'] },
+  { id: 'chessCastleWhite', label: 'Chess Castle White', swatches: ['#ede9e1', '#d8d2c7', '#f8f5ef'] },
+  { id: 'chessCastleBlack', label: 'Chess Castle Black', swatches: ['#131114', '#2c2a2d', '#585258'] },
+  { id: 'chessPawnWhite', label: 'Chess Pawn White', swatches: ['#ece8e0', '#d8d1c6', '#f8f4ec'] },
+  { id: 'chessPawnBlack', label: 'Chess Pawn Black', swatches: ['#131114', '#2d2a2c', '#585257'] }
+]);
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
   'plastic-black': swatchThumbnail(['#0b0d10', '#1f2937', '#4b5563']),
@@ -394,7 +408,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    ...CHESS_PIECE_TABLE_FINISHES.reduce((acc, entry) => {
+      acc[entry.id] = entry.label;
+      return acc;
+    }, {})
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -482,6 +500,16 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
   },
+  ...CHESS_PIECE_TABLE_FINISHES.map((entry, index) => ({
+    id: `finish-${entry.id}`,
+    type: 'tableFinish',
+    optionId: entry.id,
+    name: `${entry.label} Finish`,
+    price: 1030 + index * 10,
+    description:
+      `ABeautifulGame chess-piece texture finish (${entry.label}) reused from Chess Battle Royal.`,
+    thumbnail: swatchThumbnail(entry.swatches)
+  })),
   {
     id: 'chrome-chrome',
     type: 'chromeColor',

@@ -800,10 +800,10 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // keep the wooden corner rounded cut nearly matched to the outer jaw arc with only a slight inward trim
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wooden corner rounded cut centered with the jaw outside arc
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.008; // keep middle rail rounded cuts just a bit tighter while still matching the chrome arc
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
@@ -1231,8 +1231,8 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
   jaws: false,
   pockets: false
 });
-const LOCK_REPLAY_CAMERA = false;
-const FIXED_RAIL_REPLAY_CAMERA = false;
+const LOCK_REPLAY_CAMERA = true;
+const FIXED_RAIL_REPLAY_CAMERA = true;
 const LOCK_RAIL_OVERHEAD_FRAME = false;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
@@ -1364,7 +1364,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 1.06;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
+const BALL_CENTER_LIFT = 0; // keep ball bottoms exactly on the cloth surface plane for precise rolling contact
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -2249,8 +2249,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const rackGap = Math.max(ballRadius * 0.015, 0.0004);
+  const columnSpacing = ballRadius * 2 + rackGap;
+  const rowSpacing = Math.sqrt(3) * (ballRadius + rackGap * 0.5);
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2984,6 +2985,42 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  chessKingWhite: createStandardWoodFinish({
+    id: 'chessKingWhite', label: 'Chess King White', rail: 0xded8cf, base: 0xc9c1b6, trim: 0xf4efe7, woodTextureId: 'chessKingWhite', woodRepeatScale: 1
+  }),
+  chessKingBlack: createStandardWoodFinish({
+    id: 'chessKingBlack', label: 'Chess King Black', rail: 0x2d2b2b, base: 0x1f1d1d, trim: 0x5a5553, woodTextureId: 'chessKingBlack', woodRepeatScale: 1
+  }),
+  chessQueenWhite: createStandardWoodFinish({
+    id: 'chessQueenWhite', label: 'Chess Queen White', rail: 0xe2ddd4, base: 0xc8c1b8, trim: 0xf5efe5, woodTextureId: 'chessQueenWhite', woodRepeatScale: 1
+  }),
+  chessQueenBlack: createStandardWoodFinish({
+    id: 'chessQueenBlack', label: 'Chess Queen Black', rail: 0x2b2a2b, base: 0x1c1b1c, trim: 0x575255, woodTextureId: 'chessQueenBlack', woodRepeatScale: 1
+  }),
+  chessBishopWhite: createStandardWoodFinish({
+    id: 'chessBishopWhite', label: 'Chess Bishop White', rail: 0xe0dbd3, base: 0xc6bfb5, trim: 0xf3eee5, woodTextureId: 'chessBishopWhite', woodRepeatScale: 1
+  }),
+  chessBishopBlack: createStandardWoodFinish({
+    id: 'chessBishopBlack', label: 'Chess Bishop Black', rail: 0x2a2828, base: 0x1b1919, trim: 0x565152, woodTextureId: 'chessBishopBlack', woodRepeatScale: 1
+  }),
+  chessKnightWhite: createStandardWoodFinish({
+    id: 'chessKnightWhite', label: 'Chess Knight White', rail: 0xdfdad2, base: 0xc4bdb3, trim: 0xf3ede3, woodTextureId: 'chessKnightWhite', woodRepeatScale: 1
+  }),
+  chessKnightBlack: createStandardWoodFinish({
+    id: 'chessKnightBlack', label: 'Chess Knight Black', rail: 0x292728, base: 0x1a1819, trim: 0x534f50, woodTextureId: 'chessKnightBlack', woodRepeatScale: 1
+  }),
+  chessCastleWhite: createStandardWoodFinish({
+    id: 'chessCastleWhite', label: 'Chess Castle White', rail: 0xe0ddd6, base: 0xc9c2b8, trim: 0xf6f1e8, woodTextureId: 'chessCastleWhite', woodRepeatScale: 1
+  }),
+  chessCastleBlack: createStandardWoodFinish({
+    id: 'chessCastleBlack', label: 'Chess Castle Black', rail: 0x2e2b2a, base: 0x201d1d, trim: 0x5a5452, woodTextureId: 'chessCastleBlack', woodRepeatScale: 1
+  }),
+  chessPawnWhite: createStandardWoodFinish({
+    id: 'chessPawnWhite', label: 'Chess Pawn White', rail: 0xe3ded5, base: 0xc8c0b5, trim: 0xf5efe4, woodTextureId: 'chessPawnWhite', woodRepeatScale: 1
+  }),
+  chessPawnBlack: createStandardWoodFinish({
+    id: 'chessPawnBlack', label: 'Chess Pawn Black', rail: 0x2f2b2a, base: 0x201c1b, trim: 0x5b5452, woodTextureId: 'chessPawnBlack', woodRepeatScale: 1
   })
 });
 
@@ -2993,7 +3030,19 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.chessKingWhite,
+    TABLE_FINISHES.chessKingBlack,
+    TABLE_FINISHES.chessQueenWhite,
+    TABLE_FINISHES.chessQueenBlack,
+    TABLE_FINISHES.chessBishopWhite,
+    TABLE_FINISHES.chessBishopBlack,
+    TABLE_FINISHES.chessKnightWhite,
+    TABLE_FINISHES.chessKnightBlack,
+    TABLE_FINISHES.chessCastleWhite,
+    TABLE_FINISHES.chessCastleBlack,
+    TABLE_FINISHES.chessPawnWhite,
+    TABLE_FINISHES.chessPawnBlack
   ].filter(Boolean)
 );
 
