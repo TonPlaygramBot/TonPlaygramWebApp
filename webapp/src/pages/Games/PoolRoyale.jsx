@@ -2253,10 +2253,17 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
   const minCenterDistance = ballRadius * 2;
+  const rackCushionClearance = ballRadius * 0.08;
+  const rackLimitX = Math.max(0, RAIL_LIMIT_X - ballRadius - rackCushionClearance);
+  const rackLimitZ = Math.max(0, RAIL_LIMIT_Y - ballRadius - rackCushionClearance);
+  const clampRackPosition = (entry) => ({
+    x: clamp(entry.x, -rackLimitX, rackLimitX),
+    z: clamp(entry.z, -rackLimitZ, rackLimitZ)
+  });
   const deOverlapRackPositions = (input) => {
     if (!Array.isArray(input) || input.length <= 1) return input;
-    const adjusted = input.map((entry) => ({ ...entry }));
-    const settlePasses = Math.max(2, adjusted.length);
+    const adjusted = input.map((entry) => clampRackPosition(entry));
+    const settlePasses = Math.max(4, adjusted.length * 2);
     for (let pass = 0; pass < settlePasses; pass += 1) {
       let shifted = false;
       for (let i = 0; i < adjusted.length; i += 1) {
@@ -2276,6 +2283,20 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
           a.z -= nz * overlap;
           b.x += nx * overlap;
           b.z += nz * overlap;
+          const clampedA = clampRackPosition(a);
+          const clampedB = clampRackPosition(b);
+          a.x = clampedA.x;
+          a.z = clampedA.z;
+          b.x = clampedB.x;
+          b.z = clampedB.z;
+          shifted = true;
+        }
+      }
+      for (let i = 0; i < adjusted.length; i += 1) {
+        const clamped = clampRackPosition(adjusted[i]);
+        if (Math.abs(clamped.x - adjusted[i].x) > 1e-9 || Math.abs(clamped.z - adjusted[i].z) > 1e-9) {
+          adjusted[i].x = clamped.x;
+          adjusted[i].z = clamped.z;
           shifted = true;
         }
       }
@@ -5946,9 +5967,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.42; // convert topspin into forward roll sooner so natural follow builds progressively instead of feeling delayed
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.74; // keep some residual roll-through after impact before spin naturally settles
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.94; // let topspin carry cue-ball speed farther before settling at natural roll
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.58; // convert topspin into forward roll earlier so straight top spin does not feel stunned
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.52; // keep natural roll-through longer before topspin fully settles
+const TOPSPIN_ROLL_SPEED_FACTOR = 1.08; // allow top spin to carry cue-ball speed forward instead of stalling into a stun look
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -28398,7 +28419,12 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hasReplaySignal = hadObjectPot || tags.size > 0;
+          const hadMeaningfulContact = Boolean(shotContext?.contactMade);
+          const hasReplaySignal =
+            hadObjectPot ||
+            tags.size > 0 ||
+            hadMeaningfulContact ||
+            Boolean(recording?.replayFoul);
           return {
             shouldReplay: hasReplaySignal,
             banner: selectReplayBanner(primary),
