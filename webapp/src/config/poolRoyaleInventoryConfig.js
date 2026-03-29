@@ -296,7 +296,8 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
+  chessPieceBlack: swatchThumbnail(['#050505', '#161616', '#3b3b3b'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -394,7 +395,8 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    chessPieceBlack: 'Chess Piece Black'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -481,6 +483,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-chessPieceBlack',
+    type: 'tableFinish',
+    optionId: 'chessPieceBlack',
+    name: 'Chess Piece Black Finish',
+    price: 1060,
+    description: 'Deep black finish using the same GLTF texture profile as Chess Battle Royale pieces.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessPieceBlack
   },
   {
     id: 'chrome-chrome',
