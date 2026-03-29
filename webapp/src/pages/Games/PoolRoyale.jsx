@@ -21306,20 +21306,23 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const activeCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(activeCamera?.fov)
-            ? activeCamera.fov
-            : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const railSnapshot = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY,
+            preferredRail: railOverheadSideRef.current
+          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
               : 'broadcast';
-          const resolvedPosition = activeCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot;
-          const resolvedFov = fovSnapshot;
+          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
+          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(railSnapshot?.fov)
+            ? railSnapshot.fov
+            : camera.fov;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
