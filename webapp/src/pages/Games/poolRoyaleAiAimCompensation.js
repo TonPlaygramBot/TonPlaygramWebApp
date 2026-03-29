@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 const MIN_VECTOR_EPS = 1e-6;
-const DEFAULT_CONTACT_CALIBRATION = 0.0015;
-const DEFAULT_SIDE_DEFLECTION_SCALE = 0.0135;
-const DEFAULT_POWER_DEFLECTION_SCALE = 0.015;
+const DEFAULT_CONTACT_CALIBRATION = 0.004;
+const DEFAULT_SIDE_DEFLECTION_SCALE = 0.018;
+const DEFAULT_POWER_DEFLECTION_SCALE = 0.01;
 
 export const resolveAiPotGhostAim = ({
   cuePos,
@@ -31,7 +31,7 @@ export const resolveAiPotGhostAim = ({
     -0.08,
     0.08
   );
-  const contactDepth = radius * 2 * (1 + calibration);
+  const contactDepth = radius * 2 * (1 + calibration + topBackSpin * power01 * 0.015);
 
   const cueToTargetDir = new THREE.Vector2().subVectors(targetPos, cuePos);
   if (cueToTargetDir.lengthSq() <= MIN_VECTOR_EPS) return null;
@@ -47,7 +47,7 @@ export const resolveAiPotGhostAim = ({
     topBackSpin *
     power01 *
     DEFAULT_POWER_DEFLECTION_SCALE *
-    (0.3 + 0.7 * cutSeverity);
+    (0.65 + 0.35 * (1 - cutSeverity));
   const lateralUnit = new THREE.Vector2(-toPocketDir.y, toPocketDir.x);
 
   const ghost = new THREE.Vector2()

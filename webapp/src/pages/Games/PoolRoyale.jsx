@@ -5914,9 +5914,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.42; // convert topspin into forward roll sooner so natural follow builds progressively instead of feeling delayed
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.74; // keep some residual roll-through after impact before spin naturally settles
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.94; // let topspin carry cue-ball speed farther before settling at natural roll
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.31; // transfer topspin to forward roll more progressively for a realistic, less abrupt follow phase
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -6285,20 +6285,19 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const mouthHalfWidth = (pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH) * 0.5;
   const entranceBase = pocketCenter
     .clone()
-    .add(inward.clone().multiplyScalar(baseRadius * 0.68));
+    .add(inward.clone().multiplyScalar(baseRadius * 0.62));
   if (!targetVec || targetVec.lengthSq() < 1e-6) {
     return entranceBase;
   }
   targetVec.normalize();
   const lateralBias = THREE.MathUtils.clamp(targetVec.dot(lateral), -1, 1);
   const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
-  const centeredBias = 1 - Math.abs(lateralBias);
   const sideShift =
     mouthHalfWidth *
-    (pocketIndex >= 4 ? 0.26 : 0.22) *
+    (pocketIndex >= 4 ? 0.44 : 0.36) *
     lateralBias *
-    (0.5 + 0.5 * centeredBias);
-  const depthShift = baseRadius * 0.22 * Math.max(0, inwardAlignment);
+    (0.7 + 0.3 * Math.max(0, inwardAlignment));
+  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
   return entranceBase
     .clone()
     .addScaledVector(lateral, sideShift)
@@ -7014,26 +7013,21 @@ function applySpinController(ball, stepScale, airborne = false) {
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(BALL_R * 2.25, speed * TOPSPIN_ROLL_SPEED_FACTOR);
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
         const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
-        const rollGap = THREE.MathUtils.clamp(
-          (naturalRollSpeed - speed) / Math.max(naturalRollSpeed, 1e-6),
-          0,
-          1
-        );
         const transfer =
           Math.min(
             forwardSpin,
-            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.45 + rollGap * 0.55)
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
           );
         let remainingSpin = Math.max(0, forwardSpin - transfer);
-        // Once cue-ball speed reaches natural roll, decay residual topspin faster
-        // so follow looks natural and does not keep "motor-driving" forward.
-        if (speed >= naturalRollSpeed * 0.99) {
-          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.15);
+        // As the cue ball reaches natural rolling speed, any extra topspin
+        // should quickly collapse instead of continuously forcing acceleration.
+        if (speed >= naturalRollSpeed * 0.98) {
+          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
         }
         const assistedDecay = Math.exp(
-          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.22 + 0.78 * settling)
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
         );
         ball.spin.y = remainingSpin * assistedDecay;
       }
@@ -8828,7 +8822,7 @@ export function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.14; // trim side-cushion tips near corner pockets a little more so both sides stop cleaner at the jaws
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
