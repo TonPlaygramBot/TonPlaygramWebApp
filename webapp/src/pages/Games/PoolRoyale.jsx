@@ -1935,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.42; // push short-rail cushions a touch outward from table centre
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -2249,10 +2249,10 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = ballRadius * 1e-4;
+  const contactGap = ballRadius * 0.0022;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
-  const minCenterDistance = ballRadius * 2;
+  const minCenterDistance = ballRadius * 2 + contactGap;
   const rackCushionClearance = ballRadius * 0.08;
   const rackLimitX = Math.max(0, RAIL_LIMIT_X - ballRadius - rackCushionClearance);
   const rackLimitZ = Math.max(0, RAIL_LIMIT_Y - ballRadius - rackCushionClearance);
@@ -5623,8 +5623,8 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_RETURN_WINDOW_MS = 480;
-const REPLAY_CUE_START_HOLD_MS = 110;
+const REPLAY_CUE_RETURN_WINDOW_MS = 260;
+const REPLAY_CUE_START_HOLD_MS = 0;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5660,14 +5660,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // match Snooker Royal replay timing window
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep release cadence identical to Snooker Royal replay stroke
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
-const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
+const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
