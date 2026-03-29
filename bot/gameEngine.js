@@ -298,7 +298,11 @@ export class GameRoom {
       if (!result) return;
 
       const total = result.dice.reduce((a, b) => a + b, 0);
-      this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
+      this.io.to(this.id).emit('diceRolled', {
+        playerId: player.playerId,
+        value: total,
+        extraTurn: result.extraTurn
+      });
       const from = prevPositions[playerIndex];
       const to = result.path.length ? result.path[result.path.length - 1] : from;
 
@@ -337,6 +341,9 @@ export class GameRoom {
         return;
       }
 
+      if (result.extraTurn) {
+        this.io.to(this.id).emit('extraTurnGranted', { playerId: player.playerId });
+      }
       this.currentTurn = this.game.currentTurn;
     } else {
       const result = this.game.rollDice(value);

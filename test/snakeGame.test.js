@@ -73,6 +73,36 @@ test('rolling multiple sixes grants extra turns but preserves order', () => {
   assert.equal(room.players[0].position, 25);
 });
 
+test('extra turn emits explicit event and keeps turn with same player', () => {
+  const io = new DummyIO();
+  const room = new GameRoom('rExtra', io, 2, {
+    snakes: DEFAULT_SNAKES,
+    ladders: DEFAULT_LADDERS,
+  });
+  room.rollCooldown = 0;
+  const s1 = { id: 's1', join: () => {}, emit: () => {} };
+  const s2 = { id: 's2', join: () => {}, emit: () => {} };
+  room.addPlayer('p1', 'Player1', s1);
+  room.addPlayer('p2', 'Player2', s2);
+  room.startGame();
+
+  io.emitted = [];
+  room.rollDice(s1, [6, 6]);
+
+  assert.equal(room.currentTurn, 0, 'player 1 should keep the turn');
+  const diceRolled = io.emitted.find((e) => e.event === 'diceRolled');
+  assert.ok(diceRolled, 'diceRolled should be emitted');
+  assert.equal(diceRolled.data.extraTurn, true, 'diceRolled should flag extra turn');
+  const extraTurn = io.emitted.find(
+    (e) => e.event === 'extraTurnGranted' && e.data.playerId === 'p1'
+  );
+  assert.ok(extraTurn, 'extraTurnGranted should be emitted for the same player');
+  const turnChanged = io.emitted.find(
+    (e) => e.event === 'turnChanged' && e.data.playerId === 'p1'
+  );
+  assert.ok(turnChanged, 'turnChanged should repeat same player for extra turn');
+});
+
 test('room starts when reaching custom capacity', async () => {
   const io = new DummyIO();
   const room = new GameRoom('r2', io, 2, {
@@ -227,4 +257,3 @@ test('dice cells are shared across players', () => {
     room.turnTimer = null;
   }
 });
-
