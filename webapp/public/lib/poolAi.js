@@ -123,20 +123,55 @@ function pocketNormal (pocket, width, height) {
   return { x: dir.x / len, y: dir.y / len }
 }
 
+function classifyPocket (pocket, width, height, radius) {
+  const edgeTol = Math.max(radius * 2.25, Math.min(width, height) * 0.1)
+  const nearLeft = pocket.x <= edgeTol
+  const nearRight = pocket.x >= width - edgeTol
+  const nearTop = pocket.y <= edgeTol
+  const nearBottom = pocket.y >= height - edgeTol
+  if ((nearLeft || nearRight) && (nearTop || nearBottom)) return 'corner'
+  return 'side'
+}
+
+function pocketMouthHalfWidth (pocket, radius, width, height) {
+  const type = classifyPocket(pocket, width, height, radius)
+  return type === 'corner' ? radius * 2.55 : radius * 2.9
+}
+
+function pocketMouthTangent (pocket, width, height, radius) {
+  const type = classifyPocket(pocket, width, height, radius)
+  if (type === 'corner') {
+    const normal = pocketNormal(pocket, width, height)
+    const tangent = { x: -normal.y, y: normal.x }
+    const len = Math.hypot(tangent.x, tangent.y) || 1
+    return { x: tangent.x / len, y: tangent.y / len }
+  }
+  const dx = Math.abs(pocket.x - width / 2)
+  const dy = Math.abs(pocket.y - height / 2)
+  return dx >= dy ? { x: 0, y: 1 } : { x: 1, y: 0 }
+}
+
 function pocketEntry (pocket, radius, width, height, target) {
   const normal = pocketNormal(pocket, width, height)
-  let dir = normal
-
-  if (target) {
-    dir = { x: pocket.x - target.x, y: pocket.y - target.y }
-    const len = Math.hypot(dir.x, dir.y) || 1
-    dir = { x: dir.x / len, y: dir.y / len }
+  const mouthHalf = pocketMouthHalfWidth(pocket, radius, width, height)
+  const tangent = pocketMouthTangent(pocket, width, height, radius)
+  const offset = radius * 1.34
+  const entranceCenter = {
+    x: pocket.x + normal.x * offset,
+    y: pocket.y + normal.y * offset
   }
-
-  const offset = radius * 1.05
+  if (!target) return entranceCenter
+  const approach = {
+    x: entranceCenter.x - target.x,
+    y: entranceCenter.y - target.y
+  }
+  const approachLen = Math.hypot(approach.x, approach.y) || 1
+  const approachNorm = { x: approach.x / approachLen, y: approach.y / approachLen }
+  const lateral = approachNorm.x * tangent.x + approachNorm.y * tangent.y
+  const lateralShift = Math.max(-mouthHalf * 0.82, Math.min(mouthHalf * 0.82, lateral * mouthHalf * 0.5))
   return {
-    x: pocket.x - dir.x * offset,
-    y: pocket.y - dir.y * offset
+    x: entranceCenter.x + tangent.x * lateralShift,
+    y: entranceCenter.y + tangent.y * lateralShift
   }
 }
 
@@ -457,10 +492,10 @@ function clearShotCandidates (req) {
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
       const rank =
-        pocketView * 0.5 +
-        approachStraightness * 0.3 +
-        distanceScore * 0.08 +
-        entranceOpenness * 0.12
+        pocketView * 0.42 +
+        approachStraightness * 0.38 +
+        distanceScore * 0.06 +
+        entranceOpenness * 0.14
 
       // require fairly central hit and open pocket view
       if (cut <= maxCut && pocketView >= minView) {
@@ -636,7 +671,6 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
   }
   return best
 }
-
 
 function buildSpinCandidates (cue, target, pocket, req) {
   const base = [
