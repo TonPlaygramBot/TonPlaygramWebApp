@@ -101,7 +101,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
-const MAX_DICE = 2;
+const MAX_DICE = 1;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
@@ -158,6 +158,7 @@ const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
+const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
@@ -186,6 +187,7 @@ const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
 const TILE_EDGE_INSET = TILE_SIZE * 0.22;
+const GROUND_FLOOR_OUTWARD_SCALE = 1.08;
 const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
@@ -1632,6 +1634,31 @@ function computeDiceCameraFocusState(board, camera) {
   return { position, target };
 }
 
+function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
+  if (!board || !camera) return null;
+  const boardLookTarget = board.boardLookTarget;
+  if (!boardLookTarget) return null;
+  const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
+  if (!toPos) return null;
+  const fromPos = (board.indexToPosition.get(fromIndex) || board.serpentineIndexToXZ(fromIndex))?.clone();
+  const pathDir = fromPos
+    ? toPos.clone().sub(fromPos).setY(0)
+    : toPos.clone().sub(boardLookTarget).setY(0);
+  if (pathDir.lengthSq() < 1e-6) {
+    pathDir.copy(toPos.clone().sub(boardLookTarget).setY(0));
+  }
+  if (pathDir.lengthSq() < 1e-6) return null;
+  pathDir.normalize();
+
+  const behindDirection = pathDir.clone().multiplyScalar(-1);
+  const followDistance = TILE_SIZE * CAMERA_FOLLOW_BACK_TILES;
+  const target = toPos.clone();
+  target.y += TILE_SIZE * 0.18;
+  const position = target.clone().addScaledVector(behindDirection, followDistance);
+  position.y = Math.max(camera.position.y, boardLookTarget.y + CAMERA_EXTRA_LIFT);
+  return { position, target };
+}
+
 function captureCameraState(camera, controls) {
   if (!camera || !controls) return null;
   return {
@@ -2878,6 +2905,10 @@ function buildSnakeBoard(
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
+      if (levelIndex === 0) {
+        tilePosition.x *= GROUND_FLOOR_OUTWARD_SCALE;
+        tilePosition.z *= GROUND_FLOOR_OUTWARD_SCALE;
+      }
       if (idx === TOTAL_BOARD_TILES) {
         tilePosition.y += topTileLift;
       }
@@ -4322,6 +4353,18 @@ export default function SnakeBoard3D({
         removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
         const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
         if (rotateAnimation) animationsRef.current.push(rotateAnimation);
+        const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
+        if (followState) {
+          const followAnimation = createCameraTransitionAnimation(camera, controls, {
+            toPosition: followState.position,
+            toTarget: followState.target,
+            durationIn: 320,
+            hold: 0,
+            durationOut: 0,
+            type: 'cameraTokenFollow'
+          });
+          if (followAnimation) animationsRef.current.push(followAnimation);
+        }
       }
     }
   }, [
@@ -4399,6 +4442,18 @@ export default function SnakeBoard3D({
       if (Number.isFinite(facingRotation)) {
         const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
         if (rotateAnimation) animationsRef.current.push(rotateAnimation);
+      }
+      const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
+      if (followState) {
+        const followAnimation = createCameraTransitionAnimation(camera, controls, {
+          toPosition: followState.position,
+          toTarget: followState.target,
+          durationIn: 320,
+          hold: 0,
+          durationOut: 0,
+          type: 'cameraTokenFollow'
+        });
+        if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
     animationsRef.current.push({
