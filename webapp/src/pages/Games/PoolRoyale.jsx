@@ -2252,37 +2252,6 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   const contactGap = ballRadius * 1e-4;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
-  const minCenterDistance = ballRadius * 2;
-  const deOverlapRackPositions = (input) => {
-    if (!Array.isArray(input) || input.length <= 1) return input;
-    const adjusted = input.map((entry) => ({ ...entry }));
-    const settlePasses = Math.max(2, adjusted.length);
-    for (let pass = 0; pass < settlePasses; pass += 1) {
-      let shifted = false;
-      for (let i = 0; i < adjusted.length; i += 1) {
-        for (let j = i + 1; j < adjusted.length; j += 1) {
-          const a = adjusted[i];
-          const b = adjusted[j];
-          const dx = b.x - a.x;
-          const dz = b.z - a.z;
-          const distSq = dx * dx + dz * dz;
-          const minDistSq = minCenterDistance * minCenterDistance;
-          if (distSq >= minDistSq) continue;
-          const dist = Math.sqrt(Math.max(distSq, 1e-12));
-          const overlap = (minCenterDistance - dist) / 2;
-          const nx = dist > 1e-9 ? dx / dist : 1;
-          const nz = dist > 1e-9 ? dz / dist : 0;
-          a.x -= nx * overlap;
-          a.z -= nz * overlap;
-          b.x += nx * overlap;
-          b.z += nz * overlap;
-          shifted = true;
-        }
-      }
-      if (!shifted) break;
-    }
-    return adjusted;
-  };
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2296,7 +2265,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
         index++;
       }
     }
-    return deOverlapRackPositions(positions);
+    return positions;
   }
   let row = 0;
   let placed = 0;
@@ -2311,7 +2280,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
     }
     row++;
   }
-  return deOverlapRackPositions(positions);
+  return positions;
 }
 
 // Updated colors for dark cloth (ball colors overridden per variant at runtime)
@@ -28388,7 +28357,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28398,9 +28367,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hasReplaySignal = hadObjectPot || tags.size > 0;
           return {
-            shouldReplay: hasReplaySignal,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
@@ -28916,9 +28884,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay) {
+          if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            const replayPostState = postShotSnapshot || captureBallSnapshot();
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
@@ -28926,7 +28893,7 @@ const powerRef = useRef(hud.power);
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
                 if (recordingForReplay) {
-                  startShotReplay(replayPostState);
+                  startShotReplay(postShotSnapshot);
                 } else {
                   shotReplayRef.current = null;
                 }
