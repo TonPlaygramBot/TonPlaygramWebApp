@@ -382,3 +382,57 @@ test('uses hidden helper numbers/colours when ids are missing', () => {
   const decision = planShot(req)
   assert.equal(decision.targetBallId, 3)
 })
+
+test('prioritises clearer pocket entrance when one lane is cluttered', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 260, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 500, y: 250, vx: 0, vy: 0, pocketed: false },
+        // blocker near the top pocket entrance lane
+        { id: 12, x: 500, y: 74, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 500, y: 0 },
+        { x: 500, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [1]
+    },
+    timeBudgetMs: 120,
+    rngSeed: 11
+  });
+
+  assert.equal(decision.targetBallId, 1);
+  assert(decision.targetPocket);
+  assert(decision.targetPocket.y > 300, 'should prefer the clearer bottom-pocket lane');
+});
+
+
+test('eight-pool targets black when only 8 remains and group metadata is missing', () => {
+  const decision = planShot({
+    game: 'EIGHT_POOL_UK',
+    state: {
+      balls: [
+        { id: 0, x: 140, y: 240, vx: 0, vy: 0, pocketed: false },
+        { id: 8, x: 520, y: 240, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    rngSeed: 13,
+    timeBudgetMs: 100
+  });
+
+  assert.equal(decision.targetBallId, 8);
+});
