@@ -673,46 +673,6 @@ function buildSpinCandidates (cue, target, pocket, req) {
   return [adaptive, ...base]
 }
 
-function refineGhostAimPoint (req, cue, target, entry, ghost, balls, options = {}) {
-  const r = req.state.ballRadius
-  const cueBallId = resolveCueBallId(req.state)
-  const baseDist = Math.max(dist(cue, ghost), r * 2)
-  const dir = { x: (ghost.x - cue.x) / baseDist, y: (ghost.y - cue.y) / baseDist }
-  const perp = { x: -dir.y, y: dir.x }
-  const offsets = [0, -0.2, 0.2, -0.35, 0.35, -0.5, 0.5]
-  const mcSamples = Number.isFinite(options.mcSamples)
-    ? Math.max(16, Math.round(options.mcSamples * 0.5))
-    : 20
-  const rng = Number.isFinite(req?.rngSeed) ? createRng(req.rngSeed + 17) : Math.random
-  let bestGhost = ghost
-  let bestScore = -Infinity
-  for (const k of offsets) {
-    const candidate = {
-      x: ghost.x + perp.x * r * k,
-      y: ghost.y + perp.y * r * k
-    }
-    if (
-      candidate.x < r ||
-      candidate.x > req.state.width - r ||
-      candidate.y < r ||
-      candidate.y > req.state.height - r
-    ) {
-      continue
-    }
-    if (pathBlocked(cue, candidate, balls, [cueBallId, target.id], r, 1.1)) {
-      continue
-    }
-    const chance = monteCarloPotChance(req, cue, target, entry, candidate, balls, mcSamples, rng)
-    const lane = clearanceMargin(cue, target, balls, [cueBallId, target.id], r, 1.3)
-    const score = chance * 0.87 + Math.min(1, Math.max(0, lane)) * 0.13
-    if (score > bestScore) {
-      bestScore = score
-      bestGhost = candidate
-    }
-  }
-  return bestGhost
-}
-
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
   const cueBallId = resolveCueBallId(req.state)
@@ -747,21 +707,10 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
-  const previewShotVec = { x: target.x - cue.x, y: target.y - cue.y }
-  const previewPotVec = { x: entry.x - target.x, y: entry.y - target.y }
-  let previewCut = Math.abs(
-    Math.atan2(previewPotVec.y, previewPotVec.x) - Math.atan2(previewShotVec.y, previewShotVec.x)
-  )
-  if (previewCut > Math.PI) previewCut = Math.abs(previewCut - Math.PI * 2)
-  const shouldRefineGhost = previewCut > 0.14
-  const refinedGhost = shouldRefineGhost
-    ? refineGhostAimPoint(req, cue, target, entry, ghost, balls, options)
-    : ghost
-  const shotGhost = refinedGhost || ghost
   const mcSamples = Number.isFinite(options.mcSamples)
     ? Math.max(24, Math.round(options.mcSamples))
     : 20
-  const potChance = monteCarloPotChance(req, cue, target, entry, shotGhost, balls, mcSamples, rng)
+  const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, mcSamples, rng)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const scratchAfterImpact = scratchRiskAlongLine(target, cueAfter, req.state.pockets || [], r)
   if (strict && scratchAfterImpact) {
@@ -831,14 +780,14 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
         difficultyPenalty
     )
   )
-  const angle = Math.atan2(shotGhost.y - cue.y, shotGhost.x - cue.x)
+  const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   return {
     angleRad: angle,
     power,
     spin,
     targetBallId: target.id,
     targetPocket: entry,
-    aimPoint: shotGhost,
+    aimPoint: ghost,
     quality,
     rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,

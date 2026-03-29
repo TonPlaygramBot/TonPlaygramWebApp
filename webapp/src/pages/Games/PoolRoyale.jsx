@@ -1235,6 +1235,7 @@ const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = false;
 const REPLAY_CUE_STICK_HOLD_MS = 760;
+const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1355,7 +1356,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.04; // align physics radius with the rendered sphere silhouette so rack contacts are precise
+const BALL_SIZE_SCALE = 1; // lock ball size to the official 57.15mm reference diameter
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1934,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.43; // push short-rail cushions a touch outward (away from table center) while keeping pocket clearances stable
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -2248,10 +2249,10 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = Math.max(ballRadius * 1e-5, BALL_COLLISION_SLOP);
+  const contactGap = ballRadius * 1e-4;
   const columnSpacing = ballRadius * 2 + contactGap;
   const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
-  const minCenterDistance = ballRadius * 2 + contactGap;
+  const minCenterDistance = ballRadius * 2;
   const rackCushionClearance = ballRadius * 0.08;
   const rackLimitX = Math.max(0, RAIL_LIMIT_X - ballRadius - rackCushionClearance);
   const rackLimitZ = Math.max(0, RAIL_LIMIT_Y - ballRadius - rackCushionClearance);
@@ -21443,7 +21444,10 @@ const powerRef = useRef(hud.power);
           }
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
-          const cameraSnapshot = captureReplayCameraSnapshot();
+          const cameraSnapshot =
+            relative >= REPLAY_CAMERA_START_DELAY_MS
+              ? captureReplayCameraSnapshot()
+              : null;
           const cueSnapshot = cueStick
             ? {
                 position: serializeVector3Snapshot(cueStick.position),
