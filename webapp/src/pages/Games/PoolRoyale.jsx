@@ -2249,9 +2249,16 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = ballRadius * 1e-4;
-  const columnSpacing = ballRadius * 2 + contactGap;
-  const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
+  const contactGap = ballRadius * 0.0025;
+  const centerSpacing = ballRadius * 2 + contactGap;
+  const rowSpacing = centerSpacing * 0.5 * Math.sqrt(3);
+  const minDistance = centerSpacing;
+  const minDistanceSq = minDistance * minDistance;
+
+  const pushRackPosition = (x, z) => {
+    positions.push({ x, z });
+  };
+
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2259,27 +2266,51 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
       const count = rows[r];
       const centerOffset = (count - 1) / 2;
       for (let i = 0; i < count && index < ballCount; i++) {
-        const x = (i - centerOffset) * columnSpacing;
+        const x = (i - centerOffset) * centerSpacing;
         const z = startZ + r * rowSpacing;
-        positions.push({ x, z });
+        pushRackPosition(x, z);
         index++;
       }
     }
-    return positions;
-  }
-  let row = 0;
-  let placed = 0;
-  while (placed < ballCount) {
-    const count = row + 1;
-    const centerOffset = row / 2;
-    for (let i = 0; i < count && placed < ballCount; i++) {
-      const x = (i - centerOffset) * columnSpacing;
-      const z = startZ + row * rowSpacing;
-      positions.push({ x, z });
-      placed++;
+  } else {
+    let row = 0;
+    let placed = 0;
+    while (placed < ballCount) {
+      const count = row + 1;
+      const centerOffset = row / 2;
+      for (let i = 0; i < count && placed < ballCount; i++) {
+        const x = (i - centerOffset) * centerSpacing;
+        const z = startZ + row * rowSpacing;
+        pushRackPosition(x, z);
+        placed++;
+      }
+      row++;
     }
-    row++;
   }
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const a = positions[i];
+        const b = positions[j];
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const distSq = dx * dx + dz * dz;
+        if (distSq >= minDistanceSq) continue;
+        const dist = Math.sqrt(Math.max(distSq, 1e-10));
+        const overlap = minDistance - dist;
+        if (overlap <= 0) continue;
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const push = overlap * 0.5;
+        a.x -= nx * push;
+        a.z -= nz * push;
+        b.x += nx * push;
+        b.z += nz * push;
+      }
+    }
+  }
+
   return positions;
 }
 
@@ -28621,10 +28652,22 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
+        const hasReplayRecording = (shotRecording?.frames?.length ?? 0) > 1;
+        if (!replayDecision && hasReplayRecording) {
+          replayDecision = {
+            shouldReplay: true,
+            banner: selectReplayBanner('default'),
+            zoomOnly: false,
+            tags: ['default'],
+            primaryTag: 'default'
+          };
+          replayBannerText = replayDecision.banner;
+          replayAccent = replayDecision.primaryTag;
+        }
         shouldStartReplay =
           !skipAllReplaysRef.current &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+          hasReplayRecording &&
+          Boolean(replayDecision?.shouldReplay);
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
