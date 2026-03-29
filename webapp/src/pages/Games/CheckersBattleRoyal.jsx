@@ -23,7 +23,8 @@ import {
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   createMurlanStyleTable,
-  applyTableMaterials
+  applyTableMaterials,
+  TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
@@ -90,7 +91,7 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = 11.8;
+const CHECKERS_ROOM_HALF_SPAN = TABLE_RADIUS + (0.4 * MODEL_SCALE * 0.95) * 0.4 + SEAT_DEPTH;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -250,6 +251,17 @@ const CHECKERS_BOARD_THEME_OPTIONS = Object.freeze(
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.boardTheme[theme.id]
   }))
 );
+
+const resolveCheckersTableShapeOption = (tableOptionId) => {
+  if (!Array.isArray(TABLE_SHAPE_OPTIONS) || !TABLE_SHAPE_OPTIONS.length) {
+    return null;
+  }
+  if (!tableOptionId) return TABLE_SHAPE_OPTIONS[0];
+  const direct = TABLE_SHAPE_OPTIONS.find((option) => option.id === tableOptionId);
+  if (direct) return direct;
+  const hash = [...String(tableOptionId)].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return TABLE_SHAPE_OPTIONS[hash % TABLE_SHAPE_OPTIONS.length];
+};
 
 const BOARD_MATERIAL_CACHE = new WeakMap();
 
@@ -2063,16 +2075,24 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
+        tableRef.current?.dispose?.();
+        if (tableRef.current?.group) scene.remove(tableRef.current.group);
+        const selectedTable =
+          CHESS_TABLE_OPTIONS.find((opt) => opt.id === appearance.tableId) ||
+          CHESS_TABLE_OPTIONS[0];
         const table = createMurlanStyleTable({
           arena: scene,
           renderer,
           tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT
+          tableHeight: TABLE_HEIGHT,
+          shapeOption: resolveCheckersTableShapeOption(selectedTable?.id),
+          rotationY: selectedTable?.rotationY ?? 0
         });
         const finish =
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
+        table.selectedTableId = selectedTable?.id || null;
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -2084,11 +2104,13 @@ export default function CheckersBattleRoyal() {
           CHESS_CHAIR_OPTIONS[0];
         const chairColor =
           chairOption?.primary || chairOption?.seatColor || '#8b0000';
+        const preserveChairTextures = Boolean(chairOption?.preserveMaterials);
         const chairTemplate = await buildChessMappedChairTemplate();
         const makeChair = (z, ry) => {
           const g = chairTemplate.clone(true);
           g.traverse((obj) => {
             if (!obj.isMesh) return;
+            if (preserveChairTextures) return;
             const mats = Array.isArray(obj.material)
               ? obj.material
               : [obj.material];
@@ -2495,6 +2517,24 @@ export default function CheckersBattleRoyal() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    const selectedTable =
+      CHESS_TABLE_OPTIONS.find((opt) => opt.id === appearance.tableId) ||
+      CHESS_TABLE_OPTIONS[0];
+    if (tableRef.current?.selectedTableId !== selectedTable?.id) {
+      tableRef.current?.dispose?.();
+      if (tableRef.current?.group) scene.remove(tableRef.current.group);
+      const recreatedTable = createMurlanStyleTable({
+        arena: scene,
+        renderer: rendererRef.current,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        shapeOption: resolveCheckersTableShapeOption(selectedTable?.id),
+        rotationY: selectedTable?.rotationY ?? 0
+      });
+      recreatedTable.selectedTableId = selectedTable?.id || null;
+      tableRef.current = recreatedTable;
+    }
+
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
       MURLAN_TABLE_FINISHES[0];
@@ -2507,8 +2547,10 @@ export default function CheckersBattleRoyal() {
     const nextChairColor = new THREE.Color(
       chairOption?.primary || chairOption?.seatColor || '#8b0000'
     );
+    const preserveChairTextures = Boolean(chairOption?.preserveMaterials);
     chairsRef.current.forEach((chairGroup) => {
       chairGroup?.traverse?.((child) => {
+        if (preserveChairTextures) return;
         if (child?.isMesh && child.material?.color) {
           child.material.color.copy(nextChairColor);
           child.material.needsUpdate = true;
