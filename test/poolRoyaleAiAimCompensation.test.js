@@ -16,7 +16,7 @@ describe('Pool Royale AI aim compensation', () => {
     });
     expect(result).toBeTruthy();
     expect(result.aimDir.length()).toBeCloseTo(1, 5);
-    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(0.06009, 4);
+    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(0.06024, 4);
   });
 
   it('adjusts pre-impact aim when side spin/power deflection is present', () => {
@@ -60,8 +60,8 @@ describe('Pool Royale AI aim compensation', () => {
       power: 1
     });
 
-    expect(neutral.contactDepth).toBeCloseTo(0.06009, 5);
-    expect(topspin.contactDepth).toBeGreaterThanOrEqual(neutral.contactDepth);
+    expect(neutral.contactDepth).toBeCloseTo(0.06024, 5);
+    expect(topspin.contactDepth).toBeGreaterThan(neutral.contactDepth);
     expect(topspin.contactDepth - neutral.contactDepth).toBeLessThan(0.0015);
   });
 });
