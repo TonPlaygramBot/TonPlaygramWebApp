@@ -800,10 +800,10 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.994; // keep the wooden corner rounded cut nearly the same radius as the jaw outside, only a hair tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.006; // keep only a tiny outward push so the corner wooden rounded cut tracks the jaw exterior radius
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.008; // keep middle rail rounded cuts just a bit tighter while still matching the chrome arc
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
@@ -1364,7 +1364,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1.14;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = 0; // keep the physical ball bottoms exactly tangent to the cloth top surface
+const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -2249,9 +2249,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const rackContactGap = ballRadius * 0.018;
-  const columnSpacing = ballRadius * 2 + rackContactGap;
-  const rowSpacing = Math.sqrt(Math.max((ballRadius * 2 + rackContactGap) ** 2 - (columnSpacing * 0.5) ** 2, 0));
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2868,13 +2867,12 @@ const createStandardWoodFinish = ({
   base,
   trim,
   accent,
-  thumbnail,
   woodTextureId,
   woodRepeatScale
 }) => ({
   id,
   label,
-  thumbnail: thumbnail ?? (woodTextureId ? polyHavenThumb(woodTextureId) : undefined),
+  thumbnail: woodTextureId ? polyHavenThumb(woodTextureId) : undefined,
   colors: makeColorPalette({
     cloth,
     rail,
@@ -2986,126 +2984,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  tableFinishDarkForest: createStandardWoodFinish({
-    id: 'tableFinishDarkForest',
-    label: 'Table Finish Dark Forest',
-    rail: 0x14532d,
-    base: 0x166534,
-    trim: 0x4ade80,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/darkForest.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishMintVale: createStandardWoodFinish({
-    id: 'tableFinishMintVale',
-    label: 'Table Finish Mint Vale',
-    rail: 0x0f766e,
-    base: 0x115e59,
-    trim: 0x2dd4bf,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/mintVale.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishRoyalWave: createStandardWoodFinish({
-    id: 'tableFinishRoyalWave',
-    label: 'Table Finish Royal Wave',
-    rail: 0x1d4ed8,
-    base: 0x1e40af,
-    trim: 0x38bdf8,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/royalWave.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishArcticDrift: createStandardWoodFinish({
-    id: 'tableFinishArcticDrift',
-    label: 'Table Finish Arctic Drift',
-    rail: 0x0369a1,
-    base: 0x0c4a6e,
-    trim: 0x67e8f9,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/arcticDrift.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishAmethyst: createStandardWoodFinish({
-    id: 'tableFinishAmethyst',
-    label: 'Table Finish Amethyst',
-    rail: 0x5b21b6,
-    base: 0x4c1d95,
-    trim: 0xc084fc,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/amethyst.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishRoseMist: createStandardWoodFinish({
-    id: 'tableFinishRoseMist',
-    label: 'Table Finish Rose Mist',
-    rail: 0xbe185d,
-    base: 0x9d174d,
-    trim: 0xf9a8d4,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/roseMist.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishCoralBloom: createStandardWoodFinish({
-    id: 'tableFinishCoralBloom',
-    label: 'Table Finish Coral Bloom',
-    rail: 0xea580c,
-    base: 0xc2410c,
-    trim: 0xfdba74,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/coralBloom.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishAmberGlow: createStandardWoodFinish({
-    id: 'tableFinishAmberGlow',
-    label: 'Table Finish Amber Glow',
-    rail: 0xa16207,
-    base: 0x854d0e,
-    trim: 0xf59e0b,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/amberGlow.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishCinderBlaze: createStandardWoodFinish({
-    id: 'tableFinishCinderBlaze',
-    label: 'Table Finish Cinder Blaze',
-    rail: 0x7c2d12,
-    base: 0x9a3412,
-    trim: 0xfb923c,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/cinderBlaze.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishNeonPulse: createStandardWoodFinish({
-    id: 'tableFinishNeonPulse',
-    label: 'Table Finish Neon Pulse',
-    rail: 0x6d28d9,
-    base: 0x7c3aed,
-    trim: 0x22d3ee,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/neonPulse.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishMarble: createStandardWoodFinish({
-    id: 'tableFinishMarble',
-    label: 'Table Finish Marble',
-    rail: 0x475569,
-    base: 0x334155,
-    trim: 0xe2e8f0,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/marble.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  tableFinishObsidianGold: createStandardWoodFinish({
-    id: 'tableFinishObsidianGold',
-    label: 'Table Finish Obsidian Gold',
-    rail: 0x111827,
-    base: 0x030712,
-    trim: 0xfacc15,
-    thumbnail: '/assets/game-art/chess-battle-royal/pieces/obsidianGold.svg',
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
   })
 });
 
@@ -3115,19 +2993,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.tableFinishDarkForest,
-    TABLE_FINISHES.tableFinishMintVale,
-    TABLE_FINISHES.tableFinishRoyalWave,
-    TABLE_FINISHES.tableFinishArcticDrift,
-    TABLE_FINISHES.tableFinishAmethyst,
-    TABLE_FINISHES.tableFinishRoseMist,
-    TABLE_FINISHES.tableFinishCoralBloom,
-    TABLE_FINISHES.tableFinishAmberGlow,
-    TABLE_FINISHES.tableFinishCinderBlaze,
-    TABLE_FINISHES.tableFinishNeonPulse,
-    TABLE_FINISHES.tableFinishMarble,
-    TABLE_FINISHES.tableFinishObsidianGold
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -6223,7 +6089,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.2;
   const blockingRadiusSq = blockingRadius * blockingRadius;
-  const combinedRadius = BALL_R * 2 + BALL_COLLISION_SLOP;
+  const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
     if (!other || other === cueBall || !other.active) continue;
     const offset = other.pos.clone().sub(cueBall.pos);
@@ -6321,7 +6187,7 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
-  const combinedRadius = BALL_R * 2 + BALL_COLLISION_SLOP + CUE_TIP_RADIUS * 1.1;
+  const combinedRadius = BALL_R * 2 + CUE_TIP_RADIUS * 1.1;
   const combinedRadiusSq = combinedRadius * combinedRadius;
 
   for (const axis of axes) {
@@ -22324,16 +22190,10 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
-          const broadcastReplayCamera =
-            resolveRailOverheadReplayCamera({
-              focusOverride: storedTarget,
-              minTargetY,
-              preferredRail: railOverheadSideRef.current
-            }) ??
-            resolveBroadcastTopViewCamera({
-              focusOverride: storedTarget,
-              minTargetY
-            });
+          const broadcastReplayCamera = resolveBroadcastTopViewCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
           if (broadcastReplayCamera?.position) {
             storedPosition = broadcastReplayCamera.position.clone();
             if (broadcastReplayCamera?.target) {
