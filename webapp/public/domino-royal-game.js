@@ -5888,7 +5888,7 @@ const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
 let humanSeatBadgeAnchor = null;
-const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 118;
+const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 106;
 const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
@@ -7691,6 +7691,8 @@ const winnerOverlayReason = document.getElementById('winnerReason');
 const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
 const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
 const winnerCoinBurst = document.getElementById('winnerCoinBurst');
+const leaderboardToggleButton = document.getElementById('leaderboardToggle');
+let leaderboardExpanded = false;
 const leaderboardCard = document.createElement('div');
 leaderboardCard.id = 'dominoLeaderboardCard';
 leaderboardCard.setAttribute('aria-live', 'polite');
@@ -7700,7 +7702,24 @@ document.body.appendChild(leaderboardCard);
 
 function updateLeaderboardVisibility() {
   if (!leaderboardCard) return;
-  leaderboardCard.style.display = isLandscapeViewport() ? 'none' : '';
+  const hideForViewport = isLandscapeViewport();
+  const allowLeaderboard = isPointsRace && !hideForViewport;
+  if (leaderboardToggleButton) {
+    leaderboardToggleButton.style.display = isPointsRace && !hideForViewport ? 'grid' : 'none';
+    leaderboardToggleButton.classList.toggle('is-active', allowLeaderboard && leaderboardExpanded);
+    leaderboardToggleButton.setAttribute(
+      'aria-pressed',
+      allowLeaderboard && leaderboardExpanded ? 'true' : 'false'
+    );
+  }
+  leaderboardCard.style.display = allowLeaderboard && leaderboardExpanded ? '' : 'none';
+}
+if (leaderboardToggleButton) {
+  leaderboardToggleButton.addEventListener('click', () => {
+    if (!isPointsRace || isLandscapeViewport()) return;
+    leaderboardExpanded = !leaderboardExpanded;
+    updateLeaderboardVisibility();
+  });
 }
 updateLeaderboardVisibility();
 
@@ -7713,6 +7732,7 @@ function computePipTotal(hand = []) {
 
 function updateLeaderboardCard() {
   if (!leaderboardCard) return;
+  if (!isPointsRace && leaderboardExpanded) leaderboardExpanded = false;
   updateLeaderboardVisibility();
   const titleEl = leaderboardCard.querySelector('.leaderboard-title');
   const rowsHost = leaderboardCard.querySelector('.leaderboard-rows');
