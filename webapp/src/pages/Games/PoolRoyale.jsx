@@ -5916,6 +5916,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.38; // transfer a portion of top spin into forward roll each physics step for natural follow-through fade
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.54; // accelerate only top-spin decay once forward roll is established so follow naturally settles
+const TOPSPIN_NATURAL_ROLL_RATIO = 0.86; // expected forward spin magnitude once the cue ball settles into natural roll
+const TOPSPIN_EXTRA_PUSH_SLIP_RATIO = 0.68; // use only the slip component above natural roll to keep follow realistic
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -6977,8 +6979,12 @@ function applySpinController(ball, stepScale, airborne = false) {
       rollAccel *= backspinBoost;
     }
     if (Math.abs(forwardSpin) > 1e-8) {
-      ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       if (forwardSpin > 0) {
+        const naturalRollSpin = speed * TOPSPIN_NATURAL_ROLL_RATIO;
+        const topSlip = Math.max(0, forwardSpin - naturalRollSpin);
+        const effectiveTopPush =
+          naturalRollSpin + topSlip * TOPSPIN_EXTRA_PUSH_SLIP_RATIO;
+        ball.vel.addScaledVector(forward, effectiveTopPush * rollAccel);
         const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * 0.78);
         const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
         const transfer =
@@ -6991,6 +6997,8 @@ function applySpinController(ball, stepScale, airborne = false) {
           -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.3 + 0.7 * settling)
         );
         ball.spin.y *= assistedDecay;
+      } else {
+        ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       }
     }
   }
@@ -21845,6 +21853,7 @@ const powerRef = useRef(hud.power);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const safeRecoverDuration = Math.max(120, recoverDuration ?? 180);
             const impactThreshold = THREE.MathUtils.clamp(
               strikeImpactThreshold ?? 0.9,
               0,
@@ -21903,7 +21912,35 @@ const powerRef = useRef(hud.power);
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
+            const totalForwardWindow = safeStrikeDuration + safeHoldDuration + safeRecoverDuration;
+            if (elapsed < safeStrikeDuration) {
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              const holdT = THREE.MathUtils.clamp(
+                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
+                0,
+                1
+              );
+              cueStick.position.lerpVectors(impactPos, followPos ?? impactPos, easeOutCubic(holdT));
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
+            if (elapsed < totalForwardWindow) {
+              const recoverT = THREE.MathUtils.clamp(
+                (elapsed - safeStrikeDuration - safeHoldDuration) /
+                  Math.max(safeRecoverDuration, 1e-6),
+                0,
+                1
+              );
+              cueStick.position.lerpVectors(
+                followPos ?? impactPos,
+                idlePos ?? impactPos,
+                easeInOutCubic(recoverT)
+              );
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -22221,6 +22258,44 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          const resolveReplayCueStopTime = (frames, maxDuration) => {
+            if (!Array.isArray(frames) || frames.length < 2) return maxDuration;
+            const minStableWindow = 180;
+            const stopSpeedSq = Math.pow(BALL_R * 0.55, 2);
+            const extractCuePos = (frame) => {
+              const cueBall = frame?.balls?.find?.((entry) => String(entry?.id) === 'cue');
+              const pos = cueBall?.mesh?.position ?? cueBall?.pos;
+              if (!pos || !Number.isFinite(pos.x)) return null;
+              const z = Number.isFinite(pos.z) ? pos.z : pos.y;
+              if (!Number.isFinite(z)) return null;
+              return { x: pos.x, z };
+            };
+            let stableFrom = null;
+            let candidate = maxDuration;
+            for (let i = 1; i < frames.length; i += 1) {
+              const prev = frames[i - 1];
+              const curr = frames[i];
+              const p0 = extractCuePos(prev);
+              const p1 = extractCuePos(curr);
+              if (!p0 || !p1) continue;
+              const dtMs = Math.max(1, (curr.t ?? 0) - (prev.t ?? 0));
+              const invDt = 1000 / dtMs;
+              const vx = (p1.x - p0.x) * invDt;
+              const vz = (p1.z - p0.z) * invDt;
+              const speedSq = vx * vx + vz * vz;
+              if (speedSq <= stopSpeedSq) {
+                stableFrom = stableFrom ?? (curr.t ?? 0);
+                const stableElapsed = (curr.t ?? 0) - stableFrom;
+                if (stableElapsed >= minStableWindow) {
+                  candidate = curr.t ?? candidate;
+                  break;
+                }
+              } else {
+                stableFrom = null;
+              }
+            }
+            return THREE.MathUtils.clamp(candidate, 0, maxDuration);
+          };
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
@@ -22236,7 +22311,11 @@ const powerRef = useRef(hud.power);
                   (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0) * 0.72
               )
             : 180;
-          replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
+          const replayCueShowAt = resolveReplayCueStopTime(trimmed.frames, duration);
+          replayCueHiddenRef.current = {
+            hideFrom: replayCueHideFrom,
+            hideUntil: Math.max(replayCueHideFrom + 80, replayCueShowAt)
+          };
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
@@ -25545,7 +25624,10 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const followPos = impactPos.clone();
+          const followTravel = Math.max(BALL_R * 0.55, CUE_FOLLOW_THROUGH_MAX * 0.18);
+          const followPos = impactPos
+            .clone()
+            .addScaledVector(dir, followTravel);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
