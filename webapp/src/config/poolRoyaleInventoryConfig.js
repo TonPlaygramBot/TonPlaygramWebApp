@@ -296,35 +296,8 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  chessMarble: '/assets/game-art/chess-battle-royal/pieces/marble.svg',
-  chessDarkForest: '/assets/game-art/chess-battle-royal/pieces/darkForest.svg',
-  chessAmberGlow: '/assets/game-art/chess-battle-royal/pieces/amberGlow.svg',
-  chessMintVale: '/assets/game-art/chess-battle-royal/pieces/mintVale.svg',
-  chessRoyalWave: '/assets/game-art/chess-battle-royal/pieces/royalWave.svg',
-  chessRoseMist: '/assets/game-art/chess-battle-royal/pieces/roseMist.svg',
-  chessAmethyst: '/assets/game-art/chess-battle-royal/pieces/amethyst.svg',
-  chessCinderBlaze: '/assets/game-art/chess-battle-royal/pieces/cinderBlaze.svg',
-  chessArcticDrift: '/assets/game-art/chess-battle-royal/pieces/arcticDrift.svg',
-  chessObsidianGold: '/assets/game-art/chess-battle-royal/pieces/obsidianGold.svg',
-  chessCoralBloom: '/assets/game-art/chess-battle-royal/pieces/coralBloom.svg',
-  chessNeonPulse: '/assets/game-art/chess-battle-royal/pieces/neonPulse.svg'
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
 });
-
-const CHESS_BATTLE_TABLE_FINISHES = Object.freeze([
-  { optionId: 'chessMarble', label: 'Chess Marble', price: 1060, description: 'Chess Battle Royal marble-piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessDarkForest', label: 'Chess Dark Forest', price: 1070, description: 'Chess Battle Royal dark-forest piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessAmberGlow', label: 'Chess Amber Glow', price: 1080, description: 'Chess Battle Royal amber-glow piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessMintVale', label: 'Chess Mint Vale', price: 1090, description: 'Chess Battle Royal mint-vale piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessRoyalWave', label: 'Chess Royal Wave', price: 1100, description: 'Chess Battle Royal royal-wave piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessRoseMist', label: 'Chess Rose Mist', price: 1110, description: 'Chess Battle Royal rose-mist piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessAmethyst', label: 'Chess Amethyst', price: 1120, description: 'Chess Battle Royal amethyst piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessCinderBlaze', label: 'Chess Cinder Blaze', price: 1130, description: 'Chess Battle Royal cinder-blaze piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessArcticDrift', label: 'Chess Arctic Drift', price: 1140, description: 'Chess Battle Royal arctic-drift piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessObsidianGold', label: 'Chess Obsidian Gold', price: 1150, description: 'Chess Battle Royal obsidian-gold piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessCoralBloom', label: 'Chess Coral Bloom', price: 1160, description: 'Chess Battle Royal coral-bloom piece texture remapped as a Pool Royale rail finish.' },
-  { optionId: 'chessNeonPulse', label: 'Chess Neon Pulse', price: 1170, description: 'Chess Battle Royal neon-pulse piece texture remapped as a Pool Royale rail finish.' }
-]);
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
   'plastic-black': swatchThumbnail(['#0b0d10', '#1f2937', '#4b5563']),
@@ -421,19 +394,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01',
-    chessMarble: 'Chess Marble',
-    chessDarkForest: 'Chess Dark Forest',
-    chessAmberGlow: 'Chess Amber Glow',
-    chessMintVale: 'Chess Mint Vale',
-    chessRoyalWave: 'Chess Royal Wave',
-    chessRoseMist: 'Chess Rose Mist',
-    chessAmethyst: 'Chess Amethyst',
-    chessCinderBlaze: 'Chess Cinder Blaze',
-    chessArcticDrift: 'Chess Arctic Drift',
-    chessObsidianGold: 'Chess Obsidian Gold',
-    chessCoralBloom: 'Chess Coral Bloom',
-    chessNeonPulse: 'Chess Neon Pulse'
+    rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -521,15 +482,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
   },
-  ...CHESS_BATTLE_TABLE_FINISHES.map((finish) => ({
-    id: `finish-${finish.optionId}`,
-    type: 'tableFinish',
-    optionId: finish.optionId,
-    name: `${finish.label} Finish`,
-    price: finish.price,
-    description: finish.description,
-    thumbnail: TABLE_FINISH_THUMBNAILS[finish.optionId]
-  })),
   {
     id: 'chrome-chrome',
     type: 'chromeColor',
