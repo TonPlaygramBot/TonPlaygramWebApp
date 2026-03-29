@@ -105,7 +105,7 @@ export default function DominoRoyalArena() {
           bottom: auto !important;
         }
         #railControls {
-          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(3.65rem, 9.1vh, 4.65rem)) !important;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(3.1rem, 8.5vh, 4.1rem)) !important;
           background: transparent !important;
           border: 0 !important;
           box-shadow: none !important;
@@ -133,8 +133,8 @@ export default function DominoRoyalArena() {
         }
         #dominoLeaderboardCard {
           position: fixed;
-          top: calc(2.95rem + env(safe-area-inset-top, 0px));
-          left: 50%;
+          top: calc(3.9rem + env(safe-area-inset-top, 0px));
+          left: 56.4%;
           transform: translateX(-50%);
           width: min(72vw, 15.5rem);
           z-index: 5;
@@ -149,7 +149,7 @@ export default function DominoRoyalArena() {
         }
         #leaderboardToggle {
           position: fixed;
-          top: calc(0.08rem + env(safe-area-inset-top, 0px));
+          top: calc(0.68rem + env(safe-area-inset-top, 0px));
           left: 50%;
           transform: translateX(-50%);
           width: 2.35rem;
@@ -163,20 +163,6 @@ export default function DominoRoyalArena() {
           z-index: 8;
           padding: 0;
           font-size: 1.05rem;
-          font-weight: 900;
-          line-height: 1;
-        }
-        #leaderboardToggle .leaderboard-icon {
-          display: inline-flex;
-          width: 1.22rem;
-          height: 1.22rem;
-          align-items: center;
-          justify-content: center;
-        }
-        #leaderboardToggle .leaderboard-icon svg {
-          width: 100%;
-          height: 100%;
-          display: block;
         }
         #leaderboardToggle.is-active {
           border-color: rgba(56, 189, 248, 0.9);
@@ -287,16 +273,16 @@ export default function DominoRoyalArena() {
             left: calc(0.1rem + env(safe-area-inset-left, 0px)) !important;
           }
           #dominoLeaderboardCard {
-            top: calc(2.9rem + env(safe-area-inset-top, 0px));
-            left: 50%;
+            top: calc(3.4rem + env(safe-area-inset-top, 0px));
+            left: 54.9%;
           }
           #leaderboardToggle {
-            top: calc(0.06rem + env(safe-area-inset-top, 0px));
+            top: calc(0.62rem + env(safe-area-inset-top, 0px));
           }
           #railControls {
             bottom: calc(
               env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-                clamp(2.8rem, 8vh, 3.4rem) + 1.85rem
+                clamp(2.8rem, 8vh, 3.4rem) + 1.35rem
             ) !important;
           }
           #status {
@@ -379,16 +365,7 @@ export default function DominoRoyalArena() {
           <span id="muteLabel" className="visually-hidden">Mute</span>
         </button>
       </div>
-      <button id="leaderboardToggle" type="button" aria-label="Toggle leaderboard" title="Toggle leaderboard">
-        <span className="leaderboard-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M4.5 18.5h15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <rect x="5.3" y="10.6" width="3.1" height="5.6" rx="0.9" fill="currentColor" />
-            <rect x="10.45" y="7.25" width="3.1" height="8.95" rx="0.9" fill="currentColor" />
-            <rect x="15.6" y="4.7" width="3.1" height="11.5" rx="0.9" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
+      <button id="leaderboardToggle" type="button" aria-label="Toggle leaderboard" title="Toggle leaderboard">🏆</button>
       <div id="railControls" aria-label="Game controls">
         <button id="draw" type="button">Draw</button>
         <button id="pass" type="button">Pass</button>
