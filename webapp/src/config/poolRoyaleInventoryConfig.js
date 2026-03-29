@@ -394,7 +394,8 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    obsidianBlack: 'Obsidian Black'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -481,6 +482,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-obsidianBlack',
+    type: 'tableFinish',
+    optionId: 'obsidianBlack',
+    name: 'Obsidian Black Finish',
+    price: 1030,
+    description: 'Deep black table finish using the same textured wood grain profile as Chess Battle Royal sets.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.darkWood
   },
   {
     id: 'chrome-chrome',
