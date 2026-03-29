@@ -4396,19 +4396,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = false;
+    controls.enableZoom = true;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
-    const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-    controls.minDistance = initialCameraRadius;
-    controls.maxDistance = initialCameraRadius;
+    controls.minDistance = CAM.minR;
+    controls.maxDistance = CAM.maxR;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
-    const initialAzimuth = controls.getAzimuthalAngle();
-    controls.minAzimuthAngle = initialAzimuth;
-    controls.maxAzimuthAngle = initialAzimuth;
     controlsRef.current = controls;
-    baseCameraRadiusRef.current = initialCameraRadius;
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
     syncSkyboxToCameraRef.current = () => {
       if (!camera || !boardLookTarget) return;
       const skybox = envSkyboxRef.current;
@@ -4431,8 +4427,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const h = host.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      const tableSpan = TABLE_RADIUS * 2.35;
+      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.4;
+      const span = Math.max(tableSpan, boardSpan);
+      const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
+      const dir = camera.position.clone().sub(boardLookTarget).normalize();
+      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       if (baseCameraRadiusRef.current == null) {
-        baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+        baseCameraRadiusRef.current = radius;
       }
       controls.update();
       applyRendererQuality();
