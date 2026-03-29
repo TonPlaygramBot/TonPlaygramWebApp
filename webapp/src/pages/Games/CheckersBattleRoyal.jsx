@@ -59,7 +59,7 @@ const STOOL_SCALE = 1.5 * 1.3;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.75;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
@@ -89,7 +89,47 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = 8.8;
+const CHECKERS_ROOM_HALF_SPAN = 11.6;
+const TARGET_FLOOR_Y = 0;
+const GRAPHICS_PROFILES = Object.freeze([
+  {
+    id: 'hz60',
+    label: '60Hz • Full HD',
+    description: '1080p target, 50–60 FPS',
+    pixelRatioCap: 1,
+    targetFps: 60,
+    hdriPreferredResolutions: ['1k'],
+    hdriFallbackResolution: '1k'
+  },
+  {
+    id: 'hz90',
+    label: '90Hz • 2K',
+    description: '2K target, 60–90 FPS',
+    pixelRatioCap: 1.35,
+    targetFps: 90,
+    hdriPreferredResolutions: ['2k', '1k'],
+    hdriFallbackResolution: '2k'
+  },
+  {
+    id: 'hz120',
+    label: '120Hz • 4K',
+    description: '4K target, 105–120 FPS',
+    pixelRatioCap: 2,
+    targetFps: 120,
+    hdriPreferredResolutions: ['4k', '2k'],
+    hdriFallbackResolution: '4k'
+  },
+  {
+    id: 'hz144',
+    label: '144Hz • 6K',
+    description: '6K (fallback 4K), 120–144 FPS',
+    pixelRatioCap: 2,
+    targetFps: 144,
+    hdriPreferredResolutions: ['8k', '4k'],
+    hdriFallbackResolution: '4k'
+  }
+]);
+const DEFAULT_GRAPHICS_PROFILE_ID = GRAPHICS_PROFILES[0].id;
 const DRACO_DECODER_PATH =
   'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1041,6 +1081,13 @@ function resolveArenaFloorY(...groups) {
   return hasObject && Number.isFinite(box.min.y) ? box.min.y : 0;
 }
 
+function alignGroupToFloor(group, targetFloorY = TARGET_FLOOR_Y) {
+  if (!group) return;
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.y)) return;
+  group.position.y += targetFloorY - box.min.y;
+}
+
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions =
@@ -1166,6 +1213,10 @@ export default function CheckersBattleRoyal() {
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
   const envRef = useRef({ map: null, skybox: null });
+  const graphicsProfileRef = useRef(
+    GRAPHICS_PROFILES.find((profile) => profile.id === DEFAULT_GRAPHICS_PROFILE_ID) ||
+      GRAPHICS_PROFILES[0]
+  );
   const boardThemeRef = useRef(CHECKERS_BOARD_THEME_OPTIONS[0]);
   const gltfBoardRef = useRef(null);
   const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
@@ -1263,6 +1314,7 @@ export default function CheckersBattleRoyal() {
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
+      graphicsProfileId: DEFAULT_GRAPHICS_PROFILE_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
       headStyle: inventory.headStyle?.[0] || 'current'
@@ -1380,7 +1432,10 @@ export default function CheckersBattleRoyal() {
       hdriId:
         unlockedHdriOptions.find((opt) => opt.id === prev.hdriId)?.id ||
         unlockedHdriOptions[0]?.id ||
-        POOL_ROYALE_DEFAULT_HDRI_ID
+        POOL_ROYALE_DEFAULT_HDRI_ID,
+      graphicsProfileId:
+        GRAPHICS_PROFILES.find((opt) => opt.id === prev.graphicsProfileId)?.id ||
+        DEFAULT_GRAPHICS_PROFILE_ID
     }));
   }, [
     unlockedBoardThemes,
@@ -1389,6 +1444,21 @@ export default function CheckersBattleRoyal() {
     unlockedTableFinishes,
     unlockedTableOptions
   ]);
+
+  useEffect(() => {
+    graphicsProfileRef.current =
+      GRAPHICS_PROFILES.find((profile) => profile.id === appearance.graphicsProfileId) ||
+      GRAPHICS_PROFILES[0];
+    const renderer = rendererRef.current;
+    if (renderer) {
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio || 1,
+          graphicsProfileRef.current.pixelRatioCap
+        )
+      );
+    }
+  }, [appearance.graphicsProfileId]);
 
   useEffect(() => {
     if (appearance.tableId)
@@ -1597,7 +1667,10 @@ export default function CheckersBattleRoyal() {
       powerPreference: 'high-performance'
     });
     rendererRef.current = renderer;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const initialGraphicsProfile = graphicsProfileRef.current || GRAPHICS_PROFILES[0];
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, initialGraphicsProfile.pixelRatioCap)
+    );
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     applyRendererSRGB(renderer);
@@ -1945,6 +2018,7 @@ export default function CheckersBattleRoyal() {
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
+        alignGroupToFloor(table.group, TARGET_FLOOR_Y);
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -1978,6 +2052,9 @@ export default function CheckersBattleRoyal() {
           makeChair(CHAIR_DISTANCE, Math.PI),
           makeChair(-CHAIR_DISTANCE, 0)
         ];
+        chairsRef.current.forEach((chair) =>
+          alignGroupToFloor(chair, TARGET_FLOOR_Y)
+        );
       } catch (error) {
         console.error('Checkers chairs load failed, using fallback:', error);
         const chairOption =
@@ -1997,6 +2074,9 @@ export default function CheckersBattleRoyal() {
           makeFallback(CHAIR_DISTANCE, Math.PI),
           makeFallback(-CHAIR_DISTANCE, 0)
         ];
+        chairsRef.current.forEach((chair) =>
+          alignGroupToFloor(chair, TARGET_FLOOR_Y)
+        );
       }
 
       const addVisibleBoardBase = () => {
@@ -2070,6 +2150,10 @@ export default function CheckersBattleRoyal() {
 
     const onResize = () => {
       if (!mount) return;
+      const activeGraphicsProfile = graphicsProfileRef.current || GRAPHICS_PROFILES[0];
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio || 1, activeGraphicsProfile.pixelRatioCap)
+      );
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
@@ -2084,8 +2168,14 @@ export default function CheckersBattleRoyal() {
     window.addEventListener('resize', onResize);
 
     let raf = 0;
+    let lastFrameTime = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
+      const now = performance.now();
+      const activeGraphicsProfile = graphicsProfileRef.current || GRAPHICS_PROFILES[0];
+      const minFrameTime = 1000 / Math.max(30, activeGraphicsProfile.targetFps || 60);
+      if (now - lastFrameTime < minFrameTime) return;
+      lastFrameTime = now;
       controls.update();
       renderer.render(scene, camera);
     };
@@ -2394,14 +2484,32 @@ export default function CheckersBattleRoyal() {
     if (gltfBoardRef.current)
       applyCheckersBoardTheme(gltfBoardRef.current, boardTheme);
 
-    if (envRef.current?.hdriId === appearance.hdriId) return;
+    if (
+      envRef.current?.hdriId === appearance.hdriId &&
+      envRef.current?.graphicsProfileId === appearance.graphicsProfileId
+    )
+      return;
 
     const applyHdri = async () => {
       try {
         const variant = resolveHdriVariant(appearance.hdriId);
+        const activeGraphicsProfile = graphicsProfileRef.current || GRAPHICS_PROFILES[0];
+        const preferredResolutions =
+          activeGraphicsProfile.hdriPreferredResolutions ||
+          variant?.preferredResolutions ||
+          DEFAULT_HDRI_RESOLUTIONS;
+        const fallbackResolution =
+          activeGraphicsProfile.hdriFallbackResolution ||
+          variant?.fallbackResolution ||
+          preferredResolutions[0] ||
+          '4k';
         const envResult = await loadPolyHavenHdriEnvironment(
           rendererRef.current,
-          variant
+          {
+            ...variant,
+            preferredResolutions,
+            fallbackResolution
+          }
         );
         if (!envResult?.envMap) return;
         const { envMap, skyboxMap } = envResult;
@@ -2451,7 +2559,12 @@ export default function CheckersBattleRoyal() {
         if (typeof variant?.rotationY === 'number')
           skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
-        envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
+        envRef.current = {
+          map: envMap,
+          skybox,
+          hdriId: appearance.hdriId,
+          graphicsProfileId: appearance.graphicsProfileId
+        };
       } catch (error) {
         console.error('Checkers HDRI swap failed:', error);
       }
@@ -2700,6 +2813,33 @@ export default function CheckersBattleRoyal() {
                       className={optionButton(appearance.hdriId === opt.id)}
                     >
                       {opt.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] text-white/70">
+                  Graphics Profile
+                </div>
+                <div className="mb-3 grid max-h-32 grid-cols-1 gap-2 overflow-auto">
+                  {GRAPHICS_PROFILES.map((profile) => (
+                    <button
+                      key={profile.id}
+                      onClick={() =>
+                        setAppearance((prev) => ({
+                          ...prev,
+                          graphicsProfileId: profile.id
+                        }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-left text-[11px] ${
+                        appearance.graphicsProfileId === profile.id
+                          ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100'
+                          : 'border-white/15 bg-white/5 text-white/70'
+                      }`}
+                    >
+                      <div className="font-semibold">{profile.label}</div>
+                      <div className="mt-0.5 text-[10px] opacity-80">
+                        {profile.description}
+                      </div>
                     </button>
                   ))}
                 </div>
