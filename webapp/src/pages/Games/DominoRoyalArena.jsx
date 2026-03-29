@@ -149,7 +149,7 @@ export default function DominoRoyalArena() {
         }
         #leaderboardToggle {
           position: fixed;
-          top: calc(0.68rem + env(safe-area-inset-top, 0px));
+          top: calc(0.1rem + env(safe-area-inset-top, 0px));
           left: 50%;
           transform: translateX(-50%);
           width: 2.35rem;
@@ -277,12 +277,12 @@ export default function DominoRoyalArena() {
             left: 54.9%;
           }
           #leaderboardToggle {
-            top: calc(0.62rem + env(safe-area-inset-top, 0px));
+            top: calc(0.06rem + env(safe-area-inset-top, 0px));
           }
           #railControls {
             bottom: calc(
               env(safe-area-inset-bottom, 0px) + clamp(1.2rem, 7vh, 2.2rem) +
-                clamp(2.8rem, 8vh, 3.4rem) + 1.35rem
+                clamp(2.8rem, 8vh, 3.4rem) + 2.15rem
             ) !important;
           }
           #status {
