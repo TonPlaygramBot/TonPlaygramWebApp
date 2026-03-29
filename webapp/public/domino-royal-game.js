@@ -5888,7 +5888,7 @@ const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
 let humanSeatBadgeAnchor = null;
-const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 106;
+const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 86;
 const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
@@ -7703,20 +7703,32 @@ document.body.appendChild(leaderboardCard);
 function updateLeaderboardVisibility() {
   if (!leaderboardCard) return;
   const hideForViewport = isLandscapeViewport();
-  const allowLeaderboard = isPointsRace && !hideForViewport;
+  const allowLeaderboard = !hideForViewport;
   if (leaderboardToggleButton) {
-    leaderboardToggleButton.style.display = isPointsRace && !hideForViewport ? 'grid' : 'none';
+    leaderboardToggleButton.style.display = allowLeaderboard ? 'grid' : 'none';
     leaderboardToggleButton.classList.toggle('is-active', allowLeaderboard && leaderboardExpanded);
     leaderboardToggleButton.setAttribute(
       'aria-pressed',
       allowLeaderboard && leaderboardExpanded ? 'true' : 'false'
     );
+    leaderboardToggleButton.textContent =
+      allowLeaderboard && leaderboardExpanded ? '✕' : '🏆';
+    leaderboardToggleButton.setAttribute(
+      'aria-label',
+      allowLeaderboard && leaderboardExpanded
+        ? 'Hide leaderboard'
+        : 'Show leaderboard'
+    );
+    leaderboardToggleButton.title =
+      allowLeaderboard && leaderboardExpanded
+        ? 'Hide leaderboard'
+        : 'Show leaderboard';
   }
   leaderboardCard.style.display = allowLeaderboard && leaderboardExpanded ? '' : 'none';
 }
 if (leaderboardToggleButton) {
   leaderboardToggleButton.addEventListener('click', () => {
-    if (!isPointsRace || isLandscapeViewport()) return;
+    if (isLandscapeViewport()) return;
     leaderboardExpanded = !leaderboardExpanded;
     updateLeaderboardVisibility();
   });
@@ -9444,34 +9456,8 @@ renderer.domElement.addEventListener('pointermove', (ev) => {
   }
 
   if (cameraViewMode === VIEW_MODES.threeD && ev.pointerType === 'touch') {
-    const touchPoints = [];
-    for (const pointerId of activePointers) {
-      const point = activePointerPositions.get(pointerId);
-      if (point) {
-        touchPoints.push(point);
-      }
-      if (touchPoints.length === 2) {
-        break;
-      }
-    }
-    if (touchPoints.length === 2) {
-      const [first, second] = touchPoints;
-      const currentDistance = Math.hypot(
-        second.x - first.x,
-        second.y - first.y
-      );
-      if (
-        Number.isFinite(pinchZoomState.distance) &&
-        pinchZoomState.mode === VIEW_MODES.threeD
-      ) {
-        applyThreeDZoomFromPinch(currentDistance - pinchZoomState.distance);
-      }
-      pinchZoomState.distance = currentDistance;
-      pinchZoomState.mode = VIEW_MODES.threeD;
-    } else {
-      pinchZoomState.distance = null;
-      pinchZoomState.mode = null;
-    }
+    pinchZoomState.distance = null;
+    pinchZoomState.mode = null;
   }
 
   if (
