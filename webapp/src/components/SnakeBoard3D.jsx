@@ -150,12 +150,6 @@ const CAM = {
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
 const TILE_COLOR_B = new THREE.Color(0x776a5a);
-const CLASSIC_SPIRAL_TILE_COLORS = Object.freeze([
-  new THREE.Color('#ef4444'),
-  new THREE.Color('#4ade80'),
-  new THREE.Color('#3b82f6'),
-  new THREE.Color('#fbbf24')
-]);
 const DEFAULT_HIGHLIGHT_COLORS = Object.freeze({
   normal: new THREE.Color(0xf59e0b),
   snake: new THREE.Color(0xdc2626),
@@ -2241,24 +2235,6 @@ function createTileMaterialSet(baseColor, palette = {}) {
   };
 }
 
-function resolveTileBaseColor(tileIndex, row, col, levelIndex, boardTheme, tileLightBase, tileDarkBase) {
-  const paletteColors = Array.isArray(boardTheme.pathColors)
-    ? boardTheme.pathColors
-        .map((value) => toThreeColor(value, null))
-        .filter(Boolean)
-    : [];
-
-  if (paletteColors.length > 0) {
-    return paletteColors[(tileIndex - 1) % paletteColors.length].clone();
-  }
-
-  if (boardTheme.useClassicSpiralColors) {
-    return CLASSIC_SPIRAL_TILE_COLORS[levelIndex % CLASSIC_SPIRAL_TILE_COLORS.length].clone();
-  }
-
-  return (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
-}
-
 function resetTileAppearance(tile) {
   const { topMaterial, sideMaterial, bottomMaterial, baseColor } = tile.userData ?? {};
   if (topMaterial && baseColor) {
@@ -2950,15 +2926,7 @@ function buildSnakeBoard(
     const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const baseColor = resolveTileBaseColor(
-        idx,
-        row,
-        col,
-        levelIndex,
-        boardTheme,
-        tileLightBase,
-        tileDarkBase
-      );
+      const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
       const materialSet = createTileMaterialSet(baseColor, boardTheme);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;

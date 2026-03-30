@@ -426,26 +426,6 @@ const ARENA_THEME_OPTIONS = Object.freeze([
 
 const BOARD_PALETTE_OPTIONS = Object.freeze([
   {
-    id: 'classicSpiralArena',
-    label: 'Classic Spiral Arena',
-    light: '#f8fafc',
-    dark: '#e2e8f0',
-    pathColors: ['#ef4444', '#4ade80', '#3b82f6', '#fbbf24'],
-    side: '#a16207',
-    bottom: '#78350f',
-    topEmissive: '#111827',
-    sideEmissive: '#1f2937',
-    bottomEmissive: '#111827',
-    topRoughness: 0.4,
-    topMetalness: 0.24,
-    topBlend: 0.03,
-    sideBlend: 0.3,
-    bottomBlend: 0.15,
-    highlightNormal: '#f97316',
-    highlightSnake: '#ef4444',
-    highlightLadder: '#22c55e'
-  },
-  {
     id: 'desertMarble',
     label: 'Desert Marble',
     light: '#f3ebe0',
