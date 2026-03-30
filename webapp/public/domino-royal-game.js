@@ -4439,16 +4439,17 @@ const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   switch (frameRateId) {
     case 'ultra144':
+      return ['8k'];
     case 'uhd120':
-      return ['8k', '4k', '2k', '1k'];
+      return ['8k', '6k'];
     case 'qhd90':
-      return ['6k', '4k', '2k', '1k'];
+      return ['6k', '4k'];
     case 'fhd60':
-      return ['4k', '2k', '1k'];
+      return ['4k', '2k'];
     default:
-      if (prefersUhd) return ['8k', '4k', '2k', '1k'];
-      if (isLowProfileDevice) return ['2k', '1k'];
-      return ['4k', '2k', '1k'];
+      if (prefersUhd) return ['8k', '6k'];
+      if (isLowProfileDevice) return ['4k', '2k'];
+      return ['4k', '2k'];
   }
 }
 function shouldLoadExternalHdri() {
