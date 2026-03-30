@@ -89,8 +89,18 @@ const POLYHAVEN_TEXTURE_CACHE = new Map();
 const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
-const PYRAMID_LEVELS = [11, 9, 6, 3];
-const LEVEL_TILE_COUNTS = PYRAMID_LEVELS.map((size) => (size <= 1 ? 1 : size * 4 - 4));
+const PYRAMID_LEVELS = [8, 5, 3];
+const TARGET_PLAYABLE_TILES = 50;
+const LEVEL_TILE_COUNTS = (() => {
+  let used = 0;
+  return PYRAMID_LEVELS.map((size) => {
+    if (used >= TARGET_PLAYABLE_TILES) return 0;
+    const ringCount = size <= 1 ? 1 : size * 4 - 4;
+    const allowed = Math.min(ringCount, TARGET_PLAYABLE_TILES - used);
+    used += allowed;
+    return allowed;
+  });
+})();
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
@@ -2442,6 +2452,20 @@ function parseJumpMap(data = {}) {
   return entries;
 }
 
+function createJumpLaneResolver(entries = []) {
+  const laneByStart = new Map();
+  const densityByBucket = new Map();
+  entries.forEach(([start, end]) => {
+    const bucket = Math.floor((Math.min(start, end) - 1) / 6);
+    const density = densityByBucket.get(bucket) ?? 0;
+    const lane = density % 3;
+    const direction = density % 2 === 0 ? 1 : -1;
+    laneByStart.set(start, { lane, direction });
+    densityByBucket.set(bucket, density + 1);
+  });
+  return (start) => laneByStart.get(start) ?? { lane: 0, direction: 1 };
+}
+
 function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
   const arenaTheme = appearanceOptions.arena ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
@@ -2896,8 +2920,10 @@ function buildSnakeBoard(
 
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const offset = levelOffsets[levelIndex];
+    const levelTileCount = LEVEL_TILE_COUNTS[levelIndex] ?? 0;
+    if (levelTileCount <= 0) return;
     const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
-    const perimeter = buildPerimeterSequence(size);
+    const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
       const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
@@ -3549,54 +3575,56 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
 
   group.userData.paths = new Map();
 
-  parseJumpMap(ladders)
-    .filter(([a, b]) => b > a)
-    .forEach(([start, end]) => {
-      const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
-      const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
-      const dir = B.clone().sub(A);
-      const len = dir.length();
-      const up = new THREE.Vector3(0, 1, 0);
-      const forward = dir.lengthSq() > 1e-6 ? dir.clone().normalize() : new THREE.Vector3(0, 0, 1);
-      const rightBase = new THREE.Vector3().crossVectors(forward, up);
-      if (rightBase.lengthSq() < 1e-6) {
-        rightBase.set(1, 0, 0);
-      } else {
-        rightBase.normalize();
-      }
-      const railOffset = TILE_SIZE * 0.14;
+  const ladderEntries = parseJumpMap(ladders).filter(([a, b]) => b > a);
+  const resolveLadderLane = createJumpLaneResolver(ladderEntries);
+  ladderEntries.forEach(([start, end]) => {
+    const laneConfig = resolveLadderLane(start);
+    const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
+    const B = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
+    const dir = B.clone().sub(A);
+    const len = dir.length();
+    const up = new THREE.Vector3(0, 1, 0);
+    const forward = dir.lengthSq() > 1e-6 ? dir.clone().normalize() : new THREE.Vector3(0, 0, 1);
+    const rightBase = new THREE.Vector3().crossVectors(forward, up);
+    if (rightBase.lengthSq() < 1e-6) {
+      rightBase.set(1, 0, 0);
+    } else {
+      rightBase.normalize();
+    }
+    const railOffset = TILE_SIZE * 0.14;
 
-      const baseLift = LADDER_BASE_LIFT;
-      const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
-      const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
+    const baseLift = LADDER_BASE_LIFT;
+    const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
+    const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
+    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.1;
 
-      const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift));
-      const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
-      const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
-      const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
-      const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
-      const quarterPoint = startPoint
-        .clone()
-        .lerp(endPoint, 0.25)
-        .addScaledVector(up, quarterLift + clearance * 0.6)
-        .addScaledVector(rightBase, swayAmount);
-      const midPoint = startPoint
-        .clone()
-        .lerp(endPoint, 0.5)
-        .addScaledVector(up, archHeight + clearance)
-        .addScaledVector(rightBase, swayAmount * -0.35);
-      const threeQuarterPoint = startPoint
-        .clone()
-        .lerp(endPoint, 0.75)
-        .addScaledVector(up, threeQuarterLift + clearance * 0.6)
-        .addScaledVector(rightBase, -swayAmount);
+    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift));
+    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
+    const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
+    const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
+    const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
+    const quarterPoint = startPoint
+      .clone()
+      .lerp(endPoint, 0.25)
+      .addScaledVector(up, quarterLift + clearance * 0.6)
+      .addScaledVector(rightBase, swayAmount + laneOffset);
+    const midPoint = startPoint
+      .clone()
+      .lerp(endPoint, 0.5)
+      .addScaledVector(up, archHeight + clearance)
+      .addScaledVector(rightBase, swayAmount * -0.35 + laneOffset * 0.7);
+    const threeQuarterPoint = startPoint
+      .clone()
+      .lerp(endPoint, 0.75)
+      .addScaledVector(up, threeQuarterLift + clearance * 0.6)
+      .addScaledVector(rightBase, -swayAmount + laneOffset);
 
-      const centerPoints = [startPoint, quarterPoint, midPoint, threeQuarterPoint, endPoint];
-      const centerCurve = new THREE.CatmullRomCurve3(centerPoints, false, 'centripetal');
+    const centerPoints = [startPoint, quarterPoint, midPoint, threeQuarterPoint, endPoint];
+    const centerCurve = new THREE.CatmullRomCurve3(centerPoints, false, 'centripetal');
 
-      const leftPoints = [];
-      const rightPoints = [];
-      centerPoints.forEach((point, pointIndex) => {
+    const leftPoints = [];
+    const rightPoints = [];
+    centerPoints.forEach((point, pointIndex) => {
         const prev = centerPoints[pointIndex - 1] ?? centerPoints[pointIndex];
         const next = centerPoints[pointIndex + 1] ?? centerPoints[pointIndex];
         const tangent = next.clone().sub(prev);
@@ -3614,23 +3642,23 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
         const ease = pointIndex === 1 || pointIndex === centerPoints.length - 2 ? 0.82 : 1;
         leftPoints.push(point.clone().addScaledVector(localRight, -railOffset * ease));
         rightPoints.push(point.clone().addScaledVector(localRight, railOffset * ease));
-      });
+    });
 
-      const leftCurve = new THREE.CatmullRomCurve3(leftPoints, false, 'centripetal');
-      const rightCurve = new THREE.CatmullRomCurve3(rightPoints, false, 'centripetal');
+    const leftCurve = new THREE.CatmullRomCurve3(leftPoints, false, 'centripetal');
+    const rightCurve = new THREE.CatmullRomCurve3(rightPoints, false, 'centripetal');
 
-      const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
-      const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
-      const railA = new THREE.Mesh(railGeomA, matRail.clone());
-      const railB = new THREE.Mesh(railGeomB, matRail.clone());
-      const repeat = Math.max(3, len / (TILE_SIZE * 0.35));
-      railA.material.map.repeat.x = repeat;
-      railB.material.map.repeat.x = repeat;
-      group.add(railA, railB);
+    const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
+    const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
+    const railA = new THREE.Mesh(railGeomA, matRail.clone());
+    const railB = new THREE.Mesh(railGeomB, matRail.clone());
+    const repeat = Math.max(3, len / (TILE_SIZE * 0.35));
+    railA.material.map.repeat.x = repeat;
+    railB.material.map.repeat.x = repeat;
+    group.add(railA, railB);
 
-      const rungStep = TILE_SIZE * 0.55;
-      const rungCount = Math.max(4, Math.floor(len / rungStep));
-      for (let i = 1; i < rungCount; i++) {
+    const rungStep = TILE_SIZE * 0.55;
+    const rungCount = Math.max(4, Math.floor(len / rungStep));
+    for (let i = 1; i < rungCount; i++) {
         const t = i / rungCount;
         const point = centerCurve.getPoint(t);
         const tangent = centerCurve.getTangent(t).normalize();
@@ -3644,15 +3672,15 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
         const rung = new THREE.Mesh(rungGeom, matRung);
         rung.position.copy(point);
         rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), localRight);
-        group.add(rung);
-      }
+      group.add(rung);
+    }
 
-      group.userData.paths.set(start, {
-        curve: centerCurve,
-        start: startPoint.clone(),
-        end: endPoint.clone()
-      });
+    group.userData.paths.set(start, {
+      curve: centerCurve,
+      start: startPoint.clone(),
+      end: endPoint.clone()
     });
+  });
 }
 
 function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snakeTexture, theme = {}) {
@@ -3696,10 +3724,12 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
   });
 
   const entries = parseJumpMap(snakes).filter(([a, b]) => b < a);
+  const resolveSnakeLane = createJumpLaneResolver(entries);
 
   group.userData.paths = new Map();
 
   entries.forEach(([start, end]) => {
+    const laneConfig = resolveSnakeLane(start);
     const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
     const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
     const startPoint = pullPointTowardCenter(baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
@@ -3713,7 +3743,9 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     } else {
       lateral.normalize();
     }
-    const lateralAmount = Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE);
+    const lateralAmount =
+      Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE) +
+      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.06;
     const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
     const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
     const neckPoint = startPoint

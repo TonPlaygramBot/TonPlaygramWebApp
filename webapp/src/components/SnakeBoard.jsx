@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, Fragment, useMemo } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
 const LEVEL_SPECS = [
-  { size: 11, gapAfter: 2 },
-  { size: 9, gapAfter: 2 },
-  { size: 6, gapAfter: 2 },
+  { size: 8, gapAfter: 2 },
+  { size: 5, gapAfter: 2 },
   { size: 3, gapAfter: 0 },
 ];
+const PLAYABLE_TILE_COUNT = 50;
 const GRID_SCALE = 2;
 const EXTRA_COLUMN_FRACTION = 0.6;
 const CELL_HEIGHT_RATIO = 1.9;
@@ -61,21 +61,31 @@ function buildPyramidLayout() {
     yCursor += size + (gapAfter ?? 0);
   });
 
-  const totalCells = cell - 1;
+  const totalCells = Math.min(PLAYABLE_TILE_COUNT, cell - 1);
   const widthUnits = maxX - minX;
   const heightUnits = maxY;
 
   const mirrorColumn = (col) => minX + widthUnits - (col + 1);
 
-  const mirroredTiles = tiles.map((tile) => ({
+  const mirroredTiles = tiles
+    .filter((tile) => tile.cell <= totalCells)
+    .map((tile) => ({
     ...tile,
     col: mirrorColumn(tile.col),
   }));
 
-  const mirroredLevels = levels.map((level) => ({
-    ...level,
-    xOffset: mirrorColumn(level.xOffset + level.size - 1),
-  }));
+  const mirroredLevels = levels
+    .map((level) => {
+      const tilesInLevel = mirroredTiles.filter((tile) => tile.levelIndex === level.levelIndex);
+      if (!tilesInLevel.length) return null;
+      return {
+        ...level,
+        startCell: tilesInLevel[0].cell,
+        endCell: tilesInLevel[tilesInLevel.length - 1].cell,
+        xOffset: mirrorColumn(level.xOffset + level.size - 1),
+      };
+    })
+    .filter(Boolean);
 
   let mirroredMinX = Infinity;
   let mirroredMaxX = -Infinity;

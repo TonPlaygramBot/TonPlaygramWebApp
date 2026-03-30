@@ -179,9 +179,8 @@ const SNAKE_SFX = Object.freeze({
   badLuck: '/assets/sounds/no-luck-too-bad-disappointing-sound-effect-112943.mp3',
   cheer: '/assets/sounds/crowd-cheering-383111.mp3'
 });
-// Adjusted board dimensions to show five columns
-// while keeping the total cell count at 100
 const FINAL_TILE = BOARD_FINAL_TILE;
+const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 3400;
 const AI_EXTRA_ROLL_DELAY_MS = 2600;
@@ -2533,7 +2532,7 @@ export default function SnakeAndLadder() {
     let preview = pos;
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview === 100) {
+    } else if (preview === PENULTIMATE_TILE) {
       if (value === 1) preview = FINAL_TILE;
     } else {
       if (preview + value <= FINAL_TILE) preview = preview + value;
@@ -2563,7 +2562,7 @@ export default function SnakeAndLadder() {
       let current = pos;
       let target = current;
 
-      if (current === 100) {
+      if (current === PENULTIMATE_TILE) {
         if (value === 1) {
           target = FINAL_TILE;
         } else {
@@ -2740,6 +2739,7 @@ export default function SnakeAndLadder() {
           setBonusDice(0);
         }
         setDiceVisible(true);
+        setPendingExtraRoll(extraTurn);
         setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : getPreviousTurn(currentTurn);
@@ -2778,7 +2778,7 @@ export default function SnakeAndLadder() {
     let preview = aiPositions[index - 1];
     if (preview === 0) {
       if (rolledSix) preview = 1;
-    } else if (preview === 100) {
+    } else if (preview === PENULTIMATE_TILE) {
       if (value === 1) preview = FINAL_TILE;
     } else if (preview + value <= FINAL_TILE) {
       preview = preview + value;
@@ -2812,7 +2812,7 @@ export default function SnakeAndLadder() {
       } else {
         enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
       }
-    } else if (current === 100) {
+    } else if (current === PENULTIMATE_TILE) {
       if (value === 1) target = FINAL_TILE;
       else {
         enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
