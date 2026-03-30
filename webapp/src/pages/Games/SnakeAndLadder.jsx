@@ -1274,6 +1274,7 @@ export default function SnakeAndLadder() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
+  const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
@@ -2166,10 +2167,12 @@ export default function SnakeAndLadder() {
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 1);
-        if (playersRef.current[idx]?.id === myAccountId) {
+        const turnBelongsToMe = playersRef.current[idx]?.id === myAccountId;
+        if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
         }
+        if (!turnBelongsToMe) setPendingExtraRoll(false);
       }
     };
     const onStarted = () => {
@@ -3151,9 +3154,11 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
+  const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
+  const isMyTurnForRoll =
+    myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const canRoll =
-    myPlayerIndex !== null &&
-    currentTurn === myPlayerIndex &&
+    isMyTurnForRoll &&
     !moving &&
     rollCooldown === 0 &&
     !gameOver &&
@@ -3976,6 +3981,7 @@ export default function SnakeAndLadder() {
                 count: diceCount,
                 seatIndex: aiRollingIndex ?? 0
               });
+              setPendingExtraRoll(false);
               if (timerRef.current) clearInterval(timerRef.current);
               timerSoundRef.current?.pause();
               setRollingIndex(aiRollingIndex || 0);
@@ -4000,7 +4006,7 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && myPlayerIndex !== null && (
         <div className="sr-only" aria-hidden="true">
-          {currentTurn === myPlayerIndex && !moving ? (
+          {isMyTurnForRoll && !moving ? (
             <DiceRoller
               clickable
               showButton={false}
@@ -4016,6 +4022,7 @@ export default function SnakeAndLadder() {
                   count: diceCount,
                   seatIndex: currentTurn
                 });
+                setPendingExtraRoll(false);
               }}
               onRollEnd={(vals) => {
                 startDiceBoardAnimation({
@@ -4024,6 +4031,10 @@ export default function SnakeAndLadder() {
                   values: vals,
                   seatIndex: currentTurn
                 });
+                const rolledSix = Array.isArray(vals)
+                  ? vals.some((v) => Number(v) === 6)
+                  : Number(vals) === 6;
+                setPendingExtraRoll(rolledSix);
               }}
             />
           ) : null}
