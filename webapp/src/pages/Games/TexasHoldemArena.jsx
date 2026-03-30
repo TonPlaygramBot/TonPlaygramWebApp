@@ -507,6 +507,24 @@ function rememberHdriEnvironment(cacheKey, payload) {
   }
 }
 
+function withHdriResolutionPreferences(variant, preferredResolutions = []) {
+  if (!variant) return null;
+  const basePreferred =
+    Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+      ? variant.preferredResolutions
+      : [DEFAULT_HDRI_RESOLUTION_ID];
+  const requested = Array.isArray(preferredResolutions)
+    ? preferredResolutions.filter((res) => typeof res === 'string' && res.length)
+    : [];
+  const mergedPreferred = Array.from(new Set([...requested, ...basePreferred]));
+  const fallbackResolution = mergedPreferred[0] || basePreferred[0] || DEFAULT_HDRI_RESOLUTION_ID;
+  return {
+    ...variant,
+    preferredResolutions: mergedPreferred,
+    fallbackResolution
+  };
+}
+
 function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
   try {
@@ -3883,9 +3901,12 @@ function TexasHoldemArena({ search }) {
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = TEXAS_CHAIR_THEME_OPTIONS[safe.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
     const environmentOption =
-      TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
-      TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
-      TEXAS_HDRI_OPTIONS[0];
+      withHdriResolutionPreferences(
+        TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
+          TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
+          TEXAS_HDRI_OPTIONS[0],
+        preferredHdriResolutionsRef.current
+      );
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
       safe.tableShape,
       effectivePlayerCount
@@ -4053,12 +4074,14 @@ function TexasHoldemArena({ search }) {
         applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
       }
     });
+    const currentHdriResolutionId =
+      HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]?.id || DEFAULT_HDRI_RESOLUTION_ID;
     if (
       environmentOption &&
       (
         !envTextureRef.current ||
         (hdriVariantRef.current?.id || hdriVariantRef.current?.assetId) !== (environmentOption.id || environmentOption.assetId) ||
-        loadedHdriResolutionIdRef.current !== hdriResolutionId
+        loadedHdriResolutionIdRef.current !== currentHdriResolutionId
       )
     ) {
       void applyHdriEnvironment(environmentOption);
@@ -4387,9 +4410,12 @@ function TexasHoldemArena({ search }) {
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
     const initialEnvironment =
-      TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
-      TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
-      TEXAS_HDRI_OPTIONS[0];
+      withHdriResolutionPreferences(
+        TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
+          TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
+          TEXAS_HDRI_OPTIONS[0],
+        preferredHdriResolutionsRef.current
+      );
 
     const arenaGroup = new THREE.Group();
     scene.add(arenaGroup);
