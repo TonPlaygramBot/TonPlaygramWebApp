@@ -70,15 +70,35 @@ function prioritizeDefaultHdri(options = TEXAS_HDRI_OPTIONS) {
 
 function pickPolyHavenHdriUrl(fileMap, preferredResolutions = DEFAULT_RESOLUTIONS) {
   if (!fileMap || typeof fileMap !== 'object') return null;
-  const exr = fileMap?.exr || {};
-  const hdr = fileMap?.hdr || {};
-  for (const res of preferredResolutions) {
-    if (typeof exr[res] === 'string' && exr[res]) return exr[res];
-    if (typeof hdr[res] === 'string' && hdr[res]) return hdr[res];
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.hdr') || lower.includes('.exr'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(fileMap);
+
+  if (!urls.length) return null;
+  const lowerUrls = urls.map((url) => url.toLowerCase());
+  for (const resolution of preferredResolutions) {
+    const withUnderscore = lowerUrls.find((url) => url.includes(`_${resolution}.`));
+    if (withUnderscore) return urls[lowerUrls.indexOf(withUnderscore)];
+    const withPathSegment = lowerUrls.find((url) => url.includes(`/${resolution}/`));
+    if (withPathSegment) return urls[lowerUrls.indexOf(withPathSegment)];
   }
-  const exrValues = Object.values(exr);
-  const hdrValues = Object.values(hdr);
-  return exrValues[0] || hdrValues[0] || null;
+  return urls[0] || null;
 }
 
 function getFallbackHdriUrl(config = {}, preferredResolutions = DEFAULT_RESOLUTIONS) {
