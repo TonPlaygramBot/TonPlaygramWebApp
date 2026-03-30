@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 const MIN_VECTOR_EPS = 1e-6;
-const DEFAULT_CONTACT_CALIBRATION = 0.0015;
-const DEFAULT_SIDE_DEFLECTION_SCALE = 0.0135;
-const DEFAULT_POWER_DEFLECTION_SCALE = 0.015;
+const DEFAULT_CONTACT_CALIBRATION = 0.0012;
+const DEFAULT_SIDE_DEFLECTION_SCALE = 0.0115;
+const DEFAULT_POWER_DEFLECTION_SCALE = 0.0125;
 
 export const resolveAiPotGhostAim = ({
   cuePos,
@@ -32,7 +32,7 @@ export const resolveAiPotGhostAim = ({
     -0.08,
     0.08
   );
-  const contactDepth = radius * 2 * (1 + calibration);
+  const baseContactDepth = radius * 2 * (1 + calibration);
 
   const cueToTargetDir = new THREE.Vector2().subVectors(targetPos, cuePos);
   if (cueToTargetDir.lengthSq() <= MIN_VECTOR_EPS) return null;
@@ -43,22 +43,23 @@ export const resolveAiPotGhostAim = ({
     sideSpin *
     power01 *
     DEFAULT_SIDE_DEFLECTION_SCALE *
-    (0.45 + cutSeverity * 0.55);
+    (0.32 + cutSeverity * 0.68);
   const powerDeflection =
     topBackSpin *
-    (0.35 + 0.65 * Math.pow(power01, 1.2)) *
+    (0.22 + 0.78 * Math.pow(power01, 1.18)) *
     DEFAULT_POWER_DEFLECTION_SCALE *
-    (0.3 + 0.7 * cutSeverity) *
+    (0.24 + 0.76 * cutSeverity) *
     THREE.MathUtils.clamp(
       toPocketDistance / Math.max(radius * 22, MIN_VECTOR_EPS),
-      0.75,
-      1.35
+      0.8,
+      1.24
     );
+  const cutCompensatedDepth = baseContactDepth * (1 - 0.024 * cutSeverity * cutSeverity);
   const lateralUnit = new THREE.Vector2(-toPocketDir.y, toPocketDir.x);
 
   const ghost = new THREE.Vector2()
     .copy(targetPos)
-    .sub(toPocketDir.clone().multiplyScalar(contactDepth))
+    .sub(toPocketDir.clone().multiplyScalar(cutCompensatedDepth))
     .addScaledVector(lateralUnit, sideDeflection)
     .addScaledVector(toPocketDir, powerDeflection);
 
@@ -68,6 +69,6 @@ export const resolveAiPotGhostAim = ({
   return {
     aimDir: finalCueVector.normalize(),
     ghost,
-    contactDepth
+    contactDepth: cutCompensatedDepth
   };
 };
