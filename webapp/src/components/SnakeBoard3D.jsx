@@ -163,22 +163,6 @@ const PYRAMID_CONCRETE_BASE = new THREE.Color('#e2e8f0');
 const PYRAMID_WALL_LIGHT = new THREE.Color('#d4d4d8');
 const PYRAMID_WALL_DARK = new THREE.Color('#4b5563');
 const PYRAMID_WALL_ACCENT = new THREE.Color('#9ca3af');
-const PYRAMID_PHOTO_WALL_COLORS = Object.freeze([
-  new THREE.Color('#e84b40'),
-  new THREE.Color('#48c35a'),
-  new THREE.Color('#4f62d7')
-]);
-const PYRAMID_PHOTO_TOP_COLORS = Object.freeze([
-  new THREE.Color('#d8a34a'),
-  new THREE.Color('#df5b44'),
-  new THREE.Color('#57c56d')
-]);
-const PYRAMID_PHOTO_TILE_RING_COLORS = Object.freeze([
-  new THREE.Color('#f0be51'),
-  new THREE.Color('#4d57ce'),
-  new THREE.Color('#59cd63'),
-  new THREE.Color('#de5148')
-]);
 
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
@@ -405,15 +389,6 @@ function buildPerimeterSequence(size) {
     sequence.push({ row, col: 0 });
   }
   return sequence;
-}
-
-function getPhotoBoardTileColor(levelIndex, seqIndex, levelTileCount) {
-  const palette = PYRAMID_PHOTO_TILE_RING_COLORS;
-  const baseShift = ((levelIndex % palette.length) + palette.length) % palette.length;
-  if (levelTileCount <= 0) return palette[baseShift].clone();
-  const segmentSize = Math.max(1, Math.floor(levelTileCount / palette.length));
-  const segmentIndex = Math.min(palette.length - 1, Math.floor(Math.max(0, seqIndex) / segmentSize));
-  return palette[(baseShift + segmentIndex) % palette.length].clone();
 }
 
 function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
@@ -2784,7 +2759,6 @@ function buildSnakeBoard(
   const diceTheme = appearanceOptions.dice ?? {};
   const floorTexture = appearanceOptions.floorTexture ?? null;
   const wallTexture = appearanceOptions.wallTexture ?? null;
-  const usePhotoBoardStyle = boardTheme.style === 'classic' ? false : true;
   const highlightColors = createHighlightColors(boardTheme);
   const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
   const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
@@ -2820,32 +2794,24 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const dimension = size * TILE_SIZE;
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const wallColor = usePhotoBoardStyle
-      ? PYRAMID_PHOTO_WALL_COLORS[levelIndex % PYRAMID_PHOTO_WALL_COLORS.length].clone()
-      : PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
-    const wallGlowBase = usePhotoBoardStyle
-      ? wallColor.clone().lerp(new THREE.Color('#ffffff'), 0.32)
-      : PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
-    const rimTone = usePhotoBoardStyle
-      ? wallColor.clone().lerp(new THREE.Color('#fef08a'), 0.35)
-      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
-    const topTone = usePhotoBoardStyle
-      ? PYRAMID_PHOTO_TOP_COLORS[levelIndex % PYRAMID_PHOTO_TOP_COLORS.length].clone()
-      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
+    const wallColor = PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
+    const wallGlowBase = PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
+    const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
+    const topTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
     const wallMaterial = new THREE.MeshStandardMaterial({
       color: wallColor,
-      roughness: usePhotoBoardStyle ? 0.52 : 0.76,
-      metalness: usePhotoBoardStyle ? 0.16 : 0.08,
-      emissive: wallGlowBase.clone().multiplyScalar(usePhotoBoardStyle ? 0.22 : 0.18),
-      emissiveIntensity: usePhotoBoardStyle ? 0.19 : 0.14
+      roughness: 0.76,
+      metalness: 0.08,
+      emissive: wallGlowBase.clone().multiplyScalar(0.18),
+      emissiveIntensity: 0.14
     });
     wallMaterials.push(wallMaterial);
     const topMaterial = new THREE.MeshStandardMaterial({
       color: topTone,
-      roughness: usePhotoBoardStyle ? 0.45 : 0.68,
-      metalness: usePhotoBoardStyle ? 0.18 : 0.12,
-      emissive: rimTone.clone().multiplyScalar(usePhotoBoardStyle ? 0.18 : 0.12),
-      emissiveIntensity: usePhotoBoardStyle ? 0.16 : 0.12
+      roughness: 0.68,
+      metalness: 0.12,
+      emissive: rimTone.clone().multiplyScalar(0.12),
+      emissiveIntensity: 0.12
     });
     topMaterials.push(topMaterial);
     const bottomMaterial = new THREE.MeshStandardMaterial({
@@ -2960,11 +2926,7 @@ function buildSnakeBoard(
     const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const baseColor = usePhotoBoardStyle
-        ? getPhotoBoardTileColor(levelIndex, seqIndex, levelTileCount)
-        : (row + col) % 2 === 0
-          ? tileLightBase.clone()
-          : tileDarkBase.clone();
+      const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
       const materialSet = createTileMaterialSet(baseColor, boardTheme);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
