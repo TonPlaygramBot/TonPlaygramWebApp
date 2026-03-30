@@ -14,7 +14,8 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const HDRI_RESOLUTION_STORAGE_KEY = 'dominoRoyalHdriResolution';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
-const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
+const DEFAULT_HDRI_RESOLUTION_MODE = DEFAULT_FRAME_RATE_ID;
+const DEFAULT_HDRI_RESOLUTION_KEY = '4k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -60,12 +61,46 @@ const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
   }, {})
 );
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  { id: 'auto', label: 'Match Graphics' },
-  { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
-  { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' },
-  { id: '1k', label: 'Full HD' }
+  {
+    id: 'auto',
+    label: 'Match Graphics',
+    resolution: 'Follows Graphics preset',
+    description:
+      'Automatically keeps HDRI resolution synced with the selected graphics quality.'
+  },
+  {
+    id: 'fhd60',
+    label: '4K (60 Hz)',
+    fps: 60,
+    resolution: '4K assets • optimized DPR cap',
+    hdriResolution: '4k',
+    description: '4K HDRI profile for 60 Hz displays.'
+  },
+  {
+    id: 'qhd90',
+    label: '6K (90 Hz)',
+    fps: 90,
+    resolution: '6K assets • optimized DPR cap',
+    hdriResolution: '6k',
+    description: '6K HDRI profile for 90 Hz displays.'
+  },
+  {
+    id: 'uhd120',
+    label: '8K (120 Hz)',
+    fps: 120,
+    resolution: '8K assets • optimized DPR cap',
+    hdriResolution: '8k',
+    description:
+      '8K HDRI profile for 120 Hz displays and flagship hardware.'
+  },
+  {
+    id: 'ultra144',
+    label: '8K (144 Hz)',
+    fps: 144,
+    resolution: '8K assets • optimized DPR cap',
+    hdriResolution: '8k',
+    description: '8K HDRI profile for 144 Hz displays.'
+  }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -73,6 +108,13 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
+const LEGACY_HDRI_RESOLUTION_ALIASES = Object.freeze({
+  '1k': 'fhd60',
+  '2k': 'fhd60',
+  '4k': 'fhd60',
+  '6k': 'qhd90',
+  '8k': 'uhd120'
+});
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
@@ -467,14 +509,27 @@ function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
     case 'fhd60':
       return '4k';
     default:
-      return DEFAULT_HDRI_RESOLUTION_MODE;
+      return DEFAULT_HDRI_RESOLUTION_KEY;
   }
+}
+
+function resolveHdriResolutionFromSelection(selectionId, fallbackFrameRateId = frameRateId) {
+  if (selectionId === 'auto') {
+    return resolveGraphicsHdriResolutionId(fallbackFrameRateId);
+  }
+  const selectedOption = HDRI_RESOLUTION_OPTION_MAP[selectionId];
+  return (
+    selectedOption?.hdriResolution ||
+    resolveGraphicsHdriResolutionId(fallbackFrameRateId)
+  );
 }
 
 function resolveInitialHdriResolutionId(frameRateOptionId = frameRateId) {
   const normalizeHdriResolutionId = (rawId) => {
     if (!rawId) return null;
-    return HDRI_RESOLUTION_OPTION_MAP[rawId] ? rawId : null;
+    if (HDRI_RESOLUTION_OPTION_MAP[rawId]) return rawId;
+    const legacyId = LEGACY_HDRI_RESOLUTION_ALIASES[rawId];
+    return HDRI_RESOLUTION_OPTION_MAP[legacyId] ? legacyId : null;
   };
   const urlPreset =
     urlParams.get('hdriResolutionId') || urlParams.get('hdriResolution');
@@ -496,7 +551,7 @@ function resolveInitialHdriResolutionId(frameRateOptionId = frameRateId) {
       );
     }
   }
-  return resolveGraphicsHdriResolutionId(frameRateOptionId);
+  return frameRateOptionId || DEFAULT_FRAME_RATE_ID;
 }
 
 function findFallbackFrameRateId(currentId) {
@@ -4515,30 +4570,15 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (
-    hdriResolutionId !== 'auto' &&
-    HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]
-  ) {
-    const preferredIndex = HDRI_RESOLUTION_ORDER.indexOf(hdriResolutionId);
-    if (preferredIndex >= 0) {
-      return HDRI_RESOLUTION_ORDER.slice(preferredIndex).reverse();
-    }
+  const selectedHdriResolution = resolveHdriResolutionFromSelection(
+    hdriResolutionId,
+    frameRateId
+  );
+  if (selectedHdriResolution) {
+    const preferredIndex = HDRI_RESOLUTION_ORDER.indexOf(selectedHdriResolution);
+    if (preferredIndex >= 0) return HDRI_RESOLUTION_ORDER.slice(preferredIndex).reverse();
   }
-  switch (frameRateId) {
-    case 'ultra144':
-      return ['8k'];
-    case 'uhd120':
-      // Poly Haven may not host every asset in 6k, but we still try 6k first to match graphics profile.
-      return ['8k', '6k'];
-    case 'qhd90':
-      return ['6k', '4k'];
-    case 'fhd60':
-      return ['4k', '2k'];
-    default:
-      if (prefersUhd) return ['8k', '6k'];
-      if (isLowProfileDevice) return ['2k'];
-      return ['4k', '2k'];
-  }
+  return ['4k', '2k'];
 }
 function shouldLoadExternalHdri() {
   // Keep HDRI enabled on mobile/Telegram so players still see purchased environments.
@@ -7389,9 +7429,14 @@ function refreshConfigUI() {
   const graphicsLabel = document.createElement('h4');
   graphicsLabel.textContent = 'Graphics';
   graphicsWrapper.appendChild(graphicsLabel);
-  const activeHdriResolution = resolveHdriResolutionOrder()[0] || '4k';
+  const activeHdriResolution = resolveHdriResolutionFromSelection(
+    hdriResolutionId,
+    frameRateId
+  );
   const hdriSummary = document.createElement('p');
-  hdriSummary.textContent = `HDRI resolution: ${String(activeHdriResolution).toUpperCase()}`;
+  hdriSummary.textContent = `HDRI resolution: ${String(
+    activeHdriResolution || '4k'
+  ).toUpperCase()}`;
   hdriSummary.style.margin = '0';
   hdriSummary.style.fontSize = '0.65rem';
   hdriSummary.style.lineHeight = '1.4';
@@ -7399,7 +7444,7 @@ function refreshConfigUI() {
   graphicsWrapper.appendChild(hdriSummary);
   const hdriGrid = document.createElement('div');
   hdriGrid.className = 'config-options';
-  hdriGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(126px, 1fr))';
+  hdriGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
   HDRI_RESOLUTION_OPTIONS.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -7410,14 +7455,41 @@ function refreshConfigUI() {
     }
     button.setAttribute('aria-pressed', String(isActive));
     const label = document.createElement('span');
-    label.textContent = 'HDRI';
+    label.textContent = option.label;
     button.appendChild(label);
     const line = document.createElement('div');
-    line.textContent = option.label;
-    line.style.fontSize = '0.74rem';
+    line.style.display = 'flex';
+    line.style.width = '100%';
+    line.style.justifyContent = 'space-between';
+    line.style.alignItems = 'center';
+    line.style.gap = '0.35rem';
+    line.style.fontSize = '0.72rem';
     line.style.fontWeight = '700';
     line.style.letterSpacing = '0.04em';
+    const modeTag = document.createElement('strong');
+    modeTag.textContent = option.fps ? `${option.fps} FPS` : 'AUTO';
+    modeTag.style.fontSize = '0.78rem';
+    modeTag.style.color = 'var(--fg)';
+    line.appendChild(modeTag);
+    const resolution = document.createElement('span');
+    resolution.textContent = option.resolution || '';
+    resolution.style.color = 'rgba(226,232,240,0.76)';
+    resolution.style.fontSize = '0.65rem';
+    resolution.style.textAlign = 'right';
+    resolution.style.flex = '1';
+    resolution.style.letterSpacing = '0.05em';
+    line.appendChild(resolution);
     button.appendChild(line);
+    if (option.description) {
+      const desc = document.createElement('p');
+      desc.textContent = option.description;
+      desc.style.margin = '0';
+      desc.style.fontSize = '0.65rem';
+      desc.style.lineHeight = '1.35';
+      desc.style.color = 'rgba(226,232,240,0.74)';
+      desc.style.fontWeight = '600';
+      button.appendChild(desc);
+    }
     button.addEventListener('click', () => {
       if (hdriResolutionId === option.id) return;
       applyHdriResolutionSelection(option.id, { refreshUi: false });
