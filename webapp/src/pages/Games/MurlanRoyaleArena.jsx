@@ -665,6 +665,18 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
+const HDRI_RESOLUTION_STORAGE_KEY = 'murlanHdriResolution';
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
+  { id: '4k', label: '4K' }
+]);
+const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 const COMMENTARY_PRESET_STORAGE_KEY = 'murlanRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'murlanRoyaleCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
@@ -2303,7 +2315,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (stored === '1') return true;
       if (stored === '0') return false;
     }
-    return false;
+    return true;
   });
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
@@ -2372,6 +2384,20 @@ export default function MurlanRoyaleArena({ search }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
+  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
+        return stored;
+      }
+    }
+    const fallback =
+      typeof DEFAULT_FRAME_RATE_OPTION?.hdriResolution === 'string' &&
+      HDRI_RESOLUTION_OPTION_MAP[DEFAULT_FRAME_RATE_OPTION.hdriResolution]
+        ? DEFAULT_FRAME_RATE_OPTION.hdriResolution
+        : '6k';
+    return fallback;
+  });
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
     const fallback = DEFAULT_FRAME_RATE_OPTION;
@@ -2420,9 +2446,13 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution =
-    (typeof activeFrameRateOption?.hdriResolution === 'string' && activeFrameRateOption.hdriResolution) ||
-    DEFAULT_HDRI_RESOLUTIONS[0];
+  const resolvedHdriResolution = useMemo(() => {
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) return hdriResolutionId;
+    if (typeof activeFrameRateOption?.hdriResolution === 'string' && activeFrameRateOption.hdriResolution) {
+      return activeFrameRateOption.hdriResolution;
+    }
+    return DEFAULT_HDRI_RESOLUTIONS[0];
+  }, [activeFrameRateOption, hdriResolutionId]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -2929,6 +2959,15 @@ export default function MurlanRoyaleArena({ search }) {
       console.warn('Failed to persist frame rate option', error);
     }
   }, [frameRateId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+    } catch (error) {
+      console.warn('Failed to persist HDRI resolution option', error);
+    }
+  }, [hdriResolutionId]);
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
@@ -5053,6 +5092,30 @@ export default function MurlanRoyaleArena({ search }) {
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                     <div className="grid gap-2">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">HDRI Resolution</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                        const active = option.id === hdriResolutionId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setHdriResolutionId(option.id)}
+                            aria-pressed={active}
+                            className={`rounded-xl border px-2 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_10px_rgba(125,211,252,0.35)]'
+                                : 'border-white/10 bg-white/5 text-white/75 hover:border-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+                      Manual HDRI quality selection (4K, 6K, 8K) like Pool Royale.
+                    </p>
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
                         return (
@@ -5082,67 +5145,6 @@ export default function MurlanRoyaleArena({ search }) {
                         );
                       })}
                     </div>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
-                    <div className="grid gap-2">
-                      {MURLAN_ROYALE_COMMENTARY_PRESETS.map((preset) => {
-                        const active = preset.id === commentaryPresetId;
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => handleSelectCommentaryPreset(preset.id)}
-                            aria-pressed={active}
-                            disabled={!commentarySupported}
-                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              active
-                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                          >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                              {active && (
-                                <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                                  Active
-                                </span>
-                              )}
-                            </span>
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {preset.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleToggleCommentary}
-                      aria-pressed={commentaryMuted}
-                      disabled={!commentarySupported}
-                      className={`flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        commentaryMuted
-                          ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.45)]'
-                          : 'bg-white/10 text-white/80 hover:bg-white/20'
-                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                    >
-                      <span>Mute commentary</span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                          commentaryMuted
-                            ? 'border-black/30 text-black/70'
-                            : 'border-white/30 text-white/70'
-                        }`}
-                      >
-                        {commentaryMuted ? 'On' : 'Off'}
-                      </span>
-                    </button>
-                    {!commentarySupported && (
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                        Voice commentary needs Web Speech support.
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
