@@ -12,6 +12,7 @@ import './flag-emojis.js';
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
+const HDRI_RESOLUTION_STORAGE_KEY = 'dominoRoyalHdriResolution';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
@@ -57,6 +58,35 @@ const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
     return acc;
   }, {})
 );
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  {
+    id: '8k',
+    label: '8K HDRI',
+    description: 'Maximum skybox sharpness for flagship devices.'
+  },
+  {
+    id: '6k',
+    label: '6K HDRI',
+    description: 'Balanced fidelity for premium phones and desktops.'
+  },
+  {
+    id: '4k',
+    label: '4K HDRI',
+    description: 'Default quality target for most devices.'
+  },
+  {
+    id: '2k',
+    label: '2K HDRI',
+    description: 'Lighter memory usage for smoother gameplay.'
+  }
+]);
+const HDRI_RESOLUTION_OPTIONS_BY_ID = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const DEFAULT_HDRI_RESOLUTION_ID = '4k';
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
@@ -441,6 +471,43 @@ function resolveInitialFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
+function normalizeHdriResolutionId(resolutionId) {
+  if (!resolutionId) return null;
+  const normalized = String(resolutionId).toLowerCase();
+  return HDRI_RESOLUTION_OPTIONS_BY_ID[normalized] ? normalized : null;
+}
+
+function resolveInitialHdriResolutionId() {
+  const urlPreset = normalizeHdriResolutionId(
+    urlParams.get('hdriResolution') || urlParams.get('hdri')
+  );
+  if (urlPreset) {
+    return urlPreset;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = normalizeHdriResolutionId(
+        window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY)
+      );
+      if (stored) {
+        return stored;
+      }
+    } catch (error) {
+      console.warn('Failed to read Domino HDRI resolution option', error);
+    }
+  }
+  switch (frameRateId) {
+    case 'ultra144':
+    case 'uhd120':
+      return '8k';
+    case 'qhd90':
+      return '6k';
+    case 'fhd60':
+    default:
+      return DEFAULT_HDRI_RESOLUTION_ID;
+  }
+}
+
 function findFallbackFrameRateId(currentId) {
   const idx = FRAME_RATE_OPTIONS.findIndex((opt) => opt.id === currentId);
   if (idx > 0) {
@@ -452,6 +519,7 @@ function findFallbackFrameRateId(currentId) {
 let frameRateId = resolveInitialFrameRateId();
 let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
+let hdriResolutionId = resolveInitialHdriResolutionId();
 let slowFrameAccumulatorMs = 0;
 let lastFailsafeTimestamp = 0;
 let lastManualFrameRateSelectionAt = 0;
@@ -462,6 +530,15 @@ function persistFrameRateSelection(id) {
     window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
   } catch (error) {
     console.warn('Failed to persist Domino graphics option', error);
+  }
+}
+
+function persistHdriResolutionSelection(id) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, id);
+  } catch (error) {
+    console.warn('Failed to persist Domino HDRI resolution option', error);
   }
 }
 
@@ -4447,20 +4524,29 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  switch (frameRateId) {
-    case 'ultra144':
-      return ['8k'];
-    case 'uhd120':
-      // Poly Haven may not host every asset in 6k, but we still try 6k first to match graphics profile.
-      return ['8k', '6k'];
-    case 'qhd90':
-      return ['6k', '4k'];
-    case 'fhd60':
-      return ['4k', '2k'];
-    default:
-      if (prefersUhd) return ['8k', '6k'];
-      if (isLowProfileDevice) return ['2k'];
-      return ['4k', '2k'];
+  const manualResolution = normalizeHdriResolutionId(hdriResolutionId);
+  if (manualResolution) {
+    const startIdx = HDRI_RESOLUTION_ORDER.indexOf(manualResolution);
+    if (startIdx >= 0) {
+      return HDRI_RESOLUTION_ORDER.slice(startIdx).reverse();
+    }
+  }
+  if (prefersUhd) return ['8k', '6k', '4k'];
+  if (isLowProfileDevice) return ['2k'];
+  return ['4k', '2k'];
+}
+
+function applyHdriResolutionSelection(optionId, { refreshUi = true } = {}) {
+  const normalized =
+    normalizeHdriResolutionId(optionId) || DEFAULT_HDRI_RESOLUTION_ID;
+  hdriResolutionId = normalized;
+  persistHdriResolutionSelection(normalized);
+  applyEnvironmentHdri(
+    ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
+      ENVIRONMENT_HDRI_OPTIONS[0]
+  );
+  if (refreshUi) {
+    refreshConfigUI();
   }
 }
 function shouldLoadExternalHdri() {
@@ -7349,6 +7435,39 @@ function refreshConfigUI() {
     graphicsGrid.appendChild(button);
   });
   graphicsWrapper.appendChild(graphicsGrid);
+
+  const hdriLabel = document.createElement('h4');
+  hdriLabel.textContent = 'HDRI Resolution';
+  graphicsWrapper.appendChild(hdriLabel);
+  const hdriGrid = document.createElement('div');
+  hdriGrid.className = 'config-options';
+  hdriGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(170px, 1fr))';
+  HDRI_RESOLUTION_OPTIONS.forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (hdriResolutionId === option.id) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(hdriResolutionId === option.id));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = option.description;
+    helper.style.fontSize = '0.65rem';
+    helper.style.lineHeight = '1.35';
+    helper.style.color = 'rgba(226,232,240,0.74)';
+    helper.style.fontWeight = '600';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      if (hdriResolutionId === option.id) return;
+      applyHdriResolutionSelection(option.id, { refreshUi: false });
+      refreshConfigUI();
+    });
+    hdriGrid.appendChild(button);
+  });
+  graphicsWrapper.appendChild(hdriGrid);
   configSectionsEl.appendChild(graphicsWrapper);
 }
 
