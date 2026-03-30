@@ -294,12 +294,6 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
 const TABLE_FINISH_THUMBNAILS = Object.freeze({
   peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
-  oakVeneer01Honey: swatchThumbnail(['#c89a64', '#e0bb7a', '#f3d3a2']),
-  oakVeneer01SmokedWalnut: swatchThumbnail(['#855933', '#a8784f', '#c89a64']),
-  oakVeneer01GraphiteBrown: swatchThumbnail(['#4f4037', '#6b584e', '#8a786e']),
-  oakVeneer01RoseTaupe: swatchThumbnail(['#7a5750', '#9a7368', '#c29e8f']),
-  oakVeneer01MatteBlack: swatchThumbnail(['#0f1012', '#1b1c1f', '#2f3136']),
-  carbonFiberMatteDarkGrey: swatchThumbnail(['#1e2229', '#2b3139', '#4b5563']),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
@@ -398,12 +392,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze({
     peelingPaintWeathered: 'Wood Peeling Paint Weathered',
     oakVeneer01: 'Oak Veneer 01',
-    oakVeneer01Honey: 'Oak Veneer 01 Honey Satin',
-    oakVeneer01SmokedWalnut: 'Oak Veneer 01 Smoked Walnut',
-    oakVeneer01GraphiteBrown: 'Oak Veneer 01 Graphite Brown',
-    oakVeneer01RoseTaupe: 'Oak Veneer 01 Rose Taupe',
-    oakVeneer01MatteBlack: 'Oak Veneer 01 Matte Black',
-    carbonFiberMatteDarkGrey: 'Carbon Fiber Matte Dark Grey',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
@@ -478,60 +466,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 990,
     description: 'Warm oak veneer rails with smooth satin polish.',
     thumbnail: '/store-thumbs/poolRoyale/tableFinish/oakVeneer01.png'
-  },
-  {
-    id: 'finish-oakVeneer01Honey',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Honey',
-    name: 'Oak Veneer 01 Honey Satin Finish',
-    price: 1000,
-    description: 'Oak Veneer 01 recolored to a bright honey satin tone.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Honey
-  },
-  {
-    id: 'finish-oakVeneer01SmokedWalnut',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01SmokedWalnut',
-    name: 'Oak Veneer 01 Smoked Walnut Finish',
-    price: 1010,
-    description: 'Oak Veneer 01 with richer smoked walnut mid-tones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01SmokedWalnut
-  },
-  {
-    id: 'finish-oakVeneer01GraphiteBrown',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01GraphiteBrown',
-    name: 'Oak Veneer 01 Graphite Brown Finish',
-    price: 1020,
-    description: 'Oak Veneer 01 shifted into cool graphite-brown tournament rails.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01GraphiteBrown
-  },
-  {
-    id: 'finish-oakVeneer01RoseTaupe',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01RoseTaupe',
-    name: 'Oak Veneer 01 Rose Taupe Finish',
-    price: 1030,
-    description: 'Oak Veneer 01 tinted with a subtle rose-taupe furniture tone.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01RoseTaupe
-  },
-  {
-    id: 'finish-oakVeneer01MatteBlack',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01MatteBlack',
-    name: 'Oak Veneer 01 Matte Black Finish',
-    price: 1040,
-    description: 'Oak Veneer 01 recolored into a stealth matte-black finish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MatteBlack
-  },
-  {
-    id: 'finish-carbonFiberMatteDarkGrey',
-    type: 'tableFinish',
-    optionId: 'carbonFiberMatteDarkGrey',
-    name: 'Carbon Fiber Matte Dark Grey Finish',
-    price: 1050,
-    description: 'Matte dark-grey carbon fiber weave for a modern performance look.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberMatteDarkGrey
   },
   {
     id: 'finish-woodTable001',
