@@ -35,14 +35,18 @@ test('voice unlock grants locale voices for all games', () => {
   assert.ok(normalized.ownedLocales.includes('it-IT'));
 });
 
-test('store item builder omits voice commentary packs', () => {
+test('store item builder keeps English free and paid multilingual packs', () => {
   const items = buildVoiceStoreItems({
     voices: [
       { id: 'nova_en_us_f', locale: 'en-US', language: 'English' },
+      { id: 'atlas_en_us_m', locale: 'en-US', language: 'English' },
       { id: 'sofia_it_it_f', locale: 'it-IT', language: 'Italian' }
     ]
   });
-  assert.deepEqual(items, []);
+  const en = items.find((item) => item.optionId === 'en-US');
+  const it = items.find((item) => item.optionId === 'it-IT');
+  assert.equal(en.price, 0);
+  assert.ok(it.price > 0);
 });
 
 
