@@ -2170,6 +2170,7 @@ export default function SnakeAndLadder() {
         if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
+          setMoving(false);
         }
         if (!turnBelongsToMe) setPendingExtraRoll(false);
       }
@@ -4035,6 +4036,8 @@ export default function SnakeAndLadder() {
                   ? vals.some((v) => Number(v) === 6)
                   : Number(vals) === 6;
                 setPendingExtraRoll(rolledSix);
+                if (rolledSix) setTurnMessage('Six! Roll again');
+                setMoving(false);
               }}
             />
           ) : null}
