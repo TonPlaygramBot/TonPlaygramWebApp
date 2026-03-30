@@ -433,20 +433,41 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
   };
 }
 
-const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
-  if (!json || typeof json !== 'object') return null;
-  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
-  for (const res of resolutions) {
-    const entry = json[res];
-    if (entry?.hdr) return entry.hdr;
-    if (entry?.exr) return entry.exr;
+const HDRI_URL_CACHE = new Map();
+
+const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.hdr') || lower.includes('.exr'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  const lower = urls.map((url) => url.toLowerCase());
+  for (const res of preferredResolutions) {
+    const match = lower.find((url) => url.includes(`_${String(res).toLowerCase()}.`));
+    if (match) return urls[lower.indexOf(match)];
   }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
-  if (!fallback) return null;
-  return fallback.hdr || fallback.exr || null;
+  return urls[0] ?? null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
+  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  if (HDRI_URL_CACHE.has(cacheKey)) {
+    return HDRI_URL_CACHE.get(cacheKey);
+  }
   const forcedResolution =
     typeof config?.forceResolution === 'string' && config.forceResolution.length
       ? config.forceResolution
@@ -462,21 +483,39 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
   if (config?.assetUrls && typeof config.assetUrls === 'object') {
     for (const res of preferred) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
+      if (config.assetUrls[res]) {
+        HDRI_URL_CACHE.set(cacheKey, config.assetUrls[res]);
+        return config.assetUrls[res];
+      }
     }
     const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) return manual;
+    if (manual) {
+      HDRI_URL_CACHE.set(cacheKey, manual);
+      return manual;
+    }
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) {
+    HDRI_URL_CACHE.set(cacheKey, config.assetUrl);
+    return config.assetUrl;
+  }
+  if (!config?.assetId || typeof fetch !== 'function') {
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+    return fallbackUrl;
+  }
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) return fallbackUrl;
+    if (!response?.ok) {
+      HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+      return fallbackUrl;
+    }
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferred);
-    return picked || fallbackUrl;
+    const resolvedUrl = picked || fallbackUrl;
+    HDRI_URL_CACHE.set(cacheKey, resolvedUrl);
+    return resolvedUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
     return fallbackUrl;
   }
 }
