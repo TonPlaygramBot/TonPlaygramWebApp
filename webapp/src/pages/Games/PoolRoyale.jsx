@@ -800,7 +800,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.966; // keep only the wooden corner rounded cut slightly smaller than the jaw outside radius
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -1113,7 +1113,7 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
-const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -1364,7 +1364,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1.08;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1449,7 +1449,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = 0; // keep ball bottoms exactly tangent to the cloth surface for precise rolling contact
+const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1500,8 +1500,8 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.004; // tighten contact tolerance so racked balls touch without visible overlap
-const BALL_COLLISION_SLOP = BALL_R * 0.0005; // reduce overlap allowance so ball mapping stays precise at the rack
+const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
+const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
 const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
@@ -1935,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.42; // push short-rail cushions a touch outward from table centre
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -2249,61 +2249,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const contactGap = ballRadius * 0.018;
-  const columnSpacing = ballRadius * 2 + contactGap;
-  const rowSpacing = Math.sqrt(3) * ballRadius + contactGap;
-  const minCenterDistance = ballRadius * 2 + contactGap;
-  const rackCushionClearance = ballRadius * 0.08;
-  const rackLimitX = Math.max(0, RAIL_LIMIT_X - ballRadius - rackCushionClearance);
-  const rackLimitZ = Math.max(0, RAIL_LIMIT_Y - ballRadius - rackCushionClearance);
-  const clampRackPosition = (entry) => ({
-    x: clamp(entry.x, -rackLimitX, rackLimitX),
-    z: clamp(entry.z, -rackLimitZ, rackLimitZ)
-  });
-  const deOverlapRackPositions = (input) => {
-    if (!Array.isArray(input) || input.length <= 1) return input;
-    const adjusted = input.map((entry) => clampRackPosition(entry));
-    const settlePasses = Math.max(4, adjusted.length * 2);
-    for (let pass = 0; pass < settlePasses; pass += 1) {
-      let shifted = false;
-      for (let i = 0; i < adjusted.length; i += 1) {
-        for (let j = i + 1; j < adjusted.length; j += 1) {
-          const a = adjusted[i];
-          const b = adjusted[j];
-          const dx = b.x - a.x;
-          const dz = b.z - a.z;
-          const distSq = dx * dx + dz * dz;
-          const minDistSq = minCenterDistance * minCenterDistance;
-          if (distSq >= minDistSq) continue;
-          const dist = Math.sqrt(Math.max(distSq, 1e-12));
-          const overlap = (minCenterDistance - dist) / 2;
-          const nx = dist > 1e-9 ? dx / dist : 1;
-          const nz = dist > 1e-9 ? dz / dist : 0;
-          a.x -= nx * overlap;
-          a.z -= nz * overlap;
-          b.x += nx * overlap;
-          b.z += nz * overlap;
-          const clampedA = clampRackPosition(a);
-          const clampedB = clampRackPosition(b);
-          a.x = clampedA.x;
-          a.z = clampedA.z;
-          b.x = clampedB.x;
-          b.z = clampedB.z;
-          shifted = true;
-        }
-      }
-      for (let i = 0; i < adjusted.length; i += 1) {
-        const clamped = clampRackPosition(adjusted[i]);
-        if (Math.abs(clamped.x - adjusted[i].x) > 1e-9 || Math.abs(clamped.z - adjusted[i].z) > 1e-9) {
-          adjusted[i].x = clamped.x;
-          adjusted[i].z = clamped.z;
-          shifted = true;
-        }
-      }
-      if (!shifted) break;
-    }
-    return adjusted;
-  };
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2317,7 +2264,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
         index++;
       }
     }
-    return deOverlapRackPositions(positions);
+    return positions;
   }
   let row = 0;
   let placed = 0;
@@ -2332,7 +2279,7 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
     }
     row++;
   }
-  return deOverlapRackPositions(positions);
+  return positions;
 }
 
 // Updated colors for dark cloth (ball colors overridden per variant at runtime)
@@ -5623,8 +5570,8 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_RETURN_WINDOW_MS = 260;
-const REPLAY_CUE_START_HOLD_MS = 0;
+const REPLAY_CUE_RETURN_WINDOW_MS = 480;
+const REPLAY_CUE_START_HOLD_MS = 110;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5660,14 +5607,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // match Snooker Royal replay timing window
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep release cadence identical to Snooker Royal replay stroke
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded stroke durations like Snooker Royal
-const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
+const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -5967,9 +5914,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.72; // stronger follow transfer so topspin produces a clearer forward roll after contact
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.38; // decay topspin a bit slower so cue-ball keeps moving forward like real follow-through
-const TOPSPIN_ROLL_SPEED_FACTOR = 1.2; // raise natural roll target speed so top spin carries the cue-ball farther before settling
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.31; // transfer topspin to forward roll more progressively for a realistic, less abrupt follow phase
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -6338,20 +6285,19 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const mouthHalfWidth = (pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH) * 0.5;
   const entranceBase = pocketCenter
     .clone()
-    .add(inward.clone().multiplyScalar(baseRadius * 0.68));
+    .add(inward.clone().multiplyScalar(baseRadius * 0.62));
   if (!targetVec || targetVec.lengthSq() < 1e-6) {
     return entranceBase;
   }
   targetVec.normalize();
   const lateralBias = THREE.MathUtils.clamp(targetVec.dot(lateral), -1, 1);
   const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
-  const centeredBias = 1 - Math.abs(lateralBias);
   const sideShift =
     mouthHalfWidth *
-    (pocketIndex >= 4 ? 0.26 : 0.22) *
+    (pocketIndex >= 4 ? 0.44 : 0.36) *
     lateralBias *
-    (0.5 + 0.5 * centeredBias);
-  const depthShift = baseRadius * 0.22 * Math.max(0, inwardAlignment);
+    (0.7 + 0.3 * Math.max(0, inwardAlignment));
+  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
   return entranceBase
     .clone()
     .addScaledVector(lateral, sideShift)
@@ -7067,26 +7013,21 @@ function applySpinController(ball, stepScale, airborne = false) {
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
       if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(BALL_R * 2.25, speed * TOPSPIN_ROLL_SPEED_FACTOR);
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
         const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
-        const rollGap = THREE.MathUtils.clamp(
-          (naturalRollSpeed - speed) / Math.max(naturalRollSpeed, 1e-6),
-          0,
-          1
-        );
         const transfer =
           Math.min(
             forwardSpin,
-            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.45 + rollGap * 0.55)
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
           );
         let remainingSpin = Math.max(0, forwardSpin - transfer);
-        // Once cue-ball speed reaches natural roll, decay residual topspin faster
-        // so follow looks natural and does not keep "motor-driving" forward.
-        if (speed >= naturalRollSpeed * 0.99) {
-          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.15);
+        // As the cue ball reaches natural rolling speed, any extra topspin
+        // should quickly collapse instead of continuously forcing acceleration.
+        if (speed >= naturalRollSpeed * 0.98) {
+          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
         }
         const assistedDecay = Math.exp(
-          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.22 + 0.78 * settling)
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
         );
         ball.spin.y = remainingSpin * assistedDecay;
       }
@@ -8881,7 +8822,7 @@ export function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.18; // trim side-cushion tips near corner pockets a touch more so both sides stop cleaner at the jaws
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
@@ -19589,14 +19530,6 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          const railCamera = resolveRailOverheadReplayCamera({
-            focusOverride,
-            minTargetY,
-            preferredRail: railOverheadSideRef.current
-          });
-          if (railCamera?.position && railCamera?.target) {
-            return railCamera;
-          }
           const systemVariant =
             broadcastSystemRef.current?.topViewVariant ??
             activeBroadcastSystem?.topViewVariant ??
@@ -21358,23 +21291,21 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const railSnapshot = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY,
-            preferredRail: railOverheadSideRef.current
-          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
               : 'broadcast';
-          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
-          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(railSnapshot?.fov)
-            ? railSnapshot.fov
-            : camera.fov;
+          const resolvedPosition = activeCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot;
+          const resolvedFov = fovSnapshot;
+          const resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
@@ -21382,8 +21313,8 @@ const powerRef = useRef(hud.power);
             fov: resolvedFov,
             key: cameraMode
           };
-          if (Number.isFinite(minTargetY)) {
-            snapshot.minTargetY = minTargetY;
+          if (Number.isFinite(resolvedMinTargetY)) {
+            snapshot.minTargetY = resolvedMinTargetY;
           }
           return snapshot;
         };
@@ -28302,40 +28233,9 @@ const powerRef = useRef(hud.power);
             setInHandPlacementMode(true);
           }
         };
-        const adjustAiPotPowerForDeflection = (plan, cueBall) => {
-          if (!plan || plan.type !== 'pot' || !cueBall?.pos || !plan.targetBall?.pos || !plan.pocketCenter) {
-            return plan;
-          }
-          const cueToTarget = Math.max(BALL_R, cueBall.pos.distanceTo(plan.targetBall.pos));
-          const targetToPocket = Math.max(BALL_R, plan.targetBall.pos.distanceTo(plan.pocketCenter));
-          const cueVec = plan.targetBall.pos.clone().sub(cueBall.pos).normalize();
-          const potVec = plan.pocketCenter.clone().sub(plan.targetBall.pos).normalize();
-          const alignment = THREE.MathUtils.clamp(cueVec.dot(potVec), -1, 1);
-          const cutSeverity = Math.sqrt(Math.max(0, 1 - alignment * alignment));
-          const travelFactor = THREE.MathUtils.clamp(
-            (cueToTarget + targetToPocket) / Math.max(BALL_R * 54, 1e-6),
-            0,
-            1
-          );
-          const suggestedPower = THREE.MathUtils.clamp(
-            0.44 + travelFactor * 0.34 + cutSeverity * 0.1,
-            0.34,
-            0.9
-          );
-          // Pull power toward a geometry-safe value so object-ball throw/deflection
-          // is predictable and the compensated aim remains valid.
-          plan.power = THREE.MathUtils.lerp(
-            THREE.MathUtils.clamp(plan.power ?? suggestedPower, 0.28, 0.95),
-            suggestedPower,
-            0.7
-          );
-          return plan;
-        };
-
         const refineAiPotAimLine = (plan) => {
           if (!plan?.aimDir || plan.type !== 'pot' || !cue?.active) return plan;
           if (!plan.targetBall?.active || !plan.pocketCenter) return plan;
-          adjustAiPotPowerForDeflection(plan, cue);
           const cuePos = cue.pos?.clone?.();
           if (!cuePos) return plan;
           const compensated = resolveAiPotGhostAim({
@@ -28409,7 +28309,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28419,16 +28319,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hadMeaningfulContact = Boolean(shotContext?.contactMade);
-          const hasReplayFrames = (recording?.frames?.length ?? 0) > 1;
-          const hasReplaySignal =
-            hasReplayFrames ||
-            hadObjectPot ||
-            tags.size > 0 ||
-            hadMeaningfulContact ||
-            Boolean(recording?.replayFoul);
           return {
-            shouldReplay: hasReplaySignal,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
@@ -28944,9 +28836,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay) {
+          if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            const replayPostState = postShotSnapshot || captureBallSnapshot();
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
@@ -28954,7 +28845,7 @@ const powerRef = useRef(hud.power);
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
                 if (recordingForReplay) {
-                  startShotReplay(replayPostState);
+                  startShotReplay(postShotSnapshot);
                 } else {
                   shotReplayRef.current = null;
                 }
