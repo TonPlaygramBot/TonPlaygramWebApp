@@ -1182,11 +1182,40 @@ async function createPolyhavenInstance(
   assetId,
   targetHeight,
   rotationY = 0,
-  renderer = null
+  renderer = null,
+  textureOptions = {}
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone(true);
   prepareLoadedModel(model);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null,
+    textureSet = null,
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
+  } = textureOptions || {};
+  if (textureLoader) {
+    try {
+      const textures =
+        textureSet ??
+        (await loadPolyhavenTextureSet(
+          assetId,
+          textureLoader,
+          maxAnisotropy,
+          textureCache,
+          preferredTextureSizes
+        ));
+      if (textures || fallbackTexture) {
+        applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+      }
+    } catch (error) {
+      if (fallbackTexture) {
+        applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+      }
+    }
+  }
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
   return model;
@@ -1875,14 +1904,39 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(theme, renderer = null) {
+async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   const rotationY = theme?.modelRotation || 0;
   const preserveMaterials = shouldPreserveChairMaterials(theme);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null,
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
+  } = textureOptions || {};
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model);
+      if (textureLoader) {
+        try {
+          const textures = await loadPolyhavenTextureSet(
+            theme.assetId,
+            textureLoader,
+            maxAnisotropy,
+            textureCache,
+            preferredTextureSizes
+          );
+          if (textures || fallbackTexture) {
+            applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+          }
+        } catch (error) {
+          if (fallbackTexture) {
+            applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+          }
+        }
+      }
       fitChairModelToFootprint(model);
       if (rotationY) model.rotation.y += rotationY;
       const materials = extractChairMaterials(model);
@@ -3467,7 +3521,14 @@ export default function MurlanRoyaleArena({ search }) {
             theme.assetId,
             TABLE_MODEL_TARGET_HEIGHT,
             theme.rotationY || 0,
-            three.renderer
+            three.renderer,
+            {
+              textureLoader: three.textureLoader,
+              maxAnisotropy: three.maxAnisotropy,
+              fallbackTexture: three.fallbackTexture,
+              textureCache: three.textureCache,
+              preferredTextureSizes: activeTextureResolutionOrder
+            }
           );
           if (tableBuildTokenRef.current === token && model) {
             const tableGroup = new THREE.Group();
@@ -3537,7 +3598,13 @@ export default function MurlanRoyaleArena({ search }) {
       if (!threeReady) return;
       const safe = stoolTheme || STOOL_THEMES[0];
       const store = threeStateRef.current;
-      const chairBuild = await buildChairTemplate(safe, store.renderer);
+      const chairBuild = await buildChairTemplate(safe, store.renderer, {
+        textureLoader: store.textureLoader,
+        maxAnisotropy: store.maxAnisotropy,
+        fallbackTexture: store.fallbackTexture,
+        textureCache: store.textureCache,
+        preferredTextureSizes: activeTextureResolutionOrder
+      });
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
@@ -4356,7 +4423,13 @@ export default function MurlanRoyaleArena({ search }) {
       await rebuildTable(tableTheme, tableFinish, tableCloth);
       if (disposed) return;
 
-      const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+      const chairBuild = await buildChairTemplate(stoolTheme, renderer, {
+        textureLoader,
+        maxAnisotropy,
+        fallbackTexture,
+        textureCache: threeStateRef.current.textureCache,
+        preferredTextureSizes: activeTextureResolutionOrder
+      });
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
