@@ -25,39 +25,39 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: '4K (60 Hz)',
     fps: 60,
     renderScale: 1,
-    pixelRatioCap: 1,
-    resolution: 'Full HD render • DPR 1.0 cap',
-    description: 'Full HD baseline profile for 60 Hz devices.'
+    pixelRatioCap: 2,
+    resolution: '4K render • DPR 2.0 cap',
+    description: '4K baseline profile for 60 Hz devices.'
   },
   {
     id: 'qhd90',
-    label: '2K (90 Hz)',
+    label: '6K (90 Hz)',
     fps: 90,
     renderScale: 1,
-    pixelRatioCap: 1.5,
-    resolution: '2K render • DPR 1.5 cap',
-    description: '2K profile for 90 Hz displays.'
+    pixelRatioCap: 2.4,
+    resolution: '6K render • DPR 2.4 cap',
+    description: '6K profile for 90 Hz displays.'
   },
   {
     id: 'uhd120',
-    label: '4K (120 Hz)',
+    label: '8K (120 Hz)',
     fps: 120,
     renderScale: 1,
-    pixelRatioCap: 2,
-    resolution: '4K render • DPR 2.0 cap',
-    description: '4K profile for 120 Hz displays and flagship hardware.'
+    pixelRatioCap: 3,
+    resolution: '8K render • DPR 3.0 cap',
+    description: '8K profile for 120 Hz displays and flagship hardware.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra 144 (desktop)',
+    label: '8K Ultra (144 Hz)',
     fps: 144,
     renderScale: 1,
-    pixelRatioCap: 2,
-    resolution: '4K render • DPR 2.0 cap',
-    description: 'Desktop 144 Hz profile with 4K-quality domino rendering.'
+    pixelRatioCap: 3,
+    resolution: '8K render • DPR 3.0 cap',
+    description: 'Desktop 144 Hz profile with 8K-quality domino rendering.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -92,26 +92,43 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   hd50: 1024,
-  fhd60: 2048,
-  qhd90: 3072,
-  uhd120: 4096,
-  ultra144: 4096
+  fhd60: 4096,
+  qhd90: 6144,
+  uhd120: 8192,
+  ultra144: 8192
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
   hd50: 2048,
-  fhd60: 2048,
-  qhd90: 3072,
-  uhd120: 4096,
-  ultra144: 4096
+  fhd60: 4096,
+  qhd90: 6144,
+  uhd120: 8192,
+  ultra144: 8192
 });
+
+const FRAME_RATE_RESOLUTION_PROFILE = Object.freeze({
+  hd50: { label: '2k', textureSize: 2048, hdriOrder: ['2k', '1k'], modelOrder: ['2k', '1k'] },
+  fhd60: { label: '4k', textureSize: 4096, hdriOrder: ['4k', '2k', '1k'], modelOrder: ['4k', '2k', '1k'] },
+  qhd90: { label: '6k', textureSize: 6144, hdriOrder: ['6k', '4k', '2k', '1k'], modelOrder: ['4k', '2k', '1k'] },
+  uhd120: { label: '8k', textureSize: 8192, hdriOrder: ['8k', '4k', '2k', '1k'], modelOrder: ['4k', '2k', '1k'] },
+  ultra144: { label: '8k', textureSize: 8192, hdriOrder: ['8k', '4k', '2k', '1k'], modelOrder: ['4k', '2k', '1k'] }
+});
+
+function getFrameResolutionProfile(qualityId = frameRateId) {
+  return (
+    FRAME_RATE_RESOLUTION_PROFILE[qualityId] ||
+    FRAME_RATE_RESOLUTION_PROFILE[DEFAULT_FRAME_RATE_ID] ||
+    FRAME_RATE_RESOLUTION_PROFILE.hd50
+  );
+}
 
 function getAdaptiveTextureSize(baseSize = 2048) {
   const mappedSize =
     FRAME_RATE_TEXTURE_SIZE_MAP[frameRateId] ??
+    getFrameResolutionProfile(frameRateId)?.textureSize ??
     FRAME_RATE_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(4096, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function getAdaptiveDominoTextureSize(baseSize = 4096) {
@@ -125,9 +142,10 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
   const mappedSize =
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     mappedByFps ??
+    getFrameResolutionProfile(frameRateId)?.textureSize ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(4096, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -135,12 +153,12 @@ function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
     case 'hd50':
       return 1;
     case 'fhd60':
-      return 1;
+      return 2;
     case 'qhd90':
-      return 1.5;
+      return 2.4;
     case 'uhd120':
     case 'ultra144':
-      return 2;
+      return 3;
     default:
       return 1;
   }
@@ -2717,8 +2735,8 @@ async function loadPolyhavenModel(
   const preferredResolutions = IS_TELEGRAM_RUNTIME
     ? ['1k']
     : isLowProfileDevice
-      ? ['1k']
-      : ['2k', '1k'];
+      ? ['2k', '1k']
+      : getFrameResolutionProfile(frameRateId)?.modelOrder || ['2k', '1k'];
   const filesManifest = await getPolyhavenFilesManifest(assetId);
   const manifestCandidates = buildPolyhavenManifestCandidates(
     filesManifest,
@@ -2727,7 +2745,8 @@ async function loadPolyhavenModel(
   const fallbackCandidates = buildPolyhavenModelUrls(assetId, preferredResolutions).map(
     (url) => ({
       url,
-      resolution: url.match(/\/(1k|2k)\//i)?.[1]?.toLowerCase?.() || '2k',
+      resolution:
+        url.match(/\/(\d+k)\//i)?.[1]?.toLowerCase?.() || preferredResolutions[0] || '2k',
       includeUrlMap: null
     })
   );
@@ -4413,7 +4432,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k', '6k', '8k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
   navigator.userAgent || ''
@@ -4427,9 +4446,13 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
-  if (prefersUhd) return ['2k', '1k'];
-  if (isLowProfileDevice) return ['1k'];
-  return ['2k', '1k'];
+  const profileOrder = getFrameResolutionProfile(frameRateId)?.hdriOrder;
+  if (Array.isArray(profileOrder) && profileOrder.length) {
+    return profileOrder;
+  }
+  if (prefersUhd) return ['8k', '4k', '2k', '1k'];
+  if (isLowProfileDevice) return ['4k', '2k', '1k'];
+  return ['4k', '2k', '1k'];
 }
 function shouldLoadExternalHdri() {
   // Keep HDRI enabled on mobile/Telegram too (at 1k) so players still see purchased environments.
