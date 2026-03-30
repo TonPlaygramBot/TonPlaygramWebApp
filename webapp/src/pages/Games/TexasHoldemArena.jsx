@@ -691,6 +691,21 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
+  hd50: '4k',
+  fhd60: '4k',
+  qhd90: '6k',
+  uhd120: '8k',
+  ultra144: '8k'
+});
+
+function resolveHdriResolutionForGraphics(frameRateOptionId) {
+  const mapped = FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
+  if (mapped && HDRI_RESOLUTION_OPTION_MAP[mapped]) {
+    return mapped;
+  }
+  return DEFAULT_HDRI_RESOLUTION_ID;
+}
 
 const POT_SCATTER_LAYOUT = Object.freeze({
   perRow: 24,
@@ -3144,15 +3159,10 @@ function TexasHoldemArena({ search }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
-      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_HDRI_RESOLUTION_ID;
-  });
+  const hdriResolutionId = useMemo(
+    () => resolveHdriResolutionForGraphics(frameRateId),
+    [frameRateId]
+  );
   const preferredHdriResolutions = useMemo(() => {
     const normalized = HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]?.id || DEFAULT_HDRI_RESOLUTION_ID;
     const startIndex = HDRI_RESOLUTION_LADDER.indexOf(normalized);
@@ -6458,7 +6468,7 @@ function TexasHoldemArena({ search }) {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
-                  Match the Murlan Royale presets for identical FPS and clarity options.
+                  Graphics preset now auto-syncs HDRI resolution so table lighting quality always matches menu quality.
                 </p>
               </div>
               <div className="space-y-2">
@@ -6470,12 +6480,12 @@ function TexasHoldemArena({ search }) {
                       <button
                         key={option.id}
                         type="button"
-                        onClick={() => setHdriResolutionId(option.id)}
+                        disabled
                         aria-pressed={active}
-                        className={`rounded-xl border px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        className={`rounded-xl border px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
                           active
                             ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
+                            : 'border-white/10 bg-white/5 text-white/40'
                         }`}
                       >
                         {option.label}
@@ -6483,6 +6493,9 @@ function TexasHoldemArena({ search }) {
                     );
                   })}
                 </div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">
+                  Auto-selected from your active Graphics profile.
+                </p>
               </div>
               <div className="grid gap-2">
                 {FRAME_RATE_OPTIONS.map((option) => {
