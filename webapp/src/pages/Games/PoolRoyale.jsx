@@ -1935,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.44; // move short-rail cushions a touch outward while keeping pocket cuts stable
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -5615,6 +5615,8 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
+const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -22307,7 +22309,7 @@ const powerRef = useRef(hud.power);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
-          overheadBroadcastVariantRef.current = 'rail';
+          overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
           const replayCueStroke = trimmed.cueStroke ?? null;
@@ -22319,11 +22321,48 @@ const powerRef = useRef(hud.power);
               )
             : 180;
           replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
+          const foulReason = String(shotRecording?.replayFoul?.reason ?? '').toLowerCase();
+          const wrongBallFoul = foulReason.includes('wrong ball');
+          const slowImpactAt =
+            wrongBallFoul && Number.isFinite(shotRecording?.replaySlowImpactMs)
+              ? THREE.MathUtils.clamp(shotRecording.replaySlowImpactMs, 0, duration)
+              : null;
+          const slowWindow = Math.max(40, REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS);
+          const slowHalfWindow = slowWindow / 2;
+          const slowFactor = THREE.MathUtils.clamp(
+            REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR,
+            0.1,
+            1
+          );
+          const hasWrongBallSlowImpact =
+            slowImpactAt != null &&
+            slowFactor < 0.999 &&
+            slowImpactAt > 0 &&
+            slowImpactAt < duration;
+          const slowStart = hasWrongBallSlowImpact
+            ? Math.max(0, slowImpactAt - slowHalfWindow)
+            : null;
+          const slowEnd = hasWrongBallSlowImpact
+            ? Math.min(duration, slowImpactAt + slowHalfWindow)
+            : null;
+          const slowSpan =
+            slowStart != null && slowEnd != null ? Math.max(0, slowEnd - slowStart) : 0;
+          const slowExtraDuration =
+            hasWrongBallSlowImpact && slowSpan > 0 ? slowSpan * (1 / slowFactor - 1) : 0;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
             cueStroke: replayCueStroke,
             duration,
+            effectiveDuration: duration + slowExtraDuration,
+            wrongBallSlowImpact:
+              hasWrongBallSlowImpact && slowStart != null && slowEnd != null
+                ? {
+                    start: slowStart,
+                    end: slowEnd,
+                    factor: slowFactor
+                  }
+                : null,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
@@ -28539,6 +28578,12 @@ const powerRef = useRef(hud.power);
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
+          const foulReasonText = String(safeState?.foul?.reason ?? '').toLowerCase();
+          const wrongBallFoul = foulReasonText.includes('wrong ball');
+          shotRecording.replaySlowImpactMs =
+            wrongBallFoul && Number.isFinite(shotRecording.firstCueImpactMs)
+              ? shotRecording.firstCueImpactMs
+              : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
         if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
@@ -28968,6 +29013,9 @@ const powerRef = useRef(hud.power);
           };
           const frames = playback.frames || [];
           const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+          const effectiveDuration = Number.isFinite(playback.effectiveDuration)
+            ? playback.effectiveDuration
+            : duration;
           const elapsed = now - playback.startedAt;
           if (frames.length === 0) {
             finishReplayPlayback(playback);
@@ -28975,7 +29023,37 @@ const powerRef = useRef(hud.power);
             return;
           }
           try {
-            const targetTime = Math.min(elapsed, duration);
+            let targetTime = Math.min(elapsed, duration);
+            const wrongBallSlowImpact = playback.wrongBallSlowImpact;
+            if (
+              wrongBallSlowImpact &&
+              Number.isFinite(wrongBallSlowImpact.start) &&
+              Number.isFinite(wrongBallSlowImpact.end) &&
+              Number.isFinite(wrongBallSlowImpact.factor) &&
+              wrongBallSlowImpact.factor < 0.999
+            ) {
+              const slowStart = wrongBallSlowImpact.start;
+              const slowEnd = wrongBallSlowImpact.end;
+              const slowFactor = THREE.MathUtils.clamp(wrongBallSlowImpact.factor, 0.1, 1);
+              const slowSpan = Math.max(0, slowEnd - slowStart);
+              if (slowSpan > 0) {
+                const preSlowElapsed = Math.max(0, slowStart);
+                const slowedRealSpan = slowSpan / slowFactor;
+                if (elapsed <= preSlowElapsed) {
+                  targetTime = Math.min(elapsed, duration);
+                } else if (elapsed <= preSlowElapsed + slowedRealSpan) {
+                  targetTime = Math.min(
+                    duration,
+                    slowStart + (elapsed - preSlowElapsed) * slowFactor
+                  );
+                } else {
+                  targetTime = Math.min(
+                    duration,
+                    slowEnd + (elapsed - preSlowElapsed - slowedRealSpan)
+                  );
+                }
+              }
+            }
             let frameIndex = playback.lastIndex ?? 0;
             while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
               frameIndex += 1;
@@ -29008,7 +29086,9 @@ const powerRef = useRef(hud.power);
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
             renderer.render(scene, frameCamera ?? camera);
-            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+            const finished =
+              elapsed >= effectiveDuration ||
+              elapsed - effectiveDuration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
             }
@@ -30383,6 +30463,17 @@ const powerRef = useRef(hud.power);
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
+                  if (
+                    shotRecording &&
+                    Number.isFinite(shotRecording.startTime) &&
+                    shotRecording.firstCueImpactMs == null &&
+                    (a.id === 'cue' || b.id === 'cue')
+                  ) {
+                    shotRecording.firstCueImpactMs = Math.max(
+                      0,
+                      performance.now() - shotRecording.startTime
+                    );
+                  }
                 }
                 if (
                   !shotContextRef.current.contactMade &&
@@ -32753,69 +32844,6 @@ const powerRef = useRef(hud.power);
                     {skipAllReplays ? 'On' : 'Off'}
                   </span>
                 </button>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Commentary
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                          {active && (
-                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
-                              Active
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  disabled={!commentarySupported}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    commentaryMuted
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {commentaryMuted ? 'On' : 'Off'}
-                  </span>
-                </button>
-                {!commentarySupported && (
-                  <p className="mt-2 text-[0.65rem] text-white/60">
-                    Voice commentary requires Web Speech support.
-                  </p>
-                )}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
