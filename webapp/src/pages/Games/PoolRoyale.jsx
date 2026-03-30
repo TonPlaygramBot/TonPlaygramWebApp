@@ -1114,6 +1114,7 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
+const BROADCAST_REPLAY_METHOD_MIGRATION_KEY = 'poolBroadcastReplayMethodMigrationV20260330';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -12794,6 +12795,16 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const migrationApplied = window.localStorage.getItem(BROADCAST_REPLAY_METHOD_MIGRATION_KEY);
+    if (migrationApplied === '1') return;
+    setSkipAllReplays(false);
+    setBroadcastSystemId(DEFAULT_BROADCAST_SYSTEM_ID);
+    window.localStorage.setItem(SKIP_REPLAYS_STORAGE_KEY, '0');
+    window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, DEFAULT_BROADCAST_SYSTEM_ID);
+    window.localStorage.setItem(BROADCAST_REPLAY_METHOD_MIGRATION_KEY, '1');
+  }, []);
   const activeCommentaryPreset = useMemo(
     () =>
       POOL_ROYALE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
