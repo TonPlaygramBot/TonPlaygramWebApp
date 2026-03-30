@@ -2984,60 +2984,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  chessMarble: createStandardWoodFinish({
-    id: 'chessMarble',
-    label: 'Chess Marble',
-    rail: 0xc7d2fe,
-    base: 0xe2e8f0,
-    trim: 0xf8fafc,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  chessDarkForest: createStandardWoodFinish({
-    id: 'chessDarkForest',
-    label: 'Chess Dark Forest',
-    rail: 0x1f4937,
-    base: 0x133324,
-    trim: 0x8fbc8f,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  chessAmberGlow: createStandardWoodFinish({
-    id: 'chessAmberGlow',
-    label: 'Chess Amber Glow',
-    rail: 0xd97706,
-    base: 0x92400e,
-    trim: 0xfbbf24,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  chessMintVale: createStandardWoodFinish({
-    id: 'chessMintVale',
-    label: 'Chess Mint Vale',
-    rail: 0x2dd4bf,
-    base: 0x0f766e,
-    trim: 0x99f6e4,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  chessRoyalWave: createStandardWoodFinish({
-    id: 'chessRoyalWave',
-    label: 'Chess Royal Wave',
-    rail: 0x2563eb,
-    base: 0x1e3a8a,
-    trim: 0x93c5fd,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  chessRoseMist: createStandardWoodFinish({
-    id: 'chessRoseMist',
-    label: 'Chess Rose Mist',
-    rail: 0xfb7185,
-    base: 0x9f1239,
-    trim: 0xfbcfe8,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
   })
 });
 
@@ -3047,13 +2993,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.chessMarble,
-    TABLE_FINISHES.chessDarkForest,
-    TABLE_FINISHES.chessAmberGlow,
-    TABLE_FINISHES.chessMintVale,
-    TABLE_FINISHES.chessRoyalWave,
-    TABLE_FINISHES.chessRoseMist
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -22423,7 +22363,7 @@ const powerRef = useRef(hud.power);
                     factor: slowFactor
                   }
                 : null,
-            startedAt: null,
+            startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current,
@@ -29050,14 +28990,11 @@ const powerRef = useRef(hud.power);
   let lastReplayFrameAt = 0;
   let lastLiveSyncSentAt = 0;
   let lastLiveAimSentAt = 0;
-      const step = (now) => {
+  const step = (now) => {
     if (disposed) return;
     try {
       const playback = replayPlaybackRef.current;
         if (playback) {
-          if (!Number.isFinite(playback.startedAt)) {
-            playback.startedAt = now;
-          }
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
             Number.isFinite(playback?.frameTimeMs) && playback.frameTimeMs > 0
