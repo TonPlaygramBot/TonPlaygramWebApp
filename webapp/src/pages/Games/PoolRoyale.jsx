@@ -1113,7 +1113,7 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
-const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -5570,8 +5570,8 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_RETURN_WINDOW_MS = 260;
-const REPLAY_CUE_START_HOLD_MS = 0;
+const REPLAY_CUE_RETURN_WINDOW_MS = 480;
+const REPLAY_CUE_START_HOLD_MS = 110;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5607,14 +5607,14 @@ const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
 const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // match Snooker Royal replay timing window
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep release cadence identical to Snooker Royal replay stroke
+const REPLAY_CUE_STROKE_SLOWDOWN = 2.25;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded stroke durations like Snooker Royal
-const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
+const REPLAY_CUE_MIN_RELEASE_MS = 620; // keep forward cue strike visible for a clear cue-ball hit
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -19530,14 +19530,6 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          const railCamera = resolveRailOverheadReplayCamera({
-            focusOverride,
-            minTargetY,
-            preferredRail: railOverheadSideRef.current
-          });
-          if (railCamera?.position && railCamera?.target) {
-            return railCamera;
-          }
           const systemVariant =
             broadcastSystemRef.current?.topViewVariant ??
             activeBroadcastSystem?.topViewVariant ??
@@ -21299,23 +21291,21 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const railSnapshot = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY,
-            preferredRail: railOverheadSideRef.current
-          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
               : 'broadcast';
-          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
-          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(railSnapshot?.fov)
-            ? railSnapshot.fov
-            : camera.fov;
+          const resolvedPosition = activeCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot;
+          const resolvedFov = fovSnapshot;
+          const resolvedMinTargetY = minTargetY;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
@@ -21323,8 +21313,8 @@ const powerRef = useRef(hud.power);
             fov: resolvedFov,
             key: cameraMode
           };
-          if (Number.isFinite(minTargetY)) {
-            snapshot.minTargetY = minTargetY;
+          if (Number.isFinite(resolvedMinTargetY)) {
+            snapshot.minTargetY = resolvedMinTargetY;
           }
           return snapshot;
         };
@@ -28319,7 +28309,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28329,16 +28319,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hadMeaningfulContact = Boolean(shotContext?.contactMade);
-          const hasReplayFrames = (recording?.frames?.length ?? 0) > 1;
-          const hasReplaySignal =
-            hasReplayFrames ||
-            hadObjectPot ||
-            tags.size > 0 ||
-            hadMeaningfulContact ||
-            Boolean(recording?.replayFoul);
           return {
-            shouldReplay: hasReplaySignal,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
@@ -28854,9 +28836,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay) {
+          if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            const replayPostState = postShotSnapshot || captureBallSnapshot();
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
@@ -28864,7 +28845,7 @@ const powerRef = useRef(hud.power);
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
                 if (recordingForReplay) {
-                  startShotReplay(replayPostState);
+                  startShotReplay(postShotSnapshot);
                 } else {
                   shotReplayRef.current = null;
                 }
