@@ -125,10 +125,16 @@ async function getPolyHavenFilesJson(assetId) {
 }
 
 export async function resolveTexasHoldemHdriUrl(config = {}, preferred = DEFAULT_RESOLUTIONS) {
-  const preferredResolutions =
-    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : preferred;
+  const requestedResolutions = Array.isArray(preferred)
+    ? preferred.filter((value) => typeof value === 'string' && value.length)
+    : [];
+  const configResolutions = Array.isArray(config?.preferredResolutions)
+    ? config.preferredResolutions.filter((value) => typeof value === 'string' && value.length)
+    : [];
+  const preferredResolutions = Array.from(new Set([...requestedResolutions, ...configResolutions]));
+  if (!preferredResolutions.length) {
+    preferredResolutions.push(...DEFAULT_RESOLUTIONS);
+  }
   const cacheKey = `${String(config?.id || config?.assetId || getFallbackHdriUrl(config, preferredResolutions))}|${preferredResolutions.join(',')}`;
   if (hdriUrlCache.has(cacheKey)) {
     return hdriUrlCache.get(cacheKey);
