@@ -295,7 +295,13 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
+  chessMarble: swatchThumbnail(['#e2e8f0', '#c7d2fe', '#f8fafc']),
+  chessDarkForest: swatchThumbnail(['#133324', '#1f4937', '#8fbc8f']),
+  chessAmberGlow: swatchThumbnail(['#92400e', '#d97706', '#fbbf24']),
+  chessMintVale: swatchThumbnail(['#0f766e', '#2dd4bf', '#99f6e4']),
+  chessRoyalWave: swatchThumbnail(['#1e3a8a', '#2563eb', '#93c5fd']),
+  chessRoseMist: swatchThumbnail(['#9f1239', '#fb7185', '#fbcfe8'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -393,7 +399,13 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    chessMarble: 'Chess Marble',
+    chessDarkForest: 'Chess Dark Forest',
+    chessAmberGlow: 'Chess Amber Glow',
+    chessMintVale: 'Chess Mint Vale',
+    chessRoyalWave: 'Chess Royal Wave',
+    chessRoseMist: 'Chess Rose Mist'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -480,6 +492,60 @@ export const SNOOKER_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-chessMarble',
+    type: 'tableFinish',
+    optionId: 'chessMarble',
+    name: 'Chess Marble Finish',
+    price: 1030,
+    description: 'Chess-inspired pale stone tint layered on the same GLTF rail grain.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessMarble
+  },
+  {
+    id: 'finish-chessDarkForest',
+    type: 'tableFinish',
+    optionId: 'chessDarkForest',
+    name: 'Chess Dark Forest Finish',
+    price: 1040,
+    description: 'Chess dark-forest palette applied over the same GLTF rail texture set.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessDarkForest
+  },
+  {
+    id: 'finish-chessAmberGlow',
+    type: 'tableFinish',
+    optionId: 'chessAmberGlow',
+    name: 'Chess Amber Glow Finish',
+    price: 1050,
+    description: 'Warm amber chess-piece tint with preserved GLTF wood texture detail.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessAmberGlow
+  },
+  {
+    id: 'finish-chessMintVale',
+    type: 'tableFinish',
+    optionId: 'chessMintVale',
+    name: 'Chess Mint Vale Finish',
+    price: 1060,
+    description: 'Mint chess-piece colorway mapped to the existing GLTF rail textures.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessMintVale
+  },
+  {
+    id: 'finish-chessRoyalWave',
+    type: 'tableFinish',
+    optionId: 'chessRoyalWave',
+    name: 'Chess Royal Wave Finish',
+    price: 1070,
+    description: 'Royal blue chess-piece tones while keeping the same GLTF texture pipeline.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessRoyalWave
+  },
+  {
+    id: 'finish-chessRoseMist',
+    type: 'tableFinish',
+    optionId: 'chessRoseMist',
+    name: 'Chess Rose Mist Finish',
+    price: 1080,
+    description: 'Rose chess-piece palette blended into the same GLTF wood finish.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.chessRoseMist
   },
   {
     id: 'chrome-chrome',
