@@ -109,7 +109,7 @@ export async function resolveTexasHoldemHdriUrl(config = {}, preferred = DEFAULT
     Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : preferred;
-  const cacheKey = String(config?.id || config?.assetId || getFallbackHdriUrl(config, preferredResolutions));
+  const cacheKey = `${String(config?.id || config?.assetId || getFallbackHdriUrl(config, preferredResolutions))}|${preferredResolutions.join(',')}`;
   if (hdriUrlCache.has(cacheKey)) {
     return hdriUrlCache.get(cacheKey);
   }
