@@ -110,7 +110,7 @@ function buildPyramidLayout() {
 
 const BOARD_LAYOUT = buildPyramidLayout();
 export const BOARD_CELL_COUNT = BOARD_LAYOUT.totalCells;
-export const FINAL_TILE = BOARD_CELL_COUNT;
+export const FINAL_TILE = BOARD_CELL_COUNT + 1;
 const BOARD_WIDTH_UNITS = BOARD_LAYOUT.widthUnits;
 const BOARD_HEIGHT_UNITS = BOARD_LAYOUT.heightUnits;
 const CENTER_COLUMN = BOARD_LAYOUT.centerColumn;
@@ -187,7 +187,6 @@ export default function SnakeBoard({
 
   const tileElements = layoutTiles.map((tile) => {
     const num = tile.cell;
-    const isWinTile = num === FINAL_TILE;
     const rowIndex = Math.floor(tile.row);
     const rowPos = BOARD_HEIGHT_UNITS > 1 ? rowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
     const scale = 1 + (rowIndex - 3) * SCALE_STEP;
@@ -231,15 +230,7 @@ export default function SnakeBoard({
       transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
       transformOrigin: "bottom center",
     };
-    if (isWinTile) {
-      style.transform = `translate(${translateX}px, ${translateY}px) scaleX(${scaleX * 1.22}) scaleY(${scale * 1.22}) translateZ(8px)`;
-    }
     if (!highlightClass) style.backgroundColor = "#6db0ad";
-    if (isWinTile) {
-      style.background = 'linear-gradient(145deg, #fbbf24, #f59e0b 58%, #b45309)';
-      style.boxShadow = '0 0 0 2px rgba(255,215,0,0.45), 0 10px 24px rgba(234,179,8,0.35)';
-      style.borderColor = 'rgba(255, 237, 213, 0.9)';
-    }
 
     return (
       <div
@@ -263,11 +254,7 @@ export default function SnakeBoard({
             )}
           </span>
         )}
-        {!cellType && (
-          isWinTile
-            ? <span className="cell-number" aria-label="Win tile">🏆</span>
-            : <span className="cell-number">{num}</span>
-        )}
+        {!cellType && <span className="cell-number">{num}</span>}
         {diceCells && diceCells[num] && (
           <span className="dice-marker">
             <img  src="/assets/icons/file_000000009160620a96f728f463de1c3f.webp" alt="dice" className="dice-icon" />
@@ -344,6 +331,24 @@ export default function SnakeBoard({
   const paddingTop = 0;
   const paddingBottom = '15vh';
 
+  const topLevel = BOARD_LAYOUT.levels[BOARD_LAYOUT.levels.length - 1];
+  const potRowIndex = topLevel.yOffset + topLevel.size - 1;
+  const potCol = topLevel.xOffset + (topLevel.size - 1) / 2;
+  const potRowPos = BOARD_HEIGHT_UNITS > 1 ? potRowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
+  const potScale = 1 + (potRowIndex - 3) * SCALE_STEP;
+  const potScaleX = potScale * (1 + potRowPos * WIDEN_STEP);
+  const potOffsetX = (potScaleX - 1) * cellWidth;
+  const potTranslateX = (potCol + 0.5 - CENTER_COLUMN) * potOffsetX;
+  const potTranslateY = -rowOffsets[potRowIndex] - cellHeight * 2.8;
+  const potStyle = {
+    gridRowStart: scaledRows - potRowIndex * GRID_SCALE - (GRID_SCALE - 1),
+    gridRowEnd: `span ${GRID_SCALE}`,
+    gridColumnStart: Math.round((potCol - 0.5) * GRID_SCALE) + 1,
+    gridColumnEnd: `span ${GRID_SCALE * 2}`,
+    transform: `translate(${potTranslateX}px, ${potTranslateY}px) scaleX(${potScaleX * 1.1}) scaleY(${potScale}) translateZ(12px)`,
+    transformOrigin: "bottom center",
+  };
+
   return (
     <div className="relative flex justify-center items-center w-screen overflow-visible">
       <img
@@ -385,7 +390,52 @@ export default function SnakeBoard({
             }}
           >
             {tileElements}
-            {celebrate && <CoinBurst token={token} />}
+            <div
+              className={`pot-cell ${highlight && highlight.cell === FINAL_TILE ? 'highlight' : ''}`}
+              style={potStyle}
+            >
+              <PlayerToken color="#16a34a" topColor="#ff0000" className="pot-token" />
+              <div className="pot-icon">
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
+                  }
+
+                  alt={token}
+                  className="coin-face front"
+                />
+                <img
+                  src={
+                    token === 'TON'
+                      ? '/assets/icons/TON.webp'
+                      : token === 'USDT'
+                        ? '/assets/icons/Usdt.webp'
+                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
+                  }
+                  alt=""
+                  className="coin-face back"
+                />
+              </div>
+              {players
+                .map((p, i) => ({ ...p, index: i }))
+                .filter((p) => p.position === FINAL_TILE)
+                .map((p) => (
+                  <Fragment key={`win-${p.index}`}>
+                    <PlayerToken
+                      photoUrl={p.photoUrl}
+                      type={p.type || 'normal'}
+                      color={p.color}
+                      photoOnly
+                      className="board-token"
+                    />
+                  </Fragment>
+                ))}
+              {celebrate && <CoinBurst token={token} />}
+            </div>
           </div>
         </div>
       </div>
