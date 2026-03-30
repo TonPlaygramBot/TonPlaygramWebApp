@@ -5608,12 +5608,12 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // match Snooker Royal replay timing window
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep release cadence identical to Snooker Royal replay stroke
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
@@ -28330,7 +28330,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28340,16 +28340,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hadMeaningfulContact = Boolean(shotContext?.contactMade);
-          const hasReplayFrames = (recording?.frames?.length ?? 0) > 1;
-          const hasReplaySignal =
-            hasReplayFrames ||
-            hadObjectPot ||
-            tags.size > 0 ||
-            hadMeaningfulContact ||
-            Boolean(recording?.replayFoul);
           return {
-            shouldReplay: hasReplaySignal,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
@@ -28865,9 +28857,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay) {
+          if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            const replayPostState = postShotSnapshot || captureBallSnapshot();
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
@@ -28875,7 +28866,7 @@ const powerRef = useRef(hud.power);
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
                 if (recordingForReplay) {
-                  startShotReplay(replayPostState);
+                  startShotReplay(postShotSnapshot);
                 } else {
                   shotReplayRef.current = null;
                 }
