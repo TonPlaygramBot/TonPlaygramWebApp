@@ -2686,6 +2686,72 @@ const createStandardWoodFinish = ({
   }
 });
 
+const CHESS_GLTF_PIECE_COLOR_FINISHES = Object.freeze([
+  {
+    id: 'chessAuroraMetalFinish',
+    label: 'Chess Aurora Metal',
+    rail: 0xffffff,
+    base: 0x2b2f36,
+    trim: 0xc5d8ff,
+    accent: 0xffffff,
+    woodTextureId: 'oak_veneer_01'
+  },
+  {
+    id: 'chessMonoFinish',
+    label: 'Chess Mono',
+    rail: 0x111827,
+    base: 0x0f172a,
+    trim: 0xe5e7eb,
+    accent: 0x111827,
+    woodTextureId: 'dark_wood'
+  },
+  {
+    id: 'chessBlueFinish',
+    label: 'Chess Blue',
+    rail: 0x3b82f6,
+    base: 0x1e293b,
+    trim: 0x93c5fd,
+    accent: 0x3b82f6,
+    woodTextureId: 'wood_table_001'
+  },
+  {
+    id: 'chessAmberFinish',
+    label: 'Chess Amber',
+    rail: 0xf59e0b,
+    base: 0x1f2937,
+    trim: 0xfde68a,
+    accent: 0xf59e0b,
+    woodTextureId: 'rosewood_veneer_01'
+  },
+  {
+    id: 'chessMintFinish',
+    label: 'Chess Mint',
+    rail: 0x10b981,
+    base: 0x065f46,
+    trim: 0xa7f3d0,
+    accent: 0x10b981,
+    woodTextureId: 'wood_peeling_paint_weathered'
+  },
+  {
+    id: 'chessPinkFinish',
+    label: 'Chess Pink',
+    rail: 0xef4444,
+    base: 0x312e81,
+    trim: 0xfbcfe8,
+    accent: 0xef4444,
+    woodTextureId: 'wood_table_001'
+  },
+  {
+    id: 'chessTealFinish',
+    label: 'Chess Teal',
+    rail: 0x8b5cf6,
+    base: 0x0f172a,
+    trim: 0x99f6e4,
+    accent: 0x8b5cf6,
+    woodTextureId: 'dark_wood'
+  }
+]);
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2731,7 +2797,16 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  })
+  }),
+  ...Object.fromEntries(
+    CHESS_GLTF_PIECE_COLOR_FINISHES.map((finish) => [
+      finish.id,
+      createStandardWoodFinish({
+        ...finish,
+        woodRepeatScale: 1
+      })
+    ])
+  )
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
@@ -2740,7 +2815,8 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    ...CHESS_GLTF_PIECE_COLOR_FINISHES.map((finish) => TABLE_FINISHES[finish.id])
   ].filter(Boolean)
 );
 
