@@ -161,6 +161,23 @@ export function normalizeVoiceInventory(rawInventory) {
   };
 }
 
-export function buildVoiceStoreItems(_catalog) {
-  return [];
+export function buildVoiceStoreItems(catalog) {
+  const languageMap = new Map();
+  for (const voice of catalog.voices) {
+    const key = `${voice.language}|${voice.locale.split('-')[0]}`;
+    if (!languageMap.has(key)) {
+      languageMap.set(key, {
+        id: `voice-${voice.locale.toLowerCase()}`,
+        type: 'voiceLanguage',
+        optionId: voice.locale,
+        name: `${voice.language} Commentary Pack`,
+        description: `${voice.language} commentary voices for all games`,
+        price: voice.locale.toLowerCase().startsWith('en-') ? 0 : 2200,
+        voiceIds: []
+      });
+    }
+    languageMap.get(key).voiceIds.push(voice.id);
+  }
+
+  return Array.from(languageMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }

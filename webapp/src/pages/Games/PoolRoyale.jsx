@@ -1935,7 +1935,7 @@ let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.42; // move short-rail cushions a touch outward to match the early-morning table profile
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.46; // pull short-rail cushions slightly inward to match
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -5615,8 +5615,6 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
-const REPLAY_FOUL_IMPACT_SLOW_SCALE = 0.32;
-const REPLAY_FOUL_IMPACT_WINDOW_MS = 220;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -22321,23 +22319,11 @@ const powerRef = useRef(hud.power);
               )
             : 180;
           replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
-          const replaySlowZones = Array.isArray(shotRecording?.replaySlowZones)
-            ? shotRecording.replaySlowZones
-            : [];
-          const replaySlowdownExtraMs = replaySlowZones.reduce((total, zone) => {
-            if (!Number.isFinite(zone?.start) || !Number.isFinite(zone?.end)) return total;
-            const len = Math.max(0, zone.end - zone.start);
-            if (len <= 0) return total;
-            const scale = THREE.MathUtils.clamp(zone.scale ?? 1, 0.05, 1);
-            return total + Math.max(0, len / scale - len);
-          }, 0);
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
             cueStroke: replayCueStroke,
-            sourceDuration: duration,
-            slowZones: replaySlowZones,
-            duration: duration + replaySlowdownExtraMs,
+            duration,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
@@ -22363,39 +22349,6 @@ const powerRef = useRef(hud.power);
               };
             }
           }
-        };
-
-        const mapReplayElapsedToSourceTime = (elapsed, sourceDuration, slowZones = []) => {
-          if (!Array.isArray(slowZones) || slowZones.length === 0) {
-            return Math.min(Math.max(elapsed, 0), sourceDuration);
-          }
-          const sorted = slowZones
-            .filter((zone) => Number.isFinite(zone?.start) && Number.isFinite(zone?.end) && zone.end > zone.start)
-            .map((zone) => ({
-              start: Math.max(0, Math.min(sourceDuration, zone.start)),
-              end: Math.max(0, Math.min(sourceDuration, zone.end)),
-              scale: THREE.MathUtils.clamp(zone.scale ?? 1, 0.05, 1)
-            }))
-            .filter((zone) => zone.end > zone.start)
-            .sort((a, b) => a.start - b.start);
-          if (!sorted.length) return Math.min(Math.max(elapsed, 0), sourceDuration);
-          let added = 0;
-          const clampedElapsed = Math.max(0, elapsed);
-          for (const zone of sorted) {
-            const zoneLen = zone.end - zone.start;
-            const slowedLen = zoneLen / zone.scale;
-            const zoneStartOnTimeline = zone.start + added;
-            const zoneEndOnTimeline = zoneStartOnTimeline + slowedLen;
-            if (clampedElapsed < zoneStartOnTimeline) {
-              return Math.min(sourceDuration, clampedElapsed - added);
-            }
-            if (clampedElapsed <= zoneEndOnTimeline) {
-              const zoneElapsed = clampedElapsed - zoneStartOnTimeline;
-              return Math.min(sourceDuration, zone.start + zoneElapsed * zone.scale);
-            }
-            added += slowedLen - zoneLen;
-          }
-          return Math.min(sourceDuration, clampedElapsed - added);
         };
 
         const waitMs = (ms = 0) =>
@@ -25011,7 +24964,6 @@ const powerRef = useRef(hud.power);
       let potted = [];
       const pottedIds = new Set();
       let firstHit = null;
-      let firstHitReplayTime = null;
 
       const alignStandingCameraToAim = (
         cueBall,
@@ -25324,7 +25276,6 @@ const powerRef = useRef(hud.power);
         potted = [];
         pottedIds.clear();
         firstHit = null;
-        firstHitReplayTime = null;
         clearInterval(timerRef.current);
         const aimDir = aimDirRef.current.clone();
         if (aimDir.lengthSq() < 1e-6) {
@@ -28315,7 +28266,7 @@ const powerRef = useRef(hud.power);
             ballRadius: BALL_R,
             spin: plan.spin,
             power: plan.power,
-            contactCalibration: 0.02
+            contactCalibration: 0
           });
           const baseDir =
             compensated?.aimDir?.lengthSq?.() > 1e-6
@@ -28325,7 +28276,7 @@ const powerRef = useRef(hud.power);
           const targetId = String(plan.targetBall.id);
           const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
           const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [-3, -2.2, -1.6, -1.05, -0.6, -0.3, 0, 0.3, 0.6, 1.05, 1.6, 2.2, 3];
+          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
           scanDegrees.forEach((deg) => {
             const rotated = baseDir
               .clone()
@@ -28379,10 +28330,9 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          const hadAnyPot = Array.isArray(pottedBalls) && pottedBalls.length > 0;
-          if (!recording || !hadAnyPot) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
-          if (hadObjectPot || hadAnyPot) tags.add('pot');
+          if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
@@ -28589,20 +28539,6 @@ const powerRef = useRef(hud.power);
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
-          const foulReason = String(safeState?.foul?.reason || '').toLowerCase();
-          const wrongBallFoul = /wrong|illegal|not\s*on|first\s*contact/.test(foulReason);
-          if (wrongBallFoul && Number.isFinite(firstHitReplayTime)) {
-            const impactStart = Math.max(0, firstHitReplayTime - REPLAY_FOUL_IMPACT_WINDOW_MS * 0.35);
-            shotRecording.replaySlowZones = [
-              {
-                start: impactStart,
-                end: impactStart + REPLAY_FOUL_IMPACT_WINDOW_MS,
-                scale: REPLAY_FOUL_IMPACT_SLOW_SCALE
-              }
-            ];
-          } else {
-            shotRecording.replaySlowZones = [];
-          }
         }
         const shotWasFoul = Boolean(safeState?.foul);
         if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
@@ -29000,7 +28936,6 @@ const powerRef = useRef(hud.power);
           potted = [];
           pottedIds.clear();
           firstHit = null;
-          firstHitReplayTime = null;
       lastShotPower = 0;
     }
   }
@@ -29040,12 +28975,7 @@ const powerRef = useRef(hud.power);
             return;
           }
           try {
-            const sourceDuration = Number.isFinite(playback.sourceDuration) ? playback.sourceDuration : duration;
-            const targetTime = mapReplayElapsedToSourceTime(
-              Math.min(elapsed, duration),
-              sourceDuration,
-              playback.slowZones
-            );
+            const targetTime = Math.min(elapsed, duration);
             let frameIndex = playback.lastIndex ?? 0;
             while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
               frameIndex += 1;
@@ -30453,9 +30383,6 @@ const powerRef = useRef(hud.power);
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
-                  if (shotRecording?.startTime != null) {
-                    firstHitReplayTime = Math.max(0, performance.now() - shotRecording.startTime);
-                  }
                 }
                 if (
                   !shotContextRef.current.contactMade &&
@@ -32826,6 +32753,69 @@ const powerRef = useRef(hud.power);
                     {skipAllReplays ? 'On' : 'Off'}
                   </span>
                 </button>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Commentary
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCommentaryPresetId(preset.id)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                          {active && (
+                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
+                              Active
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCommentaryMuted((prev) => !prev)}
+                  aria-pressed={commentaryMuted}
+                  disabled={!commentarySupported}
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    commentaryMuted
+                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                >
+                  <span>Mute commentary</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                      commentaryMuted
+                        ? 'border-black/30 text-black/70'
+                        : 'border-white/30 text-white/70'
+                    }`}
+                  >
+                    {commentaryMuted ? 'On' : 'Off'}
+                  </span>
+                </button>
+                {!commentarySupported && (
+                  <p className="mt-2 text-[0.65rem] text-white/60">
+                    Voice commentary requires Web Speech support.
+                  </p>
+                )}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
