@@ -65,6 +65,7 @@ import {
 } from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '6k', '4k', '2k', '1k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -93,7 +94,7 @@ const resolveTableCloth = (index) => {
   return MURLAN_TABLE_CLOTHS[idx] ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] ?? null;
 };
 
-const DEFAULT_FRAME_RATE_ID = 'uhd120';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 2.0;
@@ -290,6 +291,10 @@ function detectPreferredFrameRateId() {
       return 'qhd90';
     }
     return DEFAULT_FRAME_RATE_ID;
+  }
+
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'ultra144';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -535,7 +540,13 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+async function loadPolyhavenTextureSet(
+  assetId,
+  textureLoader,
+  maxAnisotropy = 1,
+  cache = null,
+  preferredTextureSizes = PREFERRED_TEXTURE_SIZES
+) {
   if (!assetId || !textureLoader) return null;
   const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
   if (cache?.has(key)) {
@@ -549,7 +560,7 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
         return null;
       }
       const json = await response.json();
-      const urls = pickBestTextureUrls(json, PREFERRED_TEXTURE_SIZES);
+      const urls = pickBestTextureUrls(json, preferredTextureSizes);
       if (!urls.diffuse) {
         return null;
       }
@@ -1142,12 +1153,20 @@ async function createPolyhavenInstance(
     maxAnisotropy = 1,
     fallbackTexture = null,
     textureCache = null,
-    textureSet = null
+    textureSet = null,
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
   if (textureLoader) {
     try {
       const textures =
-        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+        textureSet ??
+        (await loadPolyhavenTextureSet(
+          assetId,
+          textureLoader,
+          maxAnisotropy,
+          textureCache,
+          preferredTextureSizes
+        ));
       if (textures || fallbackTexture) {
         applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
       }
@@ -1852,7 +1871,8 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
     textureLoader = null,
     maxAnisotropy = 1,
     fallbackTexture = null,
-    textureCache = null
+    textureCache = null,
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -1865,7 +1885,8 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
             theme.assetId,
             textureLoader,
             maxAnisotropy,
-            textureCache
+            textureCache,
+            preferredTextureSizes
           );
           if (textures || fallbackTexture) {
             applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
@@ -2182,30 +2203,47 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: '4K Quality (60 Hz)',
     fps: 60,
     renderScale: 1.1,
     pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    resolution: '4K assets • DPR 1.5 cap',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
+    description: '60 Hz preset with 4K table, chair, card, avatar, UI, and HDRI targets.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
+    label: '6K Quality (90 Hz)',
     fps: 90,
     renderScale: 1.25,
     pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    resolution: '6K assets • DPR 1.7 cap',
+    hdriResolution: '6k',
+    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
+    description: '90 Hz preset with 6K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
+    label: '8K Quality (120 Hz)',
     fps: 120,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    resolution: '8K assets • DPR 2.0 cap',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
+    description: '120 Hz preset with 8K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
+  },
+  {
+    id: 'ultra144',
+    label: '8K Quality+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: '8K assets • DPR 2.2 cap',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
+    description: '144 Hz preset that keeps the same 8K quality target as 120 Hz for HDRI and scene assets.'
   }
 ]);
 const DEFAULT_FRAME_RATE_OPTION =
@@ -2358,6 +2396,13 @@ export default function MurlanRoyaleArena({ search }) {
       pixelRatioCap
     };
   }, [activeFrameRateOption]);
+  const activeTextureResolutionOrder = useMemo(() => {
+    const configured = Array.isArray(activeFrameRateOption?.preferredTextureSizes)
+      ? activeFrameRateOption.preferredTextureSizes
+      : [];
+    const clean = configured.filter((entry) => typeof entry === 'string' && entry.length);
+    return clean.length ? clean : PREFERRED_TEXTURE_SIZES;
+  }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
@@ -2375,7 +2420,9 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTIONS[0];
+  const resolvedHdriResolution =
+    (typeof activeFrameRateOption?.hdriResolution === 'string' && activeFrameRateOption.hdriResolution) ||
+    DEFAULT_HDRI_RESOLUTIONS[0];
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -3434,7 +3481,8 @@ export default function MurlanRoyaleArena({ search }) {
               textureLoader: three.textureLoader,
               maxAnisotropy: three.maxAnisotropy,
               fallbackTexture: three.fallbackTexture,
-              textureCache: three.textureCache
+              textureCache: three.textureCache,
+              preferredTextureSizes: activeTextureResolutionOrder
             }
           );
           if (tableBuildTokenRef.current === token && model) {
@@ -3497,7 +3545,7 @@ export default function MurlanRoyaleArena({ search }) {
       );
       return tableInfo;
     },
-    []
+    [activeTextureResolutionOrder]
   );
 
   const rebuildChairs = useCallback(
@@ -3509,7 +3557,8 @@ export default function MurlanRoyaleArena({ search }) {
         textureLoader: store.textureLoader,
         maxAnisotropy: store.maxAnisotropy,
         fallbackTexture: store.fallbackTexture,
-        textureCache: store.textureCache
+        textureCache: store.textureCache,
+        preferredTextureSizes: activeTextureResolutionOrder
       });
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
@@ -3543,7 +3592,7 @@ export default function MurlanRoyaleArena({ search }) {
         chair.userData.chairModel = clone;
       });
     },
-    [threeReady]
+    [activeTextureResolutionOrder, threeReady]
   );
 
   const rebuildSeatCharacters = useCallback(
@@ -3610,11 +3659,15 @@ export default function MurlanRoyaleArena({ search }) {
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
       const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
+      const startIdx = Math.max(0, HDRI_RESOLUTION_LADDER.indexOf(resolution));
+      const preferredResolutions =
+        startIdx >= 0
+          ? HDRI_RESOLUTION_LADDER.slice(startIdx)
+          : [resolution, ...DEFAULT_HDRI_RESOLUTIONS];
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
         ...activeVariant,
-        forceResolution: resolution,
-        preferredResolutions: [resolution],
-        fallbackResolution: resolution
+        preferredResolutions,
+        fallbackResolution: preferredResolutions[preferredResolutions.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0]
       });
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
@@ -4329,7 +4382,8 @@ export default function MurlanRoyaleArena({ search }) {
         textureLoader,
         maxAnisotropy,
         fallbackTexture,
-        textureCache: threeStateRef.current.textureCache
+        textureCache: threeStateRef.current.textureCache,
+        preferredTextureSizes: activeTextureResolutionOrder
       });
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
@@ -4776,7 +4830,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyRendererQuality, applyStateToScene, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [activeTextureResolutionOrder, applyHdriEnvironment, applyRendererQuality, applyStateToScene, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
