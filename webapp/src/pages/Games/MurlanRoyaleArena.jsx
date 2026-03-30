@@ -2287,9 +2287,12 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
-  { id: '4k', label: '4K' }
+  { id: 'auto', label: 'Match Graphics' },
+  { id: '8k', label: '8K', resolution: '8K texture pack', fps: 120 },
+  { id: '6k', label: '6K', resolution: '6K texture pack', fps: 90 },
+  { id: '4k', label: '4K', resolution: '4K texture pack', fps: 60 },
+  { id: '2k', label: '2K', resolution: '2K texture pack', fps: 50 },
+  { id: '1k', label: 'Full HD', resolution: 'Full HD texture pack', fps: 50 }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2481,8 +2484,19 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution =
-    (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] && hdriResolutionId) || DEFAULT_HDRI_RESOLUTION_ID;
+  const activeHdriResolutionOption = useMemo(
+    () => HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ?? HDRI_RESOLUTION_OPTIONS[0],
+    [hdriResolutionId]
+  );
+  const resolvedHdriResolution = useMemo(() => {
+    if (hdriResolutionId === 'auto') {
+      return activeFrameRateOption?.hdriResolution ?? DEFAULT_HDRI_RESOLUTION_ID;
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
+      return hdriResolutionId;
+    }
+    return DEFAULT_HDRI_RESOLUTION_ID;
+  }, [activeFrameRateOption, hdriResolutionId]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -5100,7 +5114,7 @@ export default function MurlanRoyaleArena({ search }) {
                     <div className="space-y-2">
                       <p className="text-[10px] uppercase tracking-[0.32em] text-white/65">HDRI Resolution</p>
                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                        Active: {resolvedHdriResolution.toUpperCase()}
+                        Active: {resolvedHdriResolution.toUpperCase()} ({activeHdriResolutionOption.label})
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {HDRI_RESOLUTION_OPTIONS.map((option) => {
@@ -5111,13 +5125,22 @@ export default function MurlanRoyaleArena({ search }) {
                               type="button"
                               onClick={() => setHdriResolutionId(option.id)}
                               aria-pressed={active}
-                              className={`flex-1 min-w-[5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                 active
                                   ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.45)]'
                                   : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                               }`}
                             >
-                              {option.label}
+                              <span className="block">{option.label}</span>
+                              {option.resolution ? (
+                                <span
+                                  className={`mt-0.5 block text-[9px] font-medium tracking-[0.1em] ${
+                                    active ? 'text-black/80' : 'text-white/70'
+                                  }`}
+                                >
+                                  {option.resolution} • {option.fps} FPS
+                                </span>
+                              ) : null}
                             </button>
                           );
                         })}
