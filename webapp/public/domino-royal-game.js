@@ -14,7 +14,7 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const HDRI_RESOLUTION_STORAGE_KEY = 'dominoRoyalHdriResolution';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
-const DEFAULT_HDRI_RESOLUTION_MODE = DEFAULT_FRAME_RATE_ID;
+const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
 const DEFAULT_HDRI_RESOLUTION_KEY = '4k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
@@ -69,37 +69,34 @@ const HDRI_RESOLUTION_OPTIONS = Object.freeze([
       'Automatically keeps HDRI resolution synced with the selected graphics quality.'
   },
   {
-    id: 'fhd60',
-    label: '4K (60 Hz)',
-    fps: 60,
-    resolution: '4K assets • optimized DPR cap',
-    hdriResolution: '4k',
-    description: '4K HDRI profile for 60 Hz displays.'
+    id: '8k',
+    label: '8K',
+    resolution: '8K HDRI',
+    description: 'Maximum HDRI clarity for flagship hardware.'
   },
   {
-    id: 'qhd90',
-    label: '6K (90 Hz)',
-    fps: 90,
-    resolution: '6K assets • optimized DPR cap',
-    hdriResolution: '6k',
-    description: '6K HDRI profile for 90 Hz displays.'
+    id: '6k',
+    label: '6K',
+    resolution: '6K HDRI',
+    description: 'High-end HDRI quality for smooth premium visuals.'
   },
   {
-    id: 'uhd120',
-    label: '8K (120 Hz)',
-    fps: 120,
-    resolution: '8K assets • optimized DPR cap',
-    hdriResolution: '8k',
-    description:
-      '8K HDRI profile for 120 Hz displays and flagship hardware.'
+    id: '4k',
+    label: '4K',
+    resolution: '4K HDRI',
+    description: 'Balanced quality for most devices.'
   },
   {
-    id: 'ultra144',
-    label: '8K (144 Hz)',
-    fps: 144,
-    resolution: '8K assets • optimized DPR cap',
-    hdriResolution: '8k',
-    description: '8K HDRI profile for 144 Hz displays.'
+    id: '2k',
+    label: '2K',
+    resolution: '2K HDRI',
+    description: 'Lower memory and bandwidth usage.'
+  },
+  {
+    id: '1k',
+    label: 'Full HD',
+    resolution: '1K HDRI',
+    description: 'Lightest HDRI option for weaker devices.'
   }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
@@ -109,11 +106,10 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   }, {})
 );
 const LEGACY_HDRI_RESOLUTION_ALIASES = Object.freeze({
-  '1k': 'fhd60',
-  '2k': 'fhd60',
-  '4k': 'fhd60',
-  '6k': 'qhd90',
-  '8k': 'uhd120'
+  fhd60: '4k',
+  qhd90: '6k',
+  uhd120: '8k',
+  ultra144: '8k'
 });
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
@@ -517,11 +513,10 @@ function resolveHdriResolutionFromSelection(selectionId, fallbackFrameRateId = f
   if (selectionId === 'auto') {
     return resolveGraphicsHdriResolutionId(fallbackFrameRateId);
   }
-  const selectedOption = HDRI_RESOLUTION_OPTION_MAP[selectionId];
-  return (
-    selectedOption?.hdriResolution ||
-    resolveGraphicsHdriResolutionId(fallbackFrameRateId)
-  );
+  if (HDRI_RESOLUTION_OPTION_MAP[selectionId]) {
+    return selectionId;
+  }
+  return resolveGraphicsHdriResolutionId(fallbackFrameRateId);
 }
 
 function resolveInitialHdriResolutionId(frameRateOptionId = frameRateId) {
@@ -551,7 +546,7 @@ function resolveInitialHdriResolutionId(frameRateOptionId = frameRateId) {
       );
     }
   }
-  return frameRateOptionId || DEFAULT_FRAME_RATE_ID;
+  return DEFAULT_HDRI_RESOLUTION_MODE;
 }
 
 function findFallbackFrameRateId(currentId) {
@@ -7467,7 +7462,8 @@ function refreshConfigUI() {
     line.style.fontWeight = '700';
     line.style.letterSpacing = '0.04em';
     const modeTag = document.createElement('strong');
-    modeTag.textContent = option.fps ? `${option.fps} FPS` : 'AUTO';
+    modeTag.textContent =
+      option.id === 'auto' ? 'AUTO' : String(option.id || 'manual').toUpperCase();
     modeTag.style.fontSize = '0.78rem';
     modeTag.style.color = 'var(--fg)';
     line.appendChild(modeTag);
