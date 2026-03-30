@@ -81,26 +81,16 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   dominoTextureSize: 4096
 });
 
-const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
+const GRAPHICS_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 4096,
   qhd90: 6144,
   uhd120: 8192,
   ultra144: 8192
 });
 
-const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  fhd60: 4096,
-  qhd90: 6144,
-  uhd120: 8192,
-  ultra144: 8192
-});
-
-const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
-  fhd60: 1024,
-  qhd90: 1536,
-  uhd120: 2048,
-  ultra144: 2048
-});
+const FRAME_RATE_TEXTURE_SIZE_MAP = GRAPHICS_TEXTURE_SIZE_MAP;
+const DOMINO_TEXTURE_SIZE_MAP = GRAPHICS_TEXTURE_SIZE_MAP;
+const AVATAR_TEXTURE_SIZE_MAP = GRAPHICS_TEXTURE_SIZE_MAP;
 const LEGACY_FRAME_RATE_ALIASES = Object.freeze({
   hd50: 'fhd60'
 });
@@ -134,7 +124,7 @@ function getAdaptiveAvatarTextureSize(baseSize = 512) {
     AVATAR_TEXTURE_SIZE_MAP[frameRateId] ??
     AVATAR_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(256, Math.min(2048, mappedSize));
+  return Math.max(256, Math.min(8192, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -4430,6 +4420,7 @@ const HDRI_RESOLUTION_ORDER = Object.freeze([
   '1k',
   '2k',
   '4k',
+  '6k',
   '8k',
   '16k'
 ]);
@@ -4451,8 +4442,7 @@ function resolveHdriResolutionOrder() {
     case 'uhd120':
       return ['8k', '4k', '2k', '1k'];
     case 'qhd90':
-      // Poly Haven HDRIs do not provide a native 6k tier, so use 8k with 4k fallback.
-      return ['8k', '4k', '2k', '1k'];
+      return ['6k', '4k', '2k', '1k'];
     case 'fhd60':
       return ['4k', '2k', '1k'];
     default:
@@ -4496,7 +4486,9 @@ async function loadHdriEnvironment(variant) {
         allowedResolutions.includes(res)
       )
     : [];
-  const order = preferred.length ? preferred : allowedResolutions;
+  const order = preferred.length
+    ? [...new Set([...allowedResolutions, ...preferred])]
+    : allowedResolutions;
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
