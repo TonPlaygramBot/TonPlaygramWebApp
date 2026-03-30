@@ -2287,12 +2287,9 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
   { id: '6k', label: '6K' },
-  { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' },
-  { id: '1k', label: 'Full HD' }
+  { id: '4k', label: '4K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2300,7 +2297,7 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
+const DEFAULT_HDRI_RESOLUTION_ID = '4k';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2484,19 +2481,8 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution = useMemo(() => {
-    if (hdriResolutionId === 'auto') {
-      return activeFrameRateOption?.hdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
-    }
-    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
-      return hdriResolutionId;
-    }
-    return activeFrameRateOption?.hdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
-  }, [activeFrameRateOption, hdriResolutionId]);
-  const activeHdriResolutionOption = useMemo(
-    () => HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ?? HDRI_RESOLUTION_OPTION_MAP[DEFAULT_HDRI_RESOLUTION_ID],
-    [hdriResolutionId]
-  );
+  const resolvedHdriResolution =
+    (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] && hdriResolutionId) || DEFAULT_HDRI_RESOLUTION_ID;
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -5114,10 +5100,7 @@ export default function MurlanRoyaleArena({ search }) {
                     <div className="space-y-2">
                       <p className="text-[10px] uppercase tracking-[0.32em] text-white/65">HDRI Resolution</p>
                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                        Active:{' '}
-                        {hdriResolutionId === 'auto'
-                          ? `${resolvedHdriResolution.toUpperCase()} (${activeHdriResolutionOption?.label || 'Match Table'})`
-                          : activeHdriResolutionOption?.label || resolvedHdriResolution.toUpperCase()}
+                        Active: {resolvedHdriResolution.toUpperCase()}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {HDRI_RESOLUTION_OPTIONS.map((option) => {
