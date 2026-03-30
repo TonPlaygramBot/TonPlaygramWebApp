@@ -2615,7 +2615,8 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale
+  woodRepeatScale,
+  woodTexture
 }) => ({
   id,
   label,
@@ -2627,6 +2628,7 @@ const createStandardWoodFinish = ({
   }),
   woodTextureId,
   woodRepeatScale,
+  woodTexture,
   createMaterials: () => {
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
@@ -2686,6 +2688,35 @@ const createStandardWoodFinish = ({
   }
 });
 
+const CHESS_GLTF_TEXTURE_ROOT =
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/';
+const createChessPieceWoodTexture = (baseColorFile, normalFile, ormFile, repeat = 1) => ({
+  frame: {
+    mapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${baseColorFile}`,
+    normalMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${normalFile}`,
+    roughnessMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${ormFile}`,
+    repeat: { x: repeat, y: repeat }
+  },
+  rail: {
+    mapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${baseColorFile}`,
+    normalMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${normalFile}`,
+    roughnessMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${ormFile}`,
+    repeat: { x: repeat, y: repeat }
+  }
+});
+const CHESS_PAWN_WHITE_WOOD_TEXTURE = createChessPieceWoodTexture(
+  'pawn_white_base_color.jpg',
+  'Pawn_normal.jpg',
+  'Pawn_ORM.jpg',
+  1
+);
+const CHESS_PAWN_BLACK_WOOD_TEXTURE = createChessPieceWoodTexture(
+  'pawn_black_base_color.jpg',
+  'Pawn_normal.jpg',
+  'Pawn_ORM.jpg',
+  1
+);
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2731,6 +2762,102 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  chessMarble: createStandardWoodFinish({
+    id: 'chessMarble',
+    label: 'Chess Marble Finish',
+    rail: 0xffffff,
+    base: 0xe2e8f0,
+    trim: 0xf8fafc,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessDarkForest: createStandardWoodFinish({
+    id: 'chessDarkForest',
+    label: 'Chess Dark Forest Finish',
+    rail: 0x22c55e,
+    base: 0x14532d,
+    trim: 0x86efac,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
+  }),
+  chessAmberGlow: createStandardWoodFinish({
+    id: 'chessAmberGlow',
+    label: 'Chess Amber Glow Finish',
+    rail: 0xf59e0b,
+    base: 0x78350f,
+    trim: 0xfbbf24,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessMintVale: createStandardWoodFinish({
+    id: 'chessMintVale',
+    label: 'Chess Mint Vale Finish',
+    rail: 0x34d399,
+    base: 0x065f46,
+    trim: 0xa7f3d0,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
+  }),
+  chessRoyalWave: createStandardWoodFinish({
+    id: 'chessRoyalWave',
+    label: 'Chess Royal Wave Finish',
+    rail: 0x3b82f6,
+    base: 0x1e3a8a,
+    trim: 0x93c5fd,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessRoseMist: createStandardWoodFinish({
+    id: 'chessRoseMist',
+    label: 'Chess Rose Mist Finish',
+    rail: 0xef4444,
+    base: 0x7f1d1d,
+    trim: 0xfca5a5,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
+  }),
+  chessAmethyst: createStandardWoodFinish({
+    id: 'chessAmethyst',
+    label: 'Chess Amethyst Finish',
+    rail: 0x8b5cf6,
+    base: 0x4c1d95,
+    trim: 0xc4b5fd,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessCinderBlaze: createStandardWoodFinish({
+    id: 'chessCinderBlaze',
+    label: 'Chess Cinder Blaze Finish',
+    rail: 0xff6b35,
+    base: 0x7c2d12,
+    trim: 0xfdba74,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
+  }),
+  chessArcticDrift: createStandardWoodFinish({
+    id: 'chessArcticDrift',
+    label: 'Chess Arctic Drift Finish',
+    rail: 0xbcd7ff,
+    base: 0x1e3a8a,
+    trim: 0xe0f2fe,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessObsidianGold: createStandardWoodFinish({
+    id: 'chessObsidianGold',
+    label: 'Chess Obsidian Gold Finish',
+    rail: 0xfacc15,
+    base: 0x111827,
+    trim: 0xfde68a,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
+  }),
+  chessCoralBloom: createStandardWoodFinish({
+    id: 'chessCoralBloom',
+    label: 'Chess Coral Bloom Finish',
+    rail: 0xfb7185,
+    base: 0x881337,
+    trim: 0xfda4af,
+    woodTexture: CHESS_PAWN_WHITE_WOOD_TEXTURE
+  }),
+  chessNeonPulse: createStandardWoodFinish({
+    id: 'chessNeonPulse',
+    label: 'Chess Neon Pulse Finish',
+    rail: 0xf472b6,
+    base: 0x831843,
+    trim: 0x22d3ee,
+    woodTexture: CHESS_PAWN_BLACK_WOOD_TEXTURE
   })
 });
 
@@ -2740,7 +2867,19 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.chessMarble,
+    TABLE_FINISHES.chessDarkForest,
+    TABLE_FINISHES.chessAmberGlow,
+    TABLE_FINISHES.chessMintVale,
+    TABLE_FINISHES.chessRoyalWave,
+    TABLE_FINISHES.chessRoseMist,
+    TABLE_FINISHES.chessAmethyst,
+    TABLE_FINISHES.chessCinderBlaze,
+    TABLE_FINISHES.chessArcticDrift,
+    TABLE_FINISHES.chessObsidianGold,
+    TABLE_FINISHES.chessCoralBloom,
+    TABLE_FINISHES.chessNeonPulse
   ].filter(Boolean)
 );
 
