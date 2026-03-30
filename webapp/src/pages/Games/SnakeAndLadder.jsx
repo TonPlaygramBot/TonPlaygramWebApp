@@ -1268,7 +1268,6 @@ export default function SnakeAndLadder() {
   const [rollingIndex, setRollingIndex] = useState(null);
   const [playerRollTrigger, setPlayerRollTrigger] = useState(0);
   const [playerAutoRolling, setPlayerAutoRolling] = useState(false);
-  const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const [aiAvatars, setAiAvatars] = useState([]);
   const [burning, setBurning] = useState([]); // indices of tokens burning
@@ -2167,9 +2166,6 @@ export default function SnakeAndLadder() {
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 1);
-        if (playersRef.current[idx]?.id !== myAccountId) {
-          setPendingExtraRoll(false);
-        }
         if (playersRef.current[idx]?.id === myAccountId) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
@@ -3157,7 +3153,7 @@ export default function SnakeAndLadder() {
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const canRoll =
     myPlayerIndex !== null &&
-    (currentTurn === myPlayerIndex || (isMultiplayer && pendingExtraRoll)) &&
+    currentTurn === myPlayerIndex &&
     !moving &&
     rollCooldown === 0 &&
     !gameOver &&
@@ -4004,7 +4000,7 @@ export default function SnakeAndLadder() {
       )}
       {isMultiplayer && myPlayerIndex !== null && (
         <div className="sr-only" aria-hidden="true">
-          {(currentTurn === myPlayerIndex || pendingExtraRoll) && !moving ? (
+          {currentTurn === myPlayerIndex && !moving ? (
             <DiceRoller
               clickable
               showButton={false}
@@ -4013,7 +4009,6 @@ export default function SnakeAndLadder() {
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {
-                setPendingExtraRoll(false);
                 diceRollIdRef.current += 1;
                 startDiceBoardAnimation({
                   id: diceRollIdRef.current,
@@ -4023,10 +4018,6 @@ export default function SnakeAndLadder() {
                 });
               }}
               onRollEnd={(vals) => {
-                const rolledSix = Array.isArray(vals)
-                  ? vals.some((v) => Number(v) === 6)
-                  : Number(vals) === 6;
-                setPendingExtraRoll(rolledSix);
                 startDiceBoardAnimation({
                   id: diceRollIdRef.current,
                   phase: 'end',
