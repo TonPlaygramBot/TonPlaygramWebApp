@@ -469,6 +469,7 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['2k', '1k']);
 const HDRI_ENV_CACHE_LIMIT = 4;
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
@@ -613,25 +614,6 @@ const CARD_HIGHLIGHT_COLOR = '#facc15';
 const CARD_HIGHLIGHT = new THREE.Color(CARD_HIGHLIGHT_COLOR);
 const CARD_EMISSIVE_OFF = new THREE.Color(0x000000);
 const FRAME_RATE_STORAGE_KEY = 'texasHoldemFrameRate';
-const HDRI_RESOLUTION_STORAGE_KEY = 'texasHoldemHdriResolution';
-const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  {
-    id: '8k',
-    label: '8K HDRI',
-    preferredResolutions: Object.freeze(['8k', '6k', '4k', '2k', '1k'])
-  },
-  {
-    id: '6k',
-    label: '6K HDRI',
-    preferredResolutions: Object.freeze(['6k', '4k', '2k', '1k'])
-  },
-  {
-    id: '4k',
-    label: '4K HDRI',
-    preferredResolutions: Object.freeze(['4k', '2k', '1k'])
-  }
-]);
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
@@ -1281,16 +1263,15 @@ async function createFallbackHdriEnvironment(renderer) {
   return { envMap: texture, url: null };
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredResolutions = null) {
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
-  const preferredKey = Array.isArray(preferredResolutions) ? preferredResolutions.join('|') : '';
-  const cacheKey = `${String(config?.id || config?.assetId || config?.fallbackUrl || 'fallback')}::${preferredKey || 'auto'}`;
+  const cacheKey = String(config?.id || config?.assetId || config?.fallbackUrl || 'fallback');
   const cached = HDRI_ENVIRONMENT_CACHE.get(cacheKey);
   if (cached?.envMap) {
     rememberHdriEnvironment(cacheKey, cached);
     return { ...cached, fromCache: true, cacheKey };
   }
-  const url = await resolveTexasHoldemHdriUrl(config, preferredResolutions || undefined);
+  const url = await resolveTexasHoldemHdriUrl(config, PREFERRED_HDRI_RESOLUTIONS);
   const resolveFallback = async () => {
     try {
       return await createFallbackHdriEnvironment(renderer);
@@ -3049,7 +3030,6 @@ function TexasHoldemArena({ search }) {
   const envTextureRef = useRef(null);
   const hdriApplyRequestRef = useRef(0);
   const hdriFallbackRetryCountRef = useRef(0);
-  const hdriResolutionModeRef = useRef(DEFAULT_HDRI_RESOLUTION_ID);
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
@@ -3132,32 +3112,6 @@ function TexasHoldemArena({ search }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
-      if (stored && HDRI_RESOLUTION_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_HDRI_RESOLUTION_ID;
-  });
-  const activeHdriResolutionOption = useMemo(
-    () =>
-      HDRI_RESOLUTION_OPTIONS.find((opt) => opt.id === hdriResolutionId) ??
-      HDRI_RESOLUTION_OPTIONS[HDRI_RESOLUTION_OPTIONS.length - 1],
-    [hdriResolutionId]
-  );
-  const hdriPreferredResolutions = useMemo(
-    () => activeHdriResolutionOption?.preferredResolutions || HDRI_RESOLUTION_OPTIONS[2].preferredResolutions,
-    [activeHdriResolutionOption]
-  );
-  const hdriPreferredResolutionsRef = useRef(hdriPreferredResolutions);
-  useEffect(() => {
-    hdriPreferredResolutionsRef.current = hdriPreferredResolutions;
-  }, [hdriPreferredResolutions]);
-  useEffect(() => {
-    hdriResolutionModeRef.current = hdriResolutionId;
-  }, [hdriResolutionId]);
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
     const fallback = FRAME_RATE_OPTIONS[0];
@@ -3214,13 +3168,6 @@ function TexasHoldemArena({ search }) {
       console.warn("Failed to persist Texas Hold'em graphics", error);
     }
   }, [frameRateId]);
-  useEffect(() => {
-    try {
-      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
-    } catch (error) {
-      console.warn("Failed to persist Texas Hold'em HDRI resolution", error);
-    }
-  }, [hdriResolutionId]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
   const turnIntervalRef = useRef(null);
@@ -4296,23 +4243,12 @@ function TexasHoldemArena({ search }) {
       if (!activeVariant) return;
       const activeVariantId = activeVariant.id || activeVariant.assetId;
       const currentVariantId = hdriVariantRef.current?.id || hdriVariantRef.current?.assetId;
-      const activeResolutionMode = hdriResolutionModeRef.current || DEFAULT_HDRI_RESOLUTION_ID;
-      const currentResolutionMode = envTextureRef.current?.userData?.hdriResolutionMode;
-      if (
-        envTextureRef.current &&
-        activeVariantId &&
-        currentVariantId === activeVariantId &&
-        currentResolutionMode === activeResolutionMode
-      ) {
+      if (envTextureRef.current && activeVariantId && currentVariantId === activeVariantId) {
         return;
       }
       const requestToken = (hdriApplyRequestRef.current || 0) + 1;
       hdriApplyRequestRef.current = requestToken;
-      const envResult = await loadPolyHavenHdriEnvironment(
-        three.renderer,
-        activeVariant,
-        hdriPreferredResolutionsRef.current
-      );
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap) return;
       const usedFallbackEnvironment = !envResult.url;
       if (usedFallbackEnvironment) {
@@ -4342,10 +4278,6 @@ function TexasHoldemArena({ search }) {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
       three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
-      envResult.envMap.userData = {
-        ...(envResult.envMap.userData || {}),
-        hdriResolutionMode: activeResolutionMode
-      };
       envTextureRef.current = envResult.envMap;
       disposeEnvironmentRef.current = () => {
         if (three.scene) {
@@ -4367,17 +4299,6 @@ function TexasHoldemArena({ search }) {
     },
     []
   );
-
-  useEffect(() => {
-    if (!threeRef.current?.renderer) return;
-    const currentVariant =
-      hdriVariantRef.current ||
-      TEXAS_HDRI_OPTIONS[appearance.environmentHdri] ||
-      TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ||
-      TEXAS_HDRI_OPTIONS[0];
-    if (!currentVariant) return;
-    void applyHdriEnvironment(currentVariant);
-  }, [applyHdriEnvironment, appearance.environmentHdri, hdriResolutionId]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -6458,34 +6379,72 @@ function TexasHoldemArena({ search }) {
               </div>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+              <div className="grid gap-2">
+                {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
+                  const active = preset.id === commentaryPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setCommentaryPresetId(preset.id)}
+                      aria-pressed={active}
+                      disabled={!commentarySupported}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                        {active && (
+                          <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                            Active
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        {preset.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCommentaryMuted((prev) => !prev)}
+                aria-pressed={commentaryMuted}
+                disabled={!commentarySupported}
+                className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                  commentaryMuted
+                    ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+              >
+                <span>Mute commentary</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                    commentaryMuted
+                      ? 'border-black/30 text-black/70'
+                      : 'border-white/30 text-white/70'
+                  }`}
+                >
+                  {commentaryMuted ? 'On' : 'Off'}
+                </span>
+              </button>
+              {!commentarySupported && (
+                <p className="text-[0.65rem] text-white/50">
+                  Voice commentary needs Web Speech support.
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
                   Match the Murlan Royale presets for identical FPS and clarity options.
                 </p>
-              </div>
-              <div className="grid gap-2">
-                {HDRI_RESOLUTION_OPTIONS.map((option) => {
-                  const active = option.id === hdriResolutionId;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setHdriResolutionId(option.id)}
-                      aria-pressed={active}
-                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        active
-                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                      }`}
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
-                        {active && <span className="text-[11px] font-semibold tracking-wide text-sky-100">Active</span>}
-                      </span>
-                    </button>
-                  );
-                })}
               </div>
               <div className="grid gap-2">
                 {FRAME_RATE_OPTIONS.map((option) => {
