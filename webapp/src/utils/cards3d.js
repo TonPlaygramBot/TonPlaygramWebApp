@@ -20,18 +20,14 @@ export function createCardGeometry(width, height, depth) {
   return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
 }
 
-export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME, qualityOptions = {}) {
-  const faceWidth = Math.max(256, Math.round(Number(qualityOptions?.faceWidth) || 512));
-  const faceHeight = Math.max(360, Math.round(Number(qualityOptions?.faceHeight) || 720));
-  const backWidth = Math.max(1024, Math.round(Number(qualityOptions?.backWidth) || 3072));
-  const backHeight = Math.max(1440, Math.round(Number(qualityOptions?.backHeight) || 4320));
-  const faceKey = `${theme.id}-${card.rank}-${card.suit}-${faceWidth}x${faceHeight}`;
+export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME) {
+  const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
   let faceTexture = cache?.get?.(faceKey);
   if (!faceTexture) {
-    faceTexture = makeCardFace(card.rank, card.suit, theme, faceWidth, faceHeight);
+    faceTexture = makeCardFace(card.rank, card.suit, theme);
     cache?.set?.(faceKey, faceTexture);
   }
-  const backTexture = makeTonplaygramCardBackTexture(theme, backWidth, backHeight);
+  const backTexture = makeTonplaygramCardBackTexture(theme);
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.edgeColor || '#f0f2f5'),
     roughness: 0.55,
