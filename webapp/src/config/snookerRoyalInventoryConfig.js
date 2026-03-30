@@ -393,14 +393,7 @@ export const SNOOKER_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01',
-    chessAuroraMetalFinish: 'Chess Aurora Metal',
-    chessMonoFinish: 'Chess Mono',
-    chessBlueFinish: 'Chess Blue',
-    chessAmberFinish: 'Chess Amber',
-    chessMintFinish: 'Chess Mint',
-    chessPinkFinish: 'Chess Pink',
-    chessTealFinish: 'Chess Teal'
+    rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -487,69 +480,6 @@ export const SNOOKER_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
-  },
-  {
-    id: 'finish-chessAuroraMetalFinish',
-    type: 'tableFinish',
-    optionId: 'chessAuroraMetalFinish',
-    name: 'Chess Aurora Metal Finish',
-    price: 1080,
-    description: 'ABeautifulGame classic white-metal tone over deep graphite rails.',
-    thumbnail: swatchThumbnail(['#ffffff', '#2b2f36', '#c5d8ff'])
-  },
-  {
-    id: 'finish-chessMonoFinish',
-    type: 'tableFinish',
-    optionId: 'chessMonoFinish',
-    name: 'Chess Mono Finish',
-    price: 1080,
-    description: 'Monochrome chess-piece palette with charcoal depth and light trim.',
-    thumbnail: swatchThumbnail(['#111827', '#0f172a', '#e5e7eb'])
-  },
-  {
-    id: 'finish-chessBlueFinish',
-    type: 'tableFinish',
-    optionId: 'chessBlueFinish',
-    name: 'Chess Blue Finish',
-    price: 1080,
-    description: 'Electric blue piece color paired with slate rails and cool highlights.',
-    thumbnail: swatchThumbnail(['#3b82f6', '#1e293b', '#93c5fd'])
-  },
-  {
-    id: 'finish-chessAmberFinish',
-    type: 'tableFinish',
-    optionId: 'chessAmberFinish',
-    name: 'Chess Amber Finish',
-    price: 1080,
-    description: 'Amber chess-piece tone with midnight base and warm edge trims.',
-    thumbnail: swatchThumbnail(['#f59e0b', '#1f2937', '#fde68a'])
-  },
-  {
-    id: 'finish-chessMintFinish',
-    type: 'tableFinish',
-    optionId: 'chessMintFinish',
-    name: 'Chess Mint Finish',
-    price: 1080,
-    description: 'Mint-themed ABeautifulGame colorway adapted for snooker table rails.',
-    thumbnail: swatchThumbnail(['#10b981', '#065f46', '#a7f3d0'])
-  },
-  {
-    id: 'finish-chessPinkFinish',
-    type: 'tableFinish',
-    optionId: 'chessPinkFinish',
-    name: 'Chess Pink Finish',
-    price: 1080,
-    description: 'Crimson-pink chess accent on indigo rails with bright blush trim.',
-    thumbnail: swatchThumbnail(['#ef4444', '#312e81', '#fbcfe8'])
-  },
-  {
-    id: 'finish-chessTealFinish',
-    type: 'tableFinish',
-    optionId: 'chessTealFinish',
-    name: 'Chess Teal Finish',
-    price: 1080,
-    description: 'Violet-teal chess-piece palette with dark studio base contrast.',
-    thumbnail: swatchThumbnail(['#8b5cf6', '#0f172a', '#99f6e4'])
   },
   {
     id: 'chrome-chrome',
