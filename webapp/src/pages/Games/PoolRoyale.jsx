@@ -2868,7 +2868,8 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale
+  woodRepeatScale,
+  woodTexture
 }) => ({
   id,
   label,
@@ -2880,6 +2881,7 @@ const createStandardWoodFinish = ({
   }),
   woodTextureId,
   woodRepeatScale,
+  woodTexture,
   createMaterials: () => {
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
@@ -2939,6 +2941,23 @@ const createStandardWoodFinish = ({
   }
 });
 
+const CHESS_GLTF_TEXTURE_ROOT =
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/';
+const createChessPieceWoodTexture = (baseColorFile, normalFile, ormFile, repeat = 1) => ({
+  frame: {
+    mapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${baseColorFile}`,
+    normalMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${normalFile}`,
+    roughnessMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${ormFile}`,
+    repeat: { x: repeat, y: repeat }
+  },
+  rail: {
+    mapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${baseColorFile}`,
+    normalMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${normalFile}`,
+    roughnessMapUrl: `${CHESS_GLTF_TEXTURE_ROOT}${ormFile}`,
+    repeat: { x: repeat, y: repeat }
+  }
+});
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2984,6 +3003,162 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  chessMarble: createStandardWoodFinish({
+    id: 'chessMarble',
+    label: 'Chess Marble Finish',
+    rail: 0xffffff,
+    base: 0xe2e8f0,
+    trim: 0xf8fafc,
+    woodTexture: createChessPieceWoodTexture(
+      'king_white_base_color.jpg',
+      'King_white_normal.jpg',
+      'King_white_ORM.jpg',
+      1.2
+    )
+  }),
+  chessDarkForest: createStandardWoodFinish({
+    id: 'chessDarkForest',
+    label: 'Chess Dark Forest Finish',
+    rail: 0x22c55e,
+    base: 0x14532d,
+    trim: 0x86efac,
+    woodTexture: createChessPieceWoodTexture(
+      'king_black_base_color.jpg',
+      'King_black_normal.jpg',
+      'King_black_ORM.jpg',
+      1.2
+    )
+  }),
+  chessAmberGlow: createStandardWoodFinish({
+    id: 'chessAmberGlow',
+    label: 'Chess Amber Glow Finish',
+    rail: 0xf59e0b,
+    base: 0x78350f,
+    trim: 0xfbbf24,
+    woodTexture: createChessPieceWoodTexture(
+      'queen_white_base_color.jpg',
+      'Queen_white_normal.jpg',
+      'Queen_white_ORM.jpg',
+      1.25
+    )
+  }),
+  chessMintVale: createStandardWoodFinish({
+    id: 'chessMintVale',
+    label: 'Chess Mint Vale Finish',
+    rail: 0x34d399,
+    base: 0x065f46,
+    trim: 0xa7f3d0,
+    woodTexture: createChessPieceWoodTexture(
+      'queen_black_base_color.jpg',
+      'Queen_black_normal.jpg',
+      'Queen_black_ORM.jpg',
+      1.25
+    )
+  }),
+  chessRoyalWave: createStandardWoodFinish({
+    id: 'chessRoyalWave',
+    label: 'Chess Royal Wave Finish',
+    rail: 0x3b82f6,
+    base: 0x1e3a8a,
+    trim: 0x93c5fd,
+    woodTexture: createChessPieceWoodTexture(
+      'castle_white_base_color.jpg',
+      'Castle_normal.jpg',
+      'Castle_ORM.jpg',
+      1.15
+    )
+  }),
+  chessRoseMist: createStandardWoodFinish({
+    id: 'chessRoseMist',
+    label: 'Chess Rose Mist Finish',
+    rail: 0xef4444,
+    base: 0x7f1d1d,
+    trim: 0xfca5a5,
+    woodTexture: createChessPieceWoodTexture(
+      'castle_black_base_color.jpg',
+      'Castle_normal.jpg',
+      'Castle_ORM.jpg',
+      1.15
+    )
+  }),
+  chessAmethyst: createStandardWoodFinish({
+    id: 'chessAmethyst',
+    label: 'Chess Amethyst Finish',
+    rail: 0x8b5cf6,
+    base: 0x4c1d95,
+    trim: 0xc4b5fd,
+    woodTexture: createChessPieceWoodTexture(
+      'bishop_white_base_color.jpg',
+      'bishop_white_normal.jpg',
+      'Bishop_white_ORM.jpg',
+      1.3
+    )
+  }),
+  chessCinderBlaze: createStandardWoodFinish({
+    id: 'chessCinderBlaze',
+    label: 'Chess Cinder Blaze Finish',
+    rail: 0xff6b35,
+    base: 0x7c2d12,
+    trim: 0xfdba74,
+    woodTexture: createChessPieceWoodTexture(
+      'bishop_black_base_color.jpg',
+      'bishop_black_normal.jpg',
+      'Bishop_black_ORM.jpg',
+      1.3
+    )
+  }),
+  chessArcticDrift: createStandardWoodFinish({
+    id: 'chessArcticDrift',
+    label: 'Chess Arctic Drift Finish',
+    rail: 0xbcd7ff,
+    base: 0x1e3a8a,
+    trim: 0xe0f2fe,
+    woodTexture: createChessPieceWoodTexture(
+      'knight_white_base_color.jpg',
+      'Knight_normal.jpg',
+      'Knight_ORM.jpg',
+      1.2
+    )
+  }),
+  chessObsidianGold: createStandardWoodFinish({
+    id: 'chessObsidianGold',
+    label: 'Chess Obsidian Gold Finish',
+    rail: 0xfacc15,
+    base: 0x111827,
+    trim: 0xfde68a,
+    woodTexture: createChessPieceWoodTexture(
+      'knight_black_base_color.jpg',
+      'Knight_normal.jpg',
+      'Knight_ORM.jpg',
+      1.2
+    )
+  }),
+  chessCoralBloom: createStandardWoodFinish({
+    id: 'chessCoralBloom',
+    label: 'Chess Coral Bloom Finish',
+    rail: 0xfb7185,
+    base: 0x881337,
+    trim: 0xfda4af,
+    woodTexture: createChessPieceWoodTexture(
+      'pawn_white_base_color.jpg',
+      'Pawn_normal.jpg',
+      'Pawn_ORM.jpg',
+      1.35
+    )
+  }),
+  chessNeonPulse: createStandardWoodFinish({
+    id: 'chessNeonPulse',
+    label: 'Chess Neon Pulse Finish',
+    rail: 0xf472b6,
+    base: 0x831843,
+    trim: 0x22d3ee,
+    woodTexture: createChessPieceWoodTexture(
+      'pawn_black_base_color.jpg',
+      'Pawn_normal.jpg',
+      'Pawn_ORM.jpg',
+      1.35
+    )
   })
 });
 
@@ -2993,7 +3168,19 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.chessMarble,
+    TABLE_FINISHES.chessDarkForest,
+    TABLE_FINISHES.chessAmberGlow,
+    TABLE_FINISHES.chessMintVale,
+    TABLE_FINISHES.chessRoyalWave,
+    TABLE_FINISHES.chessRoseMist,
+    TABLE_FINISHES.chessAmethyst,
+    TABLE_FINISHES.chessCinderBlaze,
+    TABLE_FINISHES.chessArcticDrift,
+    TABLE_FINISHES.chessObsidianGold,
+    TABLE_FINISHES.chessCoralBloom,
+    TABLE_FINISHES.chessNeonPulse
   ].filter(Boolean)
 );
 
@@ -5615,8 +5802,6 @@ const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
-const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
-const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -22309,7 +22494,7 @@ const powerRef = useRef(hud.power);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
-          overheadBroadcastVariantRef.current = 'replay';
+          overheadBroadcastVariantRef.current = 'rail';
           storeReplayCameraFrame();
           resetCameraForReplay();
           const replayCueStroke = trimmed.cueStroke ?? null;
@@ -22321,48 +22506,11 @@ const powerRef = useRef(hud.power);
               )
             : 180;
           replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
-          const foulReason = String(shotRecording?.replayFoul?.reason ?? '').toLowerCase();
-          const wrongBallFoul = foulReason.includes('wrong ball');
-          const slowImpactAt =
-            wrongBallFoul && Number.isFinite(shotRecording?.replaySlowImpactMs)
-              ? THREE.MathUtils.clamp(shotRecording.replaySlowImpactMs, 0, duration)
-              : null;
-          const slowWindow = Math.max(40, REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS);
-          const slowHalfWindow = slowWindow / 2;
-          const slowFactor = THREE.MathUtils.clamp(
-            REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR,
-            0.1,
-            1
-          );
-          const hasWrongBallSlowImpact =
-            slowImpactAt != null &&
-            slowFactor < 0.999 &&
-            slowImpactAt > 0 &&
-            slowImpactAt < duration;
-          const slowStart = hasWrongBallSlowImpact
-            ? Math.max(0, slowImpactAt - slowHalfWindow)
-            : null;
-          const slowEnd = hasWrongBallSlowImpact
-            ? Math.min(duration, slowImpactAt + slowHalfWindow)
-            : null;
-          const slowSpan =
-            slowStart != null && slowEnd != null ? Math.max(0, slowEnd - slowStart) : 0;
-          const slowExtraDuration =
-            hasWrongBallSlowImpact && slowSpan > 0 ? slowSpan * (1 / slowFactor - 1) : 0;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
             cueStroke: replayCueStroke,
             duration,
-            effectiveDuration: duration + slowExtraDuration,
-            wrongBallSlowImpact:
-              hasWrongBallSlowImpact && slowStart != null && slowEnd != null
-                ? {
-                    start: slowStart,
-                    end: slowEnd,
-                    factor: slowFactor
-                  }
-                : null,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
@@ -28578,12 +28726,6 @@ const powerRef = useRef(hud.power);
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
-          const foulReasonText = String(safeState?.foul?.reason ?? '').toLowerCase();
-          const wrongBallFoul = foulReasonText.includes('wrong ball');
-          shotRecording.replaySlowImpactMs =
-            wrongBallFoul && Number.isFinite(shotRecording.firstCueImpactMs)
-              ? shotRecording.firstCueImpactMs
-              : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
         if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
@@ -29013,9 +29155,6 @@ const powerRef = useRef(hud.power);
           };
           const frames = playback.frames || [];
           const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const effectiveDuration = Number.isFinite(playback.effectiveDuration)
-            ? playback.effectiveDuration
-            : duration;
           const elapsed = now - playback.startedAt;
           if (frames.length === 0) {
             finishReplayPlayback(playback);
@@ -29023,37 +29162,7 @@ const powerRef = useRef(hud.power);
             return;
           }
           try {
-            let targetTime = Math.min(elapsed, duration);
-            const wrongBallSlowImpact = playback.wrongBallSlowImpact;
-            if (
-              wrongBallSlowImpact &&
-              Number.isFinite(wrongBallSlowImpact.start) &&
-              Number.isFinite(wrongBallSlowImpact.end) &&
-              Number.isFinite(wrongBallSlowImpact.factor) &&
-              wrongBallSlowImpact.factor < 0.999
-            ) {
-              const slowStart = wrongBallSlowImpact.start;
-              const slowEnd = wrongBallSlowImpact.end;
-              const slowFactor = THREE.MathUtils.clamp(wrongBallSlowImpact.factor, 0.1, 1);
-              const slowSpan = Math.max(0, slowEnd - slowStart);
-              if (slowSpan > 0) {
-                const preSlowElapsed = Math.max(0, slowStart);
-                const slowedRealSpan = slowSpan / slowFactor;
-                if (elapsed <= preSlowElapsed) {
-                  targetTime = Math.min(elapsed, duration);
-                } else if (elapsed <= preSlowElapsed + slowedRealSpan) {
-                  targetTime = Math.min(
-                    duration,
-                    slowStart + (elapsed - preSlowElapsed) * slowFactor
-                  );
-                } else {
-                  targetTime = Math.min(
-                    duration,
-                    slowEnd + (elapsed - preSlowElapsed - slowedRealSpan)
-                  );
-                }
-              }
-            }
+            const targetTime = Math.min(elapsed, duration);
             let frameIndex = playback.lastIndex ?? 0;
             while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
               frameIndex += 1;
@@ -29086,9 +29195,7 @@ const powerRef = useRef(hud.power);
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
             renderer.render(scene, frameCamera ?? camera);
-            const finished =
-              elapsed >= effectiveDuration ||
-              elapsed - effectiveDuration >= REPLAY_TIMEOUT_GRACE_MS;
+            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
             }
@@ -30463,17 +30570,6 @@ const powerRef = useRef(hud.power);
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
-                  if (
-                    shotRecording &&
-                    Number.isFinite(shotRecording.startTime) &&
-                    shotRecording.firstCueImpactMs == null &&
-                    (a.id === 'cue' || b.id === 'cue')
-                  ) {
-                    shotRecording.firstCueImpactMs = Math.max(
-                      0,
-                      performance.now() - shotRecording.startTime
-                    );
-                  }
                 }
                 if (
                   !shotContextRef.current.contactMade &&
