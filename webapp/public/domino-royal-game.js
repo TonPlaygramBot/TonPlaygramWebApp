@@ -12,7 +12,23 @@ import './flag-emojis.js';
 const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
+const HDRI_RESOLUTION_STORAGE_KEY = 'dominoRoyalHdriResolution';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Match Table' },
+  { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' },
+  { id: '1k', label: 'Full HD' }
+]);
+const HDRI_RESOLUTION_OPTIONS_BY_ID = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -441,6 +457,34 @@ function resolveInitialFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
+function normalizeHdriResolutionId(rawId) {
+  if (!rawId) return null;
+  return HDRI_RESOLUTION_OPTIONS_BY_ID[rawId] ? rawId : null;
+}
+
+function resolveInitialHdriResolutionId() {
+  const urlPreset =
+    urlParams.get('hdriResolutionId') ||
+    urlParams.get('hdriResolution') ||
+    urlParams.get('hdri');
+  const normalizedUrlPreset = normalizeHdriResolutionId(urlPreset);
+  if (normalizedUrlPreset) {
+    return normalizedUrlPreset;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      const normalizedStored = normalizeHdriResolutionId(stored);
+      if (normalizedStored) {
+        return normalizedStored;
+      }
+    } catch (error) {
+      console.warn('Failed to read Domino HDRI resolution selection', error);
+    }
+  }
+  return DEFAULT_HDRI_RESOLUTION_ID;
+}
+
 function findFallbackFrameRateId(currentId) {
   const idx = FRAME_RATE_OPTIONS.findIndex((opt) => opt.id === currentId);
   if (idx > 0) {
@@ -450,6 +494,7 @@ function findFallbackFrameRateId(currentId) {
 }
 
 let frameRateId = resolveInitialFrameRateId();
+let hdriResolutionId = resolveInitialHdriResolutionId();
 let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
 let slowFrameAccumulatorMs = 0;
@@ -462,6 +507,15 @@ function persistFrameRateSelection(id) {
     window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
   } catch (error) {
     console.warn('Failed to persist Domino graphics option', error);
+  }
+}
+
+function persistHdriResolutionSelection(id) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, id);
+  } catch (error) {
+    console.warn('Failed to persist Domino HDRI resolution option', error);
   }
 }
 
@@ -4447,6 +4501,12 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
+  if (hdriResolutionId && hdriResolutionId !== 'auto') {
+    const preferredIndex = HDRI_RESOLUTION_ORDER.indexOf(hdriResolutionId);
+    if (preferredIndex >= 0) {
+      return HDRI_RESOLUTION_ORDER.slice(0, preferredIndex + 1).reverse();
+    }
+  }
   switch (frameRateId) {
     case 'ultra144':
       return ['8k'];
@@ -4461,6 +4521,22 @@ function resolveHdriResolutionOrder() {
       if (prefersUhd) return ['8k', '6k'];
       if (isLowProfileDevice) return ['2k'];
       return ['4k', '2k'];
+  }
+}
+
+function applyHdriResolutionSelection(
+  optionId,
+  { refreshUi = true } = {}
+) {
+  const resolvedId = normalizeHdriResolutionId(optionId) || DEFAULT_HDRI_RESOLUTION_ID;
+  hdriResolutionId = resolvedId;
+  persistHdriResolutionSelection(resolvedId);
+  applyEnvironmentHdri(
+    ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
+      ENVIRONMENT_HDRI_OPTIONS[0]
+  );
+  if (refreshUi) {
+    refreshConfigUI();
   }
 }
 function shouldLoadExternalHdri() {
@@ -7297,6 +7373,45 @@ function refreshConfigUI() {
   graphicsGrid.className = 'config-options';
   graphicsGrid.style.gridTemplateColumns =
     'repeat(auto-fit, minmax(200px, 1fr))';
+  const hdriResolutionWrapper = document.createElement('div');
+  hdriResolutionWrapper.style.display = 'flex';
+  hdriResolutionWrapper.style.flexDirection = 'column';
+  hdriResolutionWrapper.style.gap = '0.35rem';
+  hdriResolutionWrapper.style.marginBottom = '0.65rem';
+  const hdriResolutionLabel = document.createElement('p');
+  hdriResolutionLabel.textContent = 'HDRI Resolution';
+  hdriResolutionLabel.style.margin = '0';
+  hdriResolutionLabel.style.fontSize = '0.65rem';
+  hdriResolutionLabel.style.letterSpacing = '0.14em';
+  hdriResolutionLabel.style.textTransform = 'uppercase';
+  hdriResolutionLabel.style.fontWeight = '700';
+  hdriResolutionLabel.style.color = 'rgba(226,232,240,0.8)';
+  hdriResolutionWrapper.appendChild(hdriResolutionLabel);
+  const hdriResolutionGrid = document.createElement('div');
+  hdriResolutionGrid.className = 'config-options';
+  hdriResolutionGrid.style.gridTemplateColumns =
+    'repeat(auto-fit, minmax(110px, 1fr))';
+  HDRI_RESOLUTION_OPTIONS.forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (hdriResolutionId === option.id) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(hdriResolutionId === option.id));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    button.addEventListener('click', () => {
+      if (hdriResolutionId === option.id) return;
+      applyHdriResolutionSelection(option.id, { refreshUi: false });
+      refreshConfigUI();
+    });
+    hdriResolutionGrid.appendChild(button);
+  });
+  hdriResolutionWrapper.appendChild(hdriResolutionGrid);
+  graphicsWrapper.appendChild(hdriResolutionWrapper);
+
   FRAME_RATE_OPTIONS.forEach((option) => {
     const button = document.createElement('button');
     button.type = 'button';
