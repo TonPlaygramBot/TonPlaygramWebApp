@@ -296,13 +296,7 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  oakVeneer01Amber: swatchThumbnail(['#c0874e', '#d3a06a', '#e5bb84']),
-  oakVeneer01Walnut: swatchThumbnail(['#744528', '#8a5d3a', '#af7a4f']),
-  oakVeneer01Olive: swatchThumbnail(['#57503e', '#6f6650', '#8a7e62']),
-  oakVeneer01Espresso: swatchThumbnail(['#2b1f18', '#3d2e24', '#5b4738']),
-  oakVeneer01MatteBlack: swatchThumbnail(['#101010', '#1a1a1a', '#2b2b2b']),
-  carbonFiberMatteDarkGrey: swatchThumbnail(['#1a1d23', '#24272d', '#353942'])
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -400,13 +394,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01',
-    oakVeneer01Amber: 'Oak Veneer 01 · Amber',
-    oakVeneer01Walnut: 'Oak Veneer 01 · Walnut',
-    oakVeneer01Olive: 'Oak Veneer 01 · Olive Smoke',
-    oakVeneer01Espresso: 'Oak Veneer 01 · Espresso',
-    oakVeneer01MatteBlack: 'Oak Veneer 01 · Matte Black',
-    carbonFiberMatteDarkGrey: 'Carbon Fiber · Matte Dark Grey'
+    rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -493,60 +481,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
-  },
-  {
-    id: 'finish-oakVeneer01Amber',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Amber',
-    name: 'Oak Veneer 01 · Amber Finish',
-    price: 1030,
-    description: 'Oak veneer pattern retinted to a warm amber tone.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Amber
-  },
-  {
-    id: 'finish-oakVeneer01Walnut',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Walnut',
-    name: 'Oak Veneer 01 · Walnut Finish',
-    price: 1040,
-    description: 'Oak veneer pattern with darker walnut-inspired tones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Walnut
-  },
-  {
-    id: 'finish-oakVeneer01Olive',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Olive',
-    name: 'Oak Veneer 01 · Olive Smoke Finish',
-    price: 1050,
-    description: 'Smoked olive oak tint for a muted competition look.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Olive
-  },
-  {
-    id: 'finish-oakVeneer01Espresso',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Espresso',
-    name: 'Oak Veneer 01 · Espresso Finish',
-    price: 1060,
-    description: 'Deep espresso oak tone with heavy contrast grain.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Espresso
-  },
-  {
-    id: 'finish-oakVeneer01MatteBlack',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01MatteBlack',
-    name: 'Oak Veneer 01 · Matte Black Finish',
-    price: 1080,
-    description: 'Matte black oak veneer with low-reflection finish.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MatteBlack
-  },
-  {
-    id: 'finish-carbonFiberMatteDarkGrey',
-    type: 'tableFinish',
-    optionId: 'carbonFiberMatteDarkGrey',
-    name: 'Carbon Fiber · Matte Dark Grey Finish',
-    price: 1120,
-    description: 'Matte dark grey carbon-fiber inspired finish for a modern table shell.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberMatteDarkGrey
   },
   {
     id: 'chrome-chrome',
