@@ -12609,8 +12609,12 @@ function PoolRoyaleGame({
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
-      if (stored === '1') return true;
       if (stored === '0') return false;
+      if (stored === '1') {
+        // Restore the morning replay baseline: default replays are ON unless
+        // the player explicitly disables them again in the current build.
+        window.localStorage.setItem(SKIP_REPLAYS_STORAGE_KEY, '0');
+      }
     }
     return false;
   });
@@ -12734,7 +12738,15 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(BROADCAST_SYSTEM_STORAGE_KEY);
+      if (stored && BROADCAST_SYSTEM_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_SYSTEM_ID;
+  });
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
