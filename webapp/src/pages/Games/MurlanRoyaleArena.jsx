@@ -1230,7 +1230,7 @@ function buildPolyhavenModelUrls(assetId) {
 }
 
 function shouldPreserveChairMaterials(theme) {
-  return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
+  return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven' || theme?.source === 'gltf');
 }
 
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
