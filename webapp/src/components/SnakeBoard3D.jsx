@@ -185,6 +185,8 @@ const TILE_SIDE_EMISSIVE_SCALE = 0.25;
 const TILE_BOTTOM_EMISSIVE_SCALE = 0.1;
 
 const BENTONITE_EXTRA_SHRINK = [0.85, 0.92];
+const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
+const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
 const TOKEN_SCALE_MULTIPLIER = 1;
@@ -200,9 +202,7 @@ const BASE_PLATFORM_EXTRA_MULTIPLIER = 1.72;
 const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
-const TOP_TILE_EXTRA_LEVELS = 0;
-const WIN_PODIUM_SCALE_XZ = 1.32;
-const WIN_PODIUM_SCALE_Y = 1.55;
+const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 1.55,
   TILE_SIZE * 1.18,
@@ -2156,19 +2156,14 @@ function createTileLabel(number) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, size, size);
 
-  const isWinTile = number === TOTAL_BOARD_TILES;
-  const text = isWinTile ? '🏆' : String(number);
+  const text = String(number);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = isWinTile
-    ? `${size * 0.56}px 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif`
-    : `700 ${size * 0.55}px 'Inter', 'Segoe UI', sans-serif`;
+  ctx.font = `700 ${size * 0.55}px 'Inter', 'Segoe UI', sans-serif`;
   ctx.lineWidth = size * 0.08;
   ctx.strokeStyle = 'rgba(15,23,42,0.85)';
-  if (!isWinTile) {
-    ctx.strokeText(text, size / 2, size / 2);
-  }
-  ctx.fillStyle = isWinTile ? '#fbbf24' : '#f8fafc';
+  ctx.strokeText(text, size / 2, size / 2);
+  ctx.fillStyle = '#f8fafc';
   ctx.fillText(text, size / 2, size / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -2940,16 +2935,11 @@ function buildSnakeBoard(
         tilePosition.x *= GROUND_FLOOR_OUTWARD_SCALE;
         tilePosition.z *= GROUND_FLOOR_OUTWARD_SCALE;
       }
-      const isWinTile = idx === TOTAL_BOARD_TILES;
-      const winTileHeight = isWinTile ? tileHeight * WIN_PODIUM_SCALE_Y : tileHeight;
-      if (isWinTile) {
-        tilePosition.y += topTileLift + (winTileHeight - tileHeight) * 0.5;
+      if (idx === TOTAL_BOARD_TILES) {
+        tilePosition.y += topTileLift;
       }
       const tile = new THREE.Mesh(tileGeo, materialSet.materials);
       tile.position.copy(tilePosition);
-      if (isWinTile) {
-        tile.scale.set(WIN_PODIUM_SCALE_XZ, WIN_PODIUM_SCALE_Y, WIN_PODIUM_SCALE_XZ);
-      }
       tile.castShadow = true;
       tile.receiveShadow = true;
       tile.userData.index = idx;
@@ -2961,11 +2951,17 @@ function buildSnakeBoard(
       tileMeshes.set(idx, tile);
 
       const topPosition = tilePosition.clone();
-      topPosition.y = tilePosition.y + winTileHeight / 2;
+      topPosition.y = tileTopY;
+      if (idx === TOTAL_BOARD_TILES) {
+        topPosition.y += topTileLift;
+      }
       indexToPosition.set(idx, topPosition);
 
       const label = createTileLabel(idx);
-      const labelY = topPosition.y;
+      let labelY = tileTopY;
+      if (idx === TOTAL_BOARD_TILES) {
+        labelY += topTileLift;
+      }
       label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
     });
@@ -3014,6 +3010,33 @@ function buildSnakeBoard(
       platformMeshes
     );
   });
+
+  const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
+  if (tileHundred) {
+    const topLevelPlacement = levelPlacements[levelPlacements.length - 1];
+    const supportBaseY = topLevelPlacement.tileCenterY - tileHeight / 2;
+    const supportTopY = tileHundred.position.y - tileHeight / 2;
+    const supportHeight = Math.max(
+      TILE_100_SUPPORT_HEIGHT_EXTRA,
+      supportTopY - supportBaseY + TILE_100_SUPPORT_HEIGHT_EXTRA
+    );
+    const supportMaterial = new THREE.MeshStandardMaterial({
+      color: PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, 0.55),
+      roughness: 0.74,
+      metalness: 0.08,
+      emissive: PYRAMID_CONCRETE_ACCENT.clone().multiplyScalar(0.14),
+      emissiveIntensity: 0.18
+    });
+    const support = new THREE.Mesh(
+      new THREE.CylinderGeometry(TILE_100_SUPPORT_RADIUS * 0.85, TILE_100_SUPPORT_RADIUS, supportHeight, 24),
+      supportMaterial
+    );
+    support.position.set(tileHundred.position.x, supportBaseY + supportHeight / 2, tileHundred.position.z);
+    support.castShadow = true;
+    support.receiveShadow = true;
+    platformGroup.add(support);
+    platformMeshes.push(support);
+  }
 
   const baseHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
   const baseStart = new THREE.Vector3(
