@@ -469,7 +469,7 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['2k', '1k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k', '2k', '1k']);
 const HDRI_ENV_CACHE_LIMIT = 4;
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
@@ -621,44 +621,84 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 50,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    resolution: '4K asset profile • DPR 1.4 cap',
+    targetResolution: '4k',
+    hdriResolutions: ['4k', '2k', '1k'],
+    cardFaceSize: [640, 896],
+    cardBackSize: [3072, 4320],
+    chipTextureSize: 640,
+    chairTextureSize: 640,
+    nameplateScale: 1.25,
+    uiResolutionScale: 2.2,
+    description: 'Performance profile with 4K-quality assets for table, cards, chips, avatars, and UI.'
   },
   {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: '4K (60 Hz)',
     fps: 60,
     renderScale: 1.1,
     pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    resolution: '4K asset profile • DPR 1.5 cap',
+    targetResolution: '4k',
+    hdriResolutions: ['4k', '2k', '1k'],
+    cardFaceSize: [768, 1080],
+    cardBackSize: [4096, 5760],
+    chipTextureSize: 768,
+    chairTextureSize: 768,
+    nameplateScale: 1.35,
+    uiResolutionScale: 2.4,
+    description: '4K profile for 60 Hz with upgraded HDRI, table, chairs, cards, chips, avatars, and UI.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
+    label: '6K (90 Hz)',
     fps: 90,
     renderScale: 1.25,
     pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    resolution: '6K asset profile • DPR 1.7 cap',
+    targetResolution: '6k',
+    hdriResolutions: ['8k', '6k', '4k', '2k'],
+    cardFaceSize: [896, 1254],
+    cardBackSize: [5120, 7200],
+    chipTextureSize: 896,
+    chairTextureSize: 896,
+    nameplateScale: 1.5,
+    uiResolutionScale: 2.7,
+    description: '6K profile for 90 Hz with sharper HDRI plus high-detail table assets and UI.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
+    label: '8K (120 Hz)',
     fps: 120,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    resolution: '8K asset profile • DPR 2.0 cap',
+    targetResolution: '8k',
+    hdriResolutions: ['8k', '6k', '4k'],
+    cardFaceSize: [1024, 1440],
+    cardBackSize: [6144, 8640],
+    chipTextureSize: 1024,
+    chairTextureSize: 1024,
+    nameplateScale: 1.7,
+    uiResolutionScale: 3,
+    description: '8K profile for 120 Hz targeting maximum clarity across environment, props, avatars, and UI.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
+    label: '8K (144 Hz)',
     fps: 144,
     renderScale: 1.5,
     pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    resolution: '8K asset profile • DPR 2.2 cap',
+    targetResolution: '8k',
+    hdriResolutions: ['8k', '6k', '4k'],
+    cardFaceSize: [1024, 1440],
+    cardBackSize: [6144, 8640],
+    chipTextureSize: 1024,
+    chairTextureSize: 1024,
+    nameplateScale: 1.8,
+    uiResolutionScale: 3.1,
+    description: '8K profile for 144 Hz with top-tier material and UI sharpness.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -1263,7 +1303,7 @@ async function createFallbackHdriEnvironment(renderer) {
   return { envMap: texture, url: null };
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
+async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) {
   if (!renderer) return null;
   const cacheKey = String(config?.id || config?.assetId || config?.fallbackUrl || 'fallback');
   const cached = HDRI_ENVIRONMENT_CACHE.get(cacheKey);
@@ -1271,7 +1311,7 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
     rememberHdriEnvironment(cacheKey, cached);
     return { ...cached, fromCache: true, cacheKey };
   }
-  const url = await resolveTexasHoldemHdriUrl(config, PREFERRED_HDRI_RESOLUTIONS);
+  const url = await resolveTexasHoldemHdriUrl(config, preferredResolutions);
   const resolveFallback = async () => {
     try {
       return await createFallbackHdriEnvironment(renderer);
@@ -1339,12 +1379,13 @@ function adjustHexColor(hex, amount) {
   return `#${base.getHexString()}`;
 }
 
-function createChairClothTexture(chairOption, renderer) {
+function createChairClothTexture(chairOption, renderer, textureSize = CHAIR_CLOTH_TEXTURE_SIZE) {
   const primary = chairOption?.seatColor ?? chairOption?.primary ?? '#0f6a2f';
   const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
   const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
+  const safeTextureSize = Math.max(256, Math.round(textureSize));
+  canvas.width = canvas.height = safeTextureSize;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1439,8 +1480,8 @@ function createChairClothTexture(chairOption, renderer) {
   return texture;
 }
 
-function createChairFabricMaterial(chairOption, renderer) {
-  const texture = createChairClothTexture(chairOption, renderer);
+function createChairFabricMaterial(chairOption, renderer, quality = {}) {
+  const texture = createChairClothTexture(chairOption, renderer, quality?.chairTextureSize);
   const primary = chairOption?.seatColor ?? chairOption?.primary ?? '#0f6a2f';
   const sheenColor = chairOption?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
@@ -1616,8 +1657,8 @@ async function loadGltfChair(renderer = null) {
   };
 }
 
-function createProceduralChair(theme, renderer) {
-  const chairMaterial = createChairFabricMaterial(theme, renderer);
+function createProceduralChair(theme, renderer, quality = {}) {
+  const chairMaterial = createChairFabricMaterial(theme, renderer, quality);
   const legMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme?.legColor ?? DEFAULT_STOOL_THEME.legColor),
     metalness: 0.42,
@@ -1672,7 +1713,7 @@ function createProceduralChair(theme, renderer) {
   };
 }
 
-async function buildChairTemplate(theme, renderer) {
+async function buildChairTemplate(theme, renderer, quality = {}) {
   const preserveMaterials = shouldPreserveChairMaterials(theme);
   const rotationY = theme?.rotationY ?? 0;
   try {
@@ -1684,7 +1725,7 @@ async function buildChairTemplate(theme, renderer) {
       }
       const materials = extractChairMaterials(model);
       if (!preserveMaterials) {
-        applyChairThemeMaterials({ chairMaterials: materials }, theme, renderer);
+        applyChairThemeMaterials({ chairMaterials: materials }, theme, renderer, quality);
       }
       return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
@@ -1693,23 +1734,23 @@ async function buildChairTemplate(theme, renderer) {
       gltfChair.chairTemplate.rotation.y += rotationY;
     }
     if (!preserveMaterials) {
-      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme, renderer);
+      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme, renderer, quality);
     }
     return { ...gltfChair, preserveOriginal: preserveMaterials };
   } catch (error) {
     console.error('Falling back to procedural chair', error);
   }
-  return createProceduralChair(theme, renderer);
+  return createProceduralChair(theme, renderer, quality);
 }
 
-function applyChairThemeMaterials(target, theme, renderer) {
+function applyChairThemeMaterials(target, theme, renderer, quality = {}) {
   const mats = target?.chairMaterials;
   if (!mats || theme?.preserveMaterials || target?.chairThemePreserve) return;
   const seatColor = theme?.seatColor ?? theme?.primary ?? '#7c3aed';
   const legColor = theme?.legColor ?? DEFAULT_STOOL_THEME.legColor;
   if (mats.seat) {
     if (mats.seat.userData?.clothTexture && renderer) {
-      const next = createChairFabricMaterial(theme, renderer);
+      const next = createChairFabricMaterial(theme, renderer, quality);
       Object.assign(mats, { seat: next });
       (mats.upholstery ?? []).forEach((mat, idx) => {
         if (idx === 0) {
@@ -1993,10 +2034,11 @@ function computeSeatPotDropAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT,
     .setY(tableSurfaceY + CARD_SURFACE_OFFSET);
 }
 
-function makeNameplate(name, chips, renderer, avatar) {
+function makeNameplate(name, chips, renderer, avatar, options = {}) {
+  const nameplateScale = Math.max(1, Number(options?.nameplateScale) || 1);
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = Math.round(512 * nameplateScale);
+  canvas.height = Math.round(256 * nameplateScale);
   const ctx = canvas.getContext('2d');
   const fallbackAvatar = '/assets/icons/profile.svg';
   const tpcIcon = new Image();
@@ -2232,7 +2274,7 @@ function roundRect(ctx, x, y, width, height, radius) {
 
 function createRailTextSprite(initialLines = [], options = {}) {
   const { width = 2.08 * MODEL_SCALE, height = 0.74 * MODEL_SCALE } = options;
-  const resolutionScale = 2;
+  const resolutionScale = Math.max(1.2, Number(options?.resolutionScale) || 2);
   const canvas = document.createElement('canvas');
   canvas.width = 1024 * resolutionScale;
   canvas.height = 512 * resolutionScale;
@@ -2436,7 +2478,7 @@ function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
   };
 }
 
-function applyCardToMesh(mesh, card, geometry, cache, theme) {
+function applyCardToMesh(mesh, card, geometry, cache, theme, quality = {}) {
   if (!mesh) return;
   const target = card || mesh.userData?.card;
   if (!target) return;
@@ -2450,7 +2492,9 @@ function applyCardToMesh(mesh, card, geometry, cache, theme) {
     mesh.userData.cardThemeId = nextTheme.id;
     return;
   }
-  const fresh = createCardMesh(target, geometry, cache, nextTheme);
+  const [faceWidth = 768, faceHeight = 1080] = Array.isArray(quality?.cardFaceSize) ? quality.cardFaceSize : [];
+  const [backWidth = 4096, backHeight = 5760] = Array.isArray(quality?.cardBackSize) ? quality.cardBackSize : [];
+  const fresh = createCardMesh(target, geometry, cache, nextTheme, { faceWidth, faceHeight, backWidth, backHeight });
   const existing = mesh.material;
   if (Array.isArray(existing)) {
     existing.forEach((mat) => mat?.dispose?.());
@@ -3133,7 +3177,15 @@ function TexasHoldemArena({ search }) {
       id: option?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       renderScale,
-      pixelRatioCap
+      pixelRatioCap,
+      targetResolution: option?.targetResolution ?? '4k',
+      hdriResolutions: Array.isArray(option?.hdriResolutions) && option.hdriResolutions.length ? option.hdriResolutions : DEFAULT_HDRI_RESOLUTIONS,
+      cardFaceSize: option?.cardFaceSize ?? [768, 1080],
+      cardBackSize: option?.cardBackSize ?? [4096, 5760],
+      chipTextureSize: Number(option?.chipTextureSize) || 768,
+      chairTextureSize: Number(option?.chairTextureSize) || CHAIR_CLOTH_TEXTURE_SIZE,
+      nameplateScale: Number(option?.nameplateScale) || 1.35,
+      uiResolutionScale: Number(option?.uiResolutionScale) || 2.4
     };
   }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
@@ -3945,7 +3997,7 @@ function TexasHoldemArena({ search }) {
       three.pendingChairToken = (three.pendingChairToken || 0) + 1;
       const token = three.pendingChairToken;
       void (async () => {
-        const chairBuild = await buildChairTemplate(chairOption, three.renderer);
+        const chairBuild = await buildChairTemplate(chairOption, three.renderer, frameQualityRef.current);
         if (!chairBuild || token !== three.pendingChairToken) {
           chairBuild?.materials && disposeChairMaterials(chairBuild.materials);
           return;
@@ -3981,7 +4033,7 @@ function TexasHoldemArena({ search }) {
     } else if (chairOption && three.chairMaterials) {
       three.chairThemePreserve = shouldPreserveChairMaterials(chairOption);
       const previousSeat = three.chairMaterials.seat;
-      applyChairThemeMaterials(three, chairOption, three.renderer);
+      applyChairThemeMaterials(three, chairOption, three.renderer, frameQualityRef.current);
       const updatedSeat = three.chairMaterials.seat;
       if (updatedSeat && updatedSeat !== previousSeat) {
         three.seatGroups?.forEach((seat) => {
@@ -3998,7 +4050,7 @@ function TexasHoldemArena({ search }) {
     const applyThemeToMesh = (mesh, cardData) => {
       if (!mesh) return;
       const priorFace = mesh.userData?.cardFace || 'front';
-      applyCardToMesh(mesh, cardData, three.cardGeometry, three.faceCache, cardTheme);
+      applyCardToMesh(mesh, cardData, three.cardGeometry, three.faceCache, cardTheme, frameQualityRef.current);
       setCardFace(mesh, priorFace);
     };
     three.seatGroups?.forEach((seat) => {
@@ -4248,7 +4300,7 @@ function TexasHoldemArena({ search }) {
       }
       const requestToken = (hdriApplyRequestRef.current || 0) + 1;
       hdriApplyRequestRef.current = requestToken;
-      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant, frameQualityRef.current?.hdriResolutions);
       if (!envResult?.envMap) return;
       const usedFallbackEnvironment = !envResult.url;
       if (usedFallbackEnvironment) {
@@ -4378,7 +4430,11 @@ function TexasHoldemArena({ search }) {
     const faceCache = new Map();
     const cardTheme = CARD_THEMES[initialAppearance.cards] ?? CARD_THEMES[0];
 
-    const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
+    const chipFactory = createChipFactory(renderer, {
+      cardWidth: CARD_W,
+      textureSize: frameQualityRef.current?.chipTextureSize,
+      radialSegments: frameQualityRef.current?.targetResolution === '8k' ? 88 : frameQualityRef.current?.targetResolution === '6k' ? 76 : 64
+    });
     const initialPlayers = gameState?.players ?? [];
     const initialPlayerCount = initialPlayers.length || effectivePlayerCount;
     const useCardinalLayout = initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
@@ -4577,7 +4633,7 @@ function TexasHoldemArena({ search }) {
     (async () => {
       const [hdriResult, chairBuildResult] = await Promise.allSettled([
         applyHdriEnvironment(initialEnvironment),
-        buildChairTemplate(initialChair, renderer)
+        buildChairTemplate(initialChair, renderer, frameQualityRef.current)
       ]);
       if (hdriResult.status === 'rejected') {
         console.warn('Failed to apply HDR environment on arena boot', hdriResult.reason);
@@ -4591,7 +4647,7 @@ function TexasHoldemArena({ search }) {
       }
       const chairTemplate = chairBuild.chairTemplate;
       const chairMaterials = chairBuild.materials;
-      applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
+      applyChairThemeMaterials({ chairMaterials }, initialChair, renderer, frameQualityRef.current);
       const initialChairPreserve = chairBuild.preserveOriginal || shouldPreserveChairMaterials(initialChair);
       const initialChairThemeId = initialChair?.id;
 
@@ -4613,7 +4669,12 @@ function TexasHoldemArena({ search }) {
         arenaGroup.add(group);
 
         const cardMeshes = [0, 1].map(() => {
-          const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
+          const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme, {
+            faceWidth: frameQualityRef.current?.cardFaceSize?.[0],
+            faceHeight: frameQualityRef.current?.cardFaceSize?.[1],
+            backWidth: frameQualityRef.current?.cardBackSize?.[0],
+            backHeight: frameQualityRef.current?.cardBackSize?.[1]
+          });
           mesh.position.copy(deckAnchor);
           mesh.castShadow = true;
           arenaGroup.add(mesh);
@@ -4664,7 +4725,9 @@ function TexasHoldemArena({ search }) {
         arenaGroup.add(hoverChip);
 
         const seatAvatar = seat.player?.isHuman ? seat.player?.avatar : seat.player?.flag || seat.player?.avatar;
-        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seatAvatar);
+        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seatAvatar, {
+          nameplateScale: frameQualityRef.current?.nameplateScale
+        });
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
         const nameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
@@ -4736,7 +4799,7 @@ function TexasHoldemArena({ search }) {
           cardMeshes.forEach((mesh, idx) => {
             if (hasCards) {
               const card = player.hand[idx];
-              applyCardToMesh(mesh, card, cardGeometry, faceCache, cardTheme);
+              applyCardToMesh(mesh, card, cardGeometry, faceCache, cardTheme, frameQualityRef.current);
               orientCard(mesh, seat.seatPos.clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0)), {
                 face: seat.isHuman ? 'front' : 'back',
                 flat: false
@@ -4796,7 +4859,12 @@ function TexasHoldemArena({ search }) {
         }
 
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos, idx) => {
-        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
+        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme, {
+          faceWidth: frameQualityRef.current?.cardFaceSize?.[0],
+          faceHeight: frameQualityRef.current?.cardFaceSize?.[1],
+          backWidth: frameQualityRef.current?.cardBackSize?.[0],
+          backHeight: frameQualityRef.current?.cardBackSize?.[1]
+        });
         mesh.position.copy(
           computeCommunitySlotPosition(idx, {
             rotationY: resolvedCommunityRowRotation,
@@ -4848,7 +4916,8 @@ function TexasHoldemArena({ search }) {
         .setY((tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_SURFACE_OFFSET * 0.2);
         const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
           width: (3.4 * MODEL_SCALE) / 3,
-          height: (1.3 * MODEL_SCALE) / 3
+          height: (1.3 * MODEL_SCALE) / 3,
+          resolutionScale: frameQualityRef.current?.uiResolutionScale
         });
         potLabel.position.copy(
           potAnchor
@@ -5438,7 +5507,7 @@ function TexasHoldemArena({ search }) {
           return;
         }
         mesh.visible = true;
-        applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
+        applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme, frameQualityRef.current);
         if (player.folded && !state.showdown) {
           const foldedOrder = foldedSeatOrder.get(idx) ?? 0;
           const pileRight = (three.communityAxes?.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
@@ -5687,7 +5756,7 @@ function TexasHoldemArena({ search }) {
         return;
       }
       mesh.visible = true;
-      applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
+      applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme, frameQualityRef.current);
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
       const slotPosition = computeCommunitySlotPosition(idx, {
         rotationY: rowRotation,

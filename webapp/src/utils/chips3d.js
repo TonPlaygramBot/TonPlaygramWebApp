@@ -14,10 +14,12 @@ const DENOMINATIONS = [
   { value: 1000, color: '#1fb3d6' }
 ];
 
-export function createChipFactory(renderer, { cardWidth }) {
+export function createChipFactory(renderer, { cardWidth, textureSize = 512, radialSegments = 64 }) {
   const radius = cardWidth * 0.18;
   const height = cardWidth * 0.04;
-  const geometry = new THREE.CylinderGeometry(radius, radius, height, 64, 1, false);
+  const safeRadialSegments = Math.max(24, Math.floor(radialSegments));
+  const safeTextureSize = Math.max(256, Math.round(textureSize));
+  const geometry = new THREE.CylinderGeometry(radius, radius, height, safeRadialSegments, 1, false);
   const cache = new Map();
   const movingChips = [];
   const tmpVector = new THREE.Vector3();
@@ -26,7 +28,7 @@ export function createChipFactory(renderer, { cardWidth }) {
   function getMaterials(denom) {
     const key = denom.value;
     if (cache.has(key)) return cache.get(key);
-    const topTexture = makeChipTexture(denom.color, denom.value, renderer);
+    const topTexture = makeChipTexture(denom.color, denom.value, renderer, safeTextureSize);
     const topMaterial = new THREE.MeshPhysicalMaterial({
       map: topTexture,
       roughness: 0.3,
@@ -375,8 +377,8 @@ function splitAmount(amount) {
   return stacks;
 }
 
-function makeChipTexture(color, value, renderer) {
-  const size = 512;
+function makeChipTexture(color, value, renderer, textureSize = 512) {
+  const size = Math.max(256, Math.round(textureSize));
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
