@@ -287,17 +287,26 @@ function detectPreferredFrameRateId() {
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'uhd90';
     }
     return DEFAULT_FRAME_RATE_ID;
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    if (typeof window.matchMedia === 'function') {
+      try {
+        if (window.matchMedia('(min-refresh-rate: 144hz)').matches) {
+          return 'uhd144';
+        }
+      } catch (err) {
+        // ignore unsupported query
+      }
+    }
     return 'uhd120';
   }
 
   if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return 'uhd90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -2181,31 +2190,44 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
-    id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    id: 'uhd60',
+    label: 'Ultra HD (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    hdriResolution: '4k',
+    resolution: '4K render • HDRI 4K',
+    description: '4K profile tuned for 60 Hz panels with stable pacing.'
   },
   {
-    id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
+    id: 'uhd90',
+    label: 'Ultra HD+ (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    renderScale: 1.55,
+    pixelRatioCap: 2.4,
+    hdriResolution: '6k',
+    resolution: '6K render • HDRI 6K',
+    description: '6K profile for table/chair/card/avatar/UI clarity at 90 Hz.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    renderScale: 1.6,
+    pixelRatioCap: 2.8,
+    hdriResolution: '8k',
+    resolution: '8K render • HDRI 8K',
+    description: '8K profile for high-end 120 Hz devices.'
+  },
+  {
+    id: 'uhd144',
+    label: 'Ultra HD Max (144 Hz)',
+    fps: 144,
+    renderScale: 1.6,
+    pixelRatioCap: 2.8,
+    hdriResolution: '8k',
+    resolution: '8K render • HDRI 8K',
+    description: '8K profile tuned for 144 Hz displays.'
   }
 ]);
 const DEFAULT_FRAME_RATE_OPTION =
@@ -2375,7 +2397,14 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTIONS[0];
+  const resolvedHdriResolution = useMemo(() => {
+    const preferred =
+      typeof activeFrameRateOption?.hdriResolution === 'string' &&
+      activeFrameRateOption.hdriResolution.length
+        ? activeFrameRateOption.hdriResolution
+        : DEFAULT_HDRI_RESOLUTIONS[0];
+    return preferred;
+  }, [activeFrameRateOption]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
