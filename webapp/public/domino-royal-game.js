@@ -4430,6 +4430,7 @@ const HDRI_RESOLUTION_ORDER = Object.freeze([
   '1k',
   '2k',
   '4k',
+  '6k',
   '8k',
   '16k'
 ]);
@@ -4448,21 +4449,22 @@ const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   switch (frameRateId) {
     case 'ultra144':
+      return ['8k'];
     case 'uhd120':
-      return ['8k', '4k', '2k', '1k'];
+      // Poly Haven may not host every asset in 6k, but we still try 6k first to match graphics profile.
+      return ['8k', '6k'];
     case 'qhd90':
-      // Poly Haven HDRIs do not provide a native 6k tier, so use 8k with 4k fallback.
-      return ['8k', '4k', '2k', '1k'];
+      return ['6k', '4k'];
     case 'fhd60':
-      return ['4k', '2k', '1k'];
+      return ['4k', '2k'];
     default:
-      if (prefersUhd) return ['8k', '4k', '2k', '1k'];
-      if (isLowProfileDevice) return ['2k', '1k'];
-      return ['4k', '2k', '1k'];
+      if (prefersUhd) return ['8k', '6k'];
+      if (isLowProfileDevice) return ['2k'];
+      return ['4k', '2k'];
   }
 }
 function shouldLoadExternalHdri() {
-  // Keep HDRI enabled on mobile/Telegram too (at 1k) so players still see purchased environments.
+  // Keep HDRI enabled on mobile/Telegram so players still see purchased environments.
   return true;
 }
 
