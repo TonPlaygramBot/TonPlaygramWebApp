@@ -2939,6 +2939,107 @@ const createStandardWoodFinish = ({
   }
 });
 
+const createOakVeneerToneFinish = ({
+  id,
+  label,
+  rail,
+  base,
+  trim,
+  accent
+}) =>
+  createStandardWoodFinish({
+    id,
+    label,
+    rail,
+    base,
+    trim,
+    accent,
+    woodTextureId: 'oak_veneer_01',
+    woodRepeatScale: 1
+  });
+
+const createCarbonFiberTexture = () => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#24272c';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const tile = 16;
+  for (let y = 0; y < canvas.height; y += tile) {
+    for (let x = 0; x < canvas.width; x += tile) {
+      const checker = ((x / tile) + (y / tile)) % 2 === 0;
+      ctx.fillStyle = checker ? '#353a40' : '#1d2127';
+      ctx.fillRect(x, y, tile, tile);
+      ctx.fillStyle = checker ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)';
+      ctx.fillRect(x, y, tile, 1.5);
+      ctx.fillRect(x, y, 1.5, tile);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 2.4);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const createCarbonFiberMatteFinish = ({
+  id,
+  label,
+  rail = 0x2b2f34,
+  base = 0x25282d,
+  trim = 0x41464e
+}) => ({
+  id,
+  label,
+  colors: makeColorPalette({
+    cloth: 0x2d7f4b,
+    rail,
+    base
+  }),
+  createMaterials: () => {
+    const carbonTexture = createCarbonFiberTexture();
+    const frame = new THREE.MeshPhysicalMaterial({
+      color: base,
+      map: carbonTexture,
+      metalness: 0.2,
+      roughness: 0.74,
+      clearcoat: 0.06,
+      clearcoatRoughness: 0.78,
+      envMapIntensity: 0.42
+    });
+    const railMat = new THREE.MeshPhysicalMaterial({
+      color: rail,
+      map: carbonTexture,
+      metalness: 0.24,
+      roughness: 0.7,
+      clearcoat: 0.08,
+      clearcoatRoughness: 0.74,
+      envMapIntensity: 0.46
+    });
+    const trimMat = new THREE.MeshPhysicalMaterial({
+      color: trim,
+      metalness: 0.3,
+      roughness: 0.58,
+      clearcoat: 0.1,
+      clearcoatRoughness: 0.62,
+      envMapIntensity: 0.54
+    });
+    return {
+      frame,
+      rail: railMat,
+      leg: frame,
+      trim: trimMat,
+      accent: null,
+      ...createPocketMaterials()
+    };
+  }
+});
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2957,6 +3058,45 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0xe0bb7a,
     woodTextureId: 'oak_veneer_01',
     woodRepeatScale: 1
+  }),
+  oakVeneerMidnightMatte: createOakVeneerToneFinish({
+    id: 'oakVeneerMidnightMatte',
+    label: 'Oak Veneer Midnight Matte',
+    rail: 0x1d1d1f,
+    base: 0x101112,
+    trim: 0x2b2d30
+  }),
+  oakVeneerSlateSmoke: createOakVeneerToneFinish({
+    id: 'oakVeneerSlateSmoke',
+    label: 'Oak Veneer Slate Smoke',
+    rail: 0x54565a,
+    base: 0x3e4044,
+    trim: 0x6a6d72
+  }),
+  oakVeneerWalnutCinder: createOakVeneerToneFinish({
+    id: 'oakVeneerWalnutCinder',
+    label: 'Oak Veneer Walnut Cinder',
+    rail: 0x5b4130,
+    base: 0x473224,
+    trim: 0x7a5d46
+  }),
+  oakVeneerAmberDusk: createOakVeneerToneFinish({
+    id: 'oakVeneerAmberDusk',
+    label: 'Oak Veneer Amber Dusk',
+    rail: 0x855630,
+    base: 0x6c4426,
+    trim: 0xa97849
+  }),
+  oakVeneerDriftSand: createOakVeneerToneFinish({
+    id: 'oakVeneerDriftSand',
+    label: 'Oak Veneer Drift Sand',
+    rail: 0x9f8062,
+    base: 0x83674c,
+    trim: 0xc1a17f
+  }),
+  carbonFiberDarkGreyMatte: createCarbonFiberMatteFinish({
+    id: 'carbonFiberDarkGreyMatte',
+    label: 'Carbon Fiber Matte Dark Grey'
   }),
   woodTable001: createStandardWoodFinish({
     id: 'woodTable001',
@@ -2991,6 +3131,12 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   [
     TABLE_FINISHES.peelingPaintWeathered,
     TABLE_FINISHES.oakVeneer01,
+    TABLE_FINISHES.oakVeneerMidnightMatte,
+    TABLE_FINISHES.oakVeneerSlateSmoke,
+    TABLE_FINISHES.oakVeneerWalnutCinder,
+    TABLE_FINISHES.oakVeneerAmberDusk,
+    TABLE_FINISHES.oakVeneerDriftSand,
+    TABLE_FINISHES.carbonFiberDarkGreyMatte,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
     TABLE_FINISHES.rosewoodVeneer01
@@ -28400,9 +28546,20 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
+          const resolveReplayForceReason = ({ replayCandidate, foul, objectPot }) => {
+            if (foul) return 'foul';
+            if (objectPot) return 'pot';
+            if (replayCandidate?.shouldReplay) return 'highlight';
+            return null;
+          };
+          let replayForceReason = resolveReplayForceReason({
+            replayCandidate: replayDecision,
+            foul: false,
+            objectPot: hadObjectPot
+          });
           let shouldStartReplay =
             !skipAllReplaysRef.current &&
-            Boolean(replayDecision?.shouldReplay) &&
+            Boolean(replayForceReason) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
@@ -28609,6 +28766,11 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? foulBanner;
           replayAccent = replayDecision.primaryTag ?? 'foul';
+          replayForceReason = resolveReplayForceReason({
+            replayCandidate: replayDecision,
+            foul: shotWasFoul,
+            objectPot: hadObjectPot
+          });
         }
         const isFinalShot =
           Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
@@ -28633,15 +28795,21 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
+          replayForceReason = 'highlight';
           shouldStartReplay = !skipAllReplaysRef.current;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
+        replayForceReason = resolveReplayForceReason({
+          replayCandidate: replayDecision,
+          foul: shotWasFoul,
+          objectPot: hadObjectPot
+        });
         shouldStartReplay =
           !skipAllReplaysRef.current &&
-          Boolean(replayDecision?.shouldReplay) &&
+          Boolean(replayForceReason) &&
           (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {

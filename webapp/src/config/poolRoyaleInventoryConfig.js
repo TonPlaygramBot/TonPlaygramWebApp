@@ -294,6 +294,12 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
 const TABLE_FINISH_THUMBNAILS = Object.freeze({
   peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
+  oakVeneerMidnightMatte: swatchThumbnail(['#0a0a0b', '#1f2327', '#34393f']),
+  oakVeneerSlateSmoke: swatchThumbnail(['#3f4348', '#5a6067', '#777d86']),
+  oakVeneerWalnutCinder: swatchThumbnail(['#3f2d22', '#624634', '#8c6a4f']),
+  oakVeneerAmberDusk: swatchThumbnail(['#633d24', '#8d5b35', '#ba8454']),
+  oakVeneerDriftSand: swatchThumbnail(['#7e654f', '#a78a6d', '#cfb397']),
+  carbonFiberDarkGreyMatte: swatchThumbnail(['#1f2328', '#30363d', '#4b5563']),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
@@ -392,6 +398,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze({
     peelingPaintWeathered: 'Wood Peeling Paint Weathered',
     oakVeneer01: 'Oak Veneer 01',
+    oakVeneerMidnightMatte: 'Oak Veneer Midnight Matte',
+    oakVeneerSlateSmoke: 'Oak Veneer Slate Smoke',
+    oakVeneerWalnutCinder: 'Oak Veneer Walnut Cinder',
+    oakVeneerAmberDusk: 'Oak Veneer Amber Dusk',
+    oakVeneerDriftSand: 'Oak Veneer Drift Sand',
+    carbonFiberDarkGreyMatte: 'Carbon Fiber Matte Dark Grey',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01'
@@ -454,6 +466,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 990,
     description: 'Warm oak veneer rails with smooth satin polish.',
     thumbnail: '/store-thumbs/poolRoyale/tableFinish/oakVeneer01.png'
+  },
+  {
+    id: 'finish-oakVeneerMidnightMatte',
+    type: 'tableFinish',
+    optionId: 'oakVeneerMidnightMatte',
+    name: 'Oak Veneer Midnight Matte Finish',
+    price: 1030,
+    description: 'Matte black oak veneer treatment for a stealth tournament look.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneerMidnightMatte
+  },
+  {
+    id: 'finish-oakVeneerSlateSmoke',
+    type: 'tableFinish',
+    optionId: 'oakVeneerSlateSmoke',
+    name: 'Oak Veneer Slate Smoke Finish',
+    price: 1035,
+    description: 'Cool slate-smoke oak veneer with low-glare tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneerSlateSmoke
+  },
+  {
+    id: 'finish-oakVeneerWalnutCinder',
+    type: 'tableFinish',
+    optionId: 'oakVeneerWalnutCinder',
+    name: 'Oak Veneer Walnut Cinder Finish',
+    price: 1040,
+    description: 'Walnut-cinder oak veneer with richer brown undertones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneerWalnutCinder
+  },
+  {
+    id: 'finish-oakVeneerAmberDusk',
+    type: 'tableFinish',
+    optionId: 'oakVeneerAmberDusk',
+    name: 'Oak Veneer Amber Dusk Finish',
+    price: 1045,
+    description: 'Amber dusk oak veneer tuned for warm arena lighting.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneerAmberDusk
+  },
+  {
+    id: 'finish-oakVeneerDriftSand',
+    type: 'tableFinish',
+    optionId: 'oakVeneerDriftSand',
+    name: 'Oak Veneer Drift Sand Finish',
+    price: 1050,
+    description: 'Light drift-sand oak veneer with soft neutral grain.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneerDriftSand
+  },
+  {
+    id: 'finish-carbonFiberDarkGreyMatte',
+    type: 'tableFinish',
+    optionId: 'carbonFiberDarkGreyMatte',
+    name: 'Carbon Fiber Matte Dark Grey Finish',
+    price: 1125,
+    description: 'Dark grey matte carbon fiber weave built for modern arenas.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberDarkGreyMatte
   },
   {
     id: 'finish-woodTable001',
