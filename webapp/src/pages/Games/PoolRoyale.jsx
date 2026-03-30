@@ -2868,7 +2868,9 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale
+  woodRepeatScale,
+  woodPreset,
+  matte = false
 }) => ({
   id,
   label,
@@ -2934,6 +2936,34 @@ const createStandardWoodFinish = ({
         envMapIntensity: 0.72
       });
     }
+    if (woodPreset) {
+      const woodOptions = {
+        hue: woodPreset.hue,
+        sat: woodPreset.sat,
+        light: woodPreset.light,
+        contrast: woodPreset.contrast,
+        repeat: POOL_ROYALE_WOOD_REPEAT,
+        sharedKey: `pool-royale-finish-${id}`,
+        ...POOL_ROYALE_WOOD_SURFACE_PROPS
+      };
+      [materials.frame, materials.rail, materials.leg].forEach((material) => {
+        if (material) {
+          applyWoodTextures(material, woodOptions);
+        }
+      });
+    }
+    if (matte) {
+      [materials.frame, materials.rail, materials.leg, materials.trim]
+        .filter(Boolean)
+        .forEach((material) => {
+          if ('roughness' in material) material.roughness = Math.max(material.roughness ?? 0, 0.86);
+          if ('metalness' in material) material.metalness = Math.min(material.metalness ?? 0, 0.05);
+          if ('clearcoat' in material) material.clearcoat = 0;
+          if ('clearcoatRoughness' in material) material.clearcoatRoughness = 1;
+          if ('sheen' in material) material.sheen = Math.min(material.sheen ?? 0, 0.02);
+          material.needsUpdate = true;
+        });
+    }
     applySnookerStyleWoodPreset(materials, id);
     return { ...materials, ...createPocketMaterials() };
   }
@@ -2984,6 +3014,61 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  oakVeneer01Amber: createStandardWoodFinish({
+    id: 'oakVeneer01Amber',
+    label: 'Oak Veneer 01 · Amber',
+    rail: 0xd3a06a,
+    base: 0xc0874e,
+    trim: 0xe5bb84,
+    woodPreset: { hue: 33, sat: 0.4, light: 0.66, contrast: 0.58 }
+  }),
+  oakVeneer01Walnut: createStandardWoodFinish({
+    id: 'oakVeneer01Walnut',
+    label: 'Oak Veneer 01 · Walnut',
+    rail: 0x8a5d3a,
+    base: 0x744528,
+    trim: 0xaf7a4f,
+    woodPreset: { hue: 27, sat: 0.42, light: 0.44, contrast: 0.68 }
+  }),
+  oakVeneer01Olive: createStandardWoodFinish({
+    id: 'oakVeneer01Olive',
+    label: 'Oak Veneer 01 · Olive Smoke',
+    rail: 0x6f6650,
+    base: 0x57503e,
+    trim: 0x8a7e62,
+    woodPreset: { hue: 42, sat: 0.22, light: 0.36, contrast: 0.65 }
+  }),
+  oakVeneer01Espresso: createStandardWoodFinish({
+    id: 'oakVeneer01Espresso',
+    label: 'Oak Veneer 01 · Espresso',
+    rail: 0x3d2e24,
+    base: 0x2b1f18,
+    trim: 0x5b4738,
+    woodPreset: { hue: 20, sat: 0.3, light: 0.24, contrast: 0.76 }
+  }),
+  oakVeneer01MatteBlack: createStandardWoodFinish({
+    id: 'oakVeneer01MatteBlack',
+    label: 'Oak Veneer 01 · Matte Black',
+    rail: 0x1a1a1a,
+    base: 0x101010,
+    trim: 0x2b2b2b,
+    woodPreset: { hue: 24, sat: 0.08, light: 0.16, contrast: 0.74 },
+    matte: true
+  }),
+  carbonFiberMatteDarkGrey: createStandardWoodFinish({
+    id: 'carbonFiberMatteDarkGrey',
+    label: 'Carbon Fiber · Matte Dark Grey',
+    rail: 0x24272d,
+    base: 0x1a1d23,
+    trim: 0x353942,
+    woodPreset: {
+      hue: 220,
+      sat: 0.12,
+      light: 0.2,
+      contrast: 0.82
+    },
+    matte: true
   })
 });
 
@@ -2993,7 +3078,13 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.oakVeneer01Amber,
+    TABLE_FINISHES.oakVeneer01Walnut,
+    TABLE_FINISHES.oakVeneer01Olive,
+    TABLE_FINISHES.oakVeneer01Espresso,
+    TABLE_FINISHES.oakVeneer01MatteBlack,
+    TABLE_FINISHES.carbonFiberMatteDarkGrey
   ].filter(Boolean)
 );
 
@@ -28641,7 +28732,6 @@ const powerRef = useRef(hud.power);
         }
         shouldStartReplay =
           !skipAllReplaysRef.current &&
-          Boolean(replayDecision?.shouldReplay) &&
           (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
