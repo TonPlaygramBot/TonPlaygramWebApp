@@ -394,7 +394,19 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    chessMarble: 'Chess Marble',
+    chessDarkForest: 'Chess Dark Forest',
+    chessAmberGlow: 'Chess Amber Glow',
+    chessMintVale: 'Chess Mint Vale',
+    chessRoyalWave: 'Chess Royal Wave',
+    chessRoseMist: 'Chess Rose Mist',
+    chessAmethyst: 'Chess Amethyst',
+    chessCinderBlaze: 'Chess Cinder Blaze',
+    chessArcticDrift: 'Chess Arctic Drift',
+    chessObsidianGold: 'Chess Obsidian Gold',
+    chessCoralBloom: 'Chess Coral Bloom',
+    chessNeonPulse: 'Chess Neon Pulse'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -481,6 +493,114 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-chessMarble',
+    type: 'tableFinish',
+    optionId: 'chessMarble',
+    name: 'Chess Marble Finish',
+    price: 1040,
+    description: 'Chess-piece ivory and slate tones with a clean, polished look.',
+    thumbnail: swatchThumbnail(['#ffffff', '#e2e8f0', '#f8fafc'])
+  },
+  {
+    id: 'finish-chessDarkForest',
+    type: 'tableFinish',
+    optionId: 'chessDarkForest',
+    name: 'Chess Dark Forest Finish',
+    price: 1050,
+    description: 'Deep chess-forest greens adapted into a premium rail finish.',
+    thumbnail: swatchThumbnail(['#14532d', '#22c55e', '#86efac'])
+  },
+  {
+    id: 'finish-chessAmberGlow',
+    type: 'tableFinish',
+    optionId: 'chessAmberGlow',
+    name: 'Chess Amber Glow Finish',
+    price: 1060,
+    description: 'Amber chess piece hues translated into warm tournament rails.',
+    thumbnail: swatchThumbnail(['#78350f', '#f59e0b', '#fbbf24'])
+  },
+  {
+    id: 'finish-chessMintVale',
+    type: 'tableFinish',
+    optionId: 'chessMintVale',
+    name: 'Chess Mint Vale Finish',
+    price: 1070,
+    description: 'Mint Vale chess colors for a bright modern table profile.',
+    thumbnail: swatchThumbnail(['#065f46', '#34d399', '#a7f3d0'])
+  },
+  {
+    id: 'finish-chessRoyalWave',
+    type: 'tableFinish',
+    optionId: 'chessRoyalWave',
+    name: 'Chess Royal Wave Finish',
+    price: 1080,
+    description: 'Royal Wave blues inspired by the Chess Battle Royal side palette.',
+    thumbnail: swatchThumbnail(['#1e3a8a', '#3b82f6', '#93c5fd'])
+  },
+  {
+    id: 'finish-chessRoseMist',
+    type: 'tableFinish',
+    optionId: 'chessRoseMist',
+    name: 'Chess Rose Mist Finish',
+    price: 1090,
+    description: 'Rose Mist tones tuned for vivid rails and trim contrast.',
+    thumbnail: swatchThumbnail(['#7f1d1d', '#ef4444', '#fca5a5'])
+  },
+  {
+    id: 'finish-chessAmethyst',
+    type: 'tableFinish',
+    optionId: 'chessAmethyst',
+    name: 'Chess Amethyst Finish',
+    price: 1100,
+    description: 'Amethyst-inspired purple rails with jewel-like highlights.',
+    thumbnail: swatchThumbnail(['#4c1d95', '#8b5cf6', '#c4b5fd'])
+  },
+  {
+    id: 'finish-chessCinderBlaze',
+    type: 'tableFinish',
+    optionId: 'chessCinderBlaze',
+    name: 'Chess Cinder Blaze Finish',
+    price: 1110,
+    description: 'Cinder Blaze orange-and-smoke palette for aggressive styling.',
+    thumbnail: swatchThumbnail(['#7c2d12', '#ff6b35', '#fdba74'])
+  },
+  {
+    id: 'finish-chessArcticDrift',
+    type: 'tableFinish',
+    optionId: 'chessArcticDrift',
+    name: 'Chess Arctic Drift Finish',
+    price: 1120,
+    description: 'Arctic Drift ice-blue palette tuned for cool arena moods.',
+    thumbnail: swatchThumbnail(['#1e3a8a', '#bcd7ff', '#e0f2fe'])
+  },
+  {
+    id: 'finish-chessObsidianGold',
+    type: 'tableFinish',
+    optionId: 'chessObsidianGold',
+    name: 'Chess Obsidian Gold Finish',
+    price: 1130,
+    description: 'Obsidian-and-gold chess tones for luxury championship rails.',
+    thumbnail: swatchThumbnail(['#111827', '#facc15', '#fde68a'])
+  },
+  {
+    id: 'finish-chessCoralBloom',
+    type: 'tableFinish',
+    optionId: 'chessCoralBloom',
+    name: 'Chess Coral Bloom Finish',
+    price: 1140,
+    description: 'Coral Bloom gradients converted into a rich lacquer finish.',
+    thumbnail: swatchThumbnail(['#881337', '#fb7185', '#fda4af'])
+  },
+  {
+    id: 'finish-chessNeonPulse',
+    type: 'tableFinish',
+    optionId: 'chessNeonPulse',
+    name: 'Chess Neon Pulse Finish',
+    price: 1150,
+    description: 'Neon Pulse magenta-cyan combo for futuristic replay visuals.',
+    thumbnail: swatchThumbnail(['#831843', '#f472b6', '#22d3ee'])
   },
   {
     id: 'chrome-chrome',
