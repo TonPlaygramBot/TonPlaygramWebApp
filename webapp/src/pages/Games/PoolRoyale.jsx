@@ -2965,39 +2965,6 @@ const createChessPieceWoodTexture = (variantHint = 'pawn_white_base_color.jpg') 
 };
 };
 
-const createCarbonFiberWoodTexture = () => {
-  if (typeof document === 'undefined') {
-    return { mapUrl: null, normalMapUrl: null, roughnessMapUrl: null, repeat: { x: 4, y: 4 } };
-  }
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return { mapUrl: null, normalMapUrl: null, roughnessMapUrl: null, repeat: { x: 4, y: 4 } };
-  }
-  const cell = size / 8;
-  ctx.fillStyle = '#1e232b';
-  ctx.fillRect(0, 0, size, size);
-  for (let y = 0; y < 8; y += 1) {
-    for (let x = 0; x < 8; x += 1) {
-      const dark = (x + y) % 2 === 0;
-      ctx.fillStyle = dark ? '#222831' : '#2a313a';
-      ctx.fillRect(x * cell, y * cell, cell, cell);
-      ctx.fillStyle = dark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.08)';
-      ctx.fillRect(x * cell, y * cell, cell, cell / 2);
-    }
-  }
-  const gloss = ctx.createLinearGradient(0, 0, size, size);
-  gloss.addColorStop(0, 'rgba(255,255,255,0.05)');
-  gloss.addColorStop(1, 'rgba(0,0,0,0.24)');
-  ctx.fillStyle = gloss;
-  ctx.fillRect(0, 0, size, size);
-  const mapUrl = canvas.toDataURL('image/png');
-  return { mapUrl, normalMapUrl: null, roughnessMapUrl: null, repeat: { x: 4, y: 4 } };
-};
-
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -3016,59 +2983,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0xe0bb7a,
     woodTextureId: 'oak_veneer_01',
     woodRepeatScale: 1
-  }),
-  oakVeneer01Honey: createStandardWoodFinish({
-    id: 'oakVeneer01Honey',
-    label: 'Oak Veneer 01 Honey Satin',
-    rail: 0xd3a56e,
-    base: 0xbf8f58,
-    trim: 0xe8c693,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01SmokedWalnut: createStandardWoodFinish({
-    id: 'oakVeneer01SmokedWalnut',
-    label: 'Oak Veneer 01 Smoked Walnut',
-    rail: 0x8f6039,
-    base: 0x7a4f2f,
-    trim: 0xb08358,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01GraphiteBrown: createStandardWoodFinish({
-    id: 'oakVeneer01GraphiteBrown',
-    label: 'Oak Veneer 01 Graphite Brown',
-    rail: 0x655349,
-    base: 0x54443c,
-    trim: 0x8b7569,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01RoseTaupe: createStandardWoodFinish({
-    id: 'oakVeneer01RoseTaupe',
-    label: 'Oak Veneer 01 Rose Taupe',
-    rail: 0x8b675d,
-    base: 0x755249,
-    trim: 0xb18c7f,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MatteBlack: createStandardWoodFinish({
-    id: 'oakVeneer01MatteBlack',
-    label: 'Oak Veneer 01 Matte Black',
-    rail: 0x151619,
-    base: 0x101114,
-    trim: 0x2a2c31,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  carbonFiberMatteDarkGrey: createStandardWoodFinish({
-    id: 'carbonFiberMatteDarkGrey',
-    label: 'Carbon Fiber Matte Dark Grey',
-    rail: 0x2a3139,
-    base: 0x1f252d,
-    trim: 0x4b5563,
-    woodTexture: createCarbonFiberWoodTexture()
   }),
   woodTable001: createStandardWoodFinish({
     id: 'woodTable001',
@@ -3259,12 +3173,6 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   [
     TABLE_FINISHES.peelingPaintWeathered,
     TABLE_FINISHES.oakVeneer01,
-    TABLE_FINISHES.oakVeneer01Honey,
-    TABLE_FINISHES.oakVeneer01SmokedWalnut,
-    TABLE_FINISHES.oakVeneer01GraphiteBrown,
-    TABLE_FINISHES.oakVeneer01RoseTaupe,
-    TABLE_FINISHES.oakVeneer01MatteBlack,
-    TABLE_FINISHES.carbonFiberMatteDarkGrey,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
     TABLE_FINISHES.rosewoodVeneer01,
@@ -22476,17 +22384,7 @@ const powerRef = useRef(hud.power);
               )
             : 0;
           const duration = Math.max(frameDuration, strokeDuration);
-          const normalizedFrames =
-            frames.length === 1 && Number.isFinite(duration) && duration > 0
-              ? [
-                  frames[0],
-                  {
-                    ...frames[0],
-                    t: duration
-                  }
-                ]
-              : frames;
-          return { frames: normalizedFrames, cuePath, duration, cueStroke };
+          return { frames, cuePath, duration, cueStroke };
         };
 
         const storeReplayCameraFrame = () => {
@@ -28620,13 +28518,6 @@ const powerRef = useRef(hud.power);
           return REPLAY_TRANSITION_LEAD_MS;
         };
 
-        const hasReplayPayload = (recording) => {
-          if (!recording || typeof recording !== 'object') return false;
-          const frameCount = Array.isArray(recording.frames) ? recording.frames.length : 0;
-          const hasCueStroke = Boolean(recording.cueStroke);
-          return frameCount > 0 || hasCueStroke;
-        };
-
         const resolveReplayDecision = ({
           recording,
           hadObjectPot,
@@ -28667,7 +28558,7 @@ const powerRef = useRef(hud.power);
           let shouldStartReplay =
             !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
-            hasReplayPayload(shotRecording);
+            (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28844,7 +28735,7 @@ const powerRef = useRef(hud.power);
             : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
-        if (shotWasFoul && hasReplayPayload(shotRecording)) {
+        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
           const foulBanner = 'Foul';
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28869,7 +28760,7 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'foul';
         }
         const isFinalShot =
-          Boolean(safeState?.frameOver) && hasReplayPayload(shotRecording);
+          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
         if (isFinalShot) {
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28900,7 +28791,7 @@ const powerRef = useRef(hud.power);
         shouldStartReplay =
           !skipAllReplaysRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
-          hasReplayPayload(shotRecording);
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
