@@ -4023,7 +4023,6 @@ export default function SnakeAndLadder() {
                   seatIndex: currentTurn
                 });
                 setPendingExtraRoll(false);
-                setPlayerAutoRolling(false);
               }}
               onRollEnd={(vals) => {
                 startDiceBoardAnimation({
@@ -4036,7 +4035,6 @@ export default function SnakeAndLadder() {
                   ? vals.some((v) => Number(v) === 6)
                   : Number(vals) === 6;
                 setPendingExtraRoll(rolledSix);
-                setPlayerAutoRolling(false);
               }}
             />
           ) : null}
@@ -4077,7 +4075,7 @@ export default function SnakeAndLadder() {
             open={showInfo}
             onClose={() => setShowInfo(false)}
             title="Snake & Ladder"
-            info="Roll one die each turn. A 6 enters your token onto the board and also grants an extra roll. Ladders lift you up and snakes bring you down. Land exactly on tile 50 (🏆) to win."
+            info="Roll one die each turn. A 6 enters your token onto the board and also grants an extra roll. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
           />
         </div>
       )}
@@ -4086,7 +4084,7 @@ export default function SnakeAndLadder() {
           <HintPopup
             open={showExactHelp}
             onClose={() => setShowExactHelp(false)}
-            message="You must roll the exact number to land on tile 50 (🏆)."
+            message="You must roll the exact number to land on the pot."
           />
         </div>
       )}
