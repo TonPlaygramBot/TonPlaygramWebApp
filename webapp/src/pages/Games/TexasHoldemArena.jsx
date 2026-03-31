@@ -170,15 +170,24 @@ function resolveDefaultPixelRatioCap() {
   return window.innerWidth <= 1366 ? 1.5 : 2;
 }
 
-function detectPreferredFrameRateId() {
+function isMobileGraphicsDevice() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd60';
+    return false;
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const maxTouchPoints = navigator.maxTouchPoints ?? 0;
   const isTouch = maxTouchPoints > 1;
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+  return isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile';
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return 'fhd60';
+  }
+  const isMobileDevice = isMobileGraphicsDevice();
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
@@ -189,7 +198,7 @@ function detectPreferredFrameRateId() {
     return 'hd50';
   }
 
-  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+  if (isMobileDevice) {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
     }
@@ -700,8 +709,31 @@ const FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
   ultra144: Object.freeze({ primary: '20k', fallback: ['16k', '8k', '4k', '2k', '1k'] })
 });
 
-function resolveHdriResolutionProfileForGraphics(frameRateOptionId) {
-  const mapped = FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
+const MOBILE_FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
+  qhd90: Object.freeze({ primary: '4k', fallback: ['2k', '1k'] }),
+  uhd120: Object.freeze({ primary: '4k', fallback: ['2k', '1k'] }),
+  ultra144: Object.freeze({ primary: '4k', fallback: ['2k', '1k'] })
+});
+
+const MOBILE_FRAME_RATE_OPTION_OVERRIDES = Object.freeze({
+  qhd90: Object.freeze({
+    resolution: '4K HDRI • fallback 2K • DPR 1.7 cap',
+    description: '90 Hz mobile profile pinned to Poly Haven 4K HDRI with 2K fallback.'
+  }),
+  uhd120: Object.freeze({
+    resolution: '4K HDRI • fallback 2K • DPR 2.0 cap',
+    description: '120 Hz mobile profile pinned to Poly Haven 4K HDRI with 2K fallback.'
+  }),
+  ultra144: Object.freeze({
+    resolution: '4K HDRI • fallback 2K • DPR 2.2 cap',
+    description: '144 Hz mobile profile pinned to Poly Haven 4K HDRI with 2K fallback.'
+  })
+});
+
+function resolveHdriResolutionProfileForGraphics(frameRateOptionId, isMobileDevice = false) {
+  const mapped = isMobileDevice
+    ? MOBILE_FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId] || FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId]
+    : FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
   const primary = mapped?.primary;
   const normalizedPrimary = HDRI_RESOLUTION_OPTION_MAP[primary]?.id || DEFAULT_HDRI_RESOLUTION_ID;
   const fallback = Array.isArray(mapped?.fallback)
@@ -3161,13 +3193,21 @@ function TexasHoldemArena({ search }) {
     }
     return DEFAULT_FRAME_RATE_ID;
   });
+  const isMobileGraphicsProfile = useMemo(() => isMobileGraphicsDevice(), []);
+  const frameRateOptions = useMemo(() => {
+    if (!isMobileGraphicsProfile) return FRAME_RATE_OPTIONS;
+    return FRAME_RATE_OPTIONS.map((option) => {
+      const override = MOBILE_FRAME_RATE_OPTION_OVERRIDES[option.id];
+      return override ? { ...option, ...override } : option;
+    });
+  }, [isMobileGraphicsProfile]);
   const activeFrameRateOption = useMemo(
-    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
-    [frameRateId]
+    () => frameRateOptions.find((opt) => opt.id === frameRateId) ?? frameRateOptions[0],
+    [frameRateId, frameRateOptions]
   );
   const hdriResolutionProfile = useMemo(
-    () => resolveHdriResolutionProfileForGraphics(frameRateId),
-    [frameRateId]
+    () => resolveHdriResolutionProfileForGraphics(frameRateId, isMobileGraphicsProfile),
+    [frameRateId, isMobileGraphicsProfile]
   );
   const hdriResolutionId = hdriResolutionProfile.primary;
   const preferredHdriResolutions = useMemo(() => {
@@ -3186,8 +3226,8 @@ function TexasHoldemArena({ search }) {
     preferredHdriResolutionsRef.current = preferredHdriResolutions;
   }, [preferredHdriResolutions]);
   const frameQualityProfile = useMemo(() => {
-    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
-    const fallback = FRAME_RATE_OPTIONS[0];
+    const option = activeFrameRateOption ?? frameRateOptions[0];
+    const fallback = frameRateOptions[0];
     const fps =
       Number.isFinite(option?.fps) && option.fps > 0
         ? option.fps
@@ -3208,15 +3248,15 @@ function TexasHoldemArena({ search }) {
       renderScale,
       pixelRatioCap
     };
-  }, [activeFrameRateOption]);
+  }, [activeFrameRateOption, frameRateOptions]);
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
-        ? FRAME_RATE_OPTIONS[0].fps
+      Number.isFinite(frameRateOptions[0]?.fps) && frameRateOptions[0].fps > 0
+        ? frameRateOptions[0].fps
         : 60;
     const fps =
       Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
@@ -3224,12 +3264,12 @@ function TexasHoldemArena({ search }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? frameRateOptions[0]?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
     };
-  }, [frameQualityProfile]);
+  }, [frameQualityProfile, frameRateOptions]);
   const frameTimingRef = useRef(resolvedFrameTiming);
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
@@ -6506,7 +6546,7 @@ function TexasHoldemArena({ search }) {
                 </p>
               </div>
               <div className="grid gap-2">
-                {FRAME_RATE_OPTIONS.map((option) => {
+                {frameRateOptions.map((option) => {
                   const active = option.id === frameRateId;
                   return (
                     <button
