@@ -2985,57 +2985,48 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
-  oakVeneer01Amber: createStandardWoodFinish({
-    id: 'oakVeneer01Amber',
-    label: 'Amber Glow',
-    rail: 0xc08a58,
-    base: 0x9f7148,
-    trim: 0xd6a370,
-    woodTextureId: 'oak_veneer_01_amber',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Cocoa: createStandardWoodFinish({
-    id: 'oakVeneer01Cocoa',
-    label: 'Cocoa Drift',
-    rail: 0x8b6040,
-    base: 0x6d4b33,
-    trim: 0xa67852,
-    woodTextureId: 'oak_veneer_01_cocoa',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Walnut: createStandardWoodFinish({
-    id: 'oakVeneer01Walnut',
-    label: 'Walnut Crest',
-    rail: 0x6f4b34,
-    base: 0x543726,
-    trim: 0x8a6246,
-    woodTextureId: 'oak_veneer_01_walnut',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MahoganyRed: createStandardWoodFinish({
-    id: 'oakVeneer01MahoganyRed',
-    label: 'Crimson Grain',
-    rail: 0x9a4f40,
-    base: 0x7b3f34,
-    trim: 0xb76655,
-    woodTextureId: 'oak_veneer_01_mahogany_red',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MatteBlack: createStandardWoodFinish({
-    id: 'oakVeneer01MatteBlack',
-    label: 'Midnight Matte',
-    rail: 0x242424,
-    base: 0x121212,
-    trim: 0x333333,
-    woodTextureId: 'oak_veneer_01_matte_black',
-    woodRepeatScale: 1
-  }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'Carbon Fiber Chalk',
     rail: 0x1a1f2a,
     base: 0x0c1018,
     trim: 0x374151,
+    woodTextureId: 'carbon_fiber_chalk',
+    woodRepeatScale: 1
+  }),
+  carbonFiberChalkGrey: createStandardWoodFinish({
+    id: 'carbonFiberChalkGrey',
+    label: 'Carbon Fiber Chalk Grey',
+    rail: 0x4b5563,
+    base: 0x2f3540,
+    trim: 0x9ca3af,
+    woodTextureId: 'carbon_fiber_chalk',
+    woodRepeatScale: 1
+  }),
+  carbonFiberChalkBeige: createStandardWoodFinish({
+    id: 'carbonFiberChalkBeige',
+    label: 'Carbon Fiber Chalk Beige',
+    rail: 0xb29b82,
+    base: 0x8f7a62,
+    trim: 0xe5d3b9,
+    woodTextureId: 'carbon_fiber_chalk',
+    woodRepeatScale: 1
+  }),
+  carbonFiberChalkDarkBlue: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBlue',
+    label: 'Carbon Fiber Chalk Dark Blue',
+    rail: 0x1e2b55,
+    base: 0x111a33,
+    trim: 0x4b5e91,
+    woodTextureId: 'carbon_fiber_chalk',
+    woodRepeatScale: 1
+  }),
+  carbonFiberChalkWhite: createStandardWoodFinish({
+    id: 'carbonFiberChalkWhite',
+    label: 'Carbon Fiber Chalk White',
+    rail: 0xeef2f7,
+    base: 0xd8dde5,
+    trim: 0xffffff,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   })
@@ -3048,12 +3039,11 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
     TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.oakVeneer01Amber,
-    TABLE_FINISHES.oakVeneer01Cocoa,
-    TABLE_FINISHES.oakVeneer01Walnut,
-    TABLE_FINISHES.oakVeneer01MahoganyRed,
-    TABLE_FINISHES.oakVeneer01MatteBlack,
-    TABLE_FINISHES.carbonFiberChalk
+    TABLE_FINISHES.carbonFiberChalk,
+    TABLE_FINISHES.carbonFiberChalkGrey,
+    TABLE_FINISHES.carbonFiberChalkBeige,
+    TABLE_FINISHES.carbonFiberChalkDarkBlue,
+    TABLE_FINISHES.carbonFiberChalkWhite
   ].filter(Boolean)
 );
 
