@@ -296,7 +296,13 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
+  oakVeneer01Amber: swatchThumbnail(['#9f7148', '#c08a58', '#d6a370']),
+  oakVeneer01Cocoa: swatchThumbnail(['#6d4b33', '#8b6040', '#a67852']),
+  oakVeneer01Walnut: swatchThumbnail(['#543726', '#6f4b34', '#8a6246']),
+  oakVeneer01MahoganyRed: swatchThumbnail(['#7b3f34', '#9a4f40', '#b76655']),
+  oakVeneer01MatteBlack: swatchThumbnail(['#353a42', '#4a4f57', '#5e646d']),
+  carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -394,7 +400,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    oakVeneer01Amber: 'Amber Glow',
+    oakVeneer01Cocoa: 'Cocoa Drift',
+    oakVeneer01Walnut: 'Walnut Crest',
+    oakVeneer01MahoganyRed: 'Crimson Grain',
+    oakVeneer01MatteBlack: 'Midnight Matte',
+    carbonFiberChalk: 'Carbon Fiber Chalk'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -481,6 +493,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-oakVeneer01Amber',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Amber',
+    name: 'Amber Glow Finish',
+    price: 1060,
+    description: 'Custom amber oak veneer pattern with bright satin grain.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Amber
+  },
+  {
+    id: 'finish-oakVeneer01Cocoa',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Cocoa',
+    name: 'Cocoa Drift Finish',
+    price: 1070,
+    description: 'Custom cocoa oak veneer with warm chocolate undertones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Cocoa
+  },
+  {
+    id: 'finish-oakVeneer01Walnut',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Walnut',
+    name: 'Walnut Crest Finish',
+    price: 1080,
+    description: 'Custom walnut oak veneer with deeper grain separation.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Walnut
+  },
+  {
+    id: 'finish-oakVeneer01MahoganyRed',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01MahoganyRed',
+    name: 'Crimson Grain Finish',
+    price: 1090,
+    description: 'Custom mahogany-red oak veneer for a premium classic look.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MahoganyRed
+  },
+  {
+    id: 'finish-oakVeneer01MatteBlack',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01MatteBlack',
+    name: 'Midnight Matte Finish',
+    price: 1100,
+    description: 'Custom matte-black oak veneer with subtle low-gloss grain.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MatteBlack
+  },
+  {
+    id: 'finish-carbonFiberChalk',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalk',
+    name: 'Carbon Fiber Chalk Finish',
+    price: 1160,
+    description: 'Custom carbon weave inspired by the chalk block pattern.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
     id: 'chrome-chrome',
