@@ -476,6 +476,7 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const HDRI_RESOLUTION_STORAGE_KEY = 'texasHoldemHdriResolution';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: '2k', label: '2K' },
   { id: '4k', label: '4K' },
@@ -852,7 +853,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
-  { key: 'cards', label: 'Cards', options: CARD_THEMES }
+  { key: 'cards', label: 'Cards', options: CARD_THEMES },
+  { key: 'environmentHdri', label: 'HDR Environment', options: TEXAS_HDRI_OPTIONS }
 ];
 
 const NON_DIAMOND_SHAPE_INDEX = (() => {
@@ -3279,6 +3281,13 @@ function TexasHoldemArena({ search }) {
       console.warn("Failed to persist Texas Hold'em graphics", error);
     }
   }, [frameRateId]);
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+    } catch (error) {
+      console.warn("Failed to persist Texas Hold'em HDRI resolution", error);
+    }
+  }, [hdriResolutionId]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
   const turnIntervalRef = useRef(null);
@@ -6507,7 +6516,33 @@ function TexasHoldemArena({ search }) {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
-                  Graphics preset now drives one shared quality ladder for table, chairs, and HDRI so arena fidelity stays matched.
+                  Graphics preset auto-syncs HDRI using official Poly Haven tiers (2K/4K/8K/16K/20K) and defined fallback ladders.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">HDRI Resolution</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                    const active = option.id === hdriResolutionId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled
+                        aria-pressed={active}
+                        className={`rounded-xl border px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
+                          active
+                            ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                            : 'border-white/10 bg-white/5 text-white/40'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">
+                  Auto-selected from your active Graphics profile.
                 </p>
               </div>
               <div className="grid gap-2">
