@@ -296,7 +296,13 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
+  oakVeneer01Amber: swatchThumbnail(['#2b3038', '#4a525f', '#6a7382']),
+  oakVeneer01Cocoa: swatchThumbnail(['#101a2b', '#1f2f4a', '#33486b']),
+  oakVeneer01Walnut: swatchThumbnail(['#d7d1c3', '#b7ae9d', '#e7e1d6']),
+  oakVeneer01MahoganyRed: swatchThumbnail(['#4c3627', '#6f5140', '#8b6851']),
+  oakVeneer01MatteBlack: swatchThumbnail(['#d9c29f', '#b99d73', '#e5d2b8']),
+  carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -394,7 +400,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    oakVeneer01Amber: 'Oak Grey',
+    oakVeneer01Cocoa: 'Oak Dark Blue',
+    oakVeneer01Walnut: 'Oak Magnolia',
+    oakVeneer01MahoganyRed: 'Oak Brown',
+    oakVeneer01MatteBlack: 'Oak Beige',
+    carbonFiberChalk: 'Oak Graphite'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -481,6 +493,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
+  },
+  {
+    id: 'finish-oakVeneer01Amber',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Amber',
+    name: 'Oak Grey Finish',
+    price: 1060,
+    description: 'Matte oak veneer finish in grey tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Amber
+  },
+  {
+    id: 'finish-oakVeneer01Cocoa',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Cocoa',
+    name: 'Oak Dark Blue Finish',
+    price: 1070,
+    description: 'Matte oak veneer finish in dark blue tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Cocoa
+  },
+  {
+    id: 'finish-oakVeneer01Walnut',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01Walnut',
+    name: 'Oak Magnolia Finish',
+    price: 1080,
+    description: 'Matte oak veneer finish in magnolia tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Walnut
+  },
+  {
+    id: 'finish-oakVeneer01MahoganyRed',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01MahoganyRed',
+    name: 'Oak Brown Finish',
+    price: 1090,
+    description: 'Matte oak veneer finish in brown tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MahoganyRed
+  },
+  {
+    id: 'finish-oakVeneer01MatteBlack',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01MatteBlack',
+    name: 'Oak Beige Finish',
+    price: 1100,
+    description: 'Matte oak veneer finish in beige tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MatteBlack
+  },
+  {
+    id: 'finish-carbonFiberChalk',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalk',
+    name: 'Oak Graphite Finish',
+    price: 1160,
+    description: 'Matte oak veneer finish in graphite tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
     id: 'chrome-chrome',
