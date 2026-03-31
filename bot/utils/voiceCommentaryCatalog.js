@@ -124,9 +124,9 @@ export const DEFAULT_FREE_VOICE_ID = 'nova_en_us_f';
 
 export function createDefaultVoiceInventory() {
   return {
-    ownedVoiceIds: [DEFAULT_FREE_VOICE_ID],
-    ownedLocales: ['en-US'],
-    selectedVoiceId: DEFAULT_FREE_VOICE_ID,
+    ownedVoiceIds: [],
+    ownedLocales: [],
+    selectedVoiceId: null,
     updatedAt: new Date().toISOString()
   };
 }
@@ -135,14 +135,14 @@ export function normalizeVoiceInventory(rawInventory) {
   const base = createDefaultVoiceInventory();
   if (!rawInventory || typeof rawInventory !== 'object') return base;
 
-  const ownedSet = new Set([DEFAULT_FREE_VOICE_ID]);
+  const ownedSet = new Set();
   if (Array.isArray(rawInventory.ownedVoiceIds)) {
     rawInventory.ownedVoiceIds.forEach((voiceId) => {
       if (voiceId) ownedSet.add(String(voiceId));
     });
   }
 
-  const ownedLocales = new Set(['en-US']);
+  const ownedLocales = new Set();
   if (Array.isArray(rawInventory.ownedLocales)) {
     rawInventory.ownedLocales.forEach((locale) => {
       if (locale) ownedLocales.add(String(locale));
@@ -151,7 +151,7 @@ export function normalizeVoiceInventory(rawInventory) {
 
   const selectedVoiceId = ownedSet.has(rawInventory.selectedVoiceId)
     ? rawInventory.selectedVoiceId
-    : DEFAULT_FREE_VOICE_ID;
+    : null;
 
   return {
     ownedVoiceIds: Array.from(ownedSet),
@@ -162,22 +162,5 @@ export function normalizeVoiceInventory(rawInventory) {
 }
 
 export function buildVoiceStoreItems(catalog) {
-  const languageMap = new Map();
-  for (const voice of catalog.voices) {
-    const key = `${voice.language}|${voice.locale.split('-')[0]}`;
-    if (!languageMap.has(key)) {
-      languageMap.set(key, {
-        id: `voice-${voice.locale.toLowerCase()}`,
-        type: 'voiceLanguage',
-        optionId: voice.locale,
-        name: `${voice.language} Commentary Pack`,
-        description: `${voice.language} commentary voices for all games`,
-        price: voice.locale.toLowerCase().startsWith('en-') ? 0 : 2200,
-        voiceIds: []
-      });
-    }
-    languageMap.get(key).voiceIds.push(voice.id);
-  }
-
-  return Array.from(languageMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  return [];
 }
