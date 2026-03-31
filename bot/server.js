@@ -489,7 +489,9 @@ const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
-const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
+// `token` is accepted for validation/telemetry, but it must not partition
+// public matchmaking queues because clients can send user-specific values.
+const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet'];
 
 function normalizeTableSizeMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
