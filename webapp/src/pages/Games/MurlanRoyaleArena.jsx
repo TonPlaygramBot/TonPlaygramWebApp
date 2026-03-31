@@ -64,8 +64,8 @@ import {
   resolveMurlanLanguageKey
 } from '../../utils/murlanRoyaleCommentary.js';
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '6k', '4k', '2k', '1k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
+const HDRI_RESOLUTION_LADDER = Object.freeze(['20k', '16k', '8k', '4k', '2k', '1k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -165,21 +165,25 @@ function detectLowRefreshDisplay() {
   return false;
 }
 
-function detectHighRefreshDisplay() {
+function detectDisplayRefreshTier() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
+    return '60';
   }
-  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
-  for (const query of queries) {
+  const queries = [
+    ['144', '(min-refresh-rate: 144hz)'],
+    ['120', '(min-refresh-rate: 120hz)'],
+    ['90', '(min-refresh-rate: 90hz)']
+  ];
+  for (const [tier, query] of queries) {
     try {
       if (window.matchMedia(query).matches) {
-        return true;
+        return tier;
       }
     } catch (err) {
       // ignore unsupported query
     }
   }
-  return false;
+  return '60';
 }
 
 let cachedRendererString = null;
@@ -269,7 +273,7 @@ function detectPreferredFrameRateId() {
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
-  const highRefresh = detectHighRefreshDisplay();
+  const refreshTier = detectDisplayRefreshTier();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
@@ -280,25 +284,32 @@ function detectPreferredFrameRateId() {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'fhd60';
     }
-    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+    if (refreshTier === '144' && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8)) {
+      return 'ultra144';
+    }
+    if (refreshTier === '120' && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
     }
     if (
-      highRefresh ||
+      refreshTier === '90' ||
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'smooth90';
     }
     return 'fhd60';
   }
 
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+  if (refreshTier === '144' && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 10)) {
+    return 'ultra144';
+  }
+
+  if (refreshTier === '120' && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
 
-  if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+  if (refreshTier === '90' || rendererTier === 'desktopMid') {
+    return 'smooth90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -309,7 +320,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
+const PREFERRED_TEXTURE_SIZES = ['8k', '4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -430,7 +441,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
 }
 
 const HDRI_URL_CACHE = new Map();
-const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|6|8|16)k)(?=\.|[_/-]|$)/i;
+const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8|16|20)k)(?=\.|[_/-]|$)/i;
 
 const normalizeHdriResolutionId = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -2303,49 +2314,50 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'Full HD texture pack • 60 FPS',
-    hdriResolution: '1k',
+    resolution: '2K texture pack • 60 FPS',
+    hdriResolution: '2k',
     preferredTextureSizes: ['2k', '1k'],
-    description: 'Balanced battery profile using Full HD assets.'
+    description: 'Balanced profile with Poly Haven 2K HDRI assets.'
   },
   {
-    id: 'fhd90',
+    id: 'smooth90',
     label: 'Smooth (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '2K texture pack • 90 FPS',
-    hdriResolution: '2k',
-    preferredTextureSizes: ['2k', '1k'],
-    description: 'Sharper 2K assets for fluid 90 FPS play.'
-  },
-  {
-    id: 'qhd90',
-    label: 'Pro (105 Hz)',
-    fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: '4K texture pack • 105 FPS',
-    hdriResolution: '4k',
-    preferredTextureSizes: ['4k', '2k', '1k'],
-    description: 'High-detail 4K assets for premium devices.'
+    resolution: '8K texture pack • 90 FPS',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
   },
   {
     id: 'uhd120',
     label: 'Ultra (120 Hz)',
     fps: 120,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: '16K texture pack • 120 FPS',
+    hdriResolution: '16k',
+    preferredTextureSizes: ['16k', '8k', '4k', '2k', '1k'],
+    description: 'Poly Haven 16K HDRI target with fallback to 8K.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Extreme (144 Hz)',
+    fps: 144,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: '6K texture pack • 120 FPS',
-    hdriResolution: '6k',
-    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
-    description: 'Maximum 6K assets and 120 FPS target.'
+    resolution: '20K texture pack • 144 FPS',
+    hdriResolution: '20k',
+    preferredTextureSizes: ['20k', '16k', '8k', '4k', '2k', '1k'],
+    description: 'Poly Haven 20K HDRI target with fallback to 16K.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Graphics' },
+  { id: '20k', label: '20K' },
+  { id: '16k', label: '16K' },
   { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' },
   { id: '1k', label: 'Full HD' }
@@ -2356,7 +2368,7 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
+const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
