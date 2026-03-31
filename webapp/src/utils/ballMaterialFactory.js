@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
-// Pool Royale generates up to 15 numbered + striped textures when players pick the
-// Solids & Stripes skin for 8Ball. At 4096px this was exhausting mobile GPUs
-// and crashing the session, so dial the texture size back to keep memory in check.
-const BALL_TEXTURE_SIZE = 1024;
+// Pool Royale generates up to 15 numbered + striped textures. Keep this runtime
+// configurable so graphics presets can scale ball fidelity with the rest of the
+// scene while preserving a safe default.
+const DEFAULT_BALL_TEXTURE_SIZE = 1024;
+let runtimeBallTextureSize = DEFAULT_BALL_TEXTURE_SIZE;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
 const MAX_BALL_CACHE_ENTRIES = 48;
@@ -337,11 +338,11 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = BALL_TEXTURE_SIZE;
+  canvas.width = canvas.height = runtimeBallTextureSize;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const size = BALL_TEXTURE_SIZE;
+  const size = runtimeBallTextureSize;
   if (variantKey === 'pool') {
     drawPoolBallTexture(ctx, size, baseColor, pattern, number);
   } else {
@@ -366,6 +367,16 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 export function setBallMaterialAnisotropy(maxAnisotropy = 8) {
   if (!Number.isFinite(maxAnisotropy) || maxAnisotropy <= 0) return;
   ballTextureAnisotropy = Math.max(1, Math.min(16, Math.floor(maxAnisotropy)));
+}
+
+export function setBallTextureSize(nextSize = DEFAULT_BALL_TEXTURE_SIZE) {
+  const parsed = Number(nextSize);
+  const normalized = Number.isFinite(parsed)
+    ? Math.max(512, Math.min(2048, Math.round(parsed)))
+    : DEFAULT_BALL_TEXTURE_SIZE;
+  if (normalized === runtimeBallTextureSize) return;
+  runtimeBallTextureSize = normalized;
+  clearBallMaterialCache();
 }
 
 export function createBallPreviewDataUrl({
