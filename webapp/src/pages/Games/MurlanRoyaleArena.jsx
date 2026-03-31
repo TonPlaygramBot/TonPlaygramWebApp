@@ -65,7 +65,7 @@ import {
 } from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '6k', '4k', '2k', '1k']);
+const HDRI_RESOLUTION_LADDER = Object.freeze(['16k', '8k', '4k', '2k', '1k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -430,7 +430,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
 }
 
 const HDRI_URL_CACHE = new Map();
-const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|6|8|16)k)(?=\.|[_/-]|$)/i;
+const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8|16)k)(?=\.|[_/-]|$)/i;
 
 const normalizeHdriResolutionId = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -2336,16 +2336,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: '6K texture pack • 120 FPS',
-    hdriResolution: '6k',
-    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
-    description: 'Maximum 6K assets and 120 FPS target.'
+    resolution: '8K texture pack • 120 FPS',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    description: 'Maximum 8K assets and 120 FPS target.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Graphics' },
+  { id: '16k', label: '16K' },
   { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' },
   { id: '1k', label: 'Full HD' }
