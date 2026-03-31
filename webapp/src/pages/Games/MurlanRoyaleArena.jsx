@@ -2369,6 +2369,35 @@ const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
+function detectMobileGraphicsDevice() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const coarsePointer = detectCoarsePointer();
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+  return Boolean(isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile');
+}
+
+function resolveHdriResolutionFromGraphics(frameOption, isMobileDevice) {
+  const targetFromGraphics = frameOption?.hdriResolution;
+  if (
+    isMobileDevice &&
+    Number.isFinite(frameOption?.fps) &&
+    frameOption.fps >= 90 &&
+    HDRI_RESOLUTION_OPTION_MAP['4k']
+  ) {
+    return '4k';
+  }
+  if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
+    return targetFromGraphics;
+  }
+  return '2k';
+}
+
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
 
@@ -2549,20 +2578,18 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
+  const isMobileGraphicsDevice = useMemo(() => detectMobileGraphicsDevice(), []);
   const resolvedHdriResolution = useMemo(() => {
-    const targetFromGraphics = activeFrameRateOption?.hdriResolution;
+    const graphicsHdriResolution = resolveHdriResolutionFromGraphics(
+      activeFrameRateOption,
+      isMobileGraphicsDevice
+    );
     if (hdriResolutionId === 'auto') {
-      if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
-        return targetFromGraphics;
-      }
-      return '2k';
+      return graphicsHdriResolution;
     }
     if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) return hdriResolutionId;
-    if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
-      return targetFromGraphics;
-    }
-    return '2k';
-  }, [activeFrameRateOption, hdriResolutionId]);
+    return graphicsHdriResolution;
+  }, [activeFrameRateOption, hdriResolutionId, isMobileGraphicsDevice]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
