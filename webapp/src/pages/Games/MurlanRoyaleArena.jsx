@@ -65,7 +65,7 @@ import {
 } from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
-const HDRI_RESOLUTION_LADDER = Object.freeze(['20k', '16k', '8k', '4k', '2k', '1k']);
+const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -320,7 +320,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const PREFERRED_TEXTURE_SIZES = ['8k', '4k', '2k', '1k'];
+const PREFERRED_TEXTURE_SIZES = ['2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -441,7 +441,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
 }
 
 const HDRI_URL_CACHE = new Map();
-const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8|16|20)k)(?=\.|[_/-]|$)/i;
+const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8)k)(?=\.|[_/-]|$)/i;
 
 const normalizeHdriResolutionId = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -525,7 +525,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '2k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
@@ -2325,10 +2325,10 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '8K texture pack • 90 FPS',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
-    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
+    resolution: '4K texture pack • 90 FPS',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
+    description: 'Poly Haven 4K HDRI target with fallback to 2K.'
   },
   {
     id: 'uhd120',
@@ -2336,10 +2336,10 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: '16K texture pack • 120 FPS',
-    hdriResolution: '16k',
-    preferredTextureSizes: ['16k', '8k', '4k', '2k', '1k'],
-    description: 'Poly Haven 16K HDRI target with fallback to 8K.'
+    resolution: '8K texture pack • 120 FPS',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
   },
   {
     id: 'ultra144',
@@ -2347,20 +2347,17 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 144,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: '20K texture pack • 144 FPS',
-    hdriResolution: '20k',
-    preferredTextureSizes: ['20k', '16k', '8k', '4k', '2k', '1k'],
-    description: 'Poly Haven 20K HDRI target with fallback to 16K.'
+    resolution: '8K texture pack • 144 FPS',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    description: 'Poly Haven 8K HDRI target.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Graphics' },
-  { id: '20k', label: '20K' },
-  { id: '16k', label: '16K' },
   { id: '8k', label: '8K' },
   { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' },
-  { id: '1k', label: 'Full HD' }
+  { id: '2k', label: '2K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2558,13 +2555,13 @@ export default function MurlanRoyaleArena({ search }) {
       if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
         return targetFromGraphics;
       }
-      return '4k';
+      return '2k';
     }
     if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) return hdriResolutionId;
     if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
       return targetFromGraphics;
     }
-    return '4k';
+    return '2k';
   }, [activeFrameRateOption, hdriResolutionId]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
