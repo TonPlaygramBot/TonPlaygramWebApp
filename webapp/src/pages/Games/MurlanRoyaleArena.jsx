@@ -273,12 +273,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -290,11 +290,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return DEFAULT_FRAME_RATE_ID;
-  }
-
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return 'fhd60';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -522,7 +518,34 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
+  const resolveFallback = async () => {
+    try {
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(6, 24),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      const tempScene = new THREE.Scene();
+      tempScene.add(hemi);
+      tempScene.add(floor);
+      const { texture } = pmrem.fromScene(tempScene);
+      texture.name = 'murlan-fallback-env';
+      pmrem.dispose();
+      floor.geometry.dispose();
+      floor.material.dispose();
+      return { envMap: texture, url: null };
+    } catch (error) {
+      console.warn('Failed to build Murlan fallback HDRI environment', error);
+      return null;
+    }
+  };
   const url = await resolvePolyHavenHdriUrl(config);
+  if (!url) {
+    return resolveFallback();
+  }
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : null;
@@ -543,9 +566,10 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         resolve({ envMap, url });
       },
       undefined,
-      (error) => {
+      async (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
-        resolve(null);
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
       }
     );
   });
@@ -2233,67 +2257,57 @@ const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
+    id: 'fhd60',
+    label: 'Performance (60 Hz)',
+    fps: 60,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    hdriResolution: '2k',
+    resolution: 'Full HD texture pack • 60 FPS',
+    hdriResolution: '1k',
     preferredTextureSizes: ['2k', '1k'],
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays with a 2K HDRI target.'
+    description: 'Balanced battery profile using Full HD assets.'
   },
   {
-    id: 'fhd60',
-    label: '4K Quality (60 Hz)',
-    fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: '4K assets • DPR 1.5 cap',
-    hdriResolution: '4k',
-    preferredTextureSizes: ['4k', '2k', '1k'],
-    description: '60 Hz preset with 4K table, chair, card, avatar, UI, and HDRI targets.'
+    id: 'fhd90',
+    label: 'Smooth (90 Hz)',
+    fps: 90,
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: '2K texture pack • 90 FPS',
+    hdriResolution: '2k',
+    preferredTextureSizes: ['2k', '1k'],
+    description: 'Sharper 2K assets for fluid 90 FPS play.'
   },
   {
     id: 'qhd90',
-    label: '6K Quality (90 Hz)',
-    fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: '6K assets • DPR 1.7 cap',
-    hdriResolution: '6k',
-    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
-    description: '90 Hz preset with 6K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
+    label: 'Pro (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: '4K texture pack • 105 FPS',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
+    description: 'High-detail 4K assets for premium devices.'
   },
   {
     id: 'uhd120',
-    label: '8K Quality (120 Hz)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: '8K assets • DPR 2.0 cap',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
-    description: '120 Hz preset with 8K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
-  },
-  {
-    id: 'ultra144',
-    label: '8K Quality+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: '8K assets • DPR 2.2 cap',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
-    description: '144 Hz preset that keeps the same 8K quality target as 120 Hz for HDRI and scene assets.'
+    renderScale: 1.28,
+    pixelRatioCap: 1.85,
+    resolution: '6K texture pack • 120 FPS',
+    hdriResolution: '6k',
+    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
+    description: 'Maximum 6K assets and 120 FPS target.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  { id: 'auto', label: 'Auto' },
+  { id: 'auto', label: 'Match Graphics' },
   { id: '8k', label: '8K' },
   { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' }
+  { id: '2k', label: '2K' },
+  { id: '1k', label: 'Full HD' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2301,7 +2315,7 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
+const DEFAULT_HDRI_RESOLUTION_ID = '4k';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
