@@ -344,6 +344,27 @@ function detectHighRefreshDisplay() {
   return false;
 }
 
+function detectDisplayRefreshRateBucket() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return 60;
+  }
+  const checks = [
+    { query: '(min-refresh-rate: 143hz)', fps: 144 },
+    { query: '(min-refresh-rate: 119hz)', fps: 120 },
+    { query: '(min-refresh-rate: 89hz)', fps: 90 }
+  ];
+  for (const check of checks) {
+    try {
+      if (window.matchMedia(check.query).matches) {
+        return check.fps;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return 60;
+}
+
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
 
 const wait = (ms = 0) =>
@@ -556,6 +577,7 @@ function detectPreferredFrameRateId() {
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
+  const refreshBucket = detectDisplayRefreshRateBucket();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
@@ -565,6 +587,13 @@ function detectPreferredFrameRateId() {
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'fhd60';
+    }
+    if (
+      refreshBucket >= 144 &&
+      hardwareConcurrency >= 8 &&
+      (deviceMemory == null || deviceMemory >= 8)
+    ) {
+      return 'uhd144';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -579,6 +608,12 @@ function detectPreferredFrameRateId() {
     return 'fhd60';
   }
 
+  if (
+    refreshBucket >= 144 &&
+    (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)
+  ) {
+    return 'uhd144';
+  }
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
     return 'uhd120';
   }
@@ -3284,43 +3319,42 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'Full HD texture pack • 60 FPS',
-    description: 'Balanced battery profile using Full HD assets.'
+    resolution: '2K texture pack • 60 FPS',
+    description: 'Balanced battery profile using Poly Haven 2K assets.'
   },
   {
-    id: 'fhd90',
+    id: 'qhd90',
     label: 'Smooth (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '2K texture pack • 90 FPS',
-    description: 'Sharper 2K assets for fluid 90 FPS play.'
-  },
-  {
-    id: 'qhd90',
-    label: 'Pro (105 Hz)',
-    fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: '4K texture pack • 105 FPS',
-    description: 'High-detail 4K assets for premium devices.'
+    resolution: '4K texture pack • 90 FPS',
+    description: 'Sharper Poly Haven 4K assets with automatic 2K fallback.'
   },
   {
     id: 'uhd120',
     label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1.28,
+    renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: '6K texture pack • 120 FPS',
-    description: 'Maximum 6K assets and 120 FPS target.'
+    resolution: '8K texture pack • 120 FPS',
+    description: 'Poly Haven 8K assets with 4K fallback for stable loading.'
+  },
+  {
+    id: 'uhd144',
+    label: 'Elite (144 Hz)',
+    fps: 144,
+    renderScale: 1.36,
+    pixelRatioCap: 2,
+    resolution: '8K texture pack • 144 FPS',
+    description: 'Maximum Poly Haven 8K assets with 144 FPS target.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
-  { minFps: 120, key: '6k', textureSize: 6144 },
-  { minFps: 105, key: '4k', textureSize: 4096 },
-  { minFps: 90, key: '2k', textureSize: 2048 },
-  { minFps: 0, key: '1k', textureSize: 1920 }
+  { minFps: 120, key: '8k', textureSize: 8192 },
+  { minFps: 90, key: '4k', textureSize: 4096 },
+  { minFps: 0, key: '2k', textureSize: 2048 }
 ]);
 const resolveGraphicsResolutionTier = (fps) => {
   const safeFps = Number.isFinite(fps) ? fps : 60;
@@ -3333,11 +3367,11 @@ let runtimeTextureProfile = Object.freeze({
   textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '2k',
-  hdriResolution: '2k',
-  enforceTableFinishTextureSize: 2048,
-  cueTextureSize: 2048,
-  pocketTextureSize: 1024
+  polyHavenResolution: '4k',
+  hdriResolution: '4k',
+  enforceTableFinishTextureSize: 4096,
+  cueTextureSize: 4096,
+  pocketTextureSize: 2048
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
@@ -4833,10 +4867,8 @@ const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' },
-  { id: '1k', label: 'Full HD' }
+  { id: '2k', label: '2K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -4854,6 +4886,20 @@ const HDRI_CAMERA_SCALE_MAX = 1.32;
 const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
+const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
+  { minFps: 144, preferredResolutions: Object.freeze(['8k']), fallbackResolution: '8k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k' },
+  { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
+  { minFps: 0, preferredResolutions: Object.freeze(['2k']), fallbackResolution: '2k' }
+]);
+
+function resolveHdriPolicyForFps(fps) {
+  const safeFps = Number.isFinite(fps) ? fps : 60;
+  return (
+    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
+    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
+  );
+}
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -12946,6 +12992,10 @@ function PoolRoyaleGame({
     }
     return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
   }, [activeGraphicsResolutionTier, hdriResolutionId, responsiveTableSize]);
+  const activeHdriPolicy = useMemo(
+    () => resolveHdriPolicyForFps(activeFrameRateOption?.fps),
+    [activeFrameRateOption]
+  );
   const activeEnvironmentHdri = useMemo(
     () => {
       const fromAvailable = availableEnvironmentHdris.find(
@@ -12962,19 +13012,20 @@ function PoolRoyaleGame({
         Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
           ? variant.preferredResolutions
           : DEFAULT_HDRI_RESOLUTIONS;
-      const resolved = resolvedHdriResolution ?? basePreferred[0];
+      const policyPreferred = activeHdriPolicy?.preferredResolutions ?? [];
+      const resolved = resolvedHdriResolution ?? policyPreferred[0] ?? basePreferred[0];
       if (!resolved) return variant;
-      const preferredResolutions = [
-        resolved,
-        ...basePreferred.filter((res) => res !== resolved)
-      ];
+      const preferredResolutions =
+        policyPreferred.length > 0
+          ? [resolved, ...policyPreferred.filter((res) => res !== resolved)]
+          : [resolved, ...basePreferred.filter((res) => res !== resolved)];
       return {
         ...variant,
         preferredResolutions,
-        fallbackResolution: resolved
+        fallbackResolution: activeHdriPolicy?.fallbackResolution ?? resolved
       };
     },
-    [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
+    [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(() => false, []);
   const activePocketLinerOption = useMemo(
