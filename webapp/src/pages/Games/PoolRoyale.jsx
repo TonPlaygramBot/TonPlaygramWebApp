@@ -2984,60 +2984,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  oakVeneer01Amber: createStandardWoodFinish({
-    id: 'oakVeneer01Amber',
-    label: 'Amber Glow',
-    rail: 0xc08a58,
-    base: 0x9f7148,
-    trim: 0xd6a370,
-    woodTextureId: 'oak_veneer_01_amber',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Cocoa: createStandardWoodFinish({
-    id: 'oakVeneer01Cocoa',
-    label: 'Cocoa Drift',
-    rail: 0x8b6040,
-    base: 0x6d4b33,
-    trim: 0xa67852,
-    woodTextureId: 'oak_veneer_01_cocoa',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Walnut: createStandardWoodFinish({
-    id: 'oakVeneer01Walnut',
-    label: 'Walnut Crest',
-    rail: 0x6f4b34,
-    base: 0x543726,
-    trim: 0x8a6246,
-    woodTextureId: 'oak_veneer_01_walnut',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MahoganyRed: createStandardWoodFinish({
-    id: 'oakVeneer01MahoganyRed',
-    label: 'Crimson Grain',
-    rail: 0x9a4f40,
-    base: 0x7b3f34,
-    trim: 0xb76655,
-    woodTextureId: 'oak_veneer_01_mahogany_red',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MatteBlack: createStandardWoodFinish({
-    id: 'oakVeneer01MatteBlack',
-    label: 'Midnight Matte',
-    rail: 0x4a4f57,
-    base: 0x353a42,
-    trim: 0x5e646d,
-    woodTextureId: 'oak_veneer_01_matte_black',
-    woodRepeatScale: 1
-  }),
-  carbonFiberChalk: createStandardWoodFinish({
-    id: 'carbonFiberChalk',
-    label: 'Carbon Fiber Chalk',
-    rail: 0x1a1f2a,
-    base: 0x0c1018,
-    trim: 0x374151,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
   })
 });
 
@@ -3047,13 +2993,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.oakVeneer01Amber,
-    TABLE_FINISHES.oakVeneer01Cocoa,
-    TABLE_FINISHES.oakVeneer01Walnut,
-    TABLE_FINISHES.oakVeneer01MahoganyRed,
-    TABLE_FINISHES.oakVeneer01MatteBlack,
-    TABLE_FINISHES.carbonFiberChalk
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -28452,9 +28392,6 @@ const powerRef = useRef(hud.power);
         function resolve() {
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
-          if (shotRecording && (shotRecording.frames?.length ?? 0) < 2) {
-            recordReplayFrame(performance.now());
-          }
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
           let replayDecision = resolveReplayDecision({
@@ -29190,16 +29127,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.frames?.length > 0) {
-            const normalizedFrames = Array.isArray(pending.frames) ? [...pending.frames] : [];
-            if (normalizedFrames.length === 1) {
-              const firstFrame = normalizedFrames[0];
-              const fallbackFrameTime = Math.max(16, pending.frameTimeMs ?? 1000 / 60);
-              normalizedFrames.push({
-                ...firstFrame,
-                t: Math.max(fallbackFrameTime, firstFrame?.t ?? 0)
-              });
-            }
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
             const frameTiming = frameTimingRef.current;
             const frameTimeMs =
               Number.isFinite(pending?.frameTimeMs) && pending.frameTimeMs > 0
@@ -29209,7 +29137,6 @@ const powerRef = useRef(hud.power);
                   : 1000 / 60;
             shotRecording = {
               ...pending,
-              frames: normalizedFrames,
               startTime: pending.startTime ?? nowMs,
               startState: pending.startState ?? captureBallSnapshot(),
               zoomOnly: pending.zoomOnly ?? false,
