@@ -65,7 +65,7 @@ import {
 } from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTION_LADDER = Object.freeze(['16k', '8k', '4k', '2k', '1k']);
+const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '6k', '4k', '2k', '1k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -430,7 +430,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
 }
 
 const HDRI_URL_CACHE = new Map();
-const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8|16)k)(?=\.|[_/-]|$)/i;
+const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|6|8|16)k)(?=\.|[_/-]|$)/i;
 
 const normalizeHdriResolutionId = (value) => {
   const lower = String(value || '').toLowerCase();
@@ -476,37 +476,31 @@ const collectHdriCandidates = (apiJson) => {
   return out;
 };
 
-const dedupeUrls = (urls = []) => {
-  const seen = new Set();
-  const out = [];
-  urls.forEach((url) => {
-    if (typeof url !== 'string' || !url.length) return;
-    if (seen.has(url)) return;
-    seen.add(url);
-    out.push(url);
-  });
-  return out;
-};
+const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
+  const candidates = collectHdriCandidates(apiJson);
+  if (!candidates.length) return null;
 
-const prioritizeCandidates = (candidates = [], preferred = []) => {
-  const picked = [];
-  preferred.forEach((res) => {
+  for (const res of preferredResolutions) {
     const normalized = normalizeHdriResolutionId(res);
-    if (!normalized) return;
-    const match = candidates.find((entry) => entry.resolution === normalized && entry.url);
-    if (match?.url) picked.push(match.url);
-  });
-  HDRI_RESOLUTION_LADDER.forEach((res) => {
-    const match = candidates.find((entry) => entry.resolution === res && entry.url);
-    if (match?.url) picked.push(match.url);
-  });
-  candidates.forEach((entry) => {
-    if (entry?.url) picked.push(entry.url);
-  });
-  return dedupeUrls(picked);
+    if (!normalized) continue;
+    const matched = candidates.find((entry) => entry.resolution === normalized);
+    if (matched?.url) return matched.url;
+  }
+
+  for (const fallbackRes of HDRI_RESOLUTION_LADDER) {
+    const matched = candidates.find((entry) => entry.resolution === fallbackRes);
+    if (matched?.url) return matched.url;
+  }
+
+  for (const candidate of candidates) {
+    if (candidate?.url) {
+      return candidate.url;
+    }
+  }
+  return null;
 };
 
-async function resolvePolyHavenHdriUrls(config = {}) {
+async function resolvePolyHavenHdriUrl(config = {}) {
   const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
   if (HDRI_URL_CACHE.has(cacheKey)) {
     return HDRI_URL_CACHE.get(cacheKey);
@@ -524,40 +518,42 @@ async function resolvePolyHavenHdriUrls(config = {}) {
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  const urls = [];
   if (config?.assetUrls && typeof config.assetUrls === 'object') {
     for (const res of preferred) {
       if (config.assetUrls[res]) {
-        urls.push(config.assetUrls[res]);
+        HDRI_URL_CACHE.set(cacheKey, config.assetUrls[res]);
+        return config.assetUrls[res];
       }
     }
-    Object.values(config.assetUrls).forEach((value) => urls.push(value));
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) {
+      HDRI_URL_CACHE.set(cacheKey, manual);
+      return manual;
+    }
   }
   if (typeof config?.assetUrl === 'string' && config.assetUrl.length) {
-    urls.push(config.assetUrl);
+    HDRI_URL_CACHE.set(cacheKey, config.assetUrl);
+    return config.assetUrl;
   }
   if (!config?.assetId || typeof fetch !== 'function') {
-    const resolved = dedupeUrls([...urls, fallbackUrl]);
-    HDRI_URL_CACHE.set(cacheKey, resolved);
-    return resolved;
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+    return fallbackUrl;
   }
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) {
-      const resolved = dedupeUrls([...urls, fallbackUrl]);
-      HDRI_URL_CACHE.set(cacheKey, resolved);
-      return resolved;
+      HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+      return fallbackUrl;
     }
     const json = await response.json();
-    const prioritized = prioritizeCandidates(collectHdriCandidates(json), preferred);
-    const resolved = dedupeUrls([...urls, ...prioritized, fallbackUrl]);
-    HDRI_URL_CACHE.set(cacheKey, resolved);
-    return resolved;
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    const resolvedUrl = picked || fallbackUrl;
+    HDRI_URL_CACHE.set(cacheKey, resolvedUrl);
+    return resolvedUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
-    const resolved = dedupeUrls([...urls, fallbackUrl]);
-    HDRI_URL_CACHE.set(cacheKey, resolved);
-    return resolved;
+    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
+    return fallbackUrl;
   }
 }
 
@@ -587,43 +583,37 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       return null;
     }
   };
-  const urls = await resolvePolyHavenHdriUrls(config);
-  if (!urls?.length) {
+  const url = await resolvePolyHavenHdriUrl(config);
+  if (!url) {
     return resolveFallback();
   }
-  for (const url of urls) {
-    const lowerUrl = `${url ?? ''}`.toLowerCase();
-    const useExr = lowerUrl.endsWith('.exr');
-    const loader = useExr ? new EXRLoader() : null;
-    const rgbeLoader = new RGBELoader();
-    const activeLoader = useExr && loader ? loader : rgbeLoader;
-    if (!activeLoader) continue;
-    activeLoader.setCrossOrigin?.('anonymous');
-    // eslint-disable-next-line no-await-in-loop
-    const envResult = await new Promise((resolve) => {
-      activeLoader.load(
-        url,
-        (texture) => {
-          const pmrem = new THREE.PMREMGenerator(renderer);
-          pmrem.compileEquirectangularShader();
-          const envMap = pmrem.fromEquirectangular(texture).texture;
-          envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-          texture.dispose();
-          pmrem.dispose();
-          resolve({ envMap, url });
-        },
-        undefined,
-        (error) => {
-          console.warn('Failed to load Poly Haven HDRI candidate', url, error);
-          resolve(null);
-        }
-      );
-    });
-    if (envResult?.envMap) {
-      return envResult;
-    }
-  }
-  return resolveFallback();
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : null;
+  const rgbeLoader = new RGBELoader();
+  const activeLoader = useExr && loader ? loader : rgbeLoader;
+  if (!activeLoader) return null;
+  activeLoader.setCrossOrigin?.('anonymous');
+  return new Promise((resolve) => {
+    activeLoader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        texture.dispose();
+        pmrem.dispose();
+        resolve({ envMap, url });
+      },
+      undefined,
+      async (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
+      }
+    );
+  });
 }
 
 async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
@@ -2346,16 +2336,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: '8K texture pack • 120 FPS',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
-    description: 'Maximum 8K assets and 120 FPS target.'
+    resolution: '6K texture pack • 120 FPS',
+    hdriResolution: '6k',
+    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
+    description: 'Maximum 6K assets and 120 FPS target.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Graphics' },
-  { id: '16k', label: '16K' },
   { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' },
   { id: '1k', label: 'Full HD' }
