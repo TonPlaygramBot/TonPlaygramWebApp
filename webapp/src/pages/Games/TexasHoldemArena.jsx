@@ -170,9 +170,9 @@ function resolveDefaultPixelRatioCap() {
   return window.innerWidth <= 1366 ? 1.5 : 2;
 }
 
-function detectAutoGraphicsTierId() {
+function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'medium';
+    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -185,42 +185,40 @@ function detectAutoGraphicsTierId() {
   const highRefresh = detectHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
-  let score = 0;
-  if (lowRefresh) score -= 12;
-  if (highRefresh) score += 16;
+  if (lowRefresh) {
+    return 'hd50';
+  }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
-    if (deviceMemory != null) {
-      if (deviceMemory >= 8) score += 16;
-      else if (deviceMemory >= 6) score += 10;
-      else if (deviceMemory >= 4) score += 4;
-      else score -= 10;
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'hd50';
     }
-    if (hardwareConcurrency >= 8) score += 14;
-    else if (hardwareConcurrency >= 6) score += 8;
-    else if (hardwareConcurrency <= 4) score -= 8;
-  } else {
-    // Desktop fallback for web builds.
-    if (rendererTier === 'desktopHigh') score += 18;
-    else if (rendererTier === 'desktopMid') score += 8;
-    if (hardwareConcurrency >= 8) score += 10;
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'uhd120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'qhd90';
+    }
+    return 'fhd60';
   }
 
-  if (typeof window !== 'undefined') {
-    const pixelCount = Math.max(1, window.screen?.width || 1) * Math.max(1, window.screen?.height || 1);
-    if (pixelCount >= 3000000) score -= 7;
-    else if (pixelCount >= 2073600) score -= 4;
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'ultra144';
   }
 
-  if (score >= 22) return 'high';
-  if (score >= 8) return 'medium';
-  return 'low';
-}
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'uhd120';
+  }
 
-function resolveSafeHighFpsTarget() {
-  if (detectHighRefreshDisplay()) return 120;
-  if (!detectLowRefreshDisplay()) return 90;
-  return 60;
+  if (rendererTier === 'desktopMid') {
+    return 'qhd90';
+  }
+
+  return 'fhd60';
 }
 
 const MODEL_SCALE = 0.75;
@@ -469,6 +467,7 @@ const CHAIR_MODEL_URLS = [
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const HDRI_RESOLUTION_STORAGE_KEY = 'texasHoldemHdriResolution';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: '8k', label: '8K' },
   { id: '6k', label: '6K' },
@@ -643,50 +642,65 @@ const AI_ACTION_DELAY_JITTER_MS = 700;
 const CARD_HIGHLIGHT_COLOR = '#facc15';
 const CARD_HIGHLIGHT = new THREE.Color(CARD_HIGHLIGHT_COLOR);
 const CARD_EMISSIVE_OFF = new THREE.Color(0x000000);
-const GRAPHICS_PRESET_STORAGE_KEY = 'texasHoldemGraphicsPreset';
-const GRAPHICS_PRESET_OPTIONS = Object.freeze([
+const FRAME_RATE_STORAGE_KEY = 'texasHoldemFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'auto',
-    label: 'Auto',
-    fps: 90,
-    renderScale: 0.95,
-    pixelRatioCap: 1.5,
-    description: 'Recommended. Automatically chooses the best graphics for your phone.'
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
-    id: 'low',
-    label: 'Low',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 0.7,
-    pixelRatioCap: 1.1,
-    description: 'Best for battery life and lower-end phones.'
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
   {
-    id: 'medium',
-    label: 'Medium',
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 0.9,
-    pixelRatioCap: 1.45,
-    description: 'Balanced visuals and smooth performance.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'high',
-    label: 'High',
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.15,
+    renderScale: 1.35,
     pixelRatioCap: 2,
-    description: 'Best visuals for powerful phones.'
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_GRAPHICS_PRESET_ID = 'auto';
-const GRAPHICS_TO_HDRI_RESOLUTION_MAP = Object.freeze({
-  low: '2k',
-  medium: '4k',
-  high: '6k'
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
+  hd50: '4k',
+  fhd60: '4k',
+  qhd90: '6k',
+  uhd120: '8k',
+  ultra144: '8k'
 });
 
-function resolveHdriResolutionForGraphics(graphicsTierId) {
-  const mapped = GRAPHICS_TO_HDRI_RESOLUTION_MAP[graphicsTierId];
+function resolveHdriResolutionForGraphics(frameRateOptionId) {
+  const mapped = FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
   if (mapped && HDRI_RESOLUTION_OPTION_MAP[mapped]) {
     return mapped;
   }
@@ -3128,34 +3142,26 @@ function TexasHoldemArena({ search }) {
         }),
     [appearance.tableTheme, texasInventory]
   );
-  const [graphicsPresetId, setGraphicsPresetId] = useState(() => {
+  const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(GRAPHICS_PRESET_STORAGE_KEY);
-      if (stored && GRAPHICS_PRESET_OPTIONS.some((opt) => opt.id === stored)) {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
-      const detected = detectAutoGraphicsTierId();
-      if (detected && GRAPHICS_PRESET_OPTIONS.some((opt) => opt.id === detected)) {
-        return 'auto';
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
       }
     }
-    return DEFAULT_GRAPHICS_PRESET_ID;
+    return DEFAULT_FRAME_RATE_ID;
   });
-  const autoDetectedGraphicsTier = useMemo(
-    () => detectAutoGraphicsTierId(),
-    []
-  );
-  const resolvedGraphicsTierId = useMemo(
-    () => (graphicsPresetId === 'auto' ? autoDetectedGraphicsTier : graphicsPresetId),
-    [autoDetectedGraphicsTier, graphicsPresetId]
-  );
-  const activeGraphicsOption = useMemo(
-    () => GRAPHICS_PRESET_OPTIONS.find((opt) => opt.id === resolvedGraphicsTierId) ?? GRAPHICS_PRESET_OPTIONS[2],
-    [resolvedGraphicsTierId]
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
   );
   const hdriResolutionId = useMemo(
-    () => resolveHdriResolutionForGraphics(resolvedGraphicsTierId),
-    [resolvedGraphicsTierId]
+    () => resolveHdriResolutionForGraphics(frameRateId),
+    [frameRateId]
   );
   const preferredHdriResolutions = useMemo(() => {
     const normalized = HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]?.id || DEFAULT_HDRI_RESOLUTION_ID;
@@ -3172,39 +3178,37 @@ function TexasHoldemArena({ search }) {
     preferredHdriResolutionsRef.current = preferredHdriResolutions;
   }, [preferredHdriResolutions]);
   const frameQualityProfile = useMemo(() => {
-    const option = activeGraphicsOption ?? GRAPHICS_PRESET_OPTIONS[2];
-    const fallback = GRAPHICS_PRESET_OPTIONS[2];
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
     const fps =
       Number.isFinite(option?.fps) && option.fps > 0
-        ? option?.id === 'high'
-          ? Math.min(option.fps, resolveSafeHighFpsTarget())
-          : option.fps
+        ? option.fps
         : Number.isFinite(fallback?.fps) && fallback.fps > 0
           ? fallback.fps
           : 60;
     const renderScale =
       typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-        ? THREE.MathUtils.clamp(option.renderScale, 0.65, 1.25)
+        ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
         : 1;
     const pixelRatioCap =
       typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
         : resolveDefaultPixelRatioCap();
     return {
-      id: option?.id ?? DEFAULT_GRAPHICS_PRESET_ID,
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       renderScale,
       pixelRatioCap
     };
-  }, [activeGraphicsOption]);
+  }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(GRAPHICS_PRESET_OPTIONS[2]?.fps) && GRAPHICS_PRESET_OPTIONS[2].fps > 0
-        ? GRAPHICS_PRESET_OPTIONS[2].fps
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
         : 60;
     const fps =
       Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
@@ -3212,7 +3216,7 @@ function TexasHoldemArena({ search }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: frameQualityProfile?.id ?? GRAPHICS_PRESET_OPTIONS[2]?.id ?? DEFAULT_GRAPHICS_PRESET_ID,
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -3224,13 +3228,19 @@ function TexasHoldemArena({ search }) {
   }, [resolvedFrameTiming]);
   useEffect(() => {
     try {
-      window.localStorage?.setItem(GRAPHICS_PRESET_STORAGE_KEY, graphicsPresetId);
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     } catch (error) {
       console.warn("Failed to persist Texas Hold'em graphics", error);
     }
-  }, [graphicsPresetId]);
+  }, [frameRateId]);
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+    } catch (error) {
+      console.warn("Failed to persist Texas Hold'em HDRI resolution", error);
+    }
+  }, [hdriResolutionId]);
   const [configOpen, setConfigOpen] = useState(false);
-  const [graphicsNotice, setGraphicsNotice] = useState('');
   const timerRef = useRef(null);
   const turnIntervalRef = useRef(null);
   const soundsRef = useRef({});
@@ -3247,24 +3257,6 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
-  const handleGraphicsPresetChange = useCallback((nextPresetId) => {
-    setGraphicsPresetId((current) => {
-      if (current === nextPresetId) return current;
-      if (nextPresetId === 'auto') {
-        setGraphicsNotice('Auto selected the best settings for your device.');
-      } else if (nextPresetId === 'high' && autoDetectedGraphicsTier !== 'high') {
-        setGraphicsNotice('High graphics may reduce performance on some devices.');
-      } else {
-        setGraphicsNotice('Graphics quality updated.');
-      }
-      return nextPresetId;
-    });
-  }, [autoDetectedGraphicsTier]);
-  useEffect(() => {
-    if (!graphicsNotice) return undefined;
-    const timeout = window.setTimeout(() => setGraphicsNotice(''), 2000);
-    return () => window.clearTimeout(timeout);
-  }, [graphicsNotice]);
 
   useEffect(() => {
     const handler = (event) => {
@@ -4302,7 +4294,7 @@ function TexasHoldemArena({ search }) {
     const pixelRatioCap = quality?.pixelRatioCap ?? resolveDefaultPixelRatioCap();
     const renderScale =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
-        ? THREE.MathUtils.clamp(quality.renderScale, 0.65, 1.25)
+        ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
         : 1;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
     renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
@@ -6476,17 +6468,43 @@ function TexasHoldemArena({ search }) {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
-                  Choose Auto, Low, Medium, or High. Changes apply instantly.
+                  Graphics preset now auto-syncs HDRI resolution so table lighting quality always matches menu quality.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">HDRI Resolution</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                    const active = option.id === hdriResolutionId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled
+                        aria-pressed={active}
+                        className={`rounded-xl border px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] transition ${
+                          active
+                            ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                            : 'border-white/10 bg-white/5 text-white/40'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">
+                  Auto-selected from your active Graphics profile.
                 </p>
               </div>
               <div className="grid gap-2">
-                {GRAPHICS_PRESET_OPTIONS.map((option) => {
-                  const active = option.id === graphicsPresetId;
+                {FRAME_RATE_OPTIONS.map((option) => {
+                  const active = option.id === frameRateId;
                   return (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => handleGraphicsPresetChange(option.id)}
+                      onClick={() => setFrameRateId(option.id)}
                       aria-pressed={active}
                       className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                         active
@@ -6497,7 +6515,7 @@ function TexasHoldemArena({ search }) {
                       <span className="flex items-center justify-between gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
                         <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                          {option.id === 'auto' ? `Active: ${resolvedGraphicsTierId}` : `${option.fps} FPS`}
+                          {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
                         </span>
                       </span>
                       {option.description ? (
@@ -6509,14 +6527,6 @@ function TexasHoldemArena({ search }) {
                   );
                 })}
               </div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">
-                HDRI resolution is now managed automatically by the selected graphics tier.
-              </p>
-              {graphicsNotice ? (
-                <p className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-sky-100">
-                  {graphicsNotice}
-                </p>
-              ) : null}
             </div>
           </div>
         </div>
