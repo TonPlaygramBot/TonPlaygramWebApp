@@ -469,9 +469,11 @@ const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const HDRI_RESOLUTION_STORAGE_KEY = 'texasHoldemHdriResolution';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: '2k', label: '2K' },
+  { id: '4k', label: '4K' },
   { id: '8k', label: '8K' },
-  { id: '6k', label: '6K' },
-  { id: '4k', label: '4K' }
+  { id: '16k', label: '16K' },
+  { id: '20k', label: '20K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -479,8 +481,7 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '6k', '4k', '2k', '1k']);
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
+const DEFAULT_HDRI_RESOLUTION_ID = '2k';
 const HDRI_ENV_CACHE_LIMIT = 4;
 const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
@@ -650,8 +651,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 50,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    resolution: '2K HDRI • fallback 1K • DPR 1.4 cap',
+    description: 'Battery saver profile with official Poly Haven 2K HDRI sampling.'
   },
   {
     id: 'fhd60',
@@ -659,8 +660,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1.1,
     pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    resolution: '2K HDRI • fallback 1K • DPR 1.5 cap',
+    description: '60 Hz profile pinned to official Poly Haven 2K HDRIs.'
   },
   {
     id: 'qhd90',
@@ -668,8 +669,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1.25,
     pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    resolution: '8K HDRI • fallback 4K • DPR 1.7 cap',
+    description: '90 Hz profile with Poly Haven 8K primary HDRI and 4K fallback.'
   },
   {
     id: 'uhd120',
@@ -677,8 +678,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    resolution: '16K HDRI • fallback 8K • DPR 2.0 cap',
+    description: '120 Hz profile with Poly Haven 16K primary HDRI and 8K fallback.'
   },
   {
     id: 'ultra144',
@@ -686,25 +687,30 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 144,
     renderScale: 1.5,
     pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    resolution: '20K HDRI • fallback 16K • DPR 2.2 cap',
+    description: '144 Hz profile with maximum official Poly Haven 20K HDRI detail.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
-  hd50: '4k',
-  fhd60: '4k',
-  qhd90: '6k',
-  uhd120: '8k',
-  ultra144: '8k'
+  hd50: Object.freeze({ primary: '2k', fallback: ['1k'] }),
+  fhd60: Object.freeze({ primary: '2k', fallback: ['1k'] }),
+  qhd90: Object.freeze({ primary: '8k', fallback: ['4k', '2k', '1k'] }),
+  uhd120: Object.freeze({ primary: '16k', fallback: ['8k', '4k', '2k', '1k'] }),
+  ultra144: Object.freeze({ primary: '20k', fallback: ['16k', '8k', '4k', '2k', '1k'] })
 });
 
-function resolveHdriResolutionForGraphics(frameRateOptionId) {
+function resolveHdriResolutionProfileForGraphics(frameRateOptionId) {
   const mapped = FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
-  if (mapped && HDRI_RESOLUTION_OPTION_MAP[mapped]) {
-    return mapped;
-  }
-  return DEFAULT_HDRI_RESOLUTION_ID;
+  const primary = mapped?.primary;
+  const normalizedPrimary = HDRI_RESOLUTION_OPTION_MAP[primary]?.id || DEFAULT_HDRI_RESOLUTION_ID;
+  const fallback = Array.isArray(mapped?.fallback)
+    ? mapped.fallback.filter((value) => value && value !== normalizedPrimary)
+    : [];
+  return {
+    primary: normalizedPrimary,
+    fallback
+  };
 }
 
 const POT_SCATTER_LAYOUT = Object.freeze({
@@ -3159,19 +3165,21 @@ function TexasHoldemArena({ search }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const hdriResolutionId = useMemo(
-    () => resolveHdriResolutionForGraphics(frameRateId),
+  const hdriResolutionProfile = useMemo(
+    () => resolveHdriResolutionProfileForGraphics(frameRateId),
     [frameRateId]
   );
+  const hdriResolutionId = hdriResolutionProfile.primary;
   const preferredHdriResolutions = useMemo(() => {
     const normalized = HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]?.id || DEFAULT_HDRI_RESOLUTION_ID;
-    const startIndex = HDRI_RESOLUTION_LADDER.indexOf(normalized);
-    if (startIndex < 0) return [DEFAULT_HDRI_RESOLUTION_ID, '2k', '1k'];
-    const fallbackResolutions = HDRI_RESOLUTION_LADDER.slice(startIndex).filter(Boolean);
+    const explicit = [normalized, ...(hdriResolutionProfile.fallback || [])].filter(Boolean);
+    const fallbackResolutions = explicit.length
+      ? explicit
+      : [DEFAULT_HDRI_RESOLUTION_ID, '1k'];
     if (!fallbackResolutions.includes('2k')) fallbackResolutions.push('2k');
     if (!fallbackResolutions.includes('1k')) fallbackResolutions.push('1k');
-    return fallbackResolutions;
-  }, [hdriResolutionId]);
+    return Array.from(new Set(fallbackResolutions));
+  }, [hdriResolutionId, hdriResolutionProfile]);
   const preferredHdriResolutionsRef = useRef(preferredHdriResolutions);
   const loadedHdriResolutionIdRef = useRef(null);
   useEffect(() => {
@@ -6468,12 +6476,12 @@ function TexasHoldemArena({ search }) {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
-                  Graphics preset now auto-syncs HDRI resolution so table lighting quality always matches menu quality.
+                  Graphics preset auto-syncs HDRI using official Poly Haven tiers (2K/4K/8K/16K/20K) and defined fallback ladders.
                 </p>
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">HDRI Resolution</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {HDRI_RESOLUTION_OPTIONS.map((option) => {
                     const active = option.id === hdriResolutionId;
                     return (
