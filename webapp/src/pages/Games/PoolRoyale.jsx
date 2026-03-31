@@ -2881,13 +2881,6 @@ const createStandardWoodFinish = ({
   woodTextureId,
   woodRepeatScale,
   createMaterials: () => {
-    const matteOakFinish =
-      id === 'oakVeneer01Amber' ||
-      id === 'oakVeneer01Cocoa' ||
-      id === 'oakVeneer01Walnut' ||
-      id === 'oakVeneer01MahoganyRed' ||
-      id === 'oakVeneer01MatteBlack' ||
-      id === 'carbonFiberChalk';
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
     const trimColor =
@@ -2896,25 +2889,25 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: matteOakFinish ? 0.02 : 0.1,
-      roughness: matteOakFinish ? 0.84 : 0.52,
-      clearcoat: matteOakFinish ? 0.03 : 0.28,
-      clearcoatRoughness: matteOakFinish ? 0.92 : 0.34,
+      metalness: 0.1,
+      roughness: 0.52,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.34,
       sheen: 0.16,
       sheenRoughness: 0.52,
-      reflectivity: matteOakFinish ? 0.04 : 0.26,
-      envMapIntensity: matteOakFinish ? 0.12 : 0.52
+      reflectivity: 0.26,
+      envMapIntensity: 0.52
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: matteOakFinish ? 0.02 : 0.12,
-      roughness: matteOakFinish ? 0.82 : 0.48,
-      clearcoat: matteOakFinish ? 0.03 : 0.32,
-      clearcoatRoughness: matteOakFinish ? 0.9 : 0.32,
+      metalness: 0.12,
+      roughness: 0.48,
+      clearcoat: 0.32,
+      clearcoatRoughness: 0.32,
       sheen: 0.2,
       sheenRoughness: 0.52,
-      reflectivity: matteOakFinish ? 0.04 : 0.28,
-      envMapIntensity: matteOakFinish ? 0.12 : 0.56
+      reflectivity: 0.28,
+      envMapIntensity: 0.56
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
@@ -2991,60 +2984,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  oakVeneer01Amber: createStandardWoodFinish({
-    id: 'oakVeneer01Amber',
-    label: 'Oak Grey',
-    rail: 0x4a525f,
-    base: 0x2b3038,
-    trim: 0x6a7382,
-    woodTextureId: 'oak_veneer_01_amber',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Cocoa: createStandardWoodFinish({
-    id: 'oakVeneer01Cocoa',
-    label: 'Oak Dark Blue',
-    rail: 0x1f2f4a,
-    base: 0x101a2b,
-    trim: 0x33486b,
-    woodTextureId: 'oak_veneer_01_cocoa',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01Walnut: createStandardWoodFinish({
-    id: 'oakVeneer01Walnut',
-    label: 'Oak Magnolia',
-    rail: 0xb7ae9d,
-    base: 0xd7d1c3,
-    trim: 0xe7e1d6,
-    woodTextureId: 'oak_veneer_01_walnut',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MahoganyRed: createStandardWoodFinish({
-    id: 'oakVeneer01MahoganyRed',
-    label: 'Oak Brown',
-    rail: 0x6f5140,
-    base: 0x4c3627,
-    trim: 0x8b6851,
-    woodTextureId: 'oak_veneer_01_mahogany_red',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01MatteBlack: createStandardWoodFinish({
-    id: 'oakVeneer01MatteBlack',
-    label: 'Oak Beige',
-    rail: 0xb99d73,
-    base: 0xd9c29f,
-    trim: 0xe5d2b8,
-    woodTextureId: 'oak_veneer_01_matte_black',
-    woodRepeatScale: 1
-  }),
-  carbonFiberChalk: createStandardWoodFinish({
-    id: 'carbonFiberChalk',
-    label: 'Oak Graphite',
-    rail: 0x1a1f2a,
-    base: 0x0c1018,
-    trim: 0x374151,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
   })
 });
 
@@ -3054,13 +2993,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.oakVeneer01Amber,
-    TABLE_FINISHES.oakVeneer01Cocoa,
-    TABLE_FINISHES.oakVeneer01Walnut,
-    TABLE_FINISHES.oakVeneer01MahoganyRed,
-    TABLE_FINISHES.oakVeneer01MatteBlack,
-    TABLE_FINISHES.carbonFiberChalk
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -28459,9 +28392,6 @@ const powerRef = useRef(hud.power);
         function resolve() {
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
-          if (shotRecording && (shotRecording.frames?.length ?? 0) < 2) {
-            recordReplayFrame(performance.now());
-          }
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
           let replayDecision = resolveReplayDecision({
@@ -29197,16 +29127,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.frames?.length > 0) {
-            const normalizedFrames = Array.isArray(pending.frames) ? [...pending.frames] : [];
-            if (normalizedFrames.length === 1) {
-              const firstFrame = normalizedFrames[0];
-              const fallbackFrameTime = Math.max(16, pending.frameTimeMs ?? 1000 / 60);
-              normalizedFrames.push({
-                ...firstFrame,
-                t: Math.max(fallbackFrameTime, firstFrame?.t ?? 0)
-              });
-            }
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
             const frameTiming = frameTimingRef.current;
             const frameTimeMs =
               Number.isFinite(pending?.frameTimeMs) && pending.frameTimeMs > 0
@@ -29216,7 +29137,6 @@ const powerRef = useRef(hud.power);
                   : 1000 / 60;
             shotRecording = {
               ...pending,
-              frames: normalizedFrames,
               startTime: pending.startTime ?? nowMs,
               startState: pending.startState ?? captureBallSnapshot(),
               zoomOnly: pending.zoomOnly ?? false,
