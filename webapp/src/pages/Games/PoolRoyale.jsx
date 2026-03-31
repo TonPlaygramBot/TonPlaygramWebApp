@@ -625,6 +625,19 @@ function detectPreferredFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
+function isMobileGraphicsDevice() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+  return isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile';
+}
+
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
     return 2;
@@ -4893,7 +4906,14 @@ const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
   { minFps: 0, preferredResolutions: Object.freeze(['2k']), fallbackResolution: '2k' }
 ]);
 
-function resolveHdriPolicyForFps(fps) {
+function resolveHdriPolicyForFps(fps, { isMobileDevice = false } = {}) {
+  if (isMobileDevice && Number.isFinite(fps) && fps >= 90) {
+    return {
+      minFps: 90,
+      preferredResolutions: Object.freeze(['4k']),
+      fallbackResolution: '4k'
+    };
+  }
   const safeFps = Number.isFinite(fps) ? fps : 60;
   return (
     HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
@@ -12848,6 +12868,16 @@ function PoolRoyaleGame({
     () => resolveGraphicsResolutionTier(activeFrameRateOption?.fps),
     [activeFrameRateOption]
   );
+  const mobileGraphicsDevice = useMemo(() => isMobileGraphicsDevice(), []);
+  const autoHdriResolutionFromGraphics = useMemo(() => {
+    const graphicsResolution =
+      activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
+    const fps = activeFrameRateOption?.fps;
+    if (mobileGraphicsDevice && Number.isFinite(fps) && fps >= 90) {
+      return '4k';
+    }
+    return graphicsResolution;
+  }, [activeFrameRateOption, activeGraphicsResolutionTier, mobileGraphicsDevice, responsiveTableSize]);
   const activeHdriResolutionOption = useMemo(
     () =>
       HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
@@ -12884,10 +12914,10 @@ function PoolRoyaleGame({
     ensurePocketPlasticTextures();
   }, [frameQualityProfile]);
   useEffect(() => {
-    const targetHdriResolution = activeGraphicsResolutionTier?.key;
+    const targetHdriResolution = autoHdriResolutionFromGraphics;
     if (!targetHdriResolution || hdriResolutionId === targetHdriResolution) return;
     setHdriResolutionId(targetHdriResolution);
-  }, [activeGraphicsResolutionTier, hdriResolutionId]);
+  }, [autoHdriResolutionFromGraphics, hdriResolutionId]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -12985,16 +13015,19 @@ function PoolRoyaleGame({
   );
   const resolvedHdriResolution = useMemo(() => {
     if (hdriResolutionId === 'auto') {
-      return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
+      return autoHdriResolutionFromGraphics;
     }
     if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
       return hdriResolutionId;
     }
-    return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
-  }, [activeGraphicsResolutionTier, hdriResolutionId, responsiveTableSize]);
+    return autoHdriResolutionFromGraphics;
+  }, [autoHdriResolutionFromGraphics, hdriResolutionId]);
   const activeHdriPolicy = useMemo(
-    () => resolveHdriPolicyForFps(activeFrameRateOption?.fps),
-    [activeFrameRateOption]
+    () =>
+      resolveHdriPolicyForFps(activeFrameRateOption?.fps, {
+        isMobileDevice: mobileGraphicsDevice
+      }),
+    [activeFrameRateOption, mobileGraphicsDevice]
   );
   const activeEnvironmentHdri = useMemo(
     () => {
