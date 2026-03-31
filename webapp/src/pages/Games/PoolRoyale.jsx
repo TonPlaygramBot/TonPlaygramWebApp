@@ -349,7 +349,6 @@ function detectDisplayRefreshRateBucket() {
     return 60;
   }
   const checks = [
-    { query: '(min-refresh-rate: 143hz)', fps: 144 },
     { query: '(min-refresh-rate: 119hz)', fps: 120 },
     { query: '(min-refresh-rate: 89hz)', fps: 90 }
   ];
@@ -589,13 +588,10 @@ function detectPreferredFrameRateId() {
       return 'fhd60';
     }
     if (
-      refreshBucket >= 144 &&
+      (refreshBucket >= 120 || highRefresh) &&
       hardwareConcurrency >= 8 &&
-      (deviceMemory == null || deviceMemory >= 8)
+      (deviceMemory == null || deviceMemory >= 6)
     ) {
-      return 'uhd144';
-    }
-    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
     }
     if (
@@ -608,34 +604,16 @@ function detectPreferredFrameRateId() {
     return 'fhd60';
   }
 
-  if (
-    refreshBucket >= 144 &&
-    (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)
-  ) {
-    return 'uhd144';
-  }
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+  if (refreshBucket >= 120 && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'uhd120';
 
   if (rendererTier === 'desktopMid') {
     return 'qhd90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
-}
-
-function isMobileGraphicsDevice() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return false;
-  }
-  const coarsePointer = detectCoarsePointer();
-  const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const rendererTier = classifyRendererTier(readGraphicsRendererString());
-  return isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -3342,7 +3320,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.12,
     pixelRatioCap: 1.55,
     resolution: '4K texture pack • 90 FPS',
-    description: 'Sharper Poly Haven 4K assets with automatic 2K fallback.'
+    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
   },
   {
     id: 'uhd120',
@@ -3351,16 +3329,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.3,
     pixelRatioCap: 1.85,
     resolution: '8K texture pack • 120 FPS',
-    description: 'Poly Haven 8K assets with 4K fallback for stable loading.'
-  },
-  {
-    id: 'uhd144',
-    label: 'Elite (144 Hz)',
-    fps: 144,
-    renderScale: 1.36,
-    pixelRatioCap: 2,
-    resolution: '8K texture pack • 144 FPS',
-    description: 'Maximum Poly Haven 8K assets with 144 FPS target.'
+    description: 'Poly Haven 8K assets at a 120 FPS target.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
@@ -3375,6 +3344,12 @@ const resolveGraphicsResolutionTier = (fps) => {
     GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
     GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
   );
+};
+const resolveGraphicsUiScaleFactor = (fps) => {
+  const safeFps = Number.isFinite(fps) ? fps : 60;
+  if (safeFps >= 120) return 1.08;
+  if (safeFps >= 90) return 1.04;
+  return 1;
 };
 let runtimeTextureProfile = Object.freeze({
   textureSize: resolveGraphicsResolutionTier(90).textureSize,
@@ -3392,6 +3367,8 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
   const textureSize = tier.textureSize;
   const anisotropyRatio = textureSize / 6144;
   const anisotropy = Math.max(16, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio));
+  const ballAnisotropy = Math.max(6, Math.min(12, Math.round(12 * (textureSize / 8192))));
+  setBallMaterialAnisotropy(ballAnisotropy);
   runtimeTextureProfile = Object.freeze({
     textureSize,
     anisotropy,
@@ -4875,20 +4852,6 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
-const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
-const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  { id: 'auto', label: 'Match Table' },
-  { id: '8k', label: '8K' },
-  { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' }
-]);
-const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
-  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
-    acc[option.id] = option;
-    return acc;
-  }, {})
-);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
@@ -4900,20 +4863,12 @@ const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 144, preferredResolutions: Object.freeze(['8k']), fallbackResolution: '8k' },
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
-  { minFps: 0, preferredResolutions: Object.freeze(['2k']), fallbackResolution: '2k' }
+  { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
 
-function resolveHdriPolicyForFps(fps, { isMobileDevice = false } = {}) {
-  if (isMobileDevice && Number.isFinite(fps) && fps >= 90) {
-    return {
-      minFps: 90,
-      preferredResolutions: Object.freeze(['4k']),
-      fallbackResolution: '4k'
-    };
-  }
+function resolveHdriPolicyForFps(fps) {
   const safeFps = Number.isFinite(fps) ? fps : 60;
   return (
     HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
@@ -4921,12 +4876,19 @@ function resolveHdriPolicyForFps(fps, { isMobileDevice = false } = {}) {
   );
 }
 
-function resolveHdriResolutionForTable(tableSizeMeta) {
-  const widthMm = tableSizeMeta?.playfield?.widthMm;
-  if (Number.isFinite(widthMm) && widthMm >= 2540) {
-    return '8k';
-  }
+function resolveHdriResolutionForTable() {
   return '4k';
+}
+
+function buildHdriResolutionChain(primaryResolution, policy = null) {
+  const base = Array.isArray(policy?.preferredResolutions) ? policy.preferredResolutions : [];
+  const fallbackLadder = ['8k', '4k', '2k', '1k'];
+  const ordered = [
+    primaryResolution,
+    ...base,
+    ...fallbackLadder
+  ].filter((value) => typeof value === 'string' && value.length);
+  return [...new Set(ordered)];
 }
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
@@ -12821,15 +12783,6 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
-  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
-      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_HDRI_RESOLUTION_MODE;
-  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -12868,22 +12821,13 @@ function PoolRoyaleGame({
     () => resolveGraphicsResolutionTier(activeFrameRateOption?.fps),
     [activeFrameRateOption]
   );
-  const mobileGraphicsDevice = useMemo(() => isMobileGraphicsDevice(), []);
-  const autoHdriResolutionFromGraphics = useMemo(() => {
-    const graphicsResolution =
-      activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
-    const fps = activeFrameRateOption?.fps;
-    if (mobileGraphicsDevice && Number.isFinite(fps) && fps >= 90) {
-      return '4k';
-    }
-    return graphicsResolution;
-  }, [activeFrameRateOption, activeGraphicsResolutionTier, mobileGraphicsDevice, responsiveTableSize]);
-  const activeHdriResolutionOption = useMemo(
-    () =>
-      HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
-      HDRI_RESOLUTION_OPTIONS[0],
-    [hdriResolutionId]
+  const graphicsUiScaleFactor = useMemo(
+    () => resolveGraphicsUiScaleFactor(activeFrameRateOption?.fps),
+    [activeFrameRateOption]
   );
+  const autoHdriResolutionFromGraphics = useMemo(() => {
+    return activeGraphicsResolutionTier?.key ?? resolveHdriResolutionForTable(responsiveTableSize);
+  }, [activeGraphicsResolutionTier, responsiveTableSize]);
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
     const fallback = FRAME_RATE_OPTIONS[0];
@@ -12913,11 +12857,6 @@ function PoolRoyaleGame({
     updateRuntimeTextureProfile({ fps: frameQualityProfile?.fps });
     ensurePocketPlasticTextures();
   }, [frameQualityProfile]);
-  useEffect(() => {
-    const targetHdriResolution = autoHdriResolutionFromGraphics;
-    if (!targetHdriResolution || hdriResolutionId === targetHdriResolution) return;
-    setHdriResolutionId(targetHdriResolution);
-  }, [autoHdriResolutionFromGraphics, hdriResolutionId]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -13014,20 +12953,11 @@ function PoolRoyaleGame({
     [availableTableBases, tableBaseId]
   );
   const resolvedHdriResolution = useMemo(() => {
-    if (hdriResolutionId === 'auto') {
-      return autoHdriResolutionFromGraphics;
-    }
-    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
-      return hdriResolutionId;
-    }
     return autoHdriResolutionFromGraphics;
-  }, [autoHdriResolutionFromGraphics, hdriResolutionId]);
+  }, [autoHdriResolutionFromGraphics]);
   const activeHdriPolicy = useMemo(
-    () =>
-      resolveHdriPolicyForFps(activeFrameRateOption?.fps, {
-        isMobileDevice: mobileGraphicsDevice
-      }),
-    [activeFrameRateOption, mobileGraphicsDevice]
+    () => resolveHdriPolicyForFps(activeFrameRateOption?.fps),
+    [activeFrameRateOption]
   );
   const activeEnvironmentHdri = useMemo(
     () => {
@@ -13041,21 +12971,13 @@ function PoolRoyaleGame({
         availableEnvironmentHdris[0] ??
         POOL_ROYALE_HDRI_VARIANTS[0];
       if (!variant) return null;
-      const basePreferred =
-        Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-          ? variant.preferredResolutions
-          : DEFAULT_HDRI_RESOLUTIONS;
-      const policyPreferred = activeHdriPolicy?.preferredResolutions ?? [];
-      const resolved = resolvedHdriResolution ?? policyPreferred[0] ?? basePreferred[0];
+      const resolved = resolvedHdriResolution ?? DEFAULT_HDRI_RESOLUTIONS[0];
       if (!resolved) return variant;
-      const preferredResolutions =
-        policyPreferred.length > 0
-          ? [resolved, ...policyPreferred.filter((res) => res !== resolved)]
-          : [resolved, ...basePreferred.filter((res) => res !== resolved)];
+      const preferredResolutions = buildHdriResolutionChain(resolved, activeHdriPolicy);
       return {
         ...variant,
         preferredResolutions,
-        fallbackResolution: activeHdriPolicy?.fallbackResolution ?? resolved
+        fallbackResolution: activeHdriPolicy?.fallbackResolution ?? preferredResolutions[1] ?? resolved
       };
     },
     [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
@@ -13838,9 +13760,10 @@ function PoolRoyaleGame({
   }, []);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
-  const [uiScale, setUiScale] = useState(() =>
-    detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
-  );
+  const [uiScale, setUiScale] = useState(() => {
+    const baseScale = detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE;
+    return baseScale * graphicsUiScaleFactor;
+  });
   const chromeUiLiftPx = useMemo(() => {
     if (typeof window === 'undefined') return 0;
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -13881,7 +13804,8 @@ function PoolRoyaleGame({
       return undefined;
     }
     const updateScale = () => {
-      setUiScale(detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE);
+      const baseScale = detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE;
+      setUiScale(baseScale * graphicsUiScaleFactor);
       setIsPortrait(window.innerHeight >= window.innerWidth);
     };
     updateScale();
@@ -13908,7 +13832,7 @@ function PoolRoyaleGame({
         coarseQuery.removeListener(updateScale);
       }
     };
-  }, []);
+  }, [graphicsUiScaleFactor]);
 
   useEffect(() => {
     lookModeRef.current = isLookMode;
@@ -14353,8 +14277,8 @@ function PoolRoyaleGame({
   }, [environmentHdriId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
-  }, [hdriResolutionId]);
+    window.localStorage.removeItem('poolHdriResolution');
+  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
@@ -14371,24 +14295,19 @@ function PoolRoyaleGame({
       .filter((variant) => variant.id !== environmentHdriId)
       .slice(0, 2)
       .map((variant) => {
-        const basePreferred =
-          Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-            ? variant.preferredResolutions
-            : DEFAULT_HDRI_RESOLUTIONS;
-        const resolved = resolvedHdriResolution ?? basePreferred[0];
-        const preferredResolutions = resolved
-          ? [resolved, ...basePreferred.filter((res) => res !== resolved)]
-          : basePreferred;
+        const resolved = resolvedHdriResolution ?? DEFAULT_HDRI_RESOLUTIONS[0];
+        const preferredResolutions = buildHdriResolutionChain(resolved, activeHdriPolicy);
         return {
           ...variant,
-          preferredResolutions,
-          fallbackResolution: resolved
+          preferredResolutions: preferredResolutions.length ? preferredResolutions : DEFAULT_HDRI_RESOLUTIONS,
+          fallbackResolution:
+            activeHdriPolicy?.fallbackResolution ?? preferredResolutions[1] ?? resolved
         };
       });
     queue.forEach((variant) => {
       void prefetchHdriVariant(variant);
     });
-  }, [availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
+  }, [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
   useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
@@ -33327,34 +33246,9 @@ const powerRef = useRef(hud.power);
                 <p className="mt-1 text-[0.7rem] text-white/70">
                   Match the Murlan Royale quality presets for identical FPS and clarity choices.
                 </p>
-                <div className="mt-3">
-                  <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
-                    HDRI Resolution
-                  </h4>
-                  <p className="mt-1 text-[0.7rem] text-white/60">
-                    Active: {resolvedHdriResolution?.toUpperCase() || activeHdriResolutionOption.label}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {HDRI_RESOLUTION_OPTIONS.map((option) => {
-                      const active = option.id === hdriResolutionId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setHdriResolutionId(option.id)}
-                          aria-pressed={active}
-                          className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <p className="mt-1 text-[0.7rem] text-white/60">
+                  HDRI + cloth + balls + table finish + HUD scale follow Graphics: 60 Hz → 2K, 90 Hz → 4K, 120 Hz → 8K (with automatic lower HDRI fallback if needed).
+                </p>
                 <div className="mt-2 grid gap-2">
                   {FRAME_RATE_OPTIONS.map((option) => {
                     const active = option.id === frameRateId;
