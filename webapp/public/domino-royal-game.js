@@ -15,43 +15,43 @@ const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const HDRI_RESOLUTION_STORAGE_KEY = 'dominoRoyalHdriResolution';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
-const DEFAULT_HDRI_RESOLUTION_KEY = '2k';
+const DEFAULT_HDRI_RESOLUTION_KEY = '4k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
-    label: '2K (60 Hz)',
+    label: '4K (60 Hz)',
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1,
-    resolution: '2K assets • optimized DPR cap',
-    description: '2K profile for 60 Hz displays.'
+    resolution: '4K assets • optimized DPR cap',
+    description: '4K profile for 60 Hz displays.'
   },
   {
     id: 'qhd90',
-    label: '8K (90 Hz)',
+    label: '6K (90 Hz)',
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.5,
-    resolution: '8K assets • fallback 4K',
-    description: '8K profile for 90 Hz displays with 4K fallback.'
+    resolution: '6K assets • optimized DPR cap',
+    description: '6K profile for 90 Hz displays.'
   },
   {
     id: 'uhd120',
-    label: '16K (120 Hz)',
+    label: '8K (120 Hz)',
     fps: 120,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '16K assets • fallback 8K',
-    description: '16K profile for 120 Hz displays with 8K fallback.'
+    resolution: '8K assets • optimized DPR cap',
+    description: '8K profile for 120 Hz displays and flagship hardware.'
   },
   {
     id: 'ultra144',
-    label: '20K (144 Hz)',
+    label: '8K (144 Hz)',
     fps: 144,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '20K assets • fallback 16K',
-    description: '20K profile for 144 Hz displays with 16K fallback.'
+    resolution: '8K assets • optimized DPR cap',
+    description: '8K profile for 144 Hz displays.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -69,22 +69,16 @@ const HDRI_RESOLUTION_OPTIONS = Object.freeze([
       'Automatically keeps HDRI resolution synced with the selected graphics quality.'
   },
   {
-    id: '20k',
-    label: '20K',
-    resolution: '20K HDRI',
-    description: 'Extreme HDRI clarity for 144 Hz premium devices.'
-  },
-  {
-    id: '16k',
-    label: '16K',
-    resolution: '16K HDRI',
-    description: 'Ultra HDRI clarity for high-refresh premium devices.'
-  },
-  {
     id: '8k',
     label: '8K',
     resolution: '8K HDRI',
     description: 'Maximum HDRI clarity for flagship hardware.'
+  },
+  {
+    id: '6k',
+    label: '6K',
+    resolution: '6K HDRI',
+    description: 'High-end HDRI quality for smooth premium visuals.'
   },
   {
     id: '4k',
@@ -112,11 +106,10 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   }, {})
 );
 const LEGACY_HDRI_RESOLUTION_ALIASES = Object.freeze({
-  fhd60: '2k',
-  qhd90: '8k',
-  uhd120: '16k',
-  ultra144: '20k',
-  '6k': '8k'
+  fhd60: '4k',
+  qhd90: '6k',
+  uhd120: '8k',
+  ultra144: '8k'
 });
 const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
@@ -143,24 +136,24 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  fhd60: 2048,
-  qhd90: 8192,
-  uhd120: 16384,
-  ultra144: 20480
+  fhd60: 4096,
+  qhd90: 6144,
+  uhd120: 8192,
+  ultra144: 8192
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  fhd60: 2048,
-  qhd90: 8192,
-  uhd120: 16384,
-  ultra144: 20480
+  fhd60: 4096,
+  qhd90: 6144,
+  uhd120: 8192,
+  ultra144: 8192
 });
 
 const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 1024,
-  qhd90: 2048,
-  uhd120: 4096,
-  ultra144: 4096
+  qhd90: 1536,
+  uhd120: 2048,
+  ultra144: 2048
 });
 const LEGACY_FRAME_RATE_ALIASES = Object.freeze({
   hd50: 'fhd60'
@@ -171,7 +164,7 @@ function getAdaptiveTextureSize(baseSize = 2048) {
     FRAME_RATE_TEXTURE_SIZE_MAP[frameRateId] ??
     FRAME_RATE_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(20480, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function getAdaptiveDominoTextureSize(baseSize = 4096) {
@@ -187,7 +180,7 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
     mappedByFps ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(20480, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function getAdaptiveAvatarTextureSize(baseSize = 512) {
@@ -195,7 +188,7 @@ function getAdaptiveAvatarTextureSize(baseSize = 512) {
     AVATAR_TEXTURE_SIZE_MAP[frameRateId] ??
     AVATAR_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(256, Math.min(4096, mappedSize));
+  return Math.max(256, Math.min(2048, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -505,30 +498,14 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'ultra144':
-      return '20k';
     case 'uhd120':
-      return '16k';
-    case 'qhd90':
       return '8k';
+    case 'qhd90':
+      return '6k';
     case 'fhd60':
-      return '2k';
+      return '4k';
     default:
       return DEFAULT_HDRI_RESOLUTION_KEY;
-  }
-}
-
-function resolveGraphicsHdriFallbackResolutions(qualityId = DEFAULT_FRAME_RATE_ID) {
-  switch (qualityId) {
-    case 'ultra144':
-      return ['20k', '16k', '8k', '4k', '2k', '1k'];
-    case 'uhd120':
-      return ['16k', '8k', '4k', '2k', '1k'];
-    case 'qhd90':
-      return ['8k', '4k', '2k', '1k'];
-    case 'fhd60':
-      return ['2k', '1k'];
-    default:
-      return [DEFAULT_HDRI_RESOLUTION_KEY, '1k'];
   }
 }
 
@@ -2658,7 +2635,6 @@ const CHAIR_THEME_OPTIONS = Object.freeze(
 const CHAIR_MODEL_URLS = Object.freeze([]);
 const polyhavenModelCache = new Map();
 const polyhavenFilesManifestCache = new Map();
-const polyhavenHdriManifestCache = new Map();
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 let sharedKtx2Loader = null;
@@ -2713,31 +2689,6 @@ async function getPolyhavenFilesManifest(assetId) {
     }
   })();
   polyhavenFilesManifestCache.set(key, promise);
-  return promise;
-}
-
-async function getPolyhavenHdriManifest(assetId) {
-  if (!assetId) return null;
-  const key = String(assetId).toLowerCase();
-  if (polyhavenHdriManifestCache.has(key)) {
-    return polyhavenHdriManifestCache.get(key);
-  }
-  const promise = (async () => {
-    try {
-      const response = await fetch(`https://api.polyhaven.com/files/${assetId}`, {
-        mode: 'cors',
-        credentials: 'omit'
-      });
-      if (!response.ok) {
-        throw new Error(`Poly Haven HDRI API ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.warn('Failed to load Poly Haven HDRI manifest', assetId, error);
-      return null;
-    }
-  })();
-  polyhavenHdriManifestCache.set(key, promise);
   return promise;
 }
 
@@ -4597,9 +4548,9 @@ const HDRI_RESOLUTION_ORDER = Object.freeze([
   '1k',
   '2k',
   '4k',
+  '6k',
   '8k',
-  '16k',
-  '20k'
+  '16k'
 ]);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
@@ -4618,15 +4569,11 @@ function resolveHdriResolutionOrder() {
     hdriResolutionId,
     frameRateId
   );
-  const graphicsFallbacks = resolveGraphicsHdriFallbackResolutions(frameRateId);
   if (selectedHdriResolution) {
     const preferredIndex = HDRI_RESOLUTION_ORDER.indexOf(selectedHdriResolution);
-    if (preferredIndex >= 0) {
-      const selectedStack = HDRI_RESOLUTION_ORDER.slice(preferredIndex).reverse();
-      return [...new Set([...selectedStack, ...graphicsFallbacks])];
-    }
+    if (preferredIndex >= 0) return HDRI_RESOLUTION_ORDER.slice(preferredIndex).reverse();
   }
-  return graphicsFallbacks;
+  return ['4k', '2k'];
 }
 function shouldLoadExternalHdri() {
   // Keep HDRI enabled on mobile/Telegram so players still see purchased environments.
@@ -4658,13 +4605,6 @@ async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   if (!shouldLoadExternalHdri()) return null;
   const allowedResolutions = resolveHdriResolutionOrder();
-  const hdriManifest = await getPolyhavenHdriManifest(variant.assetId);
-  const officialHdrFiles = hdriManifest?.hdri?.hdr || {};
-  const officialExrFiles = hdriManifest?.hdri?.exr || {};
-  const officialResolutionSet = new Set([
-    ...Object.keys(officialHdrFiles || {}).map((res) => String(res).toLowerCase()),
-    ...Object.keys(officialExrFiles || {}).map((res) => String(res).toLowerCase())
-  ]);
   const preferred = Array.isArray(variant.preferredResolutions)
     ? variant.preferredResolutions.filter((res) =>
         allowedResolutions.includes(res)
@@ -4673,21 +4613,14 @@ async function loadHdriEnvironment(variant) {
   const order = preferred.length ? preferred : allowedResolutions;
   let lastError = null;
   for (const res of order) {
-    if (officialResolutionSet.size && !officialResolutionSet.has(res)) {
-      continue;
-    }
     const cacheKey = `${variant.id}:${res}`;
     if (hdriTextureCache.has(cacheKey)) {
       return hdriTextureCache.get(cacheKey);
     }
-    const officialHdrUrl = officialHdrFiles?.[res]?.url;
-    const officialExrUrl = officialExrFiles?.[res]?.url;
     const urls = [
-      officialHdrUrl,
-      officialExrUrl,
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`,
       `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${variant.assetId}_${res}.exr`
-    ].filter(Boolean);
+    ];
     for (const url of urls) {
       try {
         const texture = await hdriLoader.loadAsync(url);
