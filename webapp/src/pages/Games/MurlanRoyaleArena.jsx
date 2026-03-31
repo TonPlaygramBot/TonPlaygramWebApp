@@ -2239,7 +2239,9 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1,
     pixelRatioCap: 1.4,
     resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    hdriResolution: '2k',
+    preferredTextureSizes: ['2k', '1k'],
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays with a 2K HDRI target.'
   },
   {
     id: 'fhd60',
@@ -2287,9 +2289,11 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Auto' },
   { id: '8k', label: '8K' },
   { id: '6k', label: '6K' },
-  { id: '4k', label: '4K' }
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2297,7 +2301,7 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
+const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2481,8 +2485,20 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
-  const resolvedHdriResolution =
-    (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] && hdriResolutionId) || DEFAULT_HDRI_RESOLUTION_ID;
+  const resolvedHdriResolution = useMemo(() => {
+    const targetFromGraphics = activeFrameRateOption?.hdriResolution;
+    if (hdriResolutionId === 'auto') {
+      if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
+        return targetFromGraphics;
+      }
+      return '4k';
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) return hdriResolutionId;
+    if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
+      return targetFromGraphics;
+    }
+    return '4k';
+  }, [activeFrameRateOption, hdriResolutionId]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
