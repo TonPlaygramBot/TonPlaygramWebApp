@@ -133,6 +133,23 @@ function detectHighRefreshDisplay() {
   return false;
 }
 
+function detectUltraRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 143hz)', '(min-refresh-rate: 144hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
@@ -236,6 +253,7 @@ function detectPreferredFrameRateId() {
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
+  const ultraRefresh = detectUltraRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
@@ -245,6 +263,9 @@ function detectPreferredFrameRateId() {
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
+    }
+    if (ultraRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8)) {
+      return 'uhd144';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -257,6 +278,10 @@ function detectPreferredFrameRateId() {
       return 'qhd90';
     }
     return DEFAULT_FRAME_RATE_ID;
+  }
+
+  if (ultraRefresh && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
+    return 'uhd144';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -526,8 +551,11 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 50,
     renderScale: 0.82,
     pixelRatioCap: 1.15,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    resolution: '2K assets • fallback 1K',
+    description: 'Battery saver profile that keeps Poly Haven textures and HDRIs on official 2K assets.',
+    hdriPreferredResolutions: ['2k'],
+    hdriFallbackResolution: '2k',
+    texturePreferredSizes: ['2k', '1k']
   },
   {
     id: 'fhd60',
@@ -535,8 +563,11 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 0.92,
     pixelRatioCap: 1.25,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    resolution: '2K assets • fallback 1K',
+    description: '60 Hz profile: HDRI + table/cloth/board/tokens/dice/chairs/UI run at official 2K.',
+    hdriPreferredResolutions: ['2k'],
+    hdriFallbackResolution: '2k',
+    texturePreferredSizes: ['2k', '1k']
   },
   {
     id: 'qhd90',
@@ -544,8 +575,11 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    resolution: '4K assets • fallback 2K',
+    description: '90 Hz profile: targets official 4K Poly Haven assets with 2K fallback.',
+    hdriPreferredResolutions: ['4k', '2k'],
+    hdriFallbackResolution: '2k',
+    texturePreferredSizes: ['4k', '2k', '1k']
   },
   {
     id: 'uhd120',
@@ -553,8 +587,23 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.08,
     pixelRatioCap: 1.5,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    resolution: '8K assets • fallback 4K',
+    description: '120 Hz profile: targets official 8K Poly Haven assets with 4K fallback.',
+    hdriPreferredResolutions: ['8k', '4k'],
+    hdriFallbackResolution: '4k',
+    texturePreferredSizes: ['8k', '4k', '2k']
+  },
+  {
+    id: 'uhd144',
+    label: 'Ultra+ HD (144 Hz)',
+    fps: 144,
+    renderScale: 1.12,
+    pixelRatioCap: 1.6,
+    resolution: '8K assets • fallback 4K',
+    description: '144 Hz profile: forces 8K-first Poly Haven assets for maximum clarity.',
+    hdriPreferredResolutions: ['8k', '4k'],
+    hdriFallbackResolution: '4k',
+    texturePreferredSizes: ['8k', '4k', '2k']
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -991,9 +1040,17 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+async function loadPolyhavenTextureSet(
+  assetId,
+  textureLoader,
+  maxAnisotropy = 1,
+  cache = null,
+  preferredSizes = PREFERRED_TEXTURE_SIZES
+) {
   if (!assetId || !textureLoader) return null;
-  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  const preferredStack =
+    Array.isArray(preferredSizes) && preferredSizes.length ? preferredSizes : PREFERRED_TEXTURE_SIZES;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}|${preferredStack.join(',')}`;
   if (cache?.has(key)) {
     return cache.get(key);
   }
@@ -1005,7 +1062,7 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
         return null;
       }
       const json = await response.json();
-      const urls = pickBestTextureUrls(json, PREFERRED_TEXTURE_SIZES);
+      const urls = pickBestTextureUrls(json, preferredStack);
       if (!urls.diffuse) {
         return null;
       }
@@ -1169,12 +1226,20 @@ async function createPolyhavenInstance(
     maxAnisotropy = 1,
     fallbackTexture = null,
     textureCache = null,
-    textureSet = null
+    textureSet = null,
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
   if (textureLoader) {
     try {
       const textures =
-        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+        textureSet ??
+        (await loadPolyhavenTextureSet(
+          assetId,
+          textureLoader,
+          maxAnisotropy,
+          textureCache,
+          preferredTextureSizes
+        ));
       if (textures || fallbackTexture) {
         applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
       }
@@ -2627,7 +2692,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         balanced60: 'fhd60',
         smooth90: 'qhd90',
         fast120: 'uhd120',
-        esports144: 'uhd120'
+        esports144: 'uhd144'
       };
       const normalized = legacyMap[stored] ?? stored;
       if (normalized && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalized)) {
@@ -2676,6 +2741,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
   }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
+  const textureResolutionStack = useMemo(() => {
+    const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
+    const stack = Array.isArray(option?.texturePreferredSizes) ? option.texturePreferredSizes : [];
+    return stack.length ? stack : PREFERRED_TEXTURE_SIZES;
+  }, [activeFrameRateOption]);
+  const textureResolutionKey = useMemo(() => textureResolutionStack.join('|'), [textureResolutionStack]);
+  const hdriResolutionProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
+    const preferred = Array.isArray(option?.hdriPreferredResolutions) ? option.hdriPreferredResolutions : [];
+    const resolvedPreferred = preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+    const fallback =
+      typeof option?.hdriFallbackResolution === 'string' && option.hdriFallbackResolution
+        ? option.hdriFallbackResolution
+        : resolvedPreferred[resolvedPreferred.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0];
+    return {
+      preferredResolutions: resolvedPreferred,
+      fallbackResolution: fallback,
+      key: resolvedPreferred.join('|')
+    };
+  }, [activeFrameRateOption]);
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
@@ -2789,6 +2874,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
+  useEffect(() => {
+    textureCacheRef.current?.clear?.();
+  }, [textureResolutionKey]);
   const customizationSections = useMemo(
     () =>
       CUSTOMIZATION_SECTIONS.map((section) => ({
@@ -3116,7 +3204,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!renderer || !arena?.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+      const envResult = await loadPolyHavenHdriEnvironment(renderer, {
+        ...activeVariant,
+        preferredResolutions: hdriResolutionProfile.preferredResolutions,
+        fallbackResolution: hdriResolutionProfile.fallbackResolution
+      });
       if (!envResult?.envMap) return;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
@@ -3197,7 +3289,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         prevDispose();
       }
     },
-    []
+    [hdriResolutionProfile]
   );
 
   const updateEnvironmentFloor = useCallback(() => {
@@ -3251,7 +3343,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         textureLoader: textureLoaderRef.current,
         maxAnisotropy: maxAnisotropyRef.current ?? 1,
         fallbackTexture: fallbackTextureRef.current,
-        textureCache: textureCacheRef.current
+        textureCache: textureCacheRef.current,
+        preferredTextureSizes: textureResolutionStack
       };
 
       if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
@@ -3328,7 +3421,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       updateEnvironmentFloor();
       return tableInfo;
     },
-    [updateEnvironmentFloor]
+    [textureResolutionStack, updateEnvironmentFloor]
   );
 
   const rebuildChairs = useCallback(
@@ -3340,7 +3433,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         textureLoader: textureLoaderRef.current,
         maxAnisotropy: maxAnisotropyRef.current ?? 1,
         fallbackTexture: fallbackTextureRef.current,
-        textureCache: textureCacheRef.current
+        textureCache: textureCacheRef.current,
+        preferredTextureSizes: textureResolutionStack
       };
       const token = ++chairBuildTokenRef.current;
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
@@ -3376,7 +3470,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       });
       updateEnvironmentFloor();
     },
-    [updateEnvironmentFloor]
+    [textureResolutionStack, updateEnvironmentFloor]
   );
 
   const clearHumanRollTimeout = useCallback(() => {
@@ -4078,10 +4172,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
     const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
     const tokenPieceChanged = previousAppearance.tokenPiece !== safe.tokenPiece;
-    const tableChanged = arena.tableThemeId !== tableTheme.id || !arena.tableInfo;
+    const qualityChanged = arena.textureResolutionKey !== textureResolutionKey;
+    const tableChanged = qualityChanged || arena.tableThemeId !== tableTheme.id || !arena.tableInfo;
     const tableFinishChanged = previousAppearance.tableFinish !== safe.tableFinish;
-    const stoolChanged = arena.chairThemeId !== stoolTheme.id || !arena.chairs?.length;
-    const hdriChanged = (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !== envVariant?.id;
+    const stoolChanged = qualityChanged || arena.chairThemeId !== stoolTheme.id || !arena.chairs?.length;
+    const hdriChanged =
+      (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !== envVariant?.id ||
+      arena.hdriResolutionKey !== hdriResolutionProfile.key;
 
     const refreshBoardTokens = async () => {
       const arenaState = arenaRef.current;
@@ -4145,6 +4242,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     (async () => {
       if (tableChanged) {
         await rebuildTable(tableTheme, tableFinish);
+        arena.textureResolutionKey = textureResolutionKey;
         if (arena.tableInfo) {
           if (!arena.boardLookTarget) {
             arena.boardLookTarget = new THREE.Vector3();
@@ -4165,6 +4263,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (stoolChanged) {
         await rebuildChairs(stoolTheme);
+        arena.textureResolutionKey = textureResolutionKey;
         configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
       } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
         applyChairThemeMaterials(
@@ -4175,9 +4274,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (hdriChanged) {
         await applyHdriEnvironment(envVariant);
+        arena.hdriResolutionKey = hdriResolutionProfile.key;
       }
 
-      if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged) {
+      if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged || qualityChanged) {
         await refreshBoardTokens();
       }
     })();
@@ -4191,6 +4291,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     rebuildTable,
     players,
     scheduleHumanAutoRoll,
+    hdriResolutionProfile,
+    textureResolutionKey,
     updateTurnIndicator
   ]);
 
@@ -4322,7 +4424,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       textureLoader: textureLoaderRef.current,
       maxAnisotropy: maxAnisotropyRef.current ?? 1,
       fallbackTexture: fallbackTextureRef.current,
-      textureCache: textureCacheRef.current
+      textureCache: textureCacheRef.current,
+      preferredTextureSizes: textureResolutionStack
     };
 
     if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
@@ -4542,7 +4645,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairThemeId: stoolTheme?.id,
       chairThemePreserve: preserveChairMats,
       chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor)
+      seatAnchors: chairs.map((chair) => chair.anchor),
+      textureResolutionKey,
+      hdriResolutionKey: hdriResolutionProfile.key
     };
 
     updateEnvironmentFloor();
