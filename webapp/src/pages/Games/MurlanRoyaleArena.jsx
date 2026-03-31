@@ -780,6 +780,7 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
+const HDRI_RESOLUTION_STORAGE_KEY = 'murlanHdriResolution';
 const COMMENTARY_PRESET_STORAGE_KEY = 'murlanRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'murlanRoyaleCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
@@ -1095,7 +1096,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   ...(ENABLE_3D_HUMAN_CHARACTERS
     ? [{ key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES }]
-    : [])
+    : []),
+  { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
 ];
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
@@ -2351,6 +2353,19 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Poly Haven 8K HDRI target.'
   }
 ]);
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Match Graphics' },
+  { id: '8k', label: '8K' },
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' }
+]);
+const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2369,10 +2384,15 @@ function detectMobileGraphicsDevice() {
 
 function resolveHdriResolutionFromGraphics(frameOption, isMobileDevice) {
   const targetFromGraphics = frameOption?.hdriResolution;
-  if (isMobileDevice && Number.isFinite(frameOption?.fps) && frameOption.fps >= 90) {
+  if (
+    isMobileDevice &&
+    Number.isFinite(frameOption?.fps) &&
+    frameOption.fps >= 90 &&
+    HDRI_RESOLUTION_OPTION_MAP['4k']
+  ) {
     return '4k';
   }
-  if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_LADDER.includes(targetFromGraphics)) {
+  if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
     return targetFromGraphics;
   }
   return '2k';
@@ -2497,6 +2517,15 @@ export default function MurlanRoyaleArena({ search }) {
     }
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
+  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_HDRI_RESOLUTION_ID;
+  });
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
@@ -2551,18 +2580,16 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
   const isMobileGraphicsDevice = useMemo(() => detectMobileGraphicsDevice(), []);
   const resolvedHdriResolution = useMemo(() => {
-    const hdriFromTextureProfile = activeTextureResolutionOrder.find((resolution) =>
-      HDRI_RESOLUTION_LADDER.includes(resolution)
-    );
-    if (hdriFromTextureProfile) {
-      return hdriFromTextureProfile;
-    }
     const graphicsHdriResolution = resolveHdriResolutionFromGraphics(
       activeFrameRateOption,
       isMobileGraphicsDevice
     );
+    if (hdriResolutionId === 'auto') {
+      return graphicsHdriResolution;
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) return hdriResolutionId;
     return graphicsHdriResolution;
-  }, [activeFrameRateOption, activeTextureResolutionOrder, isMobileGraphicsDevice]);
+  }, [activeFrameRateOption, hdriResolutionId, isMobileGraphicsDevice]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -3046,6 +3073,15 @@ export default function MurlanRoyaleArena({ search }) {
       console.warn('Failed to persist frame rate option', error);
     }
   }, [frameRateId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+    } catch (error) {
+      console.warn('Failed to persist HDRI resolution option', error);
+    }
+  }, [hdriResolutionId]);
+
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
   const humanTurnRef = useRef(false);
@@ -5168,9 +5204,32 @@ export default function MurlanRoyaleArena({ search }) {
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                      HDRI follows the selected graphics quality ({resolvedHdriResolution.toUpperCase()}).
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.32em] text-white/65">HDRI Resolution</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+                        Active: {resolvedHdriResolution.toUpperCase()}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                          const active = option.id === hdriResolutionId;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => setHdriResolutionId(option.id)}
+                              aria-pressed={active}
+                              className={`flex-1 min-w-[5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                active
+                                  ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.45)]'
+                                  : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                     <div className="grid gap-2">
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
