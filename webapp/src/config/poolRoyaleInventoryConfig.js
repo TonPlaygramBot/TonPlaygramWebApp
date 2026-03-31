@@ -297,12 +297,11 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  oakVeneer01Amber: swatchThumbnail(['#9f7148', '#c08a58', '#d6a370']),
-  oakVeneer01Cocoa: swatchThumbnail(['#6d4b33', '#8b6040', '#a67852']),
-  oakVeneer01Walnut: swatchThumbnail(['#543726', '#6f4b34', '#8a6246']),
-  oakVeneer01MahoganyRed: swatchThumbnail(['#7b3f34', '#9a4f40', '#b76655']),
-  oakVeneer01MatteBlack: swatchThumbnail(['#121212', '#242424', '#333333']),
-  carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151'])
+  carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151']),
+  carbonFiberChalkGrey: swatchThumbnail(['#2f3540', '#4b5563', '#9ca3af']),
+  carbonFiberChalkBeige: swatchThumbnail(['#8f7a62', '#b29b82', '#e5d3b9']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#111a33', '#1e2b55', '#4b5e91']),
+  carbonFiberChalkWhite: swatchThumbnail(['#d8dde5', '#eef2f7', '#ffffff'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -401,12 +400,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
-    oakVeneer01Amber: 'Amber Glow',
-    oakVeneer01Cocoa: 'Cocoa Drift',
-    oakVeneer01Walnut: 'Walnut Crest',
-    oakVeneer01MahoganyRed: 'Crimson Grain',
-    oakVeneer01MatteBlack: 'Midnight Matte',
-    carbonFiberChalk: 'Carbon Fiber Chalk'
+    carbonFiberChalk: 'Carbon Fiber Chalk',
+    carbonFiberChalkGrey: 'Carbon Fiber Chalk Grey',
+    carbonFiberChalkBeige: 'Carbon Fiber Chalk Beige',
+    carbonFiberChalkDarkBlue: 'Carbon Fiber Chalk Dark Blue',
+    carbonFiberChalkWhite: 'Carbon Fiber Chalk White'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -495,51 +493,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
   },
   {
-    id: 'finish-oakVeneer01Amber',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Amber',
-    name: 'Amber Glow Finish',
-    price: 1060,
-    description: 'Custom amber oak veneer pattern with bright satin grain.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Amber
-  },
-  {
-    id: 'finish-oakVeneer01Cocoa',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Cocoa',
-    name: 'Cocoa Drift Finish',
-    price: 1070,
-    description: 'Custom cocoa oak veneer with warm chocolate undertones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Cocoa
-  },
-  {
-    id: 'finish-oakVeneer01Walnut',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01Walnut',
-    name: 'Walnut Crest Finish',
-    price: 1080,
-    description: 'Custom walnut oak veneer with deeper grain separation.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01Walnut
-  },
-  {
-    id: 'finish-oakVeneer01MahoganyRed',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01MahoganyRed',
-    name: 'Crimson Grain Finish',
-    price: 1090,
-    description: 'Custom mahogany-red oak veneer for a premium classic look.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MahoganyRed
-  },
-  {
-    id: 'finish-oakVeneer01MatteBlack',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01MatteBlack',
-    name: 'Midnight Matte Finish',
-    price: 1100,
-    description: 'Custom matte-black oak veneer with subtle low-gloss grain.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.oakVeneer01MatteBlack
-  },
-  {
     id: 'finish-carbonFiberChalk',
     type: 'tableFinish',
     optionId: 'carbonFiberChalk',
@@ -547,6 +500,42 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1160,
     description: 'Custom carbon weave inspired by the chalk block pattern.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
+  },
+  {
+    id: 'finish-carbonFiberChalkGrey',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkGrey',
+    name: 'Carbon Fiber Chalk Grey Finish',
+    price: 1170,
+    description: 'Carbon Fiber Chalk weave in a balanced grey palette.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
+  },
+  {
+    id: 'finish-carbonFiberChalkBeige',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkBeige',
+    name: 'Carbon Fiber Chalk Beige Finish',
+    price: 1180,
+    description: 'Carbon Fiber Chalk weave with a warm beige tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
+  },
+  {
+    id: 'finish-carbonFiberChalkDarkBlue',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkDarkBlue',
+    name: 'Carbon Fiber Chalk Dark Blue Finish',
+    price: 1190,
+    description: 'Carbon Fiber Chalk weave recolored with dark blue accents.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
+  },
+  {
+    id: 'finish-carbonFiberChalkWhite',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkWhite',
+    name: 'Carbon Fiber Chalk White Finish',
+    price: 1200,
+    description: 'Carbon Fiber Chalk weave in a clean white finish.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
   },
   {
     id: 'chrome-chrome',
