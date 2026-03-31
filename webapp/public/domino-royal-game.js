@@ -28,30 +28,30 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'qhd90',
-    label: '8K (90 Hz)',
+    label: '4K (90 Hz)',
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.5,
-    resolution: '8K assets • fallback 4K',
-    description: '8K profile for 90 Hz displays with 4K fallback.'
+    resolution: '4K assets • fallback 2K',
+    description: '4K profile for 90 Hz displays with 2K fallback.'
   },
   {
     id: 'uhd120',
-    label: '16K (120 Hz)',
+    label: '8K (120 Hz)',
     fps: 120,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '16K assets • fallback 8K',
-    description: '16K profile for 120 Hz displays with 8K fallback.'
+    resolution: '8K assets • fallback 4K',
+    description: '8K profile for 120 Hz displays with 4K fallback.'
   },
   {
     id: 'ultra144',
-    label: '20K (144 Hz)',
+    label: '8K (144 Hz)',
     fps: 144,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '20K assets • fallback 16K',
-    description: '20K profile for 144 Hz displays with 16K fallback.'
+    resolution: '8K assets',
+    description: '8K profile for 144 Hz displays.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -69,34 +69,22 @@ const HDRI_RESOLUTION_OPTIONS = Object.freeze([
       'Automatically keeps HDRI resolution synced with the selected graphics quality.'
   },
   {
-    id: '20k',
-    label: '20K',
-    resolution: '20K HDRI',
-    description: 'Ultra HDRI mode (uses Poly Haven official nearest resolution when 20K is unavailable).'
-  },
-  {
-    id: '16k',
-    label: '16K',
-    resolution: '16K HDRI',
-    description: 'Maximum official HDRI quality on most assets.'
-  },
-  {
     id: '8k',
     label: '8K',
     resolution: '8K HDRI',
-    description: 'High-end HDRI quality for smooth premium visuals.'
+    description: 'Highest official HDRI tier used by Domino Royal.'
   },
   {
     id: '4k',
     label: '4K',
     resolution: '4K HDRI',
-    description: 'Balanced quality for most devices.'
+    description: 'Balanced official HDRI tier for 90 Hz targets.'
   },
   {
     id: '2k',
     label: '2K',
     resolution: '2K HDRI',
-    description: 'Lightest official HDRI option in this preset stack.'
+    description: 'Lightest official HDRI tier for 60 Hz targets.'
   }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
@@ -107,9 +95,9 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
 );
 const LEGACY_HDRI_RESOLUTION_ALIASES = Object.freeze({
   fhd60: '2k',
-  qhd90: '8k',
-  uhd120: '16k',
-  ultra144: '20k',
+  qhd90: '4k',
+  uhd120: '8k',
+  ultra144: '8k',
   '1k': '2k',
   '6k': '8k'
 });
@@ -139,23 +127,23 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
-  qhd90: 8192,
-  uhd120: 16384,
-  ultra144: 20480
+  qhd90: 4096,
+  uhd120: 8192,
+  ultra144: 8192
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
-  qhd90: 8192,
-  uhd120: 16384,
-  ultra144: 20480
+  qhd90: 4096,
+  uhd120: 8192,
+  ultra144: 8192
 });
 
 const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
-  qhd90: 8192,
-  uhd120: 16384,
-  ultra144: 20480
+  qhd90: 4096,
+  uhd120: 8192,
+  ultra144: 8192
 });
 const LEGACY_FRAME_RATE_ALIASES = Object.freeze({
   hd50: 'fhd60'
@@ -166,7 +154,7 @@ function getAdaptiveTextureSize(baseSize = 2048) {
     FRAME_RATE_TEXTURE_SIZE_MAP[frameRateId] ??
     FRAME_RATE_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(20480, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function getAdaptiveDominoTextureSize(baseSize = 4096) {
@@ -176,13 +164,13 @@ function getAdaptiveDominoTextureSize(baseSize = 4096) {
       ? selectedProfile.fps
       : 60;
   const mappedByFps =
-    selectedFps >= 144 ? 20480 : selectedFps >= 120 ? 16384 : selectedFps >= 90 ? 8192 : 2048;
+    selectedFps >= 120 ? 8192 : selectedFps >= 90 ? 4096 : 2048;
   const mappedSize =
     DOMINO_TEXTURE_SIZE_MAP[frameRateId] ??
     mappedByFps ??
     DOMINO_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(768, Math.min(20480, mappedSize));
+  return Math.max(768, Math.min(8192, mappedSize));
 }
 
 function getAdaptiveAvatarTextureSize(baseSize = 512) {
@@ -190,7 +178,7 @@ function getAdaptiveAvatarTextureSize(baseSize = 512) {
     AVATAR_TEXTURE_SIZE_MAP[frameRateId] ??
     AVATAR_TEXTURE_SIZE_MAP[DEFAULT_FRAME_RATE_ID] ??
     baseSize;
-  return Math.max(256, Math.min(20480, mappedSize));
+  return Math.max(256, Math.min(8192, mappedSize));
 }
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
@@ -500,11 +488,10 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'ultra144':
-      return '20k';
     case 'uhd120':
-      return '16k';
-    case 'qhd90':
       return '8k';
+    case 'qhd90':
+      return '4k';
     case 'fhd60':
       return '2k';
     default:
@@ -2321,7 +2308,9 @@ const getPoolCarpetTextures = (() => {
       cache = { map: null, bump: null };
       return cache;
     }
-    const size = MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize;
+    const size = getAdaptiveTextureSize(
+      MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize
+    );
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -3878,7 +3867,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
     assetId: 'neon_photostudio',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.18,
     environmentIntensity: 1.12,
@@ -3888,7 +3877,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'colorfulStudio',
     name: 'Colorful Studio',
     assetId: 'colorful_studio',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.02,
     environmentIntensity: 0.92,
@@ -3898,7 +3887,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'dancingHall',
     name: 'Dancing Hall',
     assetId: 'dancing_hall',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.12,
     environmentIntensity: 1.08,
@@ -3908,7 +3897,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'abandonedHall',
     name: 'Abandoned Hall',
     assetId: 'abandoned_hall_01',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.08,
     environmentIntensity: 1.05,
@@ -3918,7 +3907,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'mirroredHall',
     name: 'Mirrored Hall',
     assetId: 'mirrored_hall',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.15,
     environmentIntensity: 1.12,
@@ -3928,7 +3917,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'musicHall02',
     name: 'Music Hall 02',
     assetId: 'music_hall_02',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.11,
     environmentIntensity: 1.08,
@@ -3938,7 +3927,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'oldHall',
     name: 'Old Hall',
     assetId: 'old_hall',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.08,
     environmentIntensity: 1.05,
@@ -3948,7 +3937,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'blockyPhotoStudio',
     name: 'Blocky Photo Studio',
     assetId: 'blocky_photo_studio',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.12,
     environmentIntensity: 1.1,
@@ -3958,7 +3947,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'cycloramaHardLight',
     name: 'Cyclorama Hard Light',
     assetId: 'cyclorama_hard_light',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.16,
     environmentIntensity: 1.12,
@@ -3968,7 +3957,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'abandonedGarage',
     name: 'Abandoned Garage',
     assetId: 'abandoned_garage',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.07,
     environmentIntensity: 1.04,
@@ -3978,7 +3967,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'vestibule',
     name: 'Vestibule',
     assetId: 'vestibule',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.1,
     environmentIntensity: 1.06,
@@ -3988,7 +3977,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'countryClub',
     name: 'Country Club',
     assetId: 'country_club',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.11,
     environmentIntensity: 1.08,
@@ -3998,7 +3987,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'sepulchralChapelRotunda',
     name: 'Sepulchral Chapel Rotunda',
     assetId: 'sepulchral_chapel_rotunda',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.06,
     environmentIntensity: 1.03,
@@ -4008,7 +3997,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'squashCourt',
     name: 'Squash Court',
     assetId: 'squash_court',
-    preferredResolutions: ['20k', '16k', '8k', '4k', '2k'],
+    preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.1,
     environmentIntensity: 1.06,
@@ -4547,16 +4536,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze([
-  '2k',
-  '4k',
-  '8k',
-  '16k',
-  '19k',
-  '20k',
-  '24k',
-  '29k'
-]);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['2k', '4k', '8k']);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
   navigator.userAgent || ''
@@ -4570,14 +4550,25 @@ const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
+  if (hdriResolutionId === 'auto') {
+    switch (frameRateId) {
+      case 'ultra144':
+        return ['8k'];
+      case 'uhd120':
+        return ['8k', '4k'];
+      case 'qhd90':
+        return ['4k', '2k'];
+      case 'fhd60':
+      default:
+        return ['2k'];
+    }
+  }
   const selectedHdriResolution = resolveHdriResolutionFromSelection(
     hdriResolutionId,
     frameRateId
   );
   const resolutionOrderByTarget = {
-    '20k': ['20k', '16k', '8k', '4k', '2k'],
-    '16k': ['16k', '8k', '4k', '2k'],
-    '8k': ['8k', '4k', '2k'],
+    '8k': ['8k', '4k'],
     '4k': ['4k', '2k'],
     '2k': ['2k']
   };
@@ -4660,8 +4651,6 @@ function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []
   const requested = String(requestedResolution || '').toLowerCase();
   if (!requested) return [];
   const aliases = {
-    '20k': ['20k', '24k', '19k', '16k'],
-    '16k': ['16k', '8k'],
     '8k': ['8k', '4k'],
     '4k': ['4k', '2k'],
     '2k': ['2k', '1k']
