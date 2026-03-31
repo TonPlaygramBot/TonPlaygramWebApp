@@ -94,7 +94,7 @@ const resolveTableCloth = (index) => {
   return MURLAN_TABLE_CLOTHS[idx] ?? MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] ?? null;
 };
 
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 2.0;
@@ -273,12 +273,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'fhd60';
+    return 'hd50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -288,13 +288,13 @@ function detectPreferredFrameRateId() {
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'fhd90';
+      return 'qhd90';
     }
     return DEFAULT_FRAME_RATE_ID;
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'uhd120';
+    return 'ultra144';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -302,7 +302,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopMid') {
-    return 'fhd90';
+    return 'qhd90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -2233,48 +2233,59 @@ const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Performance (60 Hz)',
-    fps: 60,
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
     renderScale: 1,
     pixelRatioCap: 1.4,
-    resolution: 'Full HD texture pack • 60 FPS',
-    hdriResolution: '1k',
-    preferredTextureSizes: ['1k'],
-    description: 'Balanced battery profile using Full HD assets.'
-  },
-  {
-    id: 'fhd90',
-    label: 'Smooth (90 Hz)',
-    fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.55,
-    resolution: '2K texture pack • 90 FPS',
+    resolution: 'HD render • DPR 1.4 cap',
     hdriResolution: '2k',
     preferredTextureSizes: ['2k', '1k'],
-    description: 'Sharper 2K assets for fluid 90 FPS play.'
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays with a 2K HDRI target.'
+  },
+  {
+    id: 'fhd60',
+    label: '4K Quality (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: '4K assets • DPR 1.5 cap',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
+    description: '60 Hz preset with 4K table, chair, card, avatar, UI, and HDRI targets.'
   },
   {
     id: 'qhd90',
-    label: 'Pro (105 Hz)',
-    fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: '4K texture pack • 105 FPS',
-    hdriResolution: '4k',
-    preferredTextureSizes: ['4k', '2k', '1k'],
-    description: 'High-detail 4K assets for premium devices.'
+    label: '6K Quality (90 Hz)',
+    fps: 90,
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: '6K assets • DPR 1.7 cap',
+    hdriResolution: '6k',
+    preferredTextureSizes: ['6k', '4k', '2k', '1k'],
+    description: '90 Hz preset with 6K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra (120 Hz)',
+    label: '8K Quality (120 Hz)',
     fps: 120,
-    renderScale: 1.28,
-    pixelRatioCap: 1.85,
-    resolution: '6K texture pack • 120 FPS',
-    hdriResolution: '6k',
-    preferredTextureSizes: ['6k', '4k', '2k'],
-    description: 'Maximum 6K assets and 120 FPS target.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: '8K assets • DPR 2.0 cap',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
+    description: '120 Hz preset with 8K quality targets for table, chairs, cards, avatars, UI, and HDRI.'
+  },
+  {
+    id: 'ultra144',
+    label: '8K Quality+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: '8K assets • DPR 2.2 cap',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '6k', '4k', '2k'],
+    description: '144 Hz preset that keeps the same 8K quality target as 120 Hz for HDRI and scene assets.'
   }
 ]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
@@ -2282,8 +2293,7 @@ const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: '8k', label: '8K' },
   { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
-  { id: '2k', label: '2K' },
-  { id: '1k', label: 'Full HD' }
+  { id: '2k', label: '2K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -2294,19 +2304,6 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
 const DEFAULT_HDRI_RESOLUTION_ID = 'auto';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
-const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
-  { minFps: 120, key: '6k' },
-  { minFps: 105, key: '4k' },
-  { minFps: 90, key: '2k' },
-  { minFps: 0, key: '1k' }
-]);
-const resolveGraphicsResolutionTier = (fps) => {
-  const safeFps = Number.isFinite(fps) ? fps : 60;
-  return (
-    GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
-    GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
-  );
-};
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -2440,10 +2437,6 @@ export default function MurlanRoyaleArena({ search }) {
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
-  const activeGraphicsResolutionTier = useMemo(
-    () => resolveGraphicsResolutionTier(activeFrameRateOption?.fps),
-    [activeFrameRateOption]
-  );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
     const fallback = DEFAULT_FRAME_RATE_OPTION;
@@ -2493,7 +2486,7 @@ export default function MurlanRoyaleArena({ search }) {
     };
   }, []);
   const resolvedHdriResolution = useMemo(() => {
-    const targetFromGraphics = activeGraphicsResolutionTier?.key;
+    const targetFromGraphics = activeFrameRateOption?.hdriResolution;
     if (hdriResolutionId === 'auto') {
       if (typeof targetFromGraphics === 'string' && HDRI_RESOLUTION_OPTION_MAP[targetFromGraphics]) {
         return targetFromGraphics;
@@ -2505,7 +2498,7 @@ export default function MurlanRoyaleArena({ search }) {
       return targetFromGraphics;
     }
     return '4k';
-  }, [activeGraphicsResolutionTier, hdriResolutionId]);
+  }, [activeFrameRateOption, hdriResolutionId]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -3726,23 +3719,16 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const basePreferred =
-        Array.isArray(activeVariant.preferredResolutions) && activeVariant.preferredResolutions.length
-          ? activeVariant.preferredResolutions
-          : DEFAULT_HDRI_RESOLUTIONS;
-      const resolution = resolvedHdriResolution || basePreferred[0] || DEFAULT_HDRI_RESOLUTIONS[0];
+      const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
       const startIdx = Math.max(0, HDRI_RESOLUTION_LADDER.indexOf(resolution));
-      const ladderFallback =
+      const preferredResolutions =
         startIdx >= 0
           ? HDRI_RESOLUTION_LADDER.slice(startIdx)
           : [resolution, ...DEFAULT_HDRI_RESOLUTIONS];
-      const preferredResolutions = Array.from(
-        new Set([resolution, ...basePreferred, ...ladderFallback].filter(Boolean))
-      );
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
         ...activeVariant,
         preferredResolutions,
-        fallbackResolution: resolution || preferredResolutions[0] || DEFAULT_HDRI_RESOLUTIONS[0]
+        fallbackResolution: preferredResolutions[preferredResolutions.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0]
       });
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
