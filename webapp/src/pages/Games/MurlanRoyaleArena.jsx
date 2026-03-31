@@ -430,33 +430,74 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
 }
 
 const HDRI_URL_CACHE = new Map();
+const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|6|8|16)k)(?=\.|[_/-]|$)/i;
 
-const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
-  const urls = [];
-  const walk = (value) => {
+const normalizeHdriResolutionId = (value) => {
+  const lower = String(value || '').toLowerCase();
+  if (HDRI_RESOLUTION_LADDER.includes(lower)) return lower;
+  return null;
+};
+
+const extractResolutionFromHdriUrl = (url) => {
+  if (typeof url !== 'string' || !url.length) return null;
+  const match = url.toLowerCase().match(HDRI_RESOLUTION_PATTERN);
+  if (!match?.[1]) return null;
+  return normalizeHdriResolutionId(match[1]) ?? match[1];
+};
+
+const collectHdriCandidates = (apiJson) => {
+  const out = [];
+  const pushUrl = (url, hintedResolution = null) => {
+    if (typeof url !== 'string' || !url.startsWith('http')) return;
+    const lower = url.toLowerCase();
+    if (!lower.includes('.hdr') && !lower.includes('.exr')) return;
+    out.push({
+      url,
+      resolution: normalizeHdriResolutionId(hintedResolution) ?? extractResolutionFromHdriUrl(url)
+    });
+  };
+  const walk = (value, hintedResolution = null) => {
     if (!value) return;
     if (typeof value === 'string') {
-      const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.hdr') || lower.includes('.exr'))) {
-        urls.push(value);
-      }
+      pushUrl(value, hintedResolution);
       return;
     }
     if (Array.isArray(value)) {
-      value.forEach(walk);
+      value.forEach((entry) => walk(entry, hintedResolution));
       return;
     }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
-    }
+    if (typeof value !== 'object') return;
+    Object.entries(value).forEach(([key, entry]) => {
+      const nextHint = normalizeHdriResolutionId(key) ?? hintedResolution;
+      walk(entry, nextHint);
+    });
   };
   walk(apiJson);
-  const lower = urls.map((url) => url.toLowerCase());
+  return out;
+};
+
+const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
+  const candidates = collectHdriCandidates(apiJson);
+  if (!candidates.length) return null;
+
   for (const res of preferredResolutions) {
-    const match = lower.find((url) => url.includes(`_${String(res).toLowerCase()}.`));
-    if (match) return urls[lower.indexOf(match)];
+    const normalized = normalizeHdriResolutionId(res);
+    if (!normalized) continue;
+    const matched = candidates.find((entry) => entry.resolution === normalized);
+    if (matched?.url) return matched.url;
   }
-  return urls[0] ?? null;
+
+  for (const fallbackRes of HDRI_RESOLUTION_LADDER) {
+    const matched = candidates.find((entry) => entry.resolution === fallbackRes);
+    if (matched?.url) return matched.url;
+  }
+
+  for (const candidate of candidates) {
+    if (candidate?.url) {
+      return candidate.url;
+    }
+  }
+  return null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
