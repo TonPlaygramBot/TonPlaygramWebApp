@@ -295,19 +295,6 @@ function detectPreferredFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
-function isLikelyMobileDevice() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return false;
-  }
-  const coarsePointer = detectCoarsePointer();
-  const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const rendererTier = classifyRendererTier(readGraphicsRendererString());
-  return isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile';
-}
-
 const ABG_MODEL_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -472,7 +459,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: MURLAN_TABLE_THEMES },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
-  { key: 'environmentHdri', label: 'HDR Environments', options: LUDO_HDRI_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS }
@@ -2761,28 +2747,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [activeFrameRateOption]);
   const textureResolutionKey = useMemo(() => textureResolutionStack.join('|'), [textureResolutionStack]);
   const hdriResolutionProfile = useMemo(() => {
-    const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
-    const mobileHdri4kOptionIds = ['qhd90', 'uhd120', 'uhd144'];
-    const forceMobile4kHdri = isLikelyMobileDevice() && mobileHdri4kOptionIds.includes(option?.id);
-    if (forceMobile4kHdri) {
-      return {
-        preferredResolutions: ['4k', '2k'],
-        fallbackResolution: '2k',
-        key: '4k|2k|mobile'
-      };
-    }
-    const preferred = Array.isArray(option?.hdriPreferredResolutions) ? option.hdriPreferredResolutions : [];
-    const resolvedPreferred = preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+    const hdriCompatibleSizes = textureResolutionStack.filter((size) => /^(1k|2k|4k|8k)$/i.test(size));
+    const resolvedPreferred = hdriCompatibleSizes.length ? hdriCompatibleSizes : DEFAULT_HDRI_RESOLUTIONS;
     const fallback =
-      typeof option?.hdriFallbackResolution === 'string' && option.hdriFallbackResolution
-        ? option.hdriFallbackResolution
-        : resolvedPreferred[resolvedPreferred.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0];
+      resolvedPreferred[resolvedPreferred.length - 1] || DEFAULT_HDRI_RESOLUTIONS[0];
     return {
       preferredResolutions: resolvedPreferred,
       fallbackResolution: fallback,
-      key: resolvedPreferred.join('|')
+      key: `${resolvedPreferred.join('|')}|${fallback}`
     };
-  }, [activeFrameRateOption]);
+  }, [textureResolutionStack]);
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
