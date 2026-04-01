@@ -4445,12 +4445,12 @@ const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   switch (frameRateId) {
     case 'uhd120':
-      return ['8k', '4k', '2k'];
+      return ['8k', '6k', '4k', '2k', '1k'];
     case 'qhd90':
-      return ['4k', '2k'];
+      return ['4k', '2k', '1k'];
     case 'fhd60':
     default:
-      return ['2k'];
+      return ['2k', '1k'];
   }
 }
 function shouldLoadExternalHdri() {
@@ -4540,6 +4540,33 @@ function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []
   return normalizeHdriResolutionsByPreference(availableResolutions, requested).slice(0, 4);
 }
 
+function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  const lower = urls.map((u) => u.toLowerCase());
+  for (const res of preferredResolutions) {
+    const match = lower.find((u) => u.includes(`_${res}.`));
+    if (match) return urls[lower.indexOf(match)];
+  }
+  return urls[0] ?? null;
+}
+
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   if (!shouldLoadExternalHdri()) return null;
@@ -4551,8 +4578,10 @@ async function loadHdriEnvironment(variant) {
     : [];
   const order = preferred.length ? preferred : allowedResolutions;
   let availableHdriResolutions = [];
+  let hdriManifestJson = null;
   try {
     const manifest = await fetchPolyhavenHdriManifest(variant.assetId);
+    hdriManifestJson = manifest;
     availableHdriResolutions = Object.keys(manifest?.hdri || {});
   } catch (error) {
     console.warn('Failed fetching Poly Haven HDRI manifest, using static resolution order', error);
@@ -4569,7 +4598,20 @@ async function loadHdriEnvironment(variant) {
       if (hdriTextureCache.has(cacheKey)) {
         return hdriTextureCache.get(cacheKey);
       }
+      const manifestPreferred = resolveOfficialHdriOrder(
+        res,
+        availableHdriResolutions
+      );
+      const manifestUrl = pickPolyHavenHdriUrl(
+        hdriManifestJson,
+        manifestPreferred.length ? manifestPreferred : [res]
+      );
       const urls = [
+        ...(
+          manifestUrl
+            ? [manifestUrl]
+            : []
+        ),
         `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`,
         `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${variant.assetId}_${res}.exr`
       ];
