@@ -504,7 +504,7 @@ const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOL
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}`;
+  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}|${config?.forceResolution ?? ''}`;
   if (HDRI_URL_CACHE.has(cacheKey)) {
     return HDRI_URL_CACHE.get(cacheKey);
   }
@@ -586,37 +586,64 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       return null;
     }
   };
-  const url = await resolvePolyHavenHdriUrl(config);
-  if (!url) {
-    return resolveFallback();
+  const configuredPreferred = Array.isArray(config?.preferredResolutions)
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
+  const attemptedUrls = new Set();
+  const resolutionAttempts = [...new Set(
+    configuredPreferred
+      .map((entry) => normalizeHdriResolutionId(entry))
+      .filter((entry) => Boolean(entry))
+  )];
+  if (!resolutionAttempts.length) {
+    resolutionAttempts.push(...DEFAULT_HDRI_RESOLUTIONS);
   }
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
-  return new Promise((resolve) => {
-    activeLoader.load(
-      url,
-      (texture) => {
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
-        pmrem.dispose();
-        resolve({ envMap, url });
-      },
-      undefined,
-      async (error) => {
-        console.warn('Failed to load Poly Haven HDRI', error);
-        const fallbackEnv = await resolveFallback();
-        resolve(fallbackEnv);
-      }
-    );
-  });
+  const loadFromUrl = (url) =>
+    new Promise((resolve) => {
+      const lowerUrl = `${url ?? ''}`.toLowerCase();
+      const useExr = lowerUrl.endsWith('.exr');
+      const loader = useExr ? new EXRLoader() : new RGBELoader();
+      loader.setCrossOrigin?.('anonymous');
+      loader.load(
+        url,
+        (texture) => {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          pmrem.compileEquirectangularShader();
+          const envMap = pmrem.fromEquirectangular(texture).texture;
+          envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+          texture.dispose();
+          pmrem.dispose();
+          resolve({ envMap, url });
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+
+  for (const forcedResolution of resolutionAttempts) {
+    const url = await resolvePolyHavenHdriUrl({ ...config, forceResolution: forcedResolution });
+    if (!url || attemptedUrls.has(url)) continue;
+    attemptedUrls.add(url);
+    const loaded = await loadFromUrl(url);
+    if (loaded?.envMap) return loaded;
+    console.warn('Failed to load Poly Haven HDRI at requested resolution', {
+      assetId: config?.assetId,
+      forcedResolution,
+      url
+    });
+  }
+
+  const fallbackUrl = await resolvePolyHavenHdriUrl(config);
+  if (fallbackUrl && !attemptedUrls.has(fallbackUrl)) {
+    const loadedFallback = await loadFromUrl(fallbackUrl);
+    if (loadedFallback?.envMap) return loadedFallback;
+    console.warn('Failed to load Poly Haven HDRI fallback url', {
+      assetId: config?.assetId,
+      url: fallbackUrl
+    });
+  }
+
+  return resolveFallback();
 }
 
 async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
