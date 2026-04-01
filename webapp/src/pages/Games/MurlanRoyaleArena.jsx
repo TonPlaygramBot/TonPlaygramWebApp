@@ -562,6 +562,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
+  const HDRI_LOAD_TIMEOUT_MS = 15000;
   const resolveFallback = async () => {
     try {
       const pmrem = new THREE.PMREMGenerator(renderer);
@@ -600,6 +601,20 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   }
   const loadFromUrl = (url) =>
     new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      const timeoutId = setTimeout(() => {
+        console.warn('Timed out loading Poly Haven HDRI candidate', {
+          assetId: config?.assetId,
+          url,
+          timeoutMs: HDRI_LOAD_TIMEOUT_MS
+        });
+        finish(null);
+      }, HDRI_LOAD_TIMEOUT_MS);
       const lowerUrl = `${url ?? ''}`.toLowerCase();
       const useExr = lowerUrl.endsWith('.exr');
       const loader = useExr ? new EXRLoader() : new RGBELoader();
@@ -607,16 +622,24 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       loader.load(
         url,
         (texture) => {
+          clearTimeout(timeoutId);
+          if (settled) {
+            texture.dispose?.();
+            return;
+          }
           const pmrem = new THREE.PMREMGenerator(renderer);
           pmrem.compileEquirectangularShader();
           const envMap = pmrem.fromEquirectangular(texture).texture;
           envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
           texture.dispose();
           pmrem.dispose();
-          resolve({ envMap, url });
+          finish({ envMap, url });
         },
         undefined,
-        () => resolve(null)
+        () => {
+          clearTimeout(timeoutId);
+          finish(null);
+        }
       );
     });
 
