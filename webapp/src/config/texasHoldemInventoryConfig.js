@@ -14,10 +14,17 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
+export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
+  const baseResolutions = Array.isArray(variant?.preferredResolutions)
+    ? variant.preferredResolutions.filter((res) => typeof res === 'string' && res.length)
+    : [];
+  const preferredResolutions = Array.from(new Set(['8k', ...baseResolutions, '4k', '2k', '1k']));
+  return {
+    ...variant,
+    preferredResolutions,
+    label: `${variant.name} HDRI`
+  };
+});
 
 export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
 
