@@ -12,7 +12,6 @@ import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 import { socket } from '../../utils/socket.js';
-import { warmTexasHoldemArenaAssetsFromLobby } from '../../utils/texasHoldemHdriPreload.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -52,7 +51,6 @@ export default function TexasHoldemLobby() {
 
   useEffect(() => {
     import('./TexasHoldem.jsx').catch(() => {});
-    void warmTexasHoldemArenaAssetsFromLobby();
   }, []);
 
   useEffect(() => {
