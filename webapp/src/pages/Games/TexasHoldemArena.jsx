@@ -1308,7 +1308,7 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
     rememberHdriEnvironment(cacheKey, cached);
     return { ...cached, fromCache: true, cacheKey };
   }
-  const url = await resolveTexasHoldemHdriUrl(config, preferredResolutions);
+
   const resolveFallback = async () => {
     try {
       return await createFallbackHdriEnvironment(renderer);
@@ -1317,15 +1317,36 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
       return null;
     }
   };
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
+
+  const orderedResolutions = Array.isArray(preferredResolutions) && preferredResolutions.length
+    ? preferredResolutions
+    : [DEFAULT_HDRI_RESOLUTION_ID, '2k', '1k'];
+  const candidateUrls = [];
+  const seenUrls = new Set();
+
+  for (let i = 0; i < orderedResolutions.length; i += 1) {
+    const attemptResolutions = orderedResolutions.slice(i);
+    const candidateUrl = await resolveTexasHoldemHdriUrl(config, attemptResolutions);
+    if (typeof candidateUrl !== 'string' || !candidateUrl) continue;
+    if (seenUrls.has(candidateUrl)) continue;
+    seenUrls.add(candidateUrl);
+    candidateUrls.push(candidateUrl);
+  }
+
+  if (!candidateUrls.length) {
+    const directUrl = await resolveTexasHoldemHdriUrl(config, orderedResolutions);
+    if (typeof directUrl === 'string' && directUrl && !seenUrls.has(directUrl)) {
+      candidateUrls.push(directUrl);
+      seenUrls.add(directUrl);
+    }
+  }
+
   const loadTextureWithRetry = (resourceUrl, attempt = 0) =>
     new Promise((resolve) => {
+      const lowerUrl = `${resourceUrl ?? ''}`.toLowerCase();
+      const useExr = lowerUrl.endsWith('.exr');
+      const activeLoader = useExr ? new EXRLoader() : new RGBELoader();
+      activeLoader.setCrossOrigin?.('anonymous');
       activeLoader.load(
         resourceUrl,
         (texture) => resolve({ texture, error: null }),
@@ -1343,30 +1364,24 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
       );
     });
 
-  return new Promise((resolve) => {
-    if (!url) {
-      resolveFallback().then(resolve);
-      return;
+  for (const url of candidateUrls) {
+    const { texture, error } = await loadTextureWithRetry(url);
+    if (!texture) {
+      console.warn('Failed to load Poly Haven HDRI candidate', { url, error });
+      continue;
     }
-    loadTextureWithRetry(url)
-      .then(async ({ texture, error }) => {
-        if (!texture) {
-          console.warn('Failed to load Poly Haven HDRI', error);
-          const fallbackEnv = await resolveFallback();
-          resolve(fallbackEnv);
-          return;
-        }
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
-        pmrem.dispose();
-        const result = { envMap, url, fromCache: false, cacheKey };
-        rememberHdriEnvironment(cacheKey, result);
-        resolve(result);
-      });
-  });
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    const envMap = pmrem.fromEquirectangular(texture).texture;
+    envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+    texture.dispose();
+    pmrem.dispose();
+    const result = { envMap, url, fromCache: false, cacheKey };
+    rememberHdriEnvironment(cacheKey, result);
+    return result;
+  }
+
+  return resolveFallback();
 }
 
 function adjustHexColor(hex, amount) {
