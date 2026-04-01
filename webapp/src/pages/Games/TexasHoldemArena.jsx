@@ -1308,7 +1308,19 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
     rememberHdriEnvironment(cacheKey, cached);
     return { ...cached, fromCache: true, cacheKey };
   }
-  const url = await resolveTexasHoldemHdriUrl(config, preferredResolutions);
+  const requestedResolutions = Array.isArray(preferredResolutions) && preferredResolutions.length
+    ? preferredResolutions
+    : [DEFAULT_HDRI_RESOLUTION_ID, '2k', '1k'];
+  const urlCandidates = [];
+  for (let idx = 0; idx < requestedResolutions.length; idx += 1) {
+    const nextPreferred = requestedResolutions.slice(idx);
+    if (!nextPreferred.length) continue;
+    const resolved = await resolveTexasHoldemHdriUrl(config, nextPreferred);
+    if (typeof resolved === 'string' && resolved.length) {
+      urlCandidates.push(resolved);
+    }
+  }
+  const dedupedUrlCandidates = Array.from(new Set(urlCandidates));
   const resolveFallback = async () => {
     try {
       return await createFallbackHdriEnvironment(renderer);
@@ -1317,16 +1329,13 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
       return null;
     }
   };
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
   const loadTextureWithRetry = (resourceUrl, attempt = 0) =>
     new Promise((resolve) => {
-      activeLoader.load(
+      const lowerUrl = `${resourceUrl ?? ''}`.toLowerCase();
+      const useExr = lowerUrl.endsWith('.exr');
+      const loader = useExr ? new EXRLoader() : new RGBELoader();
+      loader.setCrossOrigin?.('anonymous');
+      loader.load(
         resourceUrl,
         (texture) => resolve({ texture, error: null }),
         undefined,
@@ -1344,28 +1353,40 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredReso
     });
 
   return new Promise((resolve) => {
-    if (!url) {
+    if (!dedupedUrlCandidates.length) {
       resolveFallback().then(resolve);
       return;
     }
-    loadTextureWithRetry(url)
-      .then(async ({ texture, error }) => {
-        if (!texture) {
-          console.warn('Failed to load Poly Haven HDRI', error);
-          const fallbackEnv = await resolveFallback();
-          resolve(fallbackEnv);
+    const tryLoadFromCandidate = async (candidateIdx = 0) => {
+      const activeUrl = dedupedUrlCandidates[candidateIdx];
+      if (!activeUrl) {
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
+        return;
+      }
+      const { texture, error } = await loadTextureWithRetry(activeUrl);
+      if (!texture) {
+        const isLastCandidate = candidateIdx >= dedupedUrlCandidates.length - 1;
+        if (!isLastCandidate) {
+          await tryLoadFromCandidate(candidateIdx + 1);
           return;
         }
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
-        pmrem.dispose();
-        const result = { envMap, url, fromCache: false, cacheKey };
-        rememberHdriEnvironment(cacheKey, result);
-        resolve(result);
-      });
+        console.warn('Failed to load Poly Haven HDRI', error);
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
+        return;
+      }
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      const envMap = pmrem.fromEquirectangular(texture).texture;
+      envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+      texture.dispose();
+      pmrem.dispose();
+      const result = { envMap, url: activeUrl, fromCache: false, cacheKey };
+      rememberHdriEnvironment(cacheKey, result);
+      resolve(result);
+    };
+    void tryLoadFromCandidate(0);
   });
 }
 
