@@ -4429,7 +4429,20 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['2k', '4k', '8k']);
+const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
+  {
+    minFps: 120,
+    preferredResolutions: Object.freeze(['8k', '6k', '4k', '2k', '1k'])
+  },
+  {
+    minFps: 90,
+    preferredResolutions: Object.freeze(['4k', '2k', '1k'])
+  },
+  {
+    minFps: 0,
+    preferredResolutions: Object.freeze(['2k', '1k'])
+  }
+]);
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
   navigator.userAgent || ''
@@ -4442,16 +4455,34 @@ const isLowCoreDevice =
 const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
+function resolveHdriPolicyForFps(fps) {
+  const safeFps = Number.isFinite(fps) ? fps : 60;
+  return (
+    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
+    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
+  );
+}
+
+function buildHdriResolutionChain(primaryResolution, policy = null) {
+  const base = Array.isArray(policy?.preferredResolutions)
+    ? policy.preferredResolutions
+    : [];
+  const fallbackLadder = ['8k', '6k', '4k', '2k', '1k'];
+  const ordered = [primaryResolution, ...base, ...fallbackLadder].filter(
+    (value) => typeof value === 'string' && value.length
+  );
+  return [...new Set(ordered)];
+}
+
 function resolveHdriResolutionOrder() {
-  switch (frameRateId) {
-    case 'uhd120':
-      return ['8k', '6k', '4k', '2k', '1k'];
-    case 'qhd90':
-      return ['4k', '2k', '1k'];
-    case 'fhd60':
-    default:
-      return ['2k', '1k'];
-  }
+  const selectedQuality = FRAME_RATE_OPTIONS_BY_ID[frameRateId];
+  const selectedFps =
+    Number.isFinite(selectedQuality?.fps) && selectedQuality.fps > 0
+      ? selectedQuality.fps
+      : 60;
+  const primaryResolution = resolveGraphicsHdriResolutionId(frameRateId);
+  const policy = resolveHdriPolicyForFps(selectedFps);
+  return buildHdriResolutionChain(primaryResolution, policy);
 }
 function shouldLoadExternalHdri() {
   // Keep HDRI enabled on mobile/Telegram so players still see purchased environments.
