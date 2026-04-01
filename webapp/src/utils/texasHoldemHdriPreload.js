@@ -1,7 +1,7 @@
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../config/texasHoldemOptions.js';
 
-const DEFAULT_RESOLUTIONS = Object.freeze(['2k', '1k']);
+const DEFAULT_RESOLUTIONS = Object.freeze(['8k', '4k', '2k', '1k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
