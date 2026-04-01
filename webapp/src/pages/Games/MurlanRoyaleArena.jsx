@@ -574,7 +574,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
-  const HDRI_LOAD_TIMEOUT_MS = 15000;
+  const HDRI_LOAD_TIMEOUT_MS = 30000;
   const resolveFallback = async () => {
     try {
       const pmrem = new THREE.PMREMGenerator(renderer);
@@ -655,16 +655,28 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       );
     });
 
+  const buildResolutionCandidates = (forcedResolution, resolvedUrl = '') => {
+    const assetId = config?.assetId || 'neon_photostudio';
+    const normalizedResolution = normalizeHdriResolutionId(forcedResolution) || forcedResolution || '2k';
+    const directHdrUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${normalizedResolution}/${assetId}_${normalizedResolution}.hdr`;
+    const directExrUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${normalizedResolution}/${assetId}_${normalizedResolution}.exr`;
+    return [...new Set([resolvedUrl, directHdrUrl, directExrUrl].filter((entry) => typeof entry === 'string' && entry))];
+  };
+
   for (const forcedResolution of resolutionAttempts) {
-    const url = await resolvePolyHavenHdriUrl({ ...config, forceResolution: forcedResolution });
-    if (!url || attemptedUrls.has(url)) continue;
-    attemptedUrls.add(url);
-    const loaded = await loadFromUrl(url);
-    if (loaded?.envMap) return loaded;
+    const resolvedUrl = await resolvePolyHavenHdriUrl({ ...config, forceResolution: forcedResolution });
+    const candidateUrls = buildResolutionCandidates(forcedResolution, resolvedUrl);
+    let loaded = null;
+    for (const url of candidateUrls) {
+      if (attemptedUrls.has(url)) continue;
+      attemptedUrls.add(url);
+      loaded = await loadFromUrl(url);
+      if (loaded?.envMap) return loaded;
+    }
     console.warn('Failed to load Poly Haven HDRI at requested resolution', {
       assetId: config?.assetId,
       forcedResolution,
-      url
+      urls: candidateUrls
     });
   }
 
