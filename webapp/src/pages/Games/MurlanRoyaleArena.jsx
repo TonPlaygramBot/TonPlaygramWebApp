@@ -454,9 +454,11 @@ const collectHdriCandidates = (apiJson) => {
     if (typeof url !== 'string' || !url.startsWith('http')) return;
     const lower = url.toLowerCase();
     if (!lower.includes('.hdr') && !lower.includes('.exr')) return;
+    const format = lower.includes('.hdr') ? 'hdr' : lower.includes('.exr') ? 'exr' : 'unknown';
     out.push({
       url,
-      resolution: normalizeHdriResolutionId(hintedResolution) ?? extractResolutionFromHdriUrl(url)
+      resolution: normalizeHdriResolutionId(hintedResolution) ?? extractResolutionFromHdriUrl(url),
+      format
     });
   };
   const walk = (value, hintedResolution = null) => {
@@ -482,17 +484,27 @@ const collectHdriCandidates = (apiJson) => {
 const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
   const candidates = collectHdriCandidates(apiJson);
   if (!candidates.length) return null;
+  const pickBestByResolution = (targetResolution) => {
+    const matching = candidates.filter((entry) => entry.resolution === targetResolution);
+    if (!matching.length) return null;
+    return matching.find((entry) => entry.format === 'hdr') ?? matching[0];
+  };
 
   for (const res of preferredResolutions) {
     const normalized = normalizeHdriResolutionId(res);
     if (!normalized) continue;
-    const matched = candidates.find((entry) => entry.resolution === normalized);
+    const matched = pickBestByResolution(normalized);
     if (matched?.url) return matched.url;
   }
 
   for (const fallbackRes of HDRI_RESOLUTION_LADDER) {
-    const matched = candidates.find((entry) => entry.resolution === fallbackRes);
+    const matched = pickBestByResolution(fallbackRes);
     if (matched?.url) return matched.url;
+  }
+
+  const hdrCandidate = candidates.find((candidate) => candidate.format === 'hdr');
+  if (hdrCandidate?.url) {
+    return hdrCandidate.url;
   }
 
   for (const candidate of candidates) {
