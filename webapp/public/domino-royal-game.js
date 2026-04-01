@@ -4445,9 +4445,9 @@ const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriResolutionOrder() {
   switch (frameRateId) {
     case 'uhd120':
-      return ['8k'];
+      return ['8k', '4k', '2k'];
     case 'qhd90':
-      return ['4k'];
+      return ['4k', '2k'];
     case 'fhd60':
     default:
       return ['2k'];
@@ -4527,7 +4527,7 @@ function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []
   const requested = String(requestedResolution || '').toLowerCase();
   if (!requested) return [];
   const aliases = {
-    '8k': ['8k', '4k'],
+    '8k': ['8k', '6k', '4k', '2k', '1k'],
     '4k': ['4k', '2k'],
     '2k': ['2k', '1k']
   };
