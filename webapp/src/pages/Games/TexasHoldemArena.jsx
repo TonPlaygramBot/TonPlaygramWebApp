@@ -4343,7 +4343,7 @@ function TexasHoldemArena({ search }) {
       if (!envResult?.envMap) return;
       const usedFallbackEnvironment = !envResult.url;
       if (usedFallbackEnvironment) {
-        if (hdriFallbackRetryCountRef.current < 2) {
+        if (hdriFallbackRetryCountRef.current < 4) {
           hdriFallbackRetryCountRef.current += 1;
           const scheduledToken = requestToken;
           window.setTimeout(() => {
@@ -4387,7 +4387,7 @@ function TexasHoldemArena({ search }) {
         prevDispose();
       }
       hdriVariantRef.current = activeVariant;
-      loadedHdriResolutionIdRef.current = currentHdriResolutionId;
+      loadedHdriResolutionIdRef.current = usedFallbackEnvironment ? null : currentHdriResolutionId;
     },
     [hdriResolutionId]
   );
