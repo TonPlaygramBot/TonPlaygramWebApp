@@ -1299,9 +1299,8 @@ export default function Store() {
     }
     try {
       const res = await getAccountBalance(resolvedAccountId);
-      if (typeof res?.balance === 'number') {
-        setAccountBalance(res.balance);
-      }
+      const numericBalance = Number(res?.balance);
+      if (Number.isFinite(numericBalance)) setAccountBalance(numericBalance);
     } catch (err) {
       console.error('Failed to load TPC balance', err);
     }
@@ -2319,6 +2318,15 @@ export default function Store() {
           purchase.error || 'Payment failed. Please try again.'
         );
         return;
+      }
+      const purchaseBalance = Number(purchase?.balance);
+      if (Number.isFinite(purchaseBalance)) {
+        setAccountBalance(purchaseBalance);
+      } else {
+        setAccountBalance((prev) => {
+          if (!Number.isFinite(prev)) return prev;
+          return Math.max(0, prev - totalPrice);
+        });
       }
       setTransactionStatus('Payment approved. Unlocking items…');
 
@@ -3950,6 +3958,13 @@ export default function Store() {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:hidden">
+              <span className="text-white/60">TPC</span>
+              <span className="flex items-center gap-1 font-semibold text-white">
+                {accountBalance === null ? '—' : accountBalance}
+                <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+              </span>
+            </div>
             <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:flex">
               <span className="text-white/60">TPC</span>
               <span className="flex items-center gap-1 font-semibold text-white">
