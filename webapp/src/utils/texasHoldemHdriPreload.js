@@ -1,7 +1,7 @@
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS } from '../config/texasHoldemInventoryConfig.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../config/texasHoldemOptions.js';
 
-const DEFAULT_RESOLUTIONS = Object.freeze(['4k', '2k', '1k']);
+const DEFAULT_RESOLUTIONS = Object.freeze(['2k', '1k']);
 const hdriUrlCache = new Map();
 const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
@@ -183,24 +183,15 @@ export async function resolveTexasHoldemHdriUrl(config = {}, preferred = DEFAULT
   return picked;
 }
 
-function normalizePreferredResolutions(preferred = DEFAULT_RESOLUTIONS) {
-  const requested = Array.isArray(preferred)
-    ? preferred.filter((value) => typeof value === 'string' && value.length)
-    : [];
-  return requested.length ? Array.from(new Set(requested)) : [...DEFAULT_RESOLUTIONS];
-}
-
-export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS, preferredResolutions = DEFAULT_RESOLUTIONS) {
+export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS) {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve();
   const variants = prioritizeDefaultHdri(options);
-  const normalizedPreferredResolutions = normalizePreferredResolutions(preferredResolutions);
   const jobs = variants.map((variant) => {
-    const variantId = variant?.id || variant?.assetId || variant?.fallbackUrl;
-    const key = `${variantId ?? 'unknown'}|${normalizedPreferredResolutions.join(',')}`;
+    const key = variant?.id || variant?.assetId || variant?.fallbackUrl;
     if (!key) return Promise.resolve();
     if (hdriWarmPromiseCache.has(key)) return hdriWarmPromiseCache.get(key);
 
-    const job = resolveTexasHoldemHdriUrl(variant, normalizedPreferredResolutions)
+    const job = resolveTexasHoldemHdriUrl(variant)
       .then((url) => {
         if (!url) return null;
         return fetch(url, { mode: 'cors', cache: 'force-cache' });
@@ -215,17 +206,10 @@ export function warmTexasHoldemHdriFromLobby(options = TEXAS_HDRI_OPTIONS, prefe
 
 export function warmTexasHoldemArenaAssetsFromLobby() {
   if (typeof window === 'undefined') return Promise.resolve();
-  const storedFrameRate = window.localStorage?.getItem('texasHoldemFrameRate');
-  const preferredResolutionsByFrameRate = {
-    uhd120: ['8k', '4k', '2k', '1k'],
-    qhd90: ['4k', '2k', '1k'],
-    fhd60: ['2k', '1k']
-  };
-  const preferredResolutions = preferredResolutionsByFrameRate[storedFrameRate] || DEFAULT_RESOLUTIONS;
   const defaultTable = TEXAS_TABLE_THEME_OPTIONS[0];
   const defaultChair = TEXAS_CHAIR_THEME_OPTIONS[0];
   const jobs = [
-    warmTexasHoldemHdriFromLobby(TEXAS_HDRI_OPTIONS, preferredResolutions),
+    warmTexasHoldemHdriFromLobby(),
     warmImageAsset(TEXAS_CARD_BACK_LOGO_SRC)
   ];
 
