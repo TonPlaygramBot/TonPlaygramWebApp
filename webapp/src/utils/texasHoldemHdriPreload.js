@@ -92,12 +92,29 @@ function pickPolyHavenHdriUrl(fileMap, preferredResolutions = DEFAULT_RESOLUTION
 
   if (!urls.length) return null;
   const lowerUrls = urls.map((url) => url.toLowerCase());
+  const chooseByResolution = (resolution) => {
+    const withUnderscore = lowerUrls
+      .map((url, index) => ({ url, index }))
+      .filter(({ url }) => url.includes(`_${resolution}.`));
+    if (withUnderscore.length) {
+      const hdrMatch = withUnderscore.find(({ url }) => url.includes('.hdr'));
+      return urls[(hdrMatch || withUnderscore[0]).index];
+    }
+    const withPathSegment = lowerUrls
+      .map((url, index) => ({ url, index }))
+      .filter(({ url }) => url.includes(`/${resolution}/`));
+    if (withPathSegment.length) {
+      const hdrMatch = withPathSegment.find(({ url }) => url.includes('.hdr'));
+      return urls[(hdrMatch || withPathSegment[0]).index];
+    }
+    return null;
+  };
   for (const resolution of preferredResolutions) {
-    const withUnderscore = lowerUrls.find((url) => url.includes(`_${resolution}.`));
-    if (withUnderscore) return urls[lowerUrls.indexOf(withUnderscore)];
-    const withPathSegment = lowerUrls.find((url) => url.includes(`/${resolution}/`));
-    if (withPathSegment) return urls[lowerUrls.indexOf(withPathSegment)];
+    const resolved = chooseByResolution(resolution);
+    if (resolved) return resolved;
   }
+  const firstHdr = lowerUrls.findIndex((url) => url.includes('.hdr'));
+  if (firstHdr >= 0) return urls[firstHdr];
   return urls[0] || null;
 }
 
