@@ -237,6 +237,11 @@ function selectPerformanceProfile(option = null) {
 }
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
+const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
+  { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
+  { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
+]);
 const LOCK_POOL_ROYALE_TABLE_STYLE = false;
 const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
 const MARBLE_TEXTURE_CACHE = new Map();
@@ -252,6 +257,23 @@ const POOL_BALL_MARBLE_FINISH = Object.freeze({
   sheenColor: new THREE.Color(0xf8f9ff),
   envMapIntensity: 1.05
 });
+
+function resolveHdriPolicyForFps(fps) {
+  const safeFps = Number.isFinite(fps) ? fps : 60;
+  return (
+    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
+    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
+  );
+}
+
+function buildHdriResolutionChain(primaryResolution, policy = null) {
+  const base = Array.isArray(policy?.preferredResolutions) ? policy.preferredResolutions : [];
+  const fallbackLadder = ['8k', '4k', '2k', '1k'];
+  const ordered = [primaryResolution, ...base, ...fallbackLadder].filter(
+    (value) => typeof value === 'string' && value.length
+  );
+  return [...new Set(ordered)];
+}
 
 const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
   const urls = [];
@@ -605,6 +627,24 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       GRAPHICS_OPTIONS[0],
     [graphicsId]
   );
+  const activeHdriPolicy = useMemo(
+    () => resolveHdriPolicyForFps(activeGraphicsOption?.fps),
+    [activeGraphicsOption]
+  );
+  const activeHdriOption = useMemo(() => {
+    const selectedHdri = getOption('environmentHdri', selections.environmentHdri);
+    if (!selectedHdri) return null;
+    const basePrimary = Array.isArray(selectedHdri.preferredResolutions)
+      ? selectedHdri.preferredResolutions[0]
+      : null;
+    const primary = basePrimary || DEFAULT_HDRI_RESOLUTIONS[0];
+    const preferredResolutions = buildHdriResolutionChain(primary, activeHdriPolicy);
+    return {
+      ...selectedHdri,
+      preferredResolutions,
+      fallbackResolution: activeHdriPolicy?.fallbackResolution ?? selectedHdri.fallbackResolution ?? primary
+    };
+  }, [activeHdriPolicy, selections.environmentHdri]);
   const activeCommentaryPreset = useMemo(
     () =>
       AIR_HOCKEY_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
@@ -2153,7 +2193,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
     if (!renderer || !scene) return undefined;
-    const hdriOption = getOption('environmentHdri', selections.environmentHdri);
+    const hdriOption = activeHdriOption;
     if (!hdriOption) return undefined;
     let cancelled = false;
     loadPolyHavenHdriEnvironment(renderer, hdriOption).then((result) => {
@@ -2188,7 +2228,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     return () => {
       cancelled = true;
     };
-  }, [selections.environmentHdri]);
+  }, [activeHdriOption]);
 
   useEffect(() => {
     const mats = materialsRef.current;
