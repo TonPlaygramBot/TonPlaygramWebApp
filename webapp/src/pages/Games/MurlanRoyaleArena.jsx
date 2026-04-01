@@ -562,6 +562,31 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
+  const buildHdriAttemptQueue = () => {
+    const preferred = Array.isArray(config?.preferredResolutions)
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+    const normalizedPreferred = preferred
+      .map((entry) => normalizeHdriResolutionId(entry))
+      .filter(Boolean);
+    const fallbackResolution = normalizeHdriResolutionId(config?.fallbackResolution);
+    const queue = [...new Set([...normalizedPreferred, fallbackResolution, ...HDRI_RESOLUTION_LADDER])]
+      .filter(Boolean)
+      .map((resolution) => ({
+        resolution,
+        requestConfig: {
+          ...config,
+          forceResolution: resolution
+        }
+      }));
+    if (!queue.length) {
+      queue.push({
+        resolution: null,
+        requestConfig: { ...config }
+      });
+    }
+    return queue;
+  };
   const resolveFallback = async () => {
     try {
       const pmrem = new THREE.PMREMGenerator(renderer);
@@ -586,37 +611,40 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       return null;
     }
   };
-  const url = await resolvePolyHavenHdriUrl(config);
-  if (!url) {
-    return resolveFallback();
+  const attempts = buildHdriAttemptQueue();
+  for (const attempt of attempts) {
+    const url = await resolvePolyHavenHdriUrl(attempt.requestConfig);
+    if (!url) continue;
+    const lowerUrl = `${url}`.toLowerCase();
+    const useExr = lowerUrl.endsWith('.exr');
+    const activeLoader = useExr ? new EXRLoader() : new RGBELoader();
+    activeLoader.setCrossOrigin?.('anonymous');
+    const envResult = await new Promise((resolve) => {
+      activeLoader.load(
+        url,
+        (texture) => {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          pmrem.compileEquirectangularShader();
+          const envMap = pmrem.fromEquirectangular(texture).texture;
+          envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+          texture.dispose();
+          pmrem.dispose();
+          resolve({ envMap, url });
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+    if (envResult?.envMap) {
+      return envResult;
+    }
+    console.warn('Failed to load Poly Haven HDRI, retrying lower resolution', {
+      assetId: config?.assetId,
+      attemptedResolution: attempt.resolution,
+      url
+    });
   }
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
-  return new Promise((resolve) => {
-    activeLoader.load(
-      url,
-      (texture) => {
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
-        pmrem.dispose();
-        resolve({ envMap, url });
-      },
-      undefined,
-      async (error) => {
-        console.warn('Failed to load Poly Haven HDRI', error);
-        const fallbackEnv = await resolveFallback();
-        resolve(fallbackEnv);
-      }
-    );
-  });
+  return resolveFallback();
 }
 
 async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
