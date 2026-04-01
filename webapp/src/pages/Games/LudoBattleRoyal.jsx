@@ -2762,7 +2762,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const textureResolutionKey = useMemo(() => textureResolutionStack.join('|'), [textureResolutionStack]);
   const hdriResolutionProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
-    const mobileHdri4kOptionIds = ['qhd90', 'uhd120', 'uhd144'];
+    const mobileHdri4kOptionIds = ['qhd90'];
     const forceMobile4kHdri = isLikelyMobileDevice() && mobileHdri4kOptionIds.includes(option?.id);
     if (forceMobile4kHdri) {
       return {
