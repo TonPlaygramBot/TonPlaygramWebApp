@@ -46,9 +46,9 @@ import {
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
 import {
+  TEXAS_TABLE_CLOTH_OPTIONS as MURLAN_TABLE_CLOTHS,
   TEXAS_TABLE_FINISH_OPTIONS as MURLAN_TABLE_FINISHES
 } from '../../config/texasHoldemInventoryConfig.js';
-import { TABLE_CLOTH_OPTIONS as MURLAN_TABLE_CLOTHS } from '../../utils/tableCustomizationOptions.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
@@ -307,6 +307,16 @@ function detectPreferredFrameRateId() {
   }
 
   return DEFAULT_FRAME_RATE_ID;
+}
+
+function detectLikelyMobileDevice() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent ?? '';
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+  if (detectCoarsePointer()) return true;
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  if (maxTouchPoints > 1) return true;
+  return classifyRendererTier(readGraphicsRendererString()) === 'mobile';
 }
 
 const CHAIR_MODEL_URLS = [
@@ -2208,8 +2218,8 @@ const CAMERA_PLAY_FOLLOW_HOLD_MS = 420;
 const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
-const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
-const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
+const CAMERA_PLAYER_TARGET_WEIGHT = 0.52;
+const CAMERA_SIDE_LOOK_EXTRA = 0.28 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
@@ -2405,22 +2415,34 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     resolution: '8K texture pack • 120 FPS',
     hdriResolution: '8k',
     preferredTextureSizes: ['8k', '4k', '2k', '1k'],
-    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
+    description: 'Desktop uses 8K→4K HDRI while mobile uses 4K→2K at 120 Hz.'
   }
 ]);
 
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
+  {
+    minFps: 120,
+    preferredResolutions: Object.freeze(['8k', '4k', '2k']),
+    fallbackResolution: '4k',
+    mobilePreferredResolutions: Object.freeze(['4k', '2k']),
+    mobileFallbackResolution: '2k'
+  },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
 
-function resolveHdriPolicyForFps(fps) {
+function resolveHdriPolicyForFps(fps, isMobileDevice = false) {
   const safeFps = Number.isFinite(fps) ? fps : 60;
-  return (
+  const policy = (
     HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
     HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
   );
+  if (!isMobileDevice) return policy;
+  return {
+    ...policy,
+    preferredResolutions: policy.mobilePreferredResolutions ?? policy.preferredResolutions,
+    fallbackResolution: policy.mobileFallbackResolution ?? policy.fallbackResolution
+  };
 }
 
 function buildHdriResolutionChain(primaryResolution, policy = null) {
@@ -2435,8 +2457,11 @@ function buildHdriResolutionChain(primaryResolution, policy = null) {
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
-function resolveHdriResolutionFromGraphics(frameOption) {
+function resolveHdriResolutionFromGraphics(frameOption, isMobileDevice = false) {
   const targetFromGraphics = frameOption?.hdriResolution;
+  if (isMobileDevice && targetFromGraphics === '8k') {
+    return '4k';
+  }
   if (targetFromGraphics === '2k' || targetFromGraphics === '4k' || targetFromGraphics === '8k') {
     return targetFromGraphics;
   }
@@ -2614,12 +2639,13 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
+  const isLikelyMobile = useMemo(() => detectLikelyMobileDevice(), []);
   const resolvedHdriResolution = useMemo(() => {
-    return resolveHdriResolutionFromGraphics(activeFrameRateOption);
-  }, [activeFrameRateOption]);
+    return resolveHdriResolutionFromGraphics(activeFrameRateOption, isLikelyMobile);
+  }, [activeFrameRateOption, isLikelyMobile]);
   const activeHdriPolicy = useMemo(
-    () => resolveHdriPolicyForFps(activeFrameRateOption?.fps),
-    [activeFrameRateOption]
+    () => resolveHdriPolicyForFps(activeFrameRateOption?.fps, isLikelyMobile),
+    [activeFrameRateOption, isLikelyMobile]
   );
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
@@ -6098,8 +6124,8 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme, w = 512, h = 720) {
-  return makeTonplaygramCardBackTexture(theme, w, h);
+function makeCardBackTexture(theme) {
+  return makeTonplaygramCardBackTexture(theme);
 }
 
 function applyChairThemeMaterials(three, theme) {
