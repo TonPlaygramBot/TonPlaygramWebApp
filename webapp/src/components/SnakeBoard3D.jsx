@@ -236,11 +236,6 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
   from: start + LEVEL_TILE_COUNTS[index] - 1,
   to: LEVEL_START_INDICES[index + 1]
 }));
-const STAIR_STEP_COUNT = 5;
-const STAIR_COLOR = 0x111111;
-const STAIR_WIDTH = TILE_SIZE * 0.72;
-const STAIR_DEPTH_MIN = TILE_SIZE * 0.22;
-const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const BOARD_ROTATION_DRAG_SPEED = 0.0065;
@@ -389,6 +384,23 @@ function buildPerimeterSequence(size) {
     sequence.push({ row, col: 0 });
   }
   return sequence;
+}
+
+function rotateSequenceToClosestPoint(sequence, scorePoint) {
+  if (!Array.isArray(sequence) || sequence.length <= 1 || typeof scorePoint !== 'function') {
+    return sequence;
+  }
+  let bestIndex = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
+  sequence.forEach((cell, idx) => {
+    const score = scorePoint(cell, idx);
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = idx;
+    }
+  });
+  if (bestIndex === 0) return sequence;
+  return sequence.slice(bestIndex).concat(sequence.slice(0, bestIndex));
 }
 
 function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
@@ -877,75 +889,6 @@ function getRailingEntryConfig(levelIndex, indexToPosition) {
     axis: 'x',
     center: toPos.x
   };
-}
-
-function addWallStaircase(
-  parent,
-  { fromIndex, toIndex, indexToPosition, stepCount = STAIR_STEP_COUNT, width = STAIR_WIDTH, depthMin = STAIR_DEPTH_MIN, outwardOffset = STAIR_OUTWARD_OFFSET },
-  meshes
-) {
-  if (!indexToPosition?.has(fromIndex) || !indexToPosition?.has(toIndex) || stepCount <= 0) {
-    return null;
-  }
-  const created = [];
-  const fromPos = indexToPosition.get(fromIndex).clone();
-  const toPos = indexToPosition.get(toIndex).clone();
-  const heightDelta = toPos.y - fromPos.y;
-  if (heightDelta <= 0) return null;
-
-  const material = new THREE.MeshStandardMaterial({
-    color: STAIR_COLOR,
-    roughness: 0.55,
-    metalness: 0.2
-  });
-
-  const horizontal = new THREE.Vector3(toPos.x - fromPos.x, 0, toPos.z - fromPos.z);
-  const horizontalLength = horizontal.length();
-  let direction;
-  if (horizontalLength > 1e-6) {
-    direction = horizontal.clone().normalize();
-  } else {
-    direction = new THREE.Vector3(1, 0, 0);
-  }
-  const outward = new THREE.Vector3(-direction.z, 0, direction.x);
-  if (outward.lengthSq() > 1e-6) {
-    outward.normalize();
-    const toCenter = new THREE.Vector3(fromPos.x, 0, fromPos.z);
-    if (toCenter.dot(outward) < 0) outward.multiplyScalar(-1);
-  } else {
-    outward.set(0, 0, 1);
-  }
-
-  const stepHeight = heightDelta / stepCount;
-  const stepDepth = Math.max(depthMin, horizontalLength / Math.max(1, stepCount));
-  const totalDepth = stepDepth * stepCount;
-  const overshoot = Math.max(0, totalDepth - horizontalLength);
-  const startBase = fromPos
-    .clone()
-    .addScaledVector(direction, -overshoot / 2)
-    .addScaledVector(outward, outwardOffset);
-
-  const group = new THREE.Group();
-  for (let i = 0; i < stepCount; i += 1) {
-    const step = new THREE.Mesh(
-      new THREE.BoxGeometry(width, Math.max(stepHeight * 0.98, TILE_SIZE * 0.04), stepDepth),
-      material.clone()
-    );
-    const center = startBase.clone().addScaledVector(direction, stepDepth * (i + 0.5));
-    center.y = fromPos.y + stepHeight * (i + 0.5);
-    step.position.copy(center);
-    step.castShadow = true;
-    step.receiveShadow = true;
-    group.add(step);
-    created.push(step);
-  }
-
-  parent.add(group);
-  created.push(group);
-  if (meshes) {
-    created.forEach((mesh) => meshes.push(mesh));
-  }
-  return group;
 }
 
 function createChairClothTexture(chairOption, renderer) {
@@ -2918,12 +2861,25 @@ function buildSnakeBoard(
     accumulated += LEVEL_TILE_COUNTS[idx];
   });
 
+  let previousLevelEndPoint = null;
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const offset = levelOffsets[levelIndex];
     const levelTileCount = LEVEL_TILE_COUNTS[levelIndex] ?? 0;
     if (levelTileCount <= 0) return;
     const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
-    const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
+    const floorScale = levelIndex === 0 ? GROUND_FLOOR_OUTWARD_SCALE : 1;
+    const toFloorPoint = ({ row, col }) => {
+      const x = (-half + (col + 0.5) * TILE_SIZE) * floorScale;
+      const z = (-half + ((size - 1 - row) + 0.5) * TILE_SIZE) * floorScale;
+      return { x, z };
+    };
+    const perimeter = rotateSequenceToClosestPoint(buildPerimeterSequence(size), (cell) => {
+      if (!previousLevelEndPoint) return 0;
+      const next = toFloorPoint(cell);
+      const dx = next.x - previousLevelEndPoint.x;
+      const dz = next.z - previousLevelEndPoint.z;
+      return dx * dx + dz * dz;
+    }).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
       const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
@@ -2964,6 +2920,10 @@ function buildSnakeBoard(
       }
       label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
+
+      if (seqIndex === perimeter.length - 1) {
+        previousLevelEndPoint = { x: tilePosition.x, z: tilePosition.z };
+      }
     });
   });
 
@@ -2992,22 +2952,6 @@ function buildSnakeBoard(
       },
       platformMeshes,
       railTheme
-    );
-  });
-
-  STAIR_CONNECTIONS.forEach(({ from, to }, index) => {
-    addWallStaircase(
-      platformGroup,
-      {
-        fromIndex: from,
-        toIndex: to,
-        indexToPosition,
-        stepCount: STAIR_STEP_COUNT,
-        width: STAIR_WIDTH,
-        depthMin: STAIR_DEPTH_MIN,
-        outwardOffset: STAIR_OUTWARD_OFFSET * (1 - index * 0.08)
-      },
-      platformMeshes
     );
   });
 
