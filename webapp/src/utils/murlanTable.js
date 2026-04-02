@@ -162,10 +162,12 @@ async function applyPolyhavenClothTexture(parts, clothOption, renderer) {
   if (clothMat.userData?.polyhavenRequestId !== requestId) return;
 
   const repeat = Number.isFinite(clothOption.repeat) ? clothOption.repeat : 2.2;
+  const repeatRatio = Number.isFinite(clothOption.repeatRatio) ? clothOption.repeatRatio : 1;
+  const repeatY = repeat * repeatRatio;
   const applyRepeat = (tex) => {
     if (!tex) return;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(repeat, repeat);
+    tex.repeat.set(repeat, repeatY);
     tex.needsUpdate = true;
   };
 
@@ -187,6 +189,11 @@ async function applyPolyhavenClothTexture(parts, clothOption, renderer) {
   } else if (clothMat.color) {
     clothMat.color.set('#ffffff');
   }
+  clothMat.userData = {
+    ...(clothMat.userData || {}),
+    repeat,
+    repeatRatio
+  };
   clothMat.needsUpdate = true;
 }
 
@@ -308,7 +315,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
-      const octagonSideStretch = 1.16;
+      const octagonSideStretch = 1.08;
       const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
       const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
@@ -323,8 +330,8 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316']),
     createShapes: ({ radius }) => {
-      const width = radius * 2.1;
-      const height = radius * 1.45;
+      const width = radius * 2 * 1.08;
+      const height = radius * 2;
       const topShape = createOvalShape(width, height, 64);
       const feltShape = createOvalShape(width * 0.82, height * 0.82, 64);
       const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
@@ -339,14 +346,17 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7']),
     createShapes: ({ radius, scaleFactor }) => {
-      const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : radius / 0.9 || 1;
-      const outerHalf = 0.95 * factor;
-      const clothHalf = 0.7 * factor;
-      const innerHalf = 0.76 * factor;
-      const topShape = createRoundedRectangleShape(outerHalf * 2, outerHalf * 2, 0.12 * factor);
-      const feltShape = createRoundedRectangleShape(clothHalf * 2, clothHalf * 2, 0.08 * factor);
-      const rimInnerShape = createRoundedRectangleShape(innerHalf * 2, innerHalf * 2, 0.1 * factor);
-      return { topShape, feltShape, rimInnerShape, feltRadius: clothHalf };
+      const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : 1;
+      const width = radius * 2 * 1.08;
+      const height = radius * 2;
+      const feltWidth = width * 0.74;
+      const feltHeight = height * 0.74;
+      const innerWidth = width * 0.8;
+      const innerHeight = height * 0.8;
+      const topShape = createRoundedRectangleShape(width, height, 0.12 * factor);
+      const feltShape = createRoundedRectangleShape(feltWidth, feltHeight, 0.08 * factor);
+      const rimInnerShape = createRoundedRectangleShape(innerWidth, innerHeight, 0.1 * factor);
+      return { topShape, feltShape, rimInnerShape, feltRadius: Math.min(feltWidth, feltHeight) / 2 };
     }
   }
 ]);
