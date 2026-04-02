@@ -1388,7 +1388,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1667,7 +1667,7 @@ const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.18; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
 const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1689,7 +1689,7 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.32,
+  heightOffset: BALL_R * 2.42,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -1918,8 +1918,8 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 3.9;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.25;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 10;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
@@ -1927,8 +1927,8 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.2;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.34, CUE_TIP_RADIUS * 2.15);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.26;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4861,7 +4861,7 @@ const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '8k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
@@ -5992,7 +5992,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.31; // transfer topspin to forward roll more progressively for a realistic, less abrupt follow phase
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.35; // transfer topspin to forward roll with a touch more follow-through, especially on straight topspin strokes
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
@@ -19672,14 +19672,6 @@ const powerRef = useRef(hud.power);
           const hasStoredRailReplayCamera =
             Boolean(storedReplayCamera?.position?.clone) &&
             Boolean(storedReplayCamera?.target?.clone);
-          if (hasStoredRailReplayCamera) {
-            return {
-              position: storedReplayCamera.position.clone(),
-              target: storedReplayCamera.target.clone(),
-              fov: fallbackFov,
-              minTargetY
-            };
-          }
           const lerpVector = (a, b, t) => {
             if (!a && !b) return null;
             const start = a ?? b;
@@ -19694,6 +19686,14 @@ const powerRef = useRef(hud.power);
           const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
           const cameraB = replayFrameCamera?.frameB ?? cameraA;
           const useReplayFrame = Boolean(cameraA || cameraB);
+          if (!useReplayFrame && hasStoredRailReplayCamera) {
+            return {
+              position: storedReplayCamera.position.clone(),
+              target: storedReplayCamera.target.clone(),
+              fov: fallbackFov,
+              minTargetY
+            };
+          }
           const resolvedCameraA = useReplayFrame ? cameraA : null;
           const resolvedCameraB = useReplayFrame ? cameraB : resolvedCameraA;
           const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
