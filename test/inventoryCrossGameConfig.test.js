@@ -18,9 +18,11 @@ import {
 } from '../webapp/src/config/murlanInventoryConfig.js';
 import {
   TEXAS_HOLDEM_DEFAULT_UNLOCKS,
+  TEXAS_HDRI_OPTIONS,
   TEXAS_HOLDEM_STORE_ITEMS,
   TEXAS_TABLE_FINISH_OPTIONS
 } from '../webapp/src/config/texasHoldemInventoryConfig.js';
+import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../webapp/src/config/texasHoldemOptions.js';
 import { TABLE_CLOTH_OPTIONS } from '../webapp/src/utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../webapp/src/utils/cards3d.js';
 import {
@@ -108,8 +110,52 @@ describe('cross-game inventory alignment', () => {
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tables[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableTheme[0]);
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.stools[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.chairTheme[0]);
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableFinish[0]);
-    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableCloth[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableCloth[0]);
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.cards[0]).toBe(CARD_THEMES[0]?.id);
+  });
+
+  test('texas hold’em mirrors domino battle royal arena option inventories and mappings', () => {
+    const dominoThemes = new Map(DOMINO_ROYAL_OPTION_SETS.tableTheme.map((option) => [option.id, option]));
+    const dominoChairs = new Map(DOMINO_ROYAL_OPTION_SETS.chairTheme.map((option) => [option.id, option]));
+    const texasThemes = new Map(TEXAS_TABLE_THEME_OPTIONS.map((option) => [option.id, option]));
+    const texasChairs = new Map(TEXAS_CHAIR_THEME_OPTIONS.map((option) => [option.id, option]));
+    const dominoHdri = new Set(DOMINO_ROYAL_OPTION_SETS.environmentHdri.map((option) => option.id));
+
+    expect(new Set(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableTheme)).toEqual(
+      new Set([DOMINO_ROYAL_DEFAULT_UNLOCKS.tableTheme[0]])
+    );
+    expect(new Set(TEXAS_HOLDEM_DEFAULT_UNLOCKS.chairTheme)).toEqual(
+      new Set([DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme[0]])
+    );
+    const dominoTableStoreIds = DOMINO_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableTheme').map((item) => item.optionId);
+    const dominoChairStoreIds = DOMINO_ROYAL_STORE_ITEMS.filter((item) => item.type === 'chairTheme').map((item) => item.optionId);
+    expect(new Set(TEXAS_HOLDEM_STORE_ITEMS.filter((item) => item.type === 'tableTheme').map((item) => item.optionId))).toEqual(
+      new Set(dominoTableStoreIds.slice(1))
+    );
+    expect(new Set(TEXAS_HOLDEM_STORE_ITEMS.filter((item) => item.type === 'chairTheme').map((item) => item.optionId))).toEqual(
+      new Set(dominoChairStoreIds.slice(1))
+    );
+    expect(new Set(TEXAS_HOLDEM_STORE_ITEMS.filter((item) => item.type === 'tableCloth').map((item) => item.optionId))).toEqual(
+      new Set(DOMINO_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableCloth').map((item) => item.optionId))
+    );
+    expect(new Set(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableCloth)).toEqual(
+      new Set([DOMINO_ROYAL_DEFAULT_UNLOCKS.tableCloth[0]])
+    );
+    expect(new Set(TEXAS_HDRI_OPTIONS.map((option) => option.id))).toEqual(dominoHdri);
+
+    DOMINO_ROYAL_OPTION_SETS.tableTheme.forEach((option) => {
+      const texasOption = texasThemes.get(option.id);
+      expect(dominoThemes.get(option.id)).toBeTruthy();
+      expect(texasOption?.source).toBe(option.source);
+      expect(texasOption?.assetId).toBe(option.assetId);
+      expect(texasOption?.preserveMaterials).toBe(option.preserveMaterials);
+    });
+    DOMINO_ROYAL_OPTION_SETS.chairTheme.forEach((option) => {
+      const texasOption = texasChairs.get(option.id);
+      expect(dominoChairs.get(option.id)).toBeTruthy();
+      expect(texasOption?.source).toBe(option.source);
+      expect(texasOption?.assetId).toBe(option.assetId);
+      expect(texasOption?.preserveMaterials).toBe(option.preserveMaterials);
+    });
   });
 
   test('tavull store thumbnails match each source option thumbnail', () => {
