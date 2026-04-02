@@ -675,13 +675,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: '8K texture pack • 120 FPS',
-    description: 'Poly Haven 8K assets at a 120 FPS target.'
+    resolution: 'Adaptive HDRI pack • 120 FPS',
+    description: 'Desktop targets 8K→4K while mobile targets 4K→2K at 120 FPS.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  Object.freeze({ minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' }),
+  Object.freeze({ minFps: 120, preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k' }),
   Object.freeze({ minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' }),
   Object.freeze({ minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' })
 ]);
@@ -694,13 +694,27 @@ function resolveHdriResolutionProfileForGraphics(frameRateOptionId) {
     HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1];
   const primary = policy?.preferredResolutions?.[0];
   const normalizedPrimary = HDRI_RESOLUTION_OPTION_MAP[primary]?.id || DEFAULT_HDRI_RESOLUTION_ID;
-  const fallback = (policy?.preferredResolutions || []).filter(
-    (value) => value && value !== normalizedPrimary
-  );
+  let fallback = (policy?.preferredResolutions || []).filter((value) => value && value !== normalizedPrimary);
+  let fallbackResolution = policy?.fallbackResolution || fallback[0] || normalizedPrimary;
+
+  if (fps >= 120) {
+    const mobileDevice = isMobileGraphicsDevice();
+    if (mobileDevice) {
+      fallback = ['2k'];
+      return {
+        primary: '4k',
+        fallback,
+        fallbackResolution: '2k'
+      };
+    }
+    fallback = ['4k'];
+    fallbackResolution = '4k';
+  }
+
   return {
     primary: normalizedPrimary,
     fallback,
-    fallbackResolution: policy?.fallbackResolution || fallback[0] || normalizedPrimary
+    fallbackResolution
   };
 }
 
