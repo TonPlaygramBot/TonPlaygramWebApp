@@ -675,23 +675,29 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: '8K texture pack • 120 FPS',
-    description: 'Poly Haven 8K assets at a 120 FPS target.'
+    resolution: 'Adaptive HDRI • 120 FPS',
+    description: 'Desktop uses 8K→4K fallback, mobile uses 4K→2K fallback.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  Object.freeze({ minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' }),
   Object.freeze({ minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' }),
   Object.freeze({ minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' })
 ]);
 
-function resolveHdriResolutionProfileForGraphics(frameRateOptionId) {
+function resolveHdriResolutionProfileForGraphics(frameRateOptionId, isMobileDevice = false) {
   const frameRate = FRAME_RATE_OPTIONS.find((option) => option.id === frameRateOptionId);
   const fps = Number.isFinite(frameRate?.fps) ? frameRate.fps : 60;
-  const policy =
-    HDRI_RESOLUTION_POLICY_BY_FPS.find((entry) => fps >= entry.minFps) ??
-    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1];
+  const policyFor120 =
+    fps >= 120
+      ? isMobileDevice
+        ? Object.freeze({ preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' })
+        : Object.freeze({ preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k' })
+      : null;
+  const policy = policyFor120
+    ? policyFor120
+    : HDRI_RESOLUTION_POLICY_BY_FPS.find((entry) => fps >= entry.minFps) ??
+      HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1];
   const primary = policy?.preferredResolutions?.[0];
   const normalizedPrimary = HDRI_RESOLUTION_OPTION_MAP[primary]?.id || DEFAULT_HDRI_RESOLUTION_ID;
   const fallback = (policy?.preferredResolutions || []).filter(
@@ -3177,9 +3183,10 @@ function TexasHoldemArena({ search }) {
     () => frameRateOptions.find((opt) => opt.id === frameRateId) ?? frameRateOptions[0],
     [frameRateId, frameRateOptions]
   );
+  const isMobileHdriProfile = useMemo(() => isMobileGraphicsDevice(), []);
   const hdriResolutionProfile = useMemo(
-    () => resolveHdriResolutionProfileForGraphics(frameRateId),
-    [frameRateId]
+    () => resolveHdriResolutionProfileForGraphics(frameRateId, isMobileHdriProfile),
+    [frameRateId, isMobileHdriProfile]
   );
   const hdriResolutionId = hdriResolutionProfile.primary;
   const preferredHdriResolutions = useMemo(() => {
@@ -6485,7 +6492,7 @@ function TexasHoldemArena({ search }) {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
-                  Graphics preset controls HDRI automatically: 60 Hz → 2K, 90 Hz → 4K, 120 Hz → 8K with lower fallback if needed.
+                  Graphics preset controls HDRI automatically: 60 Hz → 2K (fallback 1K), 90 Hz → 4K (fallback 2K), and 120 Hz → 4K (fallback 2K) on mobile or 8K (fallback 4K) on desktop.
                 </p>
               </div>
               <div className="space-y-2">
