@@ -17,7 +17,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
-import { CARD_THEMES } from '../../utils/cardThemes.js';
+import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
@@ -45,8 +45,10 @@ import {
   MURLAN_STOOL_THEMES as STOOL_THEMES,
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
-import { MURLAN_TABLE_CLOTHS } from '../../config/murlanTableCloths.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
+import {
+  TEXAS_TABLE_FINISH_OPTIONS as MURLAN_TABLE_FINISHES
+} from '../../config/texasHoldemInventoryConfig.js';
+import { TABLE_CLOTH_OPTIONS as MURLAN_TABLE_CLOTHS } from '../../utils/tableCustomizationOptions.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';

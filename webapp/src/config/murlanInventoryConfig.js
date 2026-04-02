@@ -1,7 +1,12 @@
-import { CARD_THEMES } from '../utils/cardThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { MURLAN_TABLE_CLOTHS } from './murlanTableCloths.js';
-import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { CARD_THEMES } from '../utils/cards3d.js';
+import {
+  TEXAS_HOLDEM_OPTION_LABELS,
+  TEXAS_TABLE_FINISH_OPTIONS
+} from './texasHoldemInventoryConfig.js';
+import {
+  TABLE_CLOTH_OPTIONS as TEXAS_TABLE_CLOTH_OPTIONS
+} from '../utils/tableCustomizationOptions.js';
 import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 import { MURLAN_OUTFIT_THEMES, MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 
@@ -18,8 +23,8 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   cards: [CARD_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
-  tableCloth: [MURLAN_TABLE_CLOTHS[0].id],
-  tableFinish: [MURLAN_TABLE_FINISHES[0].id],
+  tableCloth: [TEXAS_TABLE_CLOTH_OPTIONS[0].id],
+  tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0].id],
   characters: [MURLAN_CHARACTER_THEMES[0].id],
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id)
 });
@@ -29,8 +34,8 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   cards: mapLabels(CARD_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
   tables: mapLabels(MURLAN_TABLE_THEMES),
-  tableCloth: mapLabels(MURLAN_TABLE_CLOTHS),
-  tableFinish: mapLabels(MURLAN_TABLE_FINISHES),
+  tableCloth: mapLabels(TEXAS_TABLE_CLOTH_OPTIONS),
+  tableFinish: Object.freeze(TEXAS_HOLDEM_OPTION_LABELS.tableFinish),
   characters: mapLabels(MURLAN_CHARACTER_THEMES),
   environmentHdri: mapLabels(
     POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
@@ -41,7 +46,7 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
 });
 
 export const MURLAN_ROYALE_STORE_ITEMS = [
-  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
+  ...TEXAS_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
     id: `table-finish-${finish.id}`,
     type: 'tableFinish',
     optionId: finish.id,
@@ -62,7 +67,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: option.thumbnail
   }))
 ].concat(
-  MURLAN_TABLE_CLOTHS.map((cloth, idx) => ({
+  TEXAS_TABLE_CLOTH_OPTIONS.map((cloth, idx) => ({
     id: `cloth-${cloth.id}`,
     type: 'tableCloth',
     optionId: cloth.id,
@@ -125,13 +130,13 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   },
   {
     type: 'tableCloth',
-    optionId: MURLAN_TABLE_CLOTHS[0].id,
-    label: MURLAN_TABLE_CLOTHS[0].label
+    optionId: TEXAS_TABLE_CLOTH_OPTIONS[0].id,
+    label: TEXAS_TABLE_CLOTH_OPTIONS[0].label
   },
   {
     type: 'tableFinish',
-    optionId: MURLAN_TABLE_FINISHES[0].id,
-    label: MURLAN_TABLE_FINISHES[0].label
+    optionId: TEXAS_TABLE_FINISH_OPTIONS[0].id,
+    label: TEXAS_TABLE_FINISH_OPTIONS[0].label
   },
   {
     type: 'environmentHdri',

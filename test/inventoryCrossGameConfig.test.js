@@ -13,6 +13,17 @@ import {
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../webapp/src/config/murlanThemes.js';
 import { DOMINO_ROYAL_STORE_ITEMS } from '../webapp/src/config/dominoRoyalInventoryConfig.js';
 import {
+  MURLAN_ROYALE_DEFAULT_UNLOCKS,
+  MURLAN_ROYALE_STORE_ITEMS
+} from '../webapp/src/config/murlanInventoryConfig.js';
+import {
+  TEXAS_HOLDEM_DEFAULT_UNLOCKS,
+  TEXAS_HOLDEM_STORE_ITEMS,
+  TEXAS_TABLE_FINISH_OPTIONS
+} from '../webapp/src/config/texasHoldemInventoryConfig.js';
+import { TABLE_CLOTH_OPTIONS } from '../webapp/src/utils/tableCustomizationOptions.js';
+import { CARD_THEMES } from '../webapp/src/utils/cards3d.js';
+import {
   TAVULL_BATTLE_DEFAULT_UNLOCKS,
   TAVULL_BATTLE_CHAIR_OPTIONS,
   TAVULL_BATTLE_BOARD_FINISH_OPTIONS,
@@ -73,6 +84,32 @@ describe('cross-game inventory alignment', () => {
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tableFinish')).toEqual(chessTableFinish);
     expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'environmentHdri')).toEqual(chessHdri);
     expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
+  });
+
+  test('murlan shares texas hold’em inventories for poker arena assets', () => {
+    const toOptionSet = (items, type) =>
+      new Set(items.filter((item) => item.type === type).map((item) => item.optionId));
+
+    expect(toOptionSet(MURLAN_ROYALE_STORE_ITEMS, 'tables')).toEqual(
+      toOptionSet(TEXAS_HOLDEM_STORE_ITEMS, 'tableTheme')
+    );
+    expect(toOptionSet(MURLAN_ROYALE_STORE_ITEMS, 'stools')).toEqual(
+      toOptionSet(TEXAS_HOLDEM_STORE_ITEMS, 'chairTheme')
+    );
+    expect(toOptionSet(MURLAN_ROYALE_STORE_ITEMS, 'tableFinish')).toEqual(
+      new Set(TEXAS_TABLE_FINISH_OPTIONS.map((option) => option.id))
+    );
+    expect(toOptionSet(MURLAN_ROYALE_STORE_ITEMS, 'tableCloth')).toEqual(
+      new Set(TABLE_CLOTH_OPTIONS.map((option) => option.id))
+    );
+    expect(toOptionSet(MURLAN_ROYALE_STORE_ITEMS, 'cards')).toEqual(
+      toOptionSet(TEXAS_HOLDEM_STORE_ITEMS, 'cards')
+    );
+    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tables[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableTheme[0]);
+    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.stools[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.chairTheme[0]);
+    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableFinish[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableFinish[0]);
+    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.tableCloth[0]).toBe(TEXAS_HOLDEM_DEFAULT_UNLOCKS.tableCloth[0]);
+    expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.cards[0]).toBe(CARD_THEMES[0]?.id);
   });
 
   test('tavull store thumbnails match each source option thumbnail', () => {
