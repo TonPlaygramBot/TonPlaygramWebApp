@@ -1,12 +1,12 @@
-import { TABLE_BASE_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
 import { polyHavenThumb } from './storeThumbnails.js';
 import {
+  POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_OPTION_LABELS
 } from './poolRoyaleInventoryConfig.js';
-import { SHARED_ARENA_HDRI_VARIANTS, SHARED_ARENA_TABLE_CLOTH_OPTIONS } from './sharedArenaAssetCatalog.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -14,7 +14,7 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = SHARED_ARENA_HDRI_VARIANTS.map((variant) => {
+export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
   const baseResolutions = Array.isArray(variant?.preferredResolutions)
     ? variant.preferredResolutions.filter((res) => typeof res === 'string' && res.length)
     : [];
@@ -27,7 +27,6 @@ export const TEXAS_HDRI_OPTIONS = SHARED_ARENA_HDRI_VARIANTS.map((variant) => {
 });
 
 export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
-const TEXAS_DEFAULT_TABLE_CLOTH_ID = 'emerald';
 
 export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
   {
@@ -103,15 +102,11 @@ export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
 ]);
 
 const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_DEFAULT_HDRI_ID));
-const DEFAULT_TABLE_CLOTH_INDEX = Math.max(
-  0,
-  SHARED_ARENA_TABLE_CLOTH_OPTIONS.findIndex((option) => option.id === TEXAS_DEFAULT_TABLE_CLOTH_ID)
-);
 
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
-  tableCloth: [SHARED_ARENA_TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CLOTH_INDEX]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairTheme: [TEXAS_CHAIR_THEME_OPTIONS[0]?.id],
   tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
@@ -123,7 +118,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze(reduceLabels(TEXAS_TABLE_FINISH_OPTIONS)),
   tableWood: Object.freeze(reduceLabels(TABLE_WOOD_OPTIONS)),
-  tableCloth: Object.freeze(reduceLabels(SHARED_ARENA_TABLE_CLOTH_OPTIONS)),
+  tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
   chairTheme: Object.freeze(reduceLabels(TEXAS_CHAIR_THEME_OPTIONS)),
   tableTheme: Object.freeze(reduceLabels(TEXAS_TABLE_THEME_OPTIONS)),
@@ -157,7 +152,7 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     description: "Unlock an alternate wood finish for your Hold'em arena table.",
     thumbnail: option.thumbnail
   })),
-  ...SHARED_ARENA_TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-cloth-${option.id}`,
     type: 'tableCloth',
     optionId: option.id,
@@ -230,11 +225,7 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
     label: TEXAS_TABLE_FINISH_OPTIONS[0]?.label
   },
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
-  {
-    type: 'tableCloth',
-    optionId: SHARED_ARENA_TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CLOTH_INDEX]?.id,
-    label: SHARED_ARENA_TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CLOTH_INDEX]?.label
-  },
+  { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairTheme', optionId: TEXAS_CHAIR_THEME_OPTIONS[0]?.id, label: TEXAS_CHAIR_THEME_OPTIONS[0]?.label },
   { type: 'tableTheme', optionId: TEXAS_TABLE_THEME_OPTIONS[0]?.id, label: TEXAS_TABLE_THEME_OPTIONS[0]?.label },
