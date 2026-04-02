@@ -826,24 +826,7 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 1) {
-  if (!material) return;
-  if (material.map) {
-    applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy);
-  }
-  if (material.emissiveMap) {
-    applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
-  }
-  normalizePbrTexture(material.normalMap, maxAnisotropy);
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
-  normalizePbrTexture(material.aoMap, maxAnisotropy);
-}
-
-function prepareLoadedModel(model, options = {}) {
-  const { preserveGltfTextureMapping = false, maxAnisotropy = 8 } = options;
+function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -851,13 +834,8 @@ function prepareLoadedModel(model, options = {}) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (preserveGltfTextureMapping) {
-          normalizeMaterialTextures(mat, maxAnisotropy);
-        } else {
-          if (mat.map) applySRGBColorSpace(mat.map);
-          if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-        }
-        mat.needsUpdate = true;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -1278,34 +1256,6 @@ function extractChairMaterials(model) {
   };
 }
 
-const SHARED_GLTF_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'emissiveMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-  'specularMap',
-  'sheenColorMap',
-  'sheenRoughnessMap'
-]);
-
-function disposeOwnedMaterialTextures(material) {
-  if (!material) return;
-  SHARED_GLTF_TEXTURE_PROPS.forEach((prop) => {
-    const texture = material[prop];
-    if (texture?.isTexture && texture.userData?.murlanCanDispose === true) {
-      texture.dispose?.();
-    }
-  });
-}
-
 function disposeObjectResources(object) {
   const materials = new Set();
   object.traverse((obj) => {
@@ -1316,7 +1266,8 @@ function disposeObjectResources(object) {
     }
   });
   materials.forEach((mat) => {
-    disposeOwnedMaterialTextures(mat);
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
     mat?.dispose?.();
   });
 }
@@ -1384,12 +1335,11 @@ async function createPolyhavenInstance(
   targetHeight,
   rotationY = 0,
   renderer = null,
-  textureOptions = {},
-  preserveGltfTextureMapping = true
+  textureOptions = {}
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone(true);
-  prepareLoadedModel(model, { preserveGltfTextureMapping });
+  prepareLoadedModel(model);
   const {
     textureLoader = null,
     maxAnisotropy = 1,
@@ -1398,7 +1348,7 @@ async function createPolyhavenInstance(
     textureSet = null,
     preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
-  if (textureLoader && !preserveGltfTextureMapping) {
+  if (textureLoader) {
     try {
       const textures =
         textureSet ??
@@ -2120,7 +2070,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
-      prepareLoadedModel(model, { preserveGltfTextureMapping: preserveMaterials, maxAnisotropy });
+      prepareLoadedModel(model);
       if (textureLoader) {
         try {
           const textures = await loadPolyhavenTextureSet(
@@ -2149,14 +2099,12 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
     }
     if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
       const gltfChair = await loadGltfChair(theme.urls, rotationY, renderer);
-      prepareLoadedModel(gltfChair.chairTemplate, { preserveGltfTextureMapping: preserveMaterials, maxAnisotropy });
       if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
       return { ...gltfChair, preserveOriginal: preserveMaterials };
     }
     const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY, renderer);
-    prepareLoadedModel(gltfChair.chairTemplate, { preserveGltfTextureMapping: preserveMaterials, maxAnisotropy });
     if (!preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
@@ -2236,7 +2184,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
@@ -3781,6 +3729,11 @@ export default function MurlanRoyaleArena({ search }) {
         return null;
       }
 
+      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
+        tableInfo.group.scale.set(1.15, 1, 1.15);
+        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
+      }
+
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
@@ -4567,7 +4520,7 @@ export default function MurlanRoyaleArena({ search }) {
       const environmentVariant = resolveHdriVariant(currentAppearance.environmentHdri);
       hdriVariantRef.current = environmentVariant;
 
-      const arenaScale = 1.18 * ARENA_GROWTH;
+      const arenaScale = 1.3 * ARENA_GROWTH;
       const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
       const camConfig = buildArenaCameraConfig(boardSize);
       const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.4, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE);
@@ -4664,7 +4617,7 @@ export default function MurlanRoyaleArena({ search }) {
         const seatRadius = (isHumanSeat ? chairRadius : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
-        const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
+        const chairBaseHeight = CHAIR_BASE_HEIGHT;
         chair.position.set(x, chairBaseHeight, z);
         chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
         arenaGroup.add(chair);
