@@ -1256,6 +1256,34 @@ function extractChairMaterials(model) {
   };
 }
 
+const SHARED_GLTF_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeOwnedMaterialTextures(material) {
+  if (!material) return;
+  SHARED_GLTF_TEXTURE_PROPS.forEach((prop) => {
+    const texture = material[prop];
+    if (texture?.isTexture && texture.userData?.murlanCanDispose === true) {
+      texture.dispose?.();
+    }
+  });
+}
+
 function disposeObjectResources(object) {
   const materials = new Set();
   object.traverse((obj) => {
@@ -1266,8 +1294,7 @@ function disposeObjectResources(object) {
     }
   });
   materials.forEach((mat) => {
-    if (mat?.map) mat.map.dispose?.();
-    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    disposeOwnedMaterialTextures(mat);
     mat?.dispose?.();
   });
 }
@@ -2184,7 +2211,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.1;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
@@ -2424,8 +2451,8 @@ const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
     minFps: 120,
     preferredResolutions: Object.freeze(['8k', '4k', '2k']),
     fallbackResolution: '4k',
-    mobilePreferredResolutions: Object.freeze(['4k', '2k']),
-    mobileFallbackResolution: '2k'
+    mobilePreferredResolutions: Object.freeze(['4k']),
+    mobileFallbackResolution: '4k'
   },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
@@ -3729,11 +3756,6 @@ export default function MurlanRoyaleArena({ search }) {
         return null;
       }
 
-      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
-        tableInfo.group.scale.set(1.15, 1, 1.15);
-        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
-      }
-
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
@@ -4612,12 +4634,15 @@ export default function MurlanRoyaleArena({ search }) {
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
 
+        const chairBounds = new THREE.Box3().setFromObject(chair);
+        const groundedChairBaseHeight = -chairBounds.min.y;
+
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
         const seatRadius = (isHumanSeat ? chairRadius : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
-        const chairBaseHeight = CHAIR_BASE_HEIGHT;
+        const chairBaseHeight = groundedChairBaseHeight;
         chair.position.set(x, chairBaseHeight, z);
         chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
         arenaGroup.add(chair);
@@ -4629,8 +4654,8 @@ export default function MurlanRoyaleArena({ search }) {
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
-        stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
-        const stoolHeight = STOOL_HEIGHT;
+        stoolPosition.y = chairBaseHeight + SEAT_THICKNESS / 2;
+        const stoolHeight = STOOL_HEIGHT + (chairBaseHeight - CHAIR_BASE_HEIGHT);
         seatConfigs.push({
           seatIndex: i,
           chair,
@@ -4678,8 +4703,9 @@ export default function MurlanRoyaleArena({ search }) {
       spot.target.updateMatrixWorld();
 
       const isPortrait = mount.clientHeight > mount.clientWidth;
+      const hdriScaleFov = isPortrait ? camConfig.fov * 0.9 : camConfig.fov * 0.94;
       camera = new THREE.PerspectiveCamera(
-        camConfig.fov,
+        hdriScaleFov,
         mount.clientWidth / mount.clientHeight,
         camConfig.near,
         camConfig.far
