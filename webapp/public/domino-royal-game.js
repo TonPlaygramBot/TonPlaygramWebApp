@@ -35,12 +35,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'uhd120',
-    label: '8K (120 Hz)',
+    label: '8K Desktop / 4K Mobile (120 Hz)',
     fps: 120,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '8K assets',
-    description: '8K profile for 120 Hz displays.'
+    resolution: 'Desktop: 8K→4K • Mobile: 4K→2K',
+    description:
+      '120 Hz profile that keeps desktop at 8K with 4K fallback, while mobile starts at 4K with 2K fallback.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -67,6 +68,19 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
+
+function isMobileHdriTierDevice() {
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(
+    navigator.userAgent || ''
+  );
+  const isLowMemory =
+    typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+  const isLowCore =
+    typeof navigator.hardwareConcurrency === 'number' &&
+    navigator.hardwareConcurrency <= 4;
+  return IS_TELEGRAM_RUNTIME || isMobile || isLowMemory || isLowCore;
+}
+
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
@@ -432,7 +446,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return '8k';
+      return isMobileHdriTierDevice() ? '4k' : '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -4429,46 +4443,30 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  {
-    minFps: 120,
-    preferredResolutions: Object.freeze(['8k', '6k', '4k', '2k', '1k'])
-  },
-  {
-    minFps: 90,
-    preferredResolutions: Object.freeze(['4k', '2k', '1k'])
-  },
-  {
-    minFps: 0,
-    preferredResolutions: Object.freeze(['2k', '1k'])
-  }
-]);
-const isTelegramWebView = IS_TELEGRAM_RUNTIME;
-const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
-  navigator.userAgent || ''
-);
-const isLowMemoryDevice =
-  typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-const isLowCoreDevice =
-  typeof navigator.hardwareConcurrency === 'number' &&
-  navigator.hardwareConcurrency <= 4;
-const isLowProfileDevice =
-  isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+const HDRI_RESOLUTION_POLICY_BY_FRAME_RATE = Object.freeze({
+  fhd60: Object.freeze(['2k', '1k']),
+  qhd90: Object.freeze(['4k', '2k']),
+  uhd120_mobile: Object.freeze(['4k', '2k']),
+  uhd120_desktop: Object.freeze(['8k', '4k'])
+});
+const isLowProfileDevice = isMobileHdriTierDevice();
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
 function resolveHdriPolicyForFps(fps) {
   const safeFps = Number.isFinite(fps) ? fps : 60;
-  return (
-    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
-    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
-  );
+  if (safeFps >= 120) {
+    return isLowProfileDevice
+      ? HDRI_RESOLUTION_POLICY_BY_FRAME_RATE.uhd120_mobile
+      : HDRI_RESOLUTION_POLICY_BY_FRAME_RATE.uhd120_desktop;
+  }
+  if (safeFps >= 90) {
+    return HDRI_RESOLUTION_POLICY_BY_FRAME_RATE.qhd90;
+  }
+  return HDRI_RESOLUTION_POLICY_BY_FRAME_RATE.fhd60;
 }
 
 function buildHdriResolutionChain(primaryResolution, policy = null) {
-  const base = Array.isArray(policy?.preferredResolutions)
-    ? policy.preferredResolutions
-    : [];
-  const fallbackLadder = ['8k', '6k', '4k', '2k', '1k'];
-  const ordered = [primaryResolution, ...base, ...fallbackLadder].filter(
+  const base = Array.isArray(policy) ? policy : [];
+  const ordered = [primaryResolution, ...base].filter(
     (value) => typeof value === 'string' && value.length
   );
   return [...new Set(ordered)];
