@@ -1,51 +1,27 @@
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
-import { POLY_HAVEN_CLOTHS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { swatchThumbnail } from './storeThumbnails.js';
 
-const normalizeHex = (value) => {
-  if (typeof value === 'number') {
-    return `#${value.toString(16).padStart(6, '0')}`;
-  }
-  return `${value || ''}`.startsWith('#') ? value : `#${value}`;
-};
-
-const clampChannel = (channel) => Math.max(0, Math.min(255, Math.round(channel)));
-
-const tintHex = (hex, factor) => {
-  const normalized = normalizeHex(hex).replace('#', '');
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  const target = factor >= 0 ? 255 : 0;
-  const amount = Math.min(1, Math.abs(factor));
-  const adjust = (channel) => clampChannel(channel + (target - channel) * amount);
-  return `#${(adjust(r) << 16 | adjust(g) << 8 | adjust(b)).toString(16).padStart(6, '0')}`;
-};
-
-const buildSwatches = (baseHex) => [
-  baseHex,
-  tintHex(baseHex, 0.12),
-  tintHex(baseHex, -0.12)
-];
-
-const buildClothOption = (cloth, index) => {
-  const baseHex = normalizeHex(cloth.base);
-  return {
-    id: cloth.id,
-    label: cloth.label,
-    feltTop: tintHex(baseHex, 0.08),
-    feltBottom: tintHex(baseHex, -0.12),
-    emissive: tintHex(baseHex, -0.65),
-    baseColor: baseHex,
-    sourceId: cloth.id,
-    swatches: buildSwatches(baseHex),
-    thumbnail: polyHavenThumb(cloth.id),
-    price: 640 + index * 20,
-    description: `Poly Haven ${cloth.label.replace(' Cloth', '').trim()} texture with original scan pattern mapping.`
-  };
+const toSwatches = (cloth) => {
+  const palette = [cloth?.feltTop, cloth?.feltBottom, cloth?.emissive].filter(
+    (value) => typeof value === 'string' && value.length
+  );
+  return palette.length ? palette : ['#1f7a4a', '#0f4f2d', '#062d18'];
 };
 
 export const MURLAN_TABLE_CLOTHS = Object.freeze(
-  POLY_HAVEN_CLOTHS.map((cloth, index) => buildClothOption(cloth, index))
+  TABLE_CLOTH_OPTIONS.map((cloth, index) => {
+    const swatches = toSwatches(cloth);
+    return Object.freeze({
+      ...cloth,
+      baseColor: cloth.baseColor || swatches[0],
+      sourceId: cloth.sourceId || cloth.id,
+      swatches,
+      price: cloth.price ?? 640 + index * 20,
+      description:
+        cloth.description ||
+        `Shared Texas Hold'em cloth preset: ${cloth.label}.`
+    });
+  })
 );
 
 export const MURLAN_TABLE_CLOTH_THUMBNAILS = Object.freeze(
