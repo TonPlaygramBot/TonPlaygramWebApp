@@ -1,10 +1,9 @@
-import { CARD_THEMES } from '../utils/cards3d.js';
+import { CARD_THEMES } from '../utils/cardThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_CLOTHS } from './murlanTableCloths.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
-import { MURLAN_OUTFIT_THEMES } from './murlanThemes.js';
-import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
+import { MURLAN_OUTFIT_THEMES, MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -17,8 +16,8 @@ const mapLabels = (options) =>
 export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   outfit: [MURLAN_OUTFIT_THEMES[0].id],
   cards: [CARD_THEMES[0].id],
-  stools: [TEXAS_CHAIR_THEME_OPTIONS[0].id],
-  tables: [TEXAS_TABLE_THEME_OPTIONS[0].id],
+  stools: [MURLAN_STOOL_THEMES[0].id],
+  tables: [MURLAN_TABLE_THEMES[0].id],
   tableCloth: [MURLAN_TABLE_CLOTHS[0].id],
   tableFinish: [MURLAN_TABLE_FINISHES[0].id],
   characters: [MURLAN_CHARACTER_THEMES[0].id],
@@ -28,8 +27,8 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
 export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   outfit: mapLabels(MURLAN_OUTFIT_THEMES),
   cards: mapLabels(CARD_THEMES),
-  stools: mapLabels(TEXAS_CHAIR_THEME_OPTIONS),
-  tables: mapLabels(TEXAS_TABLE_THEME_OPTIONS),
+  stools: mapLabels(MURLAN_STOOL_THEMES),
+  tables: mapLabels(MURLAN_TABLE_THEMES),
   tableCloth: mapLabels(MURLAN_TABLE_CLOTHS),
   tableFinish: mapLabels(MURLAN_TABLE_FINISHES),
   characters: mapLabels(MURLAN_CHARACTER_THEMES),
@@ -74,7 +73,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: cloth.thumbnail,
     previewShape: 'table'
   })),
-  TEXAS_TABLE_THEME_OPTIONS.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+  MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `table-${theme.id}`,
     type: 'tables',
     optionId: theme.id,
@@ -83,7 +82,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
     thumbnail: theme.thumbnail
   })),
-  TEXAS_CHAIR_THEME_OPTIONS.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+  MURLAN_STOOL_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `stool-${theme.id}`,
     type: 'stools',
     optionId: theme.id,
@@ -117,8 +116,8 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
 export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'outfit', optionId: MURLAN_OUTFIT_THEMES[0].id, label: MURLAN_OUTFIT_THEMES[0].label },
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
-  { type: 'tables', optionId: TEXAS_TABLE_THEME_OPTIONS[0].id, label: TEXAS_TABLE_THEME_OPTIONS[0].label },
-  { type: 'stools', optionId: TEXAS_CHAIR_THEME_OPTIONS[0].id, label: TEXAS_CHAIR_THEME_OPTIONS[0].label },
+  { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
+  { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
   {
     type: 'characters',
     optionId: MURLAN_CHARACTER_THEMES[0].id,
