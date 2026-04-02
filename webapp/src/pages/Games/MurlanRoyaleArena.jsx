@@ -1256,34 +1256,6 @@ function extractChairMaterials(model) {
   };
 }
 
-const SHARED_GLTF_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'emissiveMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-  'specularMap',
-  'sheenColorMap',
-  'sheenRoughnessMap'
-]);
-
-function disposeOwnedMaterialTextures(material) {
-  if (!material) return;
-  SHARED_GLTF_TEXTURE_PROPS.forEach((prop) => {
-    const texture = material[prop];
-    if (texture?.isTexture && texture.userData?.murlanCanDispose === true) {
-      texture.dispose?.();
-    }
-  });
-}
-
 function disposeObjectResources(object) {
   const materials = new Set();
   object.traverse((obj) => {
@@ -1294,7 +1266,8 @@ function disposeObjectResources(object) {
     }
   });
   materials.forEach((mat) => {
-    disposeOwnedMaterialTextures(mat);
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
     mat?.dispose?.();
   });
 }
@@ -2211,7 +2184,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.1;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
@@ -3754,6 +3727,11 @@ export default function MurlanRoyaleArena({ search }) {
       if (tableBuildTokenRef.current !== token) {
         tableInfo.dispose?.();
         return null;
+      }
+
+      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
+        tableInfo.group.scale.set(1.15, 1, 1.15);
+        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
       }
 
       three.tableInfo = tableInfo;
