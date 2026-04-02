@@ -1028,7 +1028,40 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
-function prepareLoadedModel(model) {
+function normalizePbrTexture(texture, { isColor = false, maxAnisotropy = 1 } = {}) {
+  if (!texture) return;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+}
+
+function normalizeMaterialTextures(material, maxAnisotropy = 1) {
+  if (!material) return;
+  normalizePbrTexture(material.map, {
+    isColor: true,
+    maxAnisotropy
+  });
+  normalizePbrTexture(material.emissiveMap, {
+    isColor: true,
+    maxAnisotropy
+  });
+  normalizePbrTexture(material.normalMap, { maxAnisotropy });
+  normalizePbrTexture(material.roughnessMap, { maxAnisotropy });
+  normalizePbrTexture(material.metalnessMap, { maxAnisotropy });
+  normalizePbrTexture(material.aoMap, { maxAnisotropy });
+}
+
+function getRendererAnisotropyCap(renderer = null) {
+  return renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+}
+
+function prepareLoadedModel(model, renderer = null, { preserveGltfTextureMapping = true } = {}) {
+  const maxAnisotropy = getRendererAnisotropyCap(renderer);
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -1036,6 +1069,11 @@ function prepareLoadedModel(model) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
+        if (preserveGltfTextureMapping) {
+          normalizeMaterialTextures(mat, maxAnisotropy);
+          mat.needsUpdate = true;
+          return;
+        }
         if (mat.map) applySRGBColorSpace(mat.map);
         if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
@@ -1119,9 +1157,12 @@ function fitTableModelToArena(model) {
   };
 }
 
-async function loadPolyhavenModel(assetId, renderer = null) {
+async function loadPolyhavenModel(
+  assetId,
+  { renderer = null, preserveGltfTextureMapping = true } = {}
+) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
-  const cacheKey = assetId.toLowerCase();
+  const cacheKey = `${assetId.toLowerCase()}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   let cached = POLYHAVEN_MODEL_CACHE.get(cacheKey);
   if (!cached) {
     const promise = (async () => {
@@ -1195,7 +1236,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 
       const model = gltf.scene || gltf.scenes?.[0] || gltf;
       if (!model) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-      prepareLoadedModel(model);
+      prepareLoadedModel(model, renderer, { preserveGltfTextureMapping });
       return model;
     })();
 
@@ -1224,7 +1265,10 @@ async function buildTableForTheme({
   let tableInfo = null;
   if (theme?.source === 'polyhaven' && theme?.assetId) {
     try {
-      const model = await loadPolyhavenModel(theme.assetId, renderer);
+      const model = await loadPolyhavenModel(theme.assetId, {
+        renderer,
+        preserveGltfTextureMapping: theme.preserveMaterials ?? true
+      });
       fitModelToHeight(model, TABLE_MODEL_TARGET_HEIGHT);
       if (rotationY) {
         model.rotation.y += rotationY;
@@ -1297,20 +1341,21 @@ async function createFallbackHdriEnvironment(renderer) {
   return { envMap: texture, url: null };
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredResolutions = [DEFAULT_HDRI_RESOLUTION_ID, '2k', '1k']) {
+async function loadPolyHavenHdriEnvironment(renderer, config = {}, preferredResolutions = null) {
   if (!renderer) return null;
-  const preferredKey = Array.isArray(preferredResolutions) && preferredResolutions.length
-    ? preferredResolutions.join(',')
-    : DEFAULT_HDRI_RESOLUTION_ID;
+  const effectiveResolutions = Array.isArray(preferredResolutions) && preferredResolutions.length
+    ? preferredResolutions
+    : (Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+        ? config.preferredResolutions
+        : [DEFAULT_HDRI_RESOLUTION_ID, '2k']);
+  const preferredKey = effectiveResolutions.join(',');
   const cacheKey = `${String(config?.id || config?.assetId || config?.fallbackUrl || 'fallback')}|${preferredKey}`;
   const cached = HDRI_ENVIRONMENT_CACHE.get(cacheKey);
   if (cached?.envMap) {
     rememberHdriEnvironment(cacheKey, cached);
     return { ...cached, fromCache: true, cacheKey };
   }
-  const requestedResolutions = Array.isArray(preferredResolutions) && preferredResolutions.length
-    ? preferredResolutions
-    : [DEFAULT_HDRI_RESOLUTION_ID, '2k', '1k'];
+  const requestedResolutions = effectiveResolutions;
   const urlCandidates = [];
   for (let idx = 0; idx < requestedResolutions.length; idx += 1) {
     const nextPreferred = requestedResolutions.slice(idx);
@@ -1735,7 +1780,10 @@ async function buildChairTemplate(theme, renderer) {
   const rotationY = theme?.rotationY ?? 0;
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const model = await loadPolyhavenModel(theme.assetId, renderer);
+      const model = await loadPolyhavenModel(theme.assetId, {
+        renderer,
+        preserveGltfTextureMapping: theme.preserveMaterials ?? true
+      });
       fitChairModelToFootprint(model);
       if (rotationY) {
         model.rotation.y += rotationY;
@@ -4362,6 +4410,13 @@ function TexasHoldemArena({ search }) {
       const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.envMap;
+      const hdriRotationY = Number.isFinite(activeVariant?.rotationY) ? activeVariant.rotationY : 0;
+      if ('backgroundRotation' in three.scene) {
+        three.scene.backgroundRotation = new THREE.Euler(0, hdriRotationY, 0);
+      }
+      if ('environmentRotation' in three.scene) {
+        three.scene.environmentRotation = new THREE.Euler(0, hdriRotationY, 0);
+      }
       if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
       }
