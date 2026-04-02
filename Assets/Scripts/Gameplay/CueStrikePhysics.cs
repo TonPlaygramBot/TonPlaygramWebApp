@@ -16,6 +16,10 @@ namespace Aiming
         [Header("Open-source style impulse model")]
         [Tooltip("Extra forward impulse for top spin (follow).")]
         public float topSpinForwardImpulseScale = 0.12f;
+        [Tooltip("Additional straight top-spin follow-through when side spin is near zero.")]
+        public float straightTopSpinFollowBoost = 0.06f;
+        [Tooltip("Side spin threshold for straight top-spin follow-through boost.")]
+        [Range(0f, 1f)] public float straightTopSpinSideThreshold = 0.08f;
         [Tooltip("Reverse impulse for back spin (draw).")]
         public float backSpinReverseImpulseScale = 0.10f;
         [Tooltip("Torque multiplier for side spin (left/right english).")]
@@ -53,7 +57,14 @@ namespace Aiming
                     right * clampedSpin.y * verticalSpinTorqueScale) * impulseMagnitude;
                 cueBallBody.AddTorque(torque, ForceMode.Impulse);
 
-                float follow = Mathf.Max(0f, clampedSpin.y) * topSpinForwardImpulseScale;
+                float straightTopSpinBoost = 0f;
+                if (clampedSpin.y > 0f && Mathf.Abs(clampedSpin.x) <= straightTopSpinSideThreshold)
+                {
+                    float straightFactor = 1f - Mathf.Clamp01(Mathf.Abs(clampedSpin.x) / Mathf.Max(straightTopSpinSideThreshold, 0.0001f));
+                    straightTopSpinBoost = clampedSpin.y * straightTopSpinFollowBoost * straightFactor;
+                }
+
+                float follow = Mathf.Max(0f, clampedSpin.y) * topSpinForwardImpulseScale + straightTopSpinBoost;
                 float draw = Mathf.Max(0f, -clampedSpin.y) * backSpinReverseImpulseScale;
                 float spinLinearImpulse = (follow - draw) * impulseMagnitude;
                 if (Mathf.Abs(spinLinearImpulse) > Mathf.Epsilon)
