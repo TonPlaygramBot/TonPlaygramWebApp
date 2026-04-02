@@ -19,6 +19,7 @@ import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arena
 import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
+import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
   getMurlanInventory,
@@ -64,8 +65,12 @@ import {
   resolveMurlanLanguageKey
 } from '../../utils/murlanRoyaleCommentary.js';
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
 const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
+const normalizeHdriResolutionId = (value) => {
+  const lower = String(value || '').toLowerCase();
+  return HDRI_RESOLUTION_LADDER.includes(lower) ? lower : null;
+};
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -432,94 +437,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
   };
 }
 
-const HDRI_URL_CACHE = new Map();
-const HDRI_RESOLUTION_PATTERN = /(?:^|[_/-])((?:1|2|4|8)k)(?=\.|[_/-]|$)/i;
-
-const normalizeHdriResolutionId = (value) => {
-  const lower = String(value || '').toLowerCase();
-  if (HDRI_RESOLUTION_LADDER.includes(lower)) return lower;
-  return null;
-};
-
-const extractResolutionFromHdriUrl = (url) => {
-  if (typeof url !== 'string' || !url.length) return null;
-  const match = url.toLowerCase().match(HDRI_RESOLUTION_PATTERN);
-  if (!match?.[1]) return null;
-  return normalizeHdriResolutionId(match[1]) ?? match[1];
-};
-
-const collectHdriCandidates = (apiJson) => {
-  const out = [];
-  const pushUrl = (url, hintedResolution = null) => {
-    if (typeof url !== 'string' || !url.startsWith('http')) return;
-    const lower = url.toLowerCase();
-    if (!lower.includes('.hdr') && !lower.includes('.exr')) return;
-    const format = lower.includes('.hdr') ? 'hdr' : lower.includes('.exr') ? 'exr' : 'unknown';
-    out.push({
-      url,
-      resolution: normalizeHdriResolutionId(hintedResolution) ?? extractResolutionFromHdriUrl(url),
-      format
-    });
-  };
-  const walk = (value, hintedResolution = null) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      pushUrl(value, hintedResolution);
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((entry) => walk(entry, hintedResolution));
-      return;
-    }
-    if (typeof value !== 'object') return;
-    Object.entries(value).forEach(([key, entry]) => {
-      const nextHint = normalizeHdriResolutionId(key) ?? hintedResolution;
-      walk(entry, nextHint);
-    });
-  };
-  walk(apiJson);
-  return out;
-};
-
-const pickPolyHavenHdriUrl = (apiJson, preferredResolutions = DEFAULT_HDRI_RESOLUTIONS) => {
-  const candidates = collectHdriCandidates(apiJson);
-  if (!candidates.length) return null;
-  const pickBestByResolution = (targetResolution) => {
-    const matching = candidates.filter((entry) => entry.resolution === targetResolution);
-    if (!matching.length) return null;
-    return matching.find((entry) => entry.format === 'hdr') ?? matching[0];
-  };
-
-  for (const res of preferredResolutions) {
-    const normalized = normalizeHdriResolutionId(res);
-    if (!normalized) continue;
-    const matched = pickBestByResolution(normalized);
-    if (matched?.url) return matched.url;
-  }
-
-  for (const fallbackRes of HDRI_RESOLUTION_LADDER) {
-    const matched = pickBestByResolution(fallbackRes);
-    if (matched?.url) return matched.url;
-  }
-
-  const hdrCandidate = candidates.find((candidate) => candidate.format === 'hdr');
-  if (hdrCandidate?.url) {
-    return hdrCandidate.url;
-  }
-
-  for (const candidate of candidates) {
-    if (candidate?.url) {
-      return candidate.url;
-    }
-  }
-  return null;
-};
-
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const cacheKey = `${config?.assetId ?? 'fallback'}|${(config?.preferredResolutions || []).join(',')}|${config?.fallbackResolution ?? ''}|${config?.forceResolution ?? ''}`;
-  if (HDRI_URL_CACHE.has(cacheKey)) {
-    return HDRI_URL_CACHE.get(cacheKey);
-  }
   const forcedResolution =
     typeof config?.forceResolution === 'string' && config.forceResolution.length
       ? config.forceResolution
@@ -529,47 +447,10 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '2k';
-  const fallbackUrl =
-    config?.fallbackUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  if (config?.assetUrls && typeof config.assetUrls === 'object') {
-    for (const res of preferred) {
-      if (config.assetUrls[res]) {
-        HDRI_URL_CACHE.set(cacheKey, config.assetUrls[res]);
-        return config.assetUrls[res];
-      }
-    }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) {
-      HDRI_URL_CACHE.set(cacheKey, manual);
-      return manual;
-    }
-  }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) {
-    HDRI_URL_CACHE.set(cacheKey, config.assetUrl);
-    return config.assetUrl;
-  }
-  if (!config?.assetId || typeof fetch !== 'function') {
-    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
-    return fallbackUrl;
-  }
-  try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) {
-      HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
-      return fallbackUrl;
-    }
-    const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
-    const resolvedUrl = picked || fallbackUrl;
-    HDRI_URL_CACHE.set(cacheKey, resolvedUrl);
-    return resolvedUrl;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
-    HDRI_URL_CACHE.set(cacheKey, fallbackUrl);
-    return fallbackUrl;
-  }
+  return resolveTexasHoldemHdriUrl(
+    { ...config, preferredResolutions: preferred },
+    preferred
+  );
 }
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
