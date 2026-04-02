@@ -22,7 +22,6 @@ export const TEXAS_HDRI_OPTIONS = BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((varian
 export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
 
 export const TEXAS_TABLE_FINISH_OPTIONS = BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS;
-export const TEXAS_TABLE_CLOTH_OPTIONS = TABLE_CLOTH_OPTIONS;
 
 export const TEXAS_CHAIR_THEME_OPTIONS = BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS;
 export const TEXAS_TABLE_THEME_OPTIONS = BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS;
@@ -32,7 +31,7 @@ const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) =>
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
-  tableCloth: [TEXAS_TABLE_CLOTH_OPTIONS[0]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairTheme: [TEXAS_CHAIR_THEME_OPTIONS[0]?.id],
   tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
@@ -44,7 +43,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze(reduceLabels(TEXAS_TABLE_FINISH_OPTIONS)),
   tableWood: Object.freeze(reduceLabels(TABLE_WOOD_OPTIONS)),
-  tableCloth: Object.freeze(reduceLabels(TEXAS_TABLE_CLOTH_OPTIONS)),
+  tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
   chairTheme: Object.freeze(reduceLabels(TEXAS_CHAIR_THEME_OPTIONS)),
   tableTheme: Object.freeze(reduceLabels(TEXAS_TABLE_THEME_OPTIONS)),
@@ -78,7 +77,7 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     description: "Unlock an alternate wood finish for your Hold'em arena table.",
     thumbnail: option.thumbnail
   })),
-  ...TEXAS_TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-cloth-${option.id}`,
     type: 'tableCloth',
     optionId: option.id,
@@ -151,11 +150,7 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
     label: TEXAS_TABLE_FINISH_OPTIONS[0]?.label
   },
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
-  {
-    type: 'tableCloth',
-    optionId: TEXAS_TABLE_CLOTH_OPTIONS[0]?.id,
-    label: TEXAS_TABLE_CLOTH_OPTIONS[0]?.label
-  },
+  { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairTheme', optionId: TEXAS_CHAIR_THEME_OPTIONS[0]?.id, label: TEXAS_CHAIR_THEME_OPTIONS[0]?.label },
   { type: 'tableTheme', optionId: TEXAS_TABLE_THEME_OPTIONS[0]?.id, label: TEXAS_TABLE_THEME_OPTIONS[0]?.label },
