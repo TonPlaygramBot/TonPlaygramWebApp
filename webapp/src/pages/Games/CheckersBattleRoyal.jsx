@@ -90,7 +90,7 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
 const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = 11.8;
+const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -2561,10 +2561,7 @@ export default function CheckersBattleRoyal() {
           typeof variant?.groundRadiusMultiplier === 'number'
             ? variant.groundRadiusMultiplier
             : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-        const sceneSpan = Math.max(
-          CHECKERS_ROOM_HALF_SPAN,
-          CHAIR_DISTANCE + TABLE_RADIUS
-        );
+        const sceneSpan = CHECKERS_ROOM_HALF_SPAN;
         const groundRadius = Math.max(
           sceneSpan * radiusMultiplier * HDRI_UNITS_PER_METER,
           MIN_HDRI_RADIUS
