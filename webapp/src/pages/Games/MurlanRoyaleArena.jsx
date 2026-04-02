@@ -727,27 +727,10 @@ async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
 function normalizePbrTexture(texture, maxAnisotropy = 1) {
   if (!texture) return;
   texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
-}
-
-function normalizeMaterialTextures(material, maxAnisotropy = 1) {
-  if (!material) return;
-  if (material.map) {
-    applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy);
-  }
-  if (material.emissiveMap) {
-    applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
-  }
-  normalizePbrTexture(material.normalMap, maxAnisotropy);
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
-  normalizePbrTexture(material.aoMap, maxAnisotropy);
 }
 
 async function loadPolyhavenTextureSet(
@@ -843,7 +826,7 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-function prepareLoadedModel(model, { preserveGltfTextureMapping = false, maxAnisotropy = 8 } = {}) {
+function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -851,10 +834,8 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false, maxAnis
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        normalizeMaterialTextures(mat, maxAnisotropy);
-        if (preserveGltfTextureMapping) {
-          mat.needsUpdate = true;
-        }
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -1452,10 +1433,7 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
     throw new Error('Chair model missing scene');
   }
 
-  prepareLoadedModel(model, {
-    preserveGltfTextureMapping: true,
-    maxAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-  });
+  prepareLoadedModel(model);
 
   fitChairModelToFootprint(model);
   if (rotationY) {
@@ -2004,10 +1982,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
     }
-    prepareLoadedModel(root, {
-      preserveGltfTextureMapping: true,
-      maxAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-    });
+    prepareLoadedModel(root);
     return root;
   })();
 
@@ -2212,7 +2187,6 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
-const TABLE_FOOTPRINT_SCALE = 1.08;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
@@ -3755,9 +3729,9 @@ export default function MurlanRoyaleArena({ search }) {
         return null;
       }
 
-      if (tableInfo?.group) {
-        tableInfo.group.scale.set(TABLE_FOOTPRINT_SCALE, 1, TABLE_FOOTPRINT_SCALE);
-        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * TABLE_FOOTPRINT_SCALE;
+      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
+        tableInfo.group.scale.set(1.15, 1, 1.15);
+        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
       }
 
       three.tableInfo = tableInfo;
