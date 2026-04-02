@@ -115,7 +115,6 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1260,7 +1259,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = false;
-const REPLAY_CUE_STICK_HOLD_MS = 760;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -5617,8 +5616,8 @@ const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
-const LONG_SHOT_ACTIVATION_DELAY_MS = 0;
-const LONG_SHOT_ACTIVATION_TRAVEL = 0;
+const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
+const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
@@ -5686,13 +5685,9 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
-const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
@@ -21770,63 +21765,16 @@ const powerRef = useRef(hud.power);
             return;
           }
           const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
-          let pullback =
-            Math.max(
-              REPLAY_CUE_MIN_PULLBACK_MS,
-              Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale
-            );
-          let release =
-            Math.max(
-              REPLAY_CUE_MIN_RELEASE_MS,
-              Math.max(
-                0,
-                stroke.release ??
-                  stroke.releaseDuration ??
-                  stroke.forward ??
-                  stroke.forwardDuration ??
-                  0
-              ) * replayScale * REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER
-            );
-          let followTime =
-            Math.max(
-              0,
-              stroke.followTime ??
-                stroke.followDuration ??
-                stroke.settleTime ??
-                stroke.settleDuration ??
-                0
-            ) * replayScale;
-          let recoverTime =
-            Math.max(
-              0,
-              stroke.recoverTime ??
-                stroke.recoverDuration ??
-                stroke.returnTime ??
-                stroke.returnDuration ??
-                0
-            ) * replayScale;
+          const pullback =
+            Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale;
+          const release =
+            Math.max(1e-6, stroke.release ?? stroke.releaseDuration ?? 0) * replayScale;
+          const followTime =
+            Math.max(0, stroke.followTime ?? stroke.followDuration ?? 0) * replayScale;
+          const recoverTime =
+            Math.max(0, stroke.recoverTime ?? stroke.recoverDuration ?? 0) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          // Allow replay lead-in to advance the cue stroke timeline even when
-          // the recorded stroke offset is short, so replays open on visible
-          // cue charging instead of a static idle pose.
-          const localTime =
-            targetTime - (startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
-          const playbackWindow = Number.isFinite(playback?.duration)
-            ? Math.max(playback.duration, 1400)
-            : 1400;
-          const replayStrokeBudget = Math.max(1100, playbackWindow * 0.9);
-          const totalReplayStrokeTime = pullback + release + followTime + recoverTime;
-          if (totalReplayStrokeTime > replayStrokeBudget) {
-            const releaseFloor = Math.min(520, replayStrokeBudget * 0.34);
-            const pullFloor = Math.min(320, replayStrokeBudget * 0.22);
-            const baseCore = Math.max(pullFloor + releaseFloor, 1);
-            const remaining = Math.max(0, replayStrokeBudget - baseCore);
-            const tailTotal = Math.max(followTime + recoverTime, 1e-6);
-            pullback = pullFloor;
-            release = releaseFloor;
-            followTime = remaining * (followTime / tailTotal) * 0.6;
-            recoverTime = remaining * (recoverTime / tailTotal) * 0.4;
-          }
+          const localTime = targetTime - startOffset;
           const pullEnd = pullback;
           const impactEnd = pullEnd + release;
           const followEnd = impactEnd + followTime;
@@ -21894,18 +21842,7 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return;
           }
-          const replayHoldWindow = Number.isFinite(playback?.duration)
-            ? playback.duration
-            : recoverEnd;
-          if (localTime <= replayHoldWindow) {
-            cueStick.visible = true;
-            cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
-            cueAnimating = true;
-            syncCueShadow();
-            return;
-          }
-          cueStick.visible = false;
-          cueAnimating = false;
+          cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
           syncCueShadow();
         };
 
@@ -27460,18 +27397,16 @@ const powerRef = useRef(hud.power);
             }
           }
           if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              corrected = compensatedAim.aimDir.clone();
-              if (compensatedAim.ghost) {
-                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
+            const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+            if (toPocket.lengthSq() > 1e-6) {
+              const toPocketDir = toPocket.normalize();
+              const ghost = plan.targetBall.pos
+                .clone()
+                .sub(toPocketDir.multiplyScalar(BALL_R * 2));
+              const cueVec = ghost.sub(cueBall.pos);
+              if (cueVec.lengthSq() > 1e-6) {
+                corrected = cueVec.normalize();
+                plan.cueToTarget = cueBall.pos.distanceTo(ghost);
               }
             }
           }
@@ -28062,16 +27997,13 @@ const powerRef = useRef(hud.power);
           if (plan?.targetBall && cue?.pos) {
             let suggestedDir = null;
             if (plan?.pocketCenter && plan?.targetBall?.pos) {
-              const compensatedAim = resolveAiPotGhostAim({
-                cuePos: cue.pos,
-                targetPos: plan.targetBall.pos,
-                pocketPos: plan.pocketCenter,
-                ballRadius: BALL_R,
-                spin: plan.spin,
-                power: plan.power
-              });
-              if (compensatedAim?.aimDir?.lengthSq?.() > 1e-6) {
-                suggestedDir = compensatedAim.aimDir.clone();
+              const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+              if (toPocket.lengthSq() > 1e-6) {
+                const toPocketDir = toPocket.normalize();
+                const ghost = plan.targetBall.pos
+                  .clone()
+                  .sub(toPocketDir.multiplyScalar(BALL_R * 2));
+                suggestedDir = ghost.sub(cue.pos.clone());
               }
             }
             if (!suggestedDir) {
@@ -28351,18 +28283,14 @@ const powerRef = useRef(hud.power);
           if (!plan.targetBall?.active || !plan.pocketCenter) return plan;
           const cuePos = cue.pos?.clone?.();
           if (!cuePos) return plan;
-          const compensated = resolveAiPotGhostAim({
-            cuePos,
-            targetPos: plan.targetBall.pos,
-            pocketPos: plan.pocketCenter,
-            ballRadius: BALL_R,
-            spin: plan.spin,
-            power: plan.power,
-            contactCalibration: 0
-          });
+          const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
           const baseDir =
-            compensated?.aimDir?.lengthSq?.() > 1e-6
-              ? compensated.aimDir.clone().normalize()
+            toPocket.lengthSq() > 1e-6
+              ? plan.targetBall.pos
+                  .clone()
+                  .sub(toPocket.normalize().multiplyScalar(BALL_R * 2))
+                  .sub(cuePos)
+                  .normalize()
               : plan.aimDir.clone().normalize();
           if (baseDir.lengthSq() < 1e-6) return plan;
           const targetId = String(plan.targetBall.id);
