@@ -1,5 +1,6 @@
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { DOMINO_BATTLE_ROYAL_CHAIR_THEME_OPTIONS } from './sharedInventoryCatalogs.js';
 
-export const TEXAS_CHAIR_THEME_OPTIONS = Object.freeze(MURLAN_STOOL_THEMES);
+export const TEXAS_CHAIR_THEME_OPTIONS = DOMINO_BATTLE_ROYAL_CHAIR_THEME_OPTIONS;
 export const TEXAS_TABLE_THEME_OPTIONS = Object.freeze(MURLAN_TABLE_THEMES);
 export const TEXAS_CHAIR_COLOR_OPTIONS = TEXAS_CHAIR_THEME_OPTIONS;

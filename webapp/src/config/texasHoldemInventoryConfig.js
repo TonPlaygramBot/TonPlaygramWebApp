@@ -3,10 +3,8 @@ import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
 import { polyHavenThumb } from './storeThumbnails.js';
-import {
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS
-} from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_OPTION_LABELS } from './poolRoyaleInventoryConfig.js';
+import { TEXAS_HOLDEM_SHARED_DEFAULT_HDRI_ID, TEXAS_HOLDEM_SHARED_HDRI_OPTIONS } from './sharedInventoryCatalogs.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -14,19 +12,8 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
-  const baseResolutions = Array.isArray(variant?.preferredResolutions)
-    ? variant.preferredResolutions.filter((res) => typeof res === 'string' && res.length)
-    : [];
-  const preferredResolutions = Array.from(new Set(['8k', ...baseResolutions, '4k', '2k', '1k']));
-  return {
-    ...variant,
-    preferredResolutions,
-    label: `${variant.name} HDRI`
-  };
-});
-
-export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
+export const TEXAS_HDRI_OPTIONS = TEXAS_HOLDEM_SHARED_HDRI_OPTIONS;
+export const TEXAS_DEFAULT_HDRI_ID = TEXAS_HOLDEM_SHARED_DEFAULT_HDRI_ID;
 
 export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
   {
@@ -126,7 +113,7 @@ export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   cards: Object.freeze(reduceLabels(CARD_THEMES)),
   environmentHdri: Object.freeze(
     TEXAS_HDRI_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
+      acc[option.id] = `${option.name} HDRI`;
       return acc;
     }, {})
   )
@@ -192,7 +179,7 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     id: `texas-hdri-${variant.id}`,
     type: 'environmentHdri',
     optionId: variant.id,
-    name: variant.label,
+    name: `${variant.name} HDRI`,
     price: variant.price ?? 1400 + idx * 25,
     description: variant.description || 'Poly Haven HDRI environment used in Murlan Royale.',
     swatches: variant.swatches,
@@ -234,6 +221,8 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
   {
     type: 'environmentHdri',
     optionId: TEXAS_DEFAULT_HDRI_ID,
-    label: TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[TEXAS_DEFAULT_HDRI_ID] || TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX]?.label
+    label:
+      TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[TEXAS_DEFAULT_HDRI_ID] ||
+      (TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ? `${TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX].name} HDRI` : undefined)
   }
 ];

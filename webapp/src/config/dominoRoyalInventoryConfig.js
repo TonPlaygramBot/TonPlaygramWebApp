@@ -2,6 +2,7 @@ import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TEXAS_TABLE_FINISH_OPTIONS } from './texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { DOMINO_BATTLE_ROYAL_CHAIR_THEME_OPTIONS } from './sharedInventoryCatalogs.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
@@ -45,12 +46,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'iceTracer', label: 'Ice Tracer' },
     { id: 'violetPulse', label: 'Violet Pulse' }
   ],
-  chairTheme: MURLAN_STOOL_THEMES.map(({ id, label, price = 0, description }) => ({
-    id,
-    label,
-    price,
-    description: description || `${label} seating set from Murlan Royale`
-  }))
+  chairTheme: DOMINO_BATTLE_ROYAL_CHAIR_THEME_OPTIONS
 });
 
 

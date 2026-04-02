@@ -26,8 +26,12 @@ import { MURLAN_TABLE_CLOTHS } from '../webapp/src/config/murlanTableCloths.js';
 import { TABLE_CLOTH_OPTIONS } from '../webapp/src/utils/tableCustomizationOptions.js';
 import { CARD_THEMES as TEXAS_CARD_THEMES } from '../webapp/src/utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from '../webapp/src/config/texasHoldemOptions.js';
-import { TEXAS_TABLE_FINISH_OPTIONS } from '../webapp/src/config/texasHoldemInventoryConfig.js';
-import { POOL_ROYALE_HDRI_VARIANTS } from '../webapp/src/config/poolRoyaleInventoryConfig.js';
+import {
+  TEXAS_DEFAULT_HDRI_ID,
+  TEXAS_HDRI_OPTIONS,
+  TEXAS_TABLE_FINISH_OPTIONS
+} from '../webapp/src/config/texasHoldemInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../webapp/src/config/poolRoyaleInventoryConfig.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -64,6 +68,12 @@ describe('cross-game inventory alignment', () => {
     expect(new Set(DOMINO_ROYAL_DEFAULT_UNLOCKS.chairTheme)).toEqual(
       new Set(MURLAN_STOOL_THEMES.map((theme) => theme.id))
     );
+  });
+
+  test('texas holdem reuses pool hdris and domino chair catalog while keeping separate store ids', () => {
+    expect(TEXAS_HDRI_OPTIONS).toBe(POOL_ROYALE_HDRI_VARIANTS);
+    expect(TEXAS_DEFAULT_HDRI_ID).toBe(POOL_ROYALE_DEFAULT_HDRI_ID);
+    expect(TEXAS_CHAIR_THEME_OPTIONS).toBe(DOMINO_ROYAL_OPTION_SETS.chairTheme);
   });
 
 
