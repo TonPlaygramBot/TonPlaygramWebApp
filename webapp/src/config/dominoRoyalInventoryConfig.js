@@ -1,13 +1,8 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TEXAS_TABLE_FINISH_OPTIONS } from './texasHoldemInventoryConfig.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID } from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
-import {
-  SHARED_ARENA_CHAIR_THEMES,
-  SHARED_ARENA_HDRI_VARIANTS,
-  SHARED_ARENA_TABLE_CLOTH_OPTIONS,
-  SHARED_ARENA_TABLE_THEMES
-} from './sharedArenaAssetCatalog.js';
 
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: TEXAS_TABLE_FINISH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, woodOption }) => ({
@@ -18,7 +13,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     thumbnail,
     woodOption
   })),
-  tableCloth: SHARED_ARENA_TABLE_CLOTH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, feltTop, feltBottom, emissive }) => ({
+  tableCloth: TABLE_CLOTH_OPTIONS.map(({ id, label, price = 0, description, thumbnail, feltTop, feltBottom, emissive }) => ({
     id,
     label,
     price,
@@ -26,7 +21,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     swatches: [feltTop, feltBottom, emissive].filter(Boolean),
     thumbnail
   })),
-  tableTheme: SHARED_ARENA_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
+  tableTheme: MURLAN_TABLE_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
     id,
     label,
     price,
@@ -35,7 +30,7 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     preserveMaterials,
     description: description || `${label} table from Murlan Royale`
   })),
-  environmentHdri: SHARED_ARENA_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
   dominoStyle: [
     { id: 'imperialIvory', label: 'Imperial Ivory' },
     { id: 'obsidianPlatinum', label: 'Obsidian Platinum' },
@@ -50,13 +45,10 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'iceTracer', label: 'Ice Tracer' },
     { id: 'violetPulse', label: 'Violet Pulse' }
   ],
-  chairTheme: SHARED_ARENA_CHAIR_THEMES.map(({ id, label, price = 0, description, source, assetId, preserveMaterials }) => ({
+  chairTheme: MURLAN_STOOL_THEMES.map(({ id, label, price = 0, description }) => ({
     id,
     label,
     price,
-    source,
-    assetId,
-    preserveMaterials,
     description: description || `${label} seating set from Murlan Royale`
   }))
 });
@@ -109,7 +101,7 @@ export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
   tableWood: [getDominoDefaultOptionId('tableWood')].filter(Boolean),
   tableCloth: [getDominoDefaultOptionId('tableCloth')].filter(Boolean),
   tableTheme: DOMINO_ROYAL_OPTION_SETS.tableTheme.map((option) => option.id),
-  environmentHdri: SHARED_ARENA_HDRI_VARIANTS.map((variant) => variant.id),
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
   dominoStyle: [getDominoDefaultOptionId('dominoStyle')].filter(Boolean),
   highlightStyle: [getDominoDefaultOptionId('highlightStyle')].filter(Boolean),
   chairTheme: DOMINO_ROYAL_OPTION_SETS.chairTheme.map((option) => option.id)
@@ -160,9 +152,9 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     type: 'environmentHdri',
     optionId: option.id,
     name: option.label,
-    price: SHARED_ARENA_HDRI_VARIANTS[idx + 1]?.price || 1200 + idx * 80,
+    price: POOL_ROYALE_HDRI_VARIANTS[idx + 1]?.price || 1200 + idx * 80,
     description: 'HDRI environment from the Pool/Murlan Royale library.',
-    thumbnail: SHARED_ARENA_HDRI_VARIANTS.find((variant) => variant.id === option.id)?.thumbnail
+    thumbnail: POOL_ROYALE_HDRI_VARIANTS.find((variant) => variant.id === option.id)?.thumbnail
   })),
   ...DOMINO_ROYAL_OPTION_SETS.dominoStyle.slice(1).map((option, idx) => ({
     id: `domino-style-${option.id}`,
