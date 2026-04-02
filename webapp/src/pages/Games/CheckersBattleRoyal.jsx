@@ -87,10 +87,9 @@ const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
-const MIN_HDRI_RADIUS = 28;
+const MIN_HDRI_RADIUS = 24;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = 11.8;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -104,7 +103,7 @@ const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
     preferredResolutions: ['1k'],
     fallbackResolution: '1k',
     hdriGroundResolution: 256,
-    hdriRadiusMultiplier: 7.5,
+    hdriRadiusMultiplier: 6,
     description:
       'Balanced visuals: Full HD target with stable 50–60 FPS at 60Hz.'
   },
@@ -117,7 +116,7 @@ const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
     preferredResolutions: ['2k', '1k'],
     fallbackResolution: '2k',
     hdriGroundResolution: 320,
-    hdriRadiusMultiplier: 8.5,
+    hdriRadiusMultiplier: 6.5,
     description: 'Sharper arena textures with smooth 60–90 FPS on 90Hz.'
   },
   {
@@ -129,7 +128,7 @@ const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
     preferredResolutions: ['4k', '2k'],
     fallbackResolution: '4k',
     hdriGroundResolution: 448,
-    hdriRadiusMultiplier: 9.5,
+    hdriRadiusMultiplier: 7,
     description: 'Ultra quality mode targeting 4K detail and 105–120 FPS.'
   },
   {
@@ -141,7 +140,7 @@ const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
     preferredResolutions: ['6k', '4k', '2k'],
     fallbackResolution: '4k',
     hdriGroundResolution: 512,
-    hdriRadiusMultiplier: 10.5,
+    hdriRadiusMultiplier: 7.5,
     description:
       'Maximum mode: tries 6K when supported and falls back to 4K automatically.'
   }
@@ -2561,10 +2560,7 @@ export default function CheckersBattleRoyal() {
           typeof variant?.groundRadiusMultiplier === 'number'
             ? variant.groundRadiusMultiplier
             : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-        const sceneSpan = Math.max(
-          CHECKERS_ROOM_HALF_SPAN,
-          CHAIR_DISTANCE + TABLE_RADIUS
-        );
+        const sceneSpan = CHAIR_DISTANCE + SEAT_DEPTH;
         const groundRadius = Math.max(
           sceneSpan * radiusMultiplier * HDRI_UNITS_PER_METER,
           MIN_HDRI_RADIUS
