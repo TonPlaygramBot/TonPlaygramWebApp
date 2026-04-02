@@ -308,7 +308,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
-      const octagonSideStretch = 1.06;
+      const octagonSideStretch = 1.16;
       const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
       const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
@@ -391,7 +391,6 @@ export function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   ctx.fillRect(0, 0, size, size);
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.userData = { ...(texture.userData || {}), murlanCanDispose: true };
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const baseRepeat = 12;
   const scaledRepeat = baseRepeat * 30 * 6 * 4;
@@ -448,35 +447,6 @@ function applyWoodSelectionToMaterials(topMat, rimMat, option) {
       sharedKey
     });
   }
-}
-
-
-const TABLE_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'emissiveMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-  'specularMap',
-  'sheenColorMap',
-  'sheenRoughnessMap'
-]);
-
-function disposeOwnedTableTextures(material) {
-  if (!material) return;
-  TABLE_TEXTURE_PROPS.forEach((prop) => {
-    const texture = material[prop];
-    if (texture?.isTexture && texture.userData?.murlanCanDispose === true) {
-      texture.dispose?.();
-    }
-  });
 }
 
 export function applyTableMaterials(parts, { woodOption, clothOption, baseOption }, renderer) {
@@ -758,7 +728,7 @@ export function createMurlanStyleTable({
     disposeMaterialWithWood(tableParts.rimWoodMat);
     tableParts.baseMat?.dispose?.();
     tableParts.trimMat?.dispose?.();
-    disposeOwnedTableTextures(tableParts.surfaceMat);
+    tableParts.surfaceMat?.map?.dispose?.();
     tableParts.surfaceMat?.dispose?.();
     if (tableGroup.parent) {
       tableGroup.parent.remove(tableGroup);
