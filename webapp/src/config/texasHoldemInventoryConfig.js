@@ -1,13 +1,12 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
-import {
-  BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS,
-  BATTLE_ROYALE_SHARED_HDRI_VARIANTS,
-  BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS,
-  BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS
-} from './battleRoyaleSharedInventory.js';
+import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
 import { polyHavenThumb } from './storeThumbnails.js';
+import {
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
+} from './poolRoyaleInventoryConfig.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -15,48 +14,92 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
+export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
+  const baseResolutions = Array.isArray(variant?.preferredResolutions)
+    ? variant.preferredResolutions.filter((res) => typeof res === 'string' && res.length)
+    : [];
+  const preferredResolutions = Array.from(new Set(['8k', ...baseResolutions, '4k', '2k', '1k']));
+  return {
+    ...variant,
+    preferredResolutions,
+    label: `${variant.name} HDRI`
+  };
+});
 
 export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
 
-export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze(
-  BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS.map((option) => {
-    const WOOD_MAPPING_BY_FINISH = {
-      peelingPaintWeathered: { presetId: 'oak', grainId: 'wood_peeling_paint_weathered' },
-      oakVeneer01: { presetId: 'oak', grainId: 'oak_veneer_01' },
-      woodTable001: { presetId: 'walnut', grainId: 'wood_table_001' },
-      darkWood: { presetId: 'smokedOak', grainId: 'dark_wood' },
-      rosewoodVeneer01: { presetId: 'cherry', grainId: 'rosewood_veneer_01' }
-    };
-    const swatchesById = {
-      peelingPaintWeathered: ['#a89f95', '#b8b3aa'],
-      oakVeneer01: ['#b9854e', '#c89a64'],
-      woodTable001: ['#8f6243', '#a4724f'],
-      darkWood: ['#2f241f', '#3d2f2a'],
-      rosewoodVeneer01: ['#5b2f26', '#6f3a2f']
-    };
-    const wood = WOOD_MAPPING_BY_FINISH[option.id];
-    return {
-      ...option,
-      swatches: swatchesById[option.id] || [],
-      thumbnail: polyHavenThumb(wood?.grainId || option.id),
-      woodOption: wood
-        ? {
-            id: option.id,
-            label: option.label,
-            presetId: wood.presetId,
-            grainId: wood.grainId
-          }
-        : null
-    };
-  })
-);
-
-export const TEXAS_CHAIR_THEME_OPTIONS = BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS;
-export const TEXAS_TABLE_THEME_OPTIONS = BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS;
+export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
+  {
+    id: 'peelingPaintWeathered',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.',
+    price: 980,
+    swatches: ['#a89f95', '#b8b3aa'],
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered'),
+    woodOption: {
+      id: 'peelingPaintWeathered',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+      presetId: 'oak',
+      grainId: 'wood_peeling_paint_weathered'
+    }
+  },
+  {
+    id: 'oakVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+    description: 'Warm oak veneer rails with smooth satin polish.',
+    price: 990,
+    swatches: ['#b9854e', '#c89a64'],
+    thumbnail: polyHavenThumb('oak_veneer_01'),
+    woodOption: {
+      id: 'oakVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+      presetId: 'oak',
+      grainId: 'oak_veneer_01'
+    }
+  },
+  {
+    id: 'woodTable001',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.',
+    price: 1000,
+    swatches: ['#8f6243', '#a4724f'],
+    thumbnail: polyHavenThumb('wood_table_001'),
+    woodOption: {
+      id: 'woodTable001',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+      presetId: 'walnut',
+      grainId: 'wood_table_001'
+    }
+  },
+  {
+    id: 'darkWood',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+    description: 'Deep espresso rails with strong grain contrast.',
+    price: 1010,
+    swatches: ['#2f241f', '#3d2f2a'],
+    thumbnail: polyHavenThumb('dark_wood'),
+    woodOption: {
+      id: 'darkWood',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+      presetId: 'smokedOak',
+      grainId: 'dark_wood'
+    }
+  },
+  {
+    id: 'rosewoodVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+    description: 'Rosewood veneer rails with rich, reddish undertones.',
+    price: 1020,
+    swatches: ['#5b2f26', '#6f3a2f'],
+    thumbnail: polyHavenThumb('rosewood_veneer_01'),
+    woodOption: {
+      id: 'rosewoodVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+      presetId: 'cherry',
+      grainId: 'rosewood_veneer_01'
+    }
+  }
+]);
 
 const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_DEFAULT_HDRI_ID));
 
