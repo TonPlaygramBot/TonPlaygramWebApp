@@ -432,7 +432,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return '8k';
+      return isMobileDevice ? '4k' : '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -4429,20 +4429,17 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   );
 }
 
-const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  {
-    minFps: 120,
-    preferredResolutions: Object.freeze(['8k', '6k', '4k', '2k', '1k'])
-  },
-  {
-    minFps: 90,
-    preferredResolutions: Object.freeze(['4k', '2k', '1k'])
-  },
-  {
-    minFps: 0,
-    preferredResolutions: Object.freeze(['2k', '1k'])
+function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
+  if (qualityId === 'uhd120') {
+    return isMobileDevice
+      ? Object.freeze({ preferredResolutions: Object.freeze(['2k']) })
+      : Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
   }
-]);
+  if (qualityId === 'qhd90' || fps >= 90) {
+    return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
+  }
+  return Object.freeze({ preferredResolutions: Object.freeze(['1k']) });
+}
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
   navigator.userAgent || ''
@@ -4455,20 +4452,11 @@ const isLowCoreDevice =
 const isLowProfileDevice =
   isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
 const MAX_HDRI_CACHE_SIZE = prefersUhd ? 4 : isLowProfileDevice ? 1 : 2;
-function resolveHdriPolicyForFps(fps) {
-  const safeFps = Number.isFinite(fps) ? fps : 60;
-  return (
-    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
-    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
-  );
-}
-
 function buildHdriResolutionChain(primaryResolution, policy = null) {
   const base = Array.isArray(policy?.preferredResolutions)
     ? policy.preferredResolutions
     : [];
-  const fallbackLadder = ['8k', '6k', '4k', '2k', '1k'];
-  const ordered = [primaryResolution, ...base, ...fallbackLadder].filter(
+  const ordered = [primaryResolution, ...base].filter(
     (value) => typeof value === 'string' && value.length
   );
   return [...new Set(ordered)];
@@ -4481,7 +4469,7 @@ function resolveHdriResolutionOrder() {
       ? selectedQuality.fps
       : 60;
   const primaryResolution = resolveGraphicsHdriResolutionId(frameRateId);
-  const policy = resolveHdriPolicyForFps(selectedFps);
+  const policy = resolveHdriPolicyForFrameRate(frameRateId, selectedFps);
   return buildHdriResolutionChain(primaryResolution, policy);
 }
 function shouldLoadExternalHdri() {
