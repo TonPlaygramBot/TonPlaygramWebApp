@@ -232,6 +232,15 @@ const LEVEL_START_INDICES = LEVEL_TILE_COUNTS.reduce((starts, count, index) => {
   }
   return starts;
 }, []);
+const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) => ({
+  from: start + LEVEL_TILE_COUNTS[index] - 1,
+  to: LEVEL_START_INDICES[index + 1]
+}));
+const STAIR_STEP_COUNT = 5;
+const STAIR_COLOR = 0x111111;
+const STAIR_WIDTH = TILE_SIZE * 0.72;
+const STAIR_DEPTH_MIN = TILE_SIZE * 0.22;
+const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const BOARD_ROTATION_DRAG_SPEED = 0.0065;
@@ -380,13 +389,6 @@ function buildPerimeterSequence(size) {
     sequence.push({ row, col: 0 });
   }
   return sequence;
-}
-
-function rotateSequence(sequence, startIndex, reverse = false) {
-  if (!Array.isArray(sequence) || !sequence.length) return [];
-  const normalizedStart = ((startIndex % sequence.length) + sequence.length) % sequence.length;
-  const ordered = sequence.slice(normalizedStart).concat(sequence.slice(0, normalizedStart));
-  return reverse ? [ordered[0], ...ordered.slice(1).reverse()] : ordered;
 }
 
 function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
@@ -848,16 +850,16 @@ function addChromeRailings(
   return created;
 }
 
-function getRailingEntryConfig(levelIndex, indexToPosition, levelTransitions = []) {
+function getRailingEntryConfig(levelIndex, indexToPosition) {
   if (levelIndex <= 0) {
     return { side: 'front', axis: 'x', center: null };
   }
-  const transition = levelTransitions.find((item) => item.toLevel === levelIndex);
-  if (!transition) {
+  const stairInfo = STAIR_CONNECTIONS[levelIndex - 1];
+  if (!stairInfo) {
     return { side: 'front', axis: 'x', center: null };
   }
-  const fromPos = indexToPosition.get(transition.fromIndex);
-  const toPos = indexToPosition.get(transition.toIndex);
+  const fromPos = indexToPosition.get(stairInfo.from);
+  const toPos = indexToPosition.get(stairInfo.to);
   if (!fromPos || !toPos) {
     return { side: 'front', axis: 'x', center: null };
   }
@@ -875,6 +877,75 @@ function getRailingEntryConfig(levelIndex, indexToPosition, levelTransitions = [
     axis: 'x',
     center: toPos.x
   };
+}
+
+function addWallStaircase(
+  parent,
+  { fromIndex, toIndex, indexToPosition, stepCount = STAIR_STEP_COUNT, width = STAIR_WIDTH, depthMin = STAIR_DEPTH_MIN, outwardOffset = STAIR_OUTWARD_OFFSET },
+  meshes
+) {
+  if (!indexToPosition?.has(fromIndex) || !indexToPosition?.has(toIndex) || stepCount <= 0) {
+    return null;
+  }
+  const created = [];
+  const fromPos = indexToPosition.get(fromIndex).clone();
+  const toPos = indexToPosition.get(toIndex).clone();
+  const heightDelta = toPos.y - fromPos.y;
+  if (heightDelta <= 0) return null;
+
+  const material = new THREE.MeshStandardMaterial({
+    color: STAIR_COLOR,
+    roughness: 0.55,
+    metalness: 0.2
+  });
+
+  const horizontal = new THREE.Vector3(toPos.x - fromPos.x, 0, toPos.z - fromPos.z);
+  const horizontalLength = horizontal.length();
+  let direction;
+  if (horizontalLength > 1e-6) {
+    direction = horizontal.clone().normalize();
+  } else {
+    direction = new THREE.Vector3(1, 0, 0);
+  }
+  const outward = new THREE.Vector3(-direction.z, 0, direction.x);
+  if (outward.lengthSq() > 1e-6) {
+    outward.normalize();
+    const toCenter = new THREE.Vector3(fromPos.x, 0, fromPos.z);
+    if (toCenter.dot(outward) < 0) outward.multiplyScalar(-1);
+  } else {
+    outward.set(0, 0, 1);
+  }
+
+  const stepHeight = heightDelta / stepCount;
+  const stepDepth = Math.max(depthMin, horizontalLength / Math.max(1, stepCount));
+  const totalDepth = stepDepth * stepCount;
+  const overshoot = Math.max(0, totalDepth - horizontalLength);
+  const startBase = fromPos
+    .clone()
+    .addScaledVector(direction, -overshoot / 2)
+    .addScaledVector(outward, outwardOffset);
+
+  const group = new THREE.Group();
+  for (let i = 0; i < stepCount; i += 1) {
+    const step = new THREE.Mesh(
+      new THREE.BoxGeometry(width, Math.max(stepHeight * 0.98, TILE_SIZE * 0.04), stepDepth),
+      material.clone()
+    );
+    const center = startBase.clone().addScaledVector(direction, stepDepth * (i + 0.5));
+    center.y = fromPos.y + stepHeight * (i + 0.5);
+    step.position.copy(center);
+    step.castShadow = true;
+    step.receiveShadow = true;
+    group.add(step);
+    created.push(step);
+  }
+
+  parent.add(group);
+  created.push(group);
+  if (meshes) {
+    created.forEach((mesh) => meshes.push(mesh));
+  }
+  return group;
 }
 
 function createChairClothTexture(chairOption, renderer) {
@@ -2847,66 +2918,12 @@ function buildSnakeBoard(
     accumulated += LEVEL_TILE_COUNTS[idx];
   });
 
-  const tileTopForGrid = (levelIndex, row, col) => {
-    const { size, half, tileTopY } = levelPlacements[levelIndex];
-    const xBase = -half + (col + 0.5) * TILE_SIZE;
-    const zBase = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
-    const pos = new THREE.Vector3(xBase, tileTopY, zBase);
-    if (levelIndex === 0) {
-      pos.x *= GROUND_FLOOR_OUTWARD_SCALE;
-      pos.z *= GROUND_FLOOR_OUTWARD_SCALE;
-    }
-    return pos;
-  };
-
-  const levelSpiralPlans = [];
-  let previousEnd = null;
-  PYRAMID_LEVELS.forEach((size, levelIndex) => {
-    const levelTileCount = LEVEL_TILE_COUNTS[levelIndex] ?? 0;
-    if (levelTileCount <= 0) {
-      levelSpiralPlans[levelIndex] = [];
-      return;
-    }
-    const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
-    if (!perimeter.length) {
-      levelSpiralPlans[levelIndex] = [];
-      return;
-    }
-    if (!previousEnd) {
-      levelSpiralPlans[levelIndex] = perimeter;
-      previousEnd = tileTopForGrid(levelIndex, perimeter[perimeter.length - 1].row, perimeter[perimeter.length - 1].col);
-      return;
-    }
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-    perimeter.forEach((cell, idx) => {
-      const worldPos = tileTopForGrid(levelIndex, cell.row, cell.col);
-      const dist = worldPos.distanceToSquared(previousEnd);
-      if (dist < closestDistance) {
-        closestDistance = dist;
-        closestIndex = idx;
-      }
-    });
-    const forward = rotateSequence(perimeter, closestIndex, false);
-    const reversed = rotateSequence(perimeter, closestIndex, true);
-    const forwardSecond = forward[1] || forward[0];
-    const reversedSecond = reversed[1] || reversed[0];
-    const forwardDist = tileTopForGrid(levelIndex, forwardSecond.row, forwardSecond.col).distanceToSquared(previousEnd);
-    const reversedDist = tileTopForGrid(levelIndex, reversedSecond.row, reversedSecond.col).distanceToSquared(previousEnd);
-    const chosen = reversedDist < forwardDist ? reversed : forward;
-    levelSpiralPlans[levelIndex] = chosen;
-    const endCell = chosen[chosen.length - 1];
-    previousEnd = tileTopForGrid(levelIndex, endCell.row, endCell.col);
-  });
-
-  const levelTransitions = [];
-
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const offset = levelOffsets[levelIndex];
     const levelTileCount = LEVEL_TILE_COUNTS[levelIndex] ?? 0;
     if (levelTileCount <= 0) return;
     const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
-    const perimeter = (levelSpiralPlans[levelIndex] || []).slice(0, levelTileCount);
+    const perimeter = buildPerimeterSequence(size).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
       const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
@@ -2948,22 +2965,12 @@ function buildSnakeBoard(
       label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
       labelGroup.add(label);
     });
-    if (levelIndex > 0) {
-      const previousLevelLast = levelOffsets[levelIndex - 1] + (LEVEL_TILE_COUNTS[levelIndex - 1] ?? 0);
-      const currentLevelFirst = offset + 1;
-      levelTransitions.push({
-        fromLevel: levelIndex - 1,
-        toLevel: levelIndex,
-        fromIndex: previousLevelLast,
-        toIndex: currentLevelFirst
-      });
-    }
   });
 
   railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
     const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
     const startPos = indexToPosition.get(startIndex);
-    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition, levelTransitions);
+    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
     let gapCenter;
     if (entryConfig.center != null) {
       gapCenter = entryConfig.center;
@@ -2985,6 +2992,22 @@ function buildSnakeBoard(
       },
       platformMeshes,
       railTheme
+    );
+  });
+
+  STAIR_CONNECTIONS.forEach(({ from, to }, index) => {
+    addWallStaircase(
+      platformGroup,
+      {
+        fromIndex: from,
+        toIndex: to,
+        indexToPosition,
+        stepCount: STAIR_STEP_COUNT,
+        width: STAIR_WIDTH,
+        depthMin: STAIR_DEPTH_MIN,
+        outwardOffset: STAIR_OUTWARD_OFFSET * (1 - index * 0.08)
+      },
+      platformMeshes
     );
   });
 
