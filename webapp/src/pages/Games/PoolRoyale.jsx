@@ -59,7 +59,6 @@ import {
   setBallMaterialAnisotropy
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import planShot from '../../../../lib/poolAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -115,7 +114,6 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -1260,7 +1258,7 @@ const TABLE_MAPPING_VISUALS = Object.freeze({
 const LOCK_REPLAY_CAMERA = false;
 const FIXED_RAIL_REPLAY_CAMERA = false;
 const LOCK_RAIL_OVERHEAD_FRAME = false;
-const REPLAY_CUE_STICK_HOLD_MS = 760;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
 const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -3415,7 +3413,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true;
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false;
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -5617,8 +5615,8 @@ const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
-const LONG_SHOT_ACTIVATION_DELAY_MS = 0;
-const LONG_SHOT_ACTIVATION_TRAVEL = 0;
+const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
+const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
@@ -27104,231 +27102,21 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        const computeOpenSourcePlan = (allBalls, cueBall, frameSnapshot) => {
-          if (!cueBall?.active) return null;
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          if (variantId !== 'american' && variantId !== '9ball') return null;
-          const width = PLAY_W;
-          const height = PLAY_H;
-          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
-          const pocketsLocal = pocketEntranceCenters();
-          const pockets = pocketsLocal.map((center) => toAi(center));
-          const cueBallId = 16;
-          const mapBallId = (ball) => {
-            if (!ball) return null;
-            if (ball === cueBall) return cueBallId;
-            if (typeof ball.id === 'number') return ball.id;
-            if (typeof ball.id === 'string') {
-              const lower = ball.id.toLowerCase();
-              if (lower === 'cue' || lower === 'cue_ball') return cueBallId;
-              const match = lower.match(/\d+/);
-              if (match) return Number(match[0]);
-            }
-            return null;
-          };
-          const aiBalls = [];
-          allBalls.forEach((ball) => {
-            const mappedId = mapBallId(ball);
-            if (mappedId == null || !ball?.pos) return;
-            const pos = toAi(ball.pos);
-            aiBalls.push({
-              id: mappedId,
-              x: pos.x,
-              y: pos.y,
-              vx: ball.vel?.x ?? 0,
-              vy: ball.vel?.y ?? 0,
-              pocketed: !ball.active
-            });
-          });
-          if (!aiBalls.some((ball) => ball.id === cueBallId && !ball.pocketed)) {
-            return null;
-          }
-          const metaState = frameSnapshot?.meta?.state ?? null;
-          const activePlayer = metaState?.currentPlayer ?? frameSnapshot?.activePlayer ?? null;
-          const assignmentRaw =
-            activePlayer && metaState?.assignments
-              ? metaState.assignments[activePlayer]
-              : null;
-          const normalizedAssignment = normalizeAiGroup(assignmentRaw);
-          const rawBallOn = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn[0]
-            : frameSnapshot?.ballOn ?? null;
-          const normalizedBallOn = normalizeAiGroup(rawBallOn);
-          const legalIdsFromBallOn = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn
-                .map((entry) => {
-                  if (typeof entry !== 'string') return null;
-                  const normalized = entry.toUpperCase();
-                  const match = /^BALL_(\d+)/.exec(normalized);
-                  if (match) {
-                    const id = Number.parseInt(match[1], 10);
-                    return Number.isFinite(id) ? id : null;
-                  }
-                  if (normalized === 'BLACK') return 8;
-                  return null;
-                })
-                .filter((id) => Number.isFinite(id))
-            : [];
-          const legalIdsFromGroup = normalizedAssignment
-            ? aiBalls
-                .filter((ball) => {
-                  if (ball.pocketed || ball.id === cueBallId) return false;
-                  if (normalizedAssignment === 'SOLIDS') return ball.id >= 1 && ball.id <= 7;
-                  if (normalizedAssignment === 'STRIPES') return ball.id >= 9 && ball.id <= 15;
-                  return false;
-                })
-                .map((ball) => ball.id)
-            : [];
-          const legalBallIds =
-            legalIdsFromBallOn.length > 0
-              ? legalIdsFromBallOn
-              : legalIdsFromGroup;
-          const aiState = {
-            balls: aiBalls,
-            pockets,
-            width,
-            height,
-            ballRadius: BALL_R,
-            friction: FRICTION,
-            cueBallId,
-            ballInHand: Boolean(metaState?.ballInHand),
-            myGroup: normalizedAssignment,
-            ballOn: normalizedBallOn ?? null,
-            legalBallIds,
-            breakInProgress: Boolean(metaState?.breakInProgress)
-          };
-          const decision = planShot({
-            game: variantId === 'american' ? 'AMERICAN_BILLIARDS' : 'NINE_BALL',
-            state: aiState,
-            timeBudgetMs: Math.min(AI_THINKING_BUDGET_MS, 920),
-            maxCutAngle: Math.PI / 4.4,
-            minViewScore: 0.5
-          });
-          if (!decision?.aimPoint) return null;
-          const aimPoint = new THREE.Vector2(
-            decision.aimPoint.x - width / 2,
-            decision.aimPoint.y - height / 2
-          );
-          const aimDir = aimPoint.clone().sub(cueBall.pos);
-          if (aimDir.lengthSq() < 1e-6) return null;
-          aimDir.normalize();
-          const suggestedAimPointRaw = decision.suggestedAimPoint;
-          let suggestedAimDir = null;
-          if (
-            suggestedAimPointRaw &&
-            Number.isFinite(suggestedAimPointRaw.x) &&
-            Number.isFinite(suggestedAimPointRaw.y)
-          ) {
-            suggestedAimDir = new THREE.Vector2(
-              suggestedAimPointRaw.x - width / 2,
-              suggestedAimPointRaw.y - height / 2
-            ).sub(cueBall.pos);
-            if (suggestedAimDir.lengthSq() > 1e-6) {
-              suggestedAimDir.normalize();
-            } else {
-              suggestedAimDir = null;
-            }
-          }
-          const targetBall = allBalls.find((ball) => {
-            const mappedId = mapBallId(ball);
-            return mappedId != null && mappedId === decision.targetBallId;
-          });
-          const targetPocket = decision.targetPocket
-            ? new THREE.Vector2(
-                decision.targetPocket.x - width / 2,
-                decision.targetPocket.y - height / 2
-              )
-            : null;
-          const pocketIndex =
-            targetPocket != null
-              ? pocketsLocal.reduce((bestIndex, center, idx) => {
-                  if (bestIndex == null) return idx;
-                  const bestDist = pocketsLocal[bestIndex].distanceTo(targetPocket);
-                  const dist = center.distanceTo(targetPocket);
-                  return dist < bestDist ? idx : bestIndex;
-                }, null)
-              : null;
-          const pocketCenter =
-            pocketIndex != null ? pocketsLocal[pocketIndex].clone() : null;
-          const power = THREE.MathUtils.clamp(decision.power ?? 0.6, 0.3, 0.95);
-          const sideSpin = decision.spin?.side ?? 0;
-          const verticalSpin = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
-          const spin = {
-            x: THREE.MathUtils.clamp(sideSpin, -0.6, 0.6),
-            y: THREE.MathUtils.clamp(verticalSpin, -0.6, 0.6)
-          };
-          const quality = Number.isFinite(decision.quality) ? decision.quality : 0;
-          const isSafety =
-            typeof decision.rationale === 'string' &&
-            decision.rationale.toLowerCase().includes('safety');
-          return {
-            type: isSafety ? 'safety' : 'pot',
-            aimDir,
-            power,
-            target: targetBall ? toBallColorId(targetBall.id) : 'SAFETY',
-            targetBall: targetBall ?? null,
-            pocketId: pocketIndex != null ? POCKET_IDS[pocketIndex] : 'SAFETY',
-            pocketCenter,
-            difficulty: quality ? (1 - quality) * 1000 : undefined,
-            cueToTarget: targetBall
-              ? cueBall.pos.distanceTo(targetBall.pos)
-              : cueBall.pos.distanceTo(aimPoint),
-            targetToPocket:
-              targetBall && pocketCenter
-                ? targetBall.pos.distanceTo(pocketCenter)
-                : 0,
-            spin,
-            quality,
-            suggestedAimDir:
-              suggestedAimDir && suggestedAimDir.lengthSq() > 1e-6
-                ? suggestedAimDir
-                : null,
-            suggestedTargetBallId:
-              Number.isFinite(decision.suggestedTargetBallId)
-                ? decision.suggestedTargetBallId
-                : null,
-            aiMeta: {
-              quality,
-              rationale: decision.rationale ?? null,
-              source: 'poolAi'
-            }
-          };
-        };
-
         const evaluateShotOptions = () => {
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
+            if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            if (variantId === 'uk' && cue?.active) {
-              const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
-              if (!advancedPlan) return baseline;
-              const result = { ...baseline };
-              if (advancedPlan.type === 'pot') {
-                result.bestPot = advancedPlan;
-                if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
-              } else {
-                result.bestSafety = advancedPlan;
-                if (!result.bestPot) result.bestPot = baseline.bestPot;
-              }
-              return result;
-            }
-            if (!cue?.active) return baseline;
-            const openSourcePlan = computeOpenSourcePlan(balls, cue, stateSnapshot);
-            if (!openSourcePlan) return baseline;
+            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            if (!advancedPlan) return baseline;
             const result = { ...baseline };
-            if (openSourcePlan.type === 'pot') {
-              const currentQuality = result.bestPot?.quality ?? -Infinity;
-              const nextQuality = openSourcePlan.quality ?? 0;
-              if (!result.bestPot || nextQuality >= currentQuality) {
-                result.bestPot = openSourcePlan;
-              }
+            if (advancedPlan.type === 'pot') {
+              result.bestPot = advancedPlan;
+              if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
             } else {
-              const currentQuality = result.bestSafety?.quality ?? -Infinity;
-              const nextQuality = openSourcePlan.quality ?? 0;
-              if (!result.bestSafety || nextQuality >= currentQuality) {
-                result.bestSafety = openSourcePlan;
-              }
+              result.bestSafety = advancedPlan;
+              if (!result.bestPot) result.bestPot = baseline.bestPot;
             }
             return result;
           } catch (err) {
@@ -27337,83 +27125,23 @@ const powerRef = useRef(hud.power);
           }
         };
         const normalizeAiPlanAim = (plan) => {
-          if (!plan?.aimDir || !cue?.active) return plan;
+          if (!plan || !cue?.active) return plan;
           const cueBall = cue;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          const frameSnapshot = frameRef.current ?? frameState;
-          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
-          );
-          const legalTargetsRaw =
-            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
-              ? frameSnapshot.ballOn
-              : targetOrder;
-          const legalTargets = new Set(
-            legalTargetsRaw
-              .map((entry) => normalizeTargetId(entry))
-              .filter((entry) => entry && isBallTargetId(entry))
-          );
-          const isLegalTargetBall = (ball) => {
-            if (!ball) return false;
-            if (legalTargets.size === 0) return true;
-            return Array.from(legalTargets).some((target) =>
-              matchesTargetId(ball, target)
-            );
-          };
-          const pickLegalTargetBall = () => {
-            const cuePos = cueBall?.pos ? cueBall.pos.clone() : null;
-            const candidates = activeBalls.filter(
-              (ball) =>
-                ball?.active &&
-                String(ball.id) !== 'cue' &&
-                isLegalTargetBall(ball)
-            );
-            if (!cuePos || candidates.length === 0) return null;
-            if (targetOrder.length > 0) {
-              for (const targetId of targetOrder) {
-                const matches = candidates.filter((ball) =>
-                  matchesTargetId(ball, targetId)
-                );
-                if (matches.length > 0) {
-                  return matches.reduce((best, ball) => {
-                    if (!best) return ball;
-                    return scoreBallForAim(ball, cuePos) > scoreBallForAim(best, cuePos)
-                      ? ball
-                      : best;
-                  }, null);
-                }
-              }
-            }
-            return candidates.reduce((best, ball) => {
-              if (!best) return ball;
-              return scoreBallForAim(ball, cuePos) > scoreBallForAim(best, cuePos)
-                ? ball
-                : best;
-            }, null);
-          };
+          if (!plan.aimDir || !Number.isFinite(plan.aimDir.x) || !Number.isFinite(plan.aimDir.y)) {
+            plan.aimDir = null;
+            return plan;
+          }
           const aimDir = plan.aimDir.clone();
           if (aimDir.lengthSq() < 1e-6) return plan;
           aimDir.normalize();
           plan.aimDir = aimDir;
-          if (plan.type !== 'pot' || plan.viaCushion) {
+          if (plan.type !== 'pot' || plan.viaCushion || !plan.targetBall?.active) {
             return plan;
-          }
-          if (plan.targetBall && !plan.targetBall.active) {
-            plan.targetBall = null;
-          }
-          if (plan.targetBall && !isLegalTargetBall(plan.targetBall)) {
-            plan.targetBall = null;
           }
           const contact = calcTarget(cueBall, aimDir, activeBalls);
           const hitBall = contact?.targetBall ?? null;
-          if (!plan.targetBall && hitBall && isLegalTargetBall(hitBall)) {
-            plan.targetBall = hitBall;
-            plan.target = toBallColorId(hitBall.id);
-          }
           if (hitBall && String(hitBall.id) === String(plan.targetBall.id)) {
             if (Number.isFinite(contact?.tHit)) {
               plan.cueToTarget = contact.tHit;
@@ -27421,69 +27149,12 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
-          if (
-            plan.suggestedAimDir &&
-            typeof plan.suggestedAimDir.lengthSq === 'function' &&
-            plan.suggestedAimDir.lengthSq() > 1e-6
-          ) {
-            const suggestedContact = calcTarget(cueBall, plan.suggestedAimDir, activeBalls);
-            if (
-              suggestedContact?.targetBall &&
-              isLegalTargetBall(suggestedContact.targetBall)
-            ) {
-              corrected = plan.suggestedAimDir.clone().normalize();
-              plan.targetBall = suggestedContact.targetBall;
-              plan.target = toBallColorId(suggestedContact.targetBall.id);
-            }
-          }
-          if (!plan.targetBall && plan.target) {
-            const targetBall = activeBalls.find(
-              (ball) => ball?.active && matchesTargetId(ball, plan.target)
-            );
-            if (targetBall) {
-              plan.targetBall = targetBall;
-            }
-          }
-          if (!plan.targetBall) {
-            plan.targetBall = pickLegalTargetBall();
-          }
-          if (plan.targetBall?.pos && plan.pocketId && plan.pocketId !== 'SAFETY') {
-            const pocketIndex = POCKET_IDS.indexOf(plan.pocketId);
-            if (pocketIndex >= 0) {
-              const resolvedEntrance = resolvePocketEntranceForTarget(
-                plan.targetBall.pos,
-                pocketIndex
-              );
-              if (resolvedEntrance) {
-                plan.pocketCenter = resolvedEntrance.clone();
-              }
-            }
-          }
-          if (plan.pocketCenter && plan.targetBall?.pos) {
-            const compensatedAim = resolveAiPotGhostAim({
-              cuePos: cueBall.pos,
-              targetPos: plan.targetBall.pos,
-              pocketPos: plan.pocketCenter,
-              ballRadius: BALL_R,
-              spin: plan.spin,
-              power: plan.power
-            });
-            if (compensatedAim?.aimDir && compensatedAim.aimDir.lengthSq() > 1e-6) {
-              corrected = compensatedAim.aimDir.clone();
-              if (compensatedAim.ghost) {
-                plan.cueToTarget = cueBall.pos.distanceTo(compensatedAim.ghost);
-              }
-            }
-          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
               corrected = direct.normalize();
               plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
-          }
-          if (!corrected && !plan.targetBall) {
-            return null;
           }
           if (corrected) {
             plan.aimDir = corrected;
@@ -28060,26 +27731,10 @@ const powerRef = useRef(hud.power);
             }
           }
           if (plan?.targetBall && cue?.pos) {
-            let suggestedDir = null;
-            if (plan?.pocketCenter && plan?.targetBall?.pos) {
-              const compensatedAim = resolveAiPotGhostAim({
-                cuePos: cue.pos,
-                targetPos: plan.targetBall.pos,
-                pocketPos: plan.pocketCenter,
-                ballRadius: BALL_R,
-                spin: plan.spin,
-                power: plan.power
-              });
-              if (compensatedAim?.aimDir?.lengthSq?.() > 1e-6) {
-                suggestedDir = compensatedAim.aimDir.clone();
-              }
-            }
-            if (!suggestedDir) {
-              suggestedDir = new THREE.Vector2(
-                plan.targetBall.pos.x - cue.pos.x,
-                plan.targetBall.pos.y - cue.pos.y
-              );
-            }
+            const suggestedDir = new THREE.Vector2(
+              plan.targetBall.pos.x - cue.pos.x,
+              plan.targetBall.pos.y - cue.pos.y
+            );
             if (applyAimDirection(suggestedDir, suggestionKey)) {
               return;
             }
@@ -28273,9 +27928,7 @@ const powerRef = useRef(hud.power);
             cuePullTargetRef.current = 0;
             const isBreakPlan = plan?.type === 'break';
             const previewAimDir =
-              plan?.suggestedAimDir && plan.suggestedAimDir.lengthSq() > 1e-6
-                ? plan.suggestedAimDir.clone().normalize()
-                : dir.clone();
+              dir.clone();
             const aiPower = isBreakPlan
               ? 1
               : clampPower(plan.power, 0.6);
@@ -28347,51 +28000,6 @@ const powerRef = useRef(hud.power);
           }
         };
         const refineAiPotAimLine = (plan) => {
-          if (!plan?.aimDir || plan.type !== 'pot' || !cue?.active) return plan;
-          if (!plan.targetBall?.active || !plan.pocketCenter) return plan;
-          const cuePos = cue.pos?.clone?.();
-          if (!cuePos) return plan;
-          const compensated = resolveAiPotGhostAim({
-            cuePos,
-            targetPos: plan.targetBall.pos,
-            pocketPos: plan.pocketCenter,
-            ballRadius: BALL_R,
-            spin: plan.spin,
-            power: plan.power,
-            contactCalibration: 0
-          });
-          const baseDir =
-            compensated?.aimDir?.lengthSq?.() > 1e-6
-              ? compensated.aimDir.clone().normalize()
-              : plan.aimDir.clone().normalize();
-          if (baseDir.lengthSq() < 1e-6) return plan;
-          const targetId = String(plan.targetBall.id);
-          const toPocketRef = plan.pocketCenter.clone().sub(plan.targetBall.pos);
-          const bestRef = { dir: baseDir, score: -Infinity };
-          const scanDegrees = [-2.4, -1.6, -0.9, -0.45, 0, 0.45, 0.9, 1.6, 2.4];
-          scanDegrees.forEach((deg) => {
-            const rotated = baseDir
-              .clone()
-              .rotateAround(new THREE.Vector2(0, 0), THREE.MathUtils.degToRad(deg));
-            if (rotated.lengthSq() < 1e-6) return;
-            rotated.normalize();
-            const contact = calcTarget(cue, rotated, ballsRef.current?.length ? ballsRef.current : balls);
-            if (!contact?.targetBall || String(contact.targetBall.id) !== targetId) return;
-            const toPocket = plan.pocketCenter.clone().sub(contact.targetBall.pos);
-            const pocketAlignment =
-              toPocket.lengthSq() > 1e-6 && toPocketRef.lengthSq() > 1e-6
-                ? toPocket.clone().normalize().dot(toPocketRef.clone().normalize())
-                : 0;
-            const depthScore = Number.isFinite(contact?.tHit)
-              ? 1 - Math.min(Math.abs(contact.tHit - cuePos.distanceTo(plan.targetBall.pos)) / (BALL_R * 14), 1)
-              : 0;
-            const score = pocketAlignment * 0.78 + depthScore * 0.22;
-            if (score > bestRef.score) {
-              bestRef.dir = rotated;
-              bestRef.score = score;
-            }
-          });
-          plan.aimDir = bestRef.dir.clone().normalize();
           return plan;
         };
 
