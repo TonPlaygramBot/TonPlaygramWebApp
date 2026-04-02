@@ -614,6 +614,18 @@ function detectPreferredFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
+
+function isLikelyMobileDevice() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const coarsePointer = detectCoarsePointer();
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  return isMobileUA || coarsePointer || maxTouchPoints > 1;
+}
+
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
     return 2;
@@ -1473,7 +1485,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
+const BALL_CENTER_LIFT = BALL_R * 0.02; // lift balls a touch more so the lower hemisphere cleanly rides the cloth top
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1664,7 +1676,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.78; // pull pocket cameras slightly further inward for tighter corner-pocket framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
@@ -1689,7 +1701,7 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.42,
+  heightOffset: BALL_R * 2.58,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -1918,17 +1930,17 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.25;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 10;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.6;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 11.2;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.05;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.34, CUE_TIP_RADIUS * 2.15);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.26;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.38, CUE_TIP_RADIUS * 2.3);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.34;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -3326,18 +3338,21 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: '8K texture pack • 120 FPS',
-    description: 'Poly Haven 8K assets at a 120 FPS target.'
+    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
+    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
-  { minFps: 120, key: '8k', textureSize: 8192 },
+  { minFps: 120, key: '4k', textureSize: 4096 },
   { minFps: 90, key: '4k', textureSize: 4096 },
   { minFps: 0, key: '2k', textureSize: 2048 }
 ]);
 const resolveGraphicsResolutionTier = (fps) => {
   const safeFps = Number.isFinite(fps) ? fps : 60;
+  if (safeFps >= 120 && !isLikelyMobileDevice()) {
+    return { minFps: 120, key: '8k', textureSize: 8192 };
+  }
   return (
     GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
     GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
@@ -4861,16 +4876,19 @@ const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '8k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k', desktopOnly: true },
+  { minFps: 120, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
 
 function resolveHdriPolicyForFps(fps) {
   const safeFps = Number.isFinite(fps) ? fps : 60;
+  const isMobile = isLikelyMobileDevice();
   return (
-    HDRI_RESOLUTION_POLICY_BY_FPS.find((policy) => safeFps >= policy.minFps) ??
-    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
+    HDRI_RESOLUTION_POLICY_BY_FPS.find(
+      (policy) => safeFps >= policy.minFps && (!policy.desktopOnly || !isMobile)
+    ) ?? HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1]
   );
 }
 
@@ -5992,7 +6010,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.35; // transfer topspin to forward roll with a touch more follow-through, especially on straight topspin strokes
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.39; // add a bit more follow-through on straight topspin so the cue ball carries naturally
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
@@ -22363,6 +22381,8 @@ const powerRef = useRef(hud.power);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
+          enterTopView(true, { variant: 'rail' });
+          setIsRailOverheadView(true);
           const replayCueStroke = trimmed.cueStroke ?? null;
           const replayCueHideFrom = replayCueStroke
             ? Math.max(
@@ -22495,6 +22515,8 @@ const powerRef = useRef(hud.power);
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
           overheadBroadcastVariantRef.current = 'rail';
+          resetCameraForReplay();
+          setIsRailOverheadView(false);
           replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
