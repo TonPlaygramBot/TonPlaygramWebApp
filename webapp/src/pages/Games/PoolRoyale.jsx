@@ -1388,7 +1388,7 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
@@ -1473,7 +1473,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.016; // lift balls slightly more so they roll cleanly on top of the cloth without visible sink
+const BALL_CENTER_LIFT = BALL_R * 0.012; // lift balls by ~1.2% radius so their bottom rides precisely on top of the cloth without visual clipping
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1664,7 +1664,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.78; // pull pocket cameras slightly further inward for tighter framing
+const POCKET_CAM_INWARD_SCALE = 0.82; // pull pocket cameras further inward for tighter framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.18; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
@@ -1689,14 +1689,14 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.56,
+  heightOffset: BALL_R * 2.32,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.92,
+  distanceScale: 1,
   heightScale: 1,
   focusBlend: 0,
   lateralFocusShift: 0,
@@ -1911,7 +1911,7 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly 
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.46; // add more headroom so cue helpers clear cushion lips and nearby table props
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -1927,8 +1927,8 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.34, CUE_TIP_RADIUS * 2.2);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.3;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.28, CUE_TIP_RADIUS * 2.05);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.2;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4861,7 +4861,7 @@ const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '8k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
@@ -4894,7 +4894,7 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const walk = (value) => {
     if (!value) return;
     if (typeof value === 'string') {
-      if (value.startsWith('http') && (value.toLowerCase().includes('.hdr') || value.toLowerCase().includes('.exr'))) {
+      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
         urls.push(value);
       }
       return;
@@ -5992,9 +5992,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.36; // add a little more follow-through transfer so straight topspin continues more naturally
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.31; // transfer topspin to forward roll more progressively for a realistic, less abrupt follow phase
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.9; // allow slightly longer topspin carry before natural roll fully settles
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
@@ -19799,9 +19799,7 @@ const powerRef = useRef(hud.power);
             lookTarget = focusTarget;
             broadcastArgs.focusWorld = focusTarget.clone();
             broadcastArgs.targetWorld = focusTarget.clone();
-            broadcastArgs.orbitWorld = safePosition.clone();
-            broadcastArgs.preferredRail = railOverheadSideRef.current;
-            broadcastArgs.lerp = 0.08;
+            broadcastArgs.lerp = 0;
           } else if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
@@ -30583,14 +30581,6 @@ const powerRef = useRef(hud.power);
                   mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
                 potted.push({ id: b.id, color: colorId, pocket: pocketId });
                 pottedIds.add(b.id);
-                const shouldUseRailOverheadBroadcast =
-                  !topViewRef.current &&
-                  (pocketIndex >= 4 || (Number.isFinite(b.lastRailHitAt) && performance.now() - b.lastRailHitAt <= 1250));
-                if (shouldUseRailOverheadBroadcast && activeShotView?.mode === 'action') {
-                  activeShotView.preferRailOverhead = true;
-                  activeShotView.lockOverheadFocus = true;
-                  activeShotView.broadcastRailDir = pocketId === 'BM' ? 1 : -1;
-                }
                 const shouldForceCornerPocketView =
                   !topViewRef.current &&
                   pocketIndex < 4;
@@ -30778,14 +30768,6 @@ const powerRef = useRef(hud.power);
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
               potted.push({ id: b.id, color: colorId, pocket: pocketId });
               pottedIds.add(b.id);
-              const shouldUseRailOverheadBroadcast =
-                !topViewRef.current &&
-                (pocketIndex >= 4 || (Number.isFinite(b.lastRailHitAt) && performance.now() - b.lastRailHitAt <= 1250));
-              if (shouldUseRailOverheadBroadcast && activeShotView?.mode === 'action') {
-                activeShotView.preferRailOverhead = true;
-                activeShotView.lockOverheadFocus = true;
-                activeShotView.broadcastRailDir = pocketId === 'BM' ? 1 : -1;
-              }
               const shouldForceCornerPocketView =
                 !topViewRef.current &&
                 pocketIndex < 4;
