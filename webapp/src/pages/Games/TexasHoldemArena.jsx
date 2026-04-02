@@ -476,9 +476,7 @@ const HDRI_RESOLUTION_STORAGE_KEY = 'texasHoldemHdriResolution';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: '2k', label: '2K' },
   { id: '4k', label: '4K' },
-  { id: '8k', label: '8K' },
-  { id: '16k', label: '16K' },
-  { id: '20k', label: '20K' }
+  { id: '8k', label: '8K' }
 ]);
 const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
   HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
@@ -513,7 +511,7 @@ function rememberHdriEnvironment(cacheKey, payload) {
   }
 }
 
-function withHdriResolutionPreferences(variant, preferredResolutions = []) {
+function withHdriResolutionPreferences(variant, preferredResolutions = [], fallbackResolution = null) {
   if (!variant) return null;
   const basePreferred =
     Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
@@ -523,11 +521,14 @@ function withHdriResolutionPreferences(variant, preferredResolutions = []) {
     ? preferredResolutions.filter((res) => typeof res === 'string' && res.length)
     : [];
   const mergedPreferred = Array.from(new Set([...requested, ...basePreferred]));
-  const fallbackResolution = mergedPreferred[0] || basePreferred[0] || DEFAULT_HDRI_RESOLUTION_ID;
+  const normalizedFallback =
+    fallbackResolution && typeof fallbackResolution === 'string'
+      ? fallbackResolution
+      : mergedPreferred[0] || basePreferred[0] || DEFAULT_HDRI_RESOLUTION_ID;
   return {
     ...variant,
     preferredResolutions: mergedPreferred,
-    fallbackResolution
+    fallbackResolution: normalizedFallback
   };
 }
 
@@ -679,22 +680,27 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
-const FRAME_RATE_TO_HDRI_RESOLUTION_MAP = Object.freeze({
-  fhd60: Object.freeze({ primary: '2k', fallback: ['1k'] }),
-  qhd90: Object.freeze({ primary: '4k', fallback: ['2k', '1k'] }),
-  uhd120: Object.freeze({ primary: '8k', fallback: ['4k', '2k', '1k'] })
-});
+const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
+  Object.freeze({ minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' }),
+  Object.freeze({ minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' }),
+  Object.freeze({ minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' })
+]);
 
 function resolveHdriResolutionProfileForGraphics(frameRateOptionId) {
-  const mapped = FRAME_RATE_TO_HDRI_RESOLUTION_MAP[frameRateOptionId];
-  const primary = mapped?.primary;
+  const frameRate = FRAME_RATE_OPTIONS.find((option) => option.id === frameRateOptionId);
+  const fps = Number.isFinite(frameRate?.fps) ? frameRate.fps : 60;
+  const policy =
+    HDRI_RESOLUTION_POLICY_BY_FPS.find((entry) => fps >= entry.minFps) ??
+    HDRI_RESOLUTION_POLICY_BY_FPS[HDRI_RESOLUTION_POLICY_BY_FPS.length - 1];
+  const primary = policy?.preferredResolutions?.[0];
   const normalizedPrimary = HDRI_RESOLUTION_OPTION_MAP[primary]?.id || DEFAULT_HDRI_RESOLUTION_ID;
-  const fallback = Array.isArray(mapped?.fallback)
-    ? mapped.fallback.filter((value) => value && value !== normalizedPrimary)
-    : [];
+  const fallback = (policy?.preferredResolutions || []).filter(
+    (value) => value && value !== normalizedPrimary
+  );
   return {
     primary: normalizedPrimary,
-    fallback
+    fallback,
+    fallbackResolution: policy?.fallbackResolution || fallback[0] || normalizedPrimary
   };
 }
 
@@ -3924,7 +3930,8 @@ function TexasHoldemArena({ search }) {
         TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
           TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
           TEXAS_HDRI_OPTIONS[0],
-        preferredHdriResolutionsRef.current
+        preferredHdriResolutionsRef.current,
+        hdriResolutionProfile.fallbackResolution
       );
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
       safe.tableShape,
@@ -4433,7 +4440,8 @@ function TexasHoldemArena({ search }) {
         TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
           TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
           TEXAS_HDRI_OPTIONS[0],
-        preferredHdriResolutionsRef.current
+        preferredHdriResolutionsRef.current,
+        hdriResolutionProfile.fallbackResolution
       );
 
     const arenaGroup = new THREE.Group();
