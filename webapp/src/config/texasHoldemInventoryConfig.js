@@ -1,11 +1,11 @@
-import { TABLE_BASE_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
-import { SHARED_TABLE_FINISH_OPTIONS, SHARED_TABLE_CLOTH_OPTIONS } from './pokerDominoSharedInventory.js';
+import { polyHavenThumb } from './storeThumbnails.js';
 import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
 } from './poolRoyaleInventoryConfig.js';
 
 const reduceLabels = (items) =>
@@ -14,18 +14,99 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS;
+export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
+  const baseResolutions = Array.isArray(variant?.preferredResolutions)
+    ? variant.preferredResolutions.filter((res) => typeof res === 'string' && res.length)
+    : [];
+  const preferredResolutions = Array.from(new Set(['8k', ...baseResolutions, '4k', '2k', '1k']));
+  return {
+    ...variant,
+    preferredResolutions,
+    label: `${variant.name} HDRI`
+  };
+});
 
-export const TEXAS_DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID;
+export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
 
-export const TEXAS_TABLE_FINISH_OPTIONS = SHARED_TABLE_FINISH_OPTIONS;
+export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
+  {
+    id: 'peelingPaintWeathered',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.',
+    price: 980,
+    swatches: ['#a89f95', '#b8b3aa'],
+    thumbnail: polyHavenThumb('wood_peeling_paint_weathered'),
+    woodOption: {
+      id: 'peelingPaintWeathered',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+      presetId: 'oak',
+      grainId: 'wood_peeling_paint_weathered'
+    }
+  },
+  {
+    id: 'oakVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+    description: 'Warm oak veneer rails with smooth satin polish.',
+    price: 990,
+    swatches: ['#b9854e', '#c89a64'],
+    thumbnail: polyHavenThumb('oak_veneer_01'),
+    woodOption: {
+      id: 'oakVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+      presetId: 'oak',
+      grainId: 'oak_veneer_01'
+    }
+  },
+  {
+    id: 'woodTable001',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.',
+    price: 1000,
+    swatches: ['#8f6243', '#a4724f'],
+    thumbnail: polyHavenThumb('wood_table_001'),
+    woodOption: {
+      id: 'woodTable001',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+      presetId: 'walnut',
+      grainId: 'wood_table_001'
+    }
+  },
+  {
+    id: 'darkWood',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+    description: 'Deep espresso rails with strong grain contrast.',
+    price: 1010,
+    swatches: ['#2f241f', '#3d2f2a'],
+    thumbnail: polyHavenThumb('dark_wood'),
+    woodOption: {
+      id: 'darkWood',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+      presetId: 'smokedOak',
+      grainId: 'dark_wood'
+    }
+  },
+  {
+    id: 'rosewoodVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+    description: 'Rosewood veneer rails with rich, reddish undertones.',
+    price: 1020,
+    swatches: ['#5b2f26', '#6f3a2f'],
+    thumbnail: polyHavenThumb('rosewood_veneer_01'),
+    woodOption: {
+      id: 'rosewoodVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+      presetId: 'cherry',
+      grainId: 'rosewood_veneer_01'
+    }
+  }
+]);
 
 const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_DEFAULT_HDRI_ID));
 
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
-  tableCloth: [SHARED_TABLE_CLOTH_OPTIONS[0]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairTheme: [TEXAS_CHAIR_THEME_OPTIONS[0]?.id],
   tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
@@ -37,7 +118,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze(reduceLabels(TEXAS_TABLE_FINISH_OPTIONS)),
   tableWood: Object.freeze(reduceLabels(TABLE_WOOD_OPTIONS)),
-  tableCloth: Object.freeze(reduceLabels(SHARED_TABLE_CLOTH_OPTIONS)),
+  tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
   chairTheme: Object.freeze(reduceLabels(TEXAS_CHAIR_THEME_OPTIONS)),
   tableTheme: Object.freeze(reduceLabels(TEXAS_TABLE_THEME_OPTIONS)),
@@ -45,7 +126,7 @@ export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   cards: Object.freeze(reduceLabels(CARD_THEMES)),
   environmentHdri: Object.freeze(
     TEXAS_HDRI_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label || option.name;
+      acc[option.id] = option.label;
       return acc;
     }, {})
   )
@@ -71,7 +152,7 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     description: "Unlock an alternate wood finish for your Hold'em arena table.",
     thumbnail: option.thumbnail
   })),
-  ...SHARED_TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-cloth-${option.id}`,
     type: 'tableCloth',
     optionId: option.id,
@@ -111,7 +192,7 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     id: `texas-hdri-${variant.id}`,
     type: 'environmentHdri',
     optionId: variant.id,
-    name: `${variant.name} HDRI`,
+    name: variant.label,
     price: variant.price ?? 1400 + idx * 25,
     description: variant.description || 'Poly Haven HDRI environment used in Murlan Royale.',
     swatches: variant.swatches,
@@ -144,7 +225,7 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
     label: TEXAS_TABLE_FINISH_OPTIONS[0]?.label
   },
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
-  { type: 'tableCloth', optionId: SHARED_TABLE_CLOTH_OPTIONS[0]?.id, label: SHARED_TABLE_CLOTH_OPTIONS[0]?.label },
+  { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairTheme', optionId: TEXAS_CHAIR_THEME_OPTIONS[0]?.id, label: TEXAS_CHAIR_THEME_OPTIONS[0]?.label },
   { type: 'tableTheme', optionId: TEXAS_TABLE_THEME_OPTIONS[0]?.id, label: TEXAS_TABLE_THEME_OPTIONS[0]?.label },
@@ -153,6 +234,6 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
   {
     type: 'environmentHdri',
     optionId: TEXAS_DEFAULT_HDRI_ID,
-    label: TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[TEXAS_DEFAULT_HDRI_ID] || TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX]?.name
+    label: TEXAS_HOLDEM_OPTION_LABELS.environmentHdri?.[TEXAS_DEFAULT_HDRI_ID] || TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX]?.label
   }
 ];
