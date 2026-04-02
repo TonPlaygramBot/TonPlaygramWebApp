@@ -1485,7 +1485,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.02; // lift balls a touch more so the lower hemisphere cleanly rides the cloth top
+const BALL_CENTER_LIFT = BALL_R * 0.035; // lift balls slightly higher so they visually ride on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -3177,7 +3177,7 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
 const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -3631,78 +3631,6 @@ const buildPolyHavenTextureUrls = (sourceId, resolution) => {
     normal: `${base}_nor_gl_${res}.jpg`,
     roughness: `${base}_rough_${res}.jpg`
   };
-};
-
-const tintPolyHavenClothDiffuseToPalette = (texture, preset) => {
-  if (!texture?.image || !preset?.palette || typeof document === 'undefined') return texture;
-  const image = texture.image;
-  const width = image.width || image.videoWidth;
-  const height = image.height || image.videoHeight;
-  if (!width || !height) return texture;
-
-  const toChannel = (value) => {
-    const color = new THREE.Color(value ?? 0xffffff);
-    return {
-      r: Math.round(color.r * 255),
-      g: Math.round(color.g * 255),
-      b: Math.round(color.b * 255)
-    };
-  };
-
-  const shadow = toChannel(preset.palette.shadow);
-  const base = toChannel(preset.palette.base);
-  const accent = toChannel(preset.palette.accent);
-  const highlight = toChannel(preset.palette.highlight);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return texture;
-
-  try {
-    ctx.drawImage(image, 0, 0, width, height);
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    const clamp255 = (value) => Math.max(0, Math.min(255, Math.round(value)));
-
-    for (let idx = 0; idx < data.length; idx += 4) {
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      const baseMix = Math.pow(luminance, 1.02);
-      const accentMix = Math.pow(luminance, 1.24);
-      const highlightMix = Math.pow(luminance, 1.42);
-
-      data[idx] = clamp255(
-        shadow.r * (1 - baseMix) +
-          base.r * baseMix * (1 - accentMix) +
-          accent.r * accentMix * (1 - highlightMix) +
-          highlight.r * highlightMix
-      );
-      data[idx + 1] = clamp255(
-        shadow.g * (1 - baseMix) +
-          base.g * baseMix * (1 - accentMix) +
-          accent.g * accentMix * (1 - highlightMix) +
-          highlight.g * highlightMix
-      );
-      data[idx + 2] = clamp255(
-        shadow.b * (1 - baseMix) +
-          base.b * baseMix * (1 - accentMix) +
-          accent.b * accentMix * (1 - highlightMix) +
-          highlight.b * highlightMix
-      );
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    texture.image = canvas;
-    texture.needsUpdate = true;
-  } catch (error) {
-    return texture;
-  }
-
-  return texture;
 };
 
 const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
@@ -4162,8 +4090,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
-
-        map = tintPolyHavenClothDiffuseToPalette(map, preset);
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
@@ -22249,6 +22175,14 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
+          if (frames.length === 1) {
+            const onlyFrame = frames[0];
+            const fallbackFrameTime = Math.max(16, recording?.frameTimeMs ?? 1000 / 60);
+            frames.push({
+              ...onlyFrame,
+              t: Math.max(fallbackFrameTime, onlyFrame?.t ?? 0)
+            });
+          }
           const frameDuration = frames[frames.length - 1]?.t ?? 0;
           const strokeDuration = cueStroke
             ? Math.max(
@@ -30022,20 +29956,8 @@ const powerRef = useRef(hud.power);
               b.shadow.visible = shadowVisible;
               if (shadowVisible) {
                 b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
-                const liftInfluence = THREE.MathUtils.clamp(
-                  liftAmount / (BALL_R * 1.4),
-                  0,
-                  1
-                );
-                const spread = 1 +
-                  THREE.MathUtils.clamp(speed * 0.08, 0, 0.35) +
-                  liftInfluence * 0.25;
-                b.shadow.scale.setScalar(spread);
-                b.shadow.material.opacity = THREE.MathUtils.clamp(
-                  BALL_SHADOW_OPACITY + 0.12 - liftInfluence * 0.4,
-                  0,
-                  1
-                );
+                b.shadow.scale.setScalar(1);
+                b.shadow.material.opacity = BALL_SHADOW_OPACITY;
               }
             }
           });
