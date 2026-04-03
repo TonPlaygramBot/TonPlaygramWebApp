@@ -3911,7 +3911,8 @@ const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
 const DEFAULT_TABLE_THEME_OPTION = TABLE_THEME_OPTIONS[0] || null;
 const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
-  label: variant.label || `${variant.name} HDRI` || variant.id
+  label: variant.label || `${variant.name} HDRI` || variant.id,
+  thumbnail: variant.thumbnail || POLYHAVEN_THUMB(variant.assetId)
 }));
 
 const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
@@ -4206,6 +4207,29 @@ const TABLE_SETUP_SECTIONS = [
   },
   { key: 'chairTheme', label: 'Stolat', options: CHAIR_THEME_OPTIONS }
 ];
+
+const TABLE_FINISH_THEMES = new Set([
+  'murlan-default',
+  'diamond-edge',
+  'diamond_edge',
+  'diamondEdge'
+]);
+
+function isTableFinishTheme(themeId = '') {
+  const normalized = String(themeId || '').trim();
+  if (!normalized) return false;
+  if (TABLE_FINISH_THEMES.has(normalized)) return true;
+  return normalized.toLowerCase().includes('diamond');
+}
+
+function getVisibleTableSetupSections() {
+  const selectedTheme =
+    TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION;
+  const showTableFinish = isTableFinishTheme(selectedTheme?.id);
+  return TABLE_SETUP_SECTIONS.filter((section) =>
+    section.key === 'tableWood' ? showTableFinish : true
+  );
+}
 
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   environmentHdri: ENVIRONMENT_HDRI_OPTIONS,
@@ -5959,20 +5983,21 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   });
 }
 
+const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(6);
+
 function fitTableModelToFootprint(model) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const targetDiameter = TABLE_RADIUS * 2.1;
-  const targetHeight = TABLE_HEIGHT * 1.05;
   const maxSide = Math.max(size.x, size.z, 0.0001);
-  const heightScale = targetHeight / Math.max(size.y, 0.0001);
-  const scale = Math.min(targetDiameter / maxSide, heightScale);
+  const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
+
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
     -(scaled.min.x + scaled.max.x) / 2,
-    -scaled.min.y,
+    TABLE_HEIGHT - scaled.max.y,
     -(scaled.min.z + scaled.max.z) / 2
   );
   model.position.add(offset);
@@ -5991,6 +6016,10 @@ async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
   const theme = option || DEFAULT_TABLE_THEME_OPTION;
+  const useOctagonRotation = theme?.id === 'murlan-default';
+  tableThemeG.rotation.y = useOctagonRotation
+    ? TABLE_OCTAGON_ROTATION
+    : NON_OCTAGON_TABLE_ROTATION;
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
@@ -7331,7 +7360,7 @@ function refreshConfigUI() {
     commentaryWrapper.appendChild(commentaryNote);
   }
   configSectionsEl.appendChild(commentaryWrapper);
-  TABLE_SETUP_SECTIONS.forEach((section) => {
+  getVisibleTableSetupSections().forEach((section) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'config-section';
     const label = document.createElement('h4');
@@ -7932,9 +7961,17 @@ winnerPlayAgainButton?.addEventListener('click', () => {
   startGame();
 });
 
+function navigateToDominoLobby() {
+  shutdownDominoRoyal('return-to-lobby');
+  const route = '/games/domino-royal/lobby?return=1';
+  if (typeof window !== 'undefined' && window.location) {
+    window.location.replace(route);
+  }
+}
+
 winnerReturnLobbyButton?.addEventListener('click', () => {
   hideWinnerOverlay();
-  window.location.assign('/games/domino-royal/lobby');
+  navigateToDominoLobby();
 });
 
 let statusPrefix = '';
