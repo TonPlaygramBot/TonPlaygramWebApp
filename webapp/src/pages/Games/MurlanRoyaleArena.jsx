@@ -99,12 +99,13 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
+const TABLE_SCALE = 0.95;
 const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -320,6 +321,7 @@ const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/exampl
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 
 let sharedKtx2Loader = null;
+let hasDetectedKtx2Support = false;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -1425,6 +1427,16 @@ function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven' || theme?.source === 'gltf');
 }
 
+function ensureMurlanKtx2SupportDetection(renderer = null) {
+  if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
+  try {
+    sharedKtx2Loader.detectSupport(renderer);
+    hasDetectedKtx2Support = true;
+  } catch (error) {
+    console.warn('Murlan KTX2 support detection failed', error);
+  }
+}
+
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin?.('anonymous');
@@ -1439,13 +1451,7 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
   }
 
-  if (renderer) {
-    try {
-      sharedKtx2Loader.detectSupport(renderer);
-    } catch (error) {
-      console.warn('Murlan KTX2 support detection failed', error);
-    }
-  }
+  ensureMurlanKtx2SupportDetection(renderer);
 
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
@@ -2157,7 +2163,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   return createProceduralChair(theme);
 }
 
-const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
+const STOOL_SCALE = 1.5 * 1.38 * CHAIR_SIZE_SCALE;
 const CARD_SCALE = 1;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
@@ -2177,7 +2183,7 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
 const CHAIR_INWARD_OFFSET = 0.18 * MODEL_SCALE;
@@ -2224,7 +2230,7 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
