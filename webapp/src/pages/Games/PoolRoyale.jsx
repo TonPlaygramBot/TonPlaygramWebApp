@@ -22135,7 +22135,27 @@ const powerRef = useRef(hud.power);
         };
 
         const trimReplayRecording = (recording) => {
-          const frames = recording?.frames ?? [];
+          const minFrameDelta = Math.max(16, recording?.frameTimeMs ?? 1000 / 60);
+          const frames = Array.isArray(recording?.frames)
+            ? recording.frames.map((frame, index) => ({
+                ...(frame || {}),
+                t: Number.isFinite(frame?.t)
+                  ? frame.t
+                  : index === 0
+                    ? 0
+                    : minFrameDelta * index
+              }))
+            : [];
+          if (frames.length > 1) {
+            let lastT = Number.isFinite(frames[0]?.t) ? frames[0].t : 0;
+            frames[0].t = lastT;
+            for (let i = 1; i < frames.length; i += 1) {
+              const rawT = Number.isFinite(frames[i]?.t) ? frames[i].t : lastT + minFrameDelta;
+              const normalizedT = rawT <= lastT ? lastT + minFrameDelta : rawT;
+              frames[i].t = normalizedT;
+              lastT = normalizedT;
+            }
+          }
           const cuePath = recording?.cuePath ?? [];
           const cueStrokeRaw = recording?.cueStroke ?? null;
           const normalizeStrokeVec = (value) =>
@@ -22184,10 +22204,9 @@ const powerRef = useRef(hud.power);
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
           if (frames.length === 1) {
             const onlyFrame = frames[0];
-            const fallbackFrameTime = Math.max(16, recording?.frameTimeMs ?? 1000 / 60);
             frames.push({
               ...onlyFrame,
-              t: Math.max(fallbackFrameTime, onlyFrame?.t ?? 0)
+              t: Math.max(minFrameDelta, onlyFrame?.t ?? 0)
             });
           }
           const frameDuration = frames[frames.length - 1]?.t ?? 0;

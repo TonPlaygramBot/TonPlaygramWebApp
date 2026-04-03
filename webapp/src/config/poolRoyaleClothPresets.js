@@ -1,188 +1,97 @@
-import { polyHavenThumb } from './storeThumbnails.js';
+import { polyHavenThumb } from './storeThumbnails.js'
 
 const normalizeHex = (value) => {
-  const asString = typeof value === 'number' ? value.toString(16).padStart(6, '0') : String(value || '').replace('#', '');
-  return `#${asString.slice(0, 6)}`;
-};
+  const asString =
+    typeof value === 'number'
+      ? value.toString(16).padStart(6, '0')
+      : String(value || '').replace('#', '')
+  return `#${asString.slice(0, 6)}`
+}
 
-const clampChannel = (channel) => Math.max(0, Math.min(255, Math.round(channel)));
+const clampChannel = (channel) => Math.max(0, Math.min(255, Math.round(channel)))
 
 const adjustHex = (hex, factor) => {
-  const normalized = normalizeHex(hex).slice(1);
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  const target = factor >= 0 ? 255 : 0;
-  const amount = Math.min(1, Math.max(-1, factor));
-  const delta = Math.abs(amount);
-  const adjust = (channel) => clampChannel(channel + (target - channel) * delta);
-  const next = (adjust(r) << 16) | (adjust(g) << 8) | adjust(b);
-  return `#${next.toString(16).padStart(6, '0')}`;
-};
+  const normalized = normalizeHex(hex).slice(1)
+  const r = parseInt(normalized.slice(0, 2), 16)
+  const g = parseInt(normalized.slice(2, 4), 16)
+  const b = parseInt(normalized.slice(4, 6), 16)
+  const target = factor >= 0 ? 255 : 0
+  const amount = Math.min(1, Math.max(-1, factor))
+  const delta = Math.abs(amount)
+  const adjust = (channel) => clampChannel(channel + (target - channel) * delta)
+  const next = (adjust(r) << 16) | (adjust(g) << 8) | adjust(b)
+  return `#${next.toString(16).padStart(6, '0')}`
+}
 
-const toNumber = (hex) => parseInt(normalizeHex(hex).slice(1), 16);
+const toNumber = (hex) => parseInt(normalizeHex(hex).slice(1), 16)
 
 const buildPalette = (baseHex) => ({
   shadow: toNumber(adjustHex(baseHex, -0.22)),
   base: toNumber(baseHex),
   accent: toNumber(adjustHex(baseHex, 0.12)),
   highlight: toNumber(adjustHex(baseHex, 0.24))
-});
+})
 
 const createSwatches = (baseHex) => [
   normalizeHex(baseHex),
   adjustHex(baseHex, 0.16),
   adjustHex(baseHex, 0.3)
-];
+]
 
-const CABAN_GREEN_SWATCHES = Object.freeze(['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a']);
-const CABAN_OCEAN_BLUE_SWATCHES = Object.freeze([
-  '#0b74c6',
-  '#0a6eb8',
-  '#1589e6',
-  '#1fa3ff',
-  '#095fa4'
-]);
+const CABAN_DETAIL = Object.freeze({
+  bumpMultiplier: 1.22,
+  sheen: 0.58,
+  sheenRoughness: 0.46,
+  emissiveIntensity: 0.24,
+  envMapIntensity: 0.18
+})
 
-const GREEN_SHADE_NAMES = ['Meadow', 'Spruce', 'Grove', 'Glade', 'Summit'];
-const BLUE_SHADE_NAMES = ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'];
-const NATURE_SHADE_NAMES = ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'];
-const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
-
-const MATERIAL_SERIES = [
+const CABAN_TONE_GROUPS = Object.freeze([
   {
-    prefix: 'caban',
-    label: 'Caban Wool',
-    sourceId: 'caban',
-    basePrice: 690,
-    priceStep: 10,
-    bluePremium: 20,
-    sparkle: 1.08,
-    stray: 1.06,
-    detail: {
-      bumpMultiplier: 1.22,
-      sheen: 0.58,
-      sheenRoughness: 0.46,
-      emissiveIntensity: 0.24,
-      envMapIntensity: 0.18
-    },
-    greens: CABAN_GREEN_SWATCHES,
-    blues: CABAN_OCEAN_BLUE_SWATCHES
+    idPrefix: 'cabanBlue',
+    label: 'Blue',
+    tones: ['Sky', 'Royal', 'Navy'],
+    hex: ['#3d9df2', '#1f74cb', '#155196']
   },
   {
-    prefix: 'polarFleece',
-    label: 'Polar Fleece',
-    sourceId: 'polar_fleece',
-    basePrice: 640,
-    priceStep: 10,
-    bluePremium: 20,
-    sparkle: 1.12,
-    stray: 1.1,
-    detail: {
-      bumpMultiplier: 1.12,
-      sheen: 0.7,
-      sheenRoughness: 0.52,
-      emissiveIntensity: 0.34,
-      envMapIntensity: 0.14
-    },
-    greens: CABAN_GREEN_SWATCHES,
-    blues: CABAN_OCEAN_BLUE_SWATCHES
+    idPrefix: 'cabanGreen',
+    label: 'Green',
+    tones: ['Mint', 'Classic', 'Forest'],
+    hex: ['#3fbf72', '#2f955a', '#206843']
   },
   {
-    prefix: 'polarFleecePlush',
-    label: 'Polar Fleece Plush',
-    sourceId: 'polar_fleece',
-    basePrice: 700,
-    priceStep: 10,
-    bluePremium: 20,
-    sparkle: 1.14,
-    stray: 1.12,
-    detail: {
-      bumpMultiplier: 1.14,
-      sheen: 0.72,
-      sheenRoughness: 0.5,
-      emissiveIntensity: 0.36,
-      envMapIntensity: 0.16
-    },
-    greens: CABAN_GREEN_SWATCHES,
-    blues: CABAN_OCEAN_BLUE_SWATCHES
+    idPrefix: 'cabanBeige',
+    label: 'Beige',
+    tones: ['Sand', 'Natural', 'Khaki'],
+    hex: ['#d9c4a0', '#b89c74', '#8f7656']
   },
   {
-    prefix: 'polarFleeceNatureOcean',
-    label: 'Polar Fleece Nature & Ocean',
-    sourceId: 'polar_fleece',
-    basePrice: 660,
-    priceStep: 10,
-    bluePremium: 20,
-    sparkle: 1.1,
-    stray: 1.08,
-    detail: {
-      bumpMultiplier: 1.16,
-      sheen: 0.68,
-      sheenRoughness: 0.5,
-      emissiveIntensity: 0.34,
-      envMapIntensity: 0.15
-    },
-    greens: CABAN_GREEN_SWATCHES,
-    blues: CABAN_OCEAN_BLUE_SWATCHES,
-    greenShadeNames: NATURE_SHADE_NAMES,
-    blueShadeNames: OCEAN_SHADE_NAMES
-  },
-  {
-    prefix: 'terryCloth',
-    label: 'Polyhaven Terry Cloth',
-    sourceId: 'terry_cloth',
-    basePrice: 740,
-    priceStep: 12,
-    bluePremium: 22,
-    sparkle: 1.05,
-    stray: 1.08,
-    detail: {
-      bumpMultiplier: 1.24,
-      sheen: 0.54,
-      sheenRoughness: 0.58,
-      emissiveIntensity: 0.26,
-      envMapIntensity: 0.17
-    },
-    greens: CABAN_GREEN_SWATCHES,
-    blues: CABAN_OCEAN_BLUE_SWATCHES
+    idPrefix: 'cabanDarkGrey',
+    label: 'Dark Grey',
+    tones: ['Slate', 'Graphite', 'Charcoal'],
+    hex: ['#65717f', '#505b67', '#373f49']
   }
-];
+])
 
-const createVariantsForMaterial = (material) => {
-  const buildTone = (toneKey, palette) =>
-    palette.map((hex, index) => {
-      const shadeNames =
-        toneKey === 'green'
-          ? material.greenShadeNames || GREEN_SHADE_NAMES
-          : material.blueShadeNames || BLUE_SHADE_NAMES;
-      const name = shadeNames[index] || `${toneKey}-${index + 1}`;
-      const toneLabel = toneKey === 'green' ? 'Green' : 'Blue';
-      const id = `${material.prefix}${toneLabel}${name}`;
-      const price = material.basePrice + (toneKey === 'blue' ? material.bluePremium || 0 : 0) + material.priceStep * index;
-      return {
-        id,
-        name: `${material.label} — ${toneLabel} ${name}`,
-        sourceId: material.sourceId,
-        tone: toneKey,
-        baseColor: toNumber(hex),
-        palette: buildPalette(hex),
-        sparkle: material.sparkle,
-        stray: material.stray,
-        detail: material.detail,
-        thumbnail: polyHavenThumb(material.sourceId),
-        price,
-        swatches: createSwatches(hex),
-        description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and detailed scan from ${material.sourceId}.`
-      };
-    });
-
-  return [
-    ...buildTone('green', material.greens),
-    ...buildTone('blue', material.blues)
-  ];
-};
+const BASE_PRICE = 700
+const PRICE_STEP = 12
 
 export const POOL_ROYALE_CLOTH_VARIANTS = Object.freeze(
-  MATERIAL_SERIES.flatMap((material) => createVariantsForMaterial(material))
-);
+  CABAN_TONE_GROUPS.flatMap((group) =>
+    group.hex.map((hex, index) => ({
+      id: `${group.idPrefix}${group.tones[index]}`,
+      name: `Caban Wool — ${group.label} ${group.tones[index]}`,
+      sourceId: 'caban',
+      tone: group.label.toLowerCase(),
+      baseColor: toNumber(hex),
+      palette: buildPalette(hex),
+      sparkle: 1.08,
+      stray: 1.06,
+      detail: CABAN_DETAIL,
+      thumbnail: polyHavenThumb('caban'),
+      price: BASE_PRICE + PRICE_STEP * index,
+      swatches: createSwatches(hex),
+      description: `Original Poly Haven caban cloth texture with a ${group.label.toLowerCase()} ${group.tones[index].toLowerCase()} tint.`
+    }))
+  )
+)
