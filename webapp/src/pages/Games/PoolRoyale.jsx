@@ -1485,7 +1485,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.05; // lift balls a touch more so they sit clearly above the cloth surface on portrait screens
+const BALL_CENTER_LIFT = BALL_R * 0.035; // lift balls slightly higher so they visually ride on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -3321,7 +3321,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1,
     pixelRatioCap: 1.4,
     resolution: '2K texture pack • 60 FPS',
-    description: 'Balanced battery profile using Poly Haven 2K textures with 1K fallback.'
+    description: 'Balanced battery profile using Poly Haven 2K assets.'
   },
   {
     id: 'qhd90',
@@ -3330,7 +3330,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     renderScale: 1.12,
     pixelRatioCap: 1.55,
     resolution: '4K texture pack • 90 FPS',
-    description: 'Sharper Poly Haven 4K textures with 2K fallback at a 90 FPS target.'
+    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
   },
   {
     id: 'uhd120',
@@ -3364,20 +3364,11 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   if (safeFps >= 90) return 1.04;
   return 1;
 };
-const resolvePolyHavenFallbackResolutions = (fps) => {
-  const safeFps = Number.isFinite(fps) ? fps : 60;
-  if (safeFps >= 120) {
-    return isLikelyMobileDevice() ? ['4k', '2k'] : ['8k', '4k'];
-  }
-  if (safeFps >= 90) return ['4k', '2k'];
-  return ['2k', '1k'];
-};
 let runtimeTextureProfile = Object.freeze({
   textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
   polyHavenResolution: '4k',
-  polyHavenFallbackResolutions: ['4k', '2k'],
   hdriResolution: '4k',
   enforceTableFinishTextureSize: 4096,
   cueTextureSize: 4096,
@@ -3396,7 +3387,6 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
-    polyHavenFallbackResolutions: resolvePolyHavenFallbackResolutions(fps),
     hdriResolution: tier.key,
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
@@ -3728,14 +3718,6 @@ const upgradePolyHavenTextureUrlTo4k = (url) => {
   if (!url.includes('/2k/') && !url.includes('_2k')) return url;
   return url.replace('/2k/', '/4k/').replace(/_2k(\.\w+)$/, '_4k$1');
 };
-const remapPolyHavenTextureUrlResolution = (url, targetResolution) => {
-  if (typeof url !== 'string' || !url.length) return url;
-  const target = String(targetResolution || '').toLowerCase();
-  if (!target) return url;
-  return url
-    .replace(/\/(1k|2k|4k|8k)\//i, `/${target}/`)
-    .replace(/_(1k|2k|4k|8k)(\.\w+)$/i, `_${target}$2`);
-};
 
 const createClothTextures = (() => {
   const cache = new Map();
@@ -4060,35 +4042,45 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const runtimeProfile = getRuntimeTextureProfile();
-        const preferredResolutions =
-          Array.isArray(runtimeProfile?.polyHavenFallbackResolutions) &&
-          runtimeProfile.polyHavenFallbackResolutions.length
-            ? runtimeProfile.polyHavenFallbackResolutions
-            : [runtimeProfile?.polyHavenResolution || '2k', '1k'];
+        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
+        const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
+        const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
+        const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
+        const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
+        const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
-        const buildCandidatesForType = (type) => {
-          const apiUrl = urls?.[type] ?? null;
-          const candidates = [];
-          preferredResolutions.forEach((resolution) => {
-            if (apiUrl) {
-              candidates.push(remapPolyHavenTextureUrlResolution(apiUrl, resolution));
-            }
-            const modern = buildPolyHavenTextureUrls(preset.sourceId, resolution);
-            const legacy = buildPolyHavenLegacyTextureUrls(preset.sourceId, resolution);
-            if (modern?.[type]) candidates.push(modern[type]);
-            if (type === 'normal' && modern?.normal) {
-              candidates.push(modern.normal.replace('_nor_gl_', '_nor_dx_'));
-            }
-            if (legacy?.[type]) candidates.push(legacy[type]);
-          });
-          return [...new Set(candidates.filter(Boolean))];
-        };
 
-        const diffuseCandidates = buildCandidatesForType('diffuse');
-        const normalCandidates = buildCandidatesForType('normal');
-        const roughnessCandidates = buildCandidatesForType('roughness');
+        const diffuseCandidates = [
+          upgradePolyHavenTextureUrlTo4k(urls.diffuse),
+          fallback4k?.diffuse,
+          legacy4k?.diffuse,
+          fallback2k?.diffuse,
+          legacy2k?.diffuse,
+          fallback1k?.diffuse,
+          legacy1k?.diffuse
+        ].filter(Boolean);
+        const normalCandidates = [
+          upgradePolyHavenTextureUrlTo4k(urls.normal),
+          fallback4k?.normal,
+          fallback4k?.normal?.replace('_nor_gl_', '_nor_dx_'),
+          legacy4k?.normal,
+          fallback2k?.normal,
+          fallback2k?.normal?.replace('_nor_gl_', '_nor_dx_'),
+          legacy2k?.normal,
+          fallback1k?.normal,
+          fallback1k?.normal?.replace('_nor_gl_', '_nor_dx_'),
+          legacy1k?.normal
+        ].filter(Boolean);
+        const roughnessCandidates = [
+          upgradePolyHavenTextureUrlTo4k(urls.roughness),
+          fallback4k?.roughness,
+          legacy4k?.roughness,
+          fallback2k?.roughness,
+          legacy2k?.roughness,
+          fallback1k?.roughness,
+          legacy1k?.roughness
+        ].filter(Boolean);
 
         let map = null;
         let normal = null;
@@ -4218,18 +4210,6 @@ function updateClothTexturesForFinish (
   textureSource = DEFAULT_CLOTH_TEXTURE_SOURCE_ID
 ) {
   if (!finishInfo?.clothMat) return;
-  const enforceProceduralClothResponse = (material, roughnessValue) => {
-    if (!material) return;
-    material.roughness = Math.max(Number(roughnessValue) || 0, 0.86);
-    material.metalness = 0;
-    material.clearcoat = 0;
-    material.clearcoatRoughness = 1;
-    material.sheen = 0;
-    material.sheenRoughness = 1;
-    material.envMapIntensity = 0;
-    if ('reflectivity' in material) material.reflectivity = 0;
-    material.needsUpdate = true;
-  };
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
@@ -4285,7 +4265,6 @@ function updateClothTexturesForFinish (
   } else {
     finishInfo.clothMat.roughness = roughnessBase;
   }
-  enforceProceduralClothResponse(finishInfo.clothMat, finishInfo.clothMat.roughness);
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
@@ -4331,7 +4310,6 @@ function updateClothTexturesForFinish (
     } else {
       finishInfo.cushionMat.roughness = roughnessBase;
     }
-    enforceProceduralClothResponse(finishInfo.cushionMat, finishInfo.cushionMat.roughness);
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
     }
@@ -5590,7 +5568,6 @@ const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
-const REPLAY_USE_STRICT_CAPTURED_FRAMES = true; // replay only recorded frames (no interpolation) to preserve exact captured motion
 const REMATCH_DECISION_MS = 15000;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
@@ -28703,15 +28680,11 @@ const powerRef = useRef(hud.power);
             }
             playback.lastIndex = frameIndex;
             const frameA = frames[frameIndex];
-            const frameB = REPLAY_USE_STRICT_CAPTURED_FRAMES
-              ? frameA
-              : frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
             const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-            const alpha = REPLAY_USE_STRICT_CAPTURED_FRAMES
-              ? 0
-              : frameB
-                ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-                : 0;
+            const alpha = frameB
+              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+              : 0;
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
