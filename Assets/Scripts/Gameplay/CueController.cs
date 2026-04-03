@@ -40,10 +40,6 @@ namespace Aiming
         [Range(0.02f, 0.25f)] public float contactDrivePortion = 0.1f;
         [Tooltip("Minimum pull used for strike animation so the cue visibly drives forward every shot.")]
         [Min(0f)] public float minimumVisualPull = 0.025f;
-        [Tooltip("Minimum normalized shot power that is still treated as a real strike.")]
-        [Range(0f, 1f)] public float minimumStrikePower = 0.02f;
-        [Tooltip("How much the cue-stick forward travel contributes to final shot power (0 = slider only, 1 = full blend).")]
-        [Range(0f, 1f)] public float strokeTravelPowerWeight = 0.65f;
 
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
@@ -150,9 +146,8 @@ namespace Aiming
             }
 
             float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
-            float currentDepthPower = RecoverPowerFromCueDepth(_currentCueDepth);
-            _latchedShotPower = Mathf.Clamp01(Mathf.Max(_power, recoveredPower, currentDepthPower));
-            if (_latchedShotPower <= minimumStrikePower)
+            _latchedShotPower = Mathf.Clamp01(Mathf.Max(_power, recoveredPower));
+            if (_latchedShotPower <= 0.02f)
             {
                 _shotState = ShotState.Idle;
                 _chargedCueDepth = idleTipGap;
@@ -299,8 +294,7 @@ namespace Aiming
                 if (!didStrike && t >= hitT)
                 {
                     didStrike = true;
-                    float transmittedPower = ComputeTransmittedPower(shotPower, visualPull);
-                    ApplyStrikeImpulse(strikeDirection, transmittedPower);
+                    ApplyStrikeImpulse(strikeDirection, shotPower);
                 }
 
                 yield return null;
@@ -308,8 +302,7 @@ namespace Aiming
 
             if (!didStrike)
             {
-                float transmittedPower = ComputeTransmittedPower(shotPower, visualPull);
-                ApplyStrikeImpulse(strikeDirection, transmittedPower);
+                ApplyStrikeImpulse(strikeDirection, shotPower);
             }
 
             _currentCueDepth = contactDepth;
@@ -332,15 +325,7 @@ namespace Aiming
             }
 
             float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
-            cueBallBody.WakeUp();
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
-        }
-
-        float ComputeTransmittedPower(float sliderPower, float visualPull)
-        {
-            float pullPower = pullRange > 0.0001f ? Mathf.Clamp01(visualPull / pullRange) : 0f;
-            float blendedPower = Mathf.Lerp(sliderPower, Mathf.Max(sliderPower, pullPower), strokeTravelPowerWeight);
-            return Mathf.Clamp01(Mathf.Max(sliderPower, blendedPower));
         }
 
         static float EaseOutCubic(float t)
