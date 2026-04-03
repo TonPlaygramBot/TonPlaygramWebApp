@@ -16,7 +16,7 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import { applyTableMaterials, createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
+import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
@@ -103,7 +103,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 
-const TABLE_RADIUS = 3.25 * MODEL_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -1193,15 +1193,6 @@ const CUSTOMIZATION_SECTIONS = [
     ? [{ key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES }]
     : [])
 ];
-const TABLE_MENU_STYLE_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable']);
-const TABLE_SHAPE_BY_ID = new Map(TABLE_SHAPE_OPTIONS.map((option) => [option.id, option]));
-const resolveProceduralShapeForTheme = (tableTheme) => {
-  const shapeId = tableTheme?.shapeId || (tableTheme?.id === 'murlan-default' ? 'classicOctagon' : null);
-  if (!shapeId) {
-    return TABLE_SHAPE_OPTIONS[0];
-  }
-  return TABLE_SHAPE_BY_ID.get(shapeId) || TABLE_SHAPE_OPTIONS[0];
-};
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
@@ -2126,7 +2117,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model, { preserveGltfTextureMapping: preserveMaterials, maxAnisotropy });
-      if (textureLoader && !preserveMaterials) {
+      if (textureLoader) {
         try {
           const textures = await loadPolyhavenTextureSet(
             theme.assetId,
@@ -2603,8 +2594,8 @@ export default function MurlanRoyaleArena({ search }) {
   }, [seatAnchors]);
 
   const customizationSections = useMemo(() => {
-      const tableTheme = TABLE_THEMES[appearance.tables] ?? TABLE_THEMES[0];
-    const allowTableFinish = TABLE_MENU_STYLE_IDS.has(tableTheme?.id);
+    const tableTheme = TABLE_THEMES[appearance.tables] ?? TABLE_THEMES[0];
+    const allowTableFinish = tableTheme?.source === 'procedural';
     return CUSTOMIZATION_SECTIONS.map((section) => ({
       ...section,
       options: section.options
@@ -3758,8 +3749,7 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS,
           tableHeight: TABLE_HEIGHT,
-          includeBase: true,
-          shapeOption: resolveProceduralShapeForTheme(theme),
+          includeBase: false,
           woodOption: finish?.woodOption || undefined,
           clothOption: cloth || undefined
         });
@@ -4654,7 +4644,7 @@ export default function MurlanRoyaleArena({ search }) {
         const seatRadius = (isHumanSeat ? chairRadius : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
-        const chairBaseHeight = 0;
+        const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
         chair.position.set(x, chairBaseHeight, z);
         chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
         arenaGroup.add(chair);
