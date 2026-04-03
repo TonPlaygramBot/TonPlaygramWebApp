@@ -1485,7 +1485,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.035; // lift balls slightly higher so they visually ride on top of the cloth surface
+const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -25711,8 +25711,21 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const impactPos = idlePos.clone();
-          const followPos = impactPos.clone();
+          const shotStrength = THREE.MathUtils.clamp(clampedPower, 0, 1);
+          const impactForwardDistance = THREE.MathUtils.lerp(
+            BALL_R * 0.08,
+            BALL_R * 0.18,
+            shotStrength
+          );
+          const followThroughDistance = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            Math.pow(shotStrength, CUE_POWER_GAMMA)
+          );
+          const impactPos = idlePos.clone().addScaledVector(dir, impactForwardDistance);
+          const followPos = impactPos
+            .clone()
+            .addScaledVector(dir, Math.max(BALL_R * 0.55, followThroughDistance));
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -28025,7 +28038,9 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
+          const frameCount = recording.frames?.length ?? 0;
+          if (frameCount <= 1) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28035,9 +28050,10 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const replayLabel = hadObjectPot ? selectReplayBanner(primary) : 'Replay';
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
-            banner: selectReplayBanner(primary),
+            shouldReplay: true,
+            banner: replayLabel,
             zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary

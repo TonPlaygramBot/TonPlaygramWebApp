@@ -57,19 +57,19 @@ const CABAN_TONE_GROUPS = Object.freeze([
     idPrefix: 'cabanGreen',
     label: 'Green',
     tones: ['Mint', 'Classic', 'Forest'],
-    hex: ['#3fbf72', '#2f955a', '#206843']
+    hex: ['#5aa86b', '#3d7f4d', '#2b5a37']
   },
   {
     idPrefix: 'cabanBeige',
     label: 'Beige',
     tones: ['Sand', 'Natural', 'Khaki'],
-    hex: ['#d9c4a0', '#b89c74', '#8f7656']
+    hex: ['#d6bd94', '#b69369', '#8f6f49']
   },
   {
     idPrefix: 'cabanDarkGrey',
     label: 'Dark Grey',
     tones: ['Slate', 'Graphite', 'Charcoal'],
-    hex: ['#65717f', '#505b67', '#373f49']
+    hex: ['#6e6860', '#54504a', '#3a3733']
   }
 ])
 
@@ -80,7 +80,7 @@ export const POOL_ROYALE_CLOTH_VARIANTS = Object.freeze(
   CABAN_TONE_GROUPS.flatMap((group) =>
     group.hex.map((hex, index) => ({
       id: `${group.idPrefix}${group.tones[index]}`,
-      name: `Caban Wool — ${group.label} ${group.tones[index]}`,
+      name: `${group.label} ${group.tones[index]}`,
       sourceId: 'caban',
       tone: group.label.toLowerCase(),
       baseColor: toNumber(hex),
