@@ -1135,6 +1135,68 @@ function disposeObjectResources(object) {
   });
 }
 
+function cloneModelWithLocalMaterials(source) {
+  if (!source) return source;
+  const clonedRoot = source.clone(true);
+  const textureCache = new Map();
+  const materialCache = new Map();
+
+  const cloneTexture = (texture) => {
+    if (!texture?.isTexture) return texture ?? null;
+    if (textureCache.has(texture)) return textureCache.get(texture);
+    const cloned = texture.clone();
+    cloned.needsUpdate = true;
+    textureCache.set(texture, cloned);
+    return cloned;
+  };
+
+  const cloneMaterial = (material) => {
+    if (!material) return material;
+    if (materialCache.has(material)) return materialCache.get(material);
+    const cloned = material.clone();
+    const mapSlots = [
+      'map',
+      'alphaMap',
+      'aoMap',
+      'bumpMap',
+      'displacementMap',
+      'emissiveMap',
+      'lightMap',
+      'metalnessMap',
+      'normalMap',
+      'roughnessMap',
+      'specularMap',
+      'clearcoatMap',
+      'clearcoatNormalMap',
+      'clearcoatRoughnessMap',
+      'iridescenceMap',
+      'iridescenceThicknessMap',
+      'sheenColorMap',
+      'sheenRoughnessMap',
+      'thicknessMap',
+      'transmissionMap'
+    ];
+    mapSlots.forEach((slot) => {
+      if (cloned[slot]) {
+        cloned[slot] = cloneTexture(cloned[slot]);
+      }
+    });
+    materialCache.set(material, cloned);
+    return cloned;
+  };
+
+  clonedRoot.traverse((node) => {
+    if (!node?.isMesh) return;
+    if (Array.isArray(node.material)) {
+      node.material = node.material.map((mat) => cloneMaterial(mat));
+    } else {
+      node.material = cloneMaterial(node.material);
+    }
+  });
+
+  return clonedRoot;
+}
+
 function buildPolyhavenModelUrls(assetId) {
   if (!assetId) return [];
   return [
@@ -1282,7 +1344,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     cached = promise;
   }
   const baseModel = await cached;
-  return baseModel.clone(true);
+  return cloneModelWithLocalMaterials(baseModel);
 }
 
 const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
