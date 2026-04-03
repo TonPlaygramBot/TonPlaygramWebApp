@@ -1059,6 +1059,31 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
+function normalizePbrTexture(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
+}
+
+function normalizeMaterialTextures(material, maxAnisotropy = 8) {
+  if (!material) return;
+  if (material.map) {
+    applySRGBColorSpace(material.map);
+    normalizePbrTexture(material.map, maxAnisotropy);
+  }
+  if (material.emissiveMap) {
+    applySRGBColorSpace(material.emissiveMap);
+    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
+  }
+  normalizePbrTexture(material.normalMap, maxAnisotropy);
+  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
+  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
+  normalizePbrTexture(material.aoMap, maxAnisotropy);
+}
+
 function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -1066,9 +1091,10 @@ function prepareLoadedModel(model) {
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        if (!mat) return;
-        if (mat.map) applySRGBColorSpace(mat.map);
-        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        normalizeMaterialTextures(mat);
+        if (mat) {
+          mat.needsUpdate = true;
+        }
       });
     }
   });

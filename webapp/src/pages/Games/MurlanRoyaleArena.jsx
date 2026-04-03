@@ -845,6 +845,8 @@ function prepareLoadedModel(model, options = {}) {
         } else {
           if (mat.map) applySRGBColorSpace(mat.map);
           if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+          normalizePbrTexture(mat.map, maxAnisotropy);
+          normalizePbrTexture(mat.emissiveMap, maxAnisotropy);
         }
         mat.needsUpdate = true;
       });
