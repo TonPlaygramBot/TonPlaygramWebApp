@@ -836,7 +836,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.966; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -3547,8 +3547,8 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
-const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
+const CLOTH_PATTERN_SCALE = 0.72; // tighten procedural weave slightly so cushions + field read smaller and sharper
+const CLOTH_TEXTURE_REPEAT_HINT = 1.8; // keep cloth repeat density aligned across field and cushions
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
@@ -19628,6 +19628,35 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: RAIL_OVERHEAD_REPLAY_FOV, minTargetY };
         };
 
+        const hasReplayCameraChanged = (previous, next) => {
+          if (!next) return false;
+          if (!previous) return true;
+          const dist = (a, b) => {
+            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
+            if (a && b) {
+              const ax = Number.isFinite(a.x) ? a.x : 0;
+              const ay = Number.isFinite(a.y) ? a.y : 0;
+              const az = Number.isFinite(a.z) ? a.z : 0;
+              const bx = Number.isFinite(b.x) ? b.x : 0;
+              const by = Number.isFinite(b.y) ? b.y : 0;
+              const bz = Number.isFinite(b.z) ? b.z : 0;
+              return Math.hypot(ax - bx, ay - by, az - bz);
+            }
+            return Infinity;
+          };
+          const positionShift = dist(previous.position, next.position);
+          const targetShift = dist(previous.target, next.target);
+          const fovShift =
+            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
+              ? Math.abs(previous.fov - next.fov)
+              : 0;
+          return (
+            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            fovShift > 1e-3
+          );
+        };
+
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
@@ -20954,6 +20983,12 @@ const powerRef = useRef(hud.power);
             cueBall,
             fallback: shortRailDir
           });
+          const anchorPocketId = `${followView?.pocketId ?? ''}`.toUpperCase();
+          const isMiddlePocketShot =
+            anchorPocketId === 'TM' ||
+            anchorPocketId === 'BM' ||
+            Boolean(followView?.isSidePocket);
+          const useDualRailBroadcast = Boolean(railNormal) || isMiddlePocketShot;
           const preferRailOverhead = true;
           const now = performance.now();
           const activationDelay = longShot
@@ -20986,7 +21021,7 @@ const powerRef = useRef(hud.power);
             axis,
             railDir: initialRailDir,
             broadcastRailDir: initialRailDir,
-            hasSwitchedRail: true,
+            hasSwitchedRail: !useDualRailBroadcast,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
             lockOverheadFocus: true,
@@ -28713,13 +28748,20 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-              const frameCameraA = frameA?.camera ?? null;
-              const frameCameraB = frameB?.camera ?? frameCameraA;
-              if (frameCameraA || frameCameraB) {
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const previousFrameCamera =
+                replayFrameCameraRef.current?.frameB ??
+                replayFrameCameraRef.current?.frameA ??
+                null;
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
                 replayFrameCameraRef.current = {
-                  frameA: frameCameraA ?? frameCameraB,
-                  frameB: frameCameraB ?? frameCameraA,
-                  alpha
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
                 };
               }
             } else {
