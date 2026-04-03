@@ -724,12 +724,17 @@ async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
   });
 }
 
-function normalizePbrTexture(texture, maxAnisotropy = 1) {
+function normalizePbrTexture(texture, maxAnisotropy = 1, preserveMapping = true) {
   if (!texture) return;
-  texture.flipY = false;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  if (!preserveMapping) {
+    texture.flipY = false;
+    texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+    texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  }
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
 }
 
@@ -826,7 +831,7 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-function prepareLoadedModel(model) {
+function prepareLoadedModel(model, { preserveGltfTextureMapping = true, maxAnisotropy = 8 } = {}) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -834,8 +839,15 @@ function prepareLoadedModel(model) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
+        normalizePbrTexture(mat.map, maxAnisotropy, preserveGltfTextureMapping);
         if (mat.map) applySRGBColorSpace(mat.map);
+        normalizePbrTexture(mat.emissiveMap, maxAnisotropy, preserveGltfTextureMapping);
         if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        normalizePbrTexture(mat.normalMap, maxAnisotropy, preserveGltfTextureMapping);
+        normalizePbrTexture(mat.roughnessMap, maxAnisotropy, preserveGltfTextureMapping);
+        normalizePbrTexture(mat.metalnessMap, maxAnisotropy, preserveGltfTextureMapping);
+        normalizePbrTexture(mat.aoMap, maxAnisotropy, preserveGltfTextureMapping);
+        mat.needsUpdate = true;
       });
     }
   });
@@ -1256,6 +1268,34 @@ function extractChairMaterials(model) {
   };
 }
 
+const SHARED_GLTF_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeOwnedMaterialTextures(material) {
+  if (!material) return;
+  SHARED_GLTF_TEXTURE_PROPS.forEach((prop) => {
+    const texture = material[prop];
+    if (texture?.isTexture && texture.userData?.murlanCanDispose === true) {
+      texture.dispose?.();
+    }
+  });
+}
+
 function disposeObjectResources(object) {
   const materials = new Set();
   object.traverse((obj) => {
@@ -1266,8 +1306,7 @@ function disposeObjectResources(object) {
     }
   });
   materials.forEach((mat) => {
-    if (mat?.map) mat.map.dispose?.();
-    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    disposeOwnedMaterialTextures(mat);
     mat?.dispose?.();
   });
 }
@@ -1339,7 +1378,7 @@ async function createPolyhavenInstance(
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone(true);
-  prepareLoadedModel(model);
+  prepareLoadedModel(model, { preserveGltfTextureMapping: true });
   const {
     textureLoader = null,
     maxAnisotropy = 1,
@@ -1433,7 +1472,7 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
     throw new Error('Chair model missing scene');
   }
 
-  prepareLoadedModel(model);
+  prepareLoadedModel(model, { preserveGltfTextureMapping: true });
 
   fitChairModelToFootprint(model);
   if (rotationY) {
@@ -1459,7 +1498,7 @@ async function loadCharacterModel(theme, renderer = null) {
     const gltf = await loader.loadAsync(theme.url);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     return root;
   })();
   CHARACTER_MODEL_CACHE.set(cacheKey, promise);
@@ -1982,7 +2021,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
     }
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     return root;
   })();
 
@@ -2070,7 +2109,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
-      prepareLoadedModel(model);
+      prepareLoadedModel(model, { preserveGltfTextureMapping: true });
       if (textureLoader) {
         try {
           const textures = await loadPolyhavenTextureSet(
@@ -2180,11 +2219,11 @@ const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.03 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.07;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
@@ -2459,6 +2498,9 @@ const DEFAULT_FRAME_RATE_OPTION =
 
 function resolveHdriResolutionFromGraphics(frameOption, isMobileDevice = false) {
   const targetFromGraphics = frameOption?.hdriResolution;
+  if (frameOption?.fps >= 120) {
+    return isMobileDevice ? '4k' : '8k';
+  }
   if (isMobileDevice && targetFromGraphics === '8k') {
     return '4k';
   }
@@ -3729,11 +3771,6 @@ export default function MurlanRoyaleArena({ search }) {
         return null;
       }
 
-      if ((theme?.id || 'murlan-default') === 'murlan-default' && tableInfo?.group) {
-        tableInfo.group.scale.set(1.15, 1, 1.15);
-        tableInfo.radius = (tableInfo.radius || TABLE_RADIUS) * 1.15;
-      }
-
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
       three.tableClothId = cloth?.id ?? null;
@@ -4528,7 +4565,7 @@ export default function MurlanRoyaleArena({ search }) {
       const innerHalfWidth = interiorWidth / 2;
       const innerHalfDepth = interiorDepth / 2;
 
-      const floorRadius = Math.max(innerHalfWidth, innerHalfDepth) * 1.35;
+      const floorRadius = Math.max(innerHalfWidth, innerHalfDepth) * 1.15;
 
       const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth);
       void applyHdriEnvironment(environmentVariant);
