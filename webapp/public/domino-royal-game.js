@@ -21,8 +21,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1,
-    resolution: '2K assets • 4K fallback',
-    description: '2K profile for 60 Hz displays with 4K fallback.'
+    resolution: '2K assets • 1K fallback',
+    description: '2K profile for 60 Hz displays with 1K fallback.'
   },
   {
     id: 'qhd90',
@@ -30,8 +30,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.5,
-    resolution: '4K assets • 4K fallback',
-    description: '4K profile for 90 Hz displays with 4K fallback.'
+    resolution: '4K assets • 2K fallback',
+    description: '4K profile for 90 Hz displays with 2K fallback.'
   },
   {
     id: 'uhd120',
@@ -89,11 +89,6 @@ const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
   qhd90: Object.freeze(['4k', '2k']),
   uhd120: Object.freeze(['8k', '4k'])
 });
-const FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
-  fhd60: Object.freeze(['2k', '4k']),
-  qhd90: Object.freeze(['4k']),
-  uhd120: Object.freeze(['8k', '4k'])
-});
 const FRAME_RATE_WOOD_TEXTURE_RESOLUTION_MAP = Object.freeze({
   fhd60: '2k',
   qhd90: '4k',
@@ -146,16 +141,6 @@ function resolveGraphicsModelResolutions(qualityId = DEFAULT_FRAME_RATE_ID) {
     FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP[qualityId] ??
     FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP[DEFAULT_FRAME_RATE_ID] ??
     ['2k', '1k']
-  );
-}
-
-function resolveGraphicsTableModelResolutions(
-  qualityId = DEFAULT_FRAME_RATE_ID
-) {
-  return (
-    FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP[qualityId] ??
-    FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP[DEFAULT_FRAME_RATE_ID] ??
-    ['2k', '4k']
   );
 }
 
@@ -2763,13 +2748,10 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
 
 async function loadPolyhavenModel(
   assetId,
-  { preserveGltfTextureMapping = true, resolutionOrder = null } = {}
+  { preserveGltfTextureMapping = true } = {}
 ) {
   if (!assetId) return null;
-  const preferredResolutions =
-    Array.isArray(resolutionOrder) && resolutionOrder.length
-      ? resolutionOrder
-      : resolveGraphicsModelResolutions(frameRateId);
+  const preferredResolutions = resolveGraphicsModelResolutions(frameRateId);
   const cacheKey = `${assetId.toLowerCase()}::${preferredResolutions.join(',')}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   if (polyhavenModelCache.has(cacheKey)) {
     const cached = polyhavenModelCache.get(cacheKey);
@@ -4504,9 +4486,9 @@ function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 
     return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
   }
   if (qualityId === 'qhd90' || fps >= 90) {
-    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
   }
-  return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+  return Object.freeze({ preferredResolutions: Object.freeze(['1k']) });
 }
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
@@ -4615,8 +4597,8 @@ function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []
   if (!requested) return [];
   const aliases = {
     '8k': ['8k', '4k'],
-    '4k': ['4k'],
-    '2k': ['2k', '4k']
+    '4k': ['4k', '2k'],
+    '2k': ['2k', '1k']
   };
   const requestedOrder = aliases[requested] || [requested];
   const availableSet = new Set(
@@ -6042,8 +6024,7 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   });
 }
 
-const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(3.25);
-const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
+const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(6);
 
 function fitTableModelToFootprint(model) {
   if (!model) return;
@@ -6053,8 +6034,6 @@ function fitTableModelToFootprint(model) {
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
-  model.scale.x *= NON_OCTAGON_TABLE_SIDE_SHRINK;
-  model.scale.z *= NON_OCTAGON_TABLE_SIDE_SHRINK;
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
@@ -6097,8 +6076,7 @@ async function applyTableTheme(
   setProceduralTableVisible(true);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id, {
-      preserveGltfTextureMapping: theme.preserveMaterials ?? true,
-      resolutionOrder: resolveGraphicsTableModelResolutions(frameRateId)
+      preserveGltfTextureMapping: theme.preserveMaterials ?? true
     });
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model, { disposeTextures: false });
@@ -6115,10 +6093,7 @@ async function applyTableTheme(
       try {
         const fallbackModel = await loadPolyhavenModel(
           DEFAULT_TABLE_THEME_OPTION.assetId,
-          {
-            preserveGltfTextureMapping: true,
-            resolutionOrder: resolveGraphicsTableModelResolutions(frameRateId)
-          }
+          { preserveGltfTextureMapping: true }
         );
         if (token !== tableThemeToken || !fallbackModel) {
           disposeObjectResources(fallbackModel, { disposeTextures: false });
