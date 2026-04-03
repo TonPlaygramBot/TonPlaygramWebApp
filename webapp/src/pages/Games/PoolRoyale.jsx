@@ -25338,6 +25338,17 @@ const powerRef = useRef(hud.power);
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
+        const pullRange = 0.24;
+        const pullTarget = pullRange * strokeProfile.pullRatio;
+        const pulledNow = cuePullCurrentRef.current ?? pullTarget;
+        const visualCommittedPower = THREE.MathUtils.clamp(
+          pulledNow / Math.max(pullRange, 1e-6),
+          0,
+          1
+        );
+        // Keep physics power in sync with the visible cue pullback so a forward
+        // cue release always transfers slider energy to the cue ball.
+        const resolvedShotPower = Math.max(clampedPower, visualCommittedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
         const spinScale = THREE.MathUtils.clamp(strokeProfile.spinScale ?? 0.4, 0.12, 1);
         const appliedSpin = {
@@ -25389,9 +25400,9 @@ const powerRef = useRef(hud.power);
         if (shotPrediction.railNormal) replayTags.add('bank');
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
-          lastShotPower = clampedPower;
-          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          const curvedPower = Math.pow(resolvedShotPower, CUE_POWER_GAMMA);
+          lastShotPower = resolvedShotPower;
+          const isMaxPowerShot = resolvedShotPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -25408,7 +25419,7 @@ const powerRef = useRef(hud.power);
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
           );
-          const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
+          const isPowerShot = resolvedShotPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
@@ -25530,8 +25541,8 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
+          const powerSpinScale = 0.55 + resolvedShotPower * 0.45;
+          const topspinPowerScale = resolveTopspinPowerScale(resolvedShotPower);
           const scaledSpin = {
             x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
             y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
@@ -25588,9 +25599,6 @@ const powerRef = useRef(hud.power);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
-          const pullTarget = pullRange * strokeProfile.pullRatio;
-          const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
@@ -25647,7 +25655,7 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          const shotStrength = THREE.MathUtils.clamp(clampedPower, 0, 1);
+          const shotStrength = THREE.MathUtils.clamp(resolvedShotPower, 0, 1);
           const impactForwardDistance = THREE.MathUtils.lerp(
             BALL_R * 0.08,
             BALL_R * 0.18,
@@ -25803,7 +25811,7 @@ const powerRef = useRef(hud.power);
             maxPowerLiftTriggered = false;
             cue.lift = 0;
             cue.liftVel = 0;
-            playCueHit(clampedPower * 0.6);
+            playCueHit(resolvedShotPower * 0.6);
           };
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
