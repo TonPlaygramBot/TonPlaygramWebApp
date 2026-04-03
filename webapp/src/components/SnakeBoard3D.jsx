@@ -148,26 +148,8 @@ const CAM = {
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
 
-const SPIRAL_TILE_PALETTE = Object.freeze([
-  new THREE.Color('#f4c542'),
-  new THREE.Color('#ef4444'),
-  new THREE.Color('#4ade80'),
-  new THREE.Color('#4f46e5')
-]);
-const PYRAMID_PLATFORM_PALETTE = Object.freeze([
-  {
-    side: new THREE.Color('#ef4444'),
-    top: new THREE.Color('#22c55e')
-  },
-  {
-    side: new THREE.Color('#22c55e'),
-    top: new THREE.Color('#3b82f6')
-  },
-  {
-    side: new THREE.Color('#3b82f6'),
-    top: new THREE.Color('#f4c542')
-  }
-]);
+const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
+const TILE_COLOR_B = new THREE.Color(0x776a5a);
 const DEFAULT_HIGHLIGHT_COLORS = Object.freeze({
   normal: new THREE.Color(0xf59e0b),
   snake: new THREE.Color(0xdc2626),
@@ -2721,6 +2703,8 @@ function buildSnakeBoard(
   const floorTexture = appearanceOptions.floorTexture ?? null;
   const wallTexture = appearanceOptions.wallTexture ?? null;
   const highlightColors = createHighlightColors(boardTheme);
+  const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
+  const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
@@ -2753,11 +2737,10 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const dimension = size * TILE_SIZE;
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const levelPalette = PYRAMID_PLATFORM_PALETTE[levelIndex % PYRAMID_PLATFORM_PALETTE.length];
-    const wallColor = levelPalette.side.clone().lerp(PYRAMID_WALL_DARK, t * 0.22);
-    const wallGlowBase = levelPalette.side.clone().lerp(PYRAMID_WALL_ACCENT, 0.2);
-    const rimTone = levelPalette.top.clone().lerp(PYRAMID_CONCRETE_LIGHT, 0.08);
-    const topTone = levelPalette.top.clone();
+    const wallColor = PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
+    const wallGlowBase = PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
+    const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
+    const topTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
     const wallMaterial = new THREE.MeshStandardMaterial({
       color: wallColor,
       roughness: 0.76,
@@ -2899,8 +2882,7 @@ function buildSnakeBoard(
     }).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const paletteIdx = (seqIndex + levelIndex) % SPIRAL_TILE_PALETTE.length;
-      const baseColor = SPIRAL_TILE_PALETTE[paletteIdx].clone();
+      const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
       const materialSet = createTileMaterialSet(baseColor, boardTheme);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
@@ -2971,40 +2953,6 @@ function buildSnakeBoard(
       platformMeshes,
       railTheme
     );
-  });
-
-  STAIR_CONNECTIONS.forEach((connection, connectionIndex) => {
-    const from = indexToPosition.get(connection.from);
-    const to = indexToPosition.get(connection.to);
-    if (!from || !to) return;
-    const rampVector = new THREE.Vector3().subVectors(to, from);
-    const rampLength = rampVector.length();
-    if (rampLength < 0.001) return;
-
-    const rampThickness = tileHeight * 0.72;
-    const rampWidth = TILE_SIZE * 0.92;
-    const rampColor = SPIRAL_TILE_PALETTE[(connectionIndex + 1) % SPIRAL_TILE_PALETTE.length];
-    const rampMaterial = new THREE.MeshStandardMaterial({
-      color: rampColor,
-      roughness: 0.5,
-      metalness: 0.12,
-      emissive: rampColor.clone().multiplyScalar(0.16),
-      emissiveIntensity: 0.2
-    });
-    const ramp = new THREE.Mesh(
-      new RoundedBoxGeometry(rampLength, rampThickness, rampWidth, 4, Math.min(0.02, rampThickness * 0.35)),
-      rampMaterial
-    );
-    const rampMid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
-    rampMid.y -= tileHeight * 0.2;
-    ramp.position.copy(rampMid);
-    ramp.lookAt(to.x, rampMid.y, to.z);
-    const pitch = Math.atan2(to.y - from.y, Math.hypot(to.x - from.x, to.z - from.z));
-    ramp.rotateZ(-pitch);
-    ramp.castShadow = true;
-    ramp.receiveShadow = true;
-    platformGroup.add(ramp);
-    platformMeshes.push(ramp);
   });
 
   const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
