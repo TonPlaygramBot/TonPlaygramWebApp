@@ -323,8 +323,10 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316']),
     createShapes: ({ radius }) => {
-      const width = radius * 2.1;
-      const height = radius * 1.45;
+      const octagonHalfWidth = radius * 1.06;
+      const octagonHalfHeight = radius;
+      const width = octagonHalfWidth * 2;
+      const height = octagonHalfHeight * 2;
       const topShape = createOvalShape(width, height, 64);
       const feltShape = createOvalShape(width * 0.82, height * 0.82, 64);
       const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
@@ -340,13 +342,18 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7']),
     createShapes: ({ radius, scaleFactor }) => {
       const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : radius / 0.9 || 1;
-      const outerHalf = 0.95 * factor;
-      const clothHalf = 0.7 * factor;
-      const innerHalf = 0.76 * factor;
-      const topShape = createRoundedRectangleShape(outerHalf * 2, outerHalf * 2, 0.12 * factor);
-      const feltShape = createRoundedRectangleShape(clothHalf * 2, clothHalf * 2, 0.08 * factor);
-      const rimInnerShape = createRoundedRectangleShape(innerHalf * 2, innerHalf * 2, 0.1 * factor);
-      return { topShape, feltShape, rimInnerShape, feltRadius: clothHalf };
+      const octagonHalfWidth = radius * 1.06;
+      const octagonHalfHeight = radius;
+      const outerWidth = octagonHalfWidth * 2;
+      const outerHeight = octagonHalfHeight * 2;
+      const feltWidth = outerWidth * 0.74;
+      const feltHeight = outerHeight * 0.74;
+      const innerWidth = feltWidth * 1.08;
+      const innerHeight = feltHeight * 1.08;
+      const topShape = createRoundedRectangleShape(outerWidth, outerHeight, 0.12 * factor);
+      const feltShape = createRoundedRectangleShape(feltWidth, feltHeight, 0.08 * factor);
+      const rimInnerShape = createRoundedRectangleShape(innerWidth, innerHeight, 0.1 * factor);
+      return { topShape, feltShape, rimInnerShape, feltRadius: Math.max(feltWidth, feltHeight) * 0.5 };
     }
   }
 ]);
