@@ -14654,6 +14654,7 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [replayFoul, setReplayFoul] = useState(null);
+const [replayPotLabel, setReplayPotLabel] = useState(null);
 const handleSkipReplayClick = useCallback(() => {
   if (skipReplayRef.current) {
     skipReplayRef.current();
@@ -21999,6 +22000,10 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             cueStick.visible = false;
             syncCueShadow();
+            if (!stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -22340,6 +22345,7 @@ const powerRef = useRef(hud.power);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
+          setReplayPotLabel(shotRecording?.replayPotLabel ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
@@ -22494,6 +22500,7 @@ const powerRef = useRef(hud.power);
           replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
+          setReplayPotLabel(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -28003,7 +28010,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const frameCount = recording.frames?.length ?? 0;
           if (frameCount <= 1) return null;
           const tags = new Set(recording.replayTags ?? []);
@@ -28015,10 +28022,9 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const replayLabel = hadObjectPot ? selectReplayBanner(primary) : 'Replay';
           return {
-            shouldReplay: true,
-            banner: replayLabel,
+            shouldReplay: hadObjectPot || tags.size > 0,
+            banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary
@@ -28219,6 +28225,10 @@ const powerRef = useRef(hud.power);
         if (shotRecording) {
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
+            : null;
+          const replayPot = potted.find((entry) => entry && entry.id !== 'cue' && entry.color);
+          shotRecording.replayPotLabel = replayPot
+            ? String(replayPot.color).toUpperCase()
             : null;
           const foulReasonText = String(safeState?.foul?.reason ?? '').toLowerCase();
           const wrongBallFoul = foulReasonText.includes('wrong ball');
@@ -32388,6 +32398,11 @@ const powerRef = useRef(hud.power);
             {replayFoul && (
               <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
                 Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
+            )}
+            {!replayFoul && replayPotLabel && (
+              <div className="mt-2 rounded-full border border-emerald-300/70 bg-emerald-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-50 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Potted: {replayPotLabel}
               </div>
             )}
           </div>
