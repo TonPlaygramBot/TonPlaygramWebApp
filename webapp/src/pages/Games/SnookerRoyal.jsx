@@ -1523,6 +1523,7 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_GLOBAL_SCALE = 0.9; // match Pool Royale spin controller scaling
 const CUE_LOGIC_STRIKE_TIME_MS = 120;
 const CUE_LOGIC_HOLD_TIME_MS = 50;
+const CUE_LOGIC_RETURN_TIME_MS = 190;
 const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -22021,18 +22022,15 @@ const powerRef = useRef(hud.power);
           }
           const settlePos = followPos.clone();
           const settleDuration = CUE_LOGIC_HOLD_TIME_MS;
+          const returnDuration = CUE_LOGIC_RETURN_TIME_MS;
           cueStick.visible = true;
           cueStick.position.copy(pullPos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              settleDuration,
-              Math.max(180, forwardDuration * 0.9)
-            );
+          const returnTime = settleTime + returnDuration;
+          const forwardPreviewHold = returnTime;
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
@@ -22073,11 +22071,13 @@ const powerRef = useRef(hud.power);
               start: serializeVector3Snapshot(pullPos),
               impact: serializeVector3Snapshot(impactPos),
               settle: serializeVector3Snapshot(settlePos),
+              idle: serializeVector3Snapshot(pullPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
               forwardDuration,
               settleDuration,
+              returnDuration,
               startOffset: strokeStartOffset
             };
           }
@@ -22097,6 +22097,11 @@ const powerRef = useRef(hud.power);
               cueStick.position.lerpVectors(pullPos, impactPos, eased);
             } else if (now <= settleTime) {
               cueStick.position.copy(settlePos);
+            } else if (now <= returnTime) {
+              const t = returnDuration > 0
+                ? THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1)
+                : 1;
+              cueStick.position.lerpVectors(settlePos, pullPos, easeInOutQuad(t));
             } else {
               cueStick.visible = false;
               cueAnimating = false;
