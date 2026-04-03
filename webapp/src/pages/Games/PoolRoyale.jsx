@@ -14654,14 +14654,11 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [replayFoul, setReplayFoul] = useState(null);
-const [replayPottedLabel, setReplayPottedLabel] = useState(null);
 const handleSkipReplayClick = useCallback(() => {
   if (skipReplayRef.current) {
     skipReplayRef.current();
   } else {
     setReplayActive(false);
-    setReplayFoul(null);
-    setReplayPottedLabel(null);
   }
 }, []);
   const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
@@ -14682,7 +14679,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const lastSliderPowerRef = useRef(0);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -22344,7 +22340,6 @@ const lastSliderPowerRef = useRef(0);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
-          setReplayPottedLabel(shotRecording?.replayPottedLabel ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
@@ -22499,7 +22494,6 @@ const lastSliderPowerRef = useRef(0);
           replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
-          setReplayPottedLabel(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -25334,11 +25328,7 @@ const lastSliderPowerRef = useRef(0);
         }
         const powerInput =
           Number.isFinite(committedPower) ? committedPower : powerRef.current;
-        const sliderFallbackPower = clampPower(lastSliderPowerRef.current, 0);
-        const clampedPower = clampPower(
-          powerInput > 0 ? powerInput : sliderFallbackPower,
-          0
-        );
+        const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -28013,7 +28003,7 @@ const lastSliderPowerRef = useRef(0);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
           const frameCount = recording.frames?.length ?? 0;
           if (frameCount <= 1) return null;
           const tags = new Set(recording.replayTags ?? []);
@@ -28025,9 +28015,10 @@ const lastSliderPowerRef = useRef(0);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const replayLabel = hadObjectPot ? selectReplayBanner(primary) : 'Replay';
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
-            banner: selectReplayBanner(primary),
+            shouldReplay: true,
+            banner: replayLabel,
             zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary
@@ -28226,18 +28217,6 @@ const lastSliderPowerRef = useRef(0);
           };
         }
         if (shotRecording) {
-          const pottedObjects = potted.filter(
-            (entry) => entry && String(entry.id || '').toLowerCase() !== 'cue'
-          );
-          const firstPottedColor = pottedObjects[0]?.color
-            ? String(pottedObjects[0].color).toUpperCase()
-            : null;
-          shotRecording.replayPottedLabel =
-            pottedObjects.length > 1
-              ? `${pottedObjects.length} Balls Potted`
-              : firstPottedColor
-                ? `Potted: ${firstPottedColor}`
-                : null;
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
@@ -31400,25 +31379,14 @@ const lastSliderPowerRef = useRef(0);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const nextPower = clampPower(v / 100, 0);
-        if (nextPower > 0) {
-          lastSliderPowerRef.current = nextPower;
-        }
-        applyPower(nextPower);
-      },
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
         captureCueStickAnchor();
       },
       onCommit: (value) => {
-        const committedPowerRaw = Number.isFinite(value) ? value / 100 : null;
-        const committedPower = clampPower(
-          committedPowerRaw > 0 ? committedPowerRaw : lastSliderPowerRef.current,
-          0
-        );
+        const committedPower = Number.isFinite(value) ? value / 100 : null;
         fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
-          lastSliderPowerRef.current = 0;
           slider.set(slider.min, { animate: true });
           applyPower(0);
         });
@@ -31437,7 +31405,6 @@ const lastSliderPowerRef = useRef(0);
     if (slider) {
       slider.set(slider.min, { animate: true });
     }
-    lastSliderPowerRef.current = 0;
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
@@ -32421,11 +32388,6 @@ const lastSliderPowerRef = useRef(0);
             {replayFoul && (
               <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
                 Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
-              </div>
-            )}
-            {!replayFoul && replayPottedLabel && (
-              <div className="mt-2 rounded-full border border-emerald-300/70 bg-emerald-500/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
-                {replayPottedLabel}
               </div>
             )}
           </div>
