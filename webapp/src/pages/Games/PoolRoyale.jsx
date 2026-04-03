@@ -14679,6 +14679,8 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const lastCommittedPowerRef = useRef(0);
+const sliderDragPowerRef = useRef(0);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -21427,6 +21429,25 @@ const powerRef = useRef(hud.power);
             }
           }
         };
+        const ensureReplayFramePair = (timestamp) => {
+          if (!shotRecording) return;
+          const frameCount = shotRecording.frames?.length ?? 0;
+          if (frameCount >= 2) return;
+          recordReplayFrame(timestamp);
+          if ((shotRecording.frames?.length ?? 0) >= 2) return;
+          const lastFrame = shotRecording.frames?.[shotRecording.frames.length - 1];
+          if (!lastFrame) return;
+          const cuePath = shotRecording.cuePath ?? [];
+          const lastCuePath = cuePath[cuePath.length - 1] ?? null;
+          const syntheticTime = Math.max(lastFrame.t + 16, timestamp - (shotRecording.startTime ?? timestamp));
+          shotRecording.frames.push({
+            ...lastFrame,
+            t: syntheticTime
+          });
+          if (lastCuePath) {
+            cuePath.push({ ...lastCuePath, t: syntheticTime });
+          }
+        };
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
@@ -25355,9 +25376,25 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const powerInput =
-          Number.isFinite(committedPower) ? committedPower : powerRef.current;
+        const committedFromArg = Number.isFinite(committedPower) ? committedPower : null;
+        const committedFromDrag = Number.isFinite(sliderDragPowerRef.current)
+          ? sliderDragPowerRef.current
+          : null;
+        const committedFromHud = Number.isFinite(powerRef.current) ? powerRef.current : null;
+        const pullFallback = THREE.MathUtils.clamp(
+          (cuePullCurrentRef.current ?? 0) / Math.max(CUE_PULL_BASE, 1e-6),
+          0,
+          1
+        );
+        const powerInput = Math.max(
+          committedFromArg ?? 0,
+          committedFromDrag ?? 0,
+          committedFromHud ?? 0,
+          lastCommittedPowerRef.current ?? 0,
+          pullFallback
+        );
         const clampedPower = clampPower(powerInput, 0);
+        lastCommittedPowerRef.current = clampedPower;
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -28027,6 +28064,9 @@ const powerRef = useRef(hud.power);
           }
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
+          if (hadObjectPot) {
+            ensureReplayFramePair(performance.now());
+          }
           let replayDecision = resolveReplayDecision({
             recording: shotRecording,
             hadObjectPot,
@@ -28221,6 +28261,9 @@ const powerRef = useRef(hud.power);
               : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
+        if (shotWasFoul) {
+          ensureReplayFramePair(performance.now());
+        }
         if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
           const foulBanner = 'Foul';
           if (replayDecision) {
@@ -31372,16 +31415,26 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
+      onChange: (v) => {
+        const next = clampPower(v / 100, 0);
+        sliderDragPowerRef.current = next;
+        applyPower(next);
+      },
       onStart: () => {
+        sliderDragPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
       onCommit: (value) => {
-        const committedPower = Number.isFinite(value) ? value / 100 : null;
+        const committedPower = clampPower(
+          Number.isFinite(value) ? value / 100 : sliderDragPowerRef.current,
+          0
+        );
+        lastCommittedPowerRef.current = committedPower;
         fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
+          sliderDragPowerRef.current = 0;
         });
       }
     });
