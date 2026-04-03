@@ -1479,9 +1479,8 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.75;
 const TABLE_SCALE = 0.95;
-const TABLE_SIDE_SHRINK = 0.93;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE * TABLE_SIDE_SHRINK;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
 const STOOL_SCALE = 1.5 * 1.38;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -2504,12 +2503,6 @@ const MURLAN_TABLE_THEMES = Object.freeze(
   })
 );
 
-const PROCEDURAL_TABLE_SHAPES = Object.freeze({
-  octagon: 'octagon',
-  diamondEdge: 'diamond-edge',
-  oval: 'oval'
-});
-
 const CHAIR_THEME_OPTIONS = Object.freeze(
   MURLAN_STOOL_THEMES.map((theme, idx) => ({
     ...theme,
@@ -3503,8 +3496,6 @@ function applyWoodTextures(
 ) {
   if (!material) return null;
   disposeWoodTextures(material);
-  const effectiveTextureSize = getAdaptiveTextureSize(textureSize);
-  const effectiveRoughnessSize = getAdaptiveTextureSize(roughnessSize);
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
   let map = null;
   let roughnessMap = null;
@@ -3515,24 +3506,24 @@ function applyWoodTextures(
           sat,
           light,
           contrast,
-          textureSize: effectiveTextureSize,
-          roughnessSize: effectiveRoughnessSize,
+          textureSize,
+          roughnessSize,
           roughnessBase,
           roughnessVariance,
           sharedKey
         })
       : {
           map: makeNaturalWoodTexture(
-            effectiveTextureSize,
-            effectiveTextureSize,
+            textureSize,
+            textureSize,
             hue,
             sat,
             light,
             contrast
           ),
           roughnessMap: makeRoughnessMap(
-            effectiveRoughnessSize,
-            effectiveRoughnessSize,
+            roughnessSize,
+            roughnessSize,
             roughnessBase,
             roughnessVariance
           )
@@ -3913,30 +3904,10 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
   }
 ]);
 
-const TABLE_THEME_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_THEMES.map((theme) => ({
-    ...theme,
-    label: theme.label || theme.name || theme.id
-  })),
-  {
-    id: PROCEDURAL_TABLE_SHAPES.diamondEdge,
-    label: 'Diamond Edge Table',
-    source: 'procedural',
-    assetId: null,
-    price: 0,
-    thumbnail: POLYHAVEN_THUMB('CoffeeTable_01'),
-    description: 'Procedural diamond-edge table shape shared with Texas Holdem.'
-  },
-  {
-    id: PROCEDURAL_TABLE_SHAPES.oval,
-    label: 'Oval Table',
-    source: 'procedural',
-    assetId: null,
-    price: 0,
-    thumbnail: POLYHAVEN_THUMB('coffee_table_round_01'),
-    description: 'Procedural oval table shape shared with Texas Holdem.'
-  }
-]);
+const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
+  ...theme,
+  label: theme.label || theme.name || theme.id
+}));
 const DEFAULT_TABLE_THEME_OPTION = TABLE_THEME_OPTIONS[0] || null;
 const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
@@ -4239,13 +4210,9 @@ const TABLE_SETUP_SECTIONS = [
 
 const TABLE_FINISH_THEMES = new Set([
   'murlan-default',
-  'octagon',
   'diamond-edge',
   'diamond_edge',
-  'diamondEdge',
-  'oval',
-  'oval-table',
-  'ovalTable'
+  'diamondEdge'
 ]);
 
 function isTableFinishTheme(themeId = '') {
@@ -4260,9 +4227,7 @@ function getVisibleTableSetupSections() {
     TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION;
   const showTableFinish = isTableFinishTheme(selectedTheme?.id);
   return TABLE_SETUP_SECTIONS.filter((section) =>
-    section.key === 'tableWood' || section.key === 'tableCloth'
-      ? showTableFinish
-      : true
+    section.key === 'tableWood' ? showTableFinish : true
   );
 }
 
@@ -4309,15 +4274,6 @@ function resolveDefaultOptionId(key, options = []) {
 const DOMINO_DEFAULT_UNLOCKS = Object.freeze(
   Object.entries(DOMINO_OPTIONS_BY_KEY).reduce((acc, [key, options]) => {
     const defaultId = resolveDefaultOptionId(key, options);
-    if (key === 'tableTheme') {
-      const defaults = [
-        defaultId,
-        PROCEDURAL_TABLE_SHAPES.diamondEdge,
-        PROCEDURAL_TABLE_SHAPES.oval
-      ].filter(Boolean);
-      acc[key] = Array.from(new Set(defaults));
-      return acc;
-    }
     acc[key] = defaultId ? [defaultId] : [];
     return acc;
   }, {})
@@ -5853,9 +5809,7 @@ function makeClothTexture({
   bottom = '#0b3a1d',
   border = '#041f10'
 } = {}) {
-  const size = getAdaptiveTextureSize(
-    MURLAN_3D_ASSET_RESOLUTION.tableClothTextureSize
-  );
+  const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -6062,18 +6016,8 @@ async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
   const theme = option || DEFAULT_TABLE_THEME_OPTION;
-  const themeId = String(theme?.id || '').toLowerCase();
-  const isProceduralTheme = !theme?.assetId;
-  const proceduralShapeId = themeId.includes('diamond')
-    ? PROCEDURAL_TABLE_SHAPES.diamondEdge
-    : themeId.includes('oval')
-      ? PROCEDURAL_TABLE_SHAPES.oval
-      : PROCEDURAL_TABLE_SHAPES.octagon;
-  const useOctagonRotation = proceduralShapeId === PROCEDURAL_TABLE_SHAPES.octagon;
+  const useOctagonRotation = theme?.id === 'murlan-default';
   tableThemeG.rotation.y = useOctagonRotation
-    ? TABLE_OCTAGON_ROTATION
-    : NON_OCTAGON_TABLE_ROTATION;
-  proceduralTableG.rotation.y = useOctagonRotation
     ? TABLE_OCTAGON_ROTATION
     : NON_OCTAGON_TABLE_ROTATION;
   tableThemeG.visible = false;
@@ -6083,9 +6027,8 @@ async function applyTableTheme(
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
-  if (isProceduralTheme) {
+  if (!theme?.assetId) {
     activeTableThemeId = null;
-    buildProceduralTable(proceduralShapeId);
     setProceduralTableVisible(true);
     return;
   }
@@ -6515,52 +6458,11 @@ const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
 const CLOTH_TOP = TABLE_HEIGHT;
 const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
-function clearProceduralTableMeshes() {
-  proceduralTableParts.forEach((mesh) => {
-    if (!mesh) return;
-    proceduralTableG.remove(mesh);
-    mesh.geometry?.dispose?.();
-  });
-  proceduralTableParts.length = 0;
-}
-
-function createOvalShape(radiusX, radiusY) {
-  const shape = new THREE.Shape();
-  shape.absellipse(0, 0, radiusX, radiusY, 0, Math.PI * 2, false, 0);
-  shape.closePath();
-  return shape;
-}
-
-function createProceduralTableShapes(shapeId = PROCEDURAL_TABLE_SHAPES.octagon) {
-  const normalized = String(shapeId || '').toLowerCase();
-  if (normalized.includes('diamond')) {
-    return {
-      topShape: createRegularPolygonShape(4, TABLE_OUTER_RADIUS),
-      feltShape: createRegularPolygonShape(4, CLOTH_RADIUS),
-      rimInnerShape: createRegularPolygonShape(4, TABLE_INNER_RADIUS)
-    };
-  }
-  if (normalized.includes('oval')) {
-    return {
-      topShape: createOvalShape(TABLE_OUTER_RADIUS * 1.12, TABLE_OUTER_RADIUS * 0.8),
-      feltShape: createOvalShape(CLOTH_RADIUS * 1.12, CLOTH_RADIUS * 0.8),
-      rimInnerShape: createOvalShape(TABLE_INNER_RADIUS * 1.12, TABLE_INNER_RADIUS * 0.8)
-    };
-  }
-  return {
-    topShape: createRegularPolygonShape(8, TABLE_OUTER_RADIUS),
-    feltShape: createRegularPolygonShape(8, CLOTH_RADIUS),
-    rimInnerShape: createRegularPolygonShape(8, TABLE_INNER_RADIUS)
-  };
-}
-
-function buildProceduralTable(
-  shapeId = PROCEDURAL_TABLE_SHAPES.octagon
-) {
-  clearProceduralTableMeshes();
-  const { topShape, feltShape, rimInnerShape } = createProceduralTableShapes(
-    shapeId
-  );
+(function buildTable() {
+  const sides = 8;
+  const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
+  const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
+  const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
 
   const topShapeWithHole = topShape.clone();
   topShapeWithHole.holes.push(feltShape);
@@ -6641,9 +6543,7 @@ function buildProceduralTable(
   proceduralTableParts.push(column);
 
   // Base and trim intentionally omitted to remove the oversized pedestal.
-}
-
-buildProceduralTable(PROCEDURAL_TABLE_SHAPES.octagon);
+})();
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
@@ -7187,7 +7087,6 @@ function applyFrameRateSelection(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
   );
-  updateTableMaterials();
   applyDominoStyle(currentDominoStyleOption);
   buildChairs(
     CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
