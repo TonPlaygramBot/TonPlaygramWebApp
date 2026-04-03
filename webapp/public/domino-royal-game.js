@@ -21,8 +21,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1,
-    resolution: '2K assets • optimized DPR cap',
-    description: '2K profile for 60 Hz displays.'
+    resolution: '2K assets • 1K fallback',
+    description: '2K profile for 60 Hz displays with a 1K fallback.'
   },
   {
     id: 'qhd90',
@@ -30,8 +30,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.5,
-    resolution: '4K assets',
-    description: '4K profile for 90 Hz displays.'
+    resolution: '4K assets • 2K fallback',
+    description: '4K profile for 90 Hz displays with a 2K fallback.'
   },
   {
     id: 'uhd120',
@@ -39,8 +39,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '8K assets',
-    description: '8K profile for 120 Hz displays.'
+    resolution: '8K assets • 4K fallback',
+    description: '8K profile for 120 Hz displays with a 4K fallback.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -86,8 +86,8 @@ const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
 });
 const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
   fhd60: Object.freeze(['2k', '1k']),
-  qhd90: Object.freeze(['4k', '2k', '1k']),
-  uhd120: Object.freeze(['8k', '4k', '2k', '1k'])
+  qhd90: Object.freeze(['4k', '2k']),
+  uhd120: Object.freeze(['8k', '4k'])
 });
 const FRAME_RATE_WOOD_TEXTURE_RESOLUTION_MAP = Object.freeze({
   fhd60: '2k',
@@ -458,7 +458,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return isMobileDevice ? '4k' : '8k';
+      return '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -2752,9 +2752,7 @@ async function loadPolyhavenModel(
   if (!assetId) return null;
   const preferredResolutions = IS_TELEGRAM_RUNTIME
     ? ['1k']
-    : isLowProfileDevice
-      ? ['1k']
-      : resolveGraphicsModelResolutions(frameRateId);
+    : resolveGraphicsModelResolutions(frameRateId);
   const cacheKey = `${assetId.toLowerCase()}::${preferredResolutions.join(',')}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   if (polyhavenModelCache.has(cacheKey)) {
     const cached = polyhavenModelCache.get(cacheKey);
@@ -4486,9 +4484,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 
 function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
   if (qualityId === 'uhd120') {
-    return isMobileDevice
-      ? Object.freeze({ preferredResolutions: Object.freeze(['2k']) })
-      : Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
   }
   if (qualityId === 'qhd90' || fps >= 90) {
     return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
@@ -6030,12 +6026,13 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
 }
 
 const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(6);
+const TABLE_SIDE_SHRINK_FACTOR = 0.94;
 
 function fitTableModelToFootprint(model) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetDiameter = TABLE_RADIUS * 2.1;
+  const targetDiameter = TABLE_RADIUS * 2.1 * TABLE_SIDE_SHRINK_FACTOR;
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
@@ -6495,7 +6492,7 @@ function createSeatNameTag(label = '') {
   return mesh;
 }
 
-const TABLE_OUTER_RADIUS = TABLE_RADIUS;
+const TABLE_OUTER_RADIUS = TABLE_RADIUS * TABLE_SIDE_SHRINK_FACTOR;
 const TABLE_INNER_RADIUS = TABLE_OUTER_RADIUS * 0.84;
 const CLOTH_RADIUS = TABLE_OUTER_RADIUS * 0.72;
 const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE * TABLE_SCALE;
