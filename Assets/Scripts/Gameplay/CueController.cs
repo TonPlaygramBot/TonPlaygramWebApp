@@ -103,6 +103,7 @@ namespace Aiming
 
             _cueAnchorPosition = cueBall.position;
             _shotState = ShotState.Dragging;
+            _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
             _latchedShotPower = 0f;
             _currentCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
             gameObject.SetActive(true);
@@ -135,7 +136,8 @@ namespace Aiming
                 return;
             }
 
-            _latchedShotPower = Mathf.Clamp01(_power);
+            float recoveredPower = RecoverPowerFromCueDepth(_currentCueDepth);
+            _latchedShotPower = Mathf.Clamp01(Mathf.Max(_power, recoveredPower));
             if (_latchedShotPower <= 0.02f)
             {
                 _shotState = ShotState.Idle;
@@ -294,6 +296,25 @@ namespace Aiming
             t = Mathf.Clamp01(t);
             float inv = 1f - t;
             return 1f - (inv * inv * inv);
+        }
+
+        float RecoverPowerFromCueDepth(float cueDepth)
+        {
+            float pulledDistance = Mathf.Max(0f, cueDepth - idleTipGap);
+            if (pullRange <= 0.0001f)
+            {
+                return 0f;
+            }
+
+            float easedPull = Mathf.Clamp01(pulledDistance / pullRange);
+            return InverseEaseOutCubic(easedPull);
+        }
+
+        static float InverseEaseOutCubic(float easedValue)
+        {
+            easedValue = Mathf.Clamp01(easedValue);
+            float inv = 1f - easedValue;
+            return 1f - Mathf.Pow(inv, 1f / 3f);
         }
     }
 }
