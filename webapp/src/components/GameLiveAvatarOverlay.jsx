@@ -3,9 +3,6 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
-  '.seat-badge.is-self .seat-badge-core',
-  '.seat-badge.is-self .seat-badge-avatar',
-  '.seat-badge.is-self',
   '[data-self-player="true"] .seat-badge-core',
   '[data-self-player="true"] .score-avatar',
   '[data-self-player="true"] .avatar-timer-avatar',
@@ -130,13 +127,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       if (marker.includes('you')) score += 80;
       if (rect.top > window.innerHeight * 0.45) score += 25;
       if (rect.left < window.innerWidth * 0.65) score += 15;
-      if (gameSlug === 'domino-royal') {
-        // Keep local avatar frame anchored to the player's bottom seat,
-        // never to incidental top-left UI nodes.
-        if (rect.top > window.innerHeight * 0.52) score += 140;
-        if (rect.top < window.innerHeight * 0.35) score -= 220;
-        if (rect.left < window.innerWidth * 0.2) score -= 35;
-      }
       score += Math.min(rect.width, rect.height);
       return score;
     };
@@ -176,9 +166,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
       if (!rect) return;
-      if (gameSlug === 'domino-royal' && rect.top < window.innerHeight * 0.35) {
-        return;
-      }
       const avatarDiameter = Math.min(rect.width, rect.height);
       const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
