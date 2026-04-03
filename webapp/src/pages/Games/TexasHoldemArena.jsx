@@ -576,29 +576,6 @@ function extractAllHttpUrls(apiJson) {
   return Array.from(out);
 }
 
-function buildPolyhavenIncludeUrlMap(filesJson, preferredResolutions = ['2k', '1k']) {
-  if (!filesJson || typeof filesJson !== 'object') return new Map();
-  const resolutions = Array.isArray(preferredResolutions) && preferredResolutions.length
-    ? preferredResolutions
-    : ['2k', '1k'];
-  const map = new Map();
-  resolutions.forEach((resolution) => {
-    const include = filesJson?.gltf?.[resolution]?.gltf?.include;
-    if (!include || typeof include !== 'object') return;
-    Object.entries(include).forEach(([relativePath, entry]) => {
-      const fileUrl = entry?.url;
-      if (!relativePath || typeof relativePath !== 'string' || !fileUrl || typeof fileUrl !== 'string') {
-        return;
-      }
-      const normalized = relativePath.replace(/^\.\//, '');
-      map.set(relativePath, fileUrl);
-      map.set(normalized, fileUrl);
-      map.set(basename(normalized), fileUrl);
-    });
-  });
-  return map;
-}
-
 function pickBestModelUrl(urls) {
   const modelUrls = urls.filter(isModelUrl);
   const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
@@ -1161,21 +1138,16 @@ async function loadPolyhavenModel(assetId, renderer = null) {
       for (const candidateId of assetCandidates) {
         try {
           const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
-          const includeMap = buildPolyhavenIncludeUrlMap(filesJson);
-          includeMap.forEach((url, key) => {
-            if (!fileMap.has(key)) {
-              fileMap.set(key, url);
-            }
-          });
           const allUrls = extractAllHttpUrls(filesJson);
           const apiModelUrl = pickBestModelUrl(allUrls);
           if (apiModelUrl) modelCandidates.add(apiModelUrl);
-          allUrls.forEach((u) => {
-            const key = basename(stripQueryHash(u));
-            if (!fileMap.has(key)) {
-              fileMap.set(key, u);
-            }
-          });
+          if (!fileMap.size) {
+            fileMap = allUrls.reduce((acc, u) => {
+              const b = basename(stripQueryHash(u));
+              if (!acc.has(b)) acc.set(b, u);
+              return acc;
+            }, new Map());
+          }
         } catch (error) {
           console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
         }
@@ -1197,12 +1169,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         loader.manager.setURLModifier((requestedUrl) => {
           if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
           const req = stripQueryHash(requestedUrl);
-          const normalizedReq = req.replace(/^\.\//, '');
-          const mapped =
-            fileMap.get(req) ||
-            fileMap.get(normalizedReq) ||
-            fileMap.get(req.replace(/^.*\//, '')) ||
-            fileMap.get(basename(req));
+          const b = basename(req);
+          const mapped = fileMap.get(b);
           if (mapped) return mapped;
           try {
             return new URL(req, baseDir).toString();
