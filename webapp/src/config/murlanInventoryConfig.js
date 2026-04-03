@@ -1,17 +1,14 @@
-import { POOL_ROYALE_DEFAULT_HDRI_ID } from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_TABLE_FINISH_OPTIONS
 } from './texasHoldemInventoryConfig.js';
+import {
+  TABLE_CLOTH_OPTIONS as TEXAS_TABLE_CLOTH_OPTIONS
+} from '../utils/tableCustomizationOptions.js';
 import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 import { MURLAN_OUTFIT_THEMES, MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import {
-  BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS,
-  BATTLE_ROYALE_SHARED_HDRI_VARIANTS,
-  BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS,
-  BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS
-} from './battleRoyaleSharedInventory.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -24,24 +21,24 @@ const mapLabels = (options) =>
 export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   outfit: [MURLAN_OUTFIT_THEMES[0].id],
   cards: [CARD_THEMES[0].id],
-  stools: BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS.map((theme) => theme.id),
-  tables: BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS.map((theme) => theme.id),
-  tableCloth: BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS.map((cloth) => cloth.id),
+  stools: [MURLAN_STOOL_THEMES[0].id],
+  tables: [MURLAN_TABLE_THEMES[0].id],
+  tableCloth: [TEXAS_TABLE_CLOTH_OPTIONS[0].id],
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0].id],
   characters: [MURLAN_CHARACTER_THEMES[0].id],
-  environmentHdri: BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant) => variant.id)
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id)
 });
 
 export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   outfit: mapLabels(MURLAN_OUTFIT_THEMES),
   cards: mapLabels(CARD_THEMES),
-  stools: mapLabels(BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS),
-  tables: mapLabels(BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS),
-  tableCloth: mapLabels(BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS),
+  stools: mapLabels(MURLAN_STOOL_THEMES),
+  tables: mapLabels(MURLAN_TABLE_THEMES),
+  tableCloth: mapLabels(TEXAS_TABLE_CLOTH_OPTIONS),
   tableFinish: Object.freeze(TEXAS_HOLDEM_OPTION_LABELS.tableFinish),
   characters: mapLabels(MURLAN_CHARACTER_THEMES),
   environmentHdri: mapLabels(
-    BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant) => ({
+    POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
       id: variant.id,
       label: `${variant.name} HDRI`
     }))
@@ -70,7 +67,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: option.thumbnail
   }))
 ].concat(
-  BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS.map((cloth, idx) => ({
+  TEXAS_TABLE_CLOTH_OPTIONS.map((cloth, idx) => ({
     id: `cloth-${cloth.id}`,
     type: 'tableCloth',
     optionId: cloth.id,
@@ -81,7 +78,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     thumbnail: cloth.thumbnail,
     previewShape: 'table'
   })),
-  BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS.map((theme, idx) => ({
+  MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `table-${theme.id}`,
     type: 'tables',
     optionId: theme.id,
@@ -90,7 +87,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
     thumbnail: theme.thumbnail
   })),
-  BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS.map((theme, idx) => ({
+  MURLAN_STOOL_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `stool-${theme.id}`,
     type: 'stools',
     optionId: theme.id,
@@ -108,7 +105,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: theme.description,
     thumbnail: theme.thumbnail
   })),
-  BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant, idx) => ({
+  POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `hdri-${variant.id}`,
     type: 'environmentHdri',
     optionId: variant.id,
@@ -133,8 +130,8 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   },
   {
     type: 'tableCloth',
-    optionId: BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS[0].id,
-    label: BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS[0].label
+    optionId: TEXAS_TABLE_CLOTH_OPTIONS[0].id,
+    label: TEXAS_TABLE_CLOTH_OPTIONS[0].label
   },
   {
     type: 'tableFinish',
