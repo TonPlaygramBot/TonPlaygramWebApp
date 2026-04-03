@@ -541,7 +541,7 @@ export function createMurlanStyleTable({
   const clothRise = 0.07 * scaleFactor;
   let baseHeight = 0.66 * scaleFactor;
   const tableY = tableHeight - clothRise;
-  const baseLift = 0.03 * scaleFactor;
+  const baseLift = 0;
 
   const minBaseHeight = tableY > 0 ? tableY * 2 : 0;
   if (baseHeight < minBaseHeight) {
