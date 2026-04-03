@@ -15,6 +15,7 @@ namespace Aiming.Gameplay.Broadcast
         [SerializeField, Min(0f)] private float replayStartLeadSeconds = 0.08f;
         [Header("Replay frame fallback")]
         [SerializeField] private GameObject replayFrameRoot;
+        [SerializeField] private CanvasGroup replayFrameCanvasGroup;
         [SerializeField, Min(0.05f)] private float replayFrameVisibleSeconds = 1.4f;
 
         public event Action<ReplayBroadcastPayload> ReplayBroadcastRequested;
@@ -46,9 +47,14 @@ namespace Aiming.Gameplay.Broadcast
 
         private void ShowReplayFrame()
         {
-            if (replayFrameRoot == null)
+            if (replayFrameRoot == null && replayFrameCanvasGroup == null)
             {
                 return;
+            }
+
+            if (replayFrameRoot == null && replayFrameCanvasGroup != null)
+            {
+                replayFrameRoot = replayFrameCanvasGroup.gameObject;
             }
 
             if (replayFrameRoutine != null)
@@ -61,9 +67,30 @@ namespace Aiming.Gameplay.Broadcast
 
         private IEnumerator ReplayFrameRoutine()
         {
-            replayFrameRoot.SetActive(true);
+            if (replayFrameRoot != null)
+            {
+                replayFrameRoot.SetActive(true);
+            }
+
+            if (replayFrameCanvasGroup != null)
+            {
+                replayFrameCanvasGroup.alpha = 1f;
+                replayFrameCanvasGroup.interactable = false;
+                replayFrameCanvasGroup.blocksRaycasts = false;
+            }
+
             yield return new WaitForSecondsRealtime(replayFrameVisibleSeconds);
-            replayFrameRoot.SetActive(false);
+
+            if (replayFrameCanvasGroup != null)
+            {
+                replayFrameCanvasGroup.alpha = 0f;
+            }
+
+            if (replayFrameRoot != null)
+            {
+                replayFrameRoot.SetActive(false);
+            }
+
             replayFrameRoutine = null;
         }
     }

@@ -50,6 +50,7 @@ namespace Aiming
         Vector3 _targetDirection = Vector3.forward;
         Vector3 _cueAnchorPosition;
         float _currentCueDepth;
+        float _chargedCueDepth;
         float _power;
         float _latchedShotPower;
         ShotState _shotState = ShotState.Idle;
@@ -91,7 +92,8 @@ namespace Aiming
             if (_shotState == ShotState.Dragging)
             {
                 float pull = pullRange * EaseOutCubic(_power);
-                _currentCueDepth = idleTipGap + pull;
+                _chargedCueDepth = idleTipGap + pull;
+                _currentCueDepth = _chargedCueDepth;
                 UpdateCuePose();
             }
         }
@@ -107,7 +109,8 @@ namespace Aiming
             _shotState = ShotState.Dragging;
             _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
             _latchedShotPower = 0f;
-            _currentCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
+            _chargedCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
+            _currentCueDepth = _chargedCueDepth;
             gameObject.SetActive(true);
             UpdateCuePose();
         }
@@ -127,6 +130,7 @@ namespace Aiming
             _shotState = ShotState.Idle;
             _power = 0f;
             _latchedShotPower = 0f;
+            _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
             UpdateCuePose();
         }
@@ -138,11 +142,12 @@ namespace Aiming
                 return;
             }
 
-            float recoveredPower = RecoverPowerFromCueDepth(_currentCueDepth);
+            float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
             _latchedShotPower = Mathf.Clamp01(Mathf.Max(_power, recoveredPower));
             if (_latchedShotPower <= 0.02f)
             {
                 _shotState = ShotState.Idle;
+                _chargedCueDepth = idleTipGap;
                 _currentCueDepth = idleTipGap;
                 UpdateCuePose();
                 return;
@@ -181,7 +186,8 @@ namespace Aiming
             if (_shotState == ShotState.Dragging)
             {
                 float pull = pullRange * EaseOutCubic(_power);
-                _currentCueDepth = idleTipGap + pull;
+                _chargedCueDepth = idleTipGap + pull;
+                _currentCueDepth = _chargedCueDepth;
                 return;
             }
 
@@ -227,7 +233,7 @@ namespace Aiming
             _shotState = ShotState.Striking;
 
             Vector3 strikeDirection = _aimDirection;
-            float pull = pullRange * EaseOutCubic(shotPower);
+            float pull = Mathf.Max(0f, _chargedCueDepth - idleTipGap);
             float visualPull = Mathf.Max(pull, minimumVisualPull);
             float startDepth = idleTipGap + visualPull;
             float hitDepth = idleTipGap;
@@ -279,6 +285,7 @@ namespace Aiming
             _currentCueDepth = idleTipGap;
             _power = 0f;
             _latchedShotPower = 0f;
+            _chargedCueDepth = idleTipGap;
             _shotState = ShotState.Idle;
             UpdateCuePose();
         }
