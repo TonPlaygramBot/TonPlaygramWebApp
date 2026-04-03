@@ -22313,21 +22313,7 @@ const powerRef = useRef(hud.power);
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
           const trimmed = trimReplayRecording(shotRecording);
-          const replayFrames = Array.isArray(trimmed.frames) ? [...trimmed.frames] : [];
-          const fallbackFrameTime = Math.max(16, shotRecording.frameTimeMs ?? 1000 / 60);
-          if (replayFrames.length === 1) {
-            replayFrames.push({
-              ...replayFrames[0],
-              t: Math.max(fallbackFrameTime, replayFrames[0]?.t ?? 0)
-            });
-          }
-          const duration =
-            replayFrames.length > 1
-              ? Math.max(
-                  Number.isFinite(trimmed.duration) ? trimmed.duration : 0,
-                  replayFrames[replayFrames.length - 1]?.t ?? 0
-                )
-              : trimmed.duration;
+          const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
@@ -22374,7 +22360,7 @@ const powerRef = useRef(hud.power);
           const slowExtraDuration =
             hasWrongBallSlowImpact && slowSpan > 0 ? slowSpan * (1 / slowFactor - 1) : 0;
           replayPlayback = {
-            frames: replayFrames,
+            frames: trimmed.frames,
             cuePath: trimmed.cuePath,
             cueStroke: replayCueStroke,
             duration,
