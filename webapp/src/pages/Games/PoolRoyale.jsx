@@ -3177,7 +3177,7 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
 const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -3547,7 +3547,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.72; // tighten procedural weave slightly so threads read smaller and sharper on mobile
+const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal procedural weave footprint so cloth thread size stays consistent
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
@@ -8043,7 +8043,7 @@ export function Table3D(
       ? null
       : resolveClothPatternOverride(clothTextureKey);
   const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12 * 1.08 * clothPatternUpscale; // slightly tighten weave tiling so cloth texel density matches cushion detail more closely
+    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // keep Pool Royale cloth texel density aligned with Snooker Royal
   let baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
