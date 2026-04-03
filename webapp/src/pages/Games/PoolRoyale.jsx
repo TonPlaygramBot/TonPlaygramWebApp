@@ -14529,7 +14529,7 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [trainingPenaltyPopup, setTrainingPenaltyPopup] = useState(null);
   const trainingPenaltyPopupTimeoutRef = useRef(null);
-  const [replaySlate, setReplaySlate] = useState(null);
+  const [, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
   const waitForActiveReplay = useCallback(
     (timeoutMs = 8000) =>
@@ -14654,6 +14654,7 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [replayFoul, setReplayFoul] = useState(null);
+const [replayPotCount, setReplayPotCount] = useState(0);
 const handleSkipReplayClick = useCallback(() => {
   if (skipReplayRef.current) {
     skipReplayRef.current();
@@ -22340,6 +22341,7 @@ const powerRef = useRef(hud.power);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
+          setReplayPotCount(Math.max(0, shotRecording?.replayPotCount ?? 0));
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
@@ -22494,6 +22496,7 @@ const powerRef = useRef(hud.power);
           replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
+          setReplayPotCount(0);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -22506,6 +22509,7 @@ const powerRef = useRef(hud.power);
           }
           setReplayBanner(null);
           setReplaySlate(null);
+          setReplayPotCount(0);
           if (replayPlaybackRef.current) {
             finishReplayPlayback(replayPlaybackRef.current);
           }
@@ -25798,6 +25802,9 @@ const powerRef = useRef(hud.power);
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
           };
+          // Match Snooker Royal launch semantics: apply cue-ball physics instantly
+          // while keeping cue-stick stroke purely visual.
+          applyShotImpact();
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
@@ -28220,6 +28227,7 @@ const powerRef = useRef(hud.power);
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
+          shotRecording.replayPotCount = pottedObjectCount;
           const foulReasonText = String(safeState?.foul?.reason ?? '').toLowerCase();
           const wrongBallFoul = foulReasonText.includes('wrong ball');
           shotRecording.replaySlowImpactMs =
@@ -32071,16 +32079,6 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
-      {replaySlate && (
-        <div className="pointer-events-none absolute inset-0 z-[105] flex items-center justify-center">
-          <div className="rounded-2xl border border-white/35 bg-black/72 px-8 py-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.6)] backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/70">Replay frame</p>
-            <p className="mt-2 text-2xl font-black uppercase tracking-[0.2em] text-white">
-              {replaySlate.label || 'Replay'}
-            </p>
-          </div>
-        </div>
-      )}
       {ruleToast && (
         <div className="pointer-events-none absolute left-1/2 top-6 z-50 -translate-x-1/2 px-3 text-center">
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
@@ -32388,6 +32386,11 @@ const powerRef = useRef(hud.power);
             {replayFoul && (
               <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
                 Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
+            )}
+            {!replayFoul && replayPotCount > 0 && (
+              <div className="mt-2 rounded-full border border-emerald-300/70 bg-emerald-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Pot{replayPotCount > 1 ? ` x${replayPotCount}` : ''}
               </div>
             )}
           </div>
