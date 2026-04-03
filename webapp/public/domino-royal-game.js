@@ -6042,10 +6042,30 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   });
 }
 
-const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(4.1);
-const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
+const NON_OCTAGON_TABLE_ROTATION = 0;
+const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.91;
+const NO_SIDE_SHRINK_TABLE_THEME_IDS = new Set([
+  'murlan-default'
+]);
 
-function fitTableModelToFootprint(model) {
+function isOvalOrDiamondTableTheme(themeId = '') {
+  const normalized = String(themeId || '').toLowerCase();
+  return (
+    normalized.includes('oval') ||
+    normalized.includes('diamond') ||
+    normalized.includes('round')
+  );
+}
+
+function shouldShrinkTableSides(themeId = '') {
+  const normalized = String(themeId || '');
+  if (!normalized) return true;
+  if (NO_SIDE_SHRINK_TABLE_THEME_IDS.has(normalized)) return false;
+  if (isOvalOrDiamondTableTheme(normalized)) return false;
+  return true;
+}
+
+function fitTableModelToFootprint(model, themeId = '') {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -6053,8 +6073,10 @@ function fitTableModelToFootprint(model) {
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
-  model.scale.x *= NON_OCTAGON_TABLE_SIDE_SHRINK;
-  model.scale.z *= NON_OCTAGON_TABLE_SIDE_SHRINK;
+  if (shouldShrinkTableSides(themeId)) {
+    model.scale.x *= NON_OCTAGON_TABLE_SIDE_SHRINK;
+    model.scale.z *= NON_OCTAGON_TABLE_SIDE_SHRINK;
+  }
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
@@ -6104,7 +6126,7 @@ async function applyTableTheme(
       disposeObjectResources(model, { disposeTextures: false });
       return;
     }
-    fitTableModelToFootprint(model);
+    fitTableModelToFootprint(model, theme.id);
     tableThemeG.add(model);
     tableThemeG.visible = true;
     setProceduralTableVisible(false);
