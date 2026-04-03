@@ -381,6 +381,20 @@ const darkenHex = (hex, amount = 0.25) => mixHexColor(hex, '#000000', amount);
 
 const ARENA_THEME_OPTIONS = Object.freeze([
   {
+    id: 'midnightShowcase',
+    label: 'Midnight Showcase',
+    floor: {
+      base: '#060606',
+      secondary: '#0b0b0b',
+      accent: '#111111',
+      gridPrimary: 'rgba(148, 163, 184, 0.16)',
+      gridSecondary: 'rgba(15, 23, 42, 0.1)'
+    },
+    carpet: { primary: '#121212', accent: '#2a2a2a' },
+    wall: { base: '#070707', accent: '#1f2937' },
+    lights: { rim: '#f8fafc', rimIntensity: 1.25, spot: '#ffffff', ambient: 0.92 }
+  },
+  {
     id: 'nebulaAtrium',
     label: 'Nebula Atrium',
     floor: {
@@ -425,6 +439,26 @@ const ARENA_THEME_OPTIONS = Object.freeze([
 ]);
 
 const BOARD_PALETTE_OPTIONS = Object.freeze([
+  {
+    id: 'arcadeSpiral',
+    label: 'Arcade Spiral',
+    light: '#f6c744',
+    dark: '#3751d8',
+    side: '#dd3c3c',
+    bottom: '#183022',
+    topEmissive: '#0c111f',
+    sideEmissive: '#0f1624',
+    bottomEmissive: '#060a12',
+    topRoughness: 0.42,
+    topMetalness: 0.14,
+    sideBlend: 0.56,
+    sideRoughness: 0.44,
+    sideMetalness: 0.08,
+    highlightNormal: '#f59e0b',
+    highlightSnake: '#ef4444',
+    highlightLadder: '#22c55e',
+    spiralReference: true
+  },
   {
     id: 'desertMarble',
     label: 'Desert Marble',

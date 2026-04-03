@@ -150,6 +150,12 @@ const CAM = {
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
 const TILE_COLOR_B = new THREE.Color(0x776a5a);
+const SPIRAL_REFERENCE_COLORS = Object.freeze([
+  new THREE.Color('#f6c744'),
+  new THREE.Color('#3751d8'),
+  new THREE.Color('#4ade80'),
+  new THREE.Color('#ef4444')
+]);
 const DEFAULT_HIGHLIGHT_COLORS = Object.freeze({
   normal: new THREE.Color(0xf59e0b),
   snake: new THREE.Color(0xdc2626),
@@ -2703,6 +2709,7 @@ function buildSnakeBoard(
   const floorTexture = appearanceOptions.floorTexture ?? null;
   const wallTexture = appearanceOptions.wallTexture ?? null;
   const highlightColors = createHighlightColors(boardTheme);
+  const useReferenceSpiral = boardTheme.spiralReference === true;
   const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
   const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
 
@@ -2737,24 +2744,33 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const dimension = size * TILE_SIZE;
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const wallColor = PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
-    const wallGlowBase = PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
-    const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
-    const topTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
+    const referenceLevelColor = SPIRAL_REFERENCE_COLORS[levelIndex % SPIRAL_REFERENCE_COLORS.length];
+    const wallColor = useReferenceSpiral
+      ? referenceLevelColor.clone().lerp(new THREE.Color('#101010'), 0.2)
+      : PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
+    const wallGlowBase = useReferenceSpiral
+      ? referenceLevelColor.clone().lerp(new THREE.Color('#ffffff'), 0.22)
+      : PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
+    const rimTone = useReferenceSpiral
+      ? referenceLevelColor.clone().lerp(new THREE.Color('#ffffff'), 0.35)
+      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
+    const topTone = useReferenceSpiral
+      ? referenceLevelColor.clone().lerp(new THREE.Color('#0f172a'), 0.25)
+      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
     const wallMaterial = new THREE.MeshStandardMaterial({
       color: wallColor,
-      roughness: 0.76,
-      metalness: 0.08,
-      emissive: wallGlowBase.clone().multiplyScalar(0.18),
-      emissiveIntensity: 0.14
+      roughness: useReferenceSpiral ? 0.56 : 0.76,
+      metalness: useReferenceSpiral ? 0.05 : 0.08,
+      emissive: wallGlowBase.clone().multiplyScalar(useReferenceSpiral ? 0.09 : 0.18),
+      emissiveIntensity: useReferenceSpiral ? 0.2 : 0.14
     });
     wallMaterials.push(wallMaterial);
     const topMaterial = new THREE.MeshStandardMaterial({
       color: topTone,
-      roughness: 0.68,
-      metalness: 0.12,
-      emissive: rimTone.clone().multiplyScalar(0.12),
-      emissiveIntensity: 0.12
+      roughness: useReferenceSpiral ? 0.5 : 0.68,
+      metalness: useReferenceSpiral ? 0.08 : 0.12,
+      emissive: rimTone.clone().multiplyScalar(useReferenceSpiral ? 0.08 : 0.12),
+      emissiveIntensity: useReferenceSpiral ? 0.16 : 0.12
     });
     topMaterials.push(topMaterial);
     const bottomMaterial = new THREE.MeshStandardMaterial({
@@ -2882,7 +2898,11 @@ function buildSnakeBoard(
     }).slice(0, levelTileCount);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
+      const baseColor = useReferenceSpiral
+        ? SPIRAL_REFERENCE_COLORS[(seqIndex + levelIndex) % SPIRAL_REFERENCE_COLORS.length].clone()
+        : (row + col) % 2 === 0
+        ? tileLightBase.clone()
+        : tileDarkBase.clone();
       const materialSet = createTileMaterialSet(baseColor, boardTheme);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
@@ -3017,13 +3037,13 @@ function buildSnakeBoard(
 
   const potGroup = new THREE.Group();
   const coin = new THREE.Mesh(
-    new THREE.CylinderGeometry(TILE_SIZE * 0.24, TILE_SIZE * 0.24, TILE_SIZE * 0.12, 32),
+    new THREE.CylinderGeometry(TILE_SIZE * 0.22, TILE_SIZE * 0.25, TILE_SIZE * 0.16, 32),
     new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      roughness: 0.3,
-      metalness: 0.4,
-      emissive: 0x332200,
-      emissiveIntensity: 0.25
+      color: useReferenceSpiral ? 0x2dd4bf : 0xf59e0b,
+      roughness: useReferenceSpiral ? 0.36 : 0.3,
+      metalness: useReferenceSpiral ? 0.16 : 0.4,
+      emissive: useReferenceSpiral ? 0x0f766e : 0x332200,
+      emissiveIntensity: useReferenceSpiral ? 0.18 : 0.25
     })
   );
   coin.rotation.x = Math.PI / 2;
