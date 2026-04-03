@@ -1015,23 +1015,38 @@ function buildSeatAnchors(count) {
   return anchors;
 }
 
-function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
+function createConfiguredGLTFLoader(renderer = null, manager = undefined, options = {}) {
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin?.('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder?.(MeshoptDecoder);
+  const enableKtx2 = options?.enableKtx2 !== false;
 
-  if (!sharedKtx2Loader) {
-    sharedKtx2Loader = new KTX2Loader();
-    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  if (enableKtx2) {
+    if (!sharedKtx2Loader) {
+      sharedKtx2Loader = new KTX2Loader();
+      sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+    }
+
+    ensureKtx2SupportDetection(renderer);
+
+    loader.setKTX2Loader(sharedKtx2Loader);
   }
-
-  ensureKtx2SupportDetection(renderer);
-
-  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
+}
+
+function isTextureTranscoderError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('ktx2') ||
+    message.includes('basis') ||
+    message.includes('transcoder') ||
+    message.includes('texture_format') ||
+    message.includes('unsupported texture') ||
+    message.includes('webgl')
+  );
 }
 
 function prepareLoadedModel(model) {
@@ -1160,37 +1175,50 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         throw new Error(`No model URL found for ${assetId}`);
       }
 
-      const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-      const loader = createConfiguredGLTFLoader(renderer, manager);
-
-      if (fileMap.size) {
-        const base = stripQueryHash(modelUrlList[0]);
-        const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-        loader.manager.setURLModifier((requestedUrl) => {
-          if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-          const req = stripQueryHash(requestedUrl);
-          const b = basename(req);
-          const mapped = fileMap.get(b);
-          if (mapped) return mapped;
-          try {
-            return new URL(req, baseDir).toString();
-          } catch {
-            return requestedUrl;
-          }
-        });
-      }
-
       let gltf = null;
       let lastError = null;
       for (const modelUrl of modelUrlList) {
+        const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
+        const applyManagerMappings = (loaderInstance, baseUrl) => {
+          if (!fileMap.size) return;
+          const base = stripQueryHash(baseUrl);
+          const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+          loaderInstance.manager.setURLModifier((requestedUrl) => {
+            if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+            const req = stripQueryHash(requestedUrl);
+            const b = basename(req);
+            const mapped = fileMap.get(b);
+            if (mapped) return mapped;
+            try {
+              return new URL(req, baseDir).toString();
+            } catch {
+              return requestedUrl;
+            }
+          });
+        };
+        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
         try {
-          const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
-          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+          const loader = createConfiguredGLTFLoader(renderer, manager);
+          applyManagerMappings(loader, resolvedUrl);
           loader.setResourcePath?.(resourcePath);
           loader.setPath?.('');
           gltf = await loader.loadAsync(resolvedUrl);
           break;
         } catch (error) {
+          if (isTextureTranscoderError(error)) {
+            try {
+              const fallbackLoader = createConfiguredGLTFLoader(renderer, manager, { enableKtx2: false });
+              applyManagerMappings(fallbackLoader, resolvedUrl);
+              fallbackLoader.setResourcePath?.(resourcePath);
+              fallbackLoader.setPath?.('');
+              gltf = await fallbackLoader.loadAsync(resolvedUrl);
+              break;
+            } catch (fallbackError) {
+              lastError = fallbackError;
+              continue;
+            }
+          }
           lastError = error;
         }
       }
