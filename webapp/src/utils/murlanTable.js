@@ -323,10 +323,10 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316']),
     createShapes: ({ radius }) => {
-      const width = radius * 2.12;
-      const height = radius * 2;
+      const width = radius * 2.1;
+      const height = radius * 1.45;
       const topShape = createOvalShape(width, height, 64);
-      const feltShape = createOvalShape(width * 0.8, height * 0.8, 64);
+      const feltShape = createOvalShape(width * 0.82, height * 0.82, 64);
       const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
       return { topShape, feltShape, rimInnerShape };
     }
@@ -338,17 +338,15 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       borderRadius: '18%'
     },
     thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7']),
-    createShapes: ({ radius }) => {
-      const width = radius * 2.12;
-      const height = radius * 2;
-      const topCorner = Math.min(width, height) * 0.16;
-      const feltWidth = width * 0.8;
-      const feltHeight = height * 0.8;
-      const feltCorner = Math.min(feltWidth, feltHeight) * 0.14;
-      const topShape = createRoundedRectangleShape(width, height, topCorner);
-      const feltShape = createRoundedRectangleShape(feltWidth, feltHeight, feltCorner);
-      const rimInnerShape = scaleShape2D(feltShape, 0.97, 0.97);
-      return { topShape, feltShape, rimInnerShape };
+    createShapes: ({ radius, scaleFactor }) => {
+      const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : radius / 0.9 || 1;
+      const outerHalf = 0.95 * factor;
+      const clothHalf = 0.7 * factor;
+      const innerHalf = 0.76 * factor;
+      const topShape = createRoundedRectangleShape(outerHalf * 2, outerHalf * 2, 0.12 * factor);
+      const feltShape = createRoundedRectangleShape(clothHalf * 2, clothHalf * 2, 0.08 * factor);
+      const rimInnerShape = createRoundedRectangleShape(innerHalf * 2, innerHalf * 2, 0.1 * factor);
+      return { topShape, feltShape, rimInnerShape, feltRadius: clothHalf };
     }
   }
 ]);
