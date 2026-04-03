@@ -232,6 +232,10 @@ public class CueCamera : MonoBehaviour
     public float cueStickMaxPush = 0.05f;
     // Visual smoothing for cue stick pull/push.
     public float cueStickStrokeSmooth = 14f;
+    [Header("Shot timing")]
+    // Time to keep the cue camera locked on the strike after trigger before
+    // switching to broadcast follow cameras.
+    public float cueStrikeCameraHoldSeconds = 0.14f;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -260,6 +264,8 @@ public class CueCamera : MonoBehaviour
     private float cueStickStrokeVisual;
     private float smoothedCueDistance;
     private bool hasSmoothedCueDistance;
+    private float cueStrikeHoldUntilTime;
+    private bool holdCueAimDuringShot;
     private Vector3 ballInHandTargetPosition;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
@@ -324,6 +330,8 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
+        holdCueAimDuringShot = cueStrikeCameraHoldSeconds > 0f;
+        cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -392,8 +400,13 @@ public class CueCamera : MonoBehaviour
         {
             UpdateTargetCamera();
         }
+        else if (holdCueAimDuringShot && Time.time < cueStrikeHoldUntilTime)
+        {
+            PositionCueAimCamera(Time.deltaTime, false);
+        }
         else
         {
+            holdCueAimDuringShot = false;
             UpdateBroadcastCamera();
         }
     }
@@ -410,10 +423,13 @@ public class CueCamera : MonoBehaviour
             return;
         }
 
-        int desiredSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
-        if (cueAimSideSign != desiredSide)
+        if (!shotInProgress)
         {
-            cueAimSideSign = desiredSide;
+            int desiredSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
+            if (cueAimSideSign != desiredSide)
+            {
+                cueAimSideSign = desiredSide;
+            }
         }
 
         Vector3 desiredForward = GetCueAxis();
@@ -1369,6 +1385,7 @@ public class CueCamera : MonoBehaviour
     {
         shotInProgress = false;
         usingTargetCamera = false;
+        holdCueAimDuringShot = false;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
