@@ -844,6 +844,7 @@ const NON_DIAMOND_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
   return index >= 0 ? index : 0;
 })();
+const TABLE_THEME_WITH_FINISH_AND_CLOTH = new Set(['murlan-default', 'diamondEdge', 'ovalTable']);
 
 function enforceShapeForPlayers(appearance, playerCount) {
   const safe = { ...appearance };
@@ -1059,39 +1060,41 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
-function normalizePbrTexture(texture, maxAnisotropy = 1) {
+function normalizePbrTexture(texture, maxAnisotropy = 1, { preserveOriginalMapping = false } = {}) {
   if (!texture) return;
-  texture.flipY = false;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  if (!preserveOriginalMapping) {
+    texture.flipY = false;
+    texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+    texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  }
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
   texture.needsUpdate = true;
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 8) {
+function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveOriginalMapping = false } = {}) {
   if (!material) return;
   if (material.map) {
     applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy);
+    normalizePbrTexture(material.map, maxAnisotropy, { preserveOriginalMapping });
   }
   if (material.emissiveMap) {
     applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
+    normalizePbrTexture(material.emissiveMap, maxAnisotropy, { preserveOriginalMapping });
   }
-  normalizePbrTexture(material.normalMap, maxAnisotropy);
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
-  normalizePbrTexture(material.aoMap, maxAnisotropy);
+  normalizePbrTexture(material.normalMap, maxAnisotropy, { preserveOriginalMapping });
+  normalizePbrTexture(material.roughnessMap, maxAnisotropy, { preserveOriginalMapping });
+  normalizePbrTexture(material.metalnessMap, maxAnisotropy, { preserveOriginalMapping });
+  normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveOriginalMapping });
 }
 
-function prepareLoadedModel(model) {
+function prepareLoadedModel(model, { preserveOriginalMapping = false } = {}) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        normalizeMaterialTextures(mat);
+        normalizeMaterialTextures(mat, 8, { preserveOriginalMapping });
         if (mat) {
           mat.needsUpdate = true;
         }
@@ -1254,7 +1257,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 
       const model = gltf.scene || gltf.scenes?.[0] || gltf;
       if (!model) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-      prepareLoadedModel(model);
+      prepareLoadedModel(model, { preserveOriginalMapping: true });
       return model;
     })();
 
@@ -3206,9 +3209,9 @@ function TexasHoldemArena({ search }) {
       }))
         .filter((section) => section.options.length > 0)
         .filter((section) => {
-          if (section.key !== 'tableFinish') return true;
+          if (section.key !== 'tableFinish' && section.key !== 'tableCloth') return true;
           const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
-          return tableTheme?.id === DEFAULT_TABLE_THEME_ID;
+          return TABLE_THEME_WITH_FINISH_AND_CLOTH.has(tableTheme?.id);
         }),
     [appearance.tableTheme, texasInventory]
   );
