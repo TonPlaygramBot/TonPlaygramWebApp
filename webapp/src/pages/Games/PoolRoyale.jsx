@@ -836,7 +836,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.978; // shrink the wooden corner rounded cut slightly so the bite looks tighter on mobile
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.966; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -1305,9 +1305,9 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.98; // extend all jaw bodies slightly so the inside profile reads a touch longer
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.086; // lower all six jaws a little further down so the jaw mouths sit visibly deeper
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // side-pocket jaw bottom clearance (keep middle-pocket jaw height unchanged)
-const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.008; // reduce only corner-pocket bottom clearance so corner jaws extend farther downward
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
+const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1605,7 +1605,7 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.148; // lift the cushion base slightly so the lip sits higher above the cloth
+const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.156; // lift the cushion base a tiny bit more so the cushion top reads slightly higher
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch less so they sit higher than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -3549,7 +3549,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.08;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -4212,7 +4212,8 @@ function updateClothTexturesForFinish (
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
-  const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const isPolyHavenTexture = textures.mapSource === 'polyhaven';
+  const textureScale = isPolyHavenTexture ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
       ? POLYHAVEN_NORMAL_SCALE
@@ -4268,12 +4269,26 @@ function updateClothTexturesForFinish (
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
+  if (isPolyHavenTexture) {
+    ['map', 'normalMap', 'bumpMap', 'roughnessMap'].forEach((prop) => {
+      const tex = finishInfo.clothMat?.[prop];
+      if (!tex) return;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(1, 1);
+      tex.offset.set(0, 0);
+      tex.rotation = 0;
+      tex.center.set(0, 0);
+      tex.needsUpdate = true;
+    });
+  }
   if (finishInfo.clothMat.userData) {
     finishInfo.clothMat.userData.polyRepeatScale = textureScale;
     finishInfo.clothMat.userData.baseRepeat = baseRepeatValue;
     finishInfo.clothMat.userData.baseRepeatRaw = baseRepeatRaw;
-    finishInfo.clothMat.userData.nearRepeat = baseRepeatValue * 1.12;
-    finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
+    finishInfo.clothMat.userData.nearRepeat = isPolyHavenTexture ? 1 : baseRepeatValue * 1.12;
+    finishInfo.clothMat.userData.farRepeat = isPolyHavenTexture ? 1 : baseRepeatValue * 0.44;
+    finishInfo.clothMat.userData.preserveOriginalUvMapping = Boolean(isPolyHavenTexture);
   }
   if (finishInfo.cushionMat) {
     replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
@@ -8052,19 +8067,25 @@ export function Table3D(
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
-    clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    if (!isPolyHavenCloth) {
+      clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    }
     clothMat.map.needsUpdate = true;
   }
   if (clothNormal) {
     clothMat.normalMap = clothNormal;
-    clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    if (!isPolyHavenCloth) {
+      clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    }
     clothMat.normalScale = clothNormalScale.clone();
     clothMat.normalMap.needsUpdate = true;
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap = null;
   } else if (clothBump) {
     clothMat.bumpMap = clothBump;
-    clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    if (!isPolyHavenCloth) {
+      clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    }
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
@@ -8072,7 +8093,9 @@ export function Table3D(
   }
   if (clothRoughness) {
     clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    if (!isPolyHavenCloth) {
+      clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+    }
     clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
     clothMat.roughnessMap.needsUpdate = true;
   }
@@ -8082,11 +8105,12 @@ export function Table3D(
     baseRepeat: baseRepeatApplied,
     repeatRatio,
     polyRepeatScale,
-    nearRepeat: baseRepeatApplied * 1.12,
-    farRepeat: baseRepeatApplied * 0.44,
+    nearRepeat: isPolyHavenCloth ? 1 : baseRepeatApplied * 1.12,
+    farRepeat: isPolyHavenCloth ? 1 : baseRepeatApplied * 0.44,
     bumpScale: clothMat.bumpScale,
     baseBumpScale: clothMat.bumpScale,
-    quality: CLOTH_QUALITY
+    quality: CLOTH_QUALITY,
+    preserveOriginalUvMapping: Boolean(isPolyHavenCloth)
   };
 
   const cushionMat = clothMat.clone();
@@ -8839,13 +8863,13 @@ export function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // keep cushions closer to center to avoid overlap with rails
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.045; // pull short-rail cushions inward so they clear the wood rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.08; // nudge long-rail cushions inward for cleaner rail separation
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.038; // ease short-rail cushions slightly outward away from table center
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.07; // ease long-rail cushions slightly outward away from table center
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.056; // push side cushions outward a touch while keeping the rail contact clean
   const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
@@ -20661,7 +20685,7 @@ const powerRef = useRef(hud.power);
           if (lookTarget && !broadcastArgs.orbitWorld) {
             broadcastArgs.orbitWorld = lookTarget.clone();
           }
-          if (clothMat) {
+          if (clothMat && !clothMat.userData?.preserveOriginalUvMapping) {
             const repeat =
               clothMat.userData?.baseRepeat ??
               clothMat.userData?.nearRepeat ??
