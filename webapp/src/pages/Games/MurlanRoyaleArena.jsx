@@ -188,17 +188,6 @@ function detectDisplayRefreshTier() {
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
-const RENDERER_CONTEXT_CANDIDATES = Object.freeze([
-  { label: 'webgl2-high', contextName: 'webgl2', attrs: { antialias: true, alpha: false, powerPreference: 'high-performance' } },
-  { label: 'webgl2-safe', contextName: 'webgl2', attrs: { antialias: false, alpha: false, powerPreference: 'default' } },
-  { label: 'webgl-high', contextName: 'webgl', attrs: { antialias: true, alpha: false, powerPreference: 'high-performance' } },
-  { label: 'webgl-safe', contextName: 'webgl', attrs: { antialias: false, alpha: false, powerPreference: 'default' } },
-  {
-    label: 'experimental-webgl-safe',
-    contextName: 'experimental-webgl',
-    attrs: { antialias: false, alpha: false, powerPreference: 'default' }
-  }
-]);
 
 function readGraphicsRendererString() {
   if (rendererLookupAttempted) {
@@ -231,35 +220,6 @@ function readGraphicsRendererString() {
   } catch (err) {
     return null;
   }
-}
-
-function createWebGLRendererWithFallback() {
-  const errors = [];
-
-  for (const candidate of RENDERER_CONTEXT_CANDIDATES) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext(candidate.contextName, candidate.attrs);
-    if (!context) {
-      errors.push(`${candidate.label}: context unavailable`);
-      continue;
-    }
-
-    try {
-      const renderer = new THREE.WebGLRenderer({
-        canvas,
-        context,
-        antialias: Boolean(candidate.attrs.antialias),
-        alpha: false,
-        powerPreference: candidate.attrs.powerPreference ?? 'default'
-      });
-      renderer.userData.webglAdapter = candidate.label;
-      return renderer;
-    } catch (error) {
-      errors.push(`${candidate.label}: ${error?.message || String(error)}`);
-    }
-  }
-
-  throw new Error(`Unable to initialize WebGL renderer (${errors.join(' | ')})`);
 }
 
 function classifyRendererTier(rendererString) {
@@ -1483,19 +1443,15 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
   }
 
-  let ktx2Ready = false;
   if (renderer) {
     try {
       sharedKtx2Loader.detectSupport(renderer);
-      ktx2Ready = true;
     } catch (error) {
       console.warn('Murlan KTX2 support detection failed', error);
     }
   }
 
-  if (ktx2Ready) {
-    loader.setKTX2Loader(sharedKtx2Loader);
-  }
+  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -4517,7 +4473,7 @@ export default function MurlanRoyaleArena({ search }) {
     let lastRenderTime = performance.now();
 
     const setup = async () => {
-      renderer = createWebGLRendererWithFallback();
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
@@ -4528,7 +4484,6 @@ export default function MurlanRoyaleArena({ search }) {
       renderer.domElement.style.display = 'block';
       mount.appendChild(renderer.domElement);
       dom = renderer.domElement;
-      console.info('Murlan WebGL adapter selected', renderer.userData?.webglAdapter || 'unknown');
       threeStateRef.current.renderer = renderer;
       const textureLoader = new THREE.TextureLoader();
       textureLoader.setCrossOrigin?.('anonymous');
