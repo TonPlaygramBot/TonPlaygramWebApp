@@ -16,7 +16,7 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import { applyTableMaterials, createMurlanStyleTable } from '../../utils/murlanTable.js';
+import { applyTableMaterials, createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
@@ -81,9 +81,12 @@ const resolveHdriVariant = (index) => {
 const DEFAULT_TABLE_FINISH_ID = 'peelingPaintWeathered';
 const DEFAULT_TABLE_CLOTH_ID = 'emerald';
 const DEFAULT_STOOL_ID = 'dining_chair_02';
+const DEFAULT_TABLE_SHAPE_ID = 'classicOctagon';
 const DEFAULT_TABLE_FINISH_INDEX = Math.max(0, MURLAN_TABLE_FINISHES.findIndex((option) => option.id === DEFAULT_TABLE_FINISH_ID));
 const DEFAULT_TABLE_CLOTH_INDEX = Math.max(0, MURLAN_TABLE_CLOTHS.findIndex((option) => option.id === DEFAULT_TABLE_CLOTH_ID));
 const DEFAULT_STOOL_INDEX = Math.max(0, STOOL_THEMES.findIndex((option) => option.id === DEFAULT_STOOL_ID));
+const DEFAULT_TABLE_SHAPE_INDEX = Math.max(0, TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === DEFAULT_TABLE_SHAPE_ID));
+const TABLE_SHAPES_WITH_SURFACE_CUSTOMIZATION = new Set(['classicOctagon', 'diamondEdge', 'grandOval']);
 const resolveTableFinish = (index) => {
   const max = MURLAN_TABLE_FINISHES.length - 1;
   const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
@@ -103,7 +106,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_RADIUS = 3.22 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -322,12 +325,6 @@ let sharedKtx2Loader = null;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
-}
-
-function basename(p) {
-  const s = p.replace(/\\/g, '/');
-  const parts = s.split('/');
-  return parts[parts.length - 1] || s;
 }
 
 function isModelUrl(u) {
@@ -870,6 +867,7 @@ const DEFAULT_APPEARANCE = {
   stools: DEFAULT_STOOL_INDEX,
   characters: 0,
   tables: 0,
+  tableShape: DEFAULT_TABLE_SHAPE_INDEX,
   tableCloth: DEFAULT_TABLE_CLOTH_INDEX,
   tableFinish: DEFAULT_TABLE_FINISH_INDEX,
   environmentHdri: DEFAULT_HDRI_INDEX
@@ -1185,6 +1183,7 @@ const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
 });
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: MURLAN_TABLE_CLOTHS },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
@@ -1215,6 +1214,7 @@ function normalizeAppearance(value = {}) {
     ['stools', STOOL_THEMES.length],
     ['characters', MURLAN_CHARACTER_THEMES.length],
     ['tables', TABLE_THEMES.length],
+    ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['tableCloth', MURLAN_TABLE_CLOTHS.length],
     ['tableFinish', MURLAN_TABLE_FINISHES.length],
     ['environmentHdri', MURLAN_HDRI_OPTIONS.length]
@@ -1320,6 +1320,17 @@ function disposeObjectResources(object) {
 function liftModelToGround(model, targetMinY = 0) {
   const box = new THREE.Box3().setFromObject(model);
   model.position.y += targetMinY - box.min.y;
+}
+
+function groundObjectToY(object, targetY = 0) {
+  if (!object) return 0;
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y)) return 0;
+  const delta = targetY - box.min.y;
+  if (delta !== 0) {
+    object.position.y += delta;
+  }
+  return delta;
 }
 
 function fitModelToHeight(model, targetHeight) {
@@ -1956,7 +1967,6 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   }
 
   const promise = (async () => {
-    let fileMap = new Map();
     const modelCandidates = new Set();
     const assetCandidates = Array.from(new Set([assetId, normalizedId]));
 
@@ -1966,13 +1976,6 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const allUrls = extractAllHttpUrls(filesJson);
         const apiModelUrl = pickBestModelUrl(allUrls);
         if (apiModelUrl) modelCandidates.add(apiModelUrl);
-        if (!fileMap.size) {
-          fileMap = allUrls.reduce((acc, u) => {
-            const b = basename(stripQueryHash(u));
-            if (!acc.has(b)) acc.set(b, u);
-            return acc;
-          }, new Map());
-        }
       } catch (error) {
         console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
       }
@@ -1985,25 +1988,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
       throw new Error(`No model URL found for ${assetId}`);
     }
 
-    const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = createConfiguredGLTFLoader(renderer, manager);
-
-    if (fileMap.size) {
-      const base = stripQueryHash(modelUrlList[0]);
-      const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-      loader.manager.setURLModifier((requestedUrl) => {
-        if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-        const req = stripQueryHash(requestedUrl);
-        const b = basename(req);
-        const mapped = fileMap.get(b);
-        if (mapped) return mapped;
-        try {
-          return new URL(req, baseDir).toString();
-        } catch {
-          return requestedUrl;
-        }
-      });
-    }
+    const loader = createConfiguredGLTFLoader(renderer);
 
     let gltf = null;
     let lastError = null;
@@ -2117,7 +2102,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model, { preserveGltfTextureMapping: preserveMaterials, maxAnisotropy });
-      if (textureLoader) {
+      if (textureLoader && !preserveMaterials) {
         try {
           const textures = await loadPolyhavenTextureSet(
             theme.assetId,
@@ -2595,18 +2580,23 @@ export default function MurlanRoyaleArena({ search }) {
 
   const customizationSections = useMemo(() => {
     const tableTheme = TABLE_THEMES[appearance.tables] ?? TABLE_THEMES[0];
-    const allowTableFinish = tableTheme?.source === 'procedural';
+    const tableShape = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
+    const allowTableSurfaceControls =
+      tableTheme?.source === 'procedural' &&
+      TABLE_SHAPES_WITH_SURFACE_CUSTOMIZATION.has(tableShape?.id);
     return CUSTOMIZATION_SECTIONS.map((section) => ({
       ...section,
       options: section.options
         .map((option, idx) => ({ ...option, idx }))
-        .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+        .filter(({ id }) =>
+          section.key === 'tableShape' ? true : isMurlanOptionUnlocked(section.key, id, murlanInventory)
+        )
     }))
       .filter((section) => section.options.length > 0)
       .filter((section) =>
-        section.key === 'tableFinish' || section.key === 'tableCloth' ? allowTableFinish : true
+        section.key === 'tableFinish' || section.key === 'tableCloth' ? allowTableSurfaceControls : true
       );
-  }, [appearance.tables, murlanInventory]);
+  }, [appearance.tables, appearance.tableShape, murlanInventory]);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -2713,6 +2703,7 @@ export default function MurlanRoyaleArena({ search }) {
         stools: STOOL_THEMES,
         characters: MURLAN_CHARACTER_THEMES,
         tables: TABLE_THEMES,
+        tableShape: TABLE_SHAPE_OPTIONS,
         tableCloth: MURLAN_TABLE_CLOTHS,
         tableFinish: MURLAN_TABLE_FINISHES,
         environmentHdri: MURLAN_HDRI_OPTIONS
@@ -2722,8 +2713,11 @@ export default function MurlanRoyaleArena({ search }) {
       Object.entries(map).forEach(([key, options]) => {
         const idx = Number.isFinite(next[key]) ? next[key] : 0;
         const option = options[idx];
-        if (!option || !isMurlanOptionUnlocked(key, option.id, murlanInventory)) {
-          const fallbackIdx = options.findIndex((opt) => isMurlanOptionUnlocked(key, opt.id, murlanInventory));
+        const isUnlocked = key === 'tableShape' ? true : isMurlanOptionUnlocked(key, option?.id, murlanInventory);
+        if (!option || !isUnlocked) {
+          const fallbackIdx = options.findIndex((opt) =>
+            key === 'tableShape' ? true : isMurlanOptionUnlocked(key, opt.id, murlanInventory)
+          );
           const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
           if (safeIdx !== idx) {
             next[key] = safeIdx;
@@ -3194,6 +3188,7 @@ export default function MurlanRoyaleArena({ search }) {
     scoreboard: null,
     tableInfo: null,
     tableThemeId: null,
+    tableShapeId: null,
     tableClothId: null,
     tableFinishId: null,
     chairMaterials: null,
@@ -3689,7 +3684,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const rebuildTable = useCallback(
-    async (tableTheme, tableFinish, tableCloth) => {
+    async (tableTheme, tableFinish, tableCloth, tableShapeOption) => {
       const three = threeStateRef.current;
       if (!three?.arena || !three.renderer) return null;
       const token = ++tableBuildTokenRef.current;
@@ -3701,6 +3696,7 @@ export default function MurlanRoyaleArena({ search }) {
       const theme = tableTheme || TABLE_THEMES[0];
       const finish = tableFinish || MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] || null;
       const cloth = tableCloth || MURLAN_TABLE_CLOTHS[DEFAULT_TABLE_CLOTH_INDEX] || null;
+      const shapeOption = tableShapeOption || TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
       let tableInfo = null;
 
       if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -3722,11 +3718,12 @@ export default function MurlanRoyaleArena({ search }) {
             const tableGroup = new THREE.Group();
             tableGroup.add(model);
             const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+            const groundedDelta = groundObjectToY(tableGroup, 0);
             three.arena.add(tableGroup);
             tableInfo = {
               group: tableGroup,
-              surfaceY,
-              tableHeight: surfaceY,
+              surfaceY: surfaceY + groundedDelta,
+              tableHeight: surfaceY + groundedDelta,
               radius,
               dispose: () => {
                 disposeObjectResources(tableGroup);
@@ -3749,7 +3746,8 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS,
           tableHeight: TABLE_HEIGHT,
-          includeBase: false,
+          includeBase: true,
+          shapeOption,
           woodOption: finish?.woodOption || undefined,
           clothOption: cloth || undefined
         });
@@ -3763,6 +3761,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
+      three.tableShapeId = shapeOption?.id ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX]?.id ?? null;
       three.tableClothId = cloth?.id ?? null;
       three.tableFinishId = finish?.id ?? null;
       three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, TABLE_CARD_AREA_FORWARD_SHIFT);
@@ -3940,6 +3939,7 @@ export default function MurlanRoyaleArena({ search }) {
       ? MURLAN_CHARACTER_THEMES[safe.characters] ?? MURLAN_CHARACTER_THEMES[0]
       : null;
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
+      const tableShape = TABLE_SHAPE_OPTIONS[safe.tableShape] ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
       const tableFinish = resolveTableFinish(safe.tableFinish);
       const tableFinishId =
         tableFinish?.id ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ?? null;
@@ -3954,10 +3954,11 @@ export default function MurlanRoyaleArena({ search }) {
         if (!three.scene) return;
         const tableChanged =
           three.tableThemeId !== tableTheme.id ||
+          (tableTheme?.source === 'procedural' && three.tableShapeId !== tableShape?.id) ||
           !three.tableInfo ||
           (tableTheme?.source === 'procedural' && three.tableFinishId !== tableFinishId);
         if (tableChanged) {
-          await rebuildTable(tableTheme, tableFinish, tableCloth);
+          await rebuildTable(tableTheme, tableFinish, tableCloth, tableShape);
         } else if (
           tableTheme?.source === 'procedural' &&
           three.tableInfo?.materials &&
@@ -4541,6 +4542,7 @@ export default function MurlanRoyaleArena({ search }) {
       : null;
       const cardTheme = CARD_THEMES[currentAppearance.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
+      const tableShape = TABLE_SHAPE_OPTIONS[currentAppearance.tableShape] ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX];
       const tableFinish = resolveTableFinish(currentAppearance.tableFinish);
       const tableCloth = resolveTableCloth(currentAppearance.tableCloth);
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
@@ -4599,7 +4601,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-      await rebuildTable(tableTheme, tableFinish, tableCloth);
+      await rebuildTable(tableTheme, tableFinish, tableCloth, tableShape);
       if (disposed) return;
 
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, {
@@ -4646,7 +4648,8 @@ export default function MurlanRoyaleArena({ search }) {
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
         chair.position.set(x, chairBaseHeight, z);
-        chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
+        groundObjectToY(chair, 0);
+        chair.lookAt(new THREE.Vector3(0, chair.position.y, 0));
         arenaGroup.add(chair);
 
         const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -4656,8 +4659,8 @@ export default function MurlanRoyaleArena({ search }) {
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
-        stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
-        const stoolHeight = STOOL_HEIGHT;
+        stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
+        const stoolHeight = stoolPosition.y + SEAT_THICKNESS / 2;
         seatConfigs.push({
           seatIndex: i,
           chair,
@@ -5036,6 +5039,9 @@ export default function MurlanRoyaleArena({ search }) {
         scoreboard: null,
         tableInfo: null,
         tableThemeId: null,
+        tableShapeId: null,
+        tableClothId: null,
+        tableFinishId: null,
         chairMaterials: null,
         chairTemplate: null,
         chairThemePreserve: false,
