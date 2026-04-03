@@ -36,5 +36,26 @@ namespace Aiming.Tests
 
             Object.DestroyImmediate(go);
         }
+
+        [Test]
+        public void Apply_HigherImpulse_ProducesHigherLinearVelocity()
+        {
+            var lowGo = new GameObject("CueBallLow");
+            var lowRb = lowGo.AddComponent<Rigidbody>();
+            lowRb.useGravity = false;
+
+            var highGo = new GameObject("CueBallHigh");
+            var highRb = highGo.AddComponent<Rigidbody>();
+            highRb.useGravity = false;
+
+            var physics = new CueStrikePhysics();
+            physics.Apply(lowRb, Vector3.forward, 1.5f, Vector2.zero, 0.028575f);
+            physics.Apply(highRb, Vector3.forward, 5f, Vector2.zero, 0.028575f);
+
+            Assert.Greater(highRb.velocity.z, lowRb.velocity.z);
+
+            Object.DestroyImmediate(lowGo);
+            Object.DestroyImmediate(highGo);
+        }
     }
 }
