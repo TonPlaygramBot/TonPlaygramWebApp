@@ -1485,7 +1485,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.042; // micro-lift so balls sit precisely on top of the cloth without dipping under
+const BALL_CENTER_LIFT = BALL_R * 0.035; // lift balls slightly higher so they visually ride on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1904,8 +1904,8 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 4.5; // keep low-power strokes visibly pushing through contact
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 9.3; // extend top-end follow-through so powerful shots visibly punch forward
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -25581,14 +25581,36 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          const shotImpactPayload = {
-            base: base.clone(),
-            aimDir: shotAimDir.clone(),
-            physicsSpin: { x: spinSide, y: spinTop },
-            clampedPower,
-            liftStrength,
-            applied: false
-          };
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             if (forceImmediateRailOverheadView) {
@@ -25690,23 +25712,8 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const followThroughDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const followPos = impactPos
-            .clone()
-            .addScaledVector(dir, followThroughDistance);
-          const followSpeed = THREE.MathUtils.lerp(
-            CUE_FOLLOW_SPEED_MIN,
-            CUE_FOLLOW_SPEED_MAX,
-            clampedPower
-          );
-          const followDurationResolved = Math.max(
-            strikeHoldDuration,
-            (followThroughDistance / Math.max(followSpeed, 1e-6)) * 1000
-          );
+          const followPos = impactPos.clone();
+          const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
             startTime +
@@ -25844,11 +25851,7 @@ const powerRef = useRef(hud.power);
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
-            cueStrokeStateRef.current.onImpact = () => {
-              applyShotAtImpact(shotImpactPayload);
-            };
           } else {
-            applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -28022,7 +28025,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28032,9 +28035,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const hasTaggedHighlight = tags.size > 0;
           return {
-            shouldReplay: hadObjectPot || hasTaggedHighlight,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
