@@ -27986,7 +27986,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -27996,8 +27996,16 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const hadMeaningfulContact = Boolean(shotContext?.contactMade);
+          const hasReplayFrames = (recording?.frames?.length ?? 0) > 1;
+          const hasReplaySignal =
+            hasReplayFrames ||
+            hadObjectPot ||
+            tags.size > 0 ||
+            hadMeaningfulContact ||
+            Boolean(recording?.replayFoul);
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
+            shouldReplay: hasReplaySignal,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
