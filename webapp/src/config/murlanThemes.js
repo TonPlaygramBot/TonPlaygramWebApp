@@ -167,9 +167,28 @@ export const MURLAN_TABLE_THEMES = [
     id: 'murlan-default',
     label: 'Octagon Table',
     source: 'procedural',
+    shapeId: 'classicOctagon',
     price: 0,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
     description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    shapeId: 'diamondEdge',
+    price: 320,
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7']),
+    description: 'Diamond-edge geometry matching the Texas Hold’em table collection.'
+  },
+  {
+    id: 'ovalTable',
+    label: 'Oval Table',
+    source: 'procedural',
+    shapeId: 'grandOval',
+    price: 340,
+    thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316']),
+    description: 'Smooth oval table profile matching the Texas Hold’em table collection.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
