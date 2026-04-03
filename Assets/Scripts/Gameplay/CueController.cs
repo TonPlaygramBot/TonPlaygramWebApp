@@ -38,6 +38,8 @@ namespace Aiming
         [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
         [Tooltip("How much of the strike stays for the final idle->contact micro drive.")]
         [Range(0.02f, 0.25f)] public float contactDrivePortion = 0.1f;
+        [Tooltip("Minimum pull used for strike animation so the cue visibly drives forward every shot.")]
+        [Min(0f)] public float minimumVisualPull = 0.025f;
 
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
@@ -103,6 +105,7 @@ namespace Aiming
 
             _cueAnchorPosition = cueBall.position;
             _shotState = ShotState.Dragging;
+            _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
             _latchedShotPower = 0f;
             _currentCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
             gameObject.SetActive(true);
@@ -135,7 +138,8 @@ namespace Aiming
                 return;
             }
 
-            _latchedShotPower = Mathf.Clamp01(_power);
+            float recoveredPower = RecoverPowerFromCueDepth(_currentCueDepth);
+            _latchedShotPower = Mathf.Clamp01(Mathf.Max(_power, recoveredPower));
             if (_latchedShotPower <= 0.02f)
             {
                 _shotState = ShotState.Idle;
@@ -224,7 +228,8 @@ namespace Aiming
 
             Vector3 strikeDirection = _aimDirection;
             float pull = pullRange * EaseOutCubic(shotPower);
-            float startDepth = idleTipGap + pull;
+            float visualPull = Mathf.Max(pull, minimumVisualPull);
+            float startDepth = idleTipGap + visualPull;
             float hitDepth = idleTipGap;
             float contactDepth = contactTipGap;
             float elapsed = 0f;
@@ -294,6 +299,25 @@ namespace Aiming
             t = Mathf.Clamp01(t);
             float inv = 1f - t;
             return 1f - (inv * inv * inv);
+        }
+
+        float RecoverPowerFromCueDepth(float cueDepth)
+        {
+            float pulledDistance = Mathf.Max(0f, cueDepth - idleTipGap);
+            if (pullRange <= 0.0001f)
+            {
+                return 0f;
+            }
+
+            float easedPull = Mathf.Clamp01(pulledDistance / pullRange);
+            return InverseEaseOutCubic(easedPull);
+        }
+
+        static float InverseEaseOutCubic(float easedValue)
+        {
+            easedValue = Mathf.Clamp01(easedValue);
+            float inv = 1f - easedValue;
+            return 1f - Mathf.Pow(inv, 1f / 3f);
         }
     }
 }

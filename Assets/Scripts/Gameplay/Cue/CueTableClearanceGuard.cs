@@ -20,6 +20,11 @@ namespace Aiming.Gameplay.Cue
         [Header("Cloth material parity")]
         [SerializeField] private Renderer[] clothRenderers;
         [SerializeField] private Material texasHoldemClothMaterial;
+        [Header("Cloth color tuning")]
+        [SerializeField] private bool brightenClothColors = true;
+        [SerializeField, Range(0f, 1f)] private float colorBlend = 0.45f;
+        [SerializeField] private Color brighterGreen = new Color(0.16f, 0.56f, 0.26f, 1f);
+        private readonly MaterialPropertyBlock clothPropertyBlock = new MaterialPropertyBlock();
 
         void LateUpdate()
         {
@@ -27,6 +32,7 @@ namespace Aiming.Gameplay.Cue
             LiftBallsAndHelpers();
             MatchShadowRadius();
             ApplyTexasHoldemCloth();
+            TuneClothColor();
         }
 
         private void KeepCueClear()
@@ -108,6 +114,64 @@ namespace Aiming.Gameplay.Cue
                     clothRenderer.sharedMaterial = texasHoldemClothMaterial;
                 }
             }
+        }
+
+        private void TuneClothColor()
+        {
+            if (!brightenClothColors)
+            {
+                return;
+            }
+
+            foreach (Renderer clothRenderer in clothRenderers)
+            {
+                if (clothRenderer == null)
+                {
+                    continue;
+                }
+
+                Material shared = clothRenderer.sharedMaterial;
+                if (shared == null)
+                {
+                    continue;
+                }
+
+                bool hasBaseColor = shared.HasProperty("_BaseColor");
+                bool hasColor = shared.HasProperty("_Color");
+                if (!hasBaseColor && !hasColor)
+                {
+                    continue;
+                }
+
+                Color sourceColor = hasBaseColor ? shared.GetColor("_BaseColor") : shared.GetColor("_Color");
+                if (!IsGreenCloth(clothRenderer.name, shared.name))
+                {
+                    continue;
+                }
+
+                Color targetColor = brighterGreen;
+                Color adjusted = Color.Lerp(sourceColor, targetColor, colorBlend);
+
+                clothRenderer.GetPropertyBlock(clothPropertyBlock);
+                if (hasBaseColor)
+                {
+                    clothPropertyBlock.SetColor("_BaseColor", adjusted);
+                }
+
+                if (hasColor)
+                {
+                    clothPropertyBlock.SetColor("_Color", adjusted);
+                }
+
+                clothRenderer.SetPropertyBlock(clothPropertyBlock);
+            }
+        }
+
+        private static bool IsGreenCloth(string rendererName, string materialName)
+        {
+            string lowerRenderer = string.IsNullOrEmpty(rendererName) ? string.Empty : rendererName.ToLowerInvariant();
+            string lowerMaterial = string.IsNullOrEmpty(materialName) ? string.Empty : materialName.ToLowerInvariant();
+            return lowerRenderer.Contains("green") || lowerMaterial.Contains("green");
         }
     }
 }
