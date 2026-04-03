@@ -6042,10 +6042,26 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   });
 }
 
-const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(4.1);
-const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
+const LEGACY_NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(4.1);
+const STRAIGHT_TABLE_ROTATION = 0;
+const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.9;
+const LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
 
-function fitTableModelToFootprint(model) {
+function shouldKeepOriginalTableTransform(themeId = '') {
+  const normalized = String(themeId || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === 'murlan-default' ||
+    normalized.includes('octagon') ||
+    normalized.includes('oval') ||
+    normalized.includes('diamond')
+  );
+}
+
+function fitTableModelToFootprint(
+  model,
+  { shrinkSides = true, sideShrinkScale = NON_OCTAGON_TABLE_SIDE_SHRINK } = {}
+) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -6053,8 +6069,10 @@ function fitTableModelToFootprint(model) {
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
-  model.scale.x *= NON_OCTAGON_TABLE_SIDE_SHRINK;
-  model.scale.z *= NON_OCTAGON_TABLE_SIDE_SHRINK;
+  if (shrinkSides) {
+    model.scale.x *= sideShrinkScale;
+    model.scale.z *= sideShrinkScale;
+  }
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
@@ -6078,10 +6096,14 @@ async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
   const theme = option || DEFAULT_TABLE_THEME_OPTION;
-  const useOctagonRotation = theme?.id === 'murlan-default';
-  tableThemeG.rotation.y = useOctagonRotation
+  const keepOriginalTransform = shouldKeepOriginalTableTransform(theme?.id);
+  const themeId = String(theme?.id || '').trim().toLowerCase();
+  const isOctagonTheme = themeId === 'murlan-default' || themeId.includes('octagon');
+  tableThemeG.rotation.y = isOctagonTheme
     ? TABLE_OCTAGON_ROTATION
-    : NON_OCTAGON_TABLE_ROTATION;
+    : keepOriginalTransform
+      ? LEGACY_NON_OCTAGON_TABLE_ROTATION
+      : STRAIGHT_TABLE_ROTATION;
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
@@ -6104,7 +6126,12 @@ async function applyTableTheme(
       disposeObjectResources(model, { disposeTextures: false });
       return;
     }
-    fitTableModelToFootprint(model);
+    fitTableModelToFootprint(model, {
+      shrinkSides: true,
+      sideShrinkScale: keepOriginalTransform
+        ? LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK
+        : NON_OCTAGON_TABLE_SIDE_SHRINK
+    });
     tableThemeG.add(model);
     tableThemeG.visible = true;
     setProceduralTableVisible(false);
@@ -6124,7 +6151,12 @@ async function applyTableTheme(
           disposeObjectResources(fallbackModel, { disposeTextures: false });
           return;
         }
-        fitTableModelToFootprint(fallbackModel);
+        fitTableModelToFootprint(fallbackModel, {
+          shrinkSides: true,
+          sideShrinkScale: keepOriginalTransform
+            ? LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK
+            : NON_OCTAGON_TABLE_SIDE_SHRINK
+        });
         tableThemeG.add(fallbackModel);
         tableThemeG.visible = true;
         setProceduralTableVisible(false);
