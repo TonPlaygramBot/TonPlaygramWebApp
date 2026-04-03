@@ -39,16 +39,14 @@ import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import { MURLAN_OUTFIT_THEMES as OUTFIT_THEMES } from '../../config/murlanThemes.js';
 import {
-  MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
-  MURLAN_STOOL_THEMES as STOOL_THEMES,
-  MURLAN_TABLE_THEMES as TABLE_THEMES
-} from '../../config/murlanThemes.js';
-import {
-  TEXAS_TABLE_FINISH_OPTIONS as MURLAN_TABLE_FINISHES
-} from '../../config/texasHoldemInventoryConfig.js';
-import { TABLE_CLOTH_OPTIONS as MURLAN_TABLE_CLOTHS } from '../../utils/tableCustomizationOptions.js';
+  BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS as STOOL_THEMES,
+  BATTLE_ROYALE_SHARED_HDRI_VARIANTS as MURLAN_HDRI_OPTIONS,
+  BATTLE_ROYALE_SHARED_TABLE_CLOTH_OPTIONS as MURLAN_TABLE_CLOTHS,
+  BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS as MURLAN_TABLE_FINISHES,
+  BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS as TABLE_THEMES
+} from '../../config/battleRoyaleSharedInventory.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
@@ -68,13 +66,10 @@ import {
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
 const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
-const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
+const DEFAULT_HDRI_ID = 'neon_photostudio';
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
-  MURLAN_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+  MURLAN_HDRI_OPTIONS.findIndex((variant) => variant.id === DEFAULT_HDRI_ID)
 );
 const DEFAULT_HDRI_VARIANT = MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0] ?? null;
 const resolveHdriVariant = (index) => {
@@ -83,8 +78,12 @@ const resolveHdriVariant = (index) => {
   return MURLAN_HDRI_OPTIONS[idx] ?? MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0];
 };
 
-const DEFAULT_TABLE_FINISH_INDEX = 0;
-const DEFAULT_TABLE_CLOTH_INDEX = 0;
+const DEFAULT_TABLE_FINISH_ID = 'peelingPaintWeathered';
+const DEFAULT_TABLE_CLOTH_ID = 'emerald';
+const DEFAULT_STOOL_ID = 'dining_chair_02';
+const DEFAULT_TABLE_FINISH_INDEX = Math.max(0, MURLAN_TABLE_FINISHES.findIndex((option) => option.id === DEFAULT_TABLE_FINISH_ID));
+const DEFAULT_TABLE_CLOTH_INDEX = Math.max(0, MURLAN_TABLE_CLOTHS.findIndex((option) => option.id === DEFAULT_TABLE_CLOTH_ID));
+const DEFAULT_STOOL_INDEX = Math.max(0, STOOL_THEMES.findIndex((option) => option.id === DEFAULT_STOOL_ID));
 const resolveTableFinish = (index) => {
   const max = MURLAN_TABLE_FINISHES.length - 1;
   const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
@@ -852,16 +851,21 @@ function prepareLoadedModel(model, options = {}) {
     }
   });
 }
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
-  CHAIR_SIZE_SCALE
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  0.9 * MODEL_SCALE * 1.5 * 1.3 * CHAIR_SIZE_SCALE,
+  Math.max(
+    0.68 * MODEL_SCALE * 1.5 * 1.3 * CHAIR_SIZE_SCALE * 1.2,
+    0.9 * MODEL_SCALE * 1.5 * 1.3 * CHAIR_SIZE_SCALE
+  ),
+  0.95 * MODEL_SCALE * 1.5 * 1.3 * CHAIR_SIZE_SCALE
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
-const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_MIN_Y = 0;
+const TARGET_CHAIR_CENTER_Z = 0;
 
 const DEFAULT_APPEARANCE = {
   outfit: 0,
   cards: 0,
-  stools: 0,
+  stools: DEFAULT_STOOL_INDEX,
   characters: 0,
   tables: 0,
   tableCloth: DEFAULT_TABLE_CLOTH_INDEX,
