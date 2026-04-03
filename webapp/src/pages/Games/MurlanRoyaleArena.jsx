@@ -1419,10 +1419,16 @@ async function createPolyhavenInstance(
 
 function buildPolyhavenModelUrls(assetId) {
   if (!assetId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
-  ];
+  const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
+  const urls = [];
+  ids.forEach((id) => {
+    if (!id) return;
+    urls.push(
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`
+    );
+  });
+  return urls;
 }
 
 function shouldPreserveChairMaterials(theme) {
