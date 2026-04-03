@@ -2368,8 +2368,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      textureSize: highDensity ? 2560 : 1280,
+      anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -8043,7 +8043,7 @@ export function Table3D(
       ? null
       : resolveClothPatternOverride(clothTextureKey);
   const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12 * 1.08 * clothPatternUpscale; // slightly tighten weave tiling so cloth texel density matches cushion detail more closely
+    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   let baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
@@ -8863,14 +8863,14 @@ export function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // keep cushions closer to center to avoid overlap with rails
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.029; // push short-rail cushions a tiny bit farther outward from center on portrait view
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.064; // push long side-rail cushions a tiny bit farther outward toward the rail edge
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.038; // ease short-rail cushions slightly outward away from table center
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.07; // ease long-rail cushions slightly outward away from table center
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.32; // shorten the long-rail cushions slightly less so the noses reach farther toward the corners
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.148; // trim a little more from the corner-facing side of long side cushions while preserving middle-pocket-facing behavior
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.056; // push side cushions outward a touch while keeping the rail contact clean
+  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.18; // push side-rail cushions away from the middle pockets toward the corners
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
