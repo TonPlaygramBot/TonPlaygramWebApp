@@ -22,12 +22,6 @@ namespace Aiming.Gameplay.Broadcast
                 return false;
             }
 
-            if (!payload.HasCueTelemetry)
-            {
-                payload.cueDirection = Vector3.forward;
-                payload.powerNormalized = Mathf.Max(0f, payload.powerNormalized);
-            }
-
             payload.BroadcastStartTime = Time.unscaledTime + replayStartLeadSeconds;
             ReplayBroadcastRequested?.Invoke(payload);
             return true;
@@ -46,14 +40,10 @@ namespace Aiming.Gameplay.Broadcast
         public Vector3 cueBallPosition;
         public Vector3 cueDirection;
         public float powerNormalized;
-        public bool replayOnPottedBall;
-        public bool replayOnFoul;
         public float BroadcastStartTime { get; set; }
 
         public bool IsValid =>
-            !string.IsNullOrWhiteSpace(shotId) && (HasCueTelemetry || replayOnPottedBall || replayOnFoul);
-
-        public bool HasCueTelemetry =>
+            !string.IsNullOrWhiteSpace(shotId) &&
             cueDirection.sqrMagnitude > 0.0001f &&
             powerNormalized >= 0f;
     }
