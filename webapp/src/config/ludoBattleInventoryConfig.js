@@ -8,10 +8,12 @@ import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   stools: [MURLAN_STOOL_THEMES[0]?.id],
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
@@ -28,6 +30,7 @@ const reduceLabels = (options) =>
 export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tables: Object.freeze(reduceLabels(MURLAN_TABLE_THEMES)),
   tableFinish: Object.freeze(reduceLabels(MURLAN_TABLE_FINISHES)),
+  tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   stools: Object.freeze(reduceLabels(MURLAN_STOOL_THEMES)),
   environmentHdri: Object.freeze(
     reduceLabels(
@@ -73,6 +76,15 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     price: theme.price ?? 300 + idx * 20,
     description: theme.description || `Premium ${theme.label} seating with original finish.`,
     thumbnail: theme.thumbnail
+  })),
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+    id: `ludo-cloth-${option.id}`,
+    type: 'tableCloth',
+    optionId: option.id,
+    name: option.label,
+    price: 360 + idx * 30,
+    description: 'Unlock a premium felt texture for the Ludo Battle Royal arena table.',
+    thumbnail: option.thumbnail
   })),
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
     id: `ludo-hdri-${variant.id}`,
@@ -121,6 +133,11 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
     type: 'tableFinish',
     optionId: MURLAN_TABLE_FINISHES[0]?.id,
     label: MURLAN_TABLE_FINISHES[0]?.label
+  },
+  {
+    type: 'tableCloth',
+    optionId: TABLE_CLOTH_OPTIONS[0]?.id,
+    label: TABLE_CLOTH_OPTIONS[0]?.label
   },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0]?.id, label: MURLAN_STOOL_THEMES[0]?.label },
   {
