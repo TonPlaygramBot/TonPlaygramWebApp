@@ -839,6 +839,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
 ];
+const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable']);
 
 const NON_DIAMOND_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
@@ -1059,39 +1060,57 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   return loader;
 }
 
-function normalizePbrTexture(texture, maxAnisotropy = 1) {
+function normalizePbrTexture(texture, maxAnisotropy = 1, { preserveWrapping = false } = {}) {
   if (!texture) return;
   texture.flipY = false;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  if (!preserveWrapping) {
+    texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+    texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  }
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
   texture.needsUpdate = true;
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 8) {
+function normalizeMaterialTextures(
+  material,
+  maxAnisotropy = 8,
+  { preserveGltfTextureMapping = false } = {}
+) {
   if (!material) return;
   if (material.map) {
     applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy);
+    normalizePbrTexture(material.map, maxAnisotropy, {
+      preserveWrapping: preserveGltfTextureMapping
+    });
   }
   if (material.emissiveMap) {
     applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
+    normalizePbrTexture(material.emissiveMap, maxAnisotropy, {
+      preserveWrapping: preserveGltfTextureMapping
+    });
   }
-  normalizePbrTexture(material.normalMap, maxAnisotropy);
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
-  normalizePbrTexture(material.aoMap, maxAnisotropy);
+  normalizePbrTexture(material.normalMap, maxAnisotropy, {
+    preserveWrapping: preserveGltfTextureMapping
+  });
+  normalizePbrTexture(material.roughnessMap, maxAnisotropy, {
+    preserveWrapping: preserveGltfTextureMapping
+  });
+  normalizePbrTexture(material.metalnessMap, maxAnisotropy, {
+    preserveWrapping: preserveGltfTextureMapping
+  });
+  normalizePbrTexture(material.aoMap, maxAnisotropy, {
+    preserveWrapping: preserveGltfTextureMapping
+  });
 }
 
-function prepareLoadedModel(model) {
+function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        normalizeMaterialTextures(mat);
+        normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping });
         if (mat) {
           mat.needsUpdate = true;
         }
@@ -1254,7 +1273,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
 
       const model = gltf.scene || gltf.scenes?.[0] || gltf;
       if (!model) throw new Error(`Poly Haven model missing scene for ${assetId}`);
-      prepareLoadedModel(model);
+      prepareLoadedModel(model, { preserveGltfTextureMapping: true });
       return model;
     })();
 
@@ -3206,9 +3225,9 @@ function TexasHoldemArena({ search }) {
       }))
         .filter((section) => section.options.length > 0)
         .filter((section) => {
-          if (section.key !== 'tableFinish') return true;
+          if (section.key !== 'tableFinish' && section.key !== 'tableCloth') return true;
           const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
-          return tableTheme?.id === DEFAULT_TABLE_THEME_ID;
+          return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id);
         }),
     [appearance.tableTheme, texasInventory]
   );

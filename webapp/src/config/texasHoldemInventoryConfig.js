@@ -34,7 +34,11 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairTheme: [TEXAS_CHAIR_THEME_OPTIONS[0]?.id],
-  tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
+  tableTheme: [
+    TEXAS_TABLE_THEME_OPTIONS[0]?.id,
+    TEXAS_TABLE_THEME_OPTIONS.find((option) => option.id === 'diamondEdge')?.id,
+    TEXAS_TABLE_THEME_OPTIONS.find((option) => option.id === 'ovalTable')?.id
+  ].filter(Boolean),
   tableShape: [TABLE_SHAPE_OPTIONS[0]?.id],
   cards: [CARD_THEMES[0]?.id],
   environmentHdri: [TEXAS_DEFAULT_HDRI_ID]
