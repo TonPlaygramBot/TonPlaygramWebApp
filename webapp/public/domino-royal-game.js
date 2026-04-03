@@ -85,7 +85,7 @@ const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
   uhd120: 8192
 });
 const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
-  fhd60: Object.freeze(['2k', '4k', '1k']),
+  fhd60: Object.freeze(['2k', '1k']),
   qhd90: Object.freeze(['4k', '2k']),
   uhd120: Object.freeze(['8k', '4k'])
 });
@@ -6024,22 +6024,16 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
   });
 }
 
-const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(3.5);
-const NON_OCTAGON_TABLE_SIDE_SCALE = 0.95;
+const NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(6);
 
-function fitTableModelToFootprint(model, { keepOctagonProfile = false } = {}) {
+function fitTableModelToFootprint(model) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const targetDiameter = TABLE_RADIUS * 2.1;
   const maxSide = Math.max(size.x, size.z, 0.0001);
-  const footprintScale = targetDiameter / maxSide;
-  const sideScale = keepOctagonProfile ? 1 : NON_OCTAGON_TABLE_SIDE_SCALE;
-  model.scale.set(
-    footprintScale * sideScale,
-    footprintScale,
-    footprintScale * sideScale
-  );
+  const scale = targetDiameter / maxSide;
+  model.scale.multiplyScalar(scale);
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
@@ -6088,9 +6082,7 @@ async function applyTableTheme(
       disposeObjectResources(model, { disposeTextures: false });
       return;
     }
-    fitTableModelToFootprint(model, {
-      keepOctagonProfile: useOctagonRotation
-    });
+    fitTableModelToFootprint(model);
     tableThemeG.add(model);
     tableThemeG.visible = true;
     setProceduralTableVisible(false);
@@ -6107,9 +6099,7 @@ async function applyTableTheme(
           disposeObjectResources(fallbackModel, { disposeTextures: false });
           return;
         }
-        fitTableModelToFootprint(fallbackModel, {
-          keepOctagonProfile: true
-        });
+        fitTableModelToFootprint(fallbackModel);
         tableThemeG.add(fallbackModel);
         tableThemeG.visible = true;
         setProceduralTableVisible(false);
