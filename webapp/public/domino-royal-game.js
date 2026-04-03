@@ -1480,7 +1480,7 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 const MODEL_SCALE = 0.75;
 const TABLE_SCALE = 0.95;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
+const TABLE_RADIUS = 3.25 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
 const STOOL_SCALE = 1.5 * 1.38;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -3012,6 +3012,10 @@ function cloneChairWithTheme(chairData, option) {
       if (!mat) return mat;
       if (preserveMaterials) return mat;
       const next = mat.clone();
+      next.userData = {
+        ...(next.userData || {}),
+        dominoCanDispose: true
+      };
       if (upholsterySet.has(mat)) {
         if (next.color)
           next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
@@ -5948,7 +5952,9 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
       if (disposeTextures && mat.map && mat.map.dispose) {
         mat.map.dispose();
       }
-      mat.dispose?.();
+      if (disposeTextures || mat.userData?.dominoCanDispose === true) {
+        mat.dispose?.();
+      }
     });
   });
 }
@@ -5957,8 +5963,8 @@ function fitTableModelToFootprint(model) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetDiameter = TABLE_RADIUS * 2.1;
-  const targetHeight = TABLE_HEIGHT * 1.05;
+  const targetDiameter = TABLE_RADIUS * 2;
+  const targetHeight = TABLE_HEIGHT;
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const heightScale = targetHeight / Math.max(size.y, 0.0001);
   const scale = Math.min(targetDiameter / maxSide, heightScale);
@@ -7555,6 +7561,7 @@ function disposeChairResources(root) {
       : [child.material];
     materials.forEach((material) => {
       if (!material) return;
+      if (material.userData?.dominoCanDispose !== true) return;
       CHAIR_TEXTURE_PROPS.forEach((prop) => {
         const texture = material[prop];
         // GLTF material clones share underlying texture instances.
