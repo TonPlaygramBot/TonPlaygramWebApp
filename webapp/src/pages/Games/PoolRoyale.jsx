@@ -22091,7 +22091,36 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          applyShotImpact();
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -25763,41 +25792,6 @@ const powerRef = useRef(hud.power);
               startOffset: strokeStartOffset
             };
           }
-          let shotImpactApplied = false;
-          const applyShotImpact = () => {
-            if (shotImpactApplied) return;
-            shotImpactApplied = true;
-            cue.vel.copy(base);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
-            if (cue.omega) {
-              cue.omega.set(0, 0, 0);
-              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-              TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-              const impulseMag = BALL_MASS * base.length();
-              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-            }
-            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-            cue.spinMode = 'standard';
-            cue.swerveStrength = 0;
-            cue.swervePowerStrength = 0;
-            resetSpinRef.current?.();
-            cueLiftRef.current.lift = 0;
-            cueLiftRef.current.startLift = 0;
-            cue.impacted = false;
-            cue.launchDir = shotAimDir.clone().normalize();
-            maxPowerLiftTriggered = false;
-            cue.lift = 0;
-            cue.liftVel = 0;
-            playCueHit(clampedPower * 0.6);
-          };
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
@@ -25826,9 +25820,7 @@ const powerRef = useRef(hud.power);
               forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true,
-              shotApplied: false,
-              onImpact: applyShotImpact
+              releaseStartsFromCurrentPull: true
             };
           } else {
             cueStick.visible = false;
@@ -25836,7 +25828,6 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
-            applyShotImpact();
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
@@ -28008,7 +27999,6 @@ const powerRef = useRef(hud.power);
           if (!recording) return null;
           const frameCount = recording.frames?.length ?? 0;
           if (frameCount <= 1) return null;
-          if (!hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
