@@ -37,6 +37,7 @@ const buildClothOption = (
 
 export const POLY_HAVEN_CLOTHS = [
   { id: 'denim_fabric_03', label: 'Denim Fabric 03 Cloth', base: 0x2b4a7a },
+  { id: 'gingham_check', label: 'Gingham Check Cloth', base: 0xb05f4a },
   { id: 'hessian_230', label: 'Hessian 230 Cloth', base: 0x9b7a45 },
   { id: 'polar_fleece', label: 'Polar Fleece Cloth', base: 0x5ead73 },
   { id: 'polar_fleece_ocean_crest', label: 'Polar Fleece Ocean Crest Cloth', base: 0x2a8fc7 },
@@ -49,7 +50,12 @@ export const POLY_HAVEN_CLOTHS = [
   { id: 'polar_fleece_nature_canopy', label: 'Polar Fleece Nature Canopy Cloth', base: 0x3aa866 },
   { id: 'polar_fleece_nature_meadow', label: 'Polar Fleece Nature Meadow Cloth', base: 0x45b471 },
   { id: 'polar_fleece_nature_wildwood', label: 'Polar Fleece Nature Wildwood Cloth', base: 0x1f7e43 },
+  { id: 'quatrefoil_jacquard_fabric', label: 'Quatrefoil Jacquard Fabric Cloth', base: 0x9f8866 },
+  { id: 'floral_jacquard', label: 'Floral Jacquard Cloth', base: 0x8a6b59 },
+  { id: 'fabric_leather_01', label: 'Fabric Leather 01 Cloth', base: 0x7b553b },
   { id: 'fabric_leather_02', label: 'Leather Weave Cloth', base: 0x6a4a32 },
+  { id: 'leather_red_02', label: 'Leather Red 02 Cloth', base: 0x7d2722 },
+  { id: 'leather_red_03', label: 'Leather Red 03 Cloth', base: 0x6d1b1b },
   { id: 'faux_fur_geometric', label: 'Faux Fur Geo Cloth', base: 0xcaa0a8 },
   { id: 'jogging_melange', label: 'Jogging Mélange Cloth', base: 0x7a7a7f },
   { id: 'knitted_fleece', label: 'Knitted Fleece Cloth', base: 0x6e5a4a },
