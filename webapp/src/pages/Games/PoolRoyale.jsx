@@ -836,7 +836,7 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.966; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
@@ -2329,10 +2329,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 2.1;
+const CLOTH_TEXTURE_INTENSITY = 2.28;
 const CLOTH_HAIR_INTENSITY = 1.35;
 const CLOTH_BUMP_INTENSITY = 2.1;
-const CLOTH_SOFT_BLEND = 0.4;
+const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -3547,7 +3547,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.66; // make procedural weave read a touch larger on-screen
+const CLOTH_PATTERN_SCALE = 0.72; // tighten procedural weave slightly so threads read smaller and sharper on mobile
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
@@ -14520,6 +14520,7 @@ function PoolRoyaleGame({
     placedFromHand: false,
     contactMade: false,
     cushionAfterContact: false,
+    railContactCountAfterContact: 0,
     attemptsPenaltyApplied: false
   });
   const shotReplayRef = useRef(null);
@@ -22339,8 +22340,6 @@ const powerRef = useRef(hud.power);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
-          enterTopView(true, { variant: 'rail' });
-          setIsRailOverheadView(true);
           const replayCueStroke = trimmed.cueStroke ?? null;
           const replayCueHideFrom = replayCueStroke
             ? Math.max(
@@ -22396,7 +22395,8 @@ const powerRef = useRef(hud.power);
             lastIndex: 0,
             postState: postShotSnapshot,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current,
-            pocketCameraCutoff: null
+            pocketCameraCutoff: null,
+            forceDualRailOverhead: Boolean(shotRecording?.forceDualRailOverhead)
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
@@ -22407,14 +22407,29 @@ const powerRef = useRef(hud.power);
           updateReplayTrail(replayPlayback.cuePath, 0);
           primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
-          if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-            const initialCamera = trimmed.frames?.[0]?.camera ?? null;
-            if (initialCamera) {
-              replayFrameCameraRef.current = {
-                frameA: initialCamera,
-                frameB: initialCamera,
-                alpha: 0
-              };
+          if (!LOCK_REPLAY_CAMERA && path.length > 0) {
+            const start = path[0]?.pos ?? null;
+            const end = path[path.length - 1]?.pos ?? start;
+            if (start && end) {
+              const focus = new THREE.Vector3(
+                (start.x + end.x) * 0.5,
+                Math.max(
+                  baseSurfaceWorldY,
+                  BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)
+                ),
+                (start.z + end.z) * 0.5
+              );
+              const cinematicReplayCamera = resolveRailOverheadReplayCamera({
+                focusOverride: focus,
+                minTargetY: focus.y
+              });
+              if (cinematicReplayCamera) {
+                replayFrameCameraRef.current = {
+                  frameA: cinematicReplayCamera,
+                  frameB: cinematicReplayCamera,
+                  alpha: 0
+                };
+              }
             }
           }
         };
@@ -22473,8 +22488,6 @@ const powerRef = useRef(hud.power);
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
           overheadBroadcastVariantRef.current = 'rail';
-          resetCameraForReplay();
-          setIsRailOverheadView(false);
           replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
@@ -25329,6 +25342,7 @@ const powerRef = useRef(hud.power);
           placedFromHand,
           contactMade: false,
           cushionAfterContact: false,
+          railContactCountAfterContact: 0,
           attemptsPenaltyApplied: false,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
@@ -28080,6 +28094,8 @@ const powerRef = useRef(hud.power);
           cueBallPotted,
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
+          railContactCountAfterContact: shotContextRef.current.railContactCountAfterContact ?? 0,
+          doubleBanked: (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2,
           noCushionAfterContact,
           variant: variantId
         };
@@ -28283,6 +28299,13 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
+        if (shotRecording) {
+          const pottedSidePocket = potted.some(
+            (entry) => entry?.id !== 'cue' && (entry?.pocket === 'TM' || entry?.pocket === 'BM')
+          );
+          shotRecording.forceDualRailOverhead =
+            pottedSidePocket || (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2;
+        }
         shouldStartReplay =
           !skipAllReplaysRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
@@ -28407,6 +28430,7 @@ const powerRef = useRef(hud.power);
           placedFromHand: false,
           contactMade: false,
           cushionAfterContact: false,
+          railContactCountAfterContact: 0,
           attemptsPenaltyApplied: false,
           spin: { x: 0, y: 0 }
         };
@@ -28712,15 +28736,41 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-              const frameCameraA = frameA?.camera ?? null;
-              const frameCameraB = frameB?.camera ?? frameCameraA;
-              if (frameCameraA || frameCameraB) {
-                replayFrameCameraRef.current = {
-                  frameA: frameCameraA ?? frameCameraB,
-                  frameB: frameCameraB ?? frameCameraA,
-                  alpha
-                };
+            if (!LOCK_REPLAY_CAMERA) {
+              if (playback.forceDualRailOverhead) {
+                const focusTarget =
+                  lastCameraTargetRef.current?.clone() ??
+                  new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
+                const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE));
+                focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
+                const railBackCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focusTarget,
+                  preferredRail: 'back',
+                  minTargetY
+                });
+                const railFrontCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focusTarget,
+                  preferredRail: 'front',
+                  minTargetY
+                });
+                if (railBackCamera && railFrontCamera) {
+                  const dualBlend = Math.sin((targetTime / 1000) * Math.PI * 0.9) * 0.5 + 0.5;
+                  replayFrameCameraRef.current = {
+                    frameA: railBackCamera,
+                    frameB: railFrontCamera,
+                    alpha: dualBlend
+                  };
+                }
+              } else {
+                const frameCameraA = frameA?.camera ?? null;
+                const frameCameraB = frameB?.camera ?? frameCameraA;
+                if (frameCameraA || frameCameraB) {
+                  replayFrameCameraRef.current = {
+                    frameA: frameCameraA ?? frameCameraB,
+                    frameB: frameCameraB ?? frameCameraA,
+                    alpha
+                  };
+                }
               }
             } else {
               replayFrameCameraRef.current = null;
@@ -29954,6 +30004,8 @@ const powerRef = useRef(hud.power);
             if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
+              shotContextRef.current.railContactCountAfterContact =
+                (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
             }
             if (railImpact) {
               applyRailImpulse(b, railImpact);
