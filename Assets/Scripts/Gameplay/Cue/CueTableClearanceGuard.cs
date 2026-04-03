@@ -21,9 +21,9 @@ namespace Aiming.Gameplay.Cue
         [SerializeField] private Renderer[] clothRenderers;
         [SerializeField] private Material texasHoldemClothMaterial;
         [Header("Cloth color tuning")]
-        [SerializeField] private bool brightenClothColors = true;
-        [SerializeField, Range(0f, 1f)] private float colorBlend = 0.45f;
-        [SerializeField] private Color brighterGreen = new Color(0.16f, 0.56f, 0.26f, 1f);
+        [SerializeField] private bool brightenBlueCloth = true;
+        [SerializeField, Range(0f, 1f)] private float blueColorBlend = 0.35f;
+        [SerializeField] private Color brighterBlue = new Color(0.17f, 0.36f, 0.76f, 1f);
         private readonly MaterialPropertyBlock clothPropertyBlock = new MaterialPropertyBlock();
 
         void LateUpdate()
@@ -118,7 +118,7 @@ namespace Aiming.Gameplay.Cue
 
         private void TuneClothColor()
         {
-            if (!brightenClothColors)
+            if (!brightenBlueCloth)
             {
                 return;
             }
@@ -144,13 +144,12 @@ namespace Aiming.Gameplay.Cue
                 }
 
                 Color sourceColor = hasBaseColor ? shared.GetColor("_BaseColor") : shared.GetColor("_Color");
-                if (!IsGreenCloth(clothRenderer.name, shared.name))
+                if (!IsBlueCloth(clothRenderer.name, shared.name))
                 {
                     continue;
                 }
 
-                Color targetColor = brighterGreen;
-                Color adjusted = Color.Lerp(sourceColor, targetColor, colorBlend);
+                Color adjusted = Color.Lerp(sourceColor, brighterBlue, blueColorBlend);
 
                 clothRenderer.GetPropertyBlock(clothPropertyBlock);
                 if (hasBaseColor)
@@ -167,11 +166,11 @@ namespace Aiming.Gameplay.Cue
             }
         }
 
-        private static bool IsGreenCloth(string rendererName, string materialName)
+        private static bool IsBlueCloth(string rendererName, string materialName)
         {
             string lowerRenderer = string.IsNullOrEmpty(rendererName) ? string.Empty : rendererName.ToLowerInvariant();
             string lowerMaterial = string.IsNullOrEmpty(materialName) ? string.Empty : materialName.ToLowerInvariant();
-            return lowerRenderer.Contains("green") || lowerMaterial.Contains("green");
+            return lowerRenderer.Contains("blue") || lowerMaterial.Contains("blue");
         }
     }
 }
