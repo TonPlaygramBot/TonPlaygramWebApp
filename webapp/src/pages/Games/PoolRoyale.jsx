@@ -22091,36 +22091,7 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          stroke.onImpact?.();
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -25792,6 +25763,41 @@ const powerRef = useRef(hud.power);
               startOffset: strokeStartOffset
             };
           }
+          let shotImpactApplied = false;
+          const applyShotImpact = () => {
+            if (shotImpactApplied) return;
+            shotImpactApplied = true;
+            cue.vel.copy(base);
+            if (cue.spin) {
+              cue.spin.set(spinSide, spinTop);
+            }
+            if (cue.omega) {
+              cue.omega.set(0, 0, 0);
+              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+              TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+              const impulseMag = BALL_MASS * base.length();
+              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+            }
+            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+            cue.spinMode = 'standard';
+            cue.swerveStrength = 0;
+            cue.swervePowerStrength = 0;
+            resetSpinRef.current?.();
+            cueLiftRef.current.lift = 0;
+            cueLiftRef.current.startLift = 0;
+            cue.impacted = false;
+            cue.launchDir = shotAimDir.clone().normalize();
+            maxPowerLiftTriggered = false;
+            cue.lift = 0;
+            cue.liftVel = 0;
+            playCueHit(clampedPower * 0.6);
+          };
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
@@ -25818,6 +25824,7 @@ const powerRef = useRef(hud.power);
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
+              onImpact: applyShotImpact,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
@@ -32061,6 +32068,16 @@ const powerRef = useRef(hud.power);
             <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
               {replayBanner}
             </span>
+          </div>
+        </div>
+      )}
+      {replaySlate && (
+        <div className="pointer-events-none absolute inset-0 z-[105] flex items-center justify-center">
+          <div className="rounded-2xl border border-white/35 bg-black/72 px-8 py-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.6)] backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/70">Replay frame</p>
+            <p className="mt-2 text-2xl font-black uppercase tracking-[0.2em] text-white">
+              {replaySlate.label || 'Replay'}
+            </p>
           </div>
         </div>
       )}
