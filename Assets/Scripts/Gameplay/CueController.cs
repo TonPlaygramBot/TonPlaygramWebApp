@@ -44,6 +44,9 @@ namespace Aiming
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
         public Vector2 spinInput;
+        [Header("Camera sync")]
+        [Tooltip("Optional cue camera that should mirror pull/push stroke motion for player, AI, and replay capture.")]
+        public CueCamera cueCamera;
         public CueStrikePhysics strikePhysics = new CueStrikePhysics();
 
         Vector3 _aimDirection = Vector3.forward;
@@ -199,6 +202,30 @@ namespace Aiming
             {
                 cueTip.position = anchor - _aimDirection * _currentCueDepth;
             }
+
+            SyncCueCameraStroke();
+        }
+
+        void SyncCueCameraStroke()
+        {
+            if (cueCamera == null)
+            {
+                return;
+            }
+
+            float delta = _currentCueDepth - idleTipGap;
+            float stroke;
+            if (delta >= 0f)
+            {
+                stroke = pullRange > 0.0001f ? delta / pullRange : 0f;
+            }
+            else
+            {
+                float pushRange = Mathf.Max(0.0001f, idleTipGap - contactTipGap);
+                stroke = delta / pushRange;
+            }
+
+            cueCamera.SetCueStickStroke(Mathf.Clamp(stroke, -1f, 1f));
         }
 
         ShotSolution BuildAimSolution()
