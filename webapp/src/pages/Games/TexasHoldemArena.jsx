@@ -552,6 +552,31 @@ function basename(p) {
   return parts[parts.length - 1] || s;
 }
 
+function replaceFileExtension(path, nextExt) {
+  if (!path || !nextExt) return path;
+  const clean = stripQueryHash(path);
+  const dotIdx = clean.lastIndexOf('.');
+  if (dotIdx < 0) return `${clean}${nextExt}`;
+  return `${clean.slice(0, dotIdx)}${nextExt}`;
+}
+
+function resolveTextureFallbackUrl(requestedUrl, fileMap) {
+  if (!fileMap?.size || !requestedUrl) return null;
+  const requestedBase = basename(stripQueryHash(requestedUrl));
+  if (!requestedBase) return null;
+  const lowerBase = requestedBase.toLowerCase();
+  const fallbackExts = ['.jpg', '.jpeg', '.png', '.webp'];
+  if (!lowerBase.endsWith('.ktx2') && !lowerBase.endsWith('.basis')) {
+    return null;
+  }
+  for (const ext of fallbackExts) {
+    const candidate = basename(replaceFileExtension(requestedBase, ext));
+    const mapped = fileMap.get(candidate);
+    if (mapped) return mapped;
+  }
+  return null;
+}
+
 function isModelUrl(u) {
   const s = stripQueryHash(u).toLowerCase();
   return s.endsWith('.glb') || s.endsWith('.gltf');
@@ -1168,6 +1193,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
         loader.manager.setURLModifier((requestedUrl) => {
           if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+          const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
+          if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
           const b = basename(req);
           const mapped = fileMap.get(b);
