@@ -409,6 +409,79 @@ function rotateSequenceToClosestPoint(sequence, scorePoint) {
   return sequence.slice(bestIndex).concat(sequence.slice(0, bestIndex));
 }
 
+function buildSpiralGrid(size) {
+  const cells = [];
+  let left = 0;
+  let right = size - 1;
+  let top = 0;
+  let bottom = size - 1;
+  while (left <= right && top <= bottom) {
+    for (let col = left; col <= right; col += 1) cells.push({ row: bottom, col });
+    bottom -= 1;
+    for (let row = bottom; row >= top; row -= 1) cells.push({ row, col: right });
+    right -= 1;
+    if (top <= bottom) {
+      for (let col = right; col >= left; col -= 1) cells.push({ row: top, col });
+      top += 1;
+    }
+    if (left <= right) {
+      for (let row = top; row <= bottom; row += 1) cells.push({ row, col: left });
+      left += 1;
+    }
+  }
+  return cells;
+}
+
+function createPreciseSnakeTiles(scale = 1) {
+  const center = 3;
+  const spiral = buildSpiralGrid(7).slice(0, 48);
+  const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
+  const preciseTiles = spiral.map((cell, index) => {
+    let level = 0;
+    let localIndex = index;
+    let baseTop = 0.07;
+    let riseStep = 0.012;
+    let size = 0.92;
+    if (index >= 24 && index < 40) {
+      level = 1;
+      localIndex = index - 24;
+      baseTop = 0.88;
+      riseStep = 0.022;
+    } else if (index >= 40) {
+      level = 2;
+      localIndex = index - 40;
+      baseTop = 1.66;
+      riseStep = 0.048;
+      size = 0.9;
+    }
+    return {
+      id: index + 1,
+      x: (cell.col - center) * 1.02 * scale,
+      z: (cell.row - center) * 1.02 * scale,
+      y: (baseTop + 0.26 / 2 + localIndex * riseStep) * scale,
+      size: size * scale,
+      color: colors[(index + level) % colors.length]
+    };
+  });
+  preciseTiles.push({
+    id: 49,
+    x: -1.02 * 0.48 * scale,
+    z: 0,
+    y: 2.46 * scale,
+    size: 0.88 * scale,
+    color: '#3ccfc5'
+  });
+  preciseTiles.push({
+    id: 50,
+    x: 1.02 * 0.24 * scale,
+    z: 0,
+    y: 2.78 * scale,
+    size: 0.8 * scale,
+    color: '#51d95a'
+  });
+  return preciseTiles;
+}
+
 function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
   const pavementMaterial =
     material ||
@@ -2706,246 +2779,92 @@ function buildSnakeBoard(
   const railTheme = appearanceOptions.rail ?? {};
   const snakeTheme = appearanceOptions.snakeSkin ?? {};
   const diceTheme = appearanceOptions.dice ?? {};
-  const floorTexture = appearanceOptions.floorTexture ?? null;
-  const wallTexture = appearanceOptions.wallTexture ?? null;
   const highlightColors = createHighlightColors(boardTheme);
   const useReferenceSpiral = boardTheme.spiralReference === true;
-  const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
-  const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
-  const tileHeight = BOARD_TILE_HEIGHT;
-  const tileGeo = new THREE.BoxGeometry(
-    TILE_SIZE - TILE_GAP,
-    tileHeight,
-    TILE_SIZE - TILE_GAP
-  );
+  const preciseBoardScale = (BASE_LEVEL_TILES * TILE_SIZE) / 10.2;
+  const tileHeight = 0.26 * preciseBoardScale;
 
   const labelGroup = new THREE.Group();
   boardRotationRoot.add(labelGroup);
 
-  const platformThickness = PYRAMID_PLATFORM_THICKNESS;
-  const levelGap = PYRAMID_LEVEL_GAP;
   const platformMeshes = [];
-  const wallMaterials = [];
-  const topMaterials = [];
   const railingInfos = [];
-  const levelPlacements = [];
-  const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
-  const pavementMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color('#6b7280'),
-    roughness: 0.88,
-    metalness: 0.35,
-    envMapIntensity: 0.6
+  const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.94, metalness: 0.04 })
+    );
+    mesh.position.y = y;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    platformGroup.add(mesh);
+    platformMeshes.push(mesh);
+    return mesh;
+  };
+
+  addLayer(10.2 * preciseBoardScale, 0.42 * preciseBoardScale, 10.2 * preciseBoardScale, -0.36 * preciseBoardScale, '#5a5a5a');
+  addLayer(8.1 * preciseBoardScale, 0.24 * preciseBoardScale, 8.1 * preciseBoardScale, -0.05 * preciseBoardScale, '#444f5d');
+  addLayer(5.88 * preciseBoardScale, 0.24 * preciseBoardScale, 5.88 * preciseBoardScale, 0.76 * preciseBoardScale, '#555555');
+  addLayer(3.68 * preciseBoardScale, 0.24 * preciseBoardScale, 3.68 * preciseBoardScale, 1.54 * preciseBoardScale, '#666666');
+  addLayer(2.22 * preciseBoardScale, 0.24 * preciseBoardScale, 1.16 * preciseBoardScale, 2.22 * preciseBoardScale, '#7b7b7b');
+
+  const preciseTiles = createPreciseSnakeTiles(preciseBoardScale);
+  preciseTiles.forEach((tileSpec) => {
+    const baseColor = useReferenceSpiral
+      ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
+      : new THREE.Color(tileSpec.color);
+    const materialSet = createTileMaterialSet(baseColor, boardTheme);
+    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileHeight, tileSpec.size);
+    const tile = new THREE.Mesh(tileGeo, materialSet.materials);
+    tile.position.set(tileSpec.x, tileSpec.y, tileSpec.z);
+    tile.castShadow = true;
+    tile.receiveShadow = true;
+    tile.userData.index = tileSpec.id;
+    tile.userData.topMaterial = materialSet.topMaterial;
+    tile.userData.sideMaterial = materialSet.sideMaterial;
+    tile.userData.bottomMaterial = materialSet.bottomMaterial;
+    tile.userData.baseColor = materialSet.topMaterial.color.clone();
+    tileGroup.add(tile);
+    tileMeshes.set(tileSpec.id, tile);
+    const topPosition = new THREE.Vector3(tileSpec.x, tileSpec.y + tileHeight / 2, tileSpec.z);
+    indexToPosition.set(tileSpec.id, topPosition);
+
+    const label = createTileLabel(tileSpec.id);
+    label.position.set(tileSpec.x, topPosition.y + TILE_LABEL_OFFSET, tileSpec.z);
+    labelGroup.add(label);
   });
 
-  let currentLevelBottom = 0;
-  PYRAMID_LEVELS.forEach((size, levelIndex) => {
-    const dimension = size * TILE_SIZE;
-    const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const referenceLevelColor = SPIRAL_REFERENCE_COLORS[levelIndex % SPIRAL_REFERENCE_COLORS.length];
-    const wallColor = useReferenceSpiral
-      ? referenceLevelColor.clone().lerp(new THREE.Color('#101010'), 0.2)
-      : PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
-    const wallGlowBase = useReferenceSpiral
-      ? referenceLevelColor.clone().lerp(new THREE.Color('#ffffff'), 0.22)
-      : PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
-    const rimTone = useReferenceSpiral
-      ? referenceLevelColor.clone().lerp(new THREE.Color('#ffffff'), 0.35)
-      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
-    const topTone = useReferenceSpiral
-      ? referenceLevelColor.clone().lerp(new THREE.Color('#0f172a'), 0.25)
-      : PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: wallColor,
-      roughness: useReferenceSpiral ? 0.56 : 0.76,
-      metalness: useReferenceSpiral ? 0.05 : 0.08,
-      emissive: wallGlowBase.clone().multiplyScalar(useReferenceSpiral ? 0.09 : 0.18),
-      emissiveIntensity: useReferenceSpiral ? 0.2 : 0.14
-    });
-    wallMaterials.push(wallMaterial);
-    const topMaterial = new THREE.MeshStandardMaterial({
-      color: topTone,
-      roughness: useReferenceSpiral ? 0.5 : 0.68,
-      metalness: useReferenceSpiral ? 0.08 : 0.12,
-      emissive: rimTone.clone().multiplyScalar(useReferenceSpiral ? 0.08 : 0.12),
-      emissiveIntensity: useReferenceSpiral ? 0.16 : 0.12
-    });
-    topMaterials.push(topMaterial);
-    const bottomMaterial = new THREE.MeshStandardMaterial({
-      color: PYRAMID_CONCRETE_BASE,
-      roughness: 0.84,
-      metalness: 0.1,
-      emissive: PYRAMID_CONCRETE_BASE.clone().multiplyScalar(0.06),
-      emissiveIntensity: 0.12
-    });
-    const baseExtraRatio = 1 - levelIndex / (PYRAMID_LEVELS.length + 1);
-    let extra =
-      BOARD_BASE_EXTRA *
-      (levelIndex === 0 ? baseExtraRatio * BASE_PLATFORM_EXTRA_MULTIPLIER : baseExtraRatio);
-    if (levelIndex === 0) {
-      extra += FIRST_LEVEL_PLATFORM_EXTRA;
-    }
-    const shrinkFactor = BENTONITE_EXTRA_SHRINK[levelIndex] ?? 1;
-    const platformSize = dimension + extra * shrinkFactor;
-    const roundedCornerRatio = levelIndex === 0 ? 0.08 : 0.045;
-    const maxCornerRadius = Math.max(0, platformThickness / 2 - 0.0001);
-    const desiredCornerRadius = platformSize * roundedCornerRatio;
-    const cornerRadius = Math.min(desiredCornerRadius, maxCornerRadius);
-    const platformGeometry =
-      cornerRadius > 0
-        ? new RoundedBoxGeometry(platformSize, platformThickness, platformSize, 8, cornerRadius)
-        : new THREE.BoxGeometry(platformSize, platformThickness, platformSize);
-    const platformMaterials = [
-      wallMaterial,
-      wallMaterial,
-      topMaterial,
-      bottomMaterial,
-      wallMaterial,
-      wallMaterial
-    ];
-    const platform = new THREE.Mesh(platformGeometry, platformMaterials);
-    platform.position.y = currentLevelBottom + platformThickness / 2;
-    platformGroup.add(platform);
-    platformMeshes.push(platform);
-
-    const platformTopY = currentLevelBottom + platformThickness;
-    const walkwayEstimate = -dimension / 2 + TILE_SIZE / 2;
-    railingInfos.push({
-      halfSize: platformSize / 2,
-      topY: platformTopY,
+  const levelPlacements = [
+    { tileTopY: 0.07 * preciseBoardScale + tileHeight },
+    { tileTopY: 0.88 * preciseBoardScale + tileHeight },
+    { tileTopY: 1.66 * preciseBoardScale + tileHeight }
+  ];
+  railingInfos.push(
+    {
+      halfSize: (10.2 * preciseBoardScale) / 2,
+      topY: -0.15 * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
-      walkwayCenter: walkwayEstimate,
-      levelIndex
-    });
-
-    if (levelIndex === 0 && SHOW_PAVEMENT_LAYER) {
-      const pavementSize = platformSize * PAVEMENT_EXTRA_SCALE;
-      addPavementLayer(
-        platformGroup,
-        pavementSize,
-        PAVEMENT_THICKNESS,
-        currentLevelBottom,
-        platformMeshes,
-        pavementMaterial
-      );
+      walkwayCenter: 0,
+      levelIndex: 0
+    },
+    {
+      halfSize: (8.1 * preciseBoardScale) / 2,
+      topY: 0.07 * preciseBoardScale,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: 0,
+      levelIndex: 1
+    },
+    {
+      halfSize: (5.88 * preciseBoardScale) / 2,
+      topY: 0.88 * preciseBoardScale,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: 0,
+      levelIndex: 2
     }
-
-    const tileCenterY = currentLevelBottom + platformThickness + tileHeight / 2;
-    const tileTopY = tileCenterY + tileHeight / 2;
-    levelPlacements.push({
-      size,
-      half: dimension / 2,
-      tileCenterY,
-      tileTopY
-    });
-
-    currentLevelBottom += platformThickness + tileHeight + levelGap;
-  });
-
-  if (floorTexture?.assetId && renderer) {
-    loadPolyhavenTextureSet(floorTexture.assetId, renderer)
-      .then((textureSet) => {
-        if (!textureSet) return;
-        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 3;
-        applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
-        topMaterials.forEach((material) => {
-          applyTextureSetToMaterial(material, textureSet, repeat);
-        });
-      })
-      .catch(() => {});
-  }
-
-  if (wallTexture?.assetId && renderer) {
-    loadPolyhavenTextureSet(wallTexture.assetId, renderer)
-      .then((textureSet) => {
-        if (!textureSet) return;
-        wallMaterials.forEach((material) => {
-          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 1.15;
-          const repeatY = repeatX / 1.5;
-          applyTextureSetToMaterial(material, textureSet, { x: repeatX, y: repeatY });
-        });
-      })
-      .catch(() => {});
-  }
-
-  const levelOffsets = [];
-  let accumulated = 0;
-  PYRAMID_LEVELS.forEach((size, idx) => {
-    levelOffsets[idx] = accumulated;
-    accumulated += LEVEL_TILE_COUNTS[idx];
-  });
-
-  let previousLevelEndPoint = null;
-  PYRAMID_LEVELS.forEach((size, levelIndex) => {
-    const offset = levelOffsets[levelIndex];
-    const levelTileCount = LEVEL_TILE_COUNTS[levelIndex] ?? 0;
-    if (levelTileCount <= 0) return;
-    const { half, tileCenterY, tileTopY } = levelPlacements[levelIndex];
-    const floorScale = levelIndex === 0 ? GROUND_FLOOR_OUTWARD_SCALE : 1;
-    const toFloorPoint = ({ row, col }) => {
-      const x = (-half + (col + 0.5) * TILE_SIZE) * floorScale;
-      const z = (-half + ((size - 1 - row) + 0.5) * TILE_SIZE) * floorScale;
-      return { x, z };
-    };
-    const perimeter = rotateSequenceToClosestPoint(buildPerimeterSequence(size), (cell) => {
-      if (!previousLevelEndPoint) return 0;
-      const next = toFloorPoint(cell);
-      const dx = next.x - previousLevelEndPoint.x;
-      const dz = next.z - previousLevelEndPoint.z;
-      return dx * dx + dz * dz;
-    }).slice(0, levelTileCount);
-    perimeter.forEach(({ row, col }, seqIndex) => {
-      const idx = offset + seqIndex + 1;
-      const baseColor = useReferenceSpiral
-        ? SPIRAL_REFERENCE_COLORS[(seqIndex + levelIndex) % SPIRAL_REFERENCE_COLORS.length].clone()
-        : (row + col) % 2 === 0
-        ? tileLightBase.clone()
-        : tileDarkBase.clone();
-      const materialSet = createTileMaterialSet(baseColor, boardTheme);
-      const baseX = -half + (col + 0.5) * TILE_SIZE;
-      const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
-      const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
-      if (levelIndex === 0) {
-        tilePosition.x *= GROUND_FLOOR_OUTWARD_SCALE;
-        tilePosition.z *= GROUND_FLOOR_OUTWARD_SCALE;
-      }
-      if (idx === TOTAL_BOARD_TILES) {
-        tilePosition.y += topTileLift;
-      }
-      const tile = new THREE.Mesh(tileGeo, materialSet.materials);
-      tile.position.copy(tilePosition);
-      tile.castShadow = true;
-      tile.receiveShadow = true;
-      tile.userData.index = idx;
-      tile.userData.topMaterial = materialSet.topMaterial;
-      tile.userData.sideMaterial = materialSet.sideMaterial;
-      tile.userData.bottomMaterial = materialSet.bottomMaterial;
-      tile.userData.baseColor = materialSet.topMaterial.color.clone();
-      tileGroup.add(tile);
-      tileMeshes.set(idx, tile);
-
-      const topPosition = tilePosition.clone();
-      topPosition.y = tileTopY;
-      if (idx === TOTAL_BOARD_TILES) {
-        topPosition.y += topTileLift;
-      }
-      indexToPosition.set(idx, topPosition);
-
-      const label = createTileLabel(idx);
-      let labelY = tileTopY;
-      if (idx === TOTAL_BOARD_TILES) {
-        labelY += topTileLift;
-      }
-      label.position.set(tilePosition.x, labelY + TILE_LABEL_OFFSET, tilePosition.z);
-      labelGroup.add(label);
-
-      if (seqIndex === perimeter.length - 1) {
-        previousLevelEndPoint = { x: tilePosition.x, z: tilePosition.z };
-      }
-    });
-  });
+  );
 
   railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
     const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
@@ -2977,8 +2896,7 @@ function buildSnakeBoard(
 
   const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
   if (tileHundred) {
-    const topLevelPlacement = levelPlacements[levelPlacements.length - 1];
-    const supportBaseY = topLevelPlacement.tileCenterY - tileHeight / 2;
+    const supportBaseY = 1.66 * preciseBoardScale;
     const supportTopY = tileHundred.position.y - tileHeight / 2;
     const supportHeight = Math.max(
       TILE_100_SUPPORT_HEIGHT_EXTRA,
@@ -3002,7 +2920,7 @@ function buildSnakeBoard(
     platformMeshes.push(support);
   }
 
-  const baseHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
+  const baseHalf = (10.2 * preciseBoardScale) / 2;
   const baseStart = new THREE.Vector3(
     -baseHalf - TILE_SIZE * 0.8,
     levelPlacements[0].tileTopY,
