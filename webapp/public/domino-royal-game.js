@@ -21,8 +21,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     renderScale: 1,
     pixelRatioCap: 1,
-    resolution: '2K assets • 4K fallback',
-    description: '2K profile for 60 Hz displays with 4K fallback.'
+    resolution: '2K assets • optimized DPR cap',
+    description: '2K profile for 60 Hz displays.'
   },
   {
     id: 'qhd90',
@@ -30,8 +30,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 90,
     renderScale: 1,
     pixelRatioCap: 1.5,
-    resolution: '4K assets • 4K fallback',
-    description: '4K profile for 90 Hz displays with 4K fallback.'
+    resolution: '4K assets',
+    description: '4K profile for 90 Hz displays.'
   },
   {
     id: 'uhd120',
@@ -39,8 +39,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1,
     pixelRatioCap: 2,
-    resolution: '8K assets • 4K fallback',
-    description: '8K profile for 120 Hz displays with 4K fallback.'
+    resolution: '8K assets',
+    description: '8K profile for 120 Hz displays.'
   }
 ]);
 const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
@@ -86,18 +86,8 @@ const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
 });
 const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
   fhd60: Object.freeze(['2k', '1k']),
-  qhd90: Object.freeze(['4k', '2k']),
-  uhd120: Object.freeze(['8k', '4k'])
-});
-const FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
-  fhd60: Object.freeze(['4k']),
-  qhd90: Object.freeze(['4k']),
-  uhd120: Object.freeze(['4k'])
-});
-const FRAME_RATE_WOOD_TEXTURE_RESOLUTION_MAP = Object.freeze({
-  fhd60: '2k',
-  qhd90: '4k',
-  uhd120: '8k'
+  qhd90: Object.freeze(['4k', '2k', '1k']),
+  uhd120: Object.freeze(['8k', '4k', '2k', '1k'])
 });
 
 const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
@@ -146,24 +136,6 @@ function resolveGraphicsModelResolutions(qualityId = DEFAULT_FRAME_RATE_ID) {
     FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP[qualityId] ??
     FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP[DEFAULT_FRAME_RATE_ID] ??
     ['2k', '1k']
-  );
-}
-
-function resolveGraphicsTableModelResolutions(
-  qualityId = DEFAULT_FRAME_RATE_ID
-) {
-  return (
-    FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP[qualityId] ??
-    FRAME_RATE_TABLE_MODEL_RESOLUTION_ORDER_MAP[DEFAULT_FRAME_RATE_ID] ??
-    ['4k']
-  );
-}
-
-function resolveGraphicsWoodTextureResolution(qualityId = DEFAULT_FRAME_RATE_ID) {
-  return (
-    FRAME_RATE_WOOD_TEXTURE_RESOLUTION_MAP[qualityId] ??
-    FRAME_RATE_WOOD_TEXTURE_RESOLUTION_MAP[DEFAULT_FRAME_RATE_ID] ??
-    '2k'
   );
 }
 
@@ -473,7 +445,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return '8k';
+      return isMobileDevice ? '4k' : '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -2772,12 +2744,13 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
 
 async function loadPolyhavenModel(
   assetId,
-  { preserveGltfTextureMapping = true, resolutionOrder = null } = {}
+  { preserveGltfTextureMapping = true } = {}
 ) {
   if (!assetId) return null;
-  const preferredResolutions =
-    Array.isArray(resolutionOrder) && resolutionOrder.length
-      ? resolutionOrder
+  const preferredResolutions = IS_TELEGRAM_RUNTIME
+    ? ['1k']
+    : isLowProfileDevice
+      ? ['1k']
       : resolveGraphicsModelResolutions(frameRateId);
   const cacheKey = `${assetId.toLowerCase()}::${preferredResolutions.join(',')}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   if (polyhavenModelCache.has(cacheKey)) {
@@ -4510,12 +4483,14 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 
 function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
   if (qualityId === 'uhd120') {
-    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return isMobileDevice
+      ? Object.freeze({ preferredResolutions: Object.freeze(['2k']) })
+      : Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
   }
   if (qualityId === 'qhd90' || fps >= 90) {
-    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
   }
-  return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+  return Object.freeze({ preferredResolutions: Object.freeze(['1k']) });
 }
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
@@ -4623,9 +4598,9 @@ function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []
   const requested = String(requestedResolution || '').toLowerCase();
   if (!requested) return [];
   const aliases = {
-    '8k': ['8k', '4k'],
-    '4k': ['4k'],
-    '2k': ['2k', '4k']
+    '8k': ['8k', '6k', '4k', '2k', '1k'],
+    '4k': ['4k', '2k'],
+    '2k': ['2k', '1k']
   };
   const requestedOrder = aliases[requested] || [requested];
   const availableSet = new Set(
@@ -5943,19 +5918,6 @@ function updateTableMaterials() {
     TABLE_WOOD_OPTIONS[appearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
   const { preset, grain } = resolveWoodComponents(wood);
   const sharedKey = `domino-wood-${wood?.id ?? preset.id ?? 'default'}`;
-  const woodTextureResolution = resolveGraphicsWoodTextureResolution(frameRateId);
-  const retargetPolyhavenWoodTexture = (url) =>
-    typeof url === 'string' && url.includes('dl.polyhaven.org/file/ph-assets/Textures/jpg/')
-      ? url
-          .replace(/\/(1k|2k|4k|8k)\//i, `/${woodTextureResolution}/`)
-          .replace(/_(diff|rough|nor_gl)_(1k|2k|4k|8k)\.jpg$/i, `_$1_${woodTextureResolution}.jpg`)
-      : url;
-  const adaptiveFrameTextureSize = getAdaptiveTextureSize(
-    grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE
-  );
-  const adaptiveRailTextureSize = getAdaptiveTextureSize(
-    grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE
-  );
   applyWoodTextures(tableMaterials.top, {
     hue: preset.hue,
     sat: preset.sat,
@@ -5963,18 +5925,14 @@ function updateTableMaterials() {
     contrast: preset.contrast,
     repeat: grain?.frame?.repeat ?? grain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
     rotation: grain?.frame?.rotation ?? 0,
-    textureSize: adaptiveFrameTextureSize,
+    textureSize: grain?.frame?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.16,
     roughnessVariance: 0.28,
     sharedKey,
-    mapUrl: retargetPolyhavenWoodTexture(grain?.frame?.mapUrl ?? grain?.rail?.mapUrl),
+    mapUrl: grain?.frame?.mapUrl ?? grain?.rail?.mapUrl,
     roughnessMapUrl:
-      retargetPolyhavenWoodTexture(
-        grain?.frame?.roughnessMapUrl ?? grain?.rail?.roughnessMapUrl
-      ),
-    normalMapUrl: retargetPolyhavenWoodTexture(
-      grain?.frame?.normalMapUrl ?? grain?.rail?.normalMapUrl
-    )
+      grain?.frame?.roughnessMapUrl ?? grain?.rail?.roughnessMapUrl,
+    normalMapUrl: grain?.frame?.normalMapUrl ?? grain?.rail?.normalMapUrl
   });
   applyWoodTextures(tableMaterials.rim, {
     hue: preset.hue,
@@ -5983,18 +5941,14 @@ function updateTableMaterials() {
     contrast: preset.contrast,
     repeat: grain?.rail?.repeat ?? grain?.frame?.repeat ?? { x: 0.12, y: 0.62 },
     rotation: grain?.rail?.rotation ?? 0,
-    textureSize: adaptiveRailTextureSize,
+    textureSize: grain?.rail?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
     roughnessBase: 0.18,
     roughnessVariance: 0.32,
     sharedKey,
-    mapUrl: retargetPolyhavenWoodTexture(grain?.rail?.mapUrl ?? grain?.frame?.mapUrl),
+    mapUrl: grain?.rail?.mapUrl ?? grain?.frame?.mapUrl,
     roughnessMapUrl:
-      retargetPolyhavenWoodTexture(
-        grain?.rail?.roughnessMapUrl ?? grain?.frame?.roughnessMapUrl
-      ),
-    normalMapUrl: retargetPolyhavenWoodTexture(
-      grain?.rail?.normalMapUrl ?? grain?.frame?.normalMapUrl
-    )
+      grain?.rail?.roughnessMapUrl ?? grain?.frame?.roughnessMapUrl,
+    normalMapUrl: grain?.rail?.normalMapUrl ?? grain?.frame?.normalMapUrl
   });
   if (!tableMaterials.top.map) {
     tableMaterials.top.color.set(wood.baseHex);
@@ -6128,8 +6082,7 @@ async function applyTableTheme(
   setProceduralTableVisible(true);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id, {
-      preserveGltfTextureMapping: theme.preserveMaterials ?? true,
-      resolutionOrder: resolveGraphicsTableModelResolutions(frameRateId)
+      preserveGltfTextureMapping: theme.preserveMaterials ?? true
     });
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model, { disposeTextures: false });
@@ -6152,8 +6105,7 @@ async function applyTableTheme(
         const fallbackModel = await loadPolyhavenModel(
           DEFAULT_TABLE_THEME_OPTION.assetId,
           {
-            preserveGltfTextureMapping: true,
-            resolutionOrder: resolveGraphicsTableModelResolutions(frameRateId)
+            preserveGltfTextureMapping: true
           }
         );
         if (token !== tableThemeToken || !fallbackModel) {
