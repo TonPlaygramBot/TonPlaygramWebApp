@@ -1149,6 +1149,8 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const POOL_ROYALE_REPLAY_ENABLED = false;
+const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
@@ -1806,7 +1808,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = 0; // keep spin active while preventing spin-based rail deflection from shifting cue-ball target line
+const RAIL_SPIN_THROW_SCALE = 0.09; // re-enable a mild rail throw so cue-ball side-spin follows the shown direction after cushion contact
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
@@ -1951,7 +1953,7 @@ const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.28;
-const SIDE_SPIN_MULTIPLIER = 1.56 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const SIDE_SPIN_MULTIPLIER = 1.78 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = 1.74 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
@@ -5950,8 +5952,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.8; // reduce topspin cap to match Snooker Royal feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.39; // add a bit more follow-through on straight topspin so the cue ball carries naturally
+const MAX_TOPSPIN_INPUT = 0.92; // increase topspin cap so follow-through carries farther after contact
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.52; // stronger transfer keeps forward roll alive longer for clearer follow-through
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.9;
@@ -7075,6 +7077,9 @@ function applySpinController(ball, stepScale, airborne = false) {
 
 function applyRailSpinResponse(ball, impact) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
+  if (ball.id === 'cue' && !ball.impacted) {
+    ball.impacted = true;
+  }
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
@@ -12652,31 +12657,9 @@ function PoolRoyaleGame({
     );
   });
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-  const [skipAllReplays, setSkipAllReplays] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && POOL_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_COMMENTARY_PRESET_ID;
-  });
-  const [commentaryMuted, setCommentaryMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
+  const [skipAllReplays, setSkipAllReplays] = useState(!POOL_ROYALE_REPLAY_ENABLED);
+  const [commentaryPresetId, setCommentaryPresetId] = useState(DEFAULT_COMMENTARY_PRESET_ID);
+  const [commentaryMuted, setCommentaryMuted] = useState(!POOL_ROYALE_VOICE_COMMENTARY_ENABLED);
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
   const cueStrokeAnimationStyleRef = useRef(DEFAULT_CUE_STROKE_STYLE);
@@ -12706,11 +12689,13 @@ function PoolRoyaleGame({
     }
   }, [commentaryMuted]);
   useEffect(() => {
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) return;
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
     }
   }, [commentaryPresetId]);
   useEffect(() => {
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) return;
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     }
@@ -12833,7 +12818,9 @@ function PoolRoyaleGame({
       POOL_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
-  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
+  const [commentarySupported, setCommentarySupported] = useState(
+    () => POOL_ROYALE_VOICE_COMMENTARY_ENABLED && getSpeechSupport()
+  );
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -12957,6 +12944,10 @@ function PoolRoyaleGame({
     [availablePocketLiners, pocketLinerId]
   );
   useEffect(() => {
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) {
+      setCommentarySupported(false);
+      return undefined;
+    }
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
     const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
@@ -32457,32 +32448,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replays
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSkipAllReplays((prev) => !prev)}
-                  aria-pressed={skipAllReplays}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    skipAllReplays
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span>Skip all replays</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      skipAllReplays
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {skipAllReplays ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
