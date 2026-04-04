@@ -4418,6 +4418,11 @@ const DEFAULT_APPEARANCE = Object.freeze(
     return acc;
   }, {})
 );
+const DEFAULT_DOMINO_COLOR_CUSTOMIZATION = Object.freeze({
+  dominoBodyColor: null,
+  dominoDotColor: null,
+  dominoFrameColor: null
+});
 const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV3';
 const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalArenaAppearance'];
 const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV3';
@@ -4425,7 +4430,10 @@ let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
 
 function normalizeAppearance(raw) {
-  const normalized = { ...DEFAULT_APPEARANCE };
+  const normalized = {
+    ...DEFAULT_APPEARANCE,
+    ...DEFAULT_DOMINO_COLOR_CUSTOMIZATION
+  };
   const source = raw && typeof raw === 'object' ? raw : {};
   const limits = [
     ['environmentHdri', ENVIRONMENT_HDRI_OPTIONS.length],
@@ -4463,6 +4471,15 @@ function normalizeAppearance(raw) {
       LUDO_MATCH_DEFAULT_CHAIR_THEME_ID
     );
   }
+
+  const parseOptionalHex = (value) => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed : null;
+  };
+  normalized.dominoBodyColor = parseOptionalHex(source.dominoBodyColor);
+  normalized.dominoDotColor = parseOptionalHex(source.dominoDotColor);
+  normalized.dominoFrameColor = parseOptionalHex(source.dominoFrameColor);
 
   return normalized;
 }
@@ -6902,9 +6919,12 @@ function applyDominoStyle(
   currentDominoStyleOption = style;
   currentDominoDotStyleOption = pipStyle;
   currentDominoFrameStyleOption = frameStyle;
+  const customBodyColor = appearance?.dominoBodyColor || null;
+  const customDotColor = appearance?.dominoDotColor || null;
+  const customFrameColor = appearance?.dominoFrameColor || null;
   disposeDominoBaseMaterials();
   porcelainMat = buildDominoMaterial(style.body, {
-    color: '#f8f8fb',
+    color: customBodyColor || '#f8f8fb',
     roughness: 0.12,
     metalness: 0.2,
     clearcoat: 1.0,
@@ -6917,7 +6937,7 @@ function applyDominoStyle(
   pipMat = buildDominoMaterial(
     {
       ...(style.pip || {}),
-      color: pipStyle?.color ?? style.pip?.color,
+      color: customDotColor ?? pipStyle?.color ?? style.pip?.color,
       emissive: pipStyle?.emissive ?? style.pip?.emissive,
       metalness: pipStyle?.metalness ?? style.pip?.metalness,
       roughness: pipStyle?.roughness ?? style.pip?.roughness
@@ -6940,7 +6960,7 @@ function applyDominoStyle(
   accentMat = buildDominoMaterial(
     {
       ...(style.accent || {}),
-      color: frameStyle?.color ?? style.accent?.color,
+      color: customFrameColor ?? frameStyle?.color ?? style.accent?.color,
       emissive: frameStyle?.emissive ?? style.accent?.emissive,
       metalness: frameStyle?.metalness ?? style.accent?.metalness,
       roughness: frameStyle?.roughness ?? style.accent?.roughness
@@ -7554,6 +7574,87 @@ function refreshConfigUI() {
     wrapper.appendChild(optionsGrid);
     configSectionsEl.appendChild(wrapper);
   });
+
+  const customDominoColorWrapper = document.createElement('div');
+  customDominoColorWrapper.className = 'config-section';
+  const customColorLabel = document.createElement('h4');
+  customColorLabel.textContent = 'Custom domino colors';
+  customDominoColorWrapper.appendChild(customColorLabel);
+  const customColorGrid = document.createElement('div');
+  customColorGrid.className = 'config-options';
+  customColorGrid.style.gridTemplateColumns =
+    'repeat(auto-fit, minmax(140px, 1fr))';
+  [
+    {
+      key: 'dominoBodyColor',
+      label: 'Tile body',
+      fallback:
+        currentDominoStyleOption?.body?.color ||
+        currentDominoStyleOption?.preview?.[0] ||
+        '#f8f8fb'
+    },
+    {
+      key: 'dominoDotColor',
+      label: 'Dots',
+      fallback:
+        currentDominoDotStyleOption?.color ||
+        currentDominoStyleOption?.pip?.color ||
+        '#121314'
+    },
+    {
+      key: 'dominoFrameColor',
+      label: 'Frame',
+      fallback:
+        currentDominoFrameStyleOption?.color ||
+        currentDominoStyleOption?.accent?.color ||
+        '#d8af37'
+    }
+  ].forEach((entry) => {
+    const item = document.createElement('div');
+    item.className = 'config-option';
+    item.style.alignItems = 'stretch';
+    const label = document.createElement('span');
+    label.textContent = entry.label;
+    item.appendChild(label);
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = appearance[entry.key] || entry.fallback || '#ffffff';
+    colorInput.style.width = '100%';
+    colorInput.style.height = '2rem';
+    colorInput.style.borderRadius = '0.55rem';
+    colorInput.style.border = '1px solid rgba(255,255,255,0.18)';
+    colorInput.style.background = 'rgba(15,23,42,0.72)';
+    colorInput.style.padding = '0.2rem';
+    colorInput.addEventListener('input', () => {
+      appearance[entry.key] = colorInput.value;
+      applyAppearanceChange({ refresh: false });
+    });
+    item.appendChild(colorInput);
+    const resetButton = document.createElement('button');
+    resetButton.type = 'button';
+    resetButton.className = 'config-option';
+    resetButton.style.padding = '0.3rem 0.4rem';
+    resetButton.style.marginTop = '0.25rem';
+    resetButton.style.fontSize = '0.58rem';
+    resetButton.textContent = 'Use style default';
+    resetButton.addEventListener('click', () => {
+      appearance[entry.key] = null;
+      applyAppearanceChange({ refresh: false });
+      refreshConfigUI();
+    });
+    item.appendChild(resetButton);
+    customColorGrid.appendChild(item);
+  });
+  customDominoColorWrapper.appendChild(customColorGrid);
+  const customColorNote = document.createElement('p');
+  customColorNote.textContent =
+    'These colors override presets and let you tune tile body, dots, and frame independently.';
+  customColorNote.style.margin = '0';
+  customColorNote.style.fontSize = '0.65rem';
+  customColorNote.style.color = 'rgba(226,232,240,0.7)';
+  customColorNote.style.lineHeight = '1.4';
+  customDominoColorWrapper.appendChild(customColorNote);
+  configSectionsEl.appendChild(customDominoColorWrapper);
 
   const feedbackWrapper = document.createElement('div');
   feedbackWrapper.className = 'config-section';
