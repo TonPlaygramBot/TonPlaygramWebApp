@@ -1985,15 +1985,7 @@ const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale wit
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
-const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 2.275; // make GLTF rail finish motifs ~30% smaller (denser) to match the requested rail pattern scale.
-const LT_TABLE_FINISH_IDS = new Set([
-  'carbonFiberChalk',
-  'carbonFiberChalkGrey',
-  'carbonFiberChalkBeige',
-  'carbonFiberChalkDarkBlue',
-  'carbonFiberChalkWhite'
-]);
-const CARBON_FIBER_BRAND_PATTERN_REPEAT = Object.freeze(new THREE.Vector2(16, 4)); // same weave density used by the TonPlaygram brand plates (2048x512 label with 128px carbon tile).
+const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 1.75; // tighten rail texel density so GLTF rail grain matches the leg grain scale.
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -8113,11 +8105,6 @@ export function Table3D(
         ...synchronizedFrameSurface
       });
     }
-    if (isLtTableFinish(resolvedFinish)) {
-      [railMat, frameMat, legMat].forEach((material) => {
-        applyLtCarbonFiberSurfaceTexture(material);
-      });
-    }
   }
   [railMat, frameMat, legMat].forEach((mat) => {
     applyTableFinishDulling(mat);
@@ -9664,44 +9651,6 @@ export function Table3D(
     texture.needsUpdate = true;
     return texture;
   };
-
-  function isLtTableFinish(finishInfo) {
-    return Boolean(finishInfo?.id && LT_TABLE_FINISH_IDS.has(finishInfo.id));
-  }
-
-  function createBrandCarbonFiberSurfaceTexture() {
-    if (typeof document === 'undefined' || !carbonFiberPatternCanvas) return null;
-    const texture = new THREE.CanvasTexture(carbonFiberPatternCanvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.copy(CARBON_FIBER_BRAND_PATTERN_REPEAT);
-    texture.center.set(0.5, 0.5);
-    texture.rotation = 0;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.generateMipmaps = true;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = 8;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  function applyLtCarbonFiberSurfaceTexture(material) {
-    if (!material) return;
-    const previousLtMap = material.userData?.__ltCarbonFiberMap;
-    if (previousLtMap?.dispose) {
-      previousLtMap.dispose();
-    }
-    const texture = createBrandCarbonFiberSurfaceTexture();
-    if (!texture) return;
-    material.userData = material.userData || {};
-    material.userData.__ltCarbonFiberMap = texture;
-    material.map = texture;
-    material.normalMap = null;
-    material.roughnessMap = null;
-    material.metalnessMap = null;
-    material.needsUpdate = true;
-  }
 
   const createBrandPlateLabelTexture = ({
     width = 2048,
@@ -12317,11 +12266,6 @@ function applyTableFinishToTable(table, finish) {
     }
     applyTableFinishDulling(legMat);
     applyTableWoodVisibilityTuning(legMat);
-    if (isLtTableFinish(resolvedFinish)) {
-      [railMat, frameMat, legMat].forEach((material) => {
-        applyLtCarbonFiberSurfaceTexture(material);
-      });
-    }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
@@ -28190,7 +28134,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
