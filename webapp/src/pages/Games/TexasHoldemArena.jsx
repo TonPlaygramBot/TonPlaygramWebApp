@@ -560,17 +560,6 @@ function replaceFileExtension(path, nextExt) {
   return `${clean.slice(0, dotIdx)}${nextExt}`;
 }
 
-function resolveFileMapUrl(fileMap, requestedName) {
-  if (!fileMap?.size || !requestedName) return null;
-  const direct = fileMap.get(requestedName);
-  if (direct) return direct;
-  const lower = requestedName.toLowerCase();
-  for (const [key, value] of fileMap.entries()) {
-    if (key.toLowerCase() === lower) return value;
-  }
-  return null;
-}
-
 function resolveTextureFallbackUrl(requestedUrl, fileMap) {
   if (!fileMap?.size || !requestedUrl) return null;
   const requestedBase = basename(stripQueryHash(requestedUrl));
@@ -582,7 +571,7 @@ function resolveTextureFallbackUrl(requestedUrl, fileMap) {
   }
   for (const ext of fallbackExts) {
     const candidate = basename(replaceFileExtension(requestedBase, ext));
-    const mapped = resolveFileMapUrl(fileMap, candidate);
+    const mapped = fileMap.get(candidate);
     if (mapped) return mapped;
   }
   return null;
@@ -1313,7 +1302,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
           const b = basename(req);
-          const mapped = resolveFileMapUrl(fileMap, b);
+          const mapped = fileMap.get(b);
           if (mapped) return mapped;
           try {
             return new URL(req, baseDir).toString();
