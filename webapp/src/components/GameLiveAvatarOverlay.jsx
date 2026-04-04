@@ -3,8 +3,6 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
-  '#seatOverlay .seat-badge.is-self .seat-badge-core',
-  '#seatOverlay .seat-badge.is-self',
   '[data-self-player="true"] .seat-badge-core',
   '[data-self-player="true"] .score-avatar',
   '[data-self-player="true"] .avatar-timer-avatar',
@@ -127,8 +125,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         `${element.getAttributeNames().join(' ')} ${element.getAttribute('data-self-player') || ''} ${element.getAttribute('data-is-user') || ''} ${element.getAttribute('data-player-index') || ''} ${element.className || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('alt') || ''}`.toLowerCase();
       if (marker.includes('self')) score += 100;
       if (marker.includes('you')) score += 80;
-      if (marker.includes('seat-badge')) score += 90;
-      if (marker.includes('is-self')) score += 80;
       if (rect.top > window.innerHeight * 0.45) score += 25;
       if (rect.left < window.innerWidth * 0.65) score += 15;
       score += Math.min(rect.width, rect.height);
@@ -169,19 +165,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
 
     const applyRect = () => {
       const { rect, node } = findAvatarAnchor();
-      if (!rect || !node?.isConnected) {
-        setAnchorElement(null);
-        if (gameSlug === 'domino-royal') {
-          const size = 58;
-          setOverlayRect({
-            top: Math.max(window.innerHeight - size - 110, 0),
-            left: Math.max(Math.round(window.innerWidth * 0.5 - size * 0.5), 0),
-            width: size,
-            height: size
-          });
-        }
-        return;
-      }
+      if (!rect) return;
       const avatarDiameter = Math.min(rect.width, rect.height);
       const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
@@ -262,7 +246,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     const top = Math.max(overlayRect.top - ACTIVATION_TOUCH_PADDING, 0);
     return { top, left, width, height };
   }, [overlayRect]);
-  const hasRenderableAnchor = Boolean(anchorElement) || gameSlug === 'domino-royal';
 
   useEffect(() => {
     if (!anchorElement) return undefined;
@@ -277,7 +260,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   return (
     <>
       {children}
-      {!liveMode && hasRenderableAnchor ? (
+      {!liveMode && anchorElement ? (
         <button
           type="button"
           aria-label="Turn on live avatar video"
@@ -291,7 +274,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           }}
         />
       ) : null}
-      {liveMode && hasRenderableAnchor ? (
+      {liveMode && anchorElement ? (
         <button
           type="button"
           aria-label="Turn off live avatar video"

@@ -6805,7 +6805,6 @@ function getDominoPipGeometry(radius) {
 let porcelainMat = null;
 let pipMat = null;
 let accentMat = null;
-let dominoPipStyleTexture = null;
 let currentDominoStyleOption =
   DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ??
   DOMINO_STYLE_OPTIONS[0];
@@ -6841,10 +6840,6 @@ function disposeDominoBaseMaterials() {
     SHARED_DOMINO_MATERIALS.delete(pipMat);
     pipMat.dispose?.();
     pipMat = null;
-  }
-  if (dominoPipStyleTexture) {
-    dominoPipStyleTexture.dispose?.();
-    dominoPipStyleTexture = null;
   }
 }
 
@@ -7000,76 +6995,6 @@ const getDominoSurfaceTextures = (() => {
   };
 })();
 
-function createDominoPipStyleTexture(dotStyle = null) {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  const size = 512;
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  const styleId = String(dotStyle?.id || '').toLowerCase();
-  const base = dotStyle?.color || '#121314';
-  const bright = adjustHexColor(base, 0.36);
-  const dark = adjustHexColor(base, -0.42);
-  const gradient = ctx.createRadialGradient(
-    size * 0.32,
-    size * 0.3,
-    size * 0.06,
-    size * 0.62,
-    size * 0.66,
-    size * 0.75
-  );
-  gradient.addColorStop(0, bright);
-  gradient.addColorStop(0.58, base);
-  gradient.addColorStop(1, dark);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  if (styleId.includes('ruby') || styleId.includes('sapphire') || styleId.includes('emerald')) {
-    ctx.globalAlpha = 0.24;
-    ctx.strokeStyle = adjustHexColor(base, 0.5);
-    ctx.lineWidth = size * 0.045;
-    for (let i = -size; i < size * 2; i += size * 0.22) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + size, size);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  } else if (styleId.includes('chrome')) {
-    const chromeBand = ctx.createLinearGradient(0, 0, size, size);
-    chromeBand.addColorStop(0, '#eef2f7');
-    chromeBand.addColorStop(0.24, '#7b8490');
-    chromeBand.addColorStop(0.5, '#f4f7fb');
-    chromeBand.addColorStop(0.78, '#6b7280');
-    chromeBand.addColorStop(1, '#e2e8f0');
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = chromeBand;
-    ctx.fillRect(0, 0, size, size);
-    ctx.globalAlpha = 1;
-  } else if (styleId.includes('gold')) {
-    const shimmer = ctx.createLinearGradient(0, 0, size, size);
-    shimmer.addColorStop(0, '#fff5bf');
-    shimmer.addColorStop(0.34, '#d4af37');
-    shimmer.addColorStop(0.62, '#f2cf69');
-    shimmer.addColorStop(1, '#8a6a11');
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = shimmer;
-    ctx.fillRect(0, 0, size, size);
-    ctx.globalAlpha = 1;
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.min(getRendererAnisotropyCap(), 8);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function applyDominoStyle(
   option = DOMINO_STYLE_OPTIONS[0],
   dotOption = currentDominoDotStyleOption,
@@ -7120,12 +7045,7 @@ function applyDominoStyle(
   const dominoTextures = getDominoSurfaceTextures();
   porcelainMat.map = dominoTextures.porcelainMap;
   porcelainMat.roughnessMap = dominoTextures.porcelainRoughness;
-  if (dominoPipStyleTexture) {
-    dominoPipStyleTexture.dispose?.();
-    dominoPipStyleTexture = null;
-  }
-  dominoPipStyleTexture = createDominoPipStyleTexture(pipStyle);
-  pipMat.map = dominoPipStyleTexture ?? dominoTextures.pipMap;
+  pipMat.map = dominoTextures.pipMap;
 
   accentMat = buildDominoMaterial(
     {
@@ -7773,9 +7693,6 @@ function refreshConfigUI() {
       button.addEventListener('click', () => {
         if (appearance[section.key] === idx) return;
         appearance[section.key] = idx;
-        if (section.key === 'dominoStyle') appearance.dominoBodyColor = null;
-        if (section.key === 'dominoDotStyle') appearance.dominoDotColor = null;
-        if (section.key === 'dominoFrameStyle') appearance.dominoFrameColor = null;
         applyAppearanceChange({ refresh: false });
         refreshConfigUI();
       });
@@ -8071,11 +7988,11 @@ configButtonEl?.addEventListener('click', () => {
 configCloseEl?.addEventListener('click', () => closeConfigPanel());
 document.addEventListener('click', (event) => {
   if (!configPanelEl?.classList.contains('active')) return;
-  const eventPath =
-    typeof event.composedPath === 'function' ? event.composedPath() : [];
-  const clickedInsidePanel = eventPath.includes(configPanelEl);
-  const clickedConfigButton = eventPath.includes(configButtonEl);
-  if (clickedInsidePanel || clickedConfigButton) return;
+  if (
+    configPanelEl.contains(event.target) ||
+    configButtonEl?.contains(event.target)
+  )
+    return;
   closeConfigPanel();
 });
 document.addEventListener('keydown', (event) => {
