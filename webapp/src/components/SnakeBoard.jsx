@@ -1,109 +1,72 @@
 import { useState, useEffect, useRef, Fragment, useMemo } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
-const LEVEL_SPECS = [
-  { size: 8, gapAfter: 2 },
-  { size: 5, gapAfter: 2 },
-  { size: 3, gapAfter: 0 },
-];
 const PLAYABLE_TILE_COUNT = 50;
 const GRID_SCALE = 2;
 const EXTRA_COLUMN_FRACTION = 0.6;
 const CELL_HEIGHT_RATIO = 1.9;
 const BOARD_SCALE = 1.12;
-const FINAL_SCALE_TARGET = 1.65;
+const FLOOR_COUNT = 3;
+const FLOOR_RISE = 0.72;
+const FLOOR_RAMP = 0.22;
 
 function buildPyramidLayout() {
-  const baseSize = LEVEL_SPECS[0].size;
+  const gridSize = 8;
   let cell = 1;
-  let yCursor = 0;
   const tiles = [];
-  const levels = [];
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+  let left = 0;
+  let right = gridSize - 1;
+  let top = 0;
+  let bottom = gridSize - 1;
+  while (left <= right && top <= bottom && cell <= PLAYABLE_TILE_COUNT) {
+    for (let c = left; c <= right && cell <= PLAYABLE_TILE_COUNT; c++) tiles.push({ cell: cell++, col: c, row: top });
+    top += 1;
+    for (let r = top; r <= bottom && cell <= PLAYABLE_TILE_COUNT; r++) tiles.push({ cell: cell++, col: right, row: r });
+    right -= 1;
+    for (let c = right; c >= left && top <= bottom && cell <= PLAYABLE_TILE_COUNT; c--) tiles.push({ cell: cell++, col: c, row: bottom });
+    bottom -= 1;
+    for (let r = bottom; r >= top && left <= right && cell <= PLAYABLE_TILE_COUNT; r--) tiles.push({ cell: cell++, col: left, row: r });
+    left += 1;
+  }
 
-  LEVEL_SPECS.forEach(({ size, gapAfter }, levelIndex) => {
-    const xOffset = (baseSize - size) / 2;
-    const yOffset = yCursor;
-    const levelTiles = [];
-
-    const pushTile = (col, row) => {
-      const tile = {
-        cell,
-        col,
-        row,
-        levelIndex,
-        levelSize: size,
-      };
-      tiles.push(tile);
-      levelTiles.push(tile);
-      cell += 1;
-      minX = Math.min(minX, col);
-      maxX = Math.max(maxX, col + 1);
-      maxY = Math.max(maxY, row + 1);
+  const totalCells = tiles.length;
+  const cellsPerFloor = Math.ceil(totalCells / FLOOR_COUNT);
+  const withElevation = tiles.map((tile, index) => {
+    const floorIndex = Math.min(FLOOR_COUNT - 1, Math.floor(index / cellsPerFloor));
+    const floorStart = floorIndex * cellsPerFloor;
+    const floorEnd = Math.min(totalCells - 1, floorStart + cellsPerFloor - 1);
+    const floorSpan = Math.max(1, floorEnd - floorStart);
+    const floorProgress = (index - floorStart) / floorSpan;
+    return {
+      ...tile,
+      levelIndex: floorIndex,
+      elevation: floorIndex * FLOOR_RISE + floorProgress * FLOOR_RAMP,
     };
+  });
 
-    for (let i = 0; i < size; i++) pushTile(xOffset + i, yOffset);
-    for (let i = 1; i < size; i++) pushTile(xOffset + size - 1, yOffset + i);
-    for (let i = size - 2; i >= 0; i--) pushTile(xOffset + i, yOffset + size - 1);
-    for (let i = size - 2; i >= 1; i--) pushTile(xOffset, yOffset + i);
-
-    levels.push({
+  const widthUnits = gridSize;
+  const heightUnits = gridSize;
+  const centerColumn = gridSize / 2;
+  const levels = Array.from({ length: FLOOR_COUNT }, (_, levelIndex) => {
+    const levelTiles = withElevation.filter((tile) => tile.levelIndex === levelIndex);
+    return {
       levelIndex,
-      startCell: levelTiles[0]?.cell ?? cell,
-      endCell: levelTiles[levelTiles.length - 1]?.cell ?? cell,
-      size,
-      xOffset,
-      yOffset,
-    });
-
-    yCursor += size + (gapAfter ?? 0);
+      startCell: levelTiles[0]?.cell ?? 1,
+      endCell: levelTiles[levelTiles.length - 1]?.cell ?? totalCells,
+      size: gridSize - levelIndex * 2,
+      xOffset: levelIndex,
+      yOffset: levelIndex,
+    };
   });
-
-  const totalCells = Math.min(PLAYABLE_TILE_COUNT, cell - 1);
-  const widthUnits = maxX - minX;
-  const heightUnits = maxY;
-
-  const mirrorColumn = (col) => minX + widthUnits - (col + 1);
-
-  const mirroredTiles = tiles
-    .filter((tile) => tile.cell <= totalCells)
-    .map((tile) => ({
-    ...tile,
-    col: mirrorColumn(tile.col),
-  }));
-
-  const mirroredLevels = levels
-    .map((level) => {
-      const tilesInLevel = mirroredTiles.filter((tile) => tile.levelIndex === level.levelIndex);
-      if (!tilesInLevel.length) return null;
-      return {
-        ...level,
-        startCell: tilesInLevel[0].cell,
-        endCell: tilesInLevel[tilesInLevel.length - 1].cell,
-        xOffset: mirrorColumn(level.xOffset + level.size - 1),
-      };
-    })
-    .filter(Boolean);
-
-  let mirroredMinX = Infinity;
-  let mirroredMaxX = -Infinity;
-  mirroredTiles.forEach((tile) => {
-    mirroredMinX = Math.min(mirroredMinX, tile.col);
-    mirroredMaxX = Math.max(mirroredMaxX, tile.col + 1);
-  });
-
-  const centerColumn = mirroredMinX + (mirroredMaxX - mirroredMinX) / 2;
 
   return {
-    tiles: mirroredTiles,
-    levels: mirroredLevels,
+    tiles: withElevation,
+    levels,
     totalCells,
-    widthUnits: mirroredMaxX - mirroredMinX,
+    widthUnits,
     heightUnits,
-    minX: mirroredMinX,
-    maxX: mirroredMaxX,
+    minX: 0,
+    maxX: gridSize,
     centerColumn,
   };
 }
@@ -114,9 +77,7 @@ export const FINAL_TILE = BOARD_CELL_COUNT + 1;
 const BOARD_WIDTH_UNITS = BOARD_LAYOUT.widthUnits;
 const BOARD_HEIGHT_UNITS = BOARD_LAYOUT.heightUnits;
 const CENTER_COLUMN = BOARD_LAYOUT.centerColumn;
-const SCALE_STEP = (FINAL_SCALE_TARGET - 1) / Math.max(1, BOARD_HEIGHT_UNITS - 3);
-const FINAL_SCALE = 1 + (BOARD_HEIGHT_UNITS - 3) * SCALE_STEP;
-const WIDEN_STEP = 0.07;
+const FINAL_SCALE = 1.45;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -174,26 +135,19 @@ export default function SnakeBoard({
   const scaledCols = BOARD_WIDTH_UNITS * GRID_SCALE;
   const scaledRows = BOARD_HEIGHT_UNITS * GRID_SCALE;
 
-  const rowOffsets = useMemo(() => {
-    const offsets = [0];
-    for (let r = 1; r < BOARD_HEIGHT_UNITS; r++) {
-      const prevScale = 1 + (r - 3) * SCALE_STEP;
-      offsets[r] = offsets[r - 1] + (prevScale - 1) * cellHeight;
-    }
-    return offsets;
-  }, [cellHeight]);
-
-  const offsetYMax = rowOffsets[BOARD_HEIGHT_UNITS - 1] ?? 0;
+  const maxElevation = useMemo(
+    () => layoutTiles.reduce((best, tile) => Math.max(best, tile.elevation ?? 0), 0),
+    [layoutTiles],
+  );
+  const offsetYMax = maxElevation * cellHeight;
 
   const tileElements = layoutTiles.map((tile) => {
     const num = tile.cell;
-    const rowIndex = Math.floor(tile.row);
-    const rowPos = BOARD_HEIGHT_UNITS > 1 ? rowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
-    const scale = 1 + (rowIndex - 3) * SCALE_STEP;
-    const scaleX = scale * (1 + rowPos * WIDEN_STEP);
-    const offsetX = (scaleX - 1) * cellWidth;
+    const scale = 1 + (tile.elevation ?? 0) * 0.08;
+    const scaleX = scale;
+    const offsetX = (scaleX - 1) * cellWidth * 0.6;
     const translateX = (tile.col + 0.5 - CENTER_COLUMN) * offsetX;
-    const translateY = -rowOffsets[rowIndex];
+    const translateY = -(tile.elevation ?? 0) * cellHeight;
     const isHighlight = highlight && highlight.cell === num;
     const trailHighlight = trail?.find((t) => t.cell === num);
     const highlightClass = isHighlight
@@ -331,15 +285,14 @@ export default function SnakeBoard({
   const paddingTop = 0;
   const paddingBottom = '15vh';
 
-  const topLevel = BOARD_LAYOUT.levels[BOARD_LAYOUT.levels.length - 1];
-  const potRowIndex = topLevel.yOffset + topLevel.size - 1;
-  const potCol = topLevel.xOffset + (topLevel.size - 1) / 2;
-  const potRowPos = BOARD_HEIGHT_UNITS > 1 ? potRowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
-  const potScale = 1 + (potRowIndex - 3) * SCALE_STEP;
-  const potScaleX = potScale * (1 + potRowPos * WIDEN_STEP);
+  const finalTile = layoutTiles[layoutTiles.length - 1];
+  const potRowIndex = finalTile?.row ?? 0;
+  const potCol = finalTile?.col ?? CENTER_COLUMN;
+  const potScale = 1 + (finalTile?.elevation ?? 0) * 0.08;
+  const potScaleX = potScale;
   const potOffsetX = (potScaleX - 1) * cellWidth;
   const potTranslateX = (potCol + 0.5 - CENTER_COLUMN) * potOffsetX;
-  const potTranslateY = -rowOffsets[potRowIndex] - cellHeight * 2.8;
+  const potTranslateY = -((finalTile?.elevation ?? 0) * cellHeight) - cellHeight * 2.2;
   const potStyle = {
     gridRowStart: scaledRows - potRowIndex * GRID_SCALE - (GRID_SCALE - 1),
     gridRowEnd: `span ${GRID_SCALE}`,
@@ -373,7 +326,7 @@ export default function SnakeBoard({
         <div className="snake-board-tilt">
           <div
             ref={gridRef}
-            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
+            className="snake-board-grid grid gap-x-0.5 gap-y-0.5 relative mx-auto"
             style={{
               width: `${cellWidth * BOARD_WIDTH_UNITS}px`,
               height: `${cellHeight * BOARD_HEIGHT_UNITS + offsetYMax}px`,
