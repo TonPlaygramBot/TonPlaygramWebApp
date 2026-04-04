@@ -2744,14 +2744,20 @@ function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
 
 async function loadPolyhavenModel(
   assetId,
-  { preserveGltfTextureMapping = true } = {}
+  {
+    preserveGltfTextureMapping = true,
+    preferredResolutionsOverride = null
+  } = {}
 ) {
   if (!assetId) return null;
-  const preferredResolutions = IS_TELEGRAM_RUNTIME
-    ? ['1k']
-    : isLowProfileDevice
-      ? ['1k']
-      : resolveGraphicsModelResolutions(frameRateId);
+  const preferredResolutions =
+    Array.isArray(preferredResolutionsOverride) && preferredResolutionsOverride.length
+      ? preferredResolutionsOverride
+      : IS_TELEGRAM_RUNTIME
+        ? ['1k']
+        : isLowProfileDevice
+          ? ['1k']
+          : resolveGraphicsModelResolutions(frameRateId);
   const cacheKey = `${assetId.toLowerCase()}::${preferredResolutions.join(',')}::${preserveGltfTextureMapping ? 'preserve' : 'normalized'}`;
   if (polyhavenModelCache.has(cacheKey)) {
     const cached = polyhavenModelCache.get(cacheKey);
@@ -4419,12 +4425,6 @@ function normalizeAppearance(raw) {
   });
 
   const selectedTableTheme = TABLE_THEME_OPTIONS[normalized.tableTheme];
-  if (selectedTableTheme?.id === 'CoffeeTable_01') {
-    normalized.tableTheme = findDominoOptionIndex(
-      'tableTheme',
-      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
-    );
-  }
   if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
     normalized.tableTheme = findDominoOptionIndex(
       'tableTheme',
@@ -4766,11 +4766,6 @@ try {
   const hasMigratedDefaultTable =
     window.localStorage?.getItem(DEFAULT_TABLE_MIGRATION_KEY) === '1';
   if (!hasMigratedDefaultTable) {
-    appearance = sanitizeAppearance(forceMurlanDefaultTableAppearance(appearance));
-    window.localStorage?.setItem(
-      APPEARANCE_STORAGE_KEY,
-      JSON.stringify(appearance)
-    );
     window.localStorage?.setItem(DEFAULT_TABLE_MIGRATION_KEY, '1');
   }
 
@@ -6055,6 +6050,10 @@ function setProceduralTableVisible(flag = true) {
   });
 }
 
+function resolveTableModelResolutions() {
+  return ['4k', '2k'];
+}
+
 async function applyTableTheme(
   option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION
 ) {
@@ -6082,7 +6081,8 @@ async function applyTableTheme(
   setProceduralTableVisible(true);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id, {
-      preserveGltfTextureMapping: theme.preserveMaterials ?? true
+      preserveGltfTextureMapping: theme.preserveMaterials ?? true,
+      preferredResolutionsOverride: resolveTableModelResolutions()
     });
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model, { disposeTextures: false });
@@ -6105,7 +6105,8 @@ async function applyTableTheme(
         const fallbackModel = await loadPolyhavenModel(
           DEFAULT_TABLE_THEME_OPTION.assetId,
           {
-            preserveGltfTextureMapping: true
+            preserveGltfTextureMapping: true,
+            preferredResolutionsOverride: resolveTableModelResolutions()
           }
         );
         if (token !== tableThemeToken || !fallbackModel) {
