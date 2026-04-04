@@ -493,6 +493,7 @@ const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
 );
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
+let supportsKtx2Transcoding = false;
 const POLYHAVEN_MODEL_CACHE = new Map();
 const HDRI_ENVIRONMENT_CACHE = new Map();
 
@@ -536,8 +537,10 @@ function ensureKtx2SupportDetection(renderer = null) {
   if (!sharedKtx2Loader || hasDetectedKtx2Support || !renderer) return;
   try {
     sharedKtx2Loader.detectSupport(renderer);
+    supportsKtx2Transcoding = true;
     hasDetectedKtx2Support = true;
   } catch (error) {
+    supportsKtx2Transcoding = false;
     console.warn('Texas Hold\'em KTX2 support detection failed', error);
   }
 }
@@ -560,13 +563,16 @@ function replaceFileExtension(path, nextExt) {
   return `${clean.slice(0, dotIdx)}${nextExt}`;
 }
 
-function resolveTextureFallbackUrl(requestedUrl, fileMap) {
+function resolveTextureFallbackUrl(requestedUrl, fileMap, { allowCompressedTextures = false } = {}) {
   if (!fileMap?.size || !requestedUrl) return null;
   const requestedBase = basename(stripQueryHash(requestedUrl));
   if (!requestedBase) return null;
   const lowerBase = requestedBase.toLowerCase();
   const fallbackExts = ['.jpg', '.jpeg', '.png', '.webp'];
   if (!lowerBase.endsWith('.ktx2') && !lowerBase.endsWith('.basis')) {
+    return null;
+  }
+  if (allowCompressedTextures) {
     return null;
   }
   for (const ext of fallbackExts) {
@@ -1055,6 +1061,14 @@ function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   }
 
   ensureKtx2SupportDetection(renderer);
+  if (!hasDetectedKtx2Support && typeof document !== 'undefined') {
+    const supportRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+    try {
+      ensureKtx2SupportDetection(supportRenderer);
+    } finally {
+      supportRenderer.dispose();
+    }
+  }
 
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
@@ -1300,7 +1314,9 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
         loader.manager.setURLModifier((requestedUrl) => {
           if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-          const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
+          const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap, {
+            allowCompressedTextures: supportsKtx2Transcoding
+          });
           if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
           const b = basename(req);
