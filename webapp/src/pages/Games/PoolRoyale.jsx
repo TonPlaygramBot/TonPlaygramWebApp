@@ -114,6 +114,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { applyShotImpact as applyShotImpactPayload, createShotImpactFallback, createShotImpactPayload } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -25778,10 +25779,7 @@ const powerRef = useRef(hud.power);
               startOffset: strokeStartOffset
             };
           }
-          let shotImpactApplied = false;
-          const applyShotImpact = () => {
-            if (shotImpactApplied) return;
-            shotImpactApplied = true;
+          const shotImpactPayload = createShotImpactPayload(() => {
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -25812,7 +25810,8 @@ const powerRef = useRef(hud.power);
             cue.lift = 0;
             cue.liftVel = 0;
             playCueHit(resolvedShotPower * 0.6);
-          };
+          });
+          const applyShotImpact = () => applyShotImpactPayload(shotImpactPayload);
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
             cueAnimating = true;
@@ -25844,7 +25843,12 @@ const powerRef = useRef(hud.power);
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
+            const safeImpactAt =
+              startTime + Math.max(1, strikeDuration) * THREE.MathUtils.clamp(strokeProfile.impactThreshold ?? 0.9, 0, 1);
+            pendingImpactRef.current = createShotImpactFallback(shotImpactPayload, safeImpactAt);
           } else {
+            pendingImpactRef.current = null;
+            applyShotImpact();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
