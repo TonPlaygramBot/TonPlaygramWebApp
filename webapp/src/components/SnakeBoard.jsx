@@ -1,103 +1,110 @@
 import { useState, useEffect, useRef, Fragment, useMemo } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
-const LEVEL_SPECS = [8, 5, 3];
+const LEVEL_SPECS = [
+  { size: 8, gapAfter: 2 },
+  { size: 5, gapAfter: 2 },
+  { size: 3, gapAfter: 0 },
+];
 const PLAYABLE_TILE_COUNT = 50;
 const GRID_SCALE = 2;
 const EXTRA_COLUMN_FRACTION = 0.6;
 const CELL_HEIGHT_RATIO = 1.9;
 const BOARD_SCALE = 1.12;
-const FLOOR_RISE = 0.95;
-const FLOOR_RAMP_STEPS = 2;
-const TILE_COLORS = ["#f3c443", "#3f56c6", "#49cf5c", "#e54740"];
-
-function buildRingPath(size, offset) {
-  const tiles = [];
-  const max = offset + size - 1;
-  for (let c = offset; c <= max; c++) tiles.push({ col: c, row: max });
-  for (let r = max - 1; r >= offset; r--) tiles.push({ col: max, row: r });
-  for (let c = max - 1; c >= offset; c--) tiles.push({ col: c, row: offset });
-  for (let r = offset + 1; r < max; r++) tiles.push({ col: offset, row: r });
-  return tiles;
-}
-
-function rotatePathToStart(path, startIndex) {
-  if (!path.length) return path;
-  return [...path.slice(startIndex), ...path.slice(0, startIndex)];
-}
-
-function findNearestTileIndex(path, target) {
-  let bestIdx = 0;
-  let bestDist = Number.POSITIVE_INFINITY;
-  path.forEach((tile, idx) => {
-    const dx = tile.col - target.col;
-    const dy = tile.row - target.row;
-    const dist = dx * dx + dy * dy;
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = idx;
-    }
-  });
-  return bestIdx;
-}
+const FINAL_SCALE_TARGET = 1.65;
 
 function buildPyramidLayout() {
-  const baseSize = LEVEL_SPECS[0];
-  const levels = LEVEL_SPECS.map((size, levelIndex) => {
-    const offset = (baseSize - size) / 2;
-    return {
-      levelIndex,
-      size,
-      offset,
-      perimeter: buildRingPath(size, offset),
-    };
-  });
+  const baseSize = LEVEL_SPECS[0].size;
+  let cell = 1;
+  let yCursor = 0;
+  const tiles = [];
+  const levels = [];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
-  const path = [];
-  levels.forEach((level, levelIndex) => {
-    let ring = [...level.perimeter];
-    if (levelIndex > 0) {
-      const prev = path[path.length - 1];
-      const nearestIndex = findNearestTileIndex(ring, prev);
-      ring = rotatePathToStart(ring, nearestIndex);
-      const nextStart = ring[0];
-      for (let step = 1; step <= FLOOR_RAMP_STEPS; step++) {
-        const t = step / (FLOOR_RAMP_STEPS + 1);
-        path.push({
-          col: prev.col + (nextStart.col - prev.col) * t,
-          row: prev.row + (nextStart.row - prev.row) * t,
-          levelIndex: levelIndex - 1 + t,
-          isRamp: true,
-        });
-      }
-    }
-    ring.forEach((tile) => {
-      path.push({
-        ...tile,
+  LEVEL_SPECS.forEach(({ size, gapAfter }, levelIndex) => {
+    const xOffset = (baseSize - size) / 2;
+    const yOffset = yCursor;
+    const levelTiles = [];
+
+    const pushTile = (col, row) => {
+      const tile = {
+        cell,
+        col,
+        row,
         levelIndex,
-        isRamp: false,
-      });
+        levelSize: size,
+      };
+      tiles.push(tile);
+      levelTiles.push(tile);
+      cell += 1;
+      minX = Math.min(minX, col);
+      maxX = Math.max(maxX, col + 1);
+      maxY = Math.max(maxY, row + 1);
+    };
+
+    for (let i = 0; i < size; i++) pushTile(xOffset + i, yOffset);
+    for (let i = 1; i < size; i++) pushTile(xOffset + size - 1, yOffset + i);
+    for (let i = size - 2; i >= 0; i--) pushTile(xOffset + i, yOffset + size - 1);
+    for (let i = size - 2; i >= 1; i--) pushTile(xOffset, yOffset + i);
+
+    levels.push({
+      levelIndex,
+      startCell: levelTiles[0]?.cell ?? cell,
+      endCell: levelTiles[levelTiles.length - 1]?.cell ?? cell,
+      size,
+      xOffset,
+      yOffset,
     });
+
+    yCursor += size + (gapAfter ?? 0);
   });
 
-  const trimmed = path.slice(0, PLAYABLE_TILE_COUNT);
-  const totalCells = trimmed.length;
-  const withCellNumbers = trimmed.map((tile, index) => ({
+  const totalCells = Math.min(PLAYABLE_TILE_COUNT, cell - 1);
+  const widthUnits = maxX - minX;
+  const heightUnits = maxY;
+
+  const mirrorColumn = (col) => minX + widthUnits - (col + 1);
+
+  const mirroredTiles = tiles
+    .filter((tile) => tile.cell <= totalCells)
+    .map((tile) => ({
     ...tile,
-    cell: index + 1,
-    elevation: tile.levelIndex * FLOOR_RISE,
-    color: TILE_COLORS[index % TILE_COLORS.length],
+    col: mirrorColumn(tile.col),
   }));
 
+  const mirroredLevels = levels
+    .map((level) => {
+      const tilesInLevel = mirroredTiles.filter((tile) => tile.levelIndex === level.levelIndex);
+      if (!tilesInLevel.length) return null;
+      return {
+        ...level,
+        startCell: tilesInLevel[0].cell,
+        endCell: tilesInLevel[tilesInLevel.length - 1].cell,
+        xOffset: mirrorColumn(level.xOffset + level.size - 1),
+      };
+    })
+    .filter(Boolean);
+
+  let mirroredMinX = Infinity;
+  let mirroredMaxX = -Infinity;
+  mirroredTiles.forEach((tile) => {
+    mirroredMinX = Math.min(mirroredMinX, tile.col);
+    mirroredMaxX = Math.max(mirroredMaxX, tile.col + 1);
+  });
+
+  const centerColumn = mirroredMinX + (mirroredMaxX - mirroredMinX) / 2;
+
   return {
-    tiles: withCellNumbers,
-    levels,
+    tiles: mirroredTiles,
+    levels: mirroredLevels,
     totalCells,
-    widthUnits: baseSize,
-    heightUnits: baseSize,
-    minX: 0,
-    maxX: baseSize,
-    centerColumn: baseSize / 2,
+    widthUnits: mirroredMaxX - mirroredMinX,
+    heightUnits,
+    minX: mirroredMinX,
+    maxX: mirroredMaxX,
+    centerColumn,
   };
 }
 
@@ -107,7 +114,9 @@ export const FINAL_TILE = BOARD_CELL_COUNT + 1;
 const BOARD_WIDTH_UNITS = BOARD_LAYOUT.widthUnits;
 const BOARD_HEIGHT_UNITS = BOARD_LAYOUT.heightUnits;
 const CENTER_COLUMN = BOARD_LAYOUT.centerColumn;
-const FINAL_SCALE = 1.45;
+const SCALE_STEP = (FINAL_SCALE_TARGET - 1) / Math.max(1, BOARD_HEIGHT_UNITS - 3);
+const FINAL_SCALE = 1 + (BOARD_HEIGHT_UNITS - 3) * SCALE_STEP;
+const WIDEN_STEP = 0.07;
 
 function CoinBurst({ token }) {
   const coins = Array.from({ length: 30 }, () => ({
@@ -165,19 +174,26 @@ export default function SnakeBoard({
   const scaledCols = BOARD_WIDTH_UNITS * GRID_SCALE;
   const scaledRows = BOARD_HEIGHT_UNITS * GRID_SCALE;
 
-  const maxElevation = useMemo(
-    () => layoutTiles.reduce((best, tile) => Math.max(best, tile.elevation ?? 0), 0),
-    [layoutTiles],
-  );
-  const offsetYMax = maxElevation * cellHeight;
+  const rowOffsets = useMemo(() => {
+    const offsets = [0];
+    for (let r = 1; r < BOARD_HEIGHT_UNITS; r++) {
+      const prevScale = 1 + (r - 3) * SCALE_STEP;
+      offsets[r] = offsets[r - 1] + (prevScale - 1) * cellHeight;
+    }
+    return offsets;
+  }, [cellHeight]);
+
+  const offsetYMax = rowOffsets[BOARD_HEIGHT_UNITS - 1] ?? 0;
 
   const tileElements = layoutTiles.map((tile) => {
     const num = tile.cell;
-    const scale = 1 + (tile.elevation ?? 0) * 0.06;
-    const scaleX = scale;
-    const offsetX = (scaleX - 1) * cellWidth * 0.5;
+    const rowIndex = Math.floor(tile.row);
+    const rowPos = BOARD_HEIGHT_UNITS > 1 ? rowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
+    const scale = 1 + (rowIndex - 3) * SCALE_STEP;
+    const scaleX = scale * (1 + rowPos * WIDEN_STEP);
+    const offsetX = (scaleX - 1) * cellWidth;
     const translateX = (tile.col + 0.5 - CENTER_COLUMN) * offsetX;
-    const translateY = -(tile.elevation ?? 0) * cellHeight;
+    const translateY = -rowOffsets[rowIndex];
     const isHighlight = highlight && highlight.cell === num;
     const trailHighlight = trail?.find((t) => t.cell === num);
     const highlightClass = isHighlight
@@ -206,19 +222,15 @@ export default function SnakeBoard({
         : cellType === "snake"
         ? snakeOffsets[num]
         : null;
-    const colBase = Math.floor(tile.col);
-    const rowBase = Math.floor(tile.row);
-    const fracX = tile.col - colBase;
-    const fracY = tile.row - rowBase;
     const style = {
-      gridRowStart: scaledRows - rowBase * GRID_SCALE - (GRID_SCALE - 1),
+      gridRowStart: scaledRows - tile.row * GRID_SCALE - (GRID_SCALE - 1),
       gridRowEnd: `span ${GRID_SCALE}`,
-      gridColumnStart: colBase * GRID_SCALE + 1,
+      gridColumnStart: Math.round(tile.col * GRID_SCALE) + 1,
       gridColumnEnd: `span ${GRID_SCALE}`,
-      transform: `translate(${translateX + fracX * cellWidth}px, ${translateY - fracY * cellHeight}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
+      transform: `translate(${translateX}px, ${translateY}px) scaleX(${scaleX}) scaleY(${scale}) translateZ(5px)`,
       transformOrigin: "bottom center",
     };
-    if (!highlightClass) style.backgroundColor = tile.color;
+    if (!highlightClass) style.backgroundColor = "#6db0ad";
 
     return (
       <div
@@ -319,14 +331,15 @@ export default function SnakeBoard({
   const paddingTop = 0;
   const paddingBottom = '15vh';
 
-  const finalTile = layoutTiles[layoutTiles.length - 1];
-  const potRowIndex = finalTile?.row ?? 0;
-  const potCol = finalTile?.col ?? CENTER_COLUMN;
-  const potScale = 1 + (finalTile?.elevation ?? 0) * 0.08;
-  const potScaleX = potScale;
+  const topLevel = BOARD_LAYOUT.levels[BOARD_LAYOUT.levels.length - 1];
+  const potRowIndex = topLevel.yOffset + topLevel.size - 1;
+  const potCol = topLevel.xOffset + (topLevel.size - 1) / 2;
+  const potRowPos = BOARD_HEIGHT_UNITS > 1 ? potRowIndex / (BOARD_HEIGHT_UNITS - 1) : 0;
+  const potScale = 1 + (potRowIndex - 3) * SCALE_STEP;
+  const potScaleX = potScale * (1 + potRowPos * WIDEN_STEP);
   const potOffsetX = (potScaleX - 1) * cellWidth;
   const potTranslateX = (potCol + 0.5 - CENTER_COLUMN) * potOffsetX;
-  const potTranslateY = -((finalTile?.elevation ?? 0) * cellHeight) - cellHeight * 2.2;
+  const potTranslateY = -rowOffsets[potRowIndex] - cellHeight * 2.8;
   const potStyle = {
     gridRowStart: scaledRows - potRowIndex * GRID_SCALE - (GRID_SCALE - 1),
     gridRowEnd: `span ${GRID_SCALE}`,
@@ -360,7 +373,7 @@ export default function SnakeBoard({
         <div className="snake-board-tilt">
           <div
             ref={gridRef}
-            className="snake-board-grid grid gap-0 relative mx-auto"
+            className="snake-board-grid grid gap-x-1 gap-y-2 relative mx-auto"
             style={{
               width: `${cellWidth * BOARD_WIDTH_UNITS}px`,
               height: `${cellHeight * BOARD_HEIGHT_UNITS + offsetYMax}px`,
