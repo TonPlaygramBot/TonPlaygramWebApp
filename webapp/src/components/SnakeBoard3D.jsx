@@ -436,8 +436,6 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const tileOutwardSpread = 1.07;
-  const tileSizeBoost = 1.08;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -461,31 +459,27 @@ function createPreciseSnakeTiles(scale = 1) {
       x: (cell.col - center) * 1.02 * scale,
       z: (cell.row - center) * 1.02 * scale,
       y: (baseTop + 0.26 / 2 + localIndex * riseStep) * scale,
-      size: size * tileSizeBoost * scale,
+      size: size * scale,
       color: colors[(index + level) % colors.length]
     };
   });
   preciseTiles.push({
     id: 49,
-    x: -1.02 * 0.48 * tileOutwardSpread * scale,
+    x: -1.02 * 0.48 * scale,
     z: 0,
     y: 2.46 * scale,
-    size: 0.88 * tileSizeBoost * scale,
+    size: 0.88 * scale,
     color: '#3ccfc5'
   });
   preciseTiles.push({
     id: 50,
-    x: 1.02 * 0.24 * tileOutwardSpread * scale,
+    x: 1.02 * 0.24 * scale,
     z: 0,
-    y: 2.86 * scale,
-    size: 1.08 * tileSizeBoost * scale,
+    y: 2.78 * scale,
+    size: 0.8 * scale,
     color: '#51d95a'
   });
-  return preciseTiles.map((tileSpec) => ({
-    ...tileSpec,
-    x: tileSpec.x * tileOutwardSpread,
-    z: tileSpec.z * tileOutwardSpread
-  }));
+  return preciseTiles;
 }
 
 function getTileLevelById(tileId) {
@@ -2864,12 +2858,9 @@ function buildSnakeBoard(
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
       : new THREE.Color(tileSpec.color);
     const materialSet = createTileMaterialSet(baseColor, boardTheme);
-    const isFinalTile = tileSpec.id === 50;
-    const tileBoxHeight = isFinalTile ? tileHeight * 1.5 : tileHeight;
-    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileBoxHeight, tileSpec.size);
+    const tileGeo = new THREE.BoxGeometry(tileSpec.size, tileHeight, tileSpec.size);
     const tile = new THREE.Mesh(tileGeo, materialSet.materials);
-    const tileCenterY = isFinalTile ? tileSpec.y + (tileBoxHeight - tileHeight) / 2 : tileSpec.y;
-    tile.position.set(tileSpec.x, tileCenterY, tileSpec.z);
+    tile.position.set(tileSpec.x, tileSpec.y, tileSpec.z);
     tile.castShadow = true;
     tile.receiveShadow = true;
     tile.userData.index = tileSpec.id;
@@ -2879,7 +2870,7 @@ function buildSnakeBoard(
     tile.userData.baseColor = materialSet.topMaterial.color.clone();
     tileGroup.add(tile);
     tileMeshes.set(tileSpec.id, tile);
-    const topPosition = new THREE.Vector3(tileSpec.x, tileCenterY + tileBoxHeight / 2, tileSpec.z);
+    const topPosition = new THREE.Vector3(tileSpec.x, tileSpec.y + tileHeight / 2, tileSpec.z);
     indexToPosition.set(tileSpec.id, topPosition);
 
     const label = createTileLabel(tileSpec.id);
@@ -2944,6 +2935,32 @@ function buildSnakeBoard(
     );
   });
 
+  const tileHundred = tileMeshes.get(TOTAL_BOARD_TILES);
+  if (tileHundred) {
+    const supportBaseY = 1.66 * preciseBoardScale;
+    const supportTopY = tileHundred.position.y - tileHeight / 2;
+    const supportHeight = Math.max(
+      TILE_100_SUPPORT_HEIGHT_EXTRA,
+      supportTopY - supportBaseY + TILE_100_SUPPORT_HEIGHT_EXTRA
+    );
+    const supportMaterial = new THREE.MeshStandardMaterial({
+      color: PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, 0.55),
+      roughness: 0.74,
+      metalness: 0.08,
+      emissive: PYRAMID_CONCRETE_ACCENT.clone().multiplyScalar(0.14),
+      emissiveIntensity: 0.18
+    });
+    const support = new THREE.Mesh(
+      new THREE.CylinderGeometry(TILE_100_SUPPORT_RADIUS * 0.85, TILE_100_SUPPORT_RADIUS, supportHeight, 24),
+      supportMaterial
+    );
+    support.position.set(tileHundred.position.x, supportBaseY + supportHeight / 2, tileHundred.position.z);
+    support.castShadow = true;
+    support.receiveShadow = true;
+    platformGroup.add(support);
+    platformMeshes.push(support);
+  }
+
   const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
   const baseStart = new THREE.Vector3(
     -baseHalf - TILE_SIZE * 0.8,
@@ -2976,6 +2993,27 @@ function buildSnakeBoard(
 
   const reserveTokensGroup = new THREE.Group();
   boardStaticRoot.add(reserveTokensGroup);
+
+  const potGroup = new THREE.Group();
+  const coin = new THREE.Mesh(
+    new THREE.CylinderGeometry(TILE_SIZE * 0.22, TILE_SIZE * 0.25, TILE_SIZE * 0.16, 32),
+    new THREE.MeshStandardMaterial({
+      color: useReferenceSpiral ? 0x2dd4bf : 0xf59e0b,
+      roughness: useReferenceSpiral ? 0.36 : 0.3,
+      metalness: useReferenceSpiral ? 0.16 : 0.4,
+      emissive: useReferenceSpiral ? 0x0f766e : 0x332200,
+      emissiveIntensity: useReferenceSpiral ? 0.18 : 0.25
+    })
+  );
+  coin.rotation.x = Math.PI / 2;
+  coin.position.y = COIN_LOCAL_LIFT;
+  coin.castShadow = true;
+  coin.receiveShadow = true;
+  potGroup.add(coin);
+  potGroup.userData.coin = coin;
+  const potPos = serpentineIndexToXZ(TOTAL_BOARD_TILES);
+  potGroup.position.set(potPos.x, potPos.y + COIN_RAISE, potPos.z);
+  boardRotationRoot.add(potGroup);
 
   const diceGroup = new THREE.Group();
   const baseLevelTop = levelPlacements[0].tileTopY;
