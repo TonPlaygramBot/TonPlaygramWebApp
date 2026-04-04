@@ -867,8 +867,8 @@ function cloneBoardMaterial(base, color) {
 
 let sharedKtx2Loader = null;
 
-function createConfiguredGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
+function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
+  const loader = new GLTFLoader(manager);
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
@@ -894,7 +894,28 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
-function prepareLoadedModel(model) {
+function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTextureMapping = false } = {}) {
+  if (!material) return;
+  const normalizeTex = (texture, isColor = false) => {
+    if (!texture) return;
+    if (isColor) applySRGBColorSpace(texture);
+    texture.flipY = false;
+    if (!preserveGltfTextureMapping) {
+      texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+      texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+    }
+    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+    texture.needsUpdate = true;
+  };
+  normalizeTex(material.map, true);
+  normalizeTex(material.emissiveMap, true);
+  normalizeTex(material.normalMap, false);
+  normalizeTex(material.roughnessMap, false);
+  normalizeTex(material.metalnessMap, false);
+  normalizeTex(material.aoMap, false);
+}
+
+function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
   if (!model) return;
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -903,8 +924,8 @@ function prepareLoadedModel(model) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (mat.map) applySRGBColorSpace(mat.map);
-        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping });
+        mat.needsUpdate = true;
       });
     }
   });
@@ -992,6 +1013,55 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
   };
 }
 
+function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
+  const include = manifest?.gltf?.[resolution]?.gltf?.include;
+  if (!include || typeof include !== 'object') return null;
+  const map = new Map();
+  Object.entries(include).forEach(([relativePath, entry]) => {
+    if (!relativePath || typeof relativePath !== 'string') return;
+    const fileUrl = entry?.url;
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    map.set(relativePath, fileUrl);
+    map.set(relativePath.replace(/^\.\//, ''), fileUrl);
+    map.set(relativePath.split('/').pop() || relativePath, fileUrl);
+  });
+  return map;
+}
+
+function buildPolyhavenManifestCandidates(manifest, resolutionOrder = ['2k', '1k']) {
+  if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
+  const availableResolutions = Object.keys(manifest.gltf);
+  const orderedResolutions = Array.from(new Set([...resolutionOrder, ...availableResolutions]));
+  return orderedResolutions
+    .map((resolution) => {
+      const url = manifest?.gltf?.[resolution]?.gltf?.url;
+      if (!url || typeof url !== 'string') return null;
+      return {
+        url,
+        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
+      };
+    })
+    .filter(Boolean);
+}
+
+function createPolyhavenGltfLoader(renderer = null, includeUrlMap = null) {
+  const manager = new THREE.LoadingManager();
+  if (includeUrlMap?.size) {
+    manager.setURLModifier((requestUrl = '') => {
+      const cleanUrl = String(requestUrl || '').split('?')[0];
+      const normalized = cleanUrl.replace(/^\.\//, '');
+      const fileName = normalized.split('/').pop();
+      return (
+        includeUrlMap.get(cleanUrl) ||
+        includeUrlMap.get(normalized) ||
+        includeUrlMap.get(fileName) ||
+        requestUrl
+      );
+    });
+  }
+  return createConfiguredGLTFLoader(renderer, manager);
+}
+
 async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const cacheKey = assetId.toLowerCase();
@@ -1000,11 +1070,23 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   }
 
   const promise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
-    const candidates = buildPolyhavenModelUrls(assetId);
+    const candidates = [];
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (response.ok) {
+        const manifest = await response.json();
+        candidates.push(...buildPolyhavenManifestCandidates(manifest));
+      }
+    } catch (error) {
+      console.warn('Poly Haven manifest lookup failed, using direct model URL fallback', error);
+    }
+    buildPolyhavenModelUrls(assetId).forEach((url) => candidates.push({ url, includeUrlMap: null }));
     let lastError = null;
-    for (const modelUrl of candidates) {
+    for (const candidate of candidates) {
       try {
+        const modelUrl = candidate?.url;
+        if (!modelUrl) continue;
+        const loader = createPolyhavenGltfLoader(renderer, candidate?.includeUrlMap ?? null);
         const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
         const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
         loader.setResourcePath(resourcePath);
@@ -1013,7 +1095,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const gltf = await loader.loadAsync(resolvedUrl);
         const root = gltf.scene || gltf.scenes?.[0] || gltf;
         if (root) {
-          prepareLoadedModel(root);
+          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
           return root;
         }
       } catch (error) {
@@ -1166,13 +1248,13 @@ function fitModelToHeight(model, targetHeight) {
   liftModelToGround(model, 0);
 }
 
-function fitTableModelToArena(model) {
+function fitTableModelToArena(model, tableThemeId = null) {
   if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
   const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
-  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER * getTableWidthScale(tableThemeId);
   const targetRadius = targetDiameter / 2;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
@@ -1194,6 +1276,11 @@ function fitTableModelToArena(model) {
     surfaceY: targetHeight,
     radius
   };
+}
+
+function getTableWidthScale(tableThemeId) {
+  if (!tableThemeId) return 1;
+  return tableThemeId === 'gothic_coffee_table' ? 1 : 1.12;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -1232,7 +1319,8 @@ async function createPolyhavenInstance(
   targetHeight,
   rotationY = 0,
   renderer = null,
-  textureOptions = {}
+  textureOptions = {},
+  preserveOriginalTextures = false
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
@@ -1245,7 +1333,7 @@ async function createPolyhavenInstance(
     textureSet = null,
     preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
-  if (textureLoader) {
+  if (textureLoader && !preserveOriginalTextures) {
     try {
       const textures =
         textureSet ??
@@ -1468,7 +1556,8 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
         TARGET_CHAIR_SIZE.y - TARGET_CHAIR_MIN_Y,
         theme.modelRotation || 0,
         renderer,
-        textureOptions
+        textureOptions,
+        preserve
       );
       fitChairModelToFootprint(model);
       return {
@@ -1731,6 +1820,8 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.052
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
+const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.006;
+let tokenSurfaceOffset = 0;
 const TOKEN_MOVE_SPEED = 3.1;
 const TOKEN_STEP_DURATION_SECONDS = 0.24;
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
@@ -1769,11 +1860,15 @@ HOME_COLUMN_COORDS.forEach((coords, player) => {
 
 function getPlayerHomeHeight(playerIndex) {
   const offset = TOKEN_HOME_HEIGHT_OFFSETS[playerIndex] ?? 0;
-  return TOKEN_HOME_HEIGHT + offset;
+  return TOKEN_HOME_HEIGHT + offset + tokenSurfaceOffset;
 }
 
 function getTokenRailHeight(playerIndex) {
   return getPlayerHomeHeight(playerIndex) + TOKEN_RAIL_HEIGHT_LIFT;
+}
+
+function updateTokenSurfaceOffset(tableThemeId) {
+  tokenSurfaceOffset = tableThemeId === 'murlan-default' ? 0 : NON_OCTAGON_TOKEN_SURFACE_OFFSET;
 }
 
 const DICE_SIZE = 0.076;
@@ -3389,7 +3484,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
           const tableGroup = new THREE.Group();
           tableGroup.add(model);
-          const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+          const { surfaceY, radius } = fitTableModelToArena(tableGroup, tableTheme?.id);
           arena.arenaGroup.add(tableGroup);
           tableInfo = {
             group: tableGroup,
@@ -3437,6 +3532,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       arena.tableInfo = tableInfo;
       arena.tableThemeId = tableTheme?.id || 'murlan-default';
+      updateTokenSurfaceOffset(arena.tableThemeId);
 
       if (boardGroup) {
         boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
@@ -4469,7 +4565,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         stripTableBase(model);
         const tableGroup = new THREE.Group();
         tableGroup.add(model);
-        const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+        const { surfaceY, radius } = fitTableModelToArena(tableGroup, tableTheme?.id);
         arenaGroup.add(tableGroup);
         tableInfo = {
           group: tableGroup,
@@ -4509,6 +4605,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
       tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
     }
+    updateTokenSurfaceOffset(tableInfo.themeId || tableTheme?.id || 'murlan-default');
 
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
