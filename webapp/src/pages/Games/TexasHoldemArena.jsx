@@ -552,6 +552,16 @@ function basename(p) {
   return parts[parts.length - 1] || s;
 }
 
+function normalizePathBasename(value) {
+  if (!value) return '';
+  const base = basename(stripQueryHash(String(value)));
+  try {
+    return decodeURIComponent(base).toLowerCase();
+  } catch {
+    return base.toLowerCase();
+  }
+}
+
 function replaceFileExtension(path, nextExt) {
   if (!path || !nextExt) return path;
   const clean = stripQueryHash(path);
@@ -571,7 +581,7 @@ function resolveTextureFallbackUrl(requestedUrl, fileMap) {
   }
   for (const ext of fallbackExts) {
     const candidate = basename(replaceFileExtension(requestedBase, ext));
-    const mapped = fileMap.get(candidate);
+    const mapped = fileMap.get(normalizePathBasename(candidate));
     if (mapped) return mapped;
   }
   return null;
@@ -834,7 +844,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableTheme', label: 'Table Model', options: TEXAS_TABLE_THEME_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TEXAS_TABLE_FINISH_OPTIONS },
   { key: 'chairTheme', label: 'Chairs', options: TEXAS_CHAIR_THEME_OPTIONS },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
@@ -1005,7 +1014,6 @@ function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['tableFinish', TEXAS_TABLE_FINISH_OPTIONS.length],
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairTheme', TEXAS_CHAIR_THEME_OPTIONS.length],
@@ -1275,7 +1283,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           if (apiModelUrl) modelCandidates.add(apiModelUrl);
           if (!fileMap.size) {
             fileMap = allUrls.reduce((acc, u) => {
-              const b = basename(stripQueryHash(u));
+              const b = normalizePathBasename(u);
               if (!acc.has(b)) acc.set(b, u);
               return acc;
             }, new Map());
@@ -1303,7 +1311,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
           if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
-          const b = basename(req);
+          const b = normalizePathBasename(req);
           const mapped = fileMap.get(b);
           if (mapped) return mapped;
           try {
@@ -3233,7 +3241,6 @@ function TexasHoldemArena({ search }) {
       const normalized = normalizeAppearance(value);
       const map = {
         tableFinish: TEXAS_TABLE_FINISH_OPTIONS,
-        tableWood: TABLE_WOOD_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         chairTheme: TEXAS_CHAIR_THEME_OPTIONS,
