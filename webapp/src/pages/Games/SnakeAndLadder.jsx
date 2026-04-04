@@ -894,8 +894,6 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
   { key: 'stools', label: 'Chairs', options: STOOL_THEME_OPTIONS },
-  { key: 'floorTexture', label: 'Floor Texture', options: FLOOR_TEXTURE_OPTIONS },
-  { key: 'wallTexture', label: 'Wall Texture', options: WALL_TEXTURE_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environments', options: HDRI_OPTIONS }
 ];
 
@@ -964,8 +962,6 @@ const DEFAULT_APPEARANCE = Object.freeze({
   tableFinish: 0,
   tables: 0,
   stools: 0,
-  floorTexture: 0,
-  wallTexture: 0,
   environmentHdri: DEFAULT_HDRI_INDEX
 });
 
@@ -984,8 +980,6 @@ function normalizeAppearance(value = {}) {
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
     ['stools', STOOL_THEME_OPTIONS.length],
-    ['floorTexture', FLOOR_TEXTURE_OPTIONS.length],
-    ['wallTexture', WALL_TEXTURE_OPTIONS.length],
     ['environmentHdri', HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -1013,8 +1007,6 @@ function resolveAppearance(appearance) {
   const snakeSkin = SNAKE_SKIN_OPTIONS[0];
   const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
   const stoolTheme = STOOL_THEME_OPTIONS[normalized.stools] ?? STOOL_THEME_OPTIONS[0];
-  const floorTexture = FLOOR_TEXTURE_OPTIONS[normalized.floorTexture] ?? FLOOR_TEXTURE_OPTIONS[0];
-  const wallTexture = WALL_TEXTURE_OPTIONS[normalized.wallTexture] ?? WALL_TEXTURE_OPTIONS[0];
   const environmentHdri =
     HDRI_OPTIONS[normalized.environmentHdri] ??
     HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
@@ -1036,8 +1028,6 @@ function resolveAppearance(appearance) {
     snakeSkin: { ...snakeSkin },
     tableTheme,
     stoolTheme,
-    floorTexture,
-    wallTexture,
     environmentHdri
   };
 }
@@ -3409,8 +3399,7 @@ export default function SnakeAndLadder() {
           </div>
         );
       }
-      case 'floorTexture':
-      case 'wallTexture': {
+      case 'tableFinish': {
         const swatches = option.swatches || ['#94a3b8', '#1f2937'];
         return (
           <div

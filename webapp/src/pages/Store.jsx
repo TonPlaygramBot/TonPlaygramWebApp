@@ -259,8 +259,6 @@ const SNAKE_TYPE_LABELS = {
   tableFinish: 'Table Finish',
   tables: 'Table Models',
   stools: 'Chairs',
-  floorTexture: 'Floor Textures',
-  wallTexture: 'Wall Textures',
   environmentHdri: 'HDR Environments'
 };
 
@@ -931,14 +929,6 @@ const USAGE_BY_TYPE = {
     title: 'Token shape',
     description: 'Changes the 3D token shape shown in matches and previews.'
   },
-  floorTexture: {
-    title: 'Floor texture',
-    description: 'Swaps the floor surface texture used in the arena scene.'
-  },
-  wallTexture: {
-    title: 'Wall texture',
-    description: 'Replaces the arena wall panels visible behind the board.'
-  }
 };
 
 const hashString = (value) => {
