@@ -2322,7 +2322,8 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06;
+const TABLE_SIDE_TRIM_SCALE = 0.96;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
@@ -3403,14 +3404,20 @@ export default function MurlanRoyaleArena({ search }) {
 
     const anchors = seatConfigs.map((seat, index) => {
       const anchorPoint = new THREE.Vector3();
-      const headBone = seat?.characterRig?.bones?.head;
-      if (headBone) {
-        headBone.getWorldPosition(anchorPoint);
-        anchorPoint.y += 0.08 * MODEL_SCALE;
+      const shouldUseChairAnchor = !gameStateRef.current?.players?.[index]?.isHuman;
+      if (shouldUseChairAnchor && seat?.chair) {
+        seat.chair.getWorldPosition(anchorPoint);
+        anchorPoint.y += 0.32 * MODEL_SCALE;
       } else {
-        const stool = seat.stoolPosition ? seat.stoolPosition.clone() : new THREE.Vector3();
-        stool.y = seat.stoolHeight ?? CHAIR_BASE_HEIGHT;
-        anchorPoint.copy(stool);
+        const headBone = seat?.characterRig?.bones?.head;
+        if (headBone) {
+          headBone.getWorldPosition(anchorPoint);
+          anchorPoint.y += 0.08 * MODEL_SCALE;
+        } else {
+          const stool = seat.stoolPosition ? seat.stoolPosition.clone() : new THREE.Vector3();
+          stool.y = seat.stoolHeight ?? CHAIR_BASE_HEIGHT;
+          anchorPoint.copy(stool);
+        }
       }
       const projected = anchorPoint.clone().project(camera);
       const x = clampValue(((projected.x + 1) / 2) * 100, -10, 110);
@@ -3849,7 +3856,7 @@ export default function MurlanRoyaleArena({ search }) {
         const procedural = createMurlanStyleTable({
           arena: three.arena,
           renderer: three.renderer,
-          tableRadius: TABLE_RADIUS,
+          tableRadius: TABLE_RADIUS * TABLE_SIDE_TRIM_SCALE,
           tableHeight: TABLE_HEIGHT,
           includeBase: true,
           shapeOption,
