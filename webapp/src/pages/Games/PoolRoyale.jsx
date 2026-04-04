@@ -14645,14 +14645,6 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [replayFoul, setReplayFoul] = useState(null);
-const [replayPotLabel, setReplayPotLabel] = useState(null);
-const handleSkipReplayClick = useCallback(() => {
-  if (skipReplayRef.current) {
-    skipReplayRef.current();
-  } else {
-    setReplayActive(false);
-  }
-}, []);
   const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
   const [bottomHudOffset, setBottomHudOffset] = useState(0);
   const inHandTopViewRef = useRef(false);
@@ -15334,7 +15326,6 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const replayCueHiddenRef = useRef({ hideFrom: Infinity, hideUntil: -Infinity });
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -21484,16 +21475,6 @@ const powerRef = useRef(hud.power);
               if (meshB.visible != null) {
                 ball.mesh.visible = meshB.visible;
               }
-              if (ball.id === 'cue' && replayPlaybackRef.current) {
-                const hidden = replayCueHiddenRef.current;
-                if (
-                  hidden &&
-                  targetTime >= (hidden.hideFrom ?? Infinity) &&
-                  targetTime < (hidden.hideUntil ?? -Infinity)
-                ) {
-                  ball.mesh.visible = false;
-                }
-              }
             }
             if (ball.shadow) {
               ball.shadow.visible = ball.mesh?.visible ?? ball.shadow.visible;
@@ -22330,61 +22311,14 @@ const powerRef = useRef(hud.power);
           pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
-          setReplayPotLabel(shotRecording?.replayPotLabel ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
-          const replayCueStroke = trimmed.cueStroke ?? null;
-          const replayCueHideFrom = replayCueStroke
-            ? Math.max(
-                0,
-                (replayCueStroke.pullback ?? replayCueStroke.pullbackDuration ?? 0) +
-                  (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0)
-              )
-            : 180;
-          replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
-          const foulReason = String(shotRecording?.replayFoul?.reason ?? '').toLowerCase();
-          const wrongBallFoul = foulReason.includes('wrong ball');
-          const slowImpactAt =
-            wrongBallFoul && Number.isFinite(shotRecording?.replaySlowImpactMs)
-              ? THREE.MathUtils.clamp(shotRecording.replaySlowImpactMs, 0, duration)
-              : null;
-          const slowWindow = Math.max(40, REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS);
-          const slowHalfWindow = slowWindow / 2;
-          const slowFactor = THREE.MathUtils.clamp(
-            REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR,
-            0.1,
-            1
-          );
-          const hasWrongBallSlowImpact =
-            slowImpactAt != null &&
-            slowFactor < 0.999 &&
-            slowImpactAt > 0 &&
-            slowImpactAt < duration;
-          const slowStart = hasWrongBallSlowImpact
-            ? Math.max(0, slowImpactAt - slowHalfWindow)
-            : null;
-          const slowEnd = hasWrongBallSlowImpact
-            ? Math.min(duration, slowImpactAt + slowHalfWindow)
-            : null;
-          const slowSpan =
-            slowStart != null && slowEnd != null ? Math.max(0, slowEnd - slowStart) : 0;
-          const slowExtraDuration =
-            hasWrongBallSlowImpact && slowSpan > 0 ? slowSpan * (1 / slowFactor - 1) : 0;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
-            cueStroke: replayCueStroke,
+            cueStroke: trimmed.cueStroke ?? null,
             duration,
-            effectiveDuration: duration + slowExtraDuration,
-            wrongBallSlowImpact:
-              hasWrongBallSlowImpact && slowStart != null && slowEnd != null
-                ? {
-                    start: slowStart,
-                    end: slowEnd,
-                    factor: slowFactor
-                  }
-                : null,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
@@ -22482,10 +22416,8 @@ const powerRef = useRef(hud.power);
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
           overheadBroadcastVariantRef.current = 'rail';
-          replayCueHiddenRef.current = { hideFrom: Infinity, hideUntil: -Infinity };
           setReplayActive(false);
           setReplayFoul(null);
-          setReplayPotLabel(null);
         };
         const skipReplay = () => {
           if (replayBannerTimeoutRef.current) {
@@ -28235,16 +28167,6 @@ const powerRef = useRef(hud.power);
           shotRecording.replayFoul = safeState?.foul
             ? { ...safeState.foul }
             : null;
-          const replayPot = potted.find((entry) => entry && entry.id !== 'cue' && entry.color);
-          shotRecording.replayPotLabel = replayPot
-            ? String(replayPot.color).toUpperCase()
-            : null;
-          const foulReasonText = String(safeState?.foul?.reason ?? '').toLowerCase();
-          const wrongBallFoul = foulReasonText.includes('wrong ball');
-          shotRecording.replaySlowImpactMs =
-            wrongBallFoul && Number.isFinite(shotRecording.firstCueImpactMs)
-              ? shotRecording.firstCueImpactMs
-              : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
         if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
@@ -32360,16 +32282,11 @@ const powerRef = useRef(hud.power);
                 Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
               </div>
             )}
-            {!replayFoul && replayPotLabel && (
-              <div className="mt-2 rounded-full border border-emerald-300/70 bg-emerald-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-50 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
-                Potted: {replayPotLabel}
-              </div>
-            )}
           </div>
           <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
               type="button"
-              onClick={handleSkipReplayClick}
+              onClick={() => skipReplayRef.current?.()}
               className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
             >
               <svg
