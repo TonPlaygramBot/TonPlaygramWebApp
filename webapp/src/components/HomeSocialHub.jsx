@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserFriends, FaGamepad, FaComments, FaVideo } from 'react-icons/fa';
+import { FaUserFriends, FaGamepad, FaComments } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
@@ -314,27 +314,6 @@ export default function HomeSocialHub() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-white flex items-center gap-2">
-            <FaVideo className="text-primary" /> Clips & Highlights
-          </p>
-          <span className="text-xs text-subtext">Share</span>
-        </div>
-        <p className="text-xs text-subtext">
-          Upload short clips, add a caption, and share to the wall or direct messages.
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            type="file"
-            accept="video/*"
-            className="text-xs text-subtext file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-background"
-          />
-          <button className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background">
-            Upload Clip
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
