@@ -1,4 +1,4 @@
-import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import {
@@ -30,6 +30,7 @@ const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) =>
 
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
+  tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
   tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairTheme: [TEXAS_CHAIR_THEME_OPTIONS[0]?.id],
@@ -45,6 +46,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
 
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   tableFinish: Object.freeze(reduceLabels(TEXAS_TABLE_FINISH_OPTIONS)),
+  tableWood: Object.freeze(reduceLabels(TABLE_WOOD_OPTIONS)),
   tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
   chairTheme: Object.freeze(reduceLabels(TEXAS_CHAIR_THEME_OPTIONS)),
@@ -68,6 +70,15 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     price: option.price,
     description: option.description,
     swatches: option.swatches,
+    thumbnail: option.thumbnail
+  })),
+  ...TABLE_WOOD_OPTIONS.slice(1).map((option, idx) => ({
+    id: `texas-wood-${option.id}`,
+    type: 'tableWood',
+    optionId: option.id,
+    name: option.label,
+    price: 540 + idx * 40,
+    description: "Unlock an alternate wood finish for your Hold'em arena table.",
     thumbnail: option.thumbnail
   })),
   ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
@@ -142,6 +153,7 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
     optionId: TEXAS_TABLE_FINISH_OPTIONS[0]?.id,
     label: TEXAS_TABLE_FINISH_OPTIONS[0]?.label
   },
+  { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
   { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairTheme', optionId: TEXAS_CHAIR_THEME_OPTIONS[0]?.id, label: TEXAS_CHAIR_THEME_OPTIONS[0]?.label },
