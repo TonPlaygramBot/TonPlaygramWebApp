@@ -25338,9 +25338,9 @@ const powerRef = useRef(hud.power);
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
-        const pullRange = 0.34;
-        const pullTarget = pullRange * easeOutCubic(clampedPower);
-        const pulledNow = Math.max(cuePullCurrentRef.current ?? 0, pullTarget);
+        const pullRange = 0.24;
+        const pullTarget = pullRange * strokeProfile.pullRatio;
+        const pulledNow = cuePullCurrentRef.current ?? pullTarget;
         const visualCommittedPower = THREE.MathUtils.clamp(
           pulledNow / Math.max(pullRange, 1e-6),
           0,
@@ -25641,8 +25641,9 @@ const powerRef = useRef(hud.power);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          // Start release from the same computed pulled pose that feeds power.
-          const releaseStartPos = buildCuePosition(visualPull);
+          // Start the release from the *currently visible* pulled cue position
+          // so slider release always pushes forward from what the player sees.
+          const releaseStartPos = cueStick.position.clone();
           cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -25650,8 +25651,8 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = 120;
-          const strikeHoldDuration = 50;
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const shotStrength = THREE.MathUtils.clamp(resolvedShotPower, 0, 1);
@@ -25834,7 +25835,7 @@ const powerRef = useRef(hud.power);
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
