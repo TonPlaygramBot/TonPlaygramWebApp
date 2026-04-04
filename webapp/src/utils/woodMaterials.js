@@ -372,7 +372,13 @@ const makeInlineOakVeneerPattern = ({
   return { mapUrl: colorMap, roughnessMapUrl: roughnessMap, normalMapUrl: null };
 };
 
-const makeInlineCarbonFiberPattern = ({ id }) => {
+const makeInlineCarbonFiberPattern = ({
+  id,
+  base = '#07090f',
+  tile = '#0c111a',
+  weave = '#131926',
+  lineAlpha = 0.04
+}) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -380,12 +386,12 @@ const makeInlineCarbonFiberPattern = ({ id }) => {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       // Match Pool Royale chalk carbon-fiber weave exactly (same geometry and tile size).
-      ctx.fillStyle = '#07090f';
+      ctx.fillStyle = base;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#0c111a';
+      ctx.fillStyle = tile;
       ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
       ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
-      ctx.fillStyle = '#131926';
+      ctx.fillStyle = weave;
       ctx.beginPath();
       ctx.moveTo(canvas.width / 2, 0);
       ctx.lineTo(canvas.width, 0);
@@ -399,7 +405,7 @@ const makeInlineCarbonFiberPattern = ({ id }) => {
       ctx.lineTo(canvas.width / 2, canvas.height);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.strokeStyle = `rgba(255,255,255,${lineAlpha})`;
       ctx.lineWidth = 1;
       for (let i = -canvas.width; i <= canvas.width; i += canvas.width / 4) {
         ctx.beginPath();
@@ -413,11 +419,11 @@ const makeInlineCarbonFiberPattern = ({ id }) => {
   }
   const fallback = svgDataUrl(`
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" fill="#07090f"/>
-  <rect width="64" height="64" fill="#0c111a"/>
-  <rect x="64" y="64" width="64" height="64" fill="#0c111a"/>
-  <path d="M64 0 H128 L0 128 V64 Z" fill="#131926"/>
-  <path d="M128 64 V128 H64 Z" fill="#131926"/>
+  <rect width="128" height="128" fill="${base}"/>
+  <rect width="64" height="64" fill="${tile}"/>
+  <rect x="64" y="64" width="64" height="64" fill="${tile}"/>
+  <path d="M64 0 H128 L0 128 V64 Z" fill="${weave}"/>
+  <path d="M128 64 V128 H64 Z" fill="${weave}"/>
 </svg>`);
   return { mapUrl: fallback, roughnessMapUrl: null, normalMapUrl: null };
 };
@@ -672,6 +678,116 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: 0,
       textureSize: 2048,
       ...makeInlineCarbonFiberPattern({ id: 'carbon-chalk-frame' })
+    }
+  }),
+  Object.freeze({
+    id: 'carbon_fiber_grey',
+    label: 'Carbon Fiber Grey',
+    source: 'TonPlaygram custom carbon weave',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-grey',
+        base: '#222831',
+        tile: '#353d48',
+        weave: '#596675'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-grey-frame',
+        base: '#222831',
+        tile: '#353d48',
+        weave: '#596675'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'carbon_fiber_beige',
+    label: 'Carbon Fiber Beige',
+    source: 'TonPlaygram custom carbon weave',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-beige',
+        base: '#6f5f4f',
+        tile: '#8b7763',
+        weave: '#baa286'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-beige-frame',
+        base: '#6f5f4f',
+        tile: '#8b7763',
+        weave: '#baa286'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'carbon_fiber_dark_blue',
+    label: 'Carbon Fiber Dark Blue',
+    source: 'TonPlaygram custom carbon weave',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-dark-blue',
+        base: '#0f1730',
+        tile: '#1d2a50',
+        weave: '#3f5388'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-dark-blue-frame',
+        base: '#0f1730',
+        tile: '#1d2a50',
+        weave: '#3f5388'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'carbon_fiber_white',
+    label: 'Carbon Fiber White',
+    source: 'TonPlaygram custom carbon weave',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-white',
+        base: '#cad2de',
+        tile: '#dde4ee',
+        weave: '#f7f9ff',
+        lineAlpha: 0.08
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlineCarbonFiberPattern({
+        id: 'carbon-white-frame',
+        base: '#cad2de',
+        tile: '#dde4ee',
+        weave: '#f7f9ff',
+        lineAlpha: 0.08
+      })
     }
   })
 ]);
