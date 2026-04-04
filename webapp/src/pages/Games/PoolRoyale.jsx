@@ -1985,7 +1985,7 @@ const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale wit
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
-const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 1.75; // tighten rail texel density so GLTF rail grain matches the leg grain scale.
+const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 2.275; // shrink GLTF rail grain by ~30% (smaller pattern tiles) while keeping leg density aligned.
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -2475,6 +2475,87 @@ function scaleWoodRepeatVector (repeatVec, scale) {
   return vec
 }
 
+const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
+let CARBON_FIBER_TILE_CANVAS = null;
+let CARBON_FIBER_TILE_TEXTURE = null;
+
+function createCarbonFiberPatternCanvas(size = 128) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#07090f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0c111a';
+  ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+  ctx.fillRect(
+    canvas.width / 2,
+    canvas.height / 2,
+    canvas.width / 2,
+    canvas.height / 2
+  );
+  ctx.fillStyle = '#131926';
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width, 0);
+  ctx.lineTo(0, canvas.height);
+  ctx.lineTo(0, canvas.height / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(canvas.width, canvas.height / 2);
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = -canvas.width; i <= canvas.width; i += canvas.width / 4) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + canvas.width, canvas.height);
+    ctx.stroke();
+  }
+  return canvas;
+}
+
+function getCarbonFiberPatternCanvas() {
+  if (!CARBON_FIBER_TILE_CANVAS) {
+    CARBON_FIBER_TILE_CANVAS = createCarbonFiberPatternCanvas(128);
+  }
+  return CARBON_FIBER_TILE_CANVAS;
+}
+
+function getCarbonFiberTileTexture() {
+  if (CARBON_FIBER_TILE_TEXTURE) return CARBON_FIBER_TILE_TEXTURE;
+  const canvas = getCarbonFiberPatternCanvas();
+  if (!canvas) return null;
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(LT_CARBON_TEXTURE_REPEAT.x, LT_CARBON_TEXTURE_REPEAT.y);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+  texture.needsUpdate = true;
+  CARBON_FIBER_TILE_TEXTURE = texture;
+  return CARBON_FIBER_TILE_TEXTURE;
+}
+
+function applyLtCarbonFiberTexture(material) {
+  if (!material) return;
+  const carbonTexture = getCarbonFiberTileTexture();
+  if (!carbonTexture) return;
+  material.map = carbonTexture;
+  material.normalMap = null;
+  material.roughnessMap = null;
+  material.needsUpdate = true;
+}
+
 function applySharedWoodSurfaceProps(material) {
   if (!material) return;
   const mapUrl = material.userData?.__woodOptions?.mapUrl;
@@ -2909,7 +2990,8 @@ const createStandardWoodFinish = ({
   woodTextureId,
   woodRepeatScale,
   disableWoodPattern = false,
-  surfaceStyle = 'standard'
+  surfaceStyle = 'standard',
+  useBrandCarbonTexture = false
 }) => ({
   id,
   label,
@@ -2922,6 +3004,7 @@ const createStandardWoodFinish = ({
   woodTextureId,
   woodRepeatScale,
   disableWoodPattern,
+  useBrandCarbonTexture,
   surfaceStyle,
   createMaterials: () => {
     const useMatteSurface = surfaceStyle === 'matte';
@@ -3050,7 +3133,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'plastic_monoblock_lt_black',
     woodRepeatScale: 1,
     disableWoodPattern: true,
-    surfaceStyle: 'matte'
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: true
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
@@ -3061,7 +3145,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
-    surfaceStyle: 'matte'
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: true
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
@@ -3072,7 +3157,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
-    surfaceStyle: 'matte'
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: true
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
@@ -3083,7 +3169,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
-    surfaceStyle: 'matte'
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: true
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
@@ -3094,7 +3181,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1,
     disableWoodPattern: true,
-    surfaceStyle: 'matte'
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: true
   })
 });
 
@@ -8092,10 +8180,14 @@ export function Table3D(
   if (resolvedFinish?.disableWoodPattern) {
     [railMat, frameMat, legMat].forEach((mat) => {
       if (!mat) return;
-      mat.map = null;
-      mat.normalMap = null;
-      mat.roughnessMap = null;
-      mat.needsUpdate = true;
+      if (resolvedFinish?.useBrandCarbonTexture) {
+        applyLtCarbonFiberTexture(mat);
+      } else {
+        mat.map = null;
+        mat.normalMap = null;
+        mat.roughnessMap = null;
+        mat.needsUpdate = true;
+      }
     });
   } else {
     applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
@@ -9450,47 +9542,7 @@ export function Table3D(
     );
   };
 
-  const carbonFiberPatternCanvas = (() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#07090f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#0c111a';
-    ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-    ctx.fillRect(
-      canvas.width / 2,
-      canvas.height / 2,
-      canvas.width / 2,
-      canvas.height / 2
-    );
-    ctx.fillStyle = '#131926';
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width, 0);
-    ctx.lineTo(0, canvas.height);
-    ctx.lineTo(0, canvas.height / 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(canvas.width, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 1;
-    for (let i = -canvas.width; i <= canvas.width; i += canvas.width / 4) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + canvas.width, canvas.height);
-      ctx.stroke();
-    }
-    return canvas;
-  })();
+  const carbonFiberPatternCanvas = getCarbonFiberPatternCanvas();
 
   const createCarbonLabelTexture = ({
     width = 2048,
@@ -12230,8 +12282,19 @@ function applyTableFinishToTable(table, finish) {
       woodRepeatScale
     };
 
-    applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
-    applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+    if (resolvedFinish?.disableWoodPattern) {
+      [railMat, frameMat].forEach((mat) => {
+        if (!mat) return;
+        if (resolvedFinish?.useBrandCarbonTexture) {
+          applyLtCarbonFiberTexture(mat);
+        } else {
+          stripWoodTextures(mat);
+        }
+      });
+    } else {
+      applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
+      applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+    }
     applyTableFinishDulling(railMat);
     applyTableFinishDulling(frameMat);
     applyTableWoodVisibilityTuning(railMat);
@@ -12248,9 +12311,17 @@ function applyTableFinishToTable(table, finish) {
         mesh.material = nextMaterial;
       }
       if (!mesh.material || mesh.userData?.skipWoodTexture) return;
-      const underlaySurface =
-        baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
-      applyWoodTextureToMaterial(mesh.material, underlaySurface);
+      if (resolvedFinish?.disableWoodPattern) {
+        if (resolvedFinish?.useBrandCarbonTexture) {
+          applyLtCarbonFiberTexture(mesh.material);
+        } else {
+          stripWoodTextures(mesh.material);
+        }
+      } else {
+        const underlaySurface =
+          baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
+        applyWoodTextureToMaterial(mesh.material, underlaySurface);
+      }
       applyTableFinishDulling(mesh.material);
       applyTableWoodVisibilityTuning(mesh.material);
       if (mesh.material.color && sourceMaterial?.color) {
@@ -12259,10 +12330,18 @@ function applyTableFinishToTable(table, finish) {
       mesh.material.needsUpdate = true;
     });
     if (legMat !== frameMat) {
-      applyWoodTextureToMaterial(legMat, {
-        ...synchronizedFrameSurface,
-        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
-      });
+      if (resolvedFinish?.disableWoodPattern) {
+        if (resolvedFinish?.useBrandCarbonTexture) {
+          applyLtCarbonFiberTexture(legMat);
+        } else {
+          stripWoodTextures(legMat);
+        }
+      } else {
+        applyWoodTextureToMaterial(legMat, {
+          ...synchronizedFrameSurface,
+          rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+        });
+      }
     }
     applyTableFinishDulling(legMat);
     applyTableWoodVisibilityTuning(legMat);
@@ -28167,8 +28246,7 @@ const powerRef = useRef(hud.power);
           });
           let shouldStartReplay =
             !skipAllReplaysRef.current &&
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+            Boolean(replayDecision?.shouldReplay);
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28870,7 +28948,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
+          if (!skipAllReplaysRef.current) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
