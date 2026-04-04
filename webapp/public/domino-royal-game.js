@@ -2710,18 +2710,67 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) 
   });
 }
 
-function createPolyhavenGltfLoader(includeUrlMap = null) {
+function resolvePolyhavenTextureFormatFromRequest(requestPath = '') {
+  const ext = (requestPath.split('.').pop() || '').toLowerCase();
+  if (!ext) return null;
+  if (ext === 'jpg' || ext === 'jpeg') return 'jpg';
+  if (ext === 'png') return 'png';
+  if (ext === 'webp') return 'webp';
+  if (ext === 'avif') return 'avif';
+  if (ext === 'ktx2') return 'ktx2';
+  return null;
+}
+
+function buildPolyhavenFallbackIncludeUrl(
+  requestUrl = '',
+  { assetId = '', resolution = '2k' } = {}
+) {
+  const cleanUrl = String(requestUrl || '').split('?')[0];
+  if (!cleanUrl) return null;
+  const normalized = cleanUrl.replace(/^\.\//, '');
+  const fileName = normalized.split('/').pop();
+  if (!fileName) return null;
+  const textureFormat = resolvePolyhavenTextureFormatFromRequest(fileName);
+  if (!textureFormat) return null;
+  if (!normalized.includes('/textures/') && !normalized.startsWith('textures/')) {
+    return null;
+  }
+  const resolvedAssetId = String(assetId || '').trim();
+  if (!resolvedAssetId) return null;
+  const resolvedResolution = String(resolution || '2k').toLowerCase();
+  return `https://dl.polyhaven.org/file/ph-assets/Textures/${textureFormat}/${resolvedResolution}/${resolvedAssetId}/${fileName}`;
+}
+
+function createPolyhavenGltfLoader(
+  includeUrlMap = null,
+  { assetId = '', resolution = '2k' } = {}
+) {
   const manager = new THREE.LoadingManager();
   if (includeUrlMap?.size) {
     manager.setURLModifier((requestUrl = '') => {
       const cleanUrl = String(requestUrl || '').split('?')[0];
       const normalized = cleanUrl.replace(/^\.\//, '');
       const fileName = normalized.split('/').pop();
-      return (
+      const mappedUrl =
         includeUrlMap.get(cleanUrl) ||
         includeUrlMap.get(normalized) ||
         includeUrlMap.get(fileName) ||
-        requestUrl
+        null;
+      if (mappedUrl) return mappedUrl;
+      return (
+        buildPolyhavenFallbackIncludeUrl(requestUrl, {
+          assetId,
+          resolution
+        }) || requestUrl
+      );
+    });
+  } else {
+    manager.setURLModifier((requestUrl = '') => {
+      return (
+        buildPolyhavenFallbackIncludeUrl(requestUrl, {
+          assetId,
+          resolution
+        }) || requestUrl
       );
     });
   }
@@ -2788,7 +2837,10 @@ async function loadPolyhavenModel(
           filesManifest,
           candidate?.resolution || preferredResolutions[0] || '2k'
         );
-      const loader = createPolyhavenGltfLoader(includeUrlMap);
+      const loader = createPolyhavenGltfLoader(includeUrlMap, {
+        assetId,
+        resolution: candidate?.resolution || preferredResolutions[0] || '2k'
+      });
       const resolvedUrl = new URL(
         candidateUrl,
         typeof window !== 'undefined' ? window.location?.href : candidateUrl
