@@ -2906,7 +2906,8 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale
+  woodRepeatScale,
+  disableWoodPattern = false
 }) => ({
   id,
   label,
@@ -2918,6 +2919,7 @@ const createStandardWoodFinish = ({
   }),
   woodTextureId,
   woodRepeatScale,
+  disableWoodPattern,
   createMaterials: () => {
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
@@ -2977,6 +2979,18 @@ const createStandardWoodFinish = ({
   }
 });
 
+
+const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
+  // Real-world scan spans from Poly Haven pages (April 4, 2026):
+  // wood_peeling_paint_weathered 0.8m, oak_veneer_01 1.8m,
+  // wood_table_001 1.5m, dark_wood 2.0m, rosewood_veneer_01 2.4m.
+  wood_peeling_paint_weathered: 0.8,
+  oak_veneer_01: 1.8,
+  wood_table_001: 1.5,
+  dark_wood: 2,
+  rosewood_veneer_01: 2.4
+});
+
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2985,7 +2999,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0xa89f95,
     trim: 0xd6d0c7,
     woodTextureId: 'wood_peeling_paint_weathered',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.wood_peeling_paint_weathered
   }),
   oakVeneer01: createStandardWoodFinish({
     id: 'oakVeneer01',
@@ -2994,7 +3008,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0xb9854e,
     trim: 0xe0bb7a,
     woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.oak_veneer_01
   }),
   woodTable001: createStandardWoodFinish({
     id: 'woodTable001',
@@ -3003,7 +3017,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x8f6243,
     trim: 0xc89a64,
     woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.wood_table_001
   }),
   darkWood: createStandardWoodFinish({
     id: 'darkWood',
@@ -3012,7 +3026,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x2f241f,
     trim: 0x6a5a52,
     woodTextureId: 'dark_wood',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.dark_wood
   }),
   rosewoodVeneer01: createStandardWoodFinish({
     id: 'rosewoodVeneer01',
@@ -3021,7 +3035,7 @@ const TABLE_FINISHES = Object.freeze({
     base: 0x5b2f26,
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
