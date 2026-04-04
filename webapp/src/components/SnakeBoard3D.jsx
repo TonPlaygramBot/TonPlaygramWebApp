@@ -244,7 +244,8 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
 }));
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
-const BOARD_ROTATION_DRAG_SPEED = 0.0065;
+const CAMERA_LOOK_DRAG_SPEED = 0.0046;
+const CAMERA_LOOK_TARGET_DISTANCE = 6.2;
 const CAMERA_EXTRA_LIFT = 0.12;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -436,7 +437,7 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const outwardSpread = 1.24;
+  const outwardSpread = 1.34;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -2628,12 +2629,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = true;
+  controls.enableZoom = false;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
   controls.minAzimuthAngle = -Infinity;
   controls.maxAzimuthAngle = Infinity;
-  controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+  controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE };
   controls.mouseButtons = {
     LEFT: null,
     MIDDLE: THREE.MOUSE.DOLLY,
@@ -2647,6 +2648,25 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.maxPolarAngle = Math.min(controls.maxPolarAngle, initialPolar);
   controls.target.copy(boardLookTarget);
   controls.update();
+  const initialLookTarget = boardLookTarget.clone();
+  let cameraLookYaw = Math.atan2(
+    initialLookTarget.x - camera.position.x,
+    initialLookTarget.z - camera.position.z
+  );
+  const applyCameraLookYaw = () => {
+    const lookTarget = new THREE.Vector3(
+      camera.position.x + Math.sin(cameraLookYaw) * CAMERA_LOOK_TARGET_DISTANCE,
+      initialLookTarget.y,
+      camera.position.z + Math.cos(cameraLookYaw) * CAMERA_LOOK_TARGET_DISTANCE
+    );
+    camera.lookAt(lookTarget);
+    controls.target.copy(lookTarget);
+    controls.update();
+  };
+  const rotateCameraLookYaw = (deltaYaw = 0) => {
+    cameraLookYaw += deltaYaw;
+    applyCameraLookYaw();
+  };
   const startCameraState = {
     position: camera.position.clone(),
     target: boardLookTarget.clone()
@@ -2736,8 +2756,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = camera.position.distanceTo(boardLookTarget);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-    camera.lookAt(boardLookTarget);
-    controls.target.copy(boardLookTarget);
+    applyCameraLookYaw();
     fit();
   };
 
@@ -2760,6 +2779,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     updateCameraTarget,
     updateHdriZoom,
     controls,
+    applyCameraLookYaw,
+    rotateCameraLookYaw,
     tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     startCameraState
@@ -3993,7 +4014,6 @@ export default function SnakeBoard3D({
     };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
 
-    const boardRotationRoot = board.rotationRoot || board.root;
     const dragState = {
       pointerId: null,
       lastX: 0,
@@ -4026,9 +4046,7 @@ export default function SnakeBoard3D({
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
-      if (boardRotationRoot) {
-        boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
-      }
+      arena.rotateCameraLookYaw?.(-deltaX * CAMERA_LOOK_DRAG_SPEED);
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
