@@ -46,12 +46,13 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'sunsetAmber', label: 'Sunset Amber' }
   ],
   dominoDotStyle: [
-    { id: 'pawnClassic', label: 'Pawn Classic' },
-    { id: 'pawnRuby', label: 'Pawn Ruby' },
-    { id: 'pawnSapphire', label: 'Pawn Sapphire' },
-    { id: 'pawnChrome', label: 'Pawn Chrome' },
-    { id: 'pawnGold', label: 'Pawn Gold' },
-    { id: 'pawnEmerald', label: 'Pawn Emerald' }
+    { id: 'headRuby', label: 'Ruby' },
+    { id: 'headPearl', label: 'Pearl' },
+    { id: 'headSapphire', label: 'Sapphire' },
+    { id: 'headEmerald', label: 'Emerald' },
+    { id: 'headDiamond', label: 'Diamond' },
+    { id: 'headChrome', label: 'Chrome' },
+    { id: 'headGold', label: 'Gold' }
   ],
   dominoFrameStyle: [
     { id: 'goldImperial', label: 'Gold Imperial' },
@@ -96,12 +97,13 @@ const DOMINO_STYLE_THUMBNAILS = Object.freeze({
 
 
 const DOMINO_DOT_STYLE_THUMBNAILS = Object.freeze({
-  pawnClassic: '/assets/game-art/chess-battle-royal/heads/current.svg',
-  pawnRuby: '/assets/game-art/chess-battle-royal/heads/headRuby.svg',
-  pawnSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
-  pawnChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
-  pawnGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg',
-  pawnEmerald: swatchThumbnail(['#065f46', '#10b981', '#d1fae5'])
+  headRuby: '/assets/game-art/chess-battle-royal/heads/headRuby.svg',
+  headPearl: '/assets/game-art/chess-battle-royal/heads/current.svg',
+  headSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
+  headEmerald: swatchThumbnail(['#065f46', '#10b981', '#d1fae5']),
+  headDiamond: swatchThumbnail(['#f8fafc', '#dbeafe', '#bfdbfe']),
+  headChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
+  headGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
 });
 
 const DOMINO_FRAME_STYLE_THUMBNAILS = Object.freeze({
@@ -214,7 +216,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     optionId: option.id,
     name: option.label,
     price: 640 + idx * 35,
-    description: 'Chess Battle Royal pawn-head inspired dot set for domino pips.',
+    description: 'Chess Battle Royal head-material inspired dot set for domino pips (no glass option).',
     thumbnail: DOMINO_DOT_STYLE_THUMBNAILS[option.id]
   })),
   ...DOMINO_ROYAL_OPTION_SETS.dominoFrameStyle.slice(1).map((option, idx) => ({
