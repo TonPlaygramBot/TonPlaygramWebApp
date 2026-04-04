@@ -422,6 +422,8 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
+const NON_CLASSIC_TABLE_PLAYER_LAYER_DROP = CARD_H * 0.16;
+const NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES = new Set(['classicOctagon', 'grandOval', 'diamondEdge']);
 const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
 const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.4;
 const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.5;
@@ -2021,6 +2023,9 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
+  const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
+    ? 0
+    : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
@@ -2070,22 +2075,22 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, cardInwardShift)
       .addScaledVector(right, cardLateralShift);
-    cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
+    cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET - seatLayerDrop;
     const chipAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipAnchor.y = railSurfaceY;
+    chipAnchor.y = railSurfaceY - seatLayerDrop;
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
       .addScaledVector(right, cardLateralShift);
-    cardRailAnchor.y = railSurfaceY;
+    cardRailAnchor.y = railSurfaceY - seatLayerDrop;
     const chipRailAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipRailAnchor.y = railSurfaceY;
+    chipRailAnchor.y = railSurfaceY - seatLayerDrop;
     const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
@@ -2113,6 +2118,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       },
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
+      seatLayerDrop,
       isHuman,
       isBottomSideOpponent
     });
@@ -2127,7 +2133,7 @@ function getHumanCardAnchor(seatGroup) {
   const blended = cardBase
     .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
     .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET;
+  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET - (seatGroup.seatLayerDrop ?? 0);
   return blended;
 }
 
@@ -2155,13 +2161,17 @@ function computePotAnchor(options = {}) {
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const forward = (options.forward ?? new THREE.Vector3(0, 0, 1)).clone().normalize();
   const right = (options.right ?? new THREE.Vector3(1, 0, 0)).clone().normalize();
+  const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(options?.shapeId)
+    ? 0
+    : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
   if (rotationY) {
     forward.applyAxisAngle(WORLD_UP, rotationY);
     right.applyAxisAngle(WORLD_UP, rotationY);
   }
   return new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET, 0)
     .addScaledVector(forward, POT_BELOW_COMMUNITY_OFFSET)
-    .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT);
+    .addScaledVector(right, POT_RIGHT_ALIGNMENT_SHIFT)
+    .setY(surfaceY + CARD_SURFACE_OFFSET - seatLayerDrop);
 }
 
 function computeSeatPotPileAnchor(potAnchor, seat, tableSurfaceY = TABLE_HEIGHT, options = {}) {
@@ -5052,6 +5062,7 @@ function TexasHoldemArena({ search }) {
       const potAnchor = computePotAnchor({
         surfaceY: tableInfo?.surfaceY,
         rotationY: resolvedCommunityRowRotation,
+        shapeId: tableInfo?.shapeId,
         ...communityAxes
       });
       const potStack = chipFactory.createStack(0, { mode: POT_CHIP_MODE, layout: POT_SCATTER_LAYOUT });
