@@ -834,7 +834,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableTheme', label: 'Table Model', options: TEXAS_TABLE_THEME_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TEXAS_TABLE_FINISH_OPTIONS },
   { key: 'chairTheme', label: 'Chairs', options: TEXAS_CHAIR_THEME_OPTIONS },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
@@ -870,8 +869,8 @@ const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'],
 const resolveDefaultTableFinish = (index) =>
   TEXAS_TABLE_FINISH_OPTIONS[index] ?? TEXAS_TABLE_FINISH_OPTIONS[0] ?? null;
 
-const resolveEffectiveWoodOption = ({ tableTheme, tableFinish, tableWood }) => {
-  const baseWoodOption = TABLE_WOOD_OPTIONS[tableWood] ?? TABLE_WOOD_OPTIONS[0];
+const resolveEffectiveWoodOption = ({ tableTheme, tableFinish }) => {
+  const baseWoodOption = TABLE_WOOD_OPTIONS[0];
   if (tableTheme?.id !== DEFAULT_TABLE_THEME_ID) {
     return baseWoodOption;
   }
@@ -1005,7 +1004,6 @@ function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['tableFinish', TEXAS_TABLE_FINISH_OPTIONS.length],
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairTheme', TEXAS_CHAIR_THEME_OPTIONS.length],
@@ -3233,7 +3231,6 @@ function TexasHoldemArena({ search }) {
       const normalized = normalizeAppearance(value);
       const map = {
         tableFinish: TEXAS_TABLE_FINISH_OPTIONS,
-        tableWood: TABLE_WOOD_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         chairTheme: TEXAS_CHAIR_THEME_OPTIONS,
@@ -4053,8 +4050,7 @@ function TexasHoldemArena({ search }) {
     const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const woodOption = resolveEffectiveWoodOption({
       tableTheme,
-      tableFinish: safe.tableFinish,
-      tableWood: safe.tableWood
+      tableFinish: safe.tableFinish
     });
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
