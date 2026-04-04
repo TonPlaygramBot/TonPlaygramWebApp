@@ -557,11 +557,6 @@ function setFeedbackSettings(next, { refreshUi = true } = {}) {
   }
 }
 
-let commentaryGreetingPlayed = true;
-let lastAnnouncedTurn = null;
-
-function announceCommentary() {}
-
 function formatSeatName(index) {
   const names = getSeatUsernames(N);
   if (index === human) {
@@ -3666,12 +3661,25 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 
 const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
   {
+    id: 'current',
+    label: 'Current',
+    icon: '●',
+    color: '#f5f5f5',
+    emissive: '#cbd5e1',
+    metalness: 0.08,
+    roughness: 0.22,
+    transmission: 0,
+    ior: 1.35,
+    thickness: 0.14,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
+  },
+  {
     id: 'headRuby',
     label: 'Ruby',
     icon: '●',
     color: '#9b111e',
     emissive: '#7f1d1d',
-    metalness: 0.05,
+    metalness: 0.08,
     roughness: 0.2,
     transmission: 0,
     ior: 1.5,
@@ -3679,43 +3687,17 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
   },
   {
-    id: 'headPearl',
-    label: 'Pearl',
-    icon: '●',
-    color: '#f5f5f5',
-    emissive: '#cbd5e1',
-    metalness: 0.05,
-    roughness: 0.25,
-    transmission: 0,
-    ior: 1.3,
-    thickness: 0.2,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
-  },
-  {
     id: 'headSapphire',
     label: 'Sapphire',
     icon: '●',
     color: '#0f52ba',
     emissive: '#1d4ed8',
-    metalness: 0.05,
+    metalness: 0.08,
     roughness: 0.2,
     transmission: 0,
     ior: 1.5,
     thickness: 0,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg'
-  },
-  {
-    id: 'headEmerald',
-    label: 'Emerald',
-    icon: '●',
-    color: '#046a38',
-    emissive: '#166534',
-    metalness: 0.05,
-    roughness: 0.2,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
   },
   {
     id: 'headChrome',
@@ -6485,8 +6467,8 @@ const getDominoSurfaceTextures = (() => {
       return cache;
     }
     const basePipColor = new THREE.Color(toneHex);
-    const pipStart = `#${basePipColor.clone().offsetHSL(0, 0.04, 0.14).getHexString()}`;
-    const pipEnd = `#${basePipColor.clone().offsetHSL(0, -0.06, -0.2).getHexString()}`;
+    const pipStart = `#${basePipColor.clone().offsetHSL(0, 0.02, 0.26).getHexString()}`;
+    const pipEnd = `#${basePipColor.clone().offsetHSL(0, -0.02, -0.05).getHexString()}`;
     const pipGrad = pipCtx.createLinearGradient(0, 0, size, size);
     pipGrad.addColorStop(0, pipStart);
     pipGrad.addColorStop(1, pipEnd);
@@ -6568,9 +6550,9 @@ function applyDominoStyle(
       thickness: pipStyle?.thickness ?? style.pip?.thickness
     },
     {
-      color: '#0a0a0a',
-      roughness: 0.05,
-      metalness: 0.6,
+      color: '#f5f5f5',
+      roughness: 0.12,
+      metalness: 0.3,
       clearcoat: 0.9,
       clearcoatRoughness: 0.04,
       sheen: 0.12,
@@ -8714,7 +8696,6 @@ function startGame({ resetRace = true } = {}) {
   winnerIndex = null;
   lastHandWinnerIndex = null;
   revealAllHands = false;
-  lastAnnouncedTurn = null;
   clearWinnerHighlight();
   hideWinnerOverlay();
   if (cpuMoveTimeout) {
@@ -8866,16 +8847,6 @@ function startGame({ resetRace = true } = {}) {
   updateInteractivity();
   if (current !== human) {
     scheduleCpuPlay();
-  }
-  if (!commentaryGreetingPlayed) {
-    commentaryGreetingPlayed = true;
-    announceCommentary(
-      'greeting',
-      { player: human },
-      { priority: true, interrupt: true }
-    );
-  } else {
-    announceCommentary('startRound', { player: starter });
   }
 }
 
@@ -9421,19 +9392,6 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
       playedTile = picked;
       playedPlacement = placement;
     }
-    if (playedTile) {
-      announceCommentary(
-        playedTile.a === playedTile.b ? 'playDouble' : 'playTile',
-        { player: human, tile: playedTile }
-      );
-      if (players[human].hand.length === 1) {
-        announceCommentary(
-          'nearWin',
-          { player: human, tilesLeft: players[human].hand.length },
-          { priority: true }
-        );
-      }
-    }
     selectedTile = null;
     clearMarkers();
     renderHands();
@@ -9567,9 +9525,6 @@ if (btnDraw) {
   if (drewTile) {
     SFX.drawTile();
   }
-  if (drewTile) {
-    announceCommentary('draw', { player: human });
-  }
   });
 }
 if (btnPass) {
@@ -9578,7 +9533,6 @@ if (btnPass) {
     clearMarkers();
     selectedTile = null;
     SFX.pass();
-    announceCommentary('pass', { player: human });
     schedulePassTurnAdvance(human);
   }
   });
@@ -9704,20 +9658,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
     setStatus('Game over');
   }
 
-  if (reason && reason.toLowerCase().includes('blocked')) {
-    announceCommentary(
-      'blocked',
-      { player: winnerIndex },
-      { priority: true, interrupt: true }
-    );
-  } else if (winnerIndex !== null) {
-    announceCommentary(
-      winnerIndex === human ? 'win' : 'lose',
-      { player: winnerIndex },
-      { priority: true, interrupt: true }
-    );
-  }
-
   if (winnerIndex !== null) {
     SFX.win();
   } else {
@@ -9798,12 +9738,6 @@ function updateInteractivity() {
     return;
   }
   setStatus(`Turn: Player ${current + 1}`);
-  if (lastAnnouncedTurn !== current) {
-    lastAnnouncedTurn = current;
-    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', {
-      player: current
-    });
-  }
   clearAllPassBubbles();
   renderHands();
   renderChain();
@@ -9856,17 +9790,14 @@ function cpuPlay() {
     if (drew) {
       renderHands();
       SFX.drawTile();
-      announceCommentary('draw', { player: current });
       if (canPlayAny(player.hand)) {
         scheduleCpuPlay();
       } else {
         SFX.pass();
-        announceCommentary('pass', { player: current });
         schedulePassTurnAdvance(current);
       }
     } else {
       SFX.pass();
-      announceCommentary('pass', { player: current });
       schedulePassTurnAdvance(current);
     }
     return;
@@ -9879,17 +9810,6 @@ function cpuPlay() {
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
       renderHands();
-      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', {
-        player: current,
-        tile: picked
-      });
-      if (player.hand.length === 1) {
-        announceCommentary(
-          'nearWin',
-          { player: current, tilesLeft: player.hand.length },
-          { priority: true }
-        );
-      }
       if (player.hand.length === 0) {
         concludeHand({
           winner: current,
@@ -9908,17 +9828,14 @@ function cpuPlay() {
   if (drew) {
     renderHands();
     SFX.drawTile();
-    announceCommentary('draw', { player: current });
     if (canPlayAny(player.hand)) {
       scheduleCpuPlay();
     } else {
       SFX.pass();
-      announceCommentary('pass', { player: current });
       schedulePassTurnAdvance(current);
     }
   } else {
     SFX.pass();
-    announceCommentary('pass', { player: current });
     schedulePassTurnAdvance(current);
   }
 }
