@@ -341,12 +341,6 @@ export default function ProjectAchievementsCard() {
 
   return (
     <div className="relative rounded-2xl border border-border/70 bg-gradient-to-br from-surface/95 via-surface/90 to-surface/80 p-5 shadow-xl shadow-black/5 space-y-6 overflow-hidden wide-card">
-      <img
-        src="/assets/icons/snakes_and_ladders.webp"
-        className="background-behind-board object-cover opacity-30"
-        alt=""
-        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-      />
       <div className="space-y-2 text-center">
         <p className="text-[10px] uppercase tracking-[0.4em] text-muted">Playgram</p>
         <h3 className="text-xl font-semibold">Achievements & Roadmap</h3>
