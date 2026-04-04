@@ -400,11 +400,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
-    carbonFiberChalk: 'Carbon Fiber Chalk',
-    carbonFiberChalkGrey: 'Carbon Fiber Chalk Grey',
-    carbonFiberChalkBeige: 'Carbon Fiber Chalk Beige',
-    carbonFiberChalkDarkBlue: 'Carbon Fiber Chalk Dark Blue',
-    carbonFiberChalkWhite: 'Carbon Fiber Chalk White'
+    carbonFiberChalk: 'Carbon Fiber Black',
+    carbonFiberChalkGrey: 'Carbon Fiber Grey',
+    carbonFiberChalkBeige: 'Carbon Fiber Beige',
+    carbonFiberChalkDarkBlue: 'Carbon Fiber Dark Blue',
+    carbonFiberChalkWhite: 'Carbon Fiber White'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -496,45 +496,45 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalk',
     type: 'tableFinish',
     optionId: 'carbonFiberChalk',
-    name: 'Carbon Fiber Chalk Finish',
+    name: 'Carbon Fiber Black Finish',
     price: 1160,
-    description: 'Custom carbon weave inspired by the chalk block pattern.',
+    description: 'Custom carbon weave in a deep black palette.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
     id: 'finish-carbonFiberChalkGrey',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkGrey',
-    name: 'Carbon Fiber Chalk Grey Finish',
+    name: 'Carbon Fiber Grey Finish',
     price: 1170,
-    description: 'Carbon Fiber Chalk weave in a balanced grey palette.',
+    description: 'Carbon fiber weave in a balanced grey palette.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
   },
   {
     id: 'finish-carbonFiberChalkBeige',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkBeige',
-    name: 'Carbon Fiber Chalk Beige Finish',
+    name: 'Carbon Fiber Beige Finish',
     price: 1180,
-    description: 'Carbon Fiber Chalk weave with a warm beige tone.',
+    description: 'Carbon fiber weave with a warm beige tone.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
   },
   {
     id: 'finish-carbonFiberChalkDarkBlue',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkDarkBlue',
-    name: 'Carbon Fiber Chalk Dark Blue Finish',
+    name: 'Carbon Fiber Dark Blue Finish',
     price: 1190,
-    description: 'Carbon Fiber Chalk weave recolored with dark blue accents.',
+    description: 'Carbon fiber weave recolored with dark blue accents.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
   },
   {
     id: 'finish-carbonFiberChalkWhite',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkWhite',
-    name: 'Carbon Fiber Chalk White Finish',
+    name: 'Carbon Fiber White Finish',
     price: 1200,
-    description: 'Carbon Fiber Chalk weave in a clean white finish.',
+    description: 'Carbon fiber weave in a clean white finish.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
   },
   {
