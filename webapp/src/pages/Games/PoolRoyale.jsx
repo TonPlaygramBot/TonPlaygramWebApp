@@ -1980,7 +1980,7 @@ const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.44; // move short
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 5, 0.44 / 3 * 0.7 * 5); // tighten finish grain further so rails read crisper on portrait screens
+const TABLE_WOOD_REPEAT = CUE_WOOD_REPEAT.clone(); // keep table wood pattern density equal to cue-finish pattern density
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -3036,9 +3036,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'Slate',
-    rail: 0x5f6b7a,
-    base: 0x3d4652,
-    trim: 0xb8c2cf,
+    rail: 0x606975,
+    base: 0x454c56,
+    trim: 0xa9b1bc,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
@@ -3056,9 +3056,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'Navy',
-    rail: 0x243b7a,
-    base: 0x15264e,
-    trim: 0x5e79bf,
+    rail: 0x1f3a70,
+    base: 0x13264d,
+    trim: 0x4b67a3,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true

@@ -298,9 +298,9 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
   carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151']),
-  carbonFiberChalkGrey: swatchThumbnail(['#2f3540', '#4b5563', '#9ca3af']),
+  carbonFiberChalkGrey: swatchThumbnail(['#454c56', '#606975', '#a9b1bc']),
   carbonFiberChalkBeige: swatchThumbnail(['#8f7a62', '#b29b82', '#e5d3b9']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#111a33', '#1e2b55', '#4b5e91']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#13264d', '#1f3a70', '#4b67a3']),
   carbonFiberChalkWhite: swatchThumbnail(['#d8dde5', '#eef2f7', '#ffffff'])
 });
 
