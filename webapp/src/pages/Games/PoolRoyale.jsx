@@ -25333,8 +25333,9 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const powerInput =
-          Number.isFinite(committedPower) ? committedPower : powerRef.current;
+        const powerInput = Number.isFinite(committedPower)
+          ? committedPower
+          : (Number.isFinite(powerRef.current) ? powerRef.current : hudRef.current?.power);
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
@@ -25779,9 +25780,14 @@ const powerRef = useRef(hud.power);
             };
           }
           let shotImpactApplied = false;
+          let shotImpactFallbackTimer = null;
           const applyShotImpact = () => {
             if (shotImpactApplied) return;
             shotImpactApplied = true;
+            if (shotImpactFallbackTimer) {
+              clearTimeout(shotImpactFallbackTimer);
+              shotImpactFallbackTimer = null;
+            }
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -25812,6 +25818,12 @@ const powerRef = useRef(hud.power);
             cue.lift = 0;
             cue.liftVel = 0;
             playCueHit(resolvedShotPower * 0.6);
+          };
+          const queueShotImpactFallback = (delayMs) => {
+            if (shotImpactFallbackTimer || shotImpactApplied) return;
+            shotImpactFallbackTimer = window.setTimeout(() => {
+              applyShotImpact();
+            }, Math.max(16, delayMs));
           };
           if (ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = true;
@@ -25844,12 +25856,20 @@ const powerRef = useRef(hud.power);
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
+            // Failsafe: if the cue animation frame loop is interrupted on mobile,
+            // still transfer slider power to cue-ball velocity.
+            queueShotImpactFallback(
+              (strokeProfile.pullbackDuration ?? 0) +
+                (strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS) +
+                80
+            );
           } else {
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
+            queueShotImpactFallback(16);
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
