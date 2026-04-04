@@ -2906,8 +2906,7 @@ const createStandardWoodFinish = ({
   trim,
   accent,
   woodTextureId,
-  woodRepeatScale,
-  disableWoodPattern = false
+  woodRepeatScale
 }) => ({
   id,
   label,
@@ -2919,7 +2918,6 @@ const createStandardWoodFinish = ({
   }),
   woodTextureId,
   woodRepeatScale,
-  disableWoodPattern,
   createMaterials: () => {
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
@@ -7959,8 +7957,9 @@ export function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const cueRepeatScale = resolvedFinish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
   const woodRepeatScale = clampWoodRepeatScaleValue(
-    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    (resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueRepeatScale
   );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
