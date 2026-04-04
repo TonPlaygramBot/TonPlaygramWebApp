@@ -1835,13 +1835,6 @@ const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
-// Reference stroke model (matches the validated PoolPreview mechanism):
-// - pull amount scales with eased slider power
-// - fixed strike/hold timeline
-// - cue-ball launch speed uses 1.8 + 6.2 * power
-const REFERENCE_PULL_RANGE = 0.34;
-const REFERENCE_STRIKE_TIME_MS = 120;
-const REFERENCE_HOLD_TIME_MS = 50;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -25345,7 +25338,7 @@ const powerRef = useRef(hud.power);
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
-        const pullRange = REFERENCE_PULL_RANGE;
+        const pullRange = 0.24;
         const pullTarget = pullRange * strokeProfile.pullRatio;
         const pulledNow = cuePullCurrentRef.current ?? pullTarget;
         const visualCommittedPower = THREE.MathUtils.clamp(
@@ -25436,10 +25429,9 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const legacyReferenceSpeed = 1.8 + 6.2 * resolvedShotPower;
           const base = shotAimDir
             .clone()
-            .multiplyScalar(Math.max(speedBase * powerScale, legacyReferenceSpeed));
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -25659,9 +25651,9 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = REFERENCE_STRIKE_TIME_MS;
-          const strikeHoldDuration = REFERENCE_HOLD_TIME_MS;
-          const pullbackDuration = 0;
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
+          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const shotStrength = THREE.MathUtils.clamp(resolvedShotPower, 0, 1);
           const impactForwardDistance = THREE.MathUtils.lerp(
@@ -25843,7 +25835,7 @@ const powerRef = useRef(hud.power);
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
               wobbleAmount: 0.0018,
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
