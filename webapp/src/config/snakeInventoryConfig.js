@@ -18,32 +18,6 @@ const SNAKE_TABLE_FINISH_OPTIONS = Object.freeze([
   { id: 'rosewoodVeneer01', label: 'Rosewood Veneer 01' }
 ]);
 
-const SNAKE_FLOOR_TEXTURE_OPTIONS = Object.freeze([
-  { id: 'paving_stones_02', label: 'Paving Stones 02' },
-  { id: 'paving_stones_07', label: 'Paving Stones 07' },
-  { id: 'paving_stones_08', label: 'Paving Stones 08' },
-  { id: 'paving_stones_12', label: 'Paving Stones 12' },
-  { id: 'cobblestone_floor_03', label: 'Cobblestone Floor 03' },
-  { id: 'cobblestone_floor_05', label: 'Cobblestone Floor 05' },
-  { id: 'concrete_pavers_01', label: 'Concrete Pavers 01' },
-  { id: 'concrete_pavers_02', label: 'Concrete Pavers 02' },
-  { id: 'stone_floor_05', label: 'Stone Floor 05' },
-  { id: 'stone_floor_06', label: 'Stone Floor 06' }
-]);
-
-const SNAKE_WALL_TEXTURE_OPTIONS = Object.freeze([
-  { id: 'brick_wall_02', label: 'Brick Wall 02' },
-  { id: 'brick_wall_03', label: 'Brick Wall 03' },
-  { id: 'castle_wall_01', label: 'Castle Wall 01' },
-  { id: 'concrete_wall_002', label: 'Concrete Wall 002' },
-  { id: 'concrete_wall_004', label: 'Concrete Wall 004' },
-  { id: 'painted_wall_01', label: 'Painted Wall 01' },
-  { id: 'plaster_wall_01', label: 'Plaster Wall 01' },
-  { id: 'stone_wall_02', label: 'Stone Wall 02' },
-  { id: 'stone_wall_03', label: 'Stone Wall 03' },
-  { id: 'tiles_wall_01', label: 'Tiles Wall 01' }
-]);
-
 const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'pawn', label: 'Pawn Token' },
   { id: 'knight', label: 'Knight Token' },
@@ -79,32 +53,6 @@ const SNAKE_TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
-});
-
-const SNAKE_FLOOR_TEXTURE_THUMBNAILS = Object.freeze({
-  paving_stones_02: polyHavenThumb('paving_stones_02'),
-  paving_stones_07: polyHavenThumb('paving_stones_07'),
-  paving_stones_08: polyHavenThumb('paving_stones_08'),
-  paving_stones_12: polyHavenThumb('paving_stones_12'),
-  cobblestone_floor_03: polyHavenThumb('cobblestone_floor_03'),
-  cobblestone_floor_05: polyHavenThumb('cobblestone_floor_05'),
-  concrete_pavers_01: polyHavenThumb('concrete_pavers_01'),
-  concrete_pavers_02: polyHavenThumb('concrete_pavers_02'),
-  stone_floor_05: polyHavenThumb('stone_floor_05'),
-  stone_floor_06: polyHavenThumb('stone_floor_06')
-});
-
-const SNAKE_WALL_TEXTURE_THUMBNAILS = Object.freeze({
-  brick_wall_02: polyHavenThumb('brick_wall_02'),
-  brick_wall_03: polyHavenThumb('brick_wall_03'),
-  castle_wall_01: polyHavenThumb('castle_wall_01'),
-  concrete_wall_002: polyHavenThumb('concrete_wall_002'),
-  concrete_wall_004: polyHavenThumb('concrete_wall_004'),
-  painted_wall_01: polyHavenThumb('painted_wall_01'),
-  plaster_wall_01: polyHavenThumb('plaster_wall_01'),
-  stone_wall_02: polyHavenThumb('stone_wall_02'),
-  stone_wall_03: polyHavenThumb('stone_wall_03'),
-  tiles_wall_01: polyHavenThumb('tiles_wall_01')
 });
 
 const SNAKE_THEME_THUMBNAILS = Object.freeze({
@@ -157,8 +105,6 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   tokenFinish: ['ceramicSheen'],
   tokenColor: ['amberGlow', 'mintVale', 'royalWave', 'roseMist'],
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
-  floorTexture: [SNAKE_FLOOR_TEXTURE_OPTIONS[0].id],
-  wallTexture: [SNAKE_WALL_TEXTURE_OPTIONS[0].id],
   headStyle: [SNAKE_PAWN_HEAD_OPTIONS[0].id],
   tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
@@ -200,8 +146,6 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
   tokenColor: mapLabels(SNAKE_TOKEN_COLOR_OPTIONS),
   headStyle: mapLabels(SNAKE_PAWN_HEAD_OPTIONS),
   tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
-  floorTexture: mapLabels(SNAKE_FLOOR_TEXTURE_OPTIONS),
-  wallTexture: mapLabels(SNAKE_WALL_TEXTURE_OPTIONS),
   tokenShape: mapLabels(SNAKE_TOKEN_SHAPE_OPTIONS),
   tables: mapLabels(MURLAN_TABLE_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
@@ -377,24 +321,6 @@ export const SNAKE_STORE_ITEMS = [
     description: `${finish.label} finish imported from Pool Royale.`,
     thumbnail: SNAKE_TABLE_FINISH_THUMBNAILS[finish.id]
   })),
-  ...SNAKE_FLOOR_TEXTURE_OPTIONS.map((option, idx) => ({
-    id: `snake-floor-${option.id}`,
-    type: 'floorTexture',
-    optionId: option.id,
-    name: option.label,
-    price: 640 + idx * 18,
-    description: `Poly Haven pavement texture: ${option.label}.`,
-    thumbnail: SNAKE_FLOOR_TEXTURE_THUMBNAILS[option.id]
-  })),
-  ...SNAKE_WALL_TEXTURE_OPTIONS.map((option, idx) => ({
-    id: `snake-wall-${option.id}`,
-    type: 'wallTexture',
-    optionId: option.id,
-    name: option.label,
-    price: 620 + idx * 16,
-    description: `Poly Haven wall texture: ${option.label}.`,
-    thumbnail: SNAKE_WALL_TEXTURE_THUMBNAILS[option.id]
-  })),
   ...SNAKE_TOKEN_SHAPE_OPTIONS.map((option, idx) => ({
     id: `snake-token-${option.id}`,
     type: 'tokenShape',
@@ -449,16 +375,6 @@ export const SNAKE_DEFAULT_LOADOUT = [
     type: 'tableFinish',
     optionId: SNAKE_TABLE_FINISH_OPTIONS[0].id,
     label: SNAKE_TABLE_FINISH_OPTIONS[0].label
-  },
-  {
-    type: 'floorTexture',
-    optionId: SNAKE_FLOOR_TEXTURE_OPTIONS[0].id,
-    label: SNAKE_FLOOR_TEXTURE_OPTIONS[0].label
-  },
-  {
-    type: 'wallTexture',
-    optionId: SNAKE_WALL_TEXTURE_OPTIONS[0].id,
-    label: SNAKE_WALL_TEXTURE_OPTIONS[0].label
   },
   {
     type: 'tokenShape',
