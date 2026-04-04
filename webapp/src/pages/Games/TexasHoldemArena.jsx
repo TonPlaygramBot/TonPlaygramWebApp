@@ -620,10 +620,7 @@ function pickBestModelUrl(urls) {
   glbs.sort((a, b) => score(b) - score(a));
   gltfs.sort((a, b) => score(b) - score(a));
 
-  // Prefer `.gltf` when available so chairs/tables keep the original Poly Haven texture packs.
-  // This preserves current custom procedural variants (octagon/oval/diamond + ruby/slate/teal/amber/violet/ice/leather),
-  // while fixing missing source textures on the remaining imported themes.
-  return gltfs[0] || glbs[0] || null;
+  return glbs[0] || gltfs[0] || null;
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
