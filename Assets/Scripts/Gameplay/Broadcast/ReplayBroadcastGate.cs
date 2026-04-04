@@ -21,6 +21,12 @@ namespace Aiming.Gameplay.Broadcast
         public event Action<ReplayBroadcastPayload> ReplayBroadcastRequested;
         private Coroutine replayFrameRoutine;
 
+        private void Awake()
+        {
+            EnsureReplayFrameReferences();
+            SetReplayFrameVisible(false);
+        }
+
         public bool TryBroadcastReplay(ReplayBroadcastPayload payload)
         {
             if (!forceLegacyReplayBroadcast || !payload.IsValid)
@@ -47,14 +53,10 @@ namespace Aiming.Gameplay.Broadcast
 
         private void ShowReplayFrame()
         {
+            EnsureReplayFrameReferences();
             if (replayFrameRoot == null && replayFrameCanvasGroup == null)
             {
                 return;
-            }
-
-            if (replayFrameRoot == null && replayFrameCanvasGroup != null)
-            {
-                replayFrameRoot = replayFrameCanvasGroup.gameObject;
             }
 
             if (replayFrameRoutine != null)
@@ -67,31 +69,52 @@ namespace Aiming.Gameplay.Broadcast
 
         private IEnumerator ReplayFrameRoutine()
         {
-            if (replayFrameRoot != null)
-            {
-                replayFrameRoot.SetActive(true);
-            }
-
-            if (replayFrameCanvasGroup != null)
-            {
-                replayFrameCanvasGroup.alpha = 1f;
-                replayFrameCanvasGroup.interactable = false;
-                replayFrameCanvasGroup.blocksRaycasts = false;
-            }
+            SetReplayFrameVisible(true);
 
             yield return new WaitForSecondsRealtime(replayFrameVisibleSeconds);
 
-            if (replayFrameCanvasGroup != null)
-            {
-                replayFrameCanvasGroup.alpha = 0f;
-            }
-
-            if (replayFrameRoot != null)
-            {
-                replayFrameRoot.SetActive(false);
-            }
+            SetReplayFrameVisible(false);
 
             replayFrameRoutine = null;
+        }
+
+        private void EnsureReplayFrameReferences()
+        {
+            if (replayFrameRoot == null && replayFrameCanvasGroup != null)
+            {
+                replayFrameRoot = replayFrameCanvasGroup.transform.root.gameObject;
+            }
+
+            if (replayFrameCanvasGroup == null && replayFrameRoot != null)
+            {
+                replayFrameCanvasGroup = replayFrameRoot.GetComponentInChildren<CanvasGroup>(true);
+            }
+
+            if (replayFrameRoot == null && replayFrameCanvasGroup == null)
+            {
+                replayFrameCanvasGroup = GetComponentInChildren<CanvasGroup>(true);
+                if (replayFrameCanvasGroup != null)
+                {
+                    replayFrameRoot = replayFrameCanvasGroup.transform.root.gameObject;
+                }
+            }
+        }
+
+        private void SetReplayFrameVisible(bool visible)
+        {
+            if (replayFrameRoot != null)
+            {
+                replayFrameRoot.SetActive(visible);
+            }
+
+            if (replayFrameCanvasGroup == null)
+            {
+                return;
+            }
+
+            replayFrameCanvasGroup.alpha = visible ? 1f : 0f;
+            replayFrameCanvasGroup.interactable = false;
+            replayFrameCanvasGroup.blocksRaycasts = false;
         }
     }
 
