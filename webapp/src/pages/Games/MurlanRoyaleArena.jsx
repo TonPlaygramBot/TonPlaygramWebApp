@@ -1317,6 +1317,44 @@ function disposeObjectResources(object) {
   });
 }
 
+function cloneModelWithLocalMaterials(source) {
+  if (!source) return source;
+  const clonedRoot = source.clone(true);
+  const textureCache = new Map();
+  const materialCache = new Map();
+
+  const cloneTexture = (texture) => {
+    if (!texture?.isTexture) return texture ?? null;
+    if (textureCache.has(texture)) return textureCache.get(texture);
+    const cloned = texture.clone();
+    cloned.needsUpdate = true;
+    textureCache.set(texture, cloned);
+    return cloned;
+  };
+
+  const cloneMaterial = (material) => {
+    if (!material) return material;
+    if (materialCache.has(material)) return materialCache.get(material);
+    const cloned = material.clone();
+    SHARED_GLTF_TEXTURE_PROPS.forEach((prop) => {
+      if (cloned[prop]) cloned[prop] = cloneTexture(cloned[prop]);
+    });
+    materialCache.set(material, cloned);
+    return cloned;
+  };
+
+  clonedRoot.traverse((node) => {
+    if (!node?.isMesh) return;
+    if (Array.isArray(node.material)) {
+      node.material = node.material.map((mat) => cloneMaterial(mat));
+    } else {
+      node.material = cloneMaterial(node.material);
+    }
+  });
+
+  return clonedRoot;
+}
+
 function liftModelToGround(model, targetMinY = 0) {
   const box = new THREE.Box3().setFromObject(model);
   model.position.y += targetMinY - box.min.y;
@@ -1394,8 +1432,7 @@ async function createPolyhavenInstance(
   textureOptions = {},
   preserveGltfTextureMapping = true
 ) {
-  const root = await loadPolyhavenModel(assetId, renderer);
-  const model = root.clone(true);
+  const model = await loadPolyhavenModel(assetId, renderer);
   prepareLoadedModel(model, { preserveGltfTextureMapping });
   const {
     textureLoader = null,
@@ -2013,13 +2050,14 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
     }
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     return root;
   })();
 
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
   promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
-  return promise;
+  const baseModel = await promise;
+  return cloneModelWithLocalMaterials(baseModel);
 }
 
 function createProceduralChair(theme) {
