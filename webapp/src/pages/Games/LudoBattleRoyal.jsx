@@ -894,50 +894,7 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
-function normalizePbrTexture(texture, maxAnisotropy = 1, { preserveWrapping = false } = {}) {
-  if (!texture) return;
-  texture.flipY = false;
-  if (!preserveWrapping) {
-    texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-    texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
-  }
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
-  texture.needsUpdate = true;
-}
-
-function normalizeMaterialTextures(
-  material,
-  maxAnisotropy = 8,
-  { preserveGltfTextureMapping = false } = {}
-) {
-  if (!material) return;
-  if (material.map) {
-    applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy, {
-      preserveWrapping: preserveGltfTextureMapping
-    });
-  }
-  if (material.emissiveMap) {
-    applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy, {
-      preserveWrapping: preserveGltfTextureMapping
-    });
-  }
-  normalizePbrTexture(material.normalMap, maxAnisotropy, {
-    preserveWrapping: preserveGltfTextureMapping
-  });
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy, {
-    preserveWrapping: preserveGltfTextureMapping
-  });
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy, {
-    preserveWrapping: preserveGltfTextureMapping
-  });
-  normalizePbrTexture(material.aoMap, maxAnisotropy, {
-    preserveWrapping: preserveGltfTextureMapping
-  });
-}
-
-function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) {
+function prepareLoadedModel(model) {
   if (!model) return;
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -945,10 +902,9 @@ function prepareLoadedModel(model, { preserveGltfTextureMapping = false } = {}) 
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
-        normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping });
-        if (mat) {
-          mat.needsUpdate = true;
-        }
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -1057,7 +1013,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         const gltf = await loader.loadAsync(resolvedUrl);
         const root = gltf.scene || gltf.scenes?.[0] || gltf;
         if (root) {
-          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+          prepareLoadedModel(root);
           return root;
         }
       } catch (error) {
@@ -1089,6 +1045,15 @@ async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
       () => reject(new Error('texture load failed'))
     );
   });
+}
+
+function normalizePbrTexture(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
 }
 
 async function loadPolyhavenTextureSet(
@@ -1271,7 +1236,7 @@ async function createPolyhavenInstance(
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
-  prepareLoadedModel(model, { preserveGltfTextureMapping: true });
+  prepareLoadedModel(model);
   const {
     textureLoader = null,
     maxAnisotropy = 1,
