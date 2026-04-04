@@ -714,6 +714,131 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     }
   }),
   Object.freeze({
+    id: 'plastic_monoblock_lt_black',
+    label: 'LT Black',
+    source: 'TonPlaygram molded-plastic satin texture (LT Black)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-black-rail',
+        base: '#0b0d10',
+        sheen: '#1a1f28'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-black-frame',
+        base: '#0b0d10',
+        sheen: '#1a1f28'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_grey',
+    label: 'LT Grey',
+    source: 'TonPlaygram molded-plastic satin texture (LT Grey)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-grey-rail',
+        base: '#585f6b',
+        sheen: '#7b8391'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-grey-frame',
+        base: '#585f6b',
+        sheen: '#7b8391'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_dark_grey',
+    label: 'LT Dark Grey',
+    source: 'TonPlaygram molded-plastic satin texture (LT Dark Grey)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-dark-grey-rail',
+        base: '#2d323b',
+        sheen: '#434a56'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-dark-grey-frame',
+        base: '#2d323b',
+        sheen: '#434a56'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_burgundy',
+    label: 'LT Burgundy',
+    source: 'TonPlaygram molded-plastic satin texture (LT Burgundy)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-burgundy-rail',
+        base: '#5f1d2c',
+        sheen: '#7f2e43'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-burgundy-frame',
+        base: '#5f1d2c',
+        sheen: '#7f2e43'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_milk_cream',
+    label: 'LT Milk Cream',
+    source: 'TonPlaygram molded-plastic satin texture (LT Milk Cream)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-milk-cream-rail',
+        base: '#e9dcc9',
+        sheen: '#f8efe1'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({
+        id: 'plastic-monoblock-lt-milk-cream-frame',
+        base: '#e9dcc9',
+        sheen: '#f8efe1'
+      })
+    }
+  }),
+  Object.freeze({
     id: 'carbon_fiber_chalk',
     label: 'Solid Color Finish',
     source: 'TonPlaygram solid-color finish',
