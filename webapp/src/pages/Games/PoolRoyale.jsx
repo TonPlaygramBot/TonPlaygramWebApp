@@ -3346,14 +3346,38 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
-  { minFps: 120, key: '4k', textureSize: 4096 },
-  { minFps: 90, key: '4k', textureSize: 4096 },
-  { minFps: 0, key: '2k', textureSize: 2048 }
+  {
+    minFps: 120,
+    key: '4k',
+    textureSize: 4096,
+    preferredResolutions: Object.freeze(['4k', '2k']),
+    fallbackResolution: '2k'
+  },
+  {
+    minFps: 90,
+    key: '4k',
+    textureSize: 4096,
+    preferredResolutions: Object.freeze(['4k', '2k']),
+    fallbackResolution: '2k'
+  },
+  {
+    minFps: 0,
+    key: '2k',
+    textureSize: 2048,
+    preferredResolutions: Object.freeze(['2k', '1k']),
+    fallbackResolution: '1k'
+  }
 ]);
 const resolveGraphicsResolutionTier = (fps) => {
   const safeFps = Number.isFinite(fps) ? fps : 60;
   if (safeFps >= 120 && !isLikelyMobileDevice()) {
-    return { minFps: 120, key: '8k', textureSize: 8192 };
+    return {
+      minFps: 120,
+      key: '8k',
+      textureSize: 8192,
+      preferredResolutions: Object.freeze(['8k', '4k', '2k']),
+      fallbackResolution: '2k'
+    };
   }
   return (
     GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
@@ -3372,6 +3396,10 @@ let runtimeTextureProfile = Object.freeze({
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
   polyHavenResolution: '4k',
   hdriResolution: '4k',
+  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
+  polyHavenFallbackResolution: '2k',
+  hdriPreferredResolutions: Object.freeze(['4k', '2k']),
+  hdriFallbackResolution: '2k',
   enforceTableFinishTextureSize: 4096,
   cueTextureSize: 4096,
   pocketTextureSize: 2048
@@ -3390,6 +3418,12 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
     hdriResolution: tier.key,
+    polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
+    polyHavenFallbackResolution:
+      tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
+    hdriPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
+    hdriFallbackResolution:
+      tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
@@ -3715,10 +3749,49 @@ const pickPolyHavenTextureUrlsAtResolution = (apiJson, resolution) => {
   return pickPolyHavenTextureUrlsFromList(urls);
 };
 
-const upgradePolyHavenTextureUrlTo4k = (url) => {
+const pickPolyHavenTextureUrlsWithFallbacks = (apiJson, preferredResolutions = []) => {
+  const normalized = Array.from(
+    new Set(
+      (Array.isArray(preferredResolutions) ? preferredResolutions : [])
+        .map((resolution) => String(resolution || '').toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  for (const resolution of normalized) {
+    const picked = pickPolyHavenTextureUrlsAtResolution(apiJson, resolution);
+    if (picked?.diffuse || picked?.normal || picked?.roughness) {
+      return picked;
+    }
+  }
+  return pickPolyHavenTextureUrls(apiJson);
+};
+
+const remapPolyHavenTextureUrlResolution = (url, targetResolution) => {
   if (typeof url !== 'string' || url.length === 0) return url;
-  if (!url.includes('/2k/') && !url.includes('_2k')) return url;
-  return url.replace('/2k/', '/4k/').replace(/_2k(\.\w+)$/, '_4k$1');
+  const target = String(targetResolution || '').toLowerCase();
+  if (!target) return url;
+  return url
+    .replace(/\/(1k|2k|4k|8k)\//i, `/${target}/`)
+    .replace(/_(1k|2k|4k|8k)(\.\w+)$/i, `_${target}$2`);
+};
+
+const resolveRuntimeTextureResolutionChain = () => {
+  const profile = getRuntimeTextureProfile();
+  const preferred = Array.isArray(profile?.polyHavenPreferredResolutions)
+    ? profile.polyHavenPreferredResolutions
+    : [];
+  const fallback =
+    typeof profile?.polyHavenFallbackResolution === 'string'
+      ? profile.polyHavenFallbackResolution
+      : '';
+  const resolved = Array.from(
+    new Set(
+      [...preferred, fallback, profile?.polyHavenResolution, '4k', '2k', '1k']
+        .map((resolution) => String(resolution || '').toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  return resolved.length ? resolved : ['4k', '2k', '1k'];
 };
 
 const createClothTextures = (() => {
@@ -4037,52 +4110,48 @@ const createClothTextures = (() => {
             const json = await response.json();
             const profile = getRuntimeTextureProfile();
             urls =
-              pickPolyHavenTextureUrlsAtResolution(json, profile.polyHavenResolution) ||
+              pickPolyHavenTextureUrlsWithFallbacks(
+                json,
+                profile.polyHavenPreferredResolutions ?? [profile.polyHavenResolution]
+              ) ||
               pickPolyHavenTextureUrls(json);
           }
         } catch (error) {
           urls = {};
         }
 
-        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
-        const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
-        const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
-        const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
-        const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
-        const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
+        const runtimeResolutionChain = resolveRuntimeTextureResolutionChain();
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
-        const diffuseCandidates = [
-          upgradePolyHavenTextureUrlTo4k(urls.diffuse),
-          fallback4k?.diffuse,
-          legacy4k?.diffuse,
-          fallback2k?.diffuse,
-          legacy2k?.diffuse,
-          fallback1k?.diffuse,
-          legacy1k?.diffuse
-        ].filter(Boolean);
-        const normalCandidates = [
-          upgradePolyHavenTextureUrlTo4k(urls.normal),
-          fallback4k?.normal,
-          fallback4k?.normal?.replace('_nor_gl_', '_nor_dx_'),
-          legacy4k?.normal,
-          fallback2k?.normal,
-          fallback2k?.normal?.replace('_nor_gl_', '_nor_dx_'),
-          legacy2k?.normal,
-          fallback1k?.normal,
-          fallback1k?.normal?.replace('_nor_gl_', '_nor_dx_'),
-          legacy1k?.normal
-        ].filter(Boolean);
-        const roughnessCandidates = [
-          upgradePolyHavenTextureUrlTo4k(urls.roughness),
-          fallback4k?.roughness,
-          legacy4k?.roughness,
-          fallback2k?.roughness,
-          legacy2k?.roughness,
-          fallback1k?.roughness,
-          legacy1k?.roughness
-        ].filter(Boolean);
+        const diffuseCandidates = runtimeResolutionChain.flatMap((resolution) => {
+          const fallback = buildPolyHavenTextureUrls(preset.sourceId, resolution);
+          const legacy = buildPolyHavenLegacyTextureUrls(preset.sourceId, resolution);
+          return [
+            remapPolyHavenTextureUrlResolution(urls.diffuse, resolution),
+            fallback?.diffuse,
+            legacy?.diffuse
+          ].filter(Boolean);
+        });
+        const normalCandidates = runtimeResolutionChain.flatMap((resolution) => {
+          const fallback = buildPolyHavenTextureUrls(preset.sourceId, resolution);
+          const legacy = buildPolyHavenLegacyTextureUrls(preset.sourceId, resolution);
+          return [
+            remapPolyHavenTextureUrlResolution(urls.normal, resolution),
+            fallback?.normal,
+            fallback?.normal?.replace('_nor_gl_', '_nor_dx_'),
+            legacy?.normal
+          ].filter(Boolean);
+        });
+        const roughnessCandidates = runtimeResolutionChain.flatMap((resolution) => {
+          const fallback = buildPolyHavenTextureUrls(preset.sourceId, resolution);
+          const legacy = buildPolyHavenLegacyTextureUrls(preset.sourceId, resolution);
+          return [
+            remapPolyHavenTextureUrlResolution(urls.roughness, resolution),
+            fallback?.roughness,
+            legacy?.roughness
+          ].filter(Boolean);
+        });
 
         let map = null;
         let normal = null;
@@ -5584,7 +5653,6 @@ const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
-const POOL_ROYALE_REPLAY_ALL_SHOTS = true; // keep the replay pipeline visible on every completed shot, not only pots/fouls/finals
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
 const POWER_REPLAY_THRESHOLD = 0.78;
@@ -14049,9 +14117,21 @@ function PoolRoyaleGame({
           repeat: cueSurface.repeat,
           rotation: cueSurface.rotation,
           textureSize: cueTextureSize,
-          mapUrl: upgradePolyHavenTextureUrlTo4k(cueSurface.mapUrl),
-          roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(cueSurface.roughnessMapUrl),
-          normalMapUrl: upgradePolyHavenTextureUrlTo4k(cueSurface.normalMapUrl),
+          mapUrl: remapPolyHavenTextureUrlResolution(
+            cueSurface.mapUrl,
+            getRuntimeTextureProfile().polyHavenPreferredResolutions?.[0] ??
+              getRuntimeTextureProfile().polyHavenResolution
+          ),
+          roughnessMapUrl: remapPolyHavenTextureUrlResolution(
+            cueSurface.roughnessMapUrl,
+            getRuntimeTextureProfile().polyHavenPreferredResolutions?.[0] ??
+              getRuntimeTextureProfile().polyHavenResolution
+          ),
+          normalMapUrl: remapPolyHavenTextureUrlResolution(
+            cueSurface.normalMapUrl,
+            getRuntimeTextureProfile().polyHavenPreferredResolutions?.[0] ??
+              getRuntimeTextureProfile().polyHavenResolution
+          ),
           woodRepeatScale
         };
         [materials.shaft, materials.buttMaterial, materials.buttCapMaterial].forEach((mat) => {
@@ -27988,7 +28068,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -27998,10 +28078,9 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const shouldReplayByDefault = Boolean(POOL_ROYALE_REPLAY_ALL_SHOTS);
           return {
-            shouldReplay: shouldReplayByDefault || hadObjectPot || tags.size > 0,
-            banner: hadObjectPot ? selectReplayBanner(primary) : 'Replay',
+            shouldReplay: hadObjectPot || tags.size > 0,
+            banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary
