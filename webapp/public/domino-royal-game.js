@@ -6389,6 +6389,79 @@ function refreshSeatAvatars() {
 }
 
 const projectedSeatTarget = new THREE.Vector3();
+let anchoredSelfVideoElement = null;
+let selfVideoObserver = null;
+
+function pickSelfVideoCandidate() {
+  if (anchoredSelfVideoElement?.isConnected) {
+    return anchoredSelfVideoElement;
+  }
+  const explicitSelector = [
+    '[data-local-video="true"]',
+    '[data-self-video="true"]',
+    '.local-video-frame',
+    '.self-video-frame',
+    '.participant-video--self',
+    '.video-frame.self'
+  ].join(',');
+  const explicit = document.querySelector(explicitSelector);
+  if (explicit) return explicit;
+  const videoCandidate = Array.from(document.querySelectorAll('video')).find((video) => {
+    if (!video || !video.isConnected) return false;
+    if (!video.muted && !video.defaultMuted) return false;
+    if (!(video.autoplay || video.playsInline)) return false;
+    if (video.closest?.('#configPanel, #chatModal, #giftModal, #rules')) return false;
+    return true;
+  });
+  if (!videoCandidate) return null;
+  const parent = videoCandidate.parentElement;
+  if (
+    parent &&
+    parent !== document.body &&
+    parent.childElementCount <= 2 &&
+    parent.querySelector('video') === videoCandidate
+  ) {
+    return parent;
+  }
+  return videoCandidate;
+}
+
+function anchorSelfVideoToBottomSeat() {
+  if (!humanSeatBadgeAnchor) return;
+  const candidate = pickSelfVideoCandidate();
+  if (!candidate) return;
+  anchoredSelfVideoElement = candidate;
+  const width = 56;
+  const height = 56;
+  const x = humanSeatBadgeAnchor.x;
+  const y = humanSeatBadgeAnchor.y;
+  candidate.style.position = 'fixed';
+  candidate.style.left = `${x}px`;
+  candidate.style.top = `${y}px`;
+  candidate.style.width = `${width}px`;
+  candidate.style.height = `${height}px`;
+  candidate.style.transform = 'translate(-50%, -50%)';
+  candidate.style.borderRadius = '999px';
+  candidate.style.overflow = 'hidden';
+  candidate.style.objectFit = 'cover';
+  candidate.style.zIndex = '5';
+  candidate.style.border = '2px solid rgba(255,255,255,0.45)';
+  candidate.style.boxShadow = '0 8px 18px rgba(0,0,0,0.36)';
+  candidate.style.background = 'rgba(8,12,24,0.66)';
+  candidate.style.pointerEvents = 'none';
+  if (candidate.tagName === 'VIDEO') {
+    candidate.setAttribute('playsinline', 'true');
+  }
+  const nestedVideo = candidate.tagName === 'VIDEO' ? candidate : candidate.querySelector('video');
+  if (nestedVideo) {
+    nestedVideo.style.width = '100%';
+    nestedVideo.style.height = '100%';
+    nestedVideo.style.objectFit = 'cover';
+    nestedVideo.style.transform = 'none';
+    nestedVideo.style.borderRadius = 'inherit';
+  }
+}
+
 function updateSeatBadgePositions() {
   if (!seatBadges.length || !chairs.length || !renderer?.domElement) return;
   const rect = renderer.domElement.getBoundingClientRect();
@@ -6424,6 +6497,7 @@ function updateSeatBadgePositions() {
     badge.style.opacity =
       idx === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
   });
+  anchorSelfVideoToBottomSeat();
 }
 
 function disposeSeatAvatars() {
@@ -6894,6 +6968,7 @@ function buildDominoMaterial(options = {}, defaults = {}) {
 const getDominoSurfaceTextures = (() => {
   let cache = null;
   let cachedPreferredSize = 0;
+  let cachedPipToneKey = '';
   const disposeCachedTextures = () => {
     if (!cache) return;
     cache.porcelainMap?.dispose?.();
@@ -6901,11 +6976,18 @@ const getDominoSurfaceTextures = (() => {
     cache.pipMap?.dispose?.();
     cache = null;
   };
-  return () => {
+  return (pipStyle = null) => {
     const targetSize = getAdaptiveDominoTextureSize(4096);
     const sizeCap = getRendererTextureSizeCap();
     const preferredSize = Math.max(2048, Math.min(sizeCap, targetSize));
-    if (cache && cachedPreferredSize === preferredSize) return cache;
+    const toneHex = pipStyle?.color || '#111111';
+    const toneKey = `${toneHex}-${pipStyle?.id || 'default'}`;
+    if (
+      cache &&
+      cachedPreferredSize === preferredSize &&
+      cachedPipToneKey === toneKey
+    )
+      return cache;
     if (typeof document === 'undefined') {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
       return cache;
@@ -6962,11 +7044,23 @@ const getDominoSurfaceTextures = (() => {
       cache = { porcelainMap: null, porcelainRoughness: null, pipMap: null };
       return cache;
     }
+    const basePipColor = new THREE.Color(toneHex);
+    const pipStart = `#${basePipColor.clone().offsetHSL(0, 0.04, 0.14).getHexString()}`;
+    const pipEnd = `#${basePipColor.clone().offsetHSL(0, -0.06, -0.2).getHexString()}`;
     const pipGrad = pipCtx.createLinearGradient(0, 0, size, size);
-    pipGrad.addColorStop(0, '#151515');
-    pipGrad.addColorStop(1, '#050505');
+    pipGrad.addColorStop(0, pipStart);
+    pipGrad.addColorStop(1, pipEnd);
     pipCtx.fillStyle = pipGrad;
     pipCtx.fillRect(0, 0, size, size);
+    pipCtx.globalAlpha = 0.12;
+    pipCtx.fillStyle = '#ffffff';
+    const dotStep = Math.max(6, Math.floor(size / 24));
+    for (let y = 0; y < size; y += dotStep) {
+      for (let x = 0; x < size; x += dotStep) {
+        pipCtx.fillRect(x, y, 1, 1);
+      }
+    }
+    pipCtx.globalAlpha = 1;
 
     const maxAnisotropy = getRendererAnisotropyCap();
     const porcelainMap = new THREE.CanvasTexture(porcelainCanvas);
@@ -6991,6 +7085,7 @@ const getDominoSurfaceTextures = (() => {
 
     cache = { porcelainMap, porcelainRoughness, pipMap };
     cachedPreferredSize = preferredSize;
+    cachedPipToneKey = toneKey;
     return cache;
   };
 })();
@@ -7042,7 +7137,7 @@ function applyDominoStyle(
       envMapIntensity: 0.85
     }
   );
-  const dominoTextures = getDominoSurfaceTextures();
+  const dominoTextures = getDominoSurfaceTextures(pipStyle);
   porcelainMat.map = dominoTextures.porcelainMap;
   porcelainMat.roughnessMap = dominoTextures.porcelainRoughness;
   pipMat.map = dominoTextures.pipMap;
@@ -7986,20 +8081,22 @@ configButtonEl?.addEventListener('click', () => {
   }
 });
 configCloseEl?.addEventListener('click', () => closeConfigPanel());
-document.addEventListener('click', (event) => {
-  if (!configPanelEl?.classList.contains('active')) return;
-  if (
-    configPanelEl.contains(event.target) ||
-    configButtonEl?.contains(event.target)
-  )
-    return;
-  closeConfigPanel();
-});
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     closeConfigPanel();
   }
 });
+
+if (typeof MutationObserver !== 'undefined') {
+  selfVideoObserver = new MutationObserver(() => {
+    anchoredSelfVideoElement = null;
+    anchorSelfVideoToBottomSeat();
+  });
+  selfVideoObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
 
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
 const CHAIR_TEXTURE_PROPS = Object.freeze([
@@ -11133,6 +11230,9 @@ function shutdownDominoRoyal(reason = 'unknown') {
       cancelAnimationFrame(animationFrameId);
     }
     detachRuntimeListeners();
+    selfVideoObserver?.disconnect?.();
+    selfVideoObserver = null;
+    anchoredSelfVideoElement = null;
     controls.enabled = false;
     scene.visible = false;
     if (seatOverlay?.parentNode) {
