@@ -910,25 +910,7 @@ function prepareLoadedModel(model) {
   });
 }
 
-const DISPOSABLE_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'emissiveMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-  'specularMap',
-  'sheenColorMap',
-  'sheenRoughnessMap'
-]);
-
-function disposeObjectResources(object, { disposeTextures = true } = {}) {
+function disposeObjectResources(object) {
   if (!object) return;
   const materials = new Set();
   object.traverse((obj) => {
@@ -938,14 +920,8 @@ function disposeObjectResources(object, { disposeTextures = true } = {}) {
     obj.geometry?.dispose?.();
   });
   materials.forEach((mat) => {
-    if (disposeTextures) {
-      DISPOSABLE_TEXTURE_PROPS.forEach((prop) => {
-        const texture = mat?.[prop];
-        if (texture?.isTexture) {
-          texture.dispose?.();
-        }
-      });
-    }
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
     mat?.dispose?.();
   });
 }
@@ -3493,7 +3469,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arena.chairs.forEach(({ group }) => {
         const previous = group?.userData?.chairModel;
         if (previous) {
-          disposeObjectResources(previous, { disposeTextures: false });
+          disposeObjectResources(previous);
           group.remove(previous);
         }
       });
