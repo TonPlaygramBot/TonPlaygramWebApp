@@ -2322,7 +2322,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_SIDE_TRIM_SCALE = 0.96;
+const TABLE_SIDE_TRIM_SCALE = 0.92;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
@@ -5266,6 +5266,8 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+            const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
+            const sideSeatTopLift = isSideSeat ? 6 : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
@@ -5278,10 +5280,15 @@ export default function MurlanRoyaleArena({ search }) {
                 ? {
                     position: 'absolute',
                     left: `${anchor.x}%`,
-                    top: `${anchor.y}%`,
+                    top: `${clampValue(anchor.y - sideSeatTopLift, -10, 110)}%`,
                     transform: 'translate(-50%, -50%)'
                   }
-                : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
+                : {
+                    position: 'absolute',
+                    left: fallback.left,
+                    top: fallback.top,
+                    transform: 'translate(-50%, -50%)'
+                  };
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
