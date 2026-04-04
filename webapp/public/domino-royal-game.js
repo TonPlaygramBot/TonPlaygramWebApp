@@ -7964,9 +7964,37 @@ function makeDomino(
 }
 
 /* ---------- Game State ---------- */
-const statusEl = document.getElementById('status');
-const btnDraw = document.getElementById('draw');
-const btnPass = document.getElementById('pass');
+const resolveRequiredElement = (
+  id,
+  {
+    tagName = 'div',
+    role = null,
+    ariaHidden = true,
+    hide = true
+  } = {}
+) => {
+  const element = document.getElementById(id);
+  if (element) return element;
+  const fallback = document.createElement(tagName);
+  fallback.id = `${id}__fallback`;
+  if (role) {
+    fallback.setAttribute('role', role);
+  }
+  if (ariaHidden) {
+    fallback.setAttribute('aria-hidden', 'true');
+  }
+  if (hide) {
+    fallback.style.display = 'none';
+  }
+  console.warn(
+    `[Domino Royal] Missing required UI node "#${id}". Using fallback to prevent runtime crash.`
+  );
+  return fallback;
+};
+
+const statusEl = resolveRequiredElement('status', { role: 'status' });
+const btnDraw = resolveRequiredElement('draw', { tagName: 'button' });
+const btnPass = resolveRequiredElement('pass', { tagName: 'button' });
 const setControlEnabled = (enabled) => {
   [btnDraw, btnPass].forEach((btn) => {
     if (!btn) return;
