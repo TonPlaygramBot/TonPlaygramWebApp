@@ -1980,7 +1980,7 @@ const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.44; // move short
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = new THREE.Vector2(CUE_WOOD_REPEAT.x, CUE_WOOD_REPEAT.y); // match table GLTF wood pattern scale to cue finish pattern size
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 5, 0.44 / 3 * 0.7 * 5); // tighten finish grain further so rails read crisper on portrait screens
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -3026,9 +3026,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'Graphite',
-    rail: 0x3a3f46,
-    base: 0x23272e,
-    trim: 0x545b66,
+    rail: 0x1a1f2a,
+    base: 0x0c1018,
+    trim: 0x374151,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
@@ -3036,9 +3036,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'Slate',
-    rail: 0x708090,
-    base: 0x556170,
-    trim: 0xadb8c5,
+    rail: 0x5f6b7a,
+    base: 0x3d4652,
+    trim: 0xb8c2cf,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
@@ -3046,9 +3046,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'Sand',
-    rail: 0xd2b48c,
-    base: 0xb89568,
-    trim: 0xf1dec0,
+    rail: 0xc3aa88,
+    base: 0x9b8260,
+    trim: 0xf0dfc2,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
@@ -3056,9 +3056,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'Navy',
-    rail: 0x1f3a6d,
-    base: 0x16294d,
-    trim: 0x4f6da3,
+    rail: 0x243b7a,
+    base: 0x15264e,
+    trim: 0x5e79bf,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
@@ -3066,9 +3066,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'Ice',
-    rail: 0xeaf4ff,
-    base: 0xdbe7f5,
-    trim: 0xf8fcff,
+    rail: 0xf3f6fb,
+    base: 0xe2e8f0,
+    trim: 0xffffff,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1,
     disableWoodPattern: true
