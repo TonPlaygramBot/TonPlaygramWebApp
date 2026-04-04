@@ -23,8 +23,6 @@ import { applyStoreItemDelivery } from './store.js';
 import { POOL_ROYALE_STORE_ITEMS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_STORE_ITEMS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 import { TAVULL_BATTLE_STORE_ITEMS } from '../../webapp/src/config/tavullBattleInventoryConfig.js';
-import { applyVoiceCommentaryUnlocks } from './voiceCommentary.js';
-import { getVoiceCatalog } from '../utils/voiceCommentaryCatalog.js';
 import {
   createMemoryUser,
   findMemoryUser,
@@ -644,11 +642,6 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   ensureTransactionArray(sender);
 
   const txDate = new Date();
-  const hasVoiceItem = items.some((item) => item.type === 'voiceLanguage');
-  if (hasVoiceItem) {
-    const catalog = await getVoiceCatalog();
-    applyVoiceCommentaryUnlocks(sender, items, catalog.voices || []);
-  }
 
   const delivery = applyStoreItemDelivery(sender, items);
 
