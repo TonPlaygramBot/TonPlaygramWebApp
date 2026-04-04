@@ -1339,7 +1339,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse th
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
-const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE * 1.045; // trim corner-pocket side-rail jaw edges a tiny bit more while leaving middle pockets unchanged
+const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
 const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -22136,30 +22136,92 @@ const powerRef = useRef(hud.power);
         };
 
         const trimReplayRecording = (recording) => {
-          const frames = recording?.frames ?? [];
+          const minFrameDelta = Math.max(16, recording?.frameTimeMs ?? 1000 / 60);
+          const frames = Array.isArray(recording?.frames)
+            ? recording.frames.map((frame, index) => ({
+                ...(frame || {}),
+                t: Number.isFinite(frame?.t)
+                  ? frame.t
+                  : index === 0
+                    ? 0
+                    : minFrameDelta * index
+              }))
+            : [];
+          if (frames.length > 1) {
+            let lastT = Number.isFinite(frames[0]?.t) ? frames[0].t : 0;
+            frames[0].t = lastT;
+            for (let i = 1; i < frames.length; i += 1) {
+              const rawT = Number.isFinite(frames[i]?.t) ? frames[i].t : lastT + minFrameDelta;
+              const normalizedT = rawT <= lastT ? lastT + minFrameDelta : rawT;
+              frames[i].t = normalizedT;
+              lastT = normalizedT;
+            }
+          }
           const cuePath = recording?.cuePath ?? [];
           const cueStrokeRaw = recording?.cueStroke ?? null;
           const normalizeStrokeVec = (value) =>
             normalizeVector3Snapshot(value, { x: 0, y: BALL_CENTER_Y, z: 0 });
           const cueStroke = cueStrokeRaw
             ? {
-                warmup: normalizeStrokeVec(cueStrokeRaw.warmup),
-                start: normalizeStrokeVec(cueStrokeRaw.start ?? cueStrokeRaw.warmup),
-                impact: normalizeStrokeVec(cueStrokeRaw.impact ?? cueStrokeRaw.start),
-                settle: normalizeStrokeVec(cueStrokeRaw.settle ?? cueStrokeRaw.impact),
+                idle: normalizeStrokeVec(
+                  cueStrokeRaw.idle ?? cueStrokeRaw.warmup ?? cueStrokeRaw.start
+                ),
+                pull: normalizeStrokeVec(
+                  cueStrokeRaw.pull ?? cueStrokeRaw.start ?? cueStrokeRaw.warmup
+                ),
+                impact: normalizeStrokeVec(
+                  cueStrokeRaw.impact ?? cueStrokeRaw.start ?? cueStrokeRaw.pull
+                ),
+                follow: normalizeStrokeVec(
+                  cueStrokeRaw.follow ?? cueStrokeRaw.settle ?? cueStrokeRaw.impact
+                ),
                 rotationX: Number.isFinite(cueStrokeRaw.rotationX) ? cueStrokeRaw.rotationX : 0,
                 rotationY: Number.isFinite(cueStrokeRaw.rotationY) ? cueStrokeRaw.rotationY : 0,
                 pullback: Math.max(0, cueStrokeRaw.pullbackDuration ?? cueStrokeRaw.pullback ?? 0),
-                forward: Math.max(0, cueStrokeRaw.forwardDuration ?? cueStrokeRaw.forward ?? 0),
-                settleTime: Math.max(
+                release: Math.max(
                   0,
-                  cueStrokeRaw.settleDuration ?? cueStrokeRaw.settleTime ?? 0
+                  cueStrokeRaw.releaseDuration ??
+                    cueStrokeRaw.forwardDuration ??
+                    cueStrokeRaw.forward ??
+                    0
+                ),
+                followTime: Math.max(
+                  0,
+                  cueStrokeRaw.followDuration ??
+                    cueStrokeRaw.settleDuration ??
+                    cueStrokeRaw.settleTime ??
+                    0
+                ),
+                recoverTime: Math.max(
+                  0,
+                  cueStrokeRaw.recoverDuration ??
+                    cueStrokeRaw.returnDuration ??
+                    cueStrokeRaw.returnTime ??
+                    0
                 ),
                 startOffset: Math.max(0, cueStrokeRaw.startOffset ?? 0)
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const duration = frames[frames.length - 1]?.t ?? 0;
+          if (frames.length === 1) {
+            const onlyFrame = frames[0];
+            frames.push({
+              ...onlyFrame,
+              t: Math.max(minFrameDelta, onlyFrame?.t ?? 0)
+            });
+          }
+          const frameDuration = frames[frames.length - 1]?.t ?? 0;
+          const strokeDuration = cueStroke
+            ? Math.max(
+                0,
+                (cueStroke.startOffset ?? 0) +
+                  (cueStroke.pullback ?? 0) +
+                  (cueStroke.release ?? 0) +
+                  (cueStroke.followTime ?? 0) +
+                  (cueStroke.recoverTime ?? 0)
+              )
+            : 0;
+          const duration = Math.max(frameDuration, strokeDuration);
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -22171,13 +22233,26 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
-          const storedPosition = activeCamera?.position?.clone?.() ?? null;
+          let storedPosition = activeCamera?.position?.clone?.() ?? null;
+          let storedFov = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
+          const broadcastReplayCamera = resolveBroadcastTopViewCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
+          if (broadcastReplayCamera?.position) {
+            storedPosition = broadcastReplayCamera.position.clone();
+            if (broadcastReplayCamera?.target) {
+              storedTarget.copy(broadcastReplayCamera.target);
+            }
+            storedFov = Number.isFinite(broadcastReplayCamera?.fov)
+              ? broadcastReplayCamera.fov
+              : storedFov;
+          }
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
-          const storedFov = Number.isFinite(activeCamera?.fov)
-            ? activeCamera.fov
-            : camera.fov;
           replayCameraRef.current = {
             position: storedPosition,
             target: storedTarget,
@@ -22199,25 +22274,6 @@ const powerRef = useRef(hud.power);
 
         const primeReplayCueStick = (playback) => {
           if (!cueStick) return;
-          const stroke = playback?.cueStroke ?? null;
-          if (stroke) {
-            const warmupSnap =
-              normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
-              normalizeVector3Snapshot(stroke.start);
-            if (warmupSnap) {
-              cueStick.position.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
-              if (Number.isFinite(stroke.rotationY)) {
-                cueStick.rotation.y = stroke.rotationY;
-              }
-              if (Number.isFinite(stroke.rotationX)) {
-                cueStick.rotation.x = stroke.rotationX;
-              }
-              cueStick.visible = true;
-              cueAnimating = true;
-              syncCueShadow();
-              return;
-            }
-          }
           const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
           if (cueSnapshot?.position) {
             const pos = normalizeVector3Snapshot(cueSnapshot.position);
@@ -22229,6 +22285,25 @@ const powerRef = useRef(hud.power);
               }
               cueStick.visible = cueSnapshot.visible ?? true;
               cueAnimating = cueStick.visible;
+              syncCueShadow();
+              return;
+            }
+          }
+          const stroke = playback?.cueStroke ?? null;
+          if (stroke) {
+            const idleSnap =
+              normalizeVector3Snapshot(stroke.idle ?? stroke.pull ?? stroke.start ?? stroke.warmup) ??
+              normalizeVector3Snapshot(stroke.pull ?? stroke.start ?? stroke.warmup);
+            if (idleSnap) {
+              cueStick.position.set(idleSnap.x, idleSnap.y, idleSnap.z);
+              if (Number.isFinite(stroke.rotationY)) {
+                cueStick.rotation.y = stroke.rotationY;
+              }
+              if (Number.isFinite(stroke.rotationX)) {
+                cueStick.rotation.x = stroke.rotationX;
+              }
+              cueStick.visible = true;
+              cueAnimating = true;
               syncCueShadow();
               return;
             }
@@ -22260,21 +22335,71 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          cueStrokeStateRef.current = null;
+          pendingImpactRef.current = null;
           setReplayActive(true);
           setReplayFoul(shotRecording?.replayFoul ?? null);
           setReplayPotLabel(shotRecording?.replayPotLabel ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
+          const replayCueStroke = trimmed.cueStroke ?? null;
+          const replayCueHideFrom = replayCueStroke
+            ? Math.max(
+                0,
+                (replayCueStroke.pullback ?? replayCueStroke.pullbackDuration ?? 0) +
+                  (replayCueStroke.release ?? replayCueStroke.releaseDuration ?? 0)
+              )
+            : 180;
+          replayCueHiddenRef.current = { hideFrom: replayCueHideFrom, hideUntil: duration };
+          const foulReason = String(shotRecording?.replayFoul?.reason ?? '').toLowerCase();
+          const wrongBallFoul = foulReason.includes('wrong ball');
+          const slowImpactAt =
+            wrongBallFoul && Number.isFinite(shotRecording?.replaySlowImpactMs)
+              ? THREE.MathUtils.clamp(shotRecording.replaySlowImpactMs, 0, duration)
+              : null;
+          const slowWindow = Math.max(40, REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS);
+          const slowHalfWindow = slowWindow / 2;
+          const slowFactor = THREE.MathUtils.clamp(
+            REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR,
+            0.1,
+            1
+          );
+          const hasWrongBallSlowImpact =
+            slowImpactAt != null &&
+            slowFactor < 0.999 &&
+            slowImpactAt > 0 &&
+            slowImpactAt < duration;
+          const slowStart = hasWrongBallSlowImpact
+            ? Math.max(0, slowImpactAt - slowHalfWindow)
+            : null;
+          const slowEnd = hasWrongBallSlowImpact
+            ? Math.min(duration, slowImpactAt + slowHalfWindow)
+            : null;
+          const slowSpan =
+            slowStart != null && slowEnd != null ? Math.max(0, slowEnd - slowStart) : 0;
+          const slowExtraDuration =
+            hasWrongBallSlowImpact && slowSpan > 0 ? slowSpan * (1 / slowFactor - 1) : 0;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
-            cueStroke: trimmed.cueStroke ?? null,
+            cueStroke: replayCueStroke,
             duration,
+            effectiveDuration: duration + slowExtraDuration,
+            wrongBallSlowImpact:
+              hasWrongBallSlowImpact && slowStart != null && slowEnd != null
+                ? {
+                    start: slowStart,
+                    end: slowEnd,
+                    factor: slowFactor
+                  }
+                : null,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            pocketDrops: pausedPocketDrops ?? pocketDropRef.current,
+            pocketCameraCutoff: null,
+            forceDualRailOverhead: false
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
@@ -28673,7 +28798,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 0) {
             const normalizedFrames = Array.isArray(pending.frames) ? [...pending.frames] : [];
             if (normalizedFrames.length === 1) {
               const firstFrame = normalizedFrames[0];
