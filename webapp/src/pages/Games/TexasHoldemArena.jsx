@@ -546,83 +546,6 @@ function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
 }
 
-function basename(p) {
-  const s = p.replace(/\\/g, '/');
-  const parts = s.split('/');
-  return parts[parts.length - 1] || s;
-}
-
-function replaceFileExtension(path, nextExt) {
-  if (!path || !nextExt) return path;
-  const clean = stripQueryHash(path);
-  const dotIdx = clean.lastIndexOf('.');
-  if (dotIdx < 0) return `${clean}${nextExt}`;
-  return `${clean.slice(0, dotIdx)}${nextExt}`;
-}
-
-function resolveTextureFallbackUrl(requestedUrl, fileMap) {
-  if (!fileMap?.size || !requestedUrl) return null;
-  const requestedBase = basename(stripQueryHash(requestedUrl));
-  if (!requestedBase) return null;
-  const lowerBase = requestedBase.toLowerCase();
-  const fallbackExts = ['.jpg', '.jpeg', '.png', '.webp'];
-  if (!lowerBase.endsWith('.ktx2') && !lowerBase.endsWith('.basis')) {
-    return null;
-  }
-  for (const ext of fallbackExts) {
-    const candidate = basename(replaceFileExtension(requestedBase, ext));
-    const mapped = fileMap.get(candidate) || fileMap.get(candidate.toLowerCase());
-    if (mapped) return mapped;
-  }
-  return null;
-}
-
-function isModelUrl(u) {
-  const s = stripQueryHash(u).toLowerCase();
-  return s.endsWith('.glb') || s.endsWith('.gltf');
-}
-
-function extractAllHttpUrls(apiJson) {
-  const out = new Set();
-  const walk = (v) => {
-    if (!v) return;
-    if (typeof v === 'string') {
-      if (v.startsWith('http')) out.add(v);
-      return;
-    }
-    if (typeof v !== 'object') return;
-    if (Array.isArray(v)) {
-      v.forEach(walk);
-      return;
-    }
-    Object.values(v).forEach(walk);
-  };
-  walk(apiJson);
-  return Array.from(out);
-}
-
-function pickBestModelUrl(urls) {
-  const modelUrls = urls.filter(isModelUrl);
-  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
-  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
-
-  const score = (u) => {
-    const lu = u.toLowerCase();
-    let s = 0;
-    if (lu.includes('2k')) s += 3;
-    if (lu.includes('1k')) s += 2;
-    if (lu.includes('4k')) s += 1;
-    if (lu.includes('8k')) s -= 2;
-    if (lu.includes('download')) s += 1;
-    return s;
-  };
-
-  glbs.sort((a, b) => score(b) - score(a));
-  gltfs.sort((a, b) => score(b) - score(a));
-
-  return glbs[0] || gltfs[0] || null;
-}
-
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.52 * MODEL_SCALE;
@@ -1261,57 +1184,15 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   let cached = POLYHAVEN_MODEL_CACHE.get(cacheKey);
   if (!cached) {
     const promise = (async () => {
-      let fileMap = new Map();
-      const modelCandidates = new Set();
-      const assetCandidates = Array.from(new Set([assetId, cacheKey]));
-
-      for (const candidateId of assetCandidates) {
-        try {
-          const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
-          const allUrls = extractAllHttpUrls(filesJson);
-          const apiModelUrl = pickBestModelUrl(allUrls);
-          if (apiModelUrl) modelCandidates.add(apiModelUrl);
-          if (!fileMap.size) {
-            fileMap = allUrls.reduce((acc, u) => {
-              const b = basename(stripQueryHash(u));
-              if (!acc.has(b)) acc.set(b, u);
-              const lower = b.toLowerCase();
-              if (!acc.has(lower)) acc.set(lower, u);
-              return acc;
-            }, new Map());
-          }
-        } catch (error) {
-          console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
-        }
-
-        buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
-      }
-
-      const modelUrlList = Array.from(modelCandidates);
+      const loader = createConfiguredGLTFLoader(renderer);
+      const modelUrlList = Array.from(
+        new Set([
+          ...buildPolyhavenModelUrls(assetId),
+          ...buildPolyhavenModelUrls(cacheKey)
+        ])
+      );
       if (!modelUrlList.length) {
         throw new Error(`No model URL found for ${assetId}`);
-      }
-
-      const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-      const loader = createConfiguredGLTFLoader(renderer, manager);
-
-      if (fileMap.size) {
-        const base = stripQueryHash(modelUrlList[0]);
-        const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-        loader.manager.setURLModifier((requestedUrl) => {
-          if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-          const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
-          if (textureFallback) return textureFallback;
-          const req = stripQueryHash(requestedUrl);
-          const b = basename(req);
-          const mapped = fileMap.get(b) || fileMap.get(b.toLowerCase());
-          if (mapped) return mapped;
-          try {
-            return new URL(req, baseDir).toString();
-          } catch {
-            return requestedUrl;
-          }
-        });
       }
 
       let gltf = null;
