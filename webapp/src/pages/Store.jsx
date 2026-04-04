@@ -241,7 +241,9 @@ const DOMINO_TYPE_LABELS = {
   tableBase: 'Table Base',
   tableTheme: 'Table Models',
   environmentHdri: 'HDR Environments',
-  dominoStyle: 'Domino Styles',
+  dominoStyle: 'Domino Colors',
+  dominoDotStyle: 'Domino Dots',
+  dominoFrameStyle: 'Domino Frames',
   highlightStyle: 'Highlights',
   chairTheme: 'Chairs'
 };
@@ -581,6 +583,8 @@ const TYPE_SWATCHES = {
   headStyle: ['#0f172a', '#facc15'],
   cards: ['#f8fafc', '#e5e7eb'],
   dominoStyle: ['#f8fafc', '#d1d5db'],
+  dominoDotStyle: ['#111827', '#eab308'],
+  dominoFrameStyle: ['#f59e0b', '#a1a1aa'],
   highlightStyle: ['#22d3ee', '#818cf8'],
   tokenPalette: ['#ef4444', '#22c55e', '#3b82f6'],
   tokenStyle: ['#eab308', '#6366f1'],
@@ -684,6 +688,8 @@ const PREVIEW_BY_TYPE = {
   environmentHdri: 'table',
   cards: 'cards',
   dominoStyle: 'domino',
+  dominoDotStyle: 'pawn-head',
+  dominoFrameStyle: 'domino',
   tokenPalette: 'token-stack',
   tokenStyle: 'token-stack',
   tokenPiece: 'token-stack',
@@ -884,9 +890,19 @@ const USAGE_BY_TYPE = {
       'Swaps the full table model used in Domino or Texas Hold’em arenas.'
   },
   dominoStyle: {
-    title: 'Domino style',
+    title: 'Domino colors',
     description:
-      'Applies a new domino material finish for match play and replays.'
+      'Applies one of six store colors while Imperial Ivory remains the default.'
+  },
+  dominoDotStyle: {
+    title: 'Domino dots',
+    description:
+      'Swaps domino pips with Chess Battle Royal pawn-head inspired dot sets.'
+  },
+  dominoFrameStyle: {
+    title: 'Domino frames',
+    description:
+      'Changes the domino frame trim to metallic finishes like gold, chrome, aluminium, and bronze.'
   },
   highlightStyle: {
     title: 'Highlights',
