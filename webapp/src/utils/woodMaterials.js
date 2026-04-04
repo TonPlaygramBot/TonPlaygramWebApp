@@ -526,13 +526,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Rosewood Veneer 01',
     source: 'Poly Haven — Rosewood Veneer 01 (CC0)',
     rail: {
-      repeat: { x: 0.7, y: 0.7 }, // enlarge the veneer grain for the rails
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
-      repeat: { x: 0.72, y: 0.72 }, // slightly finer than rails to balance the border scale
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
@@ -659,19 +659,17 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   }),
   Object.freeze({
     id: 'carbon_fiber_chalk',
-    label: 'Carbon Fiber Chalk Pattern',
-    source: 'TonPlaygram custom carbon weave',
+    label: 'Solid Color Finish',
+    source: 'TonPlaygram solid-color finish',
     rail: {
-      repeat: { x: 7.2, y: 7.2 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
-      ...makeInlineCarbonFiberPattern({ id: 'carbon-chalk' })
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: 7.2, y: 7.2 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
-      ...makeInlineCarbonFiberPattern({ id: 'carbon-chalk-frame' })
+      textureSize: 2048
     }
   })
 ]);
