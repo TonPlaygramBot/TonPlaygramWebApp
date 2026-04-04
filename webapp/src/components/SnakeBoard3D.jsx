@@ -436,7 +436,7 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const outwardSpread = 1.1;
+  const outwardSpread = 1.24;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -2633,7 +2633,12 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.rotateSpeed = 0;
   controls.minAzimuthAngle = -Infinity;
   controls.maxAzimuthAngle = Infinity;
-  controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+  controls.mouseButtons = {
+    LEFT: null,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: null
+  };
   controls.minDistance = CAM.minR;
   controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
@@ -3836,10 +3841,13 @@ export default function SnakeBoard3D({
           position: camera.position.clone(),
           target: controls.target.clone(),
           enableRotate: controls.enableRotate,
+          enableZoom: controls.enableZoom,
           minPolarAngle: controls.minPolarAngle,
           maxPolarAngle: controls.maxPolarAngle,
           minAzimuthAngle: controls.minAzimuthAngle,
-          maxAzimuthAngle: controls.maxAzimuthAngle
+          maxAzimuthAngle: controls.maxAzimuthAngle,
+          touches: { ...controls.touches },
+          mouseButtons: { ...controls.mouseButtons }
         };
       }
       const topDownDistance = clamp(CAM.minR * 2.25, CAM.minR * 1.55, CAM.maxR * 0.96);
@@ -3853,11 +3861,17 @@ export default function SnakeBoard3D({
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
+      controls.enableZoom = true;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY_PAN };
+      controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+      controls.mouseButtons = {
+        LEFT: null,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: null
+      };
       controls.update();
       return;
     }
@@ -3878,11 +3892,17 @@ export default function SnakeBoard3D({
       controls.target.copy(restore.target);
       controls.enableRotate = restore.enableRotate;
       controls.enablePan = false;
+      controls.enableZoom = restore.enableZoom;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
-      controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+      controls.touches = restore.touches || { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+      controls.mouseButtons = restore.mouseButtons || {
+        LEFT: null,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: null
+      };
       controls.update();
       cameraRestoreRef.current = null;
     }
