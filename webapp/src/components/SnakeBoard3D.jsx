@@ -482,6 +482,12 @@ function createPreciseSnakeTiles(scale = 1) {
   return preciseTiles;
 }
 
+function getTileLevelById(tileId) {
+  if (tileId >= 41) return 2;
+  if (tileId >= 25) return 1;
+  return 0;
+}
+
 function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
   const pavementMaterial =
     material ||
@@ -2805,13 +2811,48 @@ function buildSnakeBoard(
     return mesh;
   };
 
-  addLayer(10.2 * preciseBoardScale, 0.42 * preciseBoardScale, 10.2 * preciseBoardScale, -0.36 * preciseBoardScale, '#5a5a5a');
-  addLayer(8.1 * preciseBoardScale, 0.24 * preciseBoardScale, 8.1 * preciseBoardScale, -0.05 * preciseBoardScale, '#444f5d');
-  addLayer(5.88 * preciseBoardScale, 0.24 * preciseBoardScale, 5.88 * preciseBoardScale, 0.76 * preciseBoardScale, '#555555');
-  addLayer(3.68 * preciseBoardScale, 0.24 * preciseBoardScale, 3.68 * preciseBoardScale, 1.54 * preciseBoardScale, '#666666');
-  addLayer(2.22 * preciseBoardScale, 0.24 * preciseBoardScale, 1.16 * preciseBoardScale, 2.22 * preciseBoardScale, '#7b7b7b');
-
   const preciseTiles = createPreciseSnakeTiles(preciseBoardScale);
+  const levelBounds = [
+    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
+    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
+    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY }
+  ];
+  const levelMargins = [TILE_SIZE * 0.78, TILE_SIZE * 0.7, TILE_SIZE * 0.62];
+  preciseTiles.forEach((tileSpec) => {
+    const level = getTileLevelById(tileSpec.id);
+    const half = tileSpec.size / 2;
+    const bounds = levelBounds[level];
+    bounds.minX = Math.min(bounds.minX, tileSpec.x - half);
+    bounds.maxX = Math.max(bounds.maxX, tileSpec.x + half);
+    bounds.minZ = Math.min(bounds.minZ, tileSpec.z - half);
+    bounds.maxZ = Math.max(bounds.maxZ, tileSpec.z + half);
+  });
+  const levelDimensions = levelBounds.map((bounds, index) => {
+    if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.maxX) || !Number.isFinite(bounds.minZ) || !Number.isFinite(bounds.maxZ)) {
+      return {
+        sizeX: 10.2 * preciseBoardScale,
+        sizeZ: 10.2 * preciseBoardScale,
+        halfX: (10.2 * preciseBoardScale) / 2,
+        halfZ: (10.2 * preciseBoardScale) / 2
+      };
+    }
+    const margin = levelMargins[index] ?? TILE_SIZE * 0.7;
+    const sizeX = Math.max(TILE_SIZE * 3.6, bounds.maxX - bounds.minX + margin * 2);
+    const sizeZ = Math.max(TILE_SIZE * 3.6, bounds.maxZ - bounds.minZ + margin * 2);
+    return {
+      sizeX,
+      sizeZ,
+      halfX: sizeX / 2,
+      halfZ: sizeZ / 2
+    };
+  });
+
+  const baseSize = Math.max(levelDimensions[0].sizeX, levelDimensions[0].sizeZ);
+  addLayer(baseSize, 0.42 * preciseBoardScale, baseSize, -0.36 * preciseBoardScale, '#5a5a5a');
+  addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
+  addLayer(levelDimensions[1].sizeX, 0.24 * preciseBoardScale, levelDimensions[1].sizeZ, 0.76 * preciseBoardScale, '#555555');
+  addLayer(levelDimensions[2].sizeX, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ, 1.54 * preciseBoardScale, '#666666');
+  addLayer(levelDimensions[2].sizeX * 0.62, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ * 0.44, 2.22 * preciseBoardScale, '#7b7b7b');
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
@@ -2844,21 +2885,21 @@ function buildSnakeBoard(
   ];
   railingInfos.push(
     {
-      halfSize: (10.2 * preciseBoardScale) / 2,
+      halfSize: Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ),
       topY: -0.15 * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
       walkwayCenter: 0,
       levelIndex: 0
     },
     {
-      halfSize: (8.1 * preciseBoardScale) / 2,
+      halfSize: Math.max(levelDimensions[1].halfX, levelDimensions[1].halfZ),
       topY: 0.07 * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
       walkwayCenter: 0,
       levelIndex: 1
     },
     {
-      halfSize: (5.88 * preciseBoardScale) / 2,
+      halfSize: Math.max(levelDimensions[2].halfX, levelDimensions[2].halfZ),
       topY: 0.88 * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
       walkwayCenter: 0,
@@ -2920,7 +2961,7 @@ function buildSnakeBoard(
     platformMeshes.push(support);
   }
 
-  const baseHalf = (10.2 * preciseBoardScale) / 2;
+  const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
   const baseStart = new THREE.Vector3(
     -baseHalf - TILE_SIZE * 0.8,
     levelPlacements[0].tileTopY,
