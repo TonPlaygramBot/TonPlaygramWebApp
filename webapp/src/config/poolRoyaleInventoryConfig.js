@@ -91,6 +91,102 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 120,
     arenaScale: 1.18,
     rotationY: Math.PI / 2
+  },
+  churchMeetingRoom: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  polyHavenStudio: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.14
+  },
+  cinemaLobby: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.2,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  warmBar: {
+    cameraHeightM: 1.57,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.22
+  },
+  pineAttic: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.8,
+    groundResolution: 112,
+    arenaScale: 1.22
+  },
+  rostockArches: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.3,
+    groundResolution: 112,
+    arenaScale: 1.3
+  },
+  vignaioliNight: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.2,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  stPetersSquareNight: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.5,
+    groundResolution: 112,
+    arenaScale: 1.34
+  },
+  zwingerNight: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.4,
+    groundResolution: 112,
+    arenaScale: 1.32
+  },
+  winterEvening: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  rathaus: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.2,
+    groundResolution: 112,
+    arenaScale: 1.28
+  },
+  newmanLobby: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  lapa: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  medievalCafe: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.23
+  },
+  crossfitGym: {
+    cameraHeightM: 1.54,
+    groundRadiusMultiplier: 4.6,
+    groundResolution: 112,
+    arenaScale: 1.21
+  },
+  voortrekkerInterior: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26
   }
 });
 
@@ -276,6 +372,214 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f8fafc', '#f97316'],
     description: 'Bright court lighting with clean white walls and strong bounce.'
+  },
+  {
+    id: 'churchMeetingRoom',
+    name: 'Church Meeting Room',
+    assetId: 'church_meeting_room',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2500,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#d6d3d1', '#78716c'],
+    description: 'Soft sanctuary interior lighting with gentle warm bounce.'
+  },
+  {
+    id: 'polyHavenStudio',
+    name: 'Poly Haven Studio',
+    assetId: 'poly_haven_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2520,
+    exposure: 1.14,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05,
+    swatches: ['#e2e8f0', '#94a3b8'],
+    description: 'Official Poly Haven studio with neutral production-ready highlights.'
+  },
+  {
+    id: 'cinemaLobby',
+    name: 'Cinema Lobby',
+    assetId: 'cinema_lobby',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2540,
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02,
+    swatches: ['#334155', '#f59e0b'],
+    description: 'Moody lobby reflections with warm marquee accents.'
+  },
+  {
+    id: 'warmBar',
+    name: 'Warm Bar',
+    assetId: 'warm_bar',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2560,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#7c2d12', '#f59e0b'],
+    description: 'Amber bar lighting tuned for cozy evening table scenes.'
+  },
+  {
+    id: 'pineAttic',
+    name: 'Pine Attic',
+    assetId: 'pine_attic',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2580,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#854d0e', '#eab308'],
+    description: 'Attic daylight filtered through pine timbers and warm wood bounce.'
+  },
+  {
+    id: 'rostockArches',
+    name: 'Rostock Arches',
+    assetId: 'rostock_arches',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2600,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#9ca3af', '#475569'],
+    description: 'Historic arches with broad ambient skylight and cool stone tones.'
+  },
+  {
+    id: 'vignaioliNight',
+    name: 'Vignaioli Night',
+    assetId: 'vignaioli_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2620,
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98,
+    swatches: ['#1f2937', '#0ea5e9'],
+    description: 'Nighttime plaza ambience with cinematic contrast and subtle fill.'
+  },
+  {
+    id: 'stPetersSquareNight',
+    name: 'St. Peters Square Night',
+    assetId: 'st_peters_square_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2640,
+    exposure: 1.05,
+    environmentIntensity: 1.02,
+    backgroundIntensity: 0.97,
+    swatches: ['#1e293b', '#f8fafc'],
+    description: 'Monumental night square lighting with crisp highlights and deep sky.'
+  },
+  {
+    id: 'zwingerNight',
+    name: 'Zwinger Night',
+    assetId: 'zwinger_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2660,
+    exposure: 1.05,
+    environmentIntensity: 1.02,
+    backgroundIntensity: 0.97,
+    swatches: ['#0f172a', '#fbbf24'],
+    description: 'Grand courtyard at night with elegant architecture reflections.'
+  },
+  {
+    id: 'winterEvening',
+    name: 'Winter Evening',
+    assetId: 'winter_evening',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2680,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#60a5fa', '#e2e8f0'],
+    description: 'Cold dusk light balanced with soft warm window spill.'
+  },
+  {
+    id: 'rathaus',
+    name: 'Rathaus',
+    assetId: 'rathaus',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2700,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#1f2937', '#f8fafc'],
+    description: 'Classic Rathaus interior ambience with balanced neutral illumination.'
+  },
+  {
+    id: 'newmanLobby',
+    name: 'Newman Lobby',
+    assetId: 'newman_lobby',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2720,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#374151', '#fde68a'],
+    description: 'Modern hotel-style lobby with warm practicals and polished bounce.'
+  },
+  {
+    id: 'lapa',
+    name: 'Lapa',
+    assetId: 'lapa',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2740,
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#0f766e', '#facc15'],
+    description: 'Open urban scene with rich night color contrast and lively reflections.'
+  },
+  {
+    id: 'medievalCafe',
+    name: 'Medieval Cafe',
+    assetId: 'medieval_cafe',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2760,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#7c2d12', '#fde68a'],
+    description: 'Rustic stone-and-wood cafe mood with warm lantern response.'
+  },
+  {
+    id: 'crossfitGym',
+    name: 'Crossfit Gym',
+    assetId: 'crossfit_gym',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2780,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#111827', '#ef4444'],
+    description: 'Industrial training hall with strong overhead lighting structure.'
+  },
+  {
+    id: 'voortrekkerInterior',
+    name: 'Voortrekker Interior',
+    assetId: 'voortrekker_interior',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2800,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#4b5563', '#d6d3d1'],
+    description: 'Large heritage interior with broad diffusion and calm tonal range.'
   },
 ];
 
