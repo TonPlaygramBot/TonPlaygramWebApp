@@ -19601,6 +19601,35 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: RAIL_OVERHEAD_REPLAY_FOV, minTargetY };
         };
 
+        const hasReplayCameraChanged = (previous, next) => {
+          if (!next) return false;
+          if (!previous) return true;
+          const dist = (a, b) => {
+            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
+            if (a && b) {
+              const ax = Number.isFinite(a.x) ? a.x : 0;
+              const ay = Number.isFinite(a.y) ? a.y : 0;
+              const az = Number.isFinite(a.z) ? a.z : 0;
+              const bx = Number.isFinite(b.x) ? b.x : 0;
+              const by = Number.isFinite(b.y) ? b.y : 0;
+              const bz = Number.isFinite(b.z) ? b.z : 0;
+              return Math.hypot(ax - bx, ay - by, az - bz);
+            }
+            return Infinity;
+          };
+          const positionShift = dist(previous.position, next.position);
+          const targetShift = dist(previous.target, next.target);
+          const fovShift =
+            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
+              ? Math.abs(previous.fov - next.fov)
+              : 0;
+          return (
+            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            fovShift > 1e-3
+          );
+        };
+
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
