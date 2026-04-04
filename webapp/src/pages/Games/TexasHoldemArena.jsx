@@ -494,6 +494,7 @@ const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const POLYHAVEN_MODEL_CACHE = new Map();
+const POLYHAVEN_FILES_MANIFEST_CACHE = new Map();
 const HDRI_ENVIRONMENT_CACHE = new Map();
 
 function rememberHdriEnvironment(cacheKey, payload) {
@@ -621,6 +622,66 @@ function pickBestModelUrl(urls) {
   gltfs.sort((a, b) => score(b) - score(a));
 
   return glbs[0] || gltfs[0] || null;
+}
+
+async function getPolyhavenFilesManifest(assetId) {
+  if (!assetId) return null;
+  const key = String(assetId).toLowerCase();
+  if (POLYHAVEN_FILES_MANIFEST_CACHE.has(key)) {
+    return POLYHAVEN_FILES_MANIFEST_CACHE.get(key);
+  }
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      if (!response.ok) {
+        throw new Error(`Poly Haven files API ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('Failed to load Poly Haven file manifest', assetId, error);
+      return null;
+    }
+  })();
+  POLYHAVEN_FILES_MANIFEST_CACHE.set(key, promise);
+  return promise;
+}
+
+function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
+  const include = manifest?.gltf?.[resolution]?.gltf?.include;
+  if (!include || typeof include !== 'object') return null;
+  const map = new Map();
+  Object.entries(include).forEach(([relativePath, entry]) => {
+    if (!relativePath || typeof relativePath !== 'string') return;
+    const fileUrl = entry?.url;
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    const normalized = relativePath.replace(/^\.\//, '');
+    const fileName = normalized.split('/').pop() || normalized;
+    map.set(relativePath, fileUrl);
+    map.set(normalized, fileUrl);
+    map.set(fileName, fileUrl);
+    map.set(fileName.toLowerCase(), fileUrl);
+  });
+  return map;
+}
+
+function buildPolyhavenManifestCandidates(manifest, resolutionOrder = ['2k', '1k']) {
+  if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
+  const availableResolutions = Object.keys(manifest.gltf);
+  const orderedResolutions = Array.from(new Set([...resolutionOrder, ...availableResolutions]));
+  return orderedResolutions
+    .map((resolution) => {
+      const url = manifest?.gltf?.[resolution]?.gltf?.url;
+      if (!url || typeof url !== 'string') return null;
+      return {
+        url,
+        resolution: String(resolution).toLowerCase(),
+        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
+      };
+    })
+    .filter(Boolean);
 }
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -1263,66 +1324,77 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   let cached = POLYHAVEN_MODEL_CACHE.get(cacheKey);
   if (!cached) {
     const promise = (async () => {
-      let fileMap = new Map();
-      const modelCandidates = new Set();
+      let fallbackFileMap = new Map();
       const assetCandidates = Array.from(new Set([assetId, cacheKey]));
+      const filesManifest = await getPolyhavenFilesManifest(assetId);
+      const manifestCandidates = buildPolyhavenManifestCandidates(filesManifest, ['2k', '1k']);
+      const fallbackCandidates = [];
 
       for (const candidateId of assetCandidates) {
-        try {
-          const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
-          const allUrls = extractAllHttpUrls(filesJson);
-          const apiModelUrl = pickBestModelUrl(allUrls);
-          if (apiModelUrl) modelCandidates.add(apiModelUrl);
-          if (!fileMap.size) {
-            fileMap = allUrls.reduce((acc, u) => {
-              const b = basename(stripQueryHash(u));
-              if (!acc.has(b)) acc.set(b, u);
-              return acc;
-            }, new Map());
-          }
-        } catch (error) {
-          console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
-        }
-
-        buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
+        buildPolyhavenModelUrls(candidateId).forEach((url) =>
+          fallbackCandidates.push({
+            url,
+            resolution: url.match(/\/(1k|2k|4k|8k)\//i)?.[1]?.toLowerCase?.() || '2k',
+            includeUrlMap: null
+          })
+        );
       }
+      const candidates = [...manifestCandidates, ...fallbackCandidates];
 
-      const modelUrlList = Array.from(modelCandidates);
-      if (!modelUrlList.length) {
+      if (!candidates.length) {
         throw new Error(`No model URL found for ${assetId}`);
-      }
-
-      const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-      const loader = createConfiguredGLTFLoader(renderer, manager);
-
-      if (fileMap.size) {
-        const base = stripQueryHash(modelUrlList[0]);
-        const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-        loader.manager.setURLModifier((requestedUrl) => {
-          if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-          const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
-          if (textureFallback) return textureFallback;
-          const req = stripQueryHash(requestedUrl);
-          const b = basename(req);
-          const mapped = fileMap.get(b);
-          if (mapped) return mapped;
-          try {
-            return new URL(req, baseDir).toString();
-          } catch {
-            return requestedUrl;
-          }
-        });
       }
 
       let gltf = null;
       let lastError = null;
-      for (const modelUrl of modelUrlList) {
+      for (const candidate of candidates) {
         try {
+          const modelUrl = candidate?.url;
+          if (!modelUrl) continue;
+          const includeUrlMap =
+            candidate?.includeUrlMap ||
+            extractPolyhavenIncludeUrlMap(filesManifest, candidate?.resolution || '2k');
+          const manager = includeUrlMap?.size || fallbackFileMap.size ? new THREE.LoadingManager() : undefined;
+          const loader = createConfiguredGLTFLoader(renderer, manager);
           const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
           const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+          if (manager) {
+            loader.manager.setURLModifier((requestedUrl) => {
+              if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+              const cleanUrl = stripQueryHash(String(requestedUrl || ''));
+              const normalized = cleanUrl.replace(/^\.\//, '');
+              const fileName = normalized.split('/').pop();
+              const byInclude =
+                includeUrlMap?.get(cleanUrl) ||
+                includeUrlMap?.get(normalized) ||
+                includeUrlMap?.get(fileName) ||
+                includeUrlMap?.get(String(fileName || '').toLowerCase());
+              if (byInclude) return byInclude;
+              const textureFallback = resolveTextureFallbackUrl(requestedUrl, fallbackFileMap);
+              if (textureFallback) return textureFallback;
+              const mapped = fallbackFileMap.get(fileName) || fallbackFileMap.get(String(fileName || '').toLowerCase());
+              if (mapped) return mapped;
+              try {
+                return new URL(cleanUrl, resourcePath).toString();
+              } catch {
+                return requestedUrl;
+              }
+            });
+          }
           loader.setResourcePath?.(resourcePath);
           loader.setPath?.('');
           gltf = await loader.loadAsync(resolvedUrl);
+          if (includeUrlMap?.size && !fallbackFileMap.size) {
+            fallbackFileMap = includeUrlMap;
+          } else if (!fallbackFileMap.size && filesManifest) {
+            const allUrls = extractAllHttpUrls(filesManifest);
+            fallbackFileMap = allUrls.reduce((acc, u) => {
+              const b = basename(stripQueryHash(u));
+              if (!acc.has(b)) acc.set(b, u);
+              if (!acc.has(b.toLowerCase())) acc.set(b.toLowerCase(), u);
+              return acc;
+            }, new Map());
+          }
           break;
         } catch (error) {
           lastError = error;
