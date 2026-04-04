@@ -2322,7 +2322,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_SIDE_TRIM_SCALE = 0.92;
+const TABLE_SIDE_TRIM_SCALE = 0.9;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
@@ -5267,7 +5267,7 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
-            const sideSeatTopLift = isSideSeat ? 6 : 0;
+            const sideSeatTopLift = isSideSeat ? 8 : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
