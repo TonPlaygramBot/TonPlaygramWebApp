@@ -3025,7 +3025,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
-    label: 'Carbon Fiber Black',
+    label: 'Carbon Fiber Chalk',
     rail: 0x1a1f2a,
     base: 0x0c1018,
     trim: 0x374151,
@@ -3034,38 +3034,38 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
-    label: 'Carbon Fiber Grey',
+    label: 'Carbon Fiber Chalk Grey',
     rail: 0x4b5563,
     base: 0x2f3540,
     trim: 0x9ca3af,
-    woodTextureId: 'carbon_fiber_grey',
+    woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
-    label: 'Carbon Fiber Beige',
+    label: 'Carbon Fiber Chalk Beige',
     rail: 0xb29b82,
     base: 0x8f7a62,
     trim: 0xe5d3b9,
-    woodTextureId: 'carbon_fiber_beige',
+    woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
-    label: 'Carbon Fiber Dark Blue',
+    label: 'Carbon Fiber Chalk Dark Blue',
     rail: 0x1e2b55,
     base: 0x111a33,
     trim: 0x4b5e91,
-    woodTextureId: 'carbon_fiber_dark_blue',
+    woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
-    label: 'Carbon Fiber White',
+    label: 'Carbon Fiber Chalk White',
     rail: 0xeef2f7,
     base: 0xd8dde5,
     trim: 0xffffff,
-    woodTextureId: 'carbon_fiber_white',
+    woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   })
 });
