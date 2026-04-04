@@ -106,7 +106,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 
-const TABLE_RADIUS = 3.22 * MODEL_SCALE;
+const TABLE_RADIUS = 3.05 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -2365,9 +2365,9 @@ const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '78%' },
-  { left: '80%', top: '50%' },
-  { left: '20%', top: '50%' },
-  { left: '50%', top: '22%' }
+  { left: '84%', top: '49%' },
+  { left: '16%', top: '49%' },
+  { left: '50%', top: '18%' }
 ];
 
 const AI_NAME_TRANSLATIONS = Object.freeze({
@@ -5267,7 +5267,7 @@ export default function MurlanRoyaleArena({ search }) {
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
-              : anchor
+              : anchor && !detectCoarsePointer()
                 ? {
                     position: 'absolute',
                     left: `${anchor.x}%`,
@@ -5275,7 +5275,9 @@ export default function MurlanRoyaleArena({ search }) {
                     transform: 'translate(-50%, -50%)'
                   }
                 : { position: 'absolute', left: fallback.left, top: fallback.top, transform: 'translate(-50%, -50%)' };
-            const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
+            const avatarSize = anchor && !detectCoarsePointer()
+              ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25)
+              : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
             const handCount = activePlayer?.hand?.length ?? 0;
