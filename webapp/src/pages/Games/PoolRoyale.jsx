@@ -15047,6 +15047,7 @@ const powerRef = useRef(hud.power);
     shootingRef.current = shotActive;
   }, [shotActive]);
   const sliderInstanceRef = useRef(null);
+  const shotPowerSnapshotRef = useRef(0);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
@@ -25113,6 +25114,9 @@ const powerRef = useRef(hud.power);
         );
       };
 
+      const REF_STRIKE_TIME_MS = 120;
+      const REF_HOLD_TIME_MS = 50;
+      const REF_IMPACT_THRESHOLD = 0.9;
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
@@ -25121,11 +25125,12 @@ const powerRef = useRef(hud.power);
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
+          // Mirror the reference mechanism: fixed strike + hold windows.
+          strikeDuration: REF_STRIKE_TIME_MS,
+          holdDuration: REF_HOLD_TIME_MS,
           pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.88,
+          impactThreshold: REF_IMPACT_THRESHOLD,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -25333,8 +25338,11 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const powerInput =
-          Number.isFinite(committedPower) ? committedPower : powerRef.current;
+        const powerInput = Number.isFinite(committedPower)
+          ? committedPower
+          : Number.isFinite(shotPowerSnapshotRef.current)
+            ? shotPowerSnapshotRef.current
+            : powerRef.current;
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
@@ -31397,12 +31405,21 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
+      onChange: (v) => {
+        const normalized = clampPower(v / 100, 0);
+        shotPowerSnapshotRef.current = normalized;
+        applyPower(normalized);
+      },
       onStart: () => {
         captureCueStickAnchor();
+        shotPowerSnapshotRef.current = clampPower(powerRef.current ?? 0, 0);
       },
       onCommit: (value) => {
         const committedPower = Number.isFinite(value) ? value / 100 : null;
+        shotPowerSnapshotRef.current = clampPower(
+          Number.isFinite(committedPower) ? committedPower : powerRef.current,
+          0
+        );
         fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
@@ -31424,6 +31441,7 @@ const powerRef = useRef(hud.power);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
+    shotPowerSnapshotRef.current = 0;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
