@@ -38,12 +38,28 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   environmentHdri: BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map(({ id, name }) => ({ id, label: `${name} HDRI` })),
   dominoStyle: [
     { id: 'imperialIvory', label: 'Imperial Ivory' },
-    { id: 'obsidianPlatinum', label: 'Obsidian Platinum' },
-    { id: 'midnightRose', label: 'Midnight Rose' },
-    { id: 'auroraJade', label: 'Aurora Jade' },
-    { id: 'frostedOpal', label: 'Frosted Opal' },
-    { id: 'carbonVolt', label: 'Carbon Volt' },
-    { id: 'sandstoneAurora', label: 'Sandstone Aurora' }
+    { id: 'royalCrimson', label: 'Royal Crimson' },
+    { id: 'azureRegal', label: 'Azure Regal' },
+    { id: 'emeraldCrown', label: 'Emerald Crown' },
+    { id: 'violetEmpire', label: 'Violet Empire' },
+    { id: 'obsidianNight', label: 'Obsidian Night' },
+    { id: 'sunsetAmber', label: 'Sunset Amber' }
+  ],
+  dominoDotStyle: [
+    { id: 'pawnClassic', label: 'Pawn Classic' },
+    { id: 'pawnRuby', label: 'Pawn Ruby' },
+    { id: 'pawnSapphire', label: 'Pawn Sapphire' },
+    { id: 'pawnChrome', label: 'Pawn Chrome' },
+    { id: 'pawnGold', label: 'Pawn Gold' },
+    { id: 'pawnEmerald', label: 'Pawn Emerald' }
+  ],
+  dominoFrameStyle: [
+    { id: 'goldImperial', label: 'Gold Imperial' },
+    { id: 'chromeEdge', label: 'Chrome Edge' },
+    { id: 'aluminumMatte', label: 'Aluminium Matte' },
+    { id: 'bronzeForge', label: 'Bronze Forge' },
+    { id: 'obsidianTrim', label: 'Obsidian Trim' },
+    { id: 'roseCopper', label: 'Rose Copper' }
   ],
   highlightStyle: [
     { id: 'marksmanAmber', label: 'Marksman Amber' },
@@ -70,12 +86,31 @@ const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
 
 const DOMINO_STYLE_THUMBNAILS = Object.freeze({
   imperialIvory: swatchThumbnail(['#f8fafc', '#cbd5f5', '#e2e8f0']),
-  obsidianPlatinum: swatchThumbnail(['#1f2937', '#6b7280', '#e5e7eb']),
-  midnightRose: swatchThumbnail(['#881337', '#1f2937', '#fecdd3']),
-  auroraJade: swatchThumbnail(['#047857', '#0f172a', '#86efac']),
-  frostedOpal: swatchThumbnail(['#f8fafc', '#c7d2fe', '#e2e8f0']),
-  carbonVolt: swatchThumbnail(['#0f172a', '#111827', '#fde047']),
-  sandstoneAurora: swatchThumbnail(['#d6c7a1', '#7c2d12', '#fcd34d'])
+  royalCrimson: swatchThumbnail(['#991b1b', '#7f1d1d', '#fecaca']),
+  azureRegal: swatchThumbnail(['#1d4ed8', '#1e3a8a', '#bfdbfe']),
+  emeraldCrown: swatchThumbnail(['#047857', '#065f46', '#a7f3d0']),
+  violetEmpire: swatchThumbnail(['#6d28d9', '#581c87', '#ddd6fe']),
+  obsidianNight: swatchThumbnail(['#111827', '#0f172a', '#9ca3af']),
+  sunsetAmber: swatchThumbnail(['#b45309', '#78350f', '#fde68a'])
+});
+
+
+const DOMINO_DOT_STYLE_THUMBNAILS = Object.freeze({
+  pawnClassic: '/assets/game-art/chess-battle-royal/heads/current.svg',
+  pawnRuby: '/assets/game-art/chess-battle-royal/heads/headRuby.svg',
+  pawnSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
+  pawnChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
+  pawnGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg',
+  pawnEmerald: swatchThumbnail(['#065f46', '#10b981', '#d1fae5'])
+});
+
+const DOMINO_FRAME_STYLE_THUMBNAILS = Object.freeze({
+  goldImperial: swatchThumbnail(['#f59e0b', '#fbbf24', '#78350f']),
+  chromeEdge: swatchThumbnail(['#f5f5f5', '#a1a1aa', '#1f2937']),
+  aluminumMatte: swatchThumbnail(['#d1d5db', '#9ca3af', '#334155']),
+  bronzeForge: swatchThumbnail(['#b45309', '#92400e', '#451a03']),
+  obsidianTrim: swatchThumbnail(['#111827', '#374151', '#9ca3af']),
+  roseCopper: swatchThumbnail(['#b45309', '#f59e0b', '#fbcfe8'])
 });
 
 const DOMINO_HIGHLIGHT_THUMBNAILS = Object.freeze({
@@ -108,6 +143,8 @@ export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
   tableTheme: DOMINO_ROYAL_OPTION_SETS.tableTheme.map((option) => option.id),
   environmentHdri: BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant) => variant.id),
   dominoStyle: [getDominoDefaultOptionId('dominoStyle')].filter(Boolean),
+  dominoDotStyle: [getDominoDefaultOptionId('dominoDotStyle')].filter(Boolean),
+  dominoFrameStyle: [getDominoDefaultOptionId('dominoFrameStyle')].filter(Boolean),
   highlightStyle: [getDominoDefaultOptionId('highlightStyle')].filter(Boolean),
   chairTheme: DOMINO_ROYAL_OPTION_SETS.chairTheme.map((option) => option.id)
 });
@@ -170,6 +207,25 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     description: 'Premium domino material set for tiles and pips.',
     thumbnail: DOMINO_STYLE_THUMBNAILS[option.id]
   })),
+
+  ...DOMINO_ROYAL_OPTION_SETS.dominoDotStyle.slice(1).map((option, idx) => ({
+    id: `domino-dot-style-${option.id}`,
+    type: 'dominoDotStyle',
+    optionId: option.id,
+    name: option.label,
+    price: 640 + idx * 35,
+    description: 'Chess Battle Royal pawn-head inspired dot set for domino pips.',
+    thumbnail: DOMINO_DOT_STYLE_THUMBNAILS[option.id]
+  })),
+  ...DOMINO_ROYAL_OPTION_SETS.dominoFrameStyle.slice(1).map((option, idx) => ({
+    id: `domino-frame-style-${option.id}`,
+    type: 'dominoFrameStyle',
+    optionId: option.id,
+    name: option.label,
+    price: 700 + idx * 40,
+    description: 'Domino frame finish pack inspired by luxury metallic trims.',
+    thumbnail: DOMINO_FRAME_STYLE_THUMBNAILS[option.id]
+  })),
   ...DOMINO_ROYAL_OPTION_SETS.highlightStyle.slice(1).map((option, idx) => ({
     id: `domino-highlight-${option.id}`,
     type: 'highlightStyle',
@@ -220,6 +276,16 @@ export const DOMINO_ROYAL_DEFAULT_LOADOUT = [
     type: 'dominoStyle',
     optionId: getDominoDefaultOptionId('dominoStyle'),
     label: getLabelForOption('dominoStyle', getDominoDefaultOptionId('dominoStyle'))
+  },
+  {
+    type: 'dominoDotStyle',
+    optionId: getDominoDefaultOptionId('dominoDotStyle'),
+    label: getLabelForOption('dominoDotStyle', getDominoDefaultOptionId('dominoDotStyle'))
+  },
+  {
+    type: 'dominoFrameStyle',
+    optionId: getDominoDefaultOptionId('dominoFrameStyle'),
+    label: getLabelForOption('dominoFrameStyle', getDominoDefaultOptionId('dominoFrameStyle'))
   },
   {
     type: 'highlightStyle',

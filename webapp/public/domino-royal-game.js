@@ -4007,68 +4007,68 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'obsidianPlatinum',
-    label: 'Obsidian Platinum',
-    preview: ['#090909', '#c5ccd9'],
+    id: 'royalCrimson',
+    label: 'Royal Crimson',
+    preview: ['#991b1b', '#7f1d1d'],
     body: {
-      color: '#0b0c10',
-      roughness: 0.24,
-      metalness: 0.32,
+      color: '#991b1b',
+      roughness: 0.22,
+      metalness: 0.3,
       clearcoat: 1.0,
       clearcoatRoughness: 0.04,
-      reflectivity: 0.6,
-      sheen: 0.25,
-      sheenColor: '#1f2937'
+      reflectivity: 0.64,
+      sheen: 0.28,
+      sheenColor: '#fecaca'
     },
     pip: {
-      color: '#dce6ff',
-      metalness: 0.74,
-      roughness: 0.18,
+      color: '#fef2f2',
+      metalness: 0.62,
+      roughness: 0.2,
       clearcoat: 0.55,
       clearcoatRoughness: 0.03,
-      emissive: '#6b87ff',
+      emissive: '#7f1d1d',
       emissiveIntensity: dimIntensity(0.08),
       sheen: 0.18
     },
     accent: {
-      color: '#d7dce3',
-      emissive: '#5b636f',
-      emissiveIntensity: dimIntensity(0.38),
+      color: '#fecaca',
+      emissive: '#7f1d1d',
+      emissiveIntensity: dimIntensity(0.4),
       metalness: 1.0,
-      roughness: 0.14,
+      roughness: 0.16,
       reflectivity: 1.0,
       ringInner: 0.106,
       ringOuter: 0.124
     }
   },
   {
-    id: 'midnightRose',
-    label: 'Midnight Rose',
-    preview: ['#0d1533', '#c27c6a'],
+    id: 'azureRegal',
+    label: 'Azure Regal',
+    preview: ['#1d4ed8', '#1e3a8a'],
     body: {
-      color: '#101b38',
+      color: '#1d4ed8',
       roughness: 0.2,
-      metalness: 0.26,
+      metalness: 0.28,
       clearcoat: 1.0,
       clearcoatRoughness: 0.04,
       reflectivity: 0.66,
-      sheen: 0.42,
-      sheenColor: '#27446d'
+      sheen: 0.3,
+      sheenColor: '#bfdbfe'
     },
     pip: {
-      color: '#f1f2f8',
-      metalness: 0.35,
-      roughness: 0.14,
+      color: '#e0f2fe',
+      metalness: 0.5,
+      roughness: 0.16,
       clearcoat: 0.5,
       clearcoatRoughness: 0.05,
-      emissive: '#2a3f63',
-      emissiveIntensity: dimIntensity(0.1),
+      emissive: '#1e3a8a',
+      emissiveIntensity: dimIntensity(0.08),
       sheen: 0.2
     },
     accent: {
-      color: '#c27c6a',
-      emissive: '#5b3126',
-      emissiveIntensity: dimIntensity(0.46),
+      color: '#bfdbfe',
+      emissive: '#1e40af',
+      emissiveIntensity: dimIntensity(0.44),
       metalness: 1.0,
       roughness: 0.18,
       reflectivity: 1.0,
@@ -4077,32 +4077,32 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'auroraJade',
-    label: 'Aurora Jade',
-    preview: ['#0e3b2c', '#d0b58f'],
+    id: 'emeraldCrown',
+    label: 'Emerald Crown',
+    preview: ['#047857', '#065f46'],
     body: {
-      color: '#0e3b2c',
+      color: '#047857',
       roughness: 0.22,
       metalness: 0.28,
       clearcoat: 1.0,
       clearcoatRoughness: 0.05,
       reflectivity: 0.68,
       sheen: 0.36,
-      sheenColor: '#1c6d53'
+      sheenColor: '#a7f3d0'
     },
     pip: {
-      color: '#f1f5f2',
+      color: '#ecfdf5',
       metalness: 0.42,
       roughness: 0.16,
       clearcoat: 0.55,
       clearcoatRoughness: 0.04,
-      emissive: '#215544',
+      emissive: '#065f46',
       emissiveIntensity: dimIntensity(0.08),
       sheen: 0.16
     },
     accent: {
-      color: '#d0b58f',
-      emissive: '#7a5b36',
+      color: '#a7f3d0',
+      emissive: '#047857',
       emissiveIntensity: dimIntensity(0.44),
       metalness: 0.92,
       roughness: 0.19,
@@ -4112,32 +4112,32 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'frostedOpal',
-    label: 'Frosted Opal',
-    preview: ['#e8eef4', '#7a93d2'],
+    id: 'violetEmpire',
+    label: 'Violet Empire',
+    preview: ['#6d28d9', '#581c87'],
     body: {
-      color: '#e8eef4',
-      roughness: 0.18,
-      metalness: 0.22,
+      color: '#6d28d9',
+      roughness: 0.2,
+      metalness: 0.24,
       clearcoat: 1.0,
       clearcoatRoughness: 0.05,
       reflectivity: 0.7,
-      sheen: 0.4,
-      sheenColor: '#ffffff'
+      sheen: 0.36,
+      sheenColor: '#ddd6fe'
     },
     pip: {
-      color: '#182235',
-      metalness: 0.58,
-      roughness: 0.2,
+      color: '#f5f3ff',
+      metalness: 0.54,
+      roughness: 0.18,
       clearcoat: 0.55,
       clearcoatRoughness: 0.04,
-      emissive: '#1c3a6b',
+      emissive: '#4c1d95',
       emissiveIntensity: dimIntensity(0.09),
       sheen: 0.18
     },
     accent: {
-      color: '#7a93d2',
-      emissive: '#31497a',
+      color: '#ddd6fe',
+      emissive: '#6d28d9',
       emissiveIntensity: dimIntensity(0.42),
       metalness: 0.95,
       roughness: 0.17,
@@ -4147,33 +4147,33 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'carbonVolt',
-    label: 'Carbon Volt',
-    preview: ['#0b1020', '#22d3ee'],
+    id: 'obsidianNight',
+    label: 'Obsidian Night',
+    preview: ['#111827', '#0f172a'],
     body: {
-      color: '#0c1428',
+      color: '#111827',
       roughness: 0.28,
       metalness: 0.48,
       clearcoat: 0.95,
       clearcoatRoughness: 0.06,
       reflectivity: 0.62,
       sheen: 0.24,
-      sheenColor: '#1f2a44'
+      sheenColor: '#9ca3af'
     },
     pip: {
-      color: '#e0f2fe',
-      metalness: 0.68,
+      color: '#f8fafc',
+      metalness: 0.6,
       roughness: 0.18,
       clearcoat: 0.62,
       clearcoatRoughness: 0.04,
-      emissive: '#22d3ee',
-      emissiveIntensity: dimIntensity(0.2),
+      emissive: '#1f2937',
+      emissiveIntensity: dimIntensity(0.12),
       sheen: 0.18
     },
     accent: {
-      color: '#22d3ee',
-      emissive: '#0ea5e9',
-      emissiveIntensity: dimIntensity(0.54),
+      color: '#9ca3af',
+      emissive: '#4b5563',
+      emissiveIntensity: dimIntensity(0.42),
       metalness: 0.98,
       roughness: 0.18,
       reflectivity: 1,
@@ -4182,32 +4182,32 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'sandstoneAurora',
-    label: 'Sandstone Aurora',
-    preview: ['#f1d8b0', '#f97316'],
+    id: 'sunsetAmber',
+    label: 'Sunset Amber',
+    preview: ['#b45309', '#78350f'],
     body: {
-      color: '#f1d8b0',
-      roughness: 0.34,
-      metalness: 0.22,
-      clearcoat: 0.82,
-      clearcoatRoughness: 0.08,
-      reflectivity: 0.58,
-      sheen: 0.26,
-      sheenColor: '#fff1db'
+      color: '#b45309',
+      roughness: 0.3,
+      metalness: 0.24,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.06,
+      reflectivity: 0.6,
+      sheen: 0.28,
+      sheenColor: '#fde68a'
     },
     pip: {
-      color: '#422006',
+      color: '#fffbeb',
       metalness: 0.44,
-      roughness: 0.26,
+      roughness: 0.2,
       clearcoat: 0.6,
       clearcoatRoughness: 0.06,
-      emissive: '#6b2f0d',
-      emissiveIntensity: dimIntensity(0.14),
+      emissive: '#78350f',
+      emissiveIntensity: dimIntensity(0.1),
       sheen: 0.16
     },
     accent: {
-      color: '#f97316',
-      emissive: '#c2410c',
+      color: '#fde68a',
+      emissive: '#b45309',
       emissiveIntensity: dimIntensity(0.46),
       metalness: 0.93,
       roughness: 0.2,
@@ -4216,6 +4216,24 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       ringOuter: 0.122
     }
   }
+]);
+
+const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
+  { id: 'pawnClassic', label: 'Pawn Classic', icon: '♟', color: '#121314', emissive: '#080808', metalness: 0.55, roughness: 0.22 },
+  { id: 'pawnRuby', label: 'Pawn Ruby', icon: '♟', color: '#ffe4e6', emissive: '#881337', metalness: 0.62, roughness: 0.2 },
+  { id: 'pawnSapphire', label: 'Pawn Sapphire', icon: '♟', color: '#e0f2fe', emissive: '#1d4ed8', metalness: 0.62, roughness: 0.2 },
+  { id: 'pawnChrome', label: 'Pawn Chrome', icon: '♟', color: '#e5e7eb', emissive: '#6b7280', metalness: 0.9, roughness: 0.16 },
+  { id: 'pawnGold', label: 'Pawn Gold', icon: '♟', color: '#fef3c7', emissive: '#a16207', metalness: 0.88, roughness: 0.18 },
+  { id: 'pawnEmerald', label: 'Pawn Emerald', icon: '♟', color: '#d1fae5', emissive: '#047857', metalness: 0.7, roughness: 0.18 }
+]);
+
+const DOMINO_FRAME_STYLE_OPTIONS = Object.freeze([
+  { id: 'goldImperial', label: 'Gold Imperial', color: '#d8af37', emissive: '#7a5300', metalness: 1.0, roughness: 0.2 },
+  { id: 'chromeEdge', label: 'Chrome Edge', color: '#d1d5db', emissive: '#6b7280', metalness: 1.0, roughness: 0.14 },
+  { id: 'aluminumMatte', label: 'Aluminium Matte', color: '#9ca3af', emissive: '#475569', metalness: 0.92, roughness: 0.18 },
+  { id: 'bronzeForge', label: 'Bronze Forge', color: '#b45309', emissive: '#7c2d12', metalness: 0.9, roughness: 0.2 },
+  { id: 'obsidianTrim', label: 'Obsidian Trim', color: '#374151', emissive: '#111827', metalness: 0.82, roughness: 0.2 },
+  { id: 'roseCopper', label: 'Rose Copper', color: '#f59e0b', emissive: '#b45309', metalness: 0.9, roughness: 0.18 }
 ]);
 
 const TABLE_SETUP_SECTIONS = [
@@ -4227,7 +4245,9 @@ const TABLE_SETUP_SECTIONS = [
   { key: 'tableTheme', label: 'Table Theme', options: TABLE_THEME_OPTIONS },
   { key: 'tableWood', label: 'Table Finish', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'dominoStyle', label: 'Domino', options: DOMINO_STYLE_OPTIONS },
+  { key: 'dominoStyle', label: 'Domino Colors', options: DOMINO_STYLE_OPTIONS },
+  { key: 'dominoDotStyle', label: 'Domino Dots', options: DOMINO_DOT_STYLE_OPTIONS },
+  { key: 'dominoFrameStyle', label: 'Domino Frames', options: DOMINO_FRAME_STYLE_OPTIONS },
   {
     key: 'highlightStyle',
     label: 'Highlights',
@@ -4265,6 +4285,8 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
   tableWood: TABLE_WOOD_OPTIONS,
   tableCloth: TABLE_CLOTH_OPTIONS,
   dominoStyle: DOMINO_STYLE_OPTIONS,
+  dominoDotStyle: DOMINO_DOT_STYLE_OPTIONS,
+  dominoFrameStyle: DOMINO_FRAME_STYLE_OPTIONS,
   highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
   chairTheme: CHAIR_THEME_OPTIONS
 });
@@ -4411,6 +4433,8 @@ function normalizeAppearance(raw) {
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['dominoStyle', DOMINO_STYLE_OPTIONS.length],
+    ['dominoDotStyle', DOMINO_DOT_STYLE_OPTIONS.length],
+    ['dominoFrameStyle', DOMINO_FRAME_STYLE_OPTIONS.length],
     ['highlightStyle', HIGHLIGHT_STYLE_OPTIONS.length],
     ['chairTheme', CHAIR_THEME_OPTIONS.length]
   ];
@@ -6680,6 +6704,12 @@ let accentMat = null;
 let currentDominoStyleOption =
   DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ??
   DOMINO_STYLE_OPTIONS[0];
+let currentDominoDotStyleOption =
+  DOMINO_DOT_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoDotStyle] ??
+  DOMINO_DOT_STYLE_OPTIONS[0];
+let currentDominoFrameStyleOption =
+  DOMINO_FRAME_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoFrameStyle] ??
+  DOMINO_FRAME_STYLE_OPTIONS[0];
 let dominoStyleProfile = {
   ringInner: currentDominoStyleOption?.accent?.ringInner ?? 0.107,
   ringOuter: currentDominoStyleOption?.accent?.ringOuter ?? 0.12,
@@ -6861,9 +6891,17 @@ const getDominoSurfaceTextures = (() => {
   };
 })();
 
-function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
+function applyDominoStyle(
+  option = DOMINO_STYLE_OPTIONS[0],
+  dotOption = currentDominoDotStyleOption,
+  frameOption = currentDominoFrameStyleOption
+) {
   const style = option ?? DOMINO_STYLE_OPTIONS[0];
+  const pipStyle = dotOption ?? DOMINO_DOT_STYLE_OPTIONS[0];
+  const frameStyle = frameOption ?? DOMINO_FRAME_STYLE_OPTIONS[0];
   currentDominoStyleOption = style;
+  currentDominoDotStyleOption = pipStyle;
+  currentDominoFrameStyleOption = frameStyle;
   disposeDominoBaseMaterials();
   porcelainMat = buildDominoMaterial(style.body, {
     color: '#f8f8fb',
@@ -6876,30 +6914,48 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
     sheenColor: '#fefaf2',
     envMapIntensity: 1.18
   });
-  pipMat = buildDominoMaterial(style.pip, {
-    color: '#0a0a0a',
-    roughness: 0.05,
-    metalness: 0.6,
-    clearcoat: 0.9,
-    clearcoatRoughness: 0.04,
-    sheen: 0.12,
-    envMapIntensity: 0.85
-  });
+  pipMat = buildDominoMaterial(
+    {
+      ...(style.pip || {}),
+      color: pipStyle?.color ?? style.pip?.color,
+      emissive: pipStyle?.emissive ?? style.pip?.emissive,
+      metalness: pipStyle?.metalness ?? style.pip?.metalness,
+      roughness: pipStyle?.roughness ?? style.pip?.roughness
+    },
+    {
+      color: '#0a0a0a',
+      roughness: 0.05,
+      metalness: 0.6,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.04,
+      sheen: 0.12,
+      envMapIntensity: 0.85
+    }
+  );
   const dominoTextures = getDominoSurfaceTextures();
   porcelainMat.map = dominoTextures.porcelainMap;
   porcelainMat.roughnessMap = dominoTextures.porcelainRoughness;
   pipMat.map = dominoTextures.pipMap;
 
-  accentMat = buildDominoMaterial(style.accent, {
-    color: '#d7b03b',
-    emissive: '#593d00',
-    emissiveIntensity: dimIntensity(0.55),
-    metalness: 1.0,
-    roughness: 0.18,
-    reflectivity: 1.0,
-    envMapIntensity: 1.42,
-    side: THREE.DoubleSide
-  });
+  accentMat = buildDominoMaterial(
+    {
+      ...(style.accent || {}),
+      color: frameStyle?.color ?? style.accent?.color,
+      emissive: frameStyle?.emissive ?? style.accent?.emissive,
+      metalness: frameStyle?.metalness ?? style.accent?.metalness,
+      roughness: frameStyle?.roughness ?? style.accent?.roughness
+    },
+    {
+      color: '#d7b03b',
+      emissive: '#593d00',
+      emissiveIntensity: dimIntensity(0.55),
+      metalness: 1.0,
+      roughness: 0.18,
+      reflectivity: 1.0,
+      envMapIntensity: 1.42,
+      side: THREE.DoubleSide
+    }
+  );
   accentMat.polygonOffset = true;
   accentMat.polygonOffsetFactor = -1;
   accentMat.polygonOffsetUnits = -1;
@@ -7095,7 +7151,11 @@ function applyAppearanceChange({ refresh = true } = {}) {
   clearExistingDominoMeshes();
   updateTableMaterials();
   applyDominoStyle(
-    DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]
+    DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0],
+    DOMINO_DOT_STYLE_OPTIONS[appearance.dominoDotStyle] ??
+      DOMINO_DOT_STYLE_OPTIONS[0],
+    DOMINO_FRAME_STYLE_OPTIONS[appearance.dominoFrameStyle] ??
+      DOMINO_FRAME_STYLE_OPTIONS[0]
   );
   applyHighlightStyle(
     HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ??
@@ -7147,7 +7207,11 @@ function applyFrameRateSelection(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
       ENVIRONMENT_HDRI_OPTIONS[0]
   );
-  applyDominoStyle(currentDominoStyleOption);
+  applyDominoStyle(
+    currentDominoStyleOption,
+    currentDominoDotStyleOption,
+    currentDominoFrameStyleOption
+  );
   buildChairs(
     CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
   );
@@ -7313,6 +7377,42 @@ function createOptionPreview(key, option) {
         swatch.appendChild(inset);
       }
       break;
+    case 'dominoDotStyle': {
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      swatch.style.background = 'linear-gradient(135deg, #111827, #0f172a)';
+      const dot = document.createElement('div');
+      dot.style.position = 'absolute';
+      dot.style.left = '50%';
+      dot.style.top = '50%';
+      dot.style.transform = 'translate(-50%, -50%)';
+      dot.style.width = '0.95rem';
+      dot.style.height = '0.95rem';
+      dot.style.borderRadius = '999px';
+      dot.style.background = option.color ?? '#121314';
+      dot.style.boxShadow = `0 0 0 2px ${option.emissive ?? '#d8af37'}`;
+      dot.style.display = 'grid';
+      dot.style.placeItems = 'center';
+      dot.style.fontSize = '0.62rem';
+      dot.style.fontWeight = '800';
+      dot.style.color = '#111827';
+      dot.textContent = option.icon ?? '♟';
+      swatch.appendChild(dot);
+      break;
+    }
+    case 'dominoFrameStyle': {
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      swatch.style.background = 'linear-gradient(135deg, #f8fafc, #e2e8f0)';
+      const frame = document.createElement('div');
+      frame.style.position = 'absolute';
+      frame.style.inset = '0.25rem';
+      frame.style.borderRadius = '0.5rem';
+      frame.style.border = `3px solid ${option.color ?? '#d8af37'}`;
+      frame.style.boxShadow = `0 0 0 1px rgba(15,23,42,0.3), inset 0 0 0 1px ${option.emissive ?? '#7a5300'}`;
+      swatch.appendChild(frame);
+      break;
+    }
     case 'highlightStyle': {
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
