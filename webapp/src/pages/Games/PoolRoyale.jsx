@@ -8870,7 +8870,7 @@ export function Table3D(
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.72; // shorten short-rail cushions a touch more so the ends don't overhang the pocket cuts
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.08; // trim short-rail cushions slightly more so the ends pull back from the corners
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.134; // trim the side cushions a touch more on the corner-facing side while keeping the same trimming direction
+  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.142; // trim the side-rail cushion ends near corner pockets just a tiny bit more; middle-pocket trims stay unchanged
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.026; // lift all six cushions a touch higher while keeping the same profile
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -28668,11 +28668,9 @@ const powerRef = useRef(hud.power);
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
-            Number.isFinite(playback?.frameTimeMs) && playback.frameTimeMs > 0
-              ? playback.frameTimeMs
-              : frameTiming && Number.isFinite(frameTiming.targetMs)
-                ? frameTiming.targetMs
-                : 1000 / 60;
+            frameTiming && Number.isFinite(frameTiming.targetMs)
+              ? frameTiming.targetMs
+              : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
             rafRef.current = requestAnimationFrame(step);
             return;
@@ -28684,9 +28682,6 @@ const powerRef = useRef(hud.power);
           };
           const frames = playback.frames || [];
           const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const effectiveDuration = Number.isFinite(playback.effectiveDuration)
-            ? playback.effectiveDuration
-            : duration;
           const elapsed = now - playback.startedAt;
           if (frames.length === 0) {
             finishReplayPlayback(playback);
@@ -28694,37 +28689,7 @@ const powerRef = useRef(hud.power);
             return;
           }
           try {
-            let targetTime = Math.min(elapsed, duration);
-            const wrongBallSlowImpact = playback.wrongBallSlowImpact;
-            if (
-              wrongBallSlowImpact &&
-              Number.isFinite(wrongBallSlowImpact.start) &&
-              Number.isFinite(wrongBallSlowImpact.end) &&
-              Number.isFinite(wrongBallSlowImpact.factor) &&
-              wrongBallSlowImpact.factor < 0.999
-            ) {
-              const slowStart = wrongBallSlowImpact.start;
-              const slowEnd = wrongBallSlowImpact.end;
-              const slowFactor = THREE.MathUtils.clamp(wrongBallSlowImpact.factor, 0.1, 1);
-              const slowSpan = Math.max(0, slowEnd - slowStart);
-              if (slowSpan > 0) {
-                const preSlowElapsed = Math.max(0, slowStart);
-                const slowedRealSpan = slowSpan / slowFactor;
-                if (elapsed <= preSlowElapsed) {
-                  targetTime = Math.min(elapsed, duration);
-                } else if (elapsed <= preSlowElapsed + slowedRealSpan) {
-                  targetTime = Math.min(
-                    duration,
-                    slowStart + (elapsed - preSlowElapsed) * slowFactor
-                  );
-                } else {
-                  targetTime = Math.min(
-                    duration,
-                    slowEnd + (elapsed - preSlowElapsed - slowedRealSpan)
-                  );
-                }
-              }
-            }
+            const targetTime = Math.min(elapsed, duration);
             let frameIndex = playback.lastIndex ?? 0;
             while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
               frameIndex += 1;
@@ -28739,14 +28704,21 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA && !FIXED_RAIL_REPLAY_CAMERA) {
-              const frameCameraA = frameA?.camera ?? null;
-              const frameCameraB = frameB?.camera ?? frameCameraA;
-              if (frameCameraA || frameCameraB) {
+            if (!LOCK_REPLAY_CAMERA) {
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const previousFrameCamera =
+                replayFrameCameraRef.current?.frameB ??
+                replayFrameCameraRef.current?.frameA ??
+                null;
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
                 replayFrameCameraRef.current = {
-                  frameA: frameCameraA ?? frameCameraB,
-                  frameB: frameCameraB ?? frameCameraA,
-                  alpha
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
                 };
               }
             } else {
@@ -28757,9 +28729,7 @@ const powerRef = useRef(hud.power);
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
             renderer.render(scene, frameCamera ?? camera);
-            const finished =
-              elapsed >= effectiveDuration ||
-              elapsed - effectiveDuration >= REPLAY_TIMEOUT_GRACE_MS;
+            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
             }
@@ -28798,30 +28768,12 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.frames?.length > 0) {
-            const normalizedFrames = Array.isArray(pending.frames) ? [...pending.frames] : [];
-            if (normalizedFrames.length === 1) {
-              const firstFrame = normalizedFrames[0];
-              const fallbackFrameTime = Math.max(16, pending.frameTimeMs ?? 1000 / 60);
-              normalizedFrames.push({
-                ...firstFrame,
-                t: Math.max(fallbackFrameTime, firstFrame?.t ?? 0)
-              });
-            }
-            const frameTiming = frameTimingRef.current;
-            const frameTimeMs =
-              Number.isFinite(pending?.frameTimeMs) && pending.frameTimeMs > 0
-                ? pending.frameTimeMs
-                : frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
-                  ? frameTiming.targetMs
-                  : 1000 / 60;
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
-              frames: normalizedFrames,
               startTime: pending.startTime ?? nowMs,
               startState: pending.startState ?? captureBallSnapshot(),
               zoomOnly: pending.zoomOnly ?? false,
-              frameTimeMs,
               replayTags: pending.replayTags ?? ['remote']
             };
             shotReplayRef.current = shotRecording;
