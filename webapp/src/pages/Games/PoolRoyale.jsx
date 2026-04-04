@@ -3039,47 +3039,47 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
-    label: 'Black',
-    rail: 0x111317,
-    base: 0x090b0f,
-    trim: 0x2a313b,
-    woodTextureId: 'plastic_monoblock',
+    label: 'LT Black',
+    rail: 0x171b22,
+    base: 0x0c0f14,
+    trim: 0x303844,
+    woodTextureId: 'plastic_monoblock_lt_black',
     woodRepeatScale: 1
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
-    label: 'Grey',
-    rail: 0x6b7280,
-    base: 0x4b5563,
-    trim: 0xb6becb,
-    woodTextureId: 'plastic_monoblock',
+    label: 'LT Grey',
+    rail: 0x7f8794,
+    base: 0x5f6774,
+    trim: 0xc5cdd9,
+    woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
-    label: 'Dark Grey',
-    rail: 0x353b45,
-    base: 0x252a31,
-    trim: 0x525b68,
-    woodTextureId: 'plastic_monoblock',
+    label: 'LT Dark Grey',
+    rail: 0x414854,
+    base: 0x2b313a,
+    trim: 0x646d7a,
+    woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
-    label: 'Burgundy',
-    rail: 0x6d1f30,
-    base: 0x4f1220,
-    trim: 0x8d3248,
-    woodTextureId: 'plastic_monoblock',
+    label: 'LT Burgundy',
+    rail: 0x7f2a3d,
+    base: 0x5d1a2a,
+    trim: 0xa34860,
+    woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
-    label: 'Milk Cream',
-    rail: 0xf6efe2,
-    base: 0xede2d0,
-    trim: 0xfff8eb,
-    woodTextureId: 'plastic_monoblock',
+    label: 'LT Milk Cream',
+    rail: 0xf8efe1,
+    base: 0xebddc9,
+    trim: 0xfff9ee,
+    woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1
   })
 });
@@ -12189,18 +12189,6 @@ function applyTableFinishToTable(table, finish) {
     );
     const highFpsRailTextureSize = enforceHighFpsTableTextureSize(nextRailSurface.textureSize);
     const highFpsFrameTextureSize = enforceHighFpsTableTextureSize(nextFrameSurface.textureSize);
-    const synchronizedRailSurface = {
-      repeat: new THREE.Vector2(
-        nextRailSurface.repeat.x,
-        nextRailSurface.repeat.y
-      ),
-      rotation: nextRailSurface.rotation,
-      textureSize: highFpsRailTextureSize,
-      mapUrl: nextRailSurface.mapUrl,
-      roughnessMapUrl: nextRailSurface.roughnessMapUrl,
-      normalMapUrl: nextRailSurface.normalMapUrl,
-      woodRepeatScale
-    };
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
@@ -12208,6 +12196,20 @@ function applyTableFinishToTable(table, finish) {
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
+      woodRepeatScale
+    };
+    // Keep rail texture pattern scale locked to the frame/legs so the full table
+    // shell (rails + skirts + legs) reads as one consistent GLTF texture density.
+    const synchronizedRailSurface = {
+      repeat: new THREE.Vector2(
+        synchronizedFrameSurface.repeat.x,
+        synchronizedFrameSurface.repeat.y
+      ),
+      rotation: synchronizedFrameSurface.rotation,
+      textureSize: highFpsRailTextureSize,
+      mapUrl: synchronizedFrameSurface.mapUrl,
+      roughnessMapUrl: synchronizedFrameSurface.roughnessMapUrl,
+      normalMapUrl: synchronizedFrameSurface.normalMapUrl,
       woodRepeatScale
     };
 

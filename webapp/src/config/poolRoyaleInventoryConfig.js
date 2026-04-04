@@ -297,11 +297,11 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: swatchThumbnail(['#090b0f', '#111317', '#2a313b']),
-  carbonFiberChalkGrey: swatchThumbnail(['#4b5563', '#6b7280', '#b6becb']),
-  carbonFiberChalkBeige: swatchThumbnail(['#252a31', '#353b45', '#525b68']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#4f1220', '#6d1f30', '#8d3248']),
-  carbonFiberChalkWhite: swatchThumbnail(['#ede2d0', '#f6efe2', '#fff8eb'])
+  carbonFiberChalk: swatchThumbnail(['#0c0f14', '#171b22', '#303844']),
+  carbonFiberChalkGrey: swatchThumbnail(['#5f6774', '#7f8794', '#c5cdd9']),
+  carbonFiberChalkBeige: swatchThumbnail(['#2b313a', '#414854', '#646d7a']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#5d1a2a', '#7f2a3d', '#a34860']),
+  carbonFiberChalkWhite: swatchThumbnail(['#ebddc9', '#f8efe1', '#fff9ee'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -400,11 +400,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
-    carbonFiberChalk: 'Black',
-    carbonFiberChalkGrey: 'Grey',
-    carbonFiberChalkBeige: 'Dark Grey',
-    carbonFiberChalkDarkBlue: 'Burgundy',
-    carbonFiberChalkWhite: 'Milk Cream'
+    carbonFiberChalk: 'LT Black',
+    carbonFiberChalkGrey: 'LT Grey',
+    carbonFiberChalkBeige: 'LT Dark Grey',
+    carbonFiberChalkDarkBlue: 'LT Burgundy',
+    carbonFiberChalkWhite: 'LT Milk Cream'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -496,7 +496,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalk',
     type: 'tableFinish',
     optionId: 'carbonFiberChalk',
-    name: 'Black Finish',
+    name: 'LT Black Finish',
     price: 1160,
     description: 'Solid black molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
@@ -505,7 +505,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalkGrey',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkGrey',
-    name: 'Grey Finish',
+    name: 'LT Grey Finish',
     price: 1170,
     description: 'Solid grey molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
@@ -514,7 +514,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalkBeige',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkBeige',
-    name: 'Dark Grey Finish',
+    name: 'LT Dark Grey Finish',
     price: 1180,
     description: 'Solid dark-grey molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
@@ -523,7 +523,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalkDarkBlue',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkDarkBlue',
-    name: 'Burgundy Finish',
+    name: 'LT Burgundy Finish',
     price: 1190,
     description: 'Solid burgundy molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
@@ -532,7 +532,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalkWhite',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkWhite',
-    name: 'Milk Cream Finish',
+    name: 'LT Milk Cream Finish',
     price: 1200,
     description: 'Solid milk-cream molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
