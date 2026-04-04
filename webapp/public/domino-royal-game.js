@@ -557,11 +557,6 @@ function setFeedbackSettings(next, { refreshUi = true } = {}) {
   }
 }
 
-let commentaryGreetingPlayed = true;
-let lastAnnouncedTurn = null;
-
-function announceCommentary() {}
-
 function formatSeatName(index) {
   const names = getSeatUsernames(N);
   if (index === human) {
@@ -3670,12 +3665,12 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Ruby',
     icon: '●',
     color: '#9b111e',
-    emissive: '#7f1d1d',
+    emissive: '#000000',
     metalness: 0.05,
-    roughness: 0.2,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
+    roughness: 0.08,
+    transmission: 0.92,
+    ior: 2.4,
+    thickness: 0.6,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
   },
   {
@@ -3683,7 +3678,7 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Pearl',
     icon: '●',
     color: '#f5f5f5',
-    emissive: '#cbd5e1',
+    emissive: '#000000',
     metalness: 0.05,
     roughness: 0.25,
     transmission: 0,
@@ -3696,12 +3691,12 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Sapphire',
     icon: '●',
     color: '#0f52ba',
-    emissive: '#1d4ed8',
+    emissive: '#000000',
     metalness: 0.05,
-    roughness: 0.2,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
+    roughness: 0.08,
+    transmission: 0.9,
+    ior: 1.8,
+    thickness: 0.7,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg'
   },
   {
@@ -3709,12 +3704,12 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Emerald',
     icon: '●',
     color: '#046a38',
-    emissive: '#166534',
+    emissive: '#000000',
     metalness: 0.05,
-    roughness: 0.2,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
+    roughness: 0.08,
+    transmission: 0.9,
+    ior: 1.8,
+    thickness: 0.7,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
   },
   {
@@ -3722,12 +3717,12 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Chrome',
     icon: '●',
     color: '#d6d8dc',
-    emissive: '#64748b',
+    emissive: '#000000',
     metalness: 0.95,
     roughness: 0.12,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
+    transmission: 0.1,
+    ior: 2.1,
+    thickness: 0.22,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headChrome.svg'
   },
   {
@@ -3735,12 +3730,12 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Gold',
     icon: '●',
     color: '#d4af37',
-    emissive: '#92400e',
+    emissive: '#000000',
     metalness: 0.92,
     roughness: 0.16,
-    transmission: 0,
-    ior: 1.5,
-    thickness: 0,
+    transmission: 0.06,
+    ior: 1.85,
+    thickness: 0.28,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
   }
 ]);
@@ -6561,6 +6556,7 @@ function applyDominoStyle(
       ...(style.pip || {}),
       color: pipStyle?.color ?? customDotColor ?? style.pip?.color,
       emissive: pipStyle?.emissive ?? style.pip?.emissive,
+      emissiveIntensity: pipStyle?.emissiveIntensity ?? style.pip?.emissiveIntensity,
       metalness: pipStyle?.metalness ?? style.pip?.metalness,
       roughness: pipStyle?.roughness ?? style.pip?.roughness,
       transmission: pipStyle?.transmission ?? style.pip?.transmission,
@@ -6580,7 +6576,7 @@ function applyDominoStyle(
   const dominoTextures = getDominoSurfaceTextures(pipStyle);
   porcelainMat.map = dominoTextures.porcelainMap;
   porcelainMat.roughnessMap = dominoTextures.porcelainRoughness;
-  pipMat.map = dominoTextures.pipMap;
+  pipMat.map = null;
 
   accentMat = buildDominoMaterial(
     {
@@ -8714,7 +8710,6 @@ function startGame({ resetRace = true } = {}) {
   winnerIndex = null;
   lastHandWinnerIndex = null;
   revealAllHands = false;
-  lastAnnouncedTurn = null;
   clearWinnerHighlight();
   hideWinnerOverlay();
   if (cpuMoveTimeout) {
@@ -8866,16 +8861,6 @@ function startGame({ resetRace = true } = {}) {
   updateInteractivity();
   if (current !== human) {
     scheduleCpuPlay();
-  }
-  if (!commentaryGreetingPlayed) {
-    commentaryGreetingPlayed = true;
-    announceCommentary(
-      'greeting',
-      { player: human },
-      { priority: true, interrupt: true }
-    );
-  } else {
-    announceCommentary('startRound', { player: starter });
   }
 }
 
@@ -9405,7 +9390,6 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   if (obj.userData && obj.userData.marker && selectedTile) {
     const side = obj.userData.side;
     const idx = players[human].hand.indexOf(selectedTile);
-    let playedTile = null;
     let playedPlacement = null;
     if (idx >= 0) {
       const [picked] = players[human].hand.splice(idx, 1);
@@ -9418,21 +9402,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         showMarkersFor(selectedTile);
         return;
       }
-      playedTile = picked;
       playedPlacement = placement;
-    }
-    if (playedTile) {
-      announceCommentary(
-        playedTile.a === playedTile.b ? 'playDouble' : 'playTile',
-        { player: human, tile: playedTile }
-      );
-      if (players[human].hand.length === 1) {
-        announceCommentary(
-          'nearWin',
-          { player: human, tilesLeft: players[human].hand.length },
-          { priority: true }
-        );
-      }
     }
     selectedTile = null;
     clearMarkers();
@@ -9567,9 +9537,6 @@ if (btnDraw) {
   if (drewTile) {
     SFX.drawTile();
   }
-  if (drewTile) {
-    announceCommentary('draw', { player: human });
-  }
   });
 }
 if (btnPass) {
@@ -9578,7 +9545,6 @@ if (btnPass) {
     clearMarkers();
     selectedTile = null;
     SFX.pass();
-    announceCommentary('pass', { player: human });
     schedulePassTurnAdvance(human);
   }
   });
@@ -9704,20 +9670,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
     setStatus('Game over');
   }
 
-  if (reason && reason.toLowerCase().includes('blocked')) {
-    announceCommentary(
-      'blocked',
-      { player: winnerIndex },
-      { priority: true, interrupt: true }
-    );
-  } else if (winnerIndex !== null) {
-    announceCommentary(
-      winnerIndex === human ? 'win' : 'lose',
-      { player: winnerIndex },
-      { priority: true, interrupt: true }
-    );
-  }
-
   if (winnerIndex !== null) {
     SFX.win();
   } else {
@@ -9798,12 +9750,6 @@ function updateInteractivity() {
     return;
   }
   setStatus(`Turn: Player ${current + 1}`);
-  if (lastAnnouncedTurn !== current) {
-    lastAnnouncedTurn = current;
-    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', {
-      player: current
-    });
-  }
   clearAllPassBubbles();
   renderHands();
   renderChain();
@@ -9856,17 +9802,14 @@ function cpuPlay() {
     if (drew) {
       renderHands();
       SFX.drawTile();
-      announceCommentary('draw', { player: current });
       if (canPlayAny(player.hand)) {
         scheduleCpuPlay();
       } else {
         SFX.pass();
-        announceCommentary('pass', { player: current });
         schedulePassTurnAdvance(current);
       }
     } else {
       SFX.pass();
-      announceCommentary('pass', { player: current });
       schedulePassTurnAdvance(current);
     }
     return;
@@ -9879,17 +9822,6 @@ function cpuPlay() {
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
       renderHands();
-      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', {
-        player: current,
-        tile: picked
-      });
-      if (player.hand.length === 1) {
-        announceCommentary(
-          'nearWin',
-          { player: current, tilesLeft: player.hand.length },
-          { priority: true }
-        );
-      }
       if (player.hand.length === 0) {
         concludeHand({
           winner: current,
@@ -9908,17 +9840,14 @@ function cpuPlay() {
   if (drew) {
     renderHands();
     SFX.drawTile();
-    announceCommentary('draw', { player: current });
     if (canPlayAny(player.hand)) {
       scheduleCpuPlay();
     } else {
       SFX.pass();
-      announceCommentary('pass', { player: current });
       schedulePassTurnAdvance(current);
     }
   } else {
     SFX.pass();
-    announceCommentary('pass', { player: current });
     schedulePassTurnAdvance(current);
   }
 }
