@@ -87,7 +87,6 @@ import {
   poolRoyalAccountId,
   addPoolRoyalUnlock
 } from '../../utils/poolRoyalInventory.js';
-import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import {
   describeTrainingLevel,
   getNextIncompleteLevel,
@@ -13068,18 +13067,11 @@ function PoolRoyaleGame({
     [poolInventory]
   );
   const availableEnvironmentHdris = useMemo(
-    () => {
-      const customVariants = getCustomHdriVariantsForGame(
-        'poolroyale',
-        accountId,
-        poolInventory?.environmentHdri
-      );
-      const merged = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
-      return merged.filter((variant) =>
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
         isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      );
-    },
-    [accountId, poolInventory]
+      ),
+    [poolInventory]
   );
   const availablePocketLiners = useMemo(
     () =>
