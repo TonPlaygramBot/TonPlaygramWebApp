@@ -27959,8 +27959,6 @@ const powerRef = useRef(hud.power);
           shotContext
         }) => {
           if (!recording || !hadObjectPot) return null;
-          const frameCount = recording.frames?.length ?? 0;
-          if (frameCount <= 1) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -27983,9 +27981,6 @@ const powerRef = useRef(hud.power);
         function resolve() {
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
-          if (shotRecording && (shotRecording.frames?.length ?? 0) < 2) {
-            recordReplayFrame(performance.now());
-          }
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
           let replayDecision = resolveReplayDecision({
@@ -28243,17 +28238,26 @@ const powerRef = useRef(hud.power);
               ...lastPottedBySeatRef.current,
               [shooterSeat]: newPots[newPots.length - 1] ?? null
             };
-            setPottedBySeat((prev) => ({
-              ...prev,
-              [shooterSeat]: [
-                ...(prev[shooterSeat] || []),
-                ...newPots.map((entry) => ({
-                  id: entry.id ?? String(entry.color ?? 'unknown'),
+            setPottedBySeat((prev) => {
+              const next = {
+                ...prev,
+                [shooterSeat]: [...(prev[shooterSeat] || [])]
+              };
+              const existing = new Set(
+                next[shooterSeat].map((entry) => String(entry.id ?? entry.color))
+              );
+              newPots.forEach((entry) => {
+                const key = String(entry.id ?? entry.color);
+                if (existing.has(key)) return;
+                existing.add(key);
+                next[shooterSeat].push({
+                  id: entry.id ?? key,
                   color: entry.color,
                   pocket: entry.pocket
-                }))
-              ]
-            }));
+                });
+              });
+              return next;
+            });
           } else {
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
