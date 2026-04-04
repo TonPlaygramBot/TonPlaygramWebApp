@@ -4219,12 +4219,66 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 ]);
 
 const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
-  { id: 'pawnClassic', label: 'Pawn Classic', icon: '♟', color: '#121314', emissive: '#080808', metalness: 0.55, roughness: 0.22 },
-  { id: 'pawnRuby', label: 'Pawn Ruby', icon: '♟', color: '#ffe4e6', emissive: '#881337', metalness: 0.62, roughness: 0.2 },
-  { id: 'pawnSapphire', label: 'Pawn Sapphire', icon: '♟', color: '#e0f2fe', emissive: '#1d4ed8', metalness: 0.62, roughness: 0.2 },
-  { id: 'pawnChrome', label: 'Pawn Chrome', icon: '♟', color: '#e5e7eb', emissive: '#6b7280', metalness: 0.9, roughness: 0.16 },
-  { id: 'pawnGold', label: 'Pawn Gold', icon: '♟', color: '#fef3c7', emissive: '#a16207', metalness: 0.88, roughness: 0.18 },
-  { id: 'pawnEmerald', label: 'Pawn Emerald', icon: '♟', color: '#d1fae5', emissive: '#047857', metalness: 0.7, roughness: 0.18 }
+  {
+    id: 'headGlass',
+    label: 'Glass',
+    icon: '●',
+    color: '#ffffff',
+    metalness: 0,
+    roughness: 0.05,
+    transmission: 0.95,
+    ior: 1.5,
+    thickness: 0.5,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
+  },
+  {
+    id: 'headRuby',
+    label: 'Ruby',
+    icon: '●',
+    color: '#9b111e',
+    metalness: 0.05,
+    roughness: 0.08,
+    transmission: 0.92,
+    ior: 2.4,
+    thickness: 0.6,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
+  },
+  {
+    id: 'headSapphire',
+    label: 'Sapphire',
+    icon: '●',
+    color: '#0f52ba',
+    metalness: 0.05,
+    roughness: 0.08,
+    transmission: 0.9,
+    ior: 1.8,
+    thickness: 0.7,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg'
+  },
+  {
+    id: 'headChrome',
+    label: 'Chrome',
+    icon: '●',
+    color: '#d6d8dc',
+    metalness: 0.95,
+    roughness: 0.12,
+    transmission: 0.1,
+    ior: 2.1,
+    thickness: 0.22,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/headChrome.svg'
+  },
+  {
+    id: 'headGold',
+    label: 'Gold',
+    icon: '●',
+    color: '#d4af37',
+    metalness: 0.92,
+    roughness: 0.16,
+    transmission: 0.06,
+    ior: 1.85,
+    thickness: 0.28,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
+  }
 ]);
 
 const DOMINO_FRAME_STYLE_OPTIONS = Object.freeze([
@@ -4258,25 +4312,34 @@ const TABLE_SETUP_SECTIONS = [
 
 const TABLE_FINISH_THEMES = new Set([
   'murlan-default',
+  'octagon-table',
   'diamond-edge',
   'diamond_edge',
-  'diamondEdge'
+  'diamondedge',
+  'oval-table'
 ]);
 
 function isTableFinishTheme(themeId = '') {
-  const normalized = String(themeId || '').trim();
+  const normalized = String(themeId || '').trim().toLowerCase();
   if (!normalized) return false;
   if (TABLE_FINISH_THEMES.has(normalized)) return true;
-  return normalized.toLowerCase().includes('diamond');
+  return (
+    normalized.includes('diamond') ||
+    normalized.includes('octagon') ||
+    normalized.includes('oval')
+  );
 }
 
 function getVisibleTableSetupSections() {
   const selectedTheme =
     TABLE_THEME_OPTIONS[appearance.tableTheme] ?? DEFAULT_TABLE_THEME_OPTION;
-  const showTableFinish = isTableFinishTheme(selectedTheme?.id);
-  return TABLE_SETUP_SECTIONS.filter((section) =>
-    section.key === 'tableWood' ? showTableFinish : true
-  );
+  const showFinishAndCloth = isTableFinishTheme(selectedTheme?.id);
+  return TABLE_SETUP_SECTIONS.filter((section) => {
+    if (section.key === 'tableWood' || section.key === 'tableCloth') {
+      return showFinishAndCloth;
+    }
+    return true;
+  });
 }
 
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
@@ -6940,7 +7003,10 @@ function applyDominoStyle(
       color: customDotColor ?? pipStyle?.color ?? style.pip?.color,
       emissive: pipStyle?.emissive ?? style.pip?.emissive,
       metalness: pipStyle?.metalness ?? style.pip?.metalness,
-      roughness: pipStyle?.roughness ?? style.pip?.roughness
+      roughness: pipStyle?.roughness ?? style.pip?.roughness,
+      transmission: pipStyle?.transmission ?? style.pip?.transmission,
+      ior: pipStyle?.ior ?? style.pip?.ior,
+      thickness: pipStyle?.thickness ?? style.pip?.thickness
     },
     {
       color: '#0a0a0a',

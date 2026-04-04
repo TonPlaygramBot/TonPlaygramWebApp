@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-04-domino-color-presets-v10';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-04-domino-color-presets-v11';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
