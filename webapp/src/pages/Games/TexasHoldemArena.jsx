@@ -6543,7 +6543,7 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="fixed z-20 flex items-start left-[calc(0.2rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)] landscape:left-[calc(0.2rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)]">
+      <div className="fixed z-20 left-[calc(0.2rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)] landscape:left-[calc(0.2rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)]">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -6559,7 +6559,7 @@ function TexasHoldemArena({ search }) {
           </button>
         </div>
       {configOpen && (
-        <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
+        <div className="pointer-events-auto absolute left-0 bottom-[calc(100%+0.5rem)] w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
