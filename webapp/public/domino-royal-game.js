@@ -1497,10 +1497,14 @@ function applyRendererQuality(quality = frameQuality) {
   }
 }
 applyRendererQuality();
-if (!app) {
-  throw new Error('Domino Royal root container #app is missing');
+let appRoot = app;
+if (!appRoot) {
+  console.warn('Domino Royal root container #app is missing; creating fallback root.');
+  appRoot = document.createElement('div');
+  appRoot.id = 'app';
+  document.body.appendChild(appRoot);
 }
-app.appendChild(renderer.domElement);
+appRoot.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
 
 const scene = new THREE.Scene();
@@ -9741,7 +9745,8 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
   }
 });
 
-btnDraw.addEventListener('click', () => {
+if (btnDraw) {
+  btnDraw.addEventListener('click', () => {
   if (current !== human || gameFinished) return;
   let drewTile = false;
   while (boneyard.length) {
@@ -9764,8 +9769,10 @@ btnDraw.addEventListener('click', () => {
   if (drewTile) {
     announceCommentary('draw', { player: human });
   }
-});
-btnPass.addEventListener('click', () => {
+  });
+}
+if (btnPass) {
+  btnPass.addEventListener('click', () => {
   if (current === human && !gameFinished) {
     clearMarkers();
     selectedTile = null;
@@ -9773,7 +9780,8 @@ btnPass.addEventListener('click', () => {
     announceCommentary('pass', { player: human });
     schedulePassTurnAdvance(human);
   }
-});
+  });
+}
 
 async function bootstrapDominoRoyal() {
   try {
