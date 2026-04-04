@@ -244,7 +244,8 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
 }));
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
-const BOARD_ROTATION_DRAG_SPEED = 0.0065;
+const CAMERA_LOOK_DRAG_SPEED = 0.0062;
+const CAMERA_LOOK_MAX_YAW = Math.PI * 0.5;
 const CAMERA_EXTRA_LIFT = 0.12;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -2628,7 +2629,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = true;
+  controls.enableZoom = false;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
   controls.minAzimuthAngle = -Infinity;
@@ -3850,7 +3851,7 @@ export default function SnakeBoard3D({
           mouseButtons: { ...controls.mouseButtons }
         };
       }
-      const topDownDistance = clamp(CAM.minR * 2.25, CAM.minR * 1.55, CAM.maxR * 0.96);
+      const topDownDistance = clamp(CAM.minR * 2.58, CAM.minR * 1.55, CAM.maxR * 0.98);
       const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
       const forwardDistance = Math.sin(topDownPolar) * topDownDistance;
       camera.position.set(
@@ -3892,7 +3893,7 @@ export default function SnakeBoard3D({
       controls.target.copy(restore.target);
       controls.enableRotate = restore.enableRotate;
       controls.enablePan = false;
-      controls.enableZoom = restore.enableZoom;
+      controls.enableZoom = false;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
@@ -3993,7 +3994,19 @@ export default function SnakeBoard3D({
     };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
 
-    const boardRotationRoot = board.rotationRoot || board.root;
+    const boardLookTarget = board.boardLookTarget || arena.boardLookTarget;
+    const startCameraState = arena.startCameraState;
+    const lookState = {
+      yaw: 0,
+      forwardDistance:
+        startCameraState?.position && startCameraState?.target
+          ? startCameraState.target.distanceTo(startCameraState.position)
+          : boardLookTarget.distanceTo(cameraRef.current.position),
+      baseDirection:
+        startCameraState?.position && startCameraState?.target
+          ? startCameraState.target.clone().sub(startCameraState.position).normalize()
+          : boardLookTarget.clone().sub(cameraRef.current.position).normalize()
+    };
     const dragState = {
       pointerId: null,
       lastX: 0,
@@ -4026,9 +4039,14 @@ export default function SnakeBoard3D({
 
       if (cameraViewModeRef.current === '2d') return;
       if (absX < 0.25) return;
-      if (boardRotationRoot) {
-        boardRotationRoot.rotation.y += deltaX * BOARD_ROTATION_DRAG_SPEED;
-      }
+      const camera = cameraRef.current;
+      const controls = boardRef.current?.controls;
+      if (!camera || !controls) return;
+      lookState.yaw = clamp(lookState.yaw - deltaX * CAMERA_LOOK_DRAG_SPEED, -CAMERA_LOOK_MAX_YAW, CAMERA_LOOK_MAX_YAW);
+      const lookDirection = lookState.baseDirection.clone().applyAxisAngle(WORLD_UP, lookState.yaw).normalize();
+      const lookTarget = camera.position.clone().addScaledVector(lookDirection, lookState.forwardDistance);
+      controls.target.copy(lookTarget);
+      controls.update();
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
