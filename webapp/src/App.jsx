@@ -10,7 +10,6 @@ import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
 import Messages from './pages/Messages.jsx';
-import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
@@ -401,7 +400,7 @@ export default function App() {
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route path="/trending" element={<Trending />} />
+            <Route path="/trending" element={<Navigate to="/messages" replace />} />
             <Route path="/account" element={<MyAccount />} />
             <Route path="/nfts" element={<Nfts />} />
             <Route path="/platform-stats" element={<PlatformStatsDetails />} />

@@ -6,7 +6,6 @@ import './index.css';
 import { registerTelegramServiceWorker } from './pwa/registerServiceWorker.js';
 import { warmGameCaches } from './pwa/preloadGames.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
-import { installSpeechSynthesisUnlock } from './utils/textToSpeech.js';
 
 async function bootstrap() {
   const isNative = Capacitor.isNativePlatform();
@@ -20,7 +19,6 @@ async function bootstrap() {
     window.Telegram.WebApp.disableVerticalSwipes();
   }
 
-  installSpeechSynthesisUnlock();
 
   if (!isNative) {
     // Register a Telegram-friendly service worker for instant updates

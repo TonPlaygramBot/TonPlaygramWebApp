@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserFriends, FaGamepad, FaComments, FaUsers, FaVideo } from 'react-icons/fa';
+import { FaUserFriends, FaGamepad, FaComments, FaVideo } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
@@ -137,28 +137,11 @@ export default function HomeSocialHub() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-subtext">Social</p>
-          <h3 className="text-lg font-semibold text-white">Wall & Messages Hub</h3>
+          <h3 className="text-lg font-semibold text-white">Messages Hub</h3>
         </div>
-        <Link to="/trending" className="text-xs text-primary hover:text-primary-hover">
-          Open Wall
-        </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          to="/trending"
-          className="rounded-lg border border-border bg-background/40 p-3 flex items-center justify-between hover:border-primary transition"
-        >
-          <div>
-            <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <FaUsers className="text-primary" /> Wall Social
-            </p>
-            <p className="text-xs text-subtext">
-              Share updates, react to posts, and explore what’s trending.
-            </p>
-          </div>
-          <span className="text-xs text-primary">View</span>
-        </Link>
+      <div className="grid gap-3">
         <Link
           to="/messages"
           className="rounded-lg border border-border bg-background/40 p-3 flex items-center justify-between hover:border-primary transition"

@@ -146,8 +146,6 @@ const userSchema = new mongoose.Schema({
   // Persist Snooker Royal unlocks server-side for cross-device sync
   snookerRoyalInventory: { type: Object, default: undefined },
 
-  // Shared voice commentary unlocks apply across all games
-  voiceCommentaryInventory: { type: Object, default: undefined }
 
 });
 
