@@ -910,7 +910,25 @@ function prepareLoadedModel(model) {
   });
 }
 
-function disposeObjectResources(object) {
+const DISPOSABLE_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeObjectResources(object, { disposeTextures = true } = {}) {
   if (!object) return;
   const materials = new Set();
   object.traverse((obj) => {
@@ -920,8 +938,14 @@ function disposeObjectResources(object) {
     obj.geometry?.dispose?.();
   });
   materials.forEach((mat) => {
-    if (mat?.map) mat.map.dispose?.();
-    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    if (disposeTextures) {
+      DISPOSABLE_TEXTURE_PROPS.forEach((prop) => {
+        const texture = mat?.[prop];
+        if (texture?.isTexture) {
+          texture.dispose?.();
+        }
+      });
+    }
     mat?.dispose?.();
   });
 }
@@ -3469,7 +3493,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arena.chairs.forEach(({ group }) => {
         const previous = group?.userData?.chairModel;
         if (previous) {
-          disposeObjectResources(previous);
+          disposeObjectResources(previous, { disposeTextures: false });
           group.remove(previous);
         }
       });
