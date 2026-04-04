@@ -1955,7 +1955,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.28;
 const SIDE_SPIN_MULTIPLIER = 1.78 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
-const TOPSPIN_MULTIPLIER = 1.74 * SPIN_GLOBAL_BOOST_MULTIPLIER;
+const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -3025,48 +3025,53 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
-    label: 'Carbon Fiber Graphite',
+    label: 'Graphite',
     rail: 0x1a1f2a,
     base: 0x0c1018,
     trim: 0x374151,
     woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
-    label: 'Carbon Fiber Slate',
+    label: 'Slate',
     rail: 0x5f6b7a,
     base: 0x3d4652,
     trim: 0xb8c2cf,
     woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
-    label: 'Carbon Fiber Sand',
+    label: 'Sand',
     rail: 0xc3aa88,
     base: 0x9b8260,
     trim: 0xf0dfc2,
     woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
-    label: 'Carbon Fiber Navy',
+    label: 'Navy',
     rail: 0x243b7a,
     base: 0x15264e,
     trim: 0x5e79bf,
     woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
-    label: 'Carbon Fiber Ice',
+    label: 'Ice',
     rail: 0xf3f6fb,
     base: 0xe2e8f0,
     trim: 0xffffff,
     woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true
   })
 });
 
@@ -6021,18 +6026,18 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.92; // increase topspin cap so follow-through carries farther after contact
+const MAX_TOPSPIN_INPUT = 1; // allow full topspin input so forward spin can match draw strength
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.52; // stronger transfer keeps forward roll alive longer for clearer follow-through
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
-const TOPSPIN_POWER_SOFT_CAP = 0.9;
+const TOPSPIN_POWER_SOFT_CAP = 1;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
 
 const resolveTopspinPowerScale = (power) => {
   if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = Math.min(power, TOPSPIN_POWER_SOFT_CAP);
+  const cappedPower = THREE.MathUtils.clamp(power, 0, TOPSPIN_POWER_SOFT_CAP);
   return 0.55 + cappedPower * 0.45;
 };
 
@@ -8022,11 +8027,18 @@ export function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
-  const synchronizedTextureSize = Math.max(
-    initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-    getRuntimeCueTextureSize()
-  );
-  const finalWoodTextureSize = enforceHighFpsTableTextureSize(synchronizedTextureSize);
+  const usesPolyHavenWoodMaps =
+    typeof initialFrameSurface.mapUrl === 'string' &&
+    initialFrameSurface.mapUrl.includes('polyhaven.org');
+  const synchronizedTextureSize = usesPolyHavenWoodMaps
+    ? (initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE)
+    : Math.max(
+        initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+        getRuntimeCueTextureSize()
+      );
+  const finalWoodTextureSize = usesPolyHavenWoodMaps
+    ? synchronizedTextureSize
+    : enforceHighFpsTableTextureSize(synchronizedTextureSize);
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
@@ -8052,12 +8064,22 @@ export function Table3D(
     woodRepeatScale
   };
 
-  applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
-  applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
-  if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      ...synchronizedFrameSurface
+  if (resolvedFinish?.disableWoodPattern) {
+    [railMat, frameMat, legMat].forEach((mat) => {
+      if (!mat) return;
+      mat.map = null;
+      mat.normalMap = null;
+      mat.roughnessMap = null;
+      mat.needsUpdate = true;
     });
+  } else {
+    applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
+    applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+    if (legMat !== frameMat) {
+      applyWoodTextureToMaterial(legMat, {
+        ...synchronizedFrameSurface
+      });
+    }
   }
   [railMat, frameMat, legMat].forEach((mat) => {
     applyTableFinishDulling(mat);
@@ -21535,8 +21557,10 @@ const powerRef = useRef(hud.power);
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
-          const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
-          const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
+          const frameABalls = Array.isArray(frameA.balls) ? frameA.balls : [];
+          const frameBBalls = Array.isArray(frameB?.balls) ? frameB.balls : frameABalls;
+          const aMap = new Map(frameABalls.map((entry) => [entry.id, entry]));
+          const bMap = new Map(frameBBalls.map((entry) => [entry.id, entry]));
           balls.forEach((ball) => {
             const aState = aMap.get(ball.id);
             if (!aState) return;
@@ -22425,7 +22449,15 @@ const powerRef = useRef(hud.power);
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
+          if (!shotRecording) return;
+          if (!Array.isArray(shotRecording.frames) || shotRecording.frames.length === 0) {
+            const startState = Array.isArray(shotRecording.startState) ? shotRecording.startState : captureBallSnapshot();
+            const endState = Array.isArray(postShotSnapshot) ? postShotSnapshot : captureBallSnapshot();
+            shotRecording.frames = [
+              { t: 0, balls: startState },
+              { t: Math.max(16, shotRecording.frameTimeMs ?? 1000 / 60), balls: endState }
+            ];
+          }
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
