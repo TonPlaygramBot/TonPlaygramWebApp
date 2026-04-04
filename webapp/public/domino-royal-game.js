@@ -5567,6 +5567,8 @@ const LEGACY_NON_OCTAGON_TABLE_ROTATION = THREE.MathUtils.degToRad(4.1);
 const STRAIGHT_TABLE_ROTATION = 0;
 const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.9;
 const LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
+const GOTHIC_BASELINE_TABLE_THEME_ID = 'gothic_coffee_table';
+const NON_GOTHIC_TABLE_WIDTH_BOOST = 1.12;
 
 function shouldKeepOriginalTableTransform(themeId = '') {
   const normalized = String(themeId || '').trim().toLowerCase();
@@ -5579,9 +5581,19 @@ function shouldKeepOriginalTableTransform(themeId = '') {
   );
 }
 
+function getTableWidthScale(themeId = '') {
+  const normalized = String(themeId || '').trim().toLowerCase();
+  if (!normalized || normalized === GOTHIC_BASELINE_TABLE_THEME_ID) return 1;
+  return NON_GOTHIC_TABLE_WIDTH_BOOST;
+}
+
 function fitTableModelToFootprint(
   model,
-  { shrinkSides = true, sideShrinkScale = NON_OCTAGON_TABLE_SIDE_SHRINK } = {}
+  {
+    shrinkSides = true,
+    sideShrinkScale = NON_OCTAGON_TABLE_SIDE_SHRINK,
+    themeId = ''
+  } = {}
 ) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
@@ -5594,6 +5606,9 @@ function fitTableModelToFootprint(
     model.scale.x *= sideShrinkScale;
     model.scale.z *= sideShrinkScale;
   }
+  const widthScale = getTableWidthScale(themeId);
+  model.scale.x *= widthScale;
+  model.scale.z *= widthScale;
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(
@@ -5653,6 +5668,7 @@ async function applyTableTheme(
     }
     fitTableModelToFootprint(model, {
       shrinkSides: true,
+      themeId: theme?.id,
       sideShrinkScale: keepOriginalTransform
         ? LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK
         : NON_OCTAGON_TABLE_SIDE_SHRINK
@@ -5678,6 +5694,7 @@ async function applyTableTheme(
         }
         fitTableModelToFootprint(fallbackModel, {
           shrinkSides: true,
+          themeId: DEFAULT_TABLE_THEME_OPTION?.id,
           sideShrinkScale: keepOriginalTransform
             ? LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK
             : NON_OCTAGON_TABLE_SIDE_SHRINK
