@@ -557,595 +557,13 @@ function setFeedbackSettings(next, { refreshUi = true } = {}) {
   }
 }
 
-const COMMENTARY_STORAGE_KEY = 'dominoRoyalCommentaryPreset';
-const COMMENTARY_MUTE_STORAGE_KEY = 'dominoRoyalCommentaryMute';
-const COMMENTARY_QUEUE_LIMIT = 4;
-const COMMENTARY_MIN_INTERVAL_MS = 1000;
-const COMMENTARY_PRESETS = [
-  {
-    id: 'english',
-    name: 'English Booth',
-    tone: 'Mixed voices, classic English',
-    voices: [
-      {
-        id: 'atlas',
-        role: 'playByPlay',
-        voiceHints: [
-          'en-US',
-          'English',
-          'male',
-          'David',
-          'Guy',
-          'Daniel',
-          'Alex'
-        ],
-        rate: 1,
-        pitch: 0.96
-      },
-      {
-        id: 'luna',
-        role: 'color',
-        voiceHints: [
-          'en-GB',
-          'English',
-          'female',
-          'Sonia',
-          'Hazel',
-          'Kate',
-          'Emma'
-        ],
-        rate: 1.04,
-        pitch: 1.06
-      }
-    ]
-  },
-  {
-    id: 'saffron-table',
-    name: 'Indian Table',
-    tone: 'Hindi commentary with lively pacing',
-    voices: [
-      {
-        id: 'atlas',
-        role: 'playByPlay',
-        voiceHints: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-        rate: 1.06,
-        pitch: 1.02
-      },
-      {
-        id: 'luna',
-        role: 'color',
-        voiceHints: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha'],
-        rate: 1.08,
-        pitch: 1.08
-      }
-    ]
-  },
-  {
-    id: 'moscow-mics',
-    name: 'Russian Booth',
-    tone: 'Russian commentary with steady cadence',
-    voices: [
-      {
-        id: 'atlas',
-        role: 'playByPlay',
-        voiceHints: [
-          'ru-RU',
-          'ru',
-          'Russian',
-          'male',
-          'Dmitri',
-          'Ivan',
-          'Sergey',
-          'Alexey'
-        ],
-        rate: 1,
-        pitch: 0.95
-      },
-      {
-        id: 'luna',
-        role: 'color',
-        voiceHints: [
-          'ru-RU',
-          'ru',
-          'Russian',
-          'female',
-          'Anna',
-          'Svetlana',
-          'Irina',
-          'Olga'
-        ],
-        rate: 1.03,
-        pitch: 1.02
-      }
-    ]
-  },
-  {
-    id: 'latin-pulse',
-    name: 'Latin Pulse',
-    tone: 'Spanish play-by-play with lively color',
-    voices: [
-      {
-        id: 'atlas',
-        role: 'playByPlay',
-        voiceHints: [
-          'es-ES',
-          'es-MX',
-          'Spanish',
-          'male',
-          'Jorge',
-          'Carlos',
-          'Miguel'
-        ],
-        rate: 1.05,
-        pitch: 1
-      },
-      {
-        id: 'luna',
-        role: 'color',
-        voiceHints: [
-          'es-ES',
-          'es-MX',
-          'Spanish',
-          'female',
-          'Isabella',
-          'Lucia',
-          'Camila'
-        ],
-        rate: 1.08,
-        pitch: 1.1
-      }
-    ]
-  },
-  {
-    id: 'francophone-booth',
-    name: 'Francophone Booth',
-    tone: 'French broadcast pairing',
-    voices: [
-      {
-        id: 'atlas',
-        role: 'playByPlay',
-        voiceHints: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-        rate: 0.98,
-        pitch: 0.96
-      },
-      {
-        id: 'luna',
-        role: 'color',
-        voiceHints: [
-          'fr-FR',
-          'French',
-          'female',
-          'Amelie',
-          'Marie',
-          'Charlotte'
-        ],
-        rate: 1.04,
-        pitch: 1.06
-      }
-    ]
-  }
-];
-const COMMENTARY_LINES = {
-  greeting: [
-    'Welcome to Domino Battle Royal. Let us rule the table.',
-    'Domino Battle Royal is live. Keep the chain moving.',
-    'New arena online. Domino Battle Royal begins.',
-    'The table is set. Time for domino control.',
-    'Welcome back. Let us see who commands the chain.',
-    'Fresh arena lights. Domino Battle Royal is underway.'
-  ],
-  startRound: [
-    'Fresh round. Watch the opening tile.',
-    'New deal. Set your tempo early.',
-    'Round reset. Chain control is everything.',
-    'New round. Read the ends and plan ahead.',
-    'Another round begins. Keep your options open.'
-  ],
-  yourTurn: [
-    'Your move. Find the match.',
-    'You are on the clock. Keep the chain alive.',
-    'Your turn. Time to drop a tile.',
-    'Your move. Check the ends.',
-    'Your turn. Pick the strongest lane.'
-  ],
-  opponentTurn: [
-    '{name} is lining up a play.',
-    '{name} is thinking.',
-    'Eyes on {name}.',
-    '{name} is studying the ends.',
-    '{name} wants a clean drop.'
-  ],
-  playTile: [
-    '{name} drops {tile}.',
-    '{name} plays {tile}.',
-    '{name} sends {tile} to the chain.',
-    '{name} keeps the line alive with {tile}.',
-    '{name} answers with {tile}.'
-  ],
-  playDouble: [
-    'Double down from {name}.',
-    '{name} slams a double!',
-    'Power play. {name} drops a double.',
-    '{name} locks in a double.',
-    'Double on the table by {name}.'
-  ],
-  draw: [
-    '{name} draws from the boneyard.',
-    '{name} reloads with a draw.',
-    '{name} digs into the stock.',
-    '{name} pulls a fresh tile.',
-    '{name} taps the boneyard for help.'
-  ],
-  pass: [
-    '{name} passes. No match.',
-    '{name} skips the turn.',
-    '{name} has to pass.',
-    '{name} is blocked and passes.',
-    '{name} cannot move. Pass.'
-  ],
-  nearWin: [
-    '{name} is down to {countLabel}!',
-    '{name} is on match point!',
-    'Pressure rising. {name} holds {countLabel}.',
-    '{name} is one play from closing.',
-    '{name} is nearly out of tiles.'
-  ],
-  blocked: [
-    'Blocked table. Tally the pips.',
-    'No moves left. Count the hands.',
-    'Stalemate. Lowest pips win.',
-    'The chain is sealed. Count the totals.',
-    'No plays remain. Time to score it.'
-  ],
-  win: [
-    '{name} claims the win. Great control.',
-    '{name} ruled the chain. Victory!',
-    'That is game. {name} takes it.',
-    '{name} closes the round in style.',
-    'Victory to {name}.'
-  ],
-  lose: [
-    '{name} takes this one. Reset and strike back.',
-    'Game over. Reload for the next round.',
-    'Close one. You will get the next.',
-    '{name} edges the finish. Next round soon.',
-    'That round goes to {name}.'
-  ]
-};
-
-const speechSynth = (() => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window))
-    return null;
-  try {
-    return window.speechSynthesis;
-  } catch (error) {
-    console.warn('Speech synthesis unavailable', error);
-    return null;
-  }
-})();
-const speechUtteranceCtor =
-  typeof SpeechSynthesisUtterance === 'function'
-    ? SpeechSynthesisUtterance
-    : null;
-let commentaryVoices = [];
-let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
-let commentaryMuted = false;
-let commentaryQueue = [];
-let commentarySpeaking = false;
-let commentaryReady = false;
-let commentaryLastEventAt = 0;
 let commentaryGreetingPlayed = false;
 let lastAnnouncedTurn = null;
-let commentaryVoiceCycleIndex = 0;
-let commentaryUnlocked = false;
-let commentaryVoicesRetryTimer = null;
-const lastCommentaryLineByKind = new Map();
-const COMMENTARY_VOICE_BY_KIND = {
-  greeting: 'color',
-  startRound: 'color',
-  yourTurn: 'playByPlay',
-  opponentTurn: 'playByPlay',
-  playTile: 'playByPlay',
-  playDouble: 'playByPlay',
-  draw: 'color',
-  pass: 'color',
-  nearWin: 'color',
-  blocked: 'color',
-  win: 'color',
-  lose: 'color'
-};
 
-function readCommentaryPrefs() {
-  if (typeof window === 'undefined') return;
-  try {
-    const storedPreset = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
-    if (
-      storedPreset &&
-      COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)
-    ) {
-      commentaryPresetId = storedPreset;
-    }
-    const storedMute = window.localStorage?.getItem(
-      COMMENTARY_MUTE_STORAGE_KEY
-    );
-    if (storedMute === '1') commentaryMuted = true;
-    if (storedMute === '0') commentaryMuted = false;
-  } catch {}
-}
-
-function persistCommentaryPrefs() {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, commentaryPresetId);
-    window.localStorage?.setItem(
-      COMMENTARY_MUTE_STORAGE_KEY,
-      commentaryMuted ? '1' : '0'
-    );
-  } catch {}
-}
-
-function refreshCommentaryVoices() {
-  if (!speechSynth) return;
-  try {
-    commentaryVoices = speechSynth.getVoices() || [];
-    commentaryReady = true;
-  } catch (error) {
-    commentaryVoices = [];
-    commentaryReady = false;
-    console.warn('Failed to refresh commentary voices', error);
-  }
-}
-
-function findVoiceMatch(voices, hints = [], excludeNames = []) {
-  if (!voices.length) return null;
-  const normalizedHints = hints
-    .map((hint) => String(hint || '').toLowerCase())
-    .filter(Boolean);
-  const filteredVoices = excludeNames.length
-    ? voices.filter((voice) => !excludeNames.includes(voice.name))
-    : voices;
-  if (!normalizedHints.length) return voices[0];
-  return (
-    filteredVoices.find((voice) =>
-      normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
-    ) ||
-    filteredVoices.find((voice) =>
-      normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
-    ) ||
-    filteredVoices[0] ||
-    voices[0]
-  );
-}
-
-function getActiveCommentaryPreset() {
-  return (
-    COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
-    COMMENTARY_PRESETS[0]
-  );
-}
-
-function resolveCommentaryVoice(profile, excludeNames = []) {
-  if (!profile) return findVoiceMatch(commentaryVoices, [], excludeNames);
-  return findVoiceMatch(
-    commentaryVoices,
-    profile.voiceHints || [],
-    excludeNames
-  );
-}
-
-function getCommentaryVoiceProfiles() {
-  const preset = getActiveCommentaryPreset();
-  if (Array.isArray(preset?.voices) && preset.voices.length)
-    return preset.voices;
-  return preset ? [preset] : [];
-}
-
-function getVoiceProfileForKind(kind) {
-  const profiles = getCommentaryVoiceProfiles();
-  if (!profiles.length) return null;
-  const desiredRole = COMMENTARY_VOICE_BY_KIND[kind];
-  if (desiredRole) {
-    const matched = profiles.find(
-      (profile) => profile.role === desiredRole || profile.id === desiredRole
-    );
-    if (matched) return matched;
-  }
-  const profile = profiles[commentaryVoiceCycleIndex % profiles.length];
-  commentaryVoiceCycleIndex = (commentaryVoiceCycleIndex + 1) % profiles.length;
-  return profile;
-}
-
-function clearCommentaryQueue() {
-  commentaryQueue = [];
-  commentarySpeaking = false;
-  if (speechSynth) {
-    speechSynth.cancel();
-  }
-}
-
-function setCommentaryMuted(next) {
-  commentaryMuted = !!next;
-  persistCommentaryPrefs();
-  if (commentaryMuted) {
-    clearCommentaryQueue();
-  }
-  refreshConfigUI();
-}
-
-function setCommentaryPresetId(next) {
-  if (!next || commentaryPresetId === next) return;
-  commentaryPresetId = next;
-  commentaryVoiceCycleIndex = 0;
-  persistCommentaryPrefs();
-  refreshConfigUI();
-}
-
-function formatSeatName(index) {
-  const names = getSeatUsernames(N);
-  if (index === human) {
-    return names[index] || seatAvatarUsername || 'You';
-  }
-  return names[index] || `Player ${index + 1}`;
-}
-
-function formatTileCount(count) {
-  if (!Number.isFinite(count)) return '';
-  if (count === 1) return '1 tile';
-  return `${count} tiles`;
-}
-
-function formatTileName(tile) {
-  if (!tile) return 'a tile';
-  const a = tile.a;
-  const b = tile.b;
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'a tile';
-  if (a === b) return `double ${a}`;
-  return `${a}-${b}`;
-}
-
-function pickRandom(list = []) {
-  if (!list.length) return '';
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-function buildCommentaryLine(kind, context = {}) {
-  const templates = COMMENTARY_LINES[kind] || [];
-  if (!templates.length) return '';
-  const lastLine = lastCommentaryLineByKind.get(kind);
-  let template = pickRandom(templates);
-  if (lastLine && templates.length > 1) {
-    let tries = 0;
-    while (template === lastLine && tries < 5) {
-      template = pickRandom(templates);
-      tries += 1;
-    }
-  }
-  lastCommentaryLineByKind.set(kind, template);
-  if (!template) return '';
-  return template
-    .replace('{name}', context.name || formatSeatName(context.player ?? human))
-    .replace('{tile}', context.tileLabel || formatTileName(context.tile))
-    .replace(
-      '{count}',
-      Number.isFinite(context.tilesLeft) ? String(context.tilesLeft) : ''
-    )
-    .replace('{countLabel}', formatTileCount(context.tilesLeft));
-}
-
-function ensureSpeechUnlocked() {
-  if (!speechSynth) return;
-  try {
-    speechSynth.resume();
-  } catch (error) {
-    console.warn('Failed to resume speech synthesis', error);
-  }
-}
-
-function scheduleCommentaryVoicesRetry() {
-  if (!speechSynth || commentaryVoicesRetryTimer) return;
-  commentaryVoicesRetryTimer = window.setTimeout(() => {
-    commentaryVoicesRetryTimer = null;
-    refreshCommentaryVoices();
-    if (!commentaryVoices.length) {
-      scheduleCommentaryVoicesRetry();
-    }
-  }, 600);
-}
-
-function speakCommentary(
-  text,
-  { interrupt = false, priority = false, kind = '' } = {}
-) {
-  if (!speechSynth || !speechUtteranceCtor || commentaryMuted || !text) return;
-  if (!commentaryReady) {
-    refreshCommentaryVoices();
-  }
-  if (!commentaryVoices.length) {
-    scheduleCommentaryVoicesRetry();
-  }
-  if (!commentaryUnlocked) {
-    if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
-    commentaryQueue.push({ text, options: { interrupt, priority, kind } });
-    return;
-  }
-  ensureSpeechUnlocked();
-  const now = performance.now();
-  if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS)
-    return;
-  if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
-  const profile = getVoiceProfileForKind(kind);
-  const utterance = new speechUtteranceCtor(text);
-  const primaryVoice = resolveCommentaryVoice(profile);
-  const secondaryVoice = resolveCommentaryVoice(
-    getCommentaryVoiceProfiles().find(
-      (voiceProfile) => voiceProfile !== profile
-    ),
-    primaryVoice?.name ? [primaryVoice.name] : []
-  );
-  const activeVoice = primaryVoice || secondaryVoice;
-  if (activeVoice) utterance.voice = activeVoice;
-  utterance.rate = profile?.rate ?? 1;
-  utterance.pitch = profile?.pitch ?? 1;
-  utterance.onend = () => {
-    commentarySpeaking = false;
-    const next = commentaryQueue.shift();
-    if (next) {
-      speakCommentary(next.text, next.options);
-    }
-  };
-  utterance.onerror = () => {
-    commentarySpeaking = false;
-    const next = commentaryQueue.shift();
-    if (next) {
-      speakCommentary(next.text, next.options);
-    }
-  };
-  commentaryLastEventAt = now;
-  if (speechSynth.speaking || commentarySpeaking) {
-    if (interrupt) {
-      speechSynth.cancel();
-    } else {
-      commentaryQueue.push({ text, options: { interrupt, priority, kind } });
-      return;
-    }
-  }
-  commentarySpeaking = true;
-  try {
-    speechSynth.speak(utterance);
-  } catch (error) {
-    commentarySpeaking = false;
-    console.warn('Commentary failed to speak', error);
-  }
-}
-
-function announceCommentary(kind, context = {}, options = {}) {
-  if (commentaryMuted || !speechSynth || !speechUtteranceCtor) return;
-  const line = buildCommentaryLine(kind, context);
-  if (!line) return;
-  speakCommentary(line, { ...options, kind });
-}
-
-if (speechSynth) {
-  readCommentaryPrefs();
-  refreshCommentaryVoices();
-  speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
-  scheduleCommentaryVoicesRetry();
-} else {
-  readCommentaryPrefs();
-}
+function announceCommentary() {}
 
 function unlockInteractiveAudio() {
   ensureAudioContext();
-  ensureSpeechUnlocked();
-  if (!commentaryUnlocked) {
-    commentaryUnlocked = true;
-    if (!commentarySpeaking && commentaryQueue.length) {
-      const next = commentaryQueue.shift();
-      if (next) {
-        speakCommentary(next.text, next.options);
-      }
-    }
-  }
 }
 
 ['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
@@ -4220,75 +3638,51 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 
 const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
   {
-    id: 'headRuby',
-    label: 'Ruby',
-    icon: '●',
-    color: '#9b111e',
-    metalness: 0.05,
-    roughness: 0.08,
-    transmission: 0.92,
-    ior: 2.4,
-    thickness: 0.6,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
-  },
-  {
-    id: 'headPearl',
-    label: 'Pearl',
+    id: 'current',
+    label: 'Current',
     icon: '●',
     color: '#f5f5f5',
-    metalness: 0.05,
-    roughness: 0.25,
+    metalness: 0.18,
+    roughness: 0.24,
     transmission: 0,
     ior: 1.3,
     thickness: 0.2,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
   },
   {
+    id: 'headRuby',
+    label: 'Ruby',
+    icon: '●',
+    color: '#9b111e',
+    metalness: 0.24,
+    roughness: 0.2,
+    transmission: 0,
+    ior: 1.4,
+    thickness: 0.2,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
+  },
+  {
     id: 'headSapphire',
     label: 'Sapphire',
     icon: '●',
     color: '#0f52ba',
-    metalness: 0.05,
-    roughness: 0.08,
-    transmission: 0.9,
-    ior: 1.8,
-    thickness: 0.7,
+    metalness: 0.24,
+    roughness: 0.2,
+    transmission: 0,
+    ior: 1.4,
+    thickness: 0.2,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg'
-  },
-  {
-    id: 'headEmerald',
-    label: 'Emerald',
-    icon: '●',
-    color: '#046a38',
-    metalness: 0.05,
-    roughness: 0.08,
-    transmission: 0.9,
-    ior: 1.8,
-    thickness: 0.7,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
-  },
-  {
-    id: 'headDiamond',
-    label: 'Diamond',
-    icon: '●',
-    color: '#ffffff',
-    metalness: 0,
-    roughness: 0.03,
-    transmission: 0.98,
-    ior: 2.4,
-    thickness: 0.8,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
   },
   {
     id: 'headChrome',
     label: 'Chrome',
     icon: '●',
     color: '#d6d8dc',
-    metalness: 0.95,
-    roughness: 0.12,
-    transmission: 0.1,
-    ior: 2.1,
-    thickness: 0.22,
+    metalness: 0.9,
+    roughness: 0.14,
+    transmission: 0,
+    ior: 1.9,
+    thickness: 0.2,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headChrome.svg'
   },
   {
@@ -4296,11 +3690,11 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     label: 'Gold',
     icon: '●',
     color: '#d4af37',
-    metalness: 0.92,
+    metalness: 0.9,
     roughness: 0.16,
-    transmission: 0.06,
+    transmission: 0,
     ior: 1.85,
-    thickness: 0.28,
+    thickness: 0.2,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
   }
 ]);
@@ -7692,76 +7086,6 @@ function matchesDominoColorPreset(preset, currentAppearance) {
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
-  const commentaryWrapper = document.createElement('div');
-  commentaryWrapper.className = 'config-section';
-  const commentaryLabel = document.createElement('h4');
-  commentaryLabel.textContent = 'Commentary';
-  commentaryWrapper.appendChild(commentaryLabel);
-  const commentaryGrid = document.createElement('div');
-  commentaryGrid.className = 'config-options';
-  const commentarySupported = Boolean(speechSynth && speechUtteranceCtor);
-  COMMENTARY_PRESETS.forEach((preset) => {
-    const presetButton = document.createElement('button');
-    presetButton.type = 'button';
-    presetButton.className = 'config-option';
-    presetButton.disabled = !commentarySupported;
-    if (preset.id === commentaryPresetId) {
-      presetButton.classList.add('active');
-    }
-    const presetLabel = document.createElement('span');
-    presetLabel.textContent = preset.name;
-    presetButton.appendChild(presetLabel);
-    const presetTone = document.createElement('div');
-    presetTone.textContent = preset.tone;
-    presetTone.style.fontSize = '0.7rem';
-    presetTone.style.color = 'rgba(226,232,240,0.78)';
-    presetTone.style.fontWeight = '600';
-    presetTone.style.lineHeight = '1.35';
-    presetButton.appendChild(presetTone);
-    presetButton.addEventListener('click', () => {
-      if (!commentarySupported) return;
-      setCommentaryPresetId(preset.id);
-    });
-    commentaryGrid.appendChild(presetButton);
-  });
-  const muteButton = document.createElement('button');
-  muteButton.type = 'button';
-  muteButton.className = 'config-option';
-  muteButton.setAttribute('aria-pressed', String(commentaryMuted));
-  muteButton.disabled = !commentarySupported;
-  if (commentaryMuted) {
-    muteButton.classList.add('active');
-  }
-  const muteLabel = document.createElement('span');
-  muteLabel.textContent = commentaryMuted
-    ? 'Commentary muted'
-    : 'Commentary on';
-  muteButton.appendChild(muteLabel);
-  const muteHelper = document.createElement('div');
-  muteHelper.textContent = commentaryMuted
-    ? 'Tap to unmute the announcer'
-    : 'Tap to mute the announcer';
-  muteHelper.style.fontSize = '0.65rem';
-  muteHelper.style.color = 'rgba(226,232,240,0.78)';
-  muteHelper.style.fontWeight = '700';
-  muteHelper.style.lineHeight = '1.35';
-  muteButton.appendChild(muteHelper);
-  muteButton.addEventListener('click', () => {
-    setCommentaryMuted(!commentaryMuted);
-  });
-  commentaryGrid.appendChild(muteButton);
-  commentaryWrapper.appendChild(commentaryGrid);
-  if (!commentarySupported) {
-    const commentaryNote = document.createElement('p');
-    commentaryNote.textContent =
-      'Voice commentary requires a browser with Web Speech support.';
-    commentaryNote.style.margin = '0';
-    commentaryNote.style.fontSize = '0.65rem';
-    commentaryNote.style.color = 'rgba(226,232,240,0.7)';
-    commentaryNote.style.lineHeight = '1.4';
-    commentaryWrapper.appendChild(commentaryNote);
-  }
-  configSectionsEl.appendChild(commentaryWrapper);
   getVisibleTableSetupSections().forEach((section) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'config-section';
