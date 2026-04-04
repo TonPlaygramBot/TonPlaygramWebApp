@@ -571,7 +571,7 @@ function resolveTextureFallbackUrl(requestedUrl, fileMap) {
   }
   for (const ext of fallbackExts) {
     const candidate = basename(replaceFileExtension(requestedBase, ext));
-    const mapped = fileMap.get(candidate);
+    const mapped = fileMap.get(candidate) || fileMap.get(candidate.toLowerCase());
     if (mapped) return mapped;
   }
   return null;
@@ -1275,6 +1275,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
             fileMap = allUrls.reduce((acc, u) => {
               const b = basename(stripQueryHash(u));
               if (!acc.has(b)) acc.set(b, u);
+              const lower = b.toLowerCase();
+              if (!acc.has(lower)) acc.set(lower, u);
               return acc;
             }, new Map());
           }
@@ -1302,7 +1304,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
           const b = basename(req);
-          const mapped = fileMap.get(b);
+          const mapped = fileMap.get(b) || fileMap.get(b.toLowerCase());
           if (mapped) return mapped;
           try {
             return new URL(req, baseDir).toString();
