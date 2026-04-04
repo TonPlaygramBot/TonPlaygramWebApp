@@ -552,6 +552,15 @@ function basename(p) {
   return parts[parts.length - 1] || s;
 }
 
+function normalizeAssetFilename(name) {
+  if (!name) return '';
+  try {
+    return decodeURIComponent(String(name)).toLowerCase();
+  } catch {
+    return String(name).toLowerCase();
+  }
+}
+
 function replaceFileExtension(path, nextExt) {
   if (!path || !nextExt) return path;
   const clean = stripQueryHash(path);
@@ -564,13 +573,13 @@ function resolveTextureFallbackUrl(requestedUrl, fileMap) {
   if (!fileMap?.size || !requestedUrl) return null;
   const requestedBase = basename(stripQueryHash(requestedUrl));
   if (!requestedBase) return null;
-  const lowerBase = requestedBase.toLowerCase();
+  const lowerBase = normalizeAssetFilename(requestedBase);
   const fallbackExts = ['.jpg', '.jpeg', '.png', '.webp'];
   if (!lowerBase.endsWith('.ktx2') && !lowerBase.endsWith('.basis')) {
     return null;
   }
   for (const ext of fallbackExts) {
-    const candidate = basename(replaceFileExtension(requestedBase, ext));
+    const candidate = normalizeAssetFilename(basename(replaceFileExtension(requestedBase, ext)));
     const mapped = fileMap.get(candidate);
     if (mapped) return mapped;
   }
@@ -1273,8 +1282,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           if (apiModelUrl) modelCandidates.add(apiModelUrl);
           if (!fileMap.size) {
             fileMap = allUrls.reduce((acc, u) => {
-              const b = basename(stripQueryHash(u));
-              if (!acc.has(b)) acc.set(b, u);
+              const b = normalizeAssetFilename(basename(stripQueryHash(u)));
+              if (b && !acc.has(b)) acc.set(b, u);
               return acc;
             }, new Map());
           }
@@ -1301,7 +1310,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
           const textureFallback = resolveTextureFallbackUrl(requestedUrl, fileMap);
           if (textureFallback) return textureFallback;
           const req = stripQueryHash(requestedUrl);
-          const b = basename(req);
+          const b = normalizeAssetFilename(basename(req));
           const mapped = fileMap.get(b);
           if (mapped) return mapped;
           try {
