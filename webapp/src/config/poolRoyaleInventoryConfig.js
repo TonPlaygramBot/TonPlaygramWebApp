@@ -297,11 +297,11 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: swatchThumbnail(['#0c1018', '#1a1f2a', '#374151']),
-  carbonFiberChalkGrey: swatchThumbnail(['#454c56', '#606975', '#a9b1bc']),
-  carbonFiberChalkBeige: swatchThumbnail(['#8f7a62', '#b29b82', '#e5d3b9']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#13264d', '#1f3a70', '#4b67a3']),
-  carbonFiberChalkWhite: swatchThumbnail(['#d8dde5', '#eef2f7', '#ffffff'])
+  carbonFiberChalk: swatchThumbnail(['#090b0f', '#111317', '#2a313b']),
+  carbonFiberChalkGrey: swatchThumbnail(['#4b5563', '#6b7280', '#b6becb']),
+  carbonFiberChalkBeige: swatchThumbnail(['#252a31', '#353b45', '#525b68']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#4f1220', '#6d1f30', '#8d3248']),
+  carbonFiberChalkWhite: swatchThumbnail(['#ede2d0', '#f6efe2', '#fff8eb'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -400,11 +400,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
-    carbonFiberChalk: 'Graphite',
-    carbonFiberChalkGrey: 'Slate',
-    carbonFiberChalkBeige: 'Sand',
-    carbonFiberChalkDarkBlue: 'Navy',
-    carbonFiberChalkWhite: 'Ice'
+    carbonFiberChalk: 'Black',
+    carbonFiberChalkGrey: 'Grey',
+    carbonFiberChalkBeige: 'Dark Grey',
+    carbonFiberChalkDarkBlue: 'Burgundy',
+    carbonFiberChalkWhite: 'Milk Cream'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -496,45 +496,45 @@ export const POOL_ROYALE_STORE_ITEMS = [
     id: 'finish-carbonFiberChalk',
     type: 'tableFinish',
     optionId: 'carbonFiberChalk',
-    name: 'Graphite Finish',
+    name: 'Black Finish',
     price: 1160,
-    description: 'Solid graphite finish with the same material roughness response.',
+    description: 'Solid black molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
     id: 'finish-carbonFiberChalkGrey',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkGrey',
-    name: 'Slate Finish',
+    name: 'Grey Finish',
     price: 1170,
-    description: 'Solid slate finish with the same material roughness response.',
+    description: 'Solid grey molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
   },
   {
     id: 'finish-carbonFiberChalkBeige',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkBeige',
-    name: 'Sand Finish',
+    name: 'Dark Grey Finish',
     price: 1180,
-    description: 'Solid sand finish with the same material roughness response.',
+    description: 'Solid dark-grey molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
   },
   {
     id: 'finish-carbonFiberChalkDarkBlue',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkDarkBlue',
-    name: 'Navy Finish',
+    name: 'Burgundy Finish',
     price: 1190,
-    description: 'Solid navy finish with the same material roughness response.',
+    description: 'Solid burgundy molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
   },
   {
     id: 'finish-carbonFiberChalkWhite',
     type: 'tableFinish',
     optionId: 'carbonFiberChalkWhite',
-    name: 'Ice Finish',
+    name: 'Milk Cream Finish',
     price: 1200,
-    description: 'Solid ice finish with the same material roughness response.',
+    description: 'Solid milk-cream molded-plastic finish with no wood grain texture.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
   },
   {

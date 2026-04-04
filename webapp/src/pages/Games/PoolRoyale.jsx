@@ -3039,53 +3039,48 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
-    label: 'Graphite',
-    rail: 0x1a1f2a,
-    base: 0x0c1018,
-    trim: 0x374151,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1,
-    disableWoodPattern: true
+    label: 'Black',
+    rail: 0x111317,
+    base: 0x090b0f,
+    trim: 0x2a313b,
+    woodTextureId: 'plastic_monoblock',
+    woodRepeatScale: 1
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
-    label: 'Slate',
-    rail: 0x606975,
-    base: 0x454c56,
-    trim: 0xa9b1bc,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1,
-    disableWoodPattern: true
+    label: 'Grey',
+    rail: 0x6b7280,
+    base: 0x4b5563,
+    trim: 0xb6becb,
+    woodTextureId: 'plastic_monoblock',
+    woodRepeatScale: 1
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
-    label: 'Sand',
-    rail: 0xc3aa88,
-    base: 0x9b8260,
-    trim: 0xf0dfc2,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1,
-    disableWoodPattern: true
+    label: 'Dark Grey',
+    rail: 0x353b45,
+    base: 0x252a31,
+    trim: 0x525b68,
+    woodTextureId: 'plastic_monoblock',
+    woodRepeatScale: 1
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
-    label: 'Navy',
-    rail: 0x1f3a70,
-    base: 0x13264d,
-    trim: 0x4b67a3,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1,
-    disableWoodPattern: true
+    label: 'Burgundy',
+    rail: 0x6d1f30,
+    base: 0x4f1220,
+    trim: 0x8d3248,
+    woodTextureId: 'plastic_monoblock',
+    woodRepeatScale: 1
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
-    label: 'Ice',
-    rail: 0xf3f6fb,
-    base: 0xe2e8f0,
-    trim: 0xffffff,
-    woodTextureId: 'carbon_fiber_chalk',
-    woodRepeatScale: 1,
-    disableWoodPattern: true
+    label: 'Milk Cream',
+    rail: 0xf6efe2,
+    base: 0xede2d0,
+    trim: 0xfff8eb,
+    woodTextureId: 'plastic_monoblock',
+    woodRepeatScale: 1
   })
 });
 
@@ -8053,6 +8048,7 @@ export function Table3D(
   const finalWoodTextureSize = usesPolyHavenWoodMaps
     ? synchronizedTextureSize
     : enforceHighFpsTableTextureSize(synchronizedTextureSize);
+  // Keep rail texture density identical to frame/legs so the table finish scale reads uniform.
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,

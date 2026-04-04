@@ -372,6 +372,45 @@ const makeInlineOakVeneerPattern = ({
   return { mapUrl: colorMap, roughnessMapUrl: roughnessMap, normalMapUrl: null };
 };
 
+
+const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4652' }) => {
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, base);
+      gradient.addColorStop(0.45, sheen);
+      gradient.addColorStop(1, base);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const { data } = imageData;
+      for (let i = 0; i < data.length; i += 4) {
+        const grain = (Math.random() - 0.5) * 16;
+        data[i] = Math.max(0, Math.min(255, data[i] + grain));
+        data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + grain));
+        data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + grain));
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return { mapUrl: canvas.toDataURL('image/png'), roughnessMapUrl: null, normalMapUrl: null };
+    }
+  }
+  const fallback = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="${id}-plastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${base}"/>
+      <stop offset="45%" stop-color="${sheen}"/>
+      <stop offset="100%" stop-color="${base}"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#${id}-plastic)"/>
+</svg>`);
+  return { mapUrl: fallback, roughnessMapUrl: null, normalMapUrl: null };
+};
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -655,6 +694,23 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: 0,
       textureSize: 2048,
       ...makeInlineCarbonFiberPattern({ id: 'oak-black-carbon-frame' })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock',
+    label: 'Plastic Monoblock',
+    source: 'TonPlaygram molded-plastic satin texture',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({ id: 'plastic-monoblock-rail' })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticMonoblockPattern({ id: 'plastic-monoblock-frame' })
     }
   }),
   Object.freeze({
