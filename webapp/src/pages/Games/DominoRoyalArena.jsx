@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-03-domino-table-alignment-v8';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-04-domino-table-straight-lines-v9';
 
 export default function DominoRoyalArena() {
   useEffect(() => {

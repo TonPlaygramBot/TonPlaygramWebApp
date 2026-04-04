@@ -2531,10 +2531,15 @@ const MURLAN_TABLE_THEMES = Object.freeze(
     { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
   ].map((option, index) => {
     const source = option.source || 'polyhaven';
+    const rotationY =
+      source === 'polyhaven'
+        ? (option.rotationY ?? -Math.PI / 12)
+        : (option.rotationY ?? 0);
     return {
       ...option,
       assetId: source === 'polyhaven' ? option.assetId || option.id : null,
       source,
+      rotationY,
       thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
       price: option.price ?? 980 + index * 40,
       preserveMaterials: option.preserveMaterials ?? source === 'polyhaven',
