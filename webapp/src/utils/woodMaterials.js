@@ -388,11 +388,25 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const { data } = imageData;
-      for (let i = 0; i < data.length; i += 4) {
-        const grain = (Math.random() - 0.5) * 16;
-        data[i] = Math.max(0, Math.min(255, data[i] + grain));
-        data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + grain));
-        data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + grain));
+      const tileNoise = (u, v) => {
+        const n1 = Math.sin((u * Math.PI * 2 * 7.1) + (v * Math.PI * 2 * 4.3));
+        const n2 = Math.cos((u * Math.PI * 2 * 11.7) - (v * Math.PI * 2 * 9.6));
+        const n3 = Math.sin((u * Math.PI * 2 * 17.2) + (v * Math.PI * 2 * 15.8));
+        return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.5;
+      };
+      for (let y = 0; y < canvas.height; y += 1) {
+        const v = y / canvas.height;
+        for (let x = 0; x < canvas.width; x += 1) {
+          const u = x / canvas.width;
+          const i = (y * canvas.width + x) * 4;
+          const grain = tileNoise(u, v) * 18;
+          const speck = tileNoise(u * 1.9 + 0.17, v * 2.2 + 0.33) * 8;
+          const swirl = Math.sin((u + v) * Math.PI * 2 * 5.3) * 3.5;
+          const delta = grain + speck + swirl;
+          data[i] = Math.max(0, Math.min(255, data[i] + delta));
+          data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + delta));
+          data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + delta));
+        }
       }
       ctx.putImageData(imageData, 0, 0);
       return { mapUrl: canvas.toDataURL('image/png'), roughnessMapUrl: null, normalMapUrl: null };
