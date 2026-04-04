@@ -137,6 +137,9 @@ const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
+const CAMERA_TURN_PLAYER_LERP = 0.44;
+const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
   fov: CAMERA_FOV,
@@ -247,6 +250,12 @@ const TEXTURE_REPEAT_SCALE = 0.85;
 const CAMERA_LOOK_DRAG_SPEED = 0.0046;
 const CAMERA_LOOK_TARGET_DISTANCE = 6.2;
 const CAMERA_EXTRA_LIFT = 0.12;
+const PORTRAIT_CAMERA_TUNING = Object.freeze({
+  backOffset: 0.82,
+  forwardOffset: 0.6,
+  heightOffset: 1.1,
+  targetLift: 0.06 * MODEL_SCALE
+});
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -437,7 +446,7 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const outwardSpread = 1.34;
+  const outwardSpread = 1.38;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -1639,12 +1648,28 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
 
   const seatWorld = new THREE.Vector3();
   anchor.getWorldPosition(seatWorld);
-  const target = boardLookTarget.clone().lerp(seatWorld, 0.34);
+  const target = boardLookTarget
+    .clone()
+    .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * CAMERA_BROADCAST_TARGET_BLEND);
   target.y = boardLookTarget.y;
 
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
+  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
+  if (isTopOrBottomSeat) {
+    return {
+      position: camera.position.clone(),
+      target: boardLookTarget.clone()
+    };
+  }
+  if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA;
+  if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA;
+  const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
+  if (boardToCamera.lengthSq() > 1e-6) {
+    boardToCamera.normalize();
+    if (direction.dot(boardToCamera) >= 0.82) return null;
+  }
 
   // Keep the camera exactly where the player left it (including manual zoom distance)
   // and only rotate the look target for turn-focus cues.
@@ -2578,17 +2603,19 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
   let activeTableGroup = tableInfo.group;
   tableRoot.add(activeTableGroup);
+  const isPortrait = host.clientHeight > host.clientWidth;
+  const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
 
   const boardGroup = new THREE.Group();
   boardGroup.scale.setScalar(BOARD_SCALE);
   const boardLookTarget = new THREE.Vector3(
     0,
-    tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
+    tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE,
     0
   );
   const attachBoard = (info, group) => {
     boardGroup.position.set(0, info.surfaceY + 0.004, 0);
-    boardLookTarget.set(0, info.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE, 0);
+    boardLookTarget.set(0, info.surfaceY + targetLift + 0.12 * MODEL_SCALE, 0);
     group.add(boardGroup);
   };
   attachBoard(tableInfo, activeTableGroup);
@@ -2612,11 +2639,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
   const chairRadius = (tableInfo.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-  const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? 1.48 : 0.95;
-  const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-  const cameraHeightOffset = (isPortrait ? 1.64 : 1.23) + CAMERA_EXTRA_LIFT;
+  const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.08;
+  const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.34;
+  const cameraHeightOffset = (isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.18) + CAMERA_EXTRA_LIFT;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
