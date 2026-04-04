@@ -1152,7 +1152,6 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
-const REPLAY_PREF_MIGRATION_KEY = 'poolRoyaleReplayPrefMigrationV1';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -12660,20 +12659,7 @@ function PoolRoyaleGame({
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
-      const migratedReplayPref = window.localStorage.getItem(REPLAY_PREF_MIGRATION_KEY) === '1';
       const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
-      if (
-        POOL_ROYALE_REPLAY_ENABLED &&
-        !migratedReplayPref &&
-        stored === '1'
-      ) {
-        window.localStorage.setItem(REPLAY_PREF_MIGRATION_KEY, '1');
-        window.localStorage.setItem(SKIP_REPLAYS_STORAGE_KEY, '0');
-        return false;
-      }
-      if (!migratedReplayPref) {
-        window.localStorage.setItem(REPLAY_PREF_MIGRATION_KEY, '1');
-      }
       if (stored === '1') return true;
       if (stored === '0') return false;
     }
