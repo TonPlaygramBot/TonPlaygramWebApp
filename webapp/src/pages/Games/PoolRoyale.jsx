@@ -3025,7 +3025,7 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
-    label: 'Carbon Fiber Chalk',
+    label: 'Carbon Fiber Graphite',
     rail: 0x1a1f2a,
     base: 0x0c1018,
     trim: 0x374151,
@@ -3034,36 +3034,36 @@ const TABLE_FINISHES = Object.freeze({
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
-    label: 'Carbon Fiber Chalk Grey',
-    rail: 0x4b5563,
-    base: 0x2f3540,
-    trim: 0x9ca3af,
+    label: 'Carbon Fiber Slate',
+    rail: 0x5f6b7a,
+    base: 0x3d4652,
+    trim: 0xb8c2cf,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
-    label: 'Carbon Fiber Chalk Beige',
-    rail: 0xb29b82,
-    base: 0x8f7a62,
-    trim: 0xe5d3b9,
+    label: 'Carbon Fiber Sand',
+    rail: 0xc3aa88,
+    base: 0x9b8260,
+    trim: 0xf0dfc2,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
-    label: 'Carbon Fiber Chalk Dark Blue',
-    rail: 0x1e2b55,
-    base: 0x111a33,
-    trim: 0x4b5e91,
+    label: 'Carbon Fiber Navy',
+    rail: 0x243b7a,
+    base: 0x15264e,
+    trim: 0x5e79bf,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
-    label: 'Carbon Fiber Chalk White',
-    rail: 0xeef2f7,
-    base: 0xd8dde5,
+    label: 'Carbon Fiber Ice',
+    rail: 0xf3f6fb,
+    base: 0xe2e8f0,
     trim: 0xffffff,
     woodTextureId: 'carbon_fiber_chalk',
     woodRepeatScale: 1
@@ -12141,33 +12141,38 @@ function applyTableFinishToTable(table, finish) {
       (finishInfo.woodTextureId &&
         WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
       defaultWoodOption;
-    const nextFrameSurface = resolveWoodSurfaceConfig(
-      resolvedWoodOption?.frame,
-      woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
+    const nextRailSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.rail,
+      woodSurfaces.rail ?? resolvedWoodOption?.frame ?? {
         repeat: { x: 1, y: 1 },
         rotation: 0
       }
     );
+    const nextFrameSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.frame,
+      woodSurfaces.frame ?? nextRailSurface
+    );
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
-    const highFpsTextureSize = enforceHighFpsTableTextureSize(nextFrameSurface.textureSize);
+    const highFpsRailTextureSize = enforceHighFpsTableTextureSize(nextRailSurface.textureSize);
+    const highFpsFrameTextureSize = enforceHighFpsTableTextureSize(nextFrameSurface.textureSize);
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
-        nextFrameSurface.repeat.x,
-        nextFrameSurface.repeat.y
+        nextRailSurface.repeat.x,
+        nextRailSurface.repeat.y
       ),
-      rotation: nextFrameSurface.rotation,
-      textureSize: highFpsTextureSize,
-      mapUrl: nextFrameSurface.mapUrl,
-      roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
-      normalMapUrl: nextFrameSurface.normalMapUrl,
+      rotation: nextRailSurface.rotation,
+      textureSize: highFpsRailTextureSize,
+      mapUrl: nextRailSurface.mapUrl,
+      roughnessMapUrl: nextRailSurface.roughnessMapUrl,
+      normalMapUrl: nextRailSurface.normalMapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
-      textureSize: highFpsTextureSize,
+      textureSize: highFpsFrameTextureSize,
       mapUrl: nextFrameSurface.mapUrl,
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
