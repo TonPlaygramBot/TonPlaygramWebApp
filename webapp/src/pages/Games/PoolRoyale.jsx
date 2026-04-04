@@ -28629,21 +28629,23 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const currentFrameCamera = frameA?.camera ?? null;
+              const nextFrameCamera = frameB?.camera ?? currentFrameCamera;
               const previousFrameCamera =
                 replayFrameCameraRef.current?.frameB ??
                 replayFrameCameraRef.current?.frameA ??
                 null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
+              const cameraChanged =
+                hasReplayCameraChanged(previousFrameCamera, currentFrameCamera) ||
+                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera);
+              if ((currentFrameCamera || nextFrameCamera) && (cameraChanged || !replayFrameCameraRef.current)) {
                 replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
+                  frameA: currentFrameCamera ?? nextFrameCamera,
+                  frameB: nextFrameCamera ?? currentFrameCamera,
+                  alpha
                 };
+              } else if (replayFrameCameraRef.current) {
+                replayFrameCameraRef.current.alpha = alpha;
               }
             } else {
               replayFrameCameraRef.current = null;
