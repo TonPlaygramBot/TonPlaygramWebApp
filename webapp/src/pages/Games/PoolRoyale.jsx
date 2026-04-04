@@ -25115,16 +25115,17 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
+        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Match the reference cue stroke: drag defines pullback, release drives a direct strike.
+          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
-          pullbackDuration: 0,
+          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
+          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
+          pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 0.88,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -25337,7 +25338,7 @@ const powerRef = useRef(hud.power);
         const clampedPower = clampPower(powerInput, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
-        const pullRange = 0.34;
+        const pullRange = 0.24;
         const pullTarget = pullRange * strokeProfile.pullRatio;
         const pulledNow = cuePullCurrentRef.current ?? pullTarget;
         const visualCommittedPower = THREE.MathUtils.clamp(
@@ -25426,16 +25427,11 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const cueSideDir = new THREE.Vector2(shotAimDir.y, -shotAimDir.x);
-          if (cueSideDir.lengthSq() > 1e-8) cueSideDir.normalize();
-          const shotSpeed =
-            (1.8 + 6.2 * resolvedShotPower) *
-            (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const sideSquirt = (scaledSpin.x ?? 0) * resolvedShotPower * 0.22;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
-            .multiplyScalar(shotSpeed)
-            .addScaledVector(cueSideDir, sideSquirt);
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
