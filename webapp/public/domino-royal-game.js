@@ -7467,6 +7467,43 @@ function createOptionPreview(key, option) {
   return swatch;
 }
 
+
+const DOMINO_COLOR_PRESETS = Object.freeze([
+  {
+    id: 'classic-royal',
+    label: 'Classic Royal',
+    dominoBodyColor: '#f8f8fb',
+    dominoDotColor: '#121314',
+    dominoFrameColor: '#d8af37'
+  },
+  {
+    id: 'deep-ocean',
+    label: 'Deep Ocean',
+    dominoBodyColor: '#dbeafe',
+    dominoDotColor: '#0b3b8f',
+    dominoFrameColor: '#38bdf8'
+  },
+  {
+    id: 'ember-glow',
+    label: 'Ember Glow',
+    dominoBodyColor: '#fff1f2',
+    dominoDotColor: '#9f1239',
+    dominoFrameColor: '#fb7185'
+  }
+]);
+
+function matchesDominoColorPreset(preset, currentAppearance) {
+  if (!preset || !currentAppearance) return false;
+  return (
+    (currentAppearance.dominoBodyColor || '').toLowerCase() ===
+      preset.dominoBodyColor.toLowerCase() &&
+    (currentAppearance.dominoDotColor || '').toLowerCase() ===
+      preset.dominoDotColor.toLowerCase() &&
+    (currentAppearance.dominoFrameColor || '').toLowerCase() ===
+      preset.dominoFrameColor.toLowerCase()
+  );
+}
+
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
@@ -7574,6 +7611,59 @@ function refreshConfigUI() {
     wrapper.appendChild(optionsGrid);
     configSectionsEl.appendChild(wrapper);
   });
+
+  const dominoPresetWrapper = document.createElement('div');
+  dominoPresetWrapper.className = 'config-section';
+  const dominoPresetLabel = document.createElement('h4');
+  dominoPresetLabel.textContent = 'Domino quick color presets';
+  dominoPresetWrapper.appendChild(dominoPresetLabel);
+  const dominoPresetGrid = document.createElement('div');
+  dominoPresetGrid.className = 'config-options';
+  dominoPresetGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(120px, 1fr))';
+  DOMINO_COLOR_PRESETS.forEach((preset) => {
+    const presetButton = document.createElement('button');
+    presetButton.type = 'button';
+    presetButton.className = 'config-option';
+    presetButton.style.alignItems = 'stretch';
+    if (matchesDominoColorPreset(preset, appearance)) {
+      presetButton.classList.add('active');
+    }
+    const previewRow = document.createElement('div');
+    previewRow.style.display = 'grid';
+    previewRow.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+    previewRow.style.gap = '0.2rem';
+    [preset.dominoBodyColor, preset.dominoDotColor, preset.dominoFrameColor].forEach(
+      (color) => {
+        const swatch = document.createElement('div');
+        swatch.style.height = '1rem';
+        swatch.style.borderRadius = '0.45rem';
+        swatch.style.border = '1px solid rgba(255,255,255,0.18)';
+        swatch.style.background = color;
+        previewRow.appendChild(swatch);
+      }
+    );
+    presetButton.appendChild(previewRow);
+    const presetName = document.createElement('span');
+    presetName.textContent = preset.label;
+    presetButton.appendChild(presetName);
+    presetButton.addEventListener('click', () => {
+      appearance.dominoBodyColor = preset.dominoBodyColor;
+      appearance.dominoDotColor = preset.dominoDotColor;
+      appearance.dominoFrameColor = preset.dominoFrameColor;
+      applyAppearanceChange({ refresh: true });
+    });
+    dominoPresetGrid.appendChild(presetButton);
+  });
+  dominoPresetWrapper.appendChild(dominoPresetGrid);
+  const dominoPresetHint = document.createElement('p');
+  dominoPresetHint.textContent =
+    'Pick 1 of 3 ready combinations for body, dots, and inner frame colors.';
+  dominoPresetHint.style.margin = '0';
+  dominoPresetHint.style.fontSize = '0.65rem';
+  dominoPresetHint.style.color = 'rgba(226,232,240,0.7)';
+  dominoPresetHint.style.lineHeight = '1.4';
+  dominoPresetWrapper.appendChild(dominoPresetHint);
+  configSectionsEl.appendChild(dominoPresetWrapper);
 
   const customDominoColorWrapper = document.createElement('div');
   customDominoColorWrapper.className = 'config-section';
