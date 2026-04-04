@@ -365,7 +365,6 @@ const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
   )
 );
 const HDRI_TARGET_GAMES = Object.freeze([
-  { slug: 'poolroyale', label: 'Pool Royale' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
   { slug: 'chessbattleroyal', label: 'Chess Battle Royal' },
   { slug: 'checkersbattleroyal', label: 'Checkers Battle Royal' },
@@ -1139,7 +1138,7 @@ export default function Store() {
   const [hdriPreviewUnlocked, setHdriPreviewUnlocked] = useState(false);
   const [hdriPublished, setHdriPublished] = useState(false);
   const [hdriPublishing, setHdriPublishing] = useState(false);
-  const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['poolroyale']);
+  const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['snookerroyale']);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -1997,7 +1996,9 @@ export default function Store() {
   const decoratedUserListings = useMemo(
     () =>
       userListings.flatMap((listing) => {
-        const games = Array.isArray(listing.supportedGames) ? listing.supportedGames : [];
+        const games = Array.isArray(listing.supportedGames)
+          ? listing.supportedGames.filter((slug) => slug !== 'poolroyale')
+          : [];
         const listingOwner = normalizeAccount(listing.createdBy);
         const isListingOwner =
           listingOwner && listingOwner === normalizeAccount(accountId || 'guest');
