@@ -4418,6 +4418,11 @@ const DEFAULT_APPEARANCE = Object.freeze(
     return acc;
   }, {})
 );
+const APPEARANCE_COLOR_OVERRIDE_KEYS = Object.freeze([
+  'dominoBodyColor',
+  'dominoDotColor',
+  'dominoFrameColor'
+]);
 const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV3';
 const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalArenaAppearance'];
 const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV3';
@@ -4447,6 +4452,10 @@ function normalizeAppearance(raw) {
       );
     }
   });
+  APPEARANCE_COLOR_OVERRIDE_KEYS.forEach((key) => {
+    const normalizedColor = normalizeHexColor(source[key]);
+    normalized[key] = normalizedColor || '';
+  });
 
   const selectedTableTheme = TABLE_THEME_OPTIONS[normalized.tableTheme];
   if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
@@ -4465,6 +4474,17 @@ function normalizeAppearance(raw) {
   }
 
   return normalized;
+}
+
+function normalizeHexColor(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  if (/^#[0-9a-fA-F]{6}$/.test(withHash)) {
+    return withHash.toLowerCase();
+  }
+  return '';
 }
 
 function sanitizeAppearance(rawAppearance, inventory = dominoInventory) {
@@ -6894,11 +6914,15 @@ const getDominoSurfaceTextures = (() => {
 function applyDominoStyle(
   option = DOMINO_STYLE_OPTIONS[0],
   dotOption = currentDominoDotStyleOption,
-  frameOption = currentDominoFrameStyleOption
+  frameOption = currentDominoFrameStyleOption,
+  customColors = {}
 ) {
   const style = option ?? DOMINO_STYLE_OPTIONS[0];
   const pipStyle = dotOption ?? DOMINO_DOT_STYLE_OPTIONS[0];
   const frameStyle = frameOption ?? DOMINO_FRAME_STYLE_OPTIONS[0];
+  const bodyColorOverride = normalizeHexColor(customColors.dominoBodyColor);
+  const dotColorOverride = normalizeHexColor(customColors.dominoDotColor);
+  const frameColorOverride = normalizeHexColor(customColors.dominoFrameColor);
   currentDominoStyleOption = style;
   currentDominoDotStyleOption = pipStyle;
   currentDominoFrameStyleOption = frameStyle;
@@ -6917,7 +6941,7 @@ function applyDominoStyle(
   pipMat = buildDominoMaterial(
     {
       ...(style.pip || {}),
-      color: pipStyle?.color ?? style.pip?.color,
+      color: dotColorOverride || pipStyle?.color || style.pip?.color,
       emissive: pipStyle?.emissive ?? style.pip?.emissive,
       metalness: pipStyle?.metalness ?? style.pip?.metalness,
       roughness: pipStyle?.roughness ?? style.pip?.roughness
@@ -6940,7 +6964,7 @@ function applyDominoStyle(
   accentMat = buildDominoMaterial(
     {
       ...(style.accent || {}),
-      color: frameStyle?.color ?? style.accent?.color,
+      color: frameColorOverride || frameStyle?.color || style.accent?.color,
       emissive: frameStyle?.emissive ?? style.accent?.emissive,
       metalness: frameStyle?.metalness ?? style.accent?.metalness,
       roughness: frameStyle?.roughness ?? style.accent?.roughness
@@ -6971,6 +6995,9 @@ function applyDominoStyle(
         ? dimIntensity(ringIntensitySource)
         : (accentMat.emissiveIntensity ?? dimIntensity(0.55))
   };
+  if (bodyColorOverride) {
+    porcelainMat.color.set(bodyColorOverride);
+  }
 }
 
 applyDominoStyle(currentDominoStyleOption);
@@ -7155,7 +7182,8 @@ function applyAppearanceChange({ refresh = true } = {}) {
     DOMINO_DOT_STYLE_OPTIONS[appearance.dominoDotStyle] ??
       DOMINO_DOT_STYLE_OPTIONS[0],
     DOMINO_FRAME_STYLE_OPTIONS[appearance.dominoFrameStyle] ??
-      DOMINO_FRAME_STYLE_OPTIONS[0]
+      DOMINO_FRAME_STYLE_OPTIONS[0],
+    appearance
   );
   applyHighlightStyle(
     HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ??
@@ -7210,7 +7238,8 @@ function applyFrameRateSelection(
   applyDominoStyle(
     currentDominoStyleOption,
     currentDominoDotStyleOption,
-    currentDominoFrameStyleOption
+    currentDominoFrameStyleOption,
+    appearance
   );
   buildChairs(
     CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME
@@ -7447,6 +7476,33 @@ function createOptionPreview(key, option) {
   return swatch;
 }
 
+function resolveDominoAppearanceColors(state = appearance) {
+  const dominoOption =
+    DOMINO_STYLE_OPTIONS[state?.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0];
+  const dotOption =
+    DOMINO_DOT_STYLE_OPTIONS[state?.dominoDotStyle] ??
+    DOMINO_DOT_STYLE_OPTIONS[0];
+  const frameOption =
+    DOMINO_FRAME_STYLE_OPTIONS[state?.dominoFrameStyle] ??
+    DOMINO_FRAME_STYLE_OPTIONS[0];
+  return {
+    dominoBodyColor:
+      normalizeHexColor(state?.dominoBodyColor) ||
+      normalizeHexColor(dominoOption?.body?.color) ||
+      '#f8f8fb',
+    dominoDotColor:
+      normalizeHexColor(state?.dominoDotColor) ||
+      normalizeHexColor(dotOption?.color) ||
+      normalizeHexColor(dominoOption?.pip?.color) ||
+      '#121314',
+    dominoFrameColor:
+      normalizeHexColor(state?.dominoFrameColor) ||
+      normalizeHexColor(frameOption?.color) ||
+      normalizeHexColor(dominoOption?.accent?.color) ||
+      '#d8af37'
+  };
+}
+
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
@@ -7554,6 +7610,57 @@ function refreshConfigUI() {
     wrapper.appendChild(optionsGrid);
     configSectionsEl.appendChild(wrapper);
   });
+  const dominoColorWrapper = document.createElement('div');
+  dominoColorWrapper.className = 'config-section';
+  const dominoColorLabel = document.createElement('h4');
+  dominoColorLabel.textContent = 'Domino Custom Colors';
+  dominoColorWrapper.appendChild(dominoColorLabel);
+  const dominoColorGrid = document.createElement('div');
+  dominoColorGrid.className = 'config-options';
+  dominoColorGrid.style.gridTemplateColumns =
+    'repeat(auto-fit, minmax(160px, 1fr))';
+  const resolvedColors = resolveDominoAppearanceColors(appearance);
+  [
+    { key: 'dominoBodyColor', label: 'Domino Body' },
+    { key: 'dominoDotColor', label: 'Domino Dots' },
+    { key: 'dominoFrameColor', label: 'Domino Frame' }
+  ].forEach(({ key, label }) => {
+    const control = document.createElement('label');
+    control.className = 'config-option';
+    control.style.display = 'grid';
+    control.style.gap = '0.5rem';
+    const text = document.createElement('span');
+    text.textContent = label;
+    control.appendChild(text);
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = normalizeHexColor(appearance[key]) || resolvedColors[key];
+    input.style.width = '100%';
+    input.style.height = '2rem';
+    input.style.background = 'transparent';
+    input.style.border = '1px solid rgba(148,163,184,0.55)';
+    input.style.borderRadius = '0.5rem';
+    input.style.padding = '0.12rem';
+    input.addEventListener('input', () => {
+      appearance[key] = normalizeHexColor(input.value) || '';
+      applyAppearanceChange({ refresh: false });
+    });
+    control.appendChild(input);
+    dominoColorGrid.appendChild(control);
+  });
+  const resetDominoColorsButton = document.createElement('button');
+  resetDominoColorsButton.type = 'button';
+  resetDominoColorsButton.className = 'config-option';
+  resetDominoColorsButton.textContent = 'Reset custom domino colors';
+  resetDominoColorsButton.addEventListener('click', () => {
+    appearance.dominoBodyColor = '';
+    appearance.dominoDotColor = '';
+    appearance.dominoFrameColor = '';
+    applyAppearanceChange({ refresh: true });
+  });
+  dominoColorGrid.appendChild(resetDominoColorsButton);
+  dominoColorWrapper.appendChild(dominoColorGrid);
+  configSectionsEl.appendChild(dominoColorWrapper);
 
   const feedbackWrapper = document.createElement('div');
   feedbackWrapper.className = 'config-section';
