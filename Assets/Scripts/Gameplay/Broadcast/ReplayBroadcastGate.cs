@@ -29,21 +29,40 @@ namespace Aiming.Gameplay.Broadcast
 
         public bool TryBroadcastReplay(ReplayBroadcastPayload payload)
         {
-            if (!forceLegacyReplayBroadcast || !payload.IsValid)
+            if (!forceLegacyReplayBroadcast)
             {
                 return false;
             }
 
-            if (!payload.HasCueTelemetry)
+            payload = NormalizePayload(payload);
+
+            if (!payload.IsValid)
             {
-                payload.cueDirection = Vector3.forward;
-                payload.powerNormalized = Mathf.Max(0f, payload.powerNormalized);
+                return false;
             }
 
             payload.BroadcastStartTime = Time.unscaledTime + replayStartLeadSeconds;
             ReplayBroadcastRequested?.Invoke(payload);
             ShowReplayFrame();
             return true;
+        }
+
+        private static ReplayBroadcastPayload NormalizePayload(ReplayBroadcastPayload payload)
+        {
+            if (!payload.HasCueTelemetry && !string.IsNullOrWhiteSpace(payload.shotId))
+            {
+                payload.cueDirection = Vector3.forward;
+                payload.powerNormalized = IsFinite(payload.powerNormalized)
+                    ? Mathf.Max(0f, payload.powerNormalized)
+                    : 0f;
+            }
+
+            return payload;
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         public void SetLegacyReplayMode(bool enabled)
