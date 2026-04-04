@@ -25339,9 +25339,7 @@ const powerRef = useRef(hud.power);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const pullRange = 0.24;
-        // Keep Pool Royale release power behavior aligned with the reference
-        // cue mechanic: pull = PULL_RANGE * easeOut(power), then strike on release.
-        const pullTarget = pullRange * easeOutCubic(clampedPower);
+        const pullTarget = pullRange * strokeProfile.pullRatio;
         const pulledNow = cuePullCurrentRef.current ?? pullTarget;
         const visualCommittedPower = THREE.MathUtils.clamp(
           pulledNow / Math.max(pullRange, 1e-6),
@@ -31404,13 +31402,7 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: (value) => {
-        const sliderValue =
-          Number.isFinite(value)
-            ? value
-            : Number.isFinite(slider.get?.())
-              ? slider.get()
-              : slider.min;
-        const committedPower = Number.isFinite(sliderValue) ? sliderValue / 100 : null;
+        const committedPower = Number.isFinite(value) ? value / 100 : null;
         fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
