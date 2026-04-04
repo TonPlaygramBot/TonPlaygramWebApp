@@ -5584,6 +5584,7 @@ const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
+const POOL_ROYALE_REPLAY_ALL_SHOTS = true; // keep the replay pipeline visible on every completed shot, not only pots/fouls/finals
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
 const POWER_REPLAY_THRESHOLD = 0.78;
@@ -27987,7 +27988,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -27997,9 +27998,10 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const shouldReplayByDefault = Boolean(POOL_ROYALE_REPLAY_ALL_SHOTS);
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
-            banner: selectReplayBanner(primary),
+            shouldReplay: shouldReplayByDefault || hadObjectPot || tags.size > 0,
+            banner: hadObjectPot ? selectReplayBanner(primary) : 'Replay',
             zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary
