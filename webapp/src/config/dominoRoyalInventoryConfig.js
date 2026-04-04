@@ -46,11 +46,9 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'sunsetAmber', label: 'Sunset Amber' }
   ],
   dominoDotStyle: [
+    { id: 'current', label: 'Current' },
     { id: 'headRuby', label: 'Ruby' },
-    { id: 'headPearl', label: 'Pearl' },
     { id: 'headSapphire', label: 'Sapphire' },
-    { id: 'headEmerald', label: 'Emerald' },
-    { id: 'headDiamond', label: 'Diamond' },
     { id: 'headChrome', label: 'Chrome' },
     { id: 'headGold', label: 'Gold' }
   ],
@@ -97,11 +95,9 @@ const DOMINO_STYLE_THUMBNAILS = Object.freeze({
 
 
 const DOMINO_DOT_STYLE_THUMBNAILS = Object.freeze({
+  current: '/assets/game-art/chess-battle-royal/heads/current.svg',
   headRuby: '/assets/game-art/chess-battle-royal/heads/headRuby.svg',
-  headPearl: '/assets/game-art/chess-battle-royal/heads/current.svg',
   headSapphire: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg',
-  headEmerald: swatchThumbnail(['#065f46', '#10b981', '#d1fae5']),
-  headDiamond: swatchThumbnail(['#f8fafc', '#dbeafe', '#bfdbfe']),
   headChrome: '/assets/game-art/chess-battle-royal/heads/headChrome.svg',
   headGold: '/assets/game-art/chess-battle-royal/heads/headGold.svg'
 });
