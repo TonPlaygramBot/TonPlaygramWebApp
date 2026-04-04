@@ -894,24 +894,7 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
-function normalizeMaterialTextures(material, maxAnisotropy = 1) {
-  if (!material) return;
-  if (material.map) {
-    applySRGBColorSpace(material.map);
-    normalizePbrTexture(material.map, maxAnisotropy);
-  }
-  if (material.emissiveMap) {
-    applySRGBColorSpace(material.emissiveMap);
-    normalizePbrTexture(material.emissiveMap, maxAnisotropy);
-  }
-  normalizePbrTexture(material.normalMap, maxAnisotropy);
-  normalizePbrTexture(material.roughnessMap, maxAnisotropy);
-  normalizePbrTexture(material.metalnessMap, maxAnisotropy);
-  normalizePbrTexture(material.aoMap, maxAnisotropy);
-}
-
-function prepareLoadedModel(model, options = {}) {
-  const { preserveGltfTextureMapping = false, maxAnisotropy = 1 } = options;
+function prepareLoadedModel(model) {
   if (!model) return;
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -920,13 +903,8 @@ function prepareLoadedModel(model, options = {}) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (preserveGltfTextureMapping) {
-          normalizeMaterialTextures(mat, maxAnisotropy);
-        } else {
-          if (mat.map) applySRGBColorSpace(mat.map);
-          if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-        }
-        mat.needsUpdate = true;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
       });
     }
   });
@@ -1258,17 +1236,16 @@ async function createPolyhavenInstance(
 ) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
+  prepareLoadedModel(model);
   const {
     textureLoader = null,
     maxAnisotropy = 1,
     fallbackTexture = null,
     textureCache = null,
     textureSet = null,
-    preferredTextureSizes = PREFERRED_TEXTURE_SIZES,
-    preserveGltfTextureMapping = false
+    preferredTextureSizes = PREFERRED_TEXTURE_SIZES
   } = textureOptions || {};
-  prepareLoadedModel(model, { preserveGltfTextureMapping, maxAnisotropy });
-  if (textureLoader && !preserveGltfTextureMapping) {
+  if (textureLoader) {
     try {
       const textures =
         textureSet ??
@@ -1491,7 +1468,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
         TARGET_CHAIR_SIZE.y - TARGET_CHAIR_MIN_Y,
         theme.modelRotation || 0,
         renderer,
-        { ...textureOptions, preserveGltfTextureMapping: preserve }
+        textureOptions
       );
       fitChairModelToFootprint(model);
       return {
