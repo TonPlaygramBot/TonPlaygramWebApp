@@ -4220,18 +4220,6 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 
 const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
   {
-    id: 'headGlass',
-    label: 'Glass',
-    icon: '●',
-    color: '#ffffff',
-    metalness: 0,
-    roughness: 0.05,
-    transmission: 0.95,
-    ior: 1.5,
-    thickness: 0.5,
-    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
-  },
-  {
     id: 'headRuby',
     label: 'Ruby',
     icon: '●',
@@ -4244,6 +4232,18 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headRuby.svg'
   },
   {
+    id: 'headPearl',
+    label: 'Pearl',
+    icon: '●',
+    color: '#f5f5f5',
+    metalness: 0.05,
+    roughness: 0.25,
+    transmission: 0,
+    ior: 1.3,
+    thickness: 0.2,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
+  },
+  {
     id: 'headSapphire',
     label: 'Sapphire',
     icon: '●',
@@ -4254,6 +4254,30 @@ const DOMINO_DOT_STYLE_OPTIONS = Object.freeze([
     ior: 1.8,
     thickness: 0.7,
     thumbnail: '/assets/game-art/chess-battle-royal/heads/headSapphire.svg'
+  },
+  {
+    id: 'headEmerald',
+    label: 'Emerald',
+    icon: '●',
+    color: '#046a38',
+    metalness: 0.05,
+    roughness: 0.08,
+    transmission: 0.9,
+    ior: 1.8,
+    thickness: 0.7,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
+  },
+  {
+    id: 'headDiamond',
+    label: 'Diamond',
+    icon: '●',
+    color: '#ffffff',
+    metalness: 0,
+    roughness: 0.03,
+    transmission: 0.98,
+    ior: 2.4,
+    thickness: 0.8,
+    thumbnail: '/assets/game-art/chess-battle-royal/heads/current.svg'
   },
   {
     id: 'headChrome',
