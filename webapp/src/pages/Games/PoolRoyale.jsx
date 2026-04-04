@@ -25340,15 +25340,22 @@ const powerRef = useRef(hud.power);
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const pullRange = 0.24;
         const pullTarget = pullRange * strokeProfile.pullRatio;
-        const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-        const visualCommittedPower = THREE.MathUtils.clamp(
+        const pulledNowRaw = cuePullCurrentRef.current;
+        const pulledNow = Number.isFinite(pulledNowRaw) ? pulledNowRaw : pullTarget;
+        const visualCommittedPowerRaw = THREE.MathUtils.clamp(
           pulledNow / Math.max(pullRange, 1e-6),
           0,
           1
         );
+        const visualCommittedPower = Number.isFinite(visualCommittedPowerRaw)
+          ? visualCommittedPowerRaw
+          : 0;
         // Keep physics power in sync with the visible cue pullback so a forward
         // cue release always transfers slider energy to the cue ball.
-        const resolvedShotPower = Math.max(clampedPower, visualCommittedPower);
+        const resolvedShotPower = clampPower(
+          Math.max(clampedPower, visualCommittedPower),
+          clampedPower
+        );
         const rawSpin = applySpinConstraints(aimDir, true);
         const spinScale = THREE.MathUtils.clamp(strokeProfile.spinScale ?? 0.4, 0.12, 1);
         const appliedSpin = {
@@ -31403,7 +31410,9 @@ const powerRef = useRef(hud.power);
       },
       onCommit: (value) => {
         const committedPower = Number.isFinite(value) ? value / 100 : null;
-        fireRef.current?.(committedPower);
+        if ((committedPower ?? 0) > 0.02) {
+          fireRef.current?.(committedPower);
+        }
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
