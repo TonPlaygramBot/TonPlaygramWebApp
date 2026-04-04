@@ -1985,6 +1985,7 @@ const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale wit
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
+const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 1.75; // tighten rail texel density so GLTF rail grain matches the leg grain scale.
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -2907,7 +2908,8 @@ const createStandardWoodFinish = ({
   accent,
   woodTextureId,
   woodRepeatScale,
-  disableWoodPattern = false
+  disableWoodPattern = false,
+  surfaceStyle = 'standard'
 }) => ({
   id,
   label,
@@ -2920,7 +2922,9 @@ const createStandardWoodFinish = ({
   woodTextureId,
   woodRepeatScale,
   disableWoodPattern,
+  surfaceStyle,
   createMaterials: () => {
+    const useMatteSurface = surfaceStyle === 'matte';
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
     const trimColor =
@@ -2929,33 +2933,33 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: 0.1,
-      roughness: 0.52,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.34,
-      sheen: 0.16,
-      sheenRoughness: 0.52,
-      reflectivity: 0.26,
-      envMapIntensity: 0.52
+      metalness: useMatteSurface ? 0.01 : 0.1,
+      roughness: useMatteSurface ? 0.9 : 0.52,
+      clearcoat: useMatteSurface ? 0 : 0.28,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.34,
+      sheen: useMatteSurface ? 0.04 : 0.16,
+      sheenRoughness: useMatteSurface ? 0.95 : 0.52,
+      reflectivity: useMatteSurface ? 0.02 : 0.26,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.52
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: 0.12,
-      roughness: 0.48,
-      clearcoat: 0.32,
-      clearcoatRoughness: 0.32,
-      sheen: 0.2,
-      sheenRoughness: 0.52,
-      reflectivity: 0.28,
-      envMapIntensity: 0.56
+      metalness: useMatteSurface ? 0.01 : 0.12,
+      roughness: useMatteSurface ? 0.92 : 0.48,
+      clearcoat: useMatteSurface ? 0 : 0.32,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.32,
+      sheen: useMatteSurface ? 0.04 : 0.2,
+      sheenRoughness: useMatteSurface ? 0.95 : 0.52,
+      reflectivity: useMatteSurface ? 0.02 : 0.28,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.56
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
-      metalness: 0.18,
-      roughness: 0.44,
-      clearcoat: 0.34,
-      clearcoatRoughness: 0.3,
-      envMapIntensity: 0.6
+      metalness: useMatteSurface ? 0.01 : 0.18,
+      roughness: useMatteSurface ? 0.9 : 0.44,
+      clearcoat: useMatteSurface ? 0 : 0.34,
+      clearcoatRoughness: useMatteSurface ? 1 : 0.3,
+      envMapIntensity: useMatteSurface ? 0.08 : 0.6
     });
     const materials = {
       frame,
@@ -3040,47 +3044,57 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'LT Black',
-    rail: 0x171b22,
+    rail: 0x0c0f14,
     base: 0x0c0f14,
-    trim: 0x303844,
+    trim: 0x0c0f14,
     woodTextureId: 'plastic_monoblock_lt_black',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte'
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0x7f8794,
-    base: 0x5f6774,
-    trim: 0xc5cdd9,
+    rail: 0x6f7681,
+    base: 0x6f7681,
+    trim: 0x6f7681,
     woodTextureId: 'plastic_monoblock_lt_grey',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte'
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x414854,
-    base: 0x2b313a,
-    trim: 0x646d7a,
+    rail: 0x2f353e,
+    base: 0x2f353e,
+    trim: 0x2f353e,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte'
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0x7f2a3d,
-    base: 0x5d1a2a,
-    trim: 0xa34860,
+    rail: 0x652335,
+    base: 0x652335,
+    trim: 0x652335,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte'
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xf8efe1,
-    base: 0xebddc9,
-    trim: 0xfff9ee,
+    rail: 0xefe2cf,
+    base: 0xefe2cf,
+    trim: 0xefe2cf,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
-    woodRepeatScale: 1
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte'
   })
 });
 
@@ -8048,11 +8062,12 @@ export function Table3D(
   const finalWoodTextureSize = usesPolyHavenWoodMaps
     ? synchronizedTextureSize
     : enforceHighFpsTableTextureSize(synchronizedTextureSize);
-  // Keep rail texture density identical to frame/legs so the table finish scale reads uniform.
+  const railRepeatMultiplier = usesPolyHavenWoodMaps ? GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER : 1;
+  // Keep rail grain visually matched to leg grain density (UVs differ on rails vs legs).
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
-      initialFrameSurface.repeat.x,
-      initialFrameSurface.repeat.y
+      initialFrameSurface.repeat.x * railRepeatMultiplier,
+      initialFrameSurface.repeat.y * railRepeatMultiplier
     ),
     rotation: initialFrameSurface.rotation,
     textureSize: finalWoodTextureSize,
@@ -11444,8 +11459,7 @@ export function Table3D(
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.4);
-    texture.anisotropy = boostedAniso;
+    texture.anisotropy = resolveTextureAnisotropy(16);
     texture.needsUpdate = true;
   };
 
@@ -12198,12 +12212,15 @@ function applyTableFinishToTable(table, finish) {
       normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
     };
-    // Keep rail texture pattern scale locked to the frame/legs so the full table
-    // shell (rails + skirts + legs) reads as one consistent GLTF texture density.
+    const usesGltfWoodMaps =
+      typeof synchronizedFrameSurface.mapUrl === 'string' &&
+      synchronizedFrameSurface.mapUrl.includes('polyhaven.org');
+    const railRepeatMultiplier = usesGltfWoodMaps ? GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER : 1;
+    // Compensate rail UV scale so the visible grain size matches the legs/skirt.
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
-        synchronizedFrameSurface.repeat.x,
-        synchronizedFrameSurface.repeat.y
+        synchronizedFrameSurface.repeat.x * railRepeatMultiplier,
+        synchronizedFrameSurface.repeat.y * railRepeatMultiplier
       ),
       rotation: synchronizedFrameSurface.rotation,
       textureSize: highFpsRailTextureSize,
