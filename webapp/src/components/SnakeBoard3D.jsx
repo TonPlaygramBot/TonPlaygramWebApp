@@ -104,7 +104,7 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06; // make board footprint visibly wider
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.12; // make board footprint visibly wider
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -228,7 +228,7 @@ const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
 const SHOW_PAVEMENT_LAYER = false;
 const RAIL_HEIGHT = TILE_SIZE * 0.6;
 const RAIL_GAP_WIDTH = TILE_SIZE * 1.4;
-const RAIL_RADIUS = TILE_SIZE * 0.03;
+const RAIL_RADIUS = TILE_SIZE * 0.036;
 const RAIL_WALKWAY_DEPTH = TILE_SIZE * 0.85;
 const LEVEL_START_INDICES = LEVEL_TILE_COUNTS.reduce((starts, count, index) => {
   if (index === 0) {
@@ -437,22 +437,10 @@ function createPreciseSnakeTiles(scale = 1) {
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
   const outwardSpread = 1.1;
+  const groundTileY = 0.12 * scale;
   const preciseTiles = spiral.map((cell, index) => {
-    let level = 0;
-    let localIndex = index;
-    let baseTop = 0.07;
-    let riseStep = 0.012;
     let size = 0.98;
-    if (index >= 24 && index < 40) {
-      level = 1;
-      localIndex = index - 24;
-      baseTop = 0.88;
-      riseStep = 0.022;
-    } else if (index >= 40) {
-      level = 2;
-      localIndex = index - 40;
-      baseTop = 1.66;
-      riseStep = 0.048;
+    if (index >= 40) {
       size = 0.96;
     }
     const dx = cell.col - center;
@@ -461,16 +449,16 @@ function createPreciseSnakeTiles(scale = 1) {
       id: index + 1,
       x: dx * outwardSpread * scale,
       z: dz * outwardSpread * scale,
-      y: (baseTop + 0.26 / 2 + localIndex * riseStep) * scale,
+      y: groundTileY,
       size: size * scale,
-      color: colors[(index + level) % colors.length]
+      color: colors[index % colors.length]
     };
   });
   preciseTiles.push({
     id: 49,
     x: -outwardSpread * 0.54 * scale,
     z: 0,
-    y: 2.46 * scale,
+    y: groundTileY,
     size: 0.94 * scale,
     color: '#3ccfc5'
   });
@@ -478,7 +466,7 @@ function createPreciseSnakeTiles(scale = 1) {
     id: 50,
     x: outwardSpread * 0.34 * scale,
     z: 0,
-    y: 2.9 * scale,
+    y: groundTileY,
     size: 1.08 * scale,
     color: '#51d95a'
   });
@@ -486,8 +474,6 @@ function createPreciseSnakeTiles(scale = 1) {
 }
 
 function getTileLevelById(tileId) {
-  if (tileId >= 41) return 2;
-  if (tileId >= 25) return 1;
   return 0;
 }
 
@@ -749,9 +735,9 @@ function addChromeRailings(
 ) {
   const created = [];
   const material = new THREE.MeshPhysicalMaterial({
-    color: toThreeColor(theme.metal, 0xf3f4f6),
+    color: toThreeColor(theme.metal, 0xd4af37),
     metalness: 1,
-    roughness: 0.18,
+    roughness: 0.2,
     clearcoat: 0.35,
     clearcoatRoughness: 0.12,
     envMapIntensity: 1.1
@@ -841,7 +827,8 @@ function addChromeRailings(
   const addNetPanel = (side, startCoord, endCoord) => {
     if (!addNet) return;
     const length = Math.abs(endCoord - startCoord);
-    const height = Math.max(0, upperY - topY);
+    const fullHeight = Math.max(0, upperY - topY);
+    const height = fullHeight * 0.74;
     if (length < 1e-4 || height < 1e-4) return;
     const net = new THREE.Mesh(
       new THREE.PlaneGeometry(length, height),
@@ -849,7 +836,7 @@ function addChromeRailings(
     );
     net.castShadow = false;
     net.receiveShadow = false;
-    net.position.y = topY + height / 2;
+    net.position.y = topY + fullHeight * 0.42;
     switch (side) {
       case 'front':
         net.position.x = (startCoord + endCoord) / 2;
@@ -945,6 +932,84 @@ function addChromeRailings(
         addPost(end.x, end.z);
       });
     }
+  }
+
+  return created;
+}
+
+function addPathRailings(parent, indexToPosition, meshes, theme = {}) {
+  if (!indexToPosition || indexToPosition.size < 2) return [];
+  const created = [];
+  const railMaterial = new THREE.MeshPhysicalMaterial({
+    color: toThreeColor(theme.metal, 0xd4af37),
+    metalness: 1,
+    roughness: 0.2,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 1.1
+  });
+  const postMaterial = railMaterial.clone();
+  const offset = TILE_SIZE * 0.34;
+  const lowerYDelta = TILE_SIZE * 0.05;
+  const upperYDelta = lowerYDelta + RAIL_HEIGHT;
+  const netHeight = RAIL_HEIGHT * 0.74;
+  const ordered = Array.from(indexToPosition.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([, pos]) => pos.clone());
+  const postCache = new Set();
+
+  const addMesh = (mesh) => {
+    if (!mesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    created.push(mesh);
+    if (meshes) meshes.push(mesh);
+  };
+
+  const addPost = (x, y, z) => {
+    const key = `${x.toFixed(3)}:${z.toFixed(3)}`;
+    if (postCache.has(key)) return;
+    postCache.add(key);
+    const geom = new THREE.CylinderGeometry(RAIL_RADIUS * 1.3, RAIL_RADIUS * 1.3, RAIL_HEIGHT, 12);
+    const post = new THREE.Mesh(geom, postMaterial);
+    post.position.set(x, y + lowerYDelta + RAIL_HEIGHT / 2, z);
+    addMesh(post);
+  };
+
+  for (let i = 0; i < ordered.length - 1; i += 1) {
+    const start = ordered[i];
+    const end = ordered[i + 1];
+    const deltaXZ = new THREE.Vector3(end.x - start.x, 0, end.z - start.z);
+    const segmentLength = deltaXZ.length();
+    if (segmentLength < 1e-4) continue;
+    const sideNormal = new THREE.Vector3(-deltaXZ.z, 0, deltaXZ.x).normalize().multiplyScalar(offset);
+    const railStart = start.clone().add(sideNormal);
+    const railEnd = end.clone().add(sideNormal);
+    const dir = railEnd.clone().sub(railStart);
+    const length = dir.length();
+    if (length < 1e-4) continue;
+    dir.normalize();
+    const center = railStart.clone().addScaledVector(dir, length * 0.5);
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+    [lowerYDelta, upperYDelta].forEach((yOffset) => {
+      const geom = new THREE.CylinderGeometry(RAIL_RADIUS, RAIL_RADIUS, length, 12);
+      const rail = new THREE.Mesh(geom, railMaterial.clone());
+      rail.position.set(center.x, start.y + yOffset, center.z);
+      rail.quaternion.copy(quaternion);
+      addMesh(rail);
+    });
+
+    addPost(railStart.x, start.y, railStart.z);
+    addPost(railEnd.x, end.y, railEnd.z);
+
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(length, netHeight), createRailNetMaterial(theme));
+    const panelCenter = railStart.clone().addScaledVector(dir, length * 0.5);
+    net.position.set(panelCenter.x, start.y + lowerYDelta + netHeight * 0.52, panelCenter.z);
+    net.lookAt(panelCenter.clone().add(sideNormal));
+    net.renderOrder = 6;
+    addMesh(net);
   }
 
   return created;
@@ -2217,6 +2282,42 @@ function createTileLabel(number) {
   return mesh;
 }
 
+function createTileSideLabel(number) {
+  const size = 192;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  const text = String(number);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${size * 0.45}px 'Inter', 'Segoe UI', sans-serif`;
+  ctx.lineWidth = size * 0.07;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.strokeText(text, size / 2, size / 2);
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText(text, size / 2, size / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const width = TILE_SIZE * 0.34;
+  const height = TILE_SIZE * 0.24;
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 11;
+  mesh.userData = { texture, geometry };
+  return mesh;
+}
+
 function createTileMaterialSet(baseColor, palette = {}) {
   const topBlend = Number.isFinite(palette.topBlend) ? palette.topBlend : 0.08;
   const topColor = palette.topColor
@@ -2347,9 +2448,9 @@ function getRailNetTexture(theme = {}) {
   c.height = 128;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
-  ctx.strokeStyle = theme.netPrimary ?? 'rgba(148, 163, 184, 0.7)';
-  ctx.lineWidth = 2;
-  const spacing = 16;
+  ctx.strokeStyle = theme.netPrimary ?? 'rgba(203, 213, 225, 0.85)';
+  ctx.lineWidth = 3;
+  const spacing = 18;
   for (let i = 0; i <= c.width; i += spacing) {
     ctx.beginPath();
     ctx.moveTo(i + 0.5, 0);
@@ -2362,8 +2463,8 @@ function getRailNetTexture(theme = {}) {
     ctx.lineTo(c.width, j + 0.5);
     ctx.stroke();
   }
-  ctx.strokeStyle = theme.netSecondary ?? 'rgba(15, 23, 42, 0.35)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = theme.netSecondary ?? 'rgba(71, 85, 105, 0.5)';
+  ctx.lineWidth = 1.6;
   for (let i = 0; i <= c.width; i += spacing / 2) {
     ctx.beginPath();
     ctx.moveTo(i + 0.5, 0);
@@ -2388,11 +2489,11 @@ function getRailNetTexture(theme = {}) {
 function createRailNetMaterial(theme = {}) {
   return new THREE.MeshStandardMaterial({
     map: getRailNetTexture(theme),
-    color: toThreeColor(theme.netColor, 0xf8fafc),
-    roughness: 0.68,
-    metalness: 0.18,
+    color: toThreeColor(theme.netColor, 0xdfe7ef),
+    roughness: 0.28,
+    metalness: 0.88,
     transparent: true,
-    opacity: Number.isFinite(theme.netOpacity) ? theme.netOpacity : 0.58,
+    opacity: Number.isFinite(theme.netOpacity) ? theme.netOpacity : 0.62,
     side: THREE.DoubleSide,
     depthWrite: false
   });
@@ -2800,7 +2901,6 @@ function buildSnakeBoard(
   boardRotationRoot.add(labelGroup);
 
   const platformMeshes = [];
-  const railingInfos = [];
   const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
@@ -2815,12 +2915,8 @@ function buildSnakeBoard(
   };
 
   const preciseTiles = createPreciseSnakeTiles(preciseBoardScale);
-  const levelBounds = [
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
-    { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY }
-  ];
-  const levelMargins = [TILE_SIZE * 0.78, TILE_SIZE * 0.7, TILE_SIZE * 0.62];
+  const levelBounds = [{ minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY }];
+  const levelMargins = [TILE_SIZE * 0.82];
   preciseTiles.forEach((tileSpec) => {
     const level = getTileLevelById(tileSpec.id);
     const half = tileSpec.size / 2;
@@ -2850,12 +2946,9 @@ function buildSnakeBoard(
     };
   });
 
-  const baseSize = Math.max(levelDimensions[0].sizeX, levelDimensions[0].sizeZ);
+  const baseSize = Math.max(levelDimensions[0].sizeX, levelDimensions[0].sizeZ) * 1.02;
   addLayer(baseSize, 0.42 * preciseBoardScale, baseSize, -0.36 * preciseBoardScale, '#5a5a5a');
   addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
-  addLayer(levelDimensions[1].sizeX, 0.24 * preciseBoardScale, levelDimensions[1].sizeZ, 0.76 * preciseBoardScale, '#555555');
-  addLayer(levelDimensions[2].sizeX, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ, 1.54 * preciseBoardScale, '#666666');
-  addLayer(levelDimensions[2].sizeX * 0.62, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ * 0.44, 2.22 * preciseBoardScale, '#7b7b7b');
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
@@ -2879,64 +2972,14 @@ function buildSnakeBoard(
     const label = createTileLabel(tileSpec.id);
     label.position.set(tileSpec.x, topPosition.y + TILE_LABEL_OFFSET, tileSpec.z);
     labelGroup.add(label);
+
+    const sideLabel = createTileSideLabel(tileSpec.id);
+    sideLabel.position.set(tileSpec.x, tileSpec.y, tileSpec.z + tileSpec.size / 2 + TILE_SIZE * 0.03);
+    labelGroup.add(sideLabel);
   });
 
-  const levelPlacements = [
-    { tileTopY: 0.07 * preciseBoardScale + tileHeight },
-    { tileTopY: 0.88 * preciseBoardScale + tileHeight },
-    { tileTopY: 1.66 * preciseBoardScale + tileHeight }
-  ];
-  railingInfos.push(
-    {
-      halfSize: Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ),
-      topY: -0.15 * preciseBoardScale,
-      gapWidth: RAIL_GAP_WIDTH,
-      walkwayCenter: 0,
-      levelIndex: 0
-    },
-    {
-      halfSize: Math.max(levelDimensions[1].halfX, levelDimensions[1].halfZ),
-      topY: 0.07 * preciseBoardScale,
-      gapWidth: RAIL_GAP_WIDTH,
-      walkwayCenter: 0,
-      levelIndex: 1
-    },
-    {
-      halfSize: Math.max(levelDimensions[2].halfX, levelDimensions[2].halfZ),
-      topY: 0.88 * preciseBoardScale,
-      gapWidth: RAIL_GAP_WIDTH,
-      walkwayCenter: 0,
-      levelIndex: 2
-    }
-  );
-
-  railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
-    const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
-    const startPos = indexToPosition.get(startIndex);
-    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
-    let gapCenter;
-    if (entryConfig.center != null) {
-      gapCenter = entryConfig.center;
-    } else if (startPos) {
-      gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
-    } else {
-      gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
-    }
-    addChromeRailings(
-      platformGroup,
-      {
-        halfSize,
-        topY,
-        railHeight: RAIL_HEIGHT,
-        gapWidth,
-        gapCenter,
-        entrySide: entryConfig.side,
-        addNet: levelIndex > 0
-      },
-      platformMeshes,
-      railTheme
-    );
-  });
+  const levelPlacements = [{ tileTopY: preciseTiles[0]?.y + tileHeight / 2 ?? tileHeight }];
+  addPathRailings(platformGroup, indexToPosition, platformMeshes, railTheme);
 
   const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
   const baseStart = new THREE.Vector3(
@@ -2944,7 +2987,7 @@ function buildSnakeBoard(
     levelPlacements[0].tileTopY,
     -baseHalf - TILE_SIZE * 0.6
   );
-  const apexTop = levelPlacements[levelPlacements.length - 1]?.tileTopY ?? levelPlacements[0].tileTopY;
+  const apexTop = levelPlacements[0].tileTopY;
 
   const serpentineIndexToXZ = (index) => {
     if (index < 1) {

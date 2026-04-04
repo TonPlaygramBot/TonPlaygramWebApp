@@ -549,13 +549,13 @@ const RAIL_THEME_OPTIONS = Object.freeze([
   {
     id: 'platinumOak',
     label: 'Platinum & Oak',
-    metal: '#f3f4f6',
+    metal: '#d4af37',
     woodLight: '#d6b68c',
     woodDark: '#8b5e34',
-    netColor: '#f8fafc',
-    netPrimary: 'rgba(148, 163, 184, 0.7)',
-    netSecondary: 'rgba(15, 23, 42, 0.35)',
-    netOpacity: 0.58,
+    netColor: '#dfe7ef',
+    netPrimary: 'rgba(203, 213, 225, 0.85)',
+    netSecondary: 'rgba(71, 85, 105, 0.5)',
+    netOpacity: 0.62,
     ladderRail: '#ffffff',
     ladderRung: '#eab308'
   },
