@@ -22563,8 +22563,8 @@ const powerRef = useRef(hud.power);
         };
 
         const startShotReplay = (postShotSnapshot) => {
-          if (replayPlaybackRef.current) return;
-          if (!shotRecording) return;
+          if (replayPlaybackRef.current) return false;
+          if (!shotRecording) return false;
           if (!Array.isArray(shotRecording.frames) || shotRecording.frames.length === 0) {
             const startState = Array.isArray(shotRecording.startState) ? shotRecording.startState : captureBallSnapshot();
             const endState = Array.isArray(postShotSnapshot) ? postShotSnapshot : captureBallSnapshot();
@@ -22575,7 +22575,7 @@ const powerRef = useRef(hud.power);
           }
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
-          if (!Number.isFinite(duration) || duration <= 0) return;
+          if (!Number.isFinite(duration) || duration <= 0) return false;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
@@ -22629,6 +22629,7 @@ const powerRef = useRef(hud.power);
               }
             }
           }
+          return true;
         };
 
         const waitMs = (ms = 0) =>
@@ -28832,12 +28833,15 @@ const powerRef = useRef(hud.power);
             }
             replayBannerTimeoutRef.current = window.setTimeout(() => {
               replayBannerTimeoutRef.current = null;
-              startBroadcastReplay({
-                banner: replayBannerText,
-                accent: replayAccent,
-                events: replayEvents,
-                foul: safeState?.foul ?? null
-              });
+              const replayStarted = startShotReplay(captureBallSnapshot());
+              if (!replayStarted) {
+                startBroadcastReplay({
+                  banner: replayBannerText,
+                  accent: replayAccent,
+                  events: replayEvents,
+                  foul: safeState?.foul ?? null
+                });
+              }
             }, GOOD_SHOT_REPLAY_DELAY_MS);
           } else {
             shotReplayRef.current = null;
