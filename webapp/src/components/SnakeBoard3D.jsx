@@ -252,6 +252,15 @@ const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
 const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
 const CAMERA_3D_ZOOM_WHEEL_FACTOR = 0.0012;
 const CAMERA_3D_ZOOM_PINCH_FACTOR = 0.0042;
+const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
+const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
+const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.35;
+const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
+const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 3.6;
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
@@ -269,9 +278,6 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
-const CAMERA_2D_DISTANCE_FACTOR = 2.45;
-const CAMERA_2D_FRAME_PADDING = 1.14;
-
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
 const TEMP_SEAT_VECTOR = new THREE.Vector3();
@@ -3882,7 +3888,6 @@ export default function SnakeBoard3D({
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
-  const cameraTiltRef = useRef(clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2));
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
@@ -3894,10 +3899,6 @@ export default function SnakeBoard3D({
   useEffect(() => {
     cameraViewModeRef.current = cameraViewMode;
   }, [cameraViewMode]);
-
-  useEffect(() => {
-    cameraTiltRef.current = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
-  }, [camera2dTilt]);
 
   useEffect(() => {
     frameRateRef.current = Math.max(30, frameRate || 90);
@@ -3943,10 +3944,6 @@ export default function SnakeBoard3D({
     const boardLookTarget = board?.boardLookTarget;
     if (!board || !camera || !controls || !boardLookTarget) return;
 
-    const min2dTilt = 0.001;
-    const max2dTilt = 0.42;
-    const tiltRatio = clamp01(Number.isFinite(camera2dTilt) ? camera2dTilt : 0.2);
-    const topDownPolar = THREE.MathUtils.lerp(min2dTilt, max2dTilt, tiltRatio);
     if (cameraViewMode === '2d') {
       if (!cameraRestoreRef.current) {
         cameraRestoreRef.current = {
@@ -3964,33 +3961,28 @@ export default function SnakeBoard3D({
           mouseButtons: { ...controls.mouseButtons }
         };
       }
-      const boardRadius = Math.max(BOARD_RADIUS, TABLE_RADIUS * 0.56);
-      const verticalFov = THREE.MathUtils.degToRad(camera.fov || CAMERA_FOV);
-      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(camera.aspect || 1, 1e-3));
-      const limitingFov = Math.min(verticalFov, horizontalFov);
-      const fitDistance =
-        limitingFov > 1e-4
-          ? (boardRadius / Math.tan(limitingFov / 2)) * CAMERA_2D_FRAME_PADDING
-          : CAM.minR * CAMERA_2D_DISTANCE_FACTOR;
-      const topDownDistance = clamp(fitDistance, CAM.minR * 1.7, CAM.maxR * 0.98);
-      const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
-      const forwardDistance = 0;
-      camera.position.set(
-        boardLookTarget.x,
-        boardLookTarget.y + verticalDistance,
-        boardLookTarget.z + forwardDistance
+      const topDownDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_RADIUS_FACTOR;
+      const topDownPosition = boardLookTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
+      const clampedTopDownPosition = topDownPosition.clone().sub(boardLookTarget);
+      const spherical = new THREE.Spherical().setFromVector3(clampedTopDownPosition);
+      spherical.radius = clamp(
+        spherical.radius,
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR,
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
       );
+      spherical.phi = clamp(spherical.phi, CAMERA_TOPDOWN_MIN_POLAR, CAMERA_TOPDOWN_MAX_POLAR);
+      camera.position.copy(boardLookTarget).add(new THREE.Vector3().setFromSpherical(spherical));
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
       controls.enableZoom = false;
-      controls.minPolarAngle = topDownPolar;
-      controls.maxPolarAngle = topDownPolar;
+      controls.minPolarAngle = CAMERA_TOPDOWN_MIN_POLAR;
+      controls.maxPolarAngle = CAMERA_TOPDOWN_MAX_POLAR;
       const lockedAzimuth = controls.getAzimuthalAngle();
       controls.minAzimuthAngle = lockedAzimuth;
       controls.maxAzimuthAngle = lockedAzimuth;
-      controls.minDistance = CAM.minR;
-      controls.maxDistance = CAM.maxR;
+      controls.minDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR;
+      controls.maxDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR;
       controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
       controls.mouseButtons = {
         LEFT: THREE.MOUSE.NONE,
@@ -3999,16 +3991,6 @@ export default function SnakeBoard3D({
       };
       controls.update();
       return;
-    }
-
-    const desiredPolar = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, tiltRatio);
-    const offset = camera.position.clone().sub(controls.target);
-    if (offset.lengthSq() > 0.000001) {
-      const spherical = new THREE.Spherical().setFromVector3(offset);
-      spherical.phi = clamp(desiredPolar, CAM.phiMin, CAM.phiMax);
-      offset.setFromSpherical(spherical);
-      camera.position.copy(controls.target).add(offset);
-      controls.update();
     }
 
     if (cameraRestoreRef.current) {
@@ -4033,7 +4015,7 @@ export default function SnakeBoard3D({
       controls.update();
       cameraRestoreRef.current = null;
     }
-  }, [cameraViewMode, camera2dTilt]);
+  }, [cameraViewMode]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -4122,10 +4104,10 @@ export default function SnakeBoard3D({
     const getCameraConstraints = () => {
       if (cameraViewModeRef.current === '2d') {
         return {
-          minPolar: THREE.MathUtils.degToRad(2),
-          maxPolar: THREE.MathUtils.degToRad(18),
-          minRadius: CAMERA_BASE_RADIUS * 1.2,
-          maxRadius: CAMERA_BASE_RADIUS * 3.6
+          minPolar: CAMERA_TOPDOWN_MIN_POLAR,
+          maxPolar: CAMERA_TOPDOWN_MAX_POLAR,
+          minRadius: CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR,
+          maxRadius: CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
         };
       }
       return {
@@ -4193,23 +4175,22 @@ export default function SnakeBoard3D({
       const deltaY = event.clientY - dragState.lastY;
       dragState.lastX = event.clientX;
       dragState.lastY = event.clientY;
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
 
       if (cameraViewModeRef.current === '2d') {
-        if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
-          const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
-          if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
-            cameraTiltRef.current = nextTilt;
-            onCameraTiltChange(nextTilt);
-          }
-        }
         return;
       }
 
       const look = headLookRef.current;
-      look.yaw = clamp(look.yaw + deltaX * 0.0016, -0.52, 0.52);
-      look.pitch = clamp(look.pitch + deltaY * 0.00125, -0.34, 0.34);
+      look.yaw = clamp(
+        look.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+        -CAMERA_LOOK_YAW_LIMIT,
+        CAMERA_LOOK_YAW_LIMIT
+      );
+      look.pitch = clamp(
+        look.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+        -CAMERA_LOOK_PITCH_LIMIT,
+        CAMERA_LOOK_PITCH_LIMIT
+      );
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
