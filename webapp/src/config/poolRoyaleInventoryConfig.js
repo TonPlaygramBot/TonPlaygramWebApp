@@ -77,11 +77,59 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.26
   },
+  churchMeetingRoom: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.23
+  },
+  warmBar: {
+    cameraHeightM: 1.52,
+    groundRadiusMultiplier: 4.6,
+    groundResolution: 112,
+    arenaScale: 1.2
+  },
   pineAttic: {
     cameraHeightM: 1.56,
     groundRadiusMultiplier: 4.8,
     groundResolution: 112,
     arenaScale: 1.22
+  },
+  rostockArches: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.3,
+    groundResolution: 112,
+    arenaScale: 1.28
+  },
+  vignaioliNight: {
+    cameraHeightM: 1.57,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.25
+  },
+  stPetersSquareNight: {
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.6,
+    groundResolution: 112,
+    arenaScale: 1.33
+  },
+  zwingerNight: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.4,
+    groundResolution: 112,
+    arenaScale: 1.29
+  },
+  winterEvening: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  rathaus: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26
   },
   newmanLobby: {
     cameraHeightM: 1.58,
@@ -94,6 +142,12 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 5.1,
     groundResolution: 112,
     arenaScale: 1.26
+  },
+  medievalCafe: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.23
   },
   crossfitGym: {
     cameraHeightM: 1.54,
@@ -267,6 +321,32 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Moody lobby reflections with warm marquee accents.'
   },
   {
+    id: 'churchMeetingRoom',
+    name: 'Church Meeting Room',
+    assetId: 'church_meeting_room',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2560,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#78716c', '#e7e5e4'],
+    description: 'Quiet church hall ambience with soft diffuse overhead light.'
+  },
+  {
+    id: 'warmBar',
+    name: 'Warm Bar',
+    assetId: 'warm_bar',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2580,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#78350f', '#f97316'],
+    description: 'Cozy bar interior with rich amber highlights and warm reflections.'
+  },
+  {
     id: 'pineAttic',
     name: 'Pine Attic',
     assetId: 'pine_attic',
@@ -278,6 +358,84 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1,
     swatches: ['#854d0e', '#eab308'],
     description: 'Attic daylight filtered through pine timbers and warm wood bounce.'
+  },
+  {
+    id: 'rostockArches',
+    name: 'Rostock Arches',
+    assetId: 'rostock_arches',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2620,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#475569', '#cbd5e1'],
+    description: 'Historic stone arches with cool exterior spill and broad contrast.'
+  },
+  {
+    id: 'vignaioliNight',
+    name: 'Vignaioli Night',
+    assetId: 'vignaioli_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2640,
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02,
+    swatches: ['#1d4ed8', '#f59e0b'],
+    description: 'Nighttime courtyard with colorful practicals and cinematic contrast.'
+  },
+  {
+    id: 'stPetersSquareNight',
+    name: 'St. Peters Square Night',
+    assetId: 'st_peters_square_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2660,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#0f172a', '#f8fafc'],
+    description: 'Grand night plaza lighting with polished marble bounce and deep sky.'
+  },
+  {
+    id: 'zwingerNight',
+    name: 'Zwinger Night',
+    assetId: 'zwinger_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2680,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#1e3a8a', '#fcd34d'],
+    description: 'Illuminated baroque architecture with balanced cool-warm contrast.'
+  },
+  {
+    id: 'winterEvening',
+    name: 'Winter Evening',
+    assetId: 'winter_evening',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2700,
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98,
+    swatches: ['#334155', '#93c5fd'],
+    description: 'Cold dusk atmosphere with soft ambient fill and muted reflections.'
+  },
+  {
+    id: 'rathaus',
+    name: 'Rathaus',
+    assetId: 'rathaus',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2710,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#374151', '#fbbf24'],
+    description: 'Historic town hall lighting with warm facades and neutral shadows.'
   },
   {
     id: 'newmanLobby',
@@ -304,6 +462,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1,
     swatches: ['#0f766e', '#facc15'],
     description: 'Open urban scene with rich night color contrast and lively reflections.'
+  },
+  {
+    id: 'medievalCafe',
+    name: 'Medieval Cafe',
+    assetId: 'medieval_cafe',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2760,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#7c2d12', '#fcd34d'],
+    description: 'Rustic café ambience with warm practical lights and cozy interior bounce.'
   },
   {
     id: 'crossfitGym',
