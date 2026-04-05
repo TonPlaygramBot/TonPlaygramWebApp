@@ -2482,7 +2482,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.8, y: 3.8 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
@@ -2579,7 +2579,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2610,23 +2610,22 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
-      const dither = Math.sin(x * 0.42 + y * 0.31) * 0.48 + Math.cos(x * 0.22 - y * 0.27) * 0.52;
-      const grain = (Math.sin((x + y) * 1.15) + Math.cos((x - y) * 0.98)) * 0.5;
-      const micropit = Math.sin(x * 1.67) * Math.cos(y * 1.71);
-      const weave = Math.sin(x * 2.15) * Math.sin(y * 2.07);
-      const colorLift = THREE.MathUtils.clamp(dither * 5 + grain * 4 + weave * 2.4, -14, 18);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.16);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.16);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.16);
+      const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
+      const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
+      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 21 + weave * 10, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 20 + weave * 10, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(216 + micropit * 26 + weave * 8, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(228 + dither * 13 + grain * 11 + micropit * 9 + weave * 9, 168, 255);
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2687,10 +2686,10 @@ function applyMonoMattePlasticSurface(material) {
     material.reflectivity = 0;
   }
   if ('envMapIntensity' in material) {
-    material.envMapIntensity = 0.08;
+    material.envMapIntensity = 0.12;
   }
   if ('normalScale' in material && material.normalMap) {
-    material.normalScale = new THREE.Vector2(0.62, 0.62);
+    material.normalScale = new THREE.Vector2(0.5, 0.5);
   }
   material.needsUpdate = true;
 }
@@ -6777,7 +6776,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
@@ -6834,13 +6833,6 @@ const resolveLikelyPocketIntent = ({ ball, direction }) => {
 };
 const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
   if (!pocketId) return null;
-  const resolveMiddlePocketToCorner = (middleId) => {
-    const source = ballPos?.clone?.() ?? center?.clone?.() ?? null;
-    const isTopHalf = source ? source.y < 0 : false;
-    if (middleId === 'TM') return isTopHalf ? 'TL' : 'BL';
-    if (middleId === 'BM') return isTopHalf ? 'TR' : 'BR';
-    return null;
-  };
   switch (pocketId) {
     case 'TL':
     case 'TR':
@@ -6848,13 +6840,11 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
-      return resolveMiddlePocketToCorner('TM');
+      return 'TM';
     case 'BM':
-      return resolveMiddlePocketToCorner('BM');
+      return 'BM';
     default:
-      return CORNER_POCKET_CAMERA_IDS.includes(pocketId)
-        ? pocketId
-        : resolveMiddlePocketToCorner(pocketId);
+      return pocketId;
   }
 };
 const pocketIdFromCenter = (center) => {
@@ -11919,8 +11909,7 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const yOffset = Number.isFinite(center?.yOffset) ? center.yOffset : 0;
-      group.position.set(center.x, ctx.floorY + yOffset, center.z);
+      group.position.set(center.x, ctx.floorY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -11972,11 +11961,7 @@ export function Table3D(
       return attachLegLevelers(
         ctx,
         { meshes: legs, legMeshes: legs },
-        positions.map(([x, z]) => ({
-          x,
-          z,
-          yOffset: -(BALL_R * 0.12)
-        }))
+        positions.map(([x, z]) => ({ x, z }))
       );
     },
     openPortal: (ctx) => {
@@ -21842,23 +21827,24 @@ const powerRef = useRef(hud.power);
           }));
 
         const captureReplayCameraSnapshot = () => {
-          const liveCamera = activeRenderCameraRef.current ?? camera;
-          if (!liveCamera) return null;
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const railSnapshot = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY,
+            preferredRail: railOverheadSideRef.current
+          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
-              : cueViewHoldRef.current || lookModeRef.current
-                ? 'cue'
-                : 'broadcast';
-          const resolvedPosition = liveCamera.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot ?? null;
-          const resolvedFov = Number.isFinite(liveCamera?.fov)
-            ? liveCamera.fov
+              : 'broadcast';
+          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
+          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(railSnapshot?.fov)
+            ? railSnapshot.fov
             : camera.fov;
           const safePosition = isFiniteVector3(resolvedPosition) ? resolvedPosition : null;
           const safeTarget = isFiniteVector3(resolvedTarget) ? resolvedTarget : null;
@@ -22759,6 +22745,21 @@ const powerRef = useRef(hud.power);
           let storedFov = Number.isFinite(activeCamera?.fov)
             ? activeCamera.fov
             : camera.fov;
+          const broadcastReplayCamera = resolveBroadcastTopViewCamera({
+            focusOverride: storedTarget,
+            minTargetY
+          });
+          if (broadcastReplayCamera?.position) {
+            if (isFiniteVector3(broadcastReplayCamera.position)) {
+              storedPosition = broadcastReplayCamera.position.clone();
+            }
+            if (isFiniteVector3(broadcastReplayCamera?.target)) {
+              storedTarget.copy(broadcastReplayCamera.target);
+            }
+            storedFov = Number.isFinite(broadcastReplayCamera?.fov)
+              ? broadcastReplayCamera.fov
+              : storedFov;
+          }
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
@@ -28793,9 +28794,7 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay =
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
