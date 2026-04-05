@@ -184,7 +184,7 @@ const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 3400;
 const AI_EXTRA_ROLL_DELAY_MS = 2600;
-const TURN_ADVANCE_AFTER_DICE_MS = 850;
+const TURN_ADVANCE_AFTER_DICE_MS = 2300;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -542,48 +542,6 @@ const DICE_THEME_OPTIONS = Object.freeze([
     bodyMetalness: 0.52,
     pipEmissive: '#0ea5e9',
     rimEmissive: '#be185d'
-  }
-]);
-
-const RAIL_THEME_OPTIONS = Object.freeze([
-  {
-    id: 'platinumOak',
-    label: 'Platinum & Oak',
-    metal: '#f3f4f6',
-    woodLight: '#d6b68c',
-    woodDark: '#8b5e34',
-    netColor: '#f8fafc',
-    netPrimary: 'rgba(148, 163, 184, 0.7)',
-    netSecondary: 'rgba(15, 23, 42, 0.35)',
-    netOpacity: 0.58,
-    ladderRail: '#ffffff',
-    ladderRung: '#eab308'
-  },
-  {
-    id: 'obsidianSteel',
-    label: 'Obsidian Steel',
-    metal: '#e5e7eb',
-    woodLight: '#4b5563',
-    woodDark: '#1f2937',
-    netColor: '#cbd5f5',
-    netPrimary: 'rgba(96, 165, 250, 0.75)',
-    netSecondary: 'rgba(37, 99, 235, 0.35)',
-    netOpacity: 0.52,
-    ladderRail: '#cbd5f5',
-    ladderRung: '#60a5fa'
-  },
-  {
-    id: 'emberBrass',
-    label: 'Ember Brass',
-    metal: '#fbbf24',
-    woodLight: '#fb923c',
-    woodDark: '#7c2d12',
-    netColor: '#fee2e2',
-    netPrimary: 'rgba(248, 113, 113, 0.7)',
-    netSecondary: 'rgba(185, 28, 28, 0.4)',
-    netOpacity: 0.6,
-    ladderRail: '#fcd34d',
-    ladderRung: '#fb7185'
   }
 ]);
 
@@ -989,7 +947,6 @@ function normalizeAppearance(value = {}) {
     }
   });
   normalized.snakeSkin = 0;
-  normalized.railTheme = 0;
   normalized.tokenFinish = 0;
   return normalized;
 }
@@ -999,7 +956,6 @@ function resolveAppearance(appearance) {
   const arena = ARENA_THEME_OPTIONS[normalized.arenaTheme] ?? ARENA_THEME_OPTIONS[0];
   const board = BOARD_PALETTE_OPTIONS[normalized.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
   const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
-  const rail = RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
   const pawnHead = PAWN_HEAD_PRESET_OPTIONS[normalized.headStyle] ?? PAWN_HEAD_PRESET_OPTIONS[0];
@@ -1020,7 +976,6 @@ function resolveAppearance(appearance) {
     },
     board: { ...board },
     dice: { ...dice },
-    rail: { ...rail },
     token: { ...token },
     tokenShape,
     pawnHead,
@@ -2766,12 +2721,18 @@ export default function SnakeAndLadder() {
         setPendingExtraRoll(extraTurn);
         setMoving(false);
         if (!gameOver) {
-          const next = extraTurn ? currentTurn : getPreviousTurn(currentTurn);
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 1);
-          if (extraTurn && next === 0) {
+          if (extraTurn) {
             // Do not delay the local extra roll button after a six/bonus.
-            setRollCooldown(0);
+            const next = currentTurn;
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 1);
+            if (next === 0) setRollCooldown(0);
+          } else {
+            const next = getPreviousTurn(currentTurn);
+            setTimeout(() => {
+              setCurrentTurn(next);
+              setDiceCount(playerDiceCounts[next] ?? 1);
+            }, TURN_ADVANCE_AFTER_DICE_MS);
           }
         }
       };
@@ -2966,8 +2927,15 @@ export default function SnakeAndLadder() {
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
-      setCurrentTurn(next);
-      setDiceCount(playerDiceCounts[next] ?? 1);
+      if (extraTurn) {
+        setCurrentTurn(next);
+        setDiceCount(playerDiceCounts[next] ?? 1);
+      } else {
+        setTimeout(() => {
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 1);
+        }, TURN_ADVANCE_AFTER_DICE_MS);
+      }
       setDiceVisible(true);
       setMoving(false);
       if (extraTurn && next === index) {
@@ -3279,27 +3247,6 @@ export default function SnakeAndLadder() {
           </div>
         );
       }
-      case 'railTheme': {
-        const metal = option.metal ?? '#f3f4f6';
-        const woodLight = option.woodLight ?? '#d6b68c';
-        const woodDark = option.woodDark ?? '#8b5e34';
-        return (
-          <div className="w-full h-14 rounded-xl border border-white/10 flex flex-col justify-center gap-2 px-3">
-            <div
-              className="h-2 rounded-full"
-              style={{ background: `linear-gradient(90deg, ${metal}, ${lightenHex(metal, 0.2)})` }}
-            />
-            <div
-              className="h-2 rounded-full"
-              style={{ background: `linear-gradient(90deg, ${woodLight}, ${woodDark})` }}
-            />
-            <div
-              className="h-2 rounded-full"
-              style={{ background: `linear-gradient(90deg, ${metal}, ${darkenHex(metal, 0.2)})` }}
-            />
-          </div>
-        );
-      }
       case 'tokenFinish': {
         const accent = option.accentTarget ?? '#f8fafc';
         return (
@@ -3339,21 +3286,6 @@ export default function SnakeAndLadder() {
               }}
             />
           </div>
-        );
-      }
-      case 'tableFinish': {
-        const swatches = option.swatches || ['#cbd5f5', '#475569'];
-        return (
-          <div
-            className="w-full h-14 rounded-xl border border-white/10"
-            style={{
-              backgroundImage: option.thumbnail
-                ? `url(${option.thumbnail})`
-                : `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-          />
         );
       }
       case 'tables': {
