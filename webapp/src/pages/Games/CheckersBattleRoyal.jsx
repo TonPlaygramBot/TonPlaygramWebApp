@@ -101,8 +101,8 @@ const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.66;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
-// Sink grounded chairs enough to be clearly lower than previous builds.
-const CHAIR_GROUND_SINK = 0.24;
+// Lower chairs toward the floor for stronger downward screen placement.
+const CHAIR_GROUND_SINK = 0.32;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -270,6 +270,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+// Requested tweak: make chairs about 20% smaller than the current setup.
+const CHAIR_VISUAL_SCALE = 0.8;
 const CHAIR_TARGET_SCALE_FACTOR = 0.8;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -2250,6 +2252,7 @@ export default function CheckersBattleRoyal() {
               mat.needsUpdate = true;
             });
           });
+          g.scale.setScalar(CHAIR_VISUAL_SCALE);
           g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
           groundGroupToFloor(
@@ -2273,6 +2276,7 @@ export default function CheckersBattleRoyal() {
         const legColor = chairOption?.legColor || '#111827';
         const makeFallback = (z, ry) => {
           const g = createProceduralChairFallback(chairColor, legColor);
+          g.scale.setScalar(CHAIR_VISUAL_SCALE);
           g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
           groundGroupToFloor(
