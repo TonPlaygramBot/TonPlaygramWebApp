@@ -28321,6 +28321,7 @@ const powerRef = useRef(hud.power);
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let replayEvents = [];
+          let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -28783,6 +28784,9 @@ const powerRef = useRef(hud.power);
               });
             }
           }
+          if (shouldStartReplay) {
+            postShotSnapshot = captureBallSnapshot();
+          }
         } catch (err) {
           console.error('Pool Royale post-resolution update failed:', err);
         } finally {
@@ -28825,20 +28829,36 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay && replayEvents.length) {
+          if (shouldStartReplay && replayEvents.length && postShotSnapshot) {
+            const recordingForReplay = shotRecording;
+            const launchReplay = () => {
+              replayBannerTimeoutRef.current = null;
+              setReplayBanner(null);
+              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
+              const beginReplay = () => {
+                shotRecording = recordingForReplay;
+                if (recordingForReplay) {
+                  startShotReplay(postShotSnapshot);
+                } else {
+                  shotReplayRef.current = null;
+                }
+                shotRecording = null;
+              };
+              if (slateLead > 0) {
+                window.setTimeout(beginReplay, slateLead);
+              } else {
+                beginReplay();
+              }
+            };
             if (replayBannerTimeoutRef.current) {
               clearTimeout(replayBannerTimeoutRef.current);
               replayBannerTimeoutRef.current = null;
             }
-            replayBannerTimeoutRef.current = window.setTimeout(() => {
-              replayBannerTimeoutRef.current = null;
-              startBroadcastReplay({
-                banner: replayBannerText,
-                accent: replayAccent,
-                events: replayEvents,
-                foul: safeState?.foul ?? null
-              });
-            }, GOOD_SHOT_REPLAY_DELAY_MS);
+            setReplayBanner(replayBannerText);
+            replayBannerTimeoutRef.current = window.setTimeout(
+              launchReplay,
+              GOOD_SHOT_REPLAY_DELAY_MS
+            );
           } else {
             shotReplayRef.current = null;
             shotRecording = null;
