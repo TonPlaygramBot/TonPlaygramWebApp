@@ -13,7 +13,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
-const DEFAULT_HDRI_RESOLUTION_KEY = '2k';
+const DEFAULT_HDRI_RESOLUTION_KEY = 'source';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -445,11 +445,11 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return isMobileDevice ? '4k' : '8k';
+      return DEFAULT_HDRI_RESOLUTION_KEY;
     case 'qhd90':
-      return '4k';
+      return DEFAULT_HDRI_RESOLUTION_KEY;
     case 'fhd60':
-      return '2k';
+      return DEFAULT_HDRI_RESOLUTION_KEY;
     default:
       return DEFAULT_HDRI_RESOLUTION_KEY;
   }
@@ -935,13 +935,14 @@ scene.background = null;
 const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
+const ARENA_CONTENT_SCALE = 0.9;
 const MODEL_SCALE = 0.75;
-const TABLE_RADIUS_SCALE = 0.8835;
-const TABLE_HEIGHT_SCALE = 0.95;
+const TABLE_RADIUS_SCALE = 0.8835 * ARENA_CONTENT_SCALE;
+const TABLE_HEIGHT_SCALE = 0.95 * ARENA_CONTENT_SCALE;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const STOOL_SCALE = 1.5 * 1.38;
+const STOOL_SCALE = 1.5 * 1.38 * ARENA_CONTENT_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -957,7 +958,7 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.04 * MODEL_SCALE;
+const CHAIR_GAP = 0.04 * MODEL_SCALE * ARENA_CONTENT_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -981,8 +982,8 @@ const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
 const CARPET_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.2;
 const FLOOR_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 3.2;
-const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE * ARENA_CONTENT_SCALE;
+const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE * ARENA_CONTENT_SCALE;
 const CAMERA_FOV = 52;
 const CAMERA_NEAR = 0.1;
 const CAMERA_FAR = 5000;
@@ -998,9 +999,18 @@ const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
-const CAMERA_LATERAL_OFFSET = { portrait: 0, landscape: 0 };
-const CAMERA_REAR_OFFSET = { portrait: 1.14, landscape: 0.68 };
-const CAMERA_HEIGHT_BOOST = { portrait: 1.86, landscape: 1.08 };
+const CAMERA_LATERAL_OFFSET = {
+  portrait: 0,
+  landscape: 0
+};
+const CAMERA_REAR_OFFSET = {
+  portrait: 1.14 * ARENA_CONTENT_SCALE,
+  landscape: 0.68 * ARENA_CONTENT_SCALE
+};
+const CAMERA_HEIGHT_BOOST = {
+  portrait: 1.86 * ARENA_CONTENT_SCALE,
+  landscape: 1.08 * ARENA_CONTENT_SCALE
+};
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
@@ -4045,15 +4055,9 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 }
 
 function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
-  if (qualityId === 'uhd120') {
-    return isMobileDevice
-      ? Object.freeze({ preferredResolutions: Object.freeze(['2k']) })
-      : Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
-  }
-  if (qualityId === 'qhd90' || fps >= 90) {
-    return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
-  }
-  return Object.freeze({ preferredResolutions: Object.freeze(['1k']) });
+  return Object.freeze({
+    preferredResolutions: Object.freeze([DEFAULT_HDRI_RESOLUTION_KEY])
+  });
 }
 const isTelegramWebView = IS_TELEGRAM_RUNTIME;
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(
@@ -4160,6 +4164,18 @@ function normalizeHdriResolutionsByPreference(resolutions = [], targetResolution
 function resolveOfficialHdriOrder(requestedResolution, availableResolutions = []) {
   const requested = String(requestedResolution || '').toLowerCase();
   if (!requested) return [];
+  if (requested === DEFAULT_HDRI_RESOLUTION_KEY) {
+    const byHighestFirst = normalizeHdriResolutionsByPreference(
+      availableResolutions,
+      '8k'
+    ).sort((a, b) => {
+      const aValue = Number.parseInt(a.replace('k', ''), 10);
+      const bValue = Number.parseInt(b.replace('k', ''), 10);
+      return bValue - aValue;
+    });
+    if (byHighestFirst.length) return byHighestFirst;
+    return ['8k', '6k', '4k', '2k', '1k'];
+  }
   const aliases = {
     '8k': ['8k', '6k', '4k', '2k', '1k'],
     '4k': ['4k', '2k'],
@@ -6260,7 +6276,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
+const DOMINO_SCALE = 1.5 * 1.22 * ARENA_CONTENT_SCALE; // keep tiles proportionate after arena downscale
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.1;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
