@@ -54,8 +54,9 @@ import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
-const MODEL_SCALE = 0.75;
-const STOOL_SCALE = 1.5 * 1.3;
+const CHECKERS_ARENA_SCALE = 0.84;
+const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
+const STOOL_SCALE = 1.5 * 1.3 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -73,7 +74,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.82 * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -263,7 +264,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.9173749900311232,
   1.7001562547683715
 );
-const TARGET_CHAIR_MIN_Y = -1.0370624993294478;
+const TARGET_CHAIR_MIN_Y = -CHAIR_BASE_HEIGHT;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const TAP_MAX_DISTANCE_PX = 16;
@@ -1086,6 +1087,13 @@ function createProceduralChairFallback(chairColor, legColor) {
   return chair;
 }
 
+function groundGroupToFloor(group, floorY = 0) {
+  if (!group) return;
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.y)) return;
+  group.position.y += floorY - box.min.y;
+}
+
 function resolveArenaFloorY(...groups) {
   const box = new THREE.Box3();
   let hasObject = false;
@@ -1742,9 +1750,10 @@ export default function CheckersBattleRoyal() {
 
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraBackOffset =
+      ((isPortrait ? 2.55 : 1.78) + 0.35) * CHECKERS_ARENA_SCALE;
+    const cameraForwardOffset = (isPortrait ? 0.08 : 0.2) * CHECKERS_ARENA_SCALE;
+    const cameraHeightOffset = (isPortrait ? 1.72 : 1.34) * CHECKERS_ARENA_SCALE;
     const cameraRadius =
       CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
@@ -2099,6 +2108,7 @@ export default function CheckersBattleRoyal() {
           });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
+          groundGroupToFloor(g, 0);
           scene.add(g);
           return g;
         };
@@ -2118,6 +2128,7 @@ export default function CheckersBattleRoyal() {
           const g = createProceduralChairFallback(chairColor, legColor);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
+          groundGroupToFloor(g, 0);
           scene.add(g);
           return g;
         };
@@ -2602,16 +2613,20 @@ export default function CheckersBattleRoyal() {
 
     const target = new THREE.Vector3(0, TABLE_HEIGHT, 0);
     if (viewMode === '2d') {
-      camera.position.set(0, TABLE_HEIGHT + 9.2, 0.001);
+      camera.position.set(
+        0,
+        TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE,
+        0.001
+      );
       controls.enableRotate = false;
       controls.minPolarAngle = 0;
       controls.maxPolarAngle = 0;
     } else {
       const cameraSeatAngle = Math.PI / 2;
-      const cameraRadius = CHAIR_DISTANCE + 2.7;
+      const cameraRadius = CHAIR_DISTANCE + 2.7 * CHECKERS_ARENA_SCALE;
       camera.position.set(
         Math.cos(cameraSeatAngle) * cameraRadius,
-        TABLE_HEIGHT + 1.72,
+        TABLE_HEIGHT + 1.72 * CHECKERS_ARENA_SCALE,
         Math.sin(cameraSeatAngle) * cameraRadius
       );
       controls.enableRotate = true;
