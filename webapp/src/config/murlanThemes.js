@@ -171,33 +171,6 @@ export const MURLAN_TABLE_THEMES = [
     thumbnail: polyHavenThumb('CoffeeTable_01'),
     description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
   },
-  {
-    id: 'ovalTable',
-    label: 'Oval Table',
-    source: 'procedural',
-    shapeId: 'grandOval',
-    price: 1040,
-    thumbnail: polyHavenThumb('coffee_table_round_01'),
-    description: 'Wide oval arena table with a smoother edge profile.'
-  },
-  {
-    id: 'diamondEdge',
-    label: 'Diamond Edge Table',
-    source: 'procedural',
-    shapeId: 'diamondEdge',
-    price: 1080,
-    thumbnail: polyHavenThumb('gothic_coffee_table'),
-    description: 'Diamond-edge silhouette with compact premium footprint.'
-  },
-  {
-    id: 'hexagonTable',
-    label: 'Hexagon Table',
-    source: 'procedural',
-    shapeId: 'royalHexagon',
-    price: 1120,
-    thumbnail: polyHavenThumb('modern_coffee_table_02'),
-    description: 'Hexagon variant built from the octagon arena family.'
-  },
   ...POLYHAVEN_TABLE_THEMES
 ];
 
