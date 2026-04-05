@@ -272,8 +272,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
-// Requested tweak: make chairs about 15% bigger than the current setup.
-const CHAIR_VISUAL_SCALE = 0.92;
+// Visual tuning for portrait screens: make chairs slightly bigger.
+const CHAIR_VISUAL_SCALE = 1.0;
 const CHAIR_TARGET_SCALE_FACTOR = 0.8;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -294,6 +294,8 @@ const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKER_PIECE_SCALE = 0.88;
+// Keep chips visually seated on the board surface instead of floating above it.
+const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.035;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -1771,7 +1773,7 @@ export default function CheckersBattleRoyal() {
 
           pieceGroup.position.set(
             x + (c - 3.5) * tile,
-            y + tile * 0.1,
+            y + tile * CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER,
             z + (r - 3.5) * tile
           );
           pieceGroup.userData = { r, c, side: piece.side };
@@ -1808,7 +1810,7 @@ export default function CheckersBattleRoyal() {
           });
           checker.position.set(
             x + centered * tile * CAPTURE_STRIP_PIECE_GAP,
-            y + tile * 0.1,
+            y + tile * CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER,
             z + edge * (3.5 + CAPTURE_STRIP_OFFSET_ROWS + row * 0.74) * tile
           );
           group.add(checker);
