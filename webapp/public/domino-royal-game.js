@@ -67,6 +67,11 @@ function isTelegramRuntime() {
 }
 
 const IS_TELEGRAM_RUNTIME = isTelegramRuntime();
+const IS_HIGH_REFRESH_MOBILE =
+  typeof navigator !== 'undefined' &&
+  (/(Android|iPhone|iPad|iPod|Mobile)/i.test(navigator.userAgent || '') ||
+    detectCoarsePointer() ||
+    (navigator.maxTouchPoints ?? 0) > 1);
 const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
   tableClothTextureSize: 2048,
   chairClothTextureSize: 2048,
@@ -76,24 +81,26 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
   qhd90: 4096,
-  uhd120: 8192
+  uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
   qhd90: 4096,
-  uhd120: 8192
+  uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
 const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
   fhd60: Object.freeze(['2k', '1k']),
   qhd90: Object.freeze(['4k', '2k', '1k']),
-  uhd120: Object.freeze(['8k', '4k', '2k', '1k'])
+  uhd120: IS_HIGH_REFRESH_MOBILE
+    ? Object.freeze(['4k', '2k', '1k'])
+    : Object.freeze(['8k', '4k', '2k', '1k'])
 });
 
 const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
   fhd60: 2048,
   qhd90: 4096,
-  uhd120: 8192
+  uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
 const LEGACY_FRAME_RATE_ALIASES = Object.freeze({
   hd50: 'fhd60'
@@ -445,7 +452,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return '8k';
+      return IS_HIGH_REFRESH_MOBILE ? '4k' : '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -4056,7 +4063,11 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 
 function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
   if (qualityId === 'uhd120') {
-    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return Object.freeze({
+      preferredResolutions: Object.freeze(
+        IS_HIGH_REFRESH_MOBILE ? ['4k', '2k'] : ['8k', '6k', '4k']
+      )
+    });
   }
   if (qualityId === 'qhd90' || fps >= 90) {
     return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
@@ -4774,6 +4785,8 @@ arenaG.add(tableThemeG);
 let hallwayDoorState = null;
 let hallwayDoorZ = 0;
 let walkwayEntryZ = TABLE_RADIUS * 2.4;
+let arenaFloorMesh = null;
+let arenaCarpetMesh = null;
 
 if (!USE_MINIMAL_STAGE) {
   const floor = new THREE.Mesh(
@@ -4788,6 +4801,7 @@ if (!USE_MINIMAL_STAGE) {
   floor.position.y = 0;
   floor.receiveShadow = true;
   arenaG.add(floor);
+  arenaFloorMesh = floor;
 
   const carpetTextures = getPoolCarpetTextures(renderer);
   const carpetMat = new THREE.MeshStandardMaterial({
@@ -4814,6 +4828,7 @@ if (!USE_MINIMAL_STAGE) {
   carpet.position.y = 0.01;
   carpet.receiveShadow = true;
   arenaG.add(carpet);
+  arenaCarpetMesh = carpet;
 
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xb9ddff,
@@ -5662,6 +5677,7 @@ async function applyTableTheme(
   if (!theme?.assetId) {
     activeTableThemeId = null;
     setProceduralTableVisible(true);
+    syncArenaGroundToFurniture();
     return;
   }
   setProceduralTableVisible(true);
@@ -5685,6 +5701,7 @@ async function applyTableTheme(
     tableThemeG.visible = true;
     setProceduralTableVisible(false);
     activeTableThemeId = theme.id;
+    syncArenaGroundToFurniture();
   } catch (error) {
     console.warn('Failed to load table theme', error);
     if (theme.id !== DEFAULT_TABLE_THEME_OPTION?.id && DEFAULT_TABLE_THEME_OPTION?.assetId) {
@@ -5711,18 +5728,47 @@ async function applyTableTheme(
         tableThemeG.visible = true;
         setProceduralTableVisible(false);
         activeTableThemeId = DEFAULT_TABLE_THEME_OPTION.id;
+        syncArenaGroundToFurniture();
       } catch (fallbackError) {
         console.warn('Failed to load fallback Poly Haven table theme', fallbackError);
         setProceduralTableVisible(true);
+        syncArenaGroundToFurniture();
       }
     } else {
       setProceduralTableVisible(true);
+      syncArenaGroundToFurniture();
     }
   }
 }
 
 const tableParts = {};
 const chairs = [];
+
+function syncArenaGroundToFurniture() {
+  if (USE_MINIMAL_STAGE || !arenaFloorMesh) return;
+  const floorCandidates = [];
+  const tableRoot = tableThemeG.visible ? tableThemeG : tableG;
+  if (tableRoot?.children?.length) {
+    const tableBounds = new THREE.Box3().setFromObject(tableRoot);
+    if (Number.isFinite(tableBounds.min.y)) {
+      floorCandidates.push(tableBounds.min.y);
+    }
+  }
+  chairs.forEach((chairRoot) => {
+    if (!chairRoot) return;
+    const chairBounds = new THREE.Box3().setFromObject(chairRoot);
+    if (Number.isFinite(chairBounds.min.y)) {
+      floorCandidates.push(chairBounds.min.y);
+    }
+  });
+  if (!floorCandidates.length) return;
+  const groundedY = Math.min(...floorCandidates);
+  arenaFloorMesh.position.y = groundedY;
+  if (arenaCarpetMesh) {
+    arenaCarpetMesh.position.y = groundedY + 0.01;
+  }
+}
+
 let seatLabelMesh = null;
 let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
@@ -7412,6 +7458,7 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
+  syncArenaGroundToFurniture();
 }
 
 async function buildChairs(
