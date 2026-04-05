@@ -1878,6 +1878,12 @@ const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward s
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
 const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
+const LEG_LEVELER_RADIUS_SCALE = 1.18; // make leveler plates slightly wider than table-leg radius
+const LEG_LEVELER_HEIGHT_SCALE = 0.2; // keep each plate low and rounded, similar to real metal levelers
+const LEG_LEVELER_STEM_RADIUS_SCALE = 0.42; // the inner cylinder that inserts into the leg center
+const LEG_LEVELER_STEM_HEIGHT_SCALE = 0.34; // visible neck before it disappears into the leg
+const LEG_LEVELER_RUBBER_RING_HEIGHT_SCALE = 0.24; // rubber ring under metal cup
+const LEG_LEVELER_RUBBER_RING_RADIUS_SCALE = 1.03; // tiny overhang to mimic anti-slip ring
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
@@ -3615,6 +3621,7 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 );
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -3763,7 +3770,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false;
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // keep potting sequences on broadcast rail/pocket cameras and avoid 2D top-view cutaways
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -11865,6 +11872,67 @@ export function Table3D(
     };
   };
 
+  const createLegLevelerSet = (ctx, centers = []) => {
+    if (!Array.isArray(centers) || centers.length === 0) return [];
+    const chromeMat = ctx.trimMat ?? ctx.legMat ?? ctx.frameMat;
+    const rubberMat = new THREE.MeshStandardMaterial({
+      color: 0x090909,
+      roughness: 0.85,
+      metalness: 0.08,
+      envMapIntensity: 0.05
+    });
+    const levelerRadius = Math.max(ctx.legR * LEG_LEVELER_RADIUS_SCALE, ctx.legR + BALL_R * 0.1);
+    const levelerHeight = Math.max(BALL_R * 0.34, ctx.legR * LEG_LEVELER_HEIGHT_SCALE);
+    const stemRadius = Math.max(BALL_R * 0.16, levelerRadius * LEG_LEVELER_STEM_RADIUS_SCALE);
+    const stemHeight = Math.max(BALL_R * 0.35, levelerHeight * LEG_LEVELER_STEM_HEIGHT_SCALE);
+    const rubberHeight = Math.max(BALL_R * 0.08, levelerHeight * LEG_LEVELER_RUBBER_RING_HEIGHT_SCALE);
+    const levelerGeom = new THREE.CylinderGeometry(levelerRadius * 0.84, levelerRadius, levelerHeight, 42);
+    const stemGeom = new THREE.CylinderGeometry(stemRadius, stemRadius * 1.02, stemHeight, 26);
+    const rubberGeom = new THREE.CylinderGeometry(
+      levelerRadius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
+      levelerRadius * LEG_LEVELER_RUBBER_RING_RADIUS_SCALE,
+      rubberHeight,
+      34
+    );
+    return centers.map((center) => {
+      const group = new THREE.Group();
+      const disc = tagBasePart(new THREE.Mesh(levelerGeom, chromeMat), 'trim');
+      disc.position.set(0, levelerHeight * 0.5 + rubberHeight, 0);
+      disc.castShadow = true;
+      disc.receiveShadow = true;
+      const stem = tagBasePart(new THREE.Mesh(stemGeom, chromeMat), 'trim');
+      stem.position.set(0, levelerHeight + stemHeight * 0.5 + rubberHeight - MICRO_EPS, 0);
+      stem.castShadow = true;
+      stem.receiveShadow = true;
+      const rubberRing = tagBasePart(new THREE.Mesh(rubberGeom, rubberMat), 'trim');
+      rubberRing.position.set(0, rubberHeight * 0.5, 0);
+      rubberRing.castShadow = false;
+      rubberRing.receiveShadow = true;
+      group.add(rubberRing, disc, stem);
+      group.position.set(center.x, ctx.floorY, center.z);
+      tagBasePart(group, 'trim');
+      return group;
+    });
+  };
+
+  const attachLegLevelers = (ctx, built = {}, centers = []) => {
+    const feet = createLegLevelerSet(ctx, centers);
+    if (!feet.length) return built;
+    const withMeshes = Array.isArray(built.meshes) ? built.meshes.slice() : [];
+    const withTrim = Array.isArray(built.trimMeshes) ? built.trimMeshes.slice() : [];
+    feet.forEach((foot) => {
+      withMeshes.push(foot);
+      foot.traverse((child) => {
+        if (child?.isMesh) withTrim.push(child);
+      });
+    });
+    return {
+      ...built,
+      meshes: withMeshes,
+      trimMeshes: withTrim
+    };
+  };
+
   const baseBuilders = {
     classicCylinders: (ctx) => {
       const pocketSafeInsetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE);
@@ -11890,7 +11958,11 @@ export function Table3D(
         leg.userData = { ...(leg.userData || {}), __basePart: true };
         return leg;
       });
-      return { meshes: legs, legMeshes: legs };
+      return attachLegLevelers(
+        ctx,
+        { meshes: legs, legMeshes: legs },
+        positions.map(([x, z]) => ({ x, z }))
+      );
     },
     openPortal: (ctx) => {
       const meshes = [];
@@ -11909,6 +11981,7 @@ export function Table3D(
       const legY = legBaseY + legHeight / 2;
       const portalDepth = Math.max(0, ctx.frameOuterZ - (ctx.legInset + PORTAL_POCKET_CLEARANCE));
       const portalZ = Math.max(0, portalDepth * 0.88 - PORTAL_SHORT_RAIL_CENTER_PULL);
+      const levelerCenters = [];
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
         [-1, 1].forEach((side) => {
@@ -11916,13 +11989,17 @@ export function Table3D(
           leg.position.set(side * legOffsetX, legY, 0);
           portal.add(leg);
           legMeshes.push(leg);
+          levelerCenters.push({
+            x: side * legOffsetX,
+            z: signZ * portalZ
+          });
         });
         portal.position.set(0, 0, signZ * portalZ);
         portal.rotation.y = signZ < 0 ? 0 : Math.PI;
         meshes.push(portal);
       };
       [-1, 1].forEach((signZ) => buildPortal(signZ));
-      return { meshes, legMeshes };
+      return attachLegLevelers(ctx, { meshes, legMeshes }, levelerCenters);
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
       footprintScale: 0.98,
@@ -11931,22 +12008,46 @@ export function Table3D(
       topInsetScale: 0.96,
       materialKey: 'trim'
     }),
-    gothicCoffeeTable: createPolyhavenTableBaseBuilder('gothic_coffee_table', {
-      footprintScale: 1,
-      footprintDepthScale: 1,
-      heightFill: 0.94,
-      topInsetScale: 0.98,
-      materialKey: 'rail',
-      matchTableFootprint: true
-    }),
-    woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
-      footprintScale: 0.94,
-      footprintDepthScale: 0.96,
-      heightFill: 0.9,
-      topInsetScale: 0.95,
-      materialKey: 'rail',
-      matchTableFootprint: true
-    })
+    gothicCoffeeTable: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('gothic_coffee_table', {
+        footprintScale: 1,
+        footprintDepthScale: 1,
+        heightFill: 0.94,
+        topInsetScale: 0.98,
+        materialKey: 'rail',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.92);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.72);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
+    },
+    woodenTable02Alt: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
+        footprintScale: 0.94,
+        footprintDepthScale: 0.96,
+        heightFill: 0.9,
+        topInsetScale: 0.95,
+        materialKey: 'rail',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.88);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.68);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
+    }
   };
 
   const normalizeBasePlacement = (meshes = [], options = {}) => {
@@ -13134,6 +13235,16 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
+      if (stored == null) return true;
+      return stored !== '0';
+    } catch {
+      return true;
+    }
+  });
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14779,6 +14890,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
     }
   }, [broadcastSystemId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
+    }
+  }, [autoReplayEnabled]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -21481,7 +21597,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (isSidePocket) return null;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -22755,6 +22870,7 @@ const powerRef = useRef(hud.power);
             trimmedHasFrames && trimmedDuration > 0 ? trimmed : buildFallbackReplay();
           const duration = replayData.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          applyRendererQuality();
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
@@ -25841,6 +25957,9 @@ const powerRef = useRef(hud.power);
               frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
                 ? frameTiming.targetMs
                 : 1000 / 60;
+            const rendererSize =
+              rendererRef.current?.getSize?.(new THREE.Vector2()) ?? null;
+            const replayPixelRatio = rendererRef.current?.getPixelRatio?.() ?? 1;
             shotRecording = {
               longShot: replayTags.has('long'),
               targetBallId: shotPrediction.ballId ?? null,
@@ -25849,6 +25968,14 @@ const powerRef = useRef(hud.power);
               frames: [],
               cuePath: [],
               frameTimeMs,
+              replayPixelRatio,
+              replayResolution:
+                rendererSize && Number.isFinite(rendererSize.x) && Number.isFinite(rendererSize.y)
+                  ? {
+                      width: Math.max(1, Math.round(rendererSize.x * replayPixelRatio)),
+                      height: Math.max(1, Math.round(rendererSize.y * replayPixelRatio))
+                    }
+                  : null,
               replayTags: Array.from(replayTags),
               zoomOnly: preferZoomReplay
             };
@@ -28937,7 +29064,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay && postShotSnapshot) {
+          if (autoReplayEnabled && shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
@@ -33214,6 +33341,33 @@ const powerRef = useRef(hud.power);
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Replay Controls
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                  aria-pressed={autoReplayEnabled}
+                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    autoReplayEnabled
+                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                      Auto Replay
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                      {autoReplayEnabled ? 'On' : 'Off'}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                    Replays keep live graphics quality and appear on potted/foul moments.
+                  </span>
+                </button>
               </div>
             </div>
           </div>
