@@ -167,9 +167,37 @@ export const MURLAN_TABLE_THEMES = [
     id: 'murlan-default',
     label: 'Octagon Table',
     source: 'procedural',
+    shapeId: 'classicOctagon',
     price: 0,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
     description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+  },
+  {
+    id: 'oval-table',
+    label: 'Oval Table',
+    source: 'procedural',
+    shapeId: 'grandOval',
+    price: 1080,
+    thumbnail: polyHavenThumb('coffee_table_round_01'),
+    description: 'Grand oval battle table tailored for portrait-screen framing.'
+  },
+  {
+    id: 'diamond-edge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    shapeId: 'diamondEdge',
+    price: 1120,
+    thumbnail: polyHavenThumb('modern_coffee_table_01'),
+    description: 'Diamond edge silhouette with clean rails and tighter center play area.'
+  },
+  {
+    id: 'hexagon-table',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    shapeId: 'royaleHexagon',
+    price: 1160,
+    thumbnail: polyHavenThumb('side_table_01'),
+    description: 'Hexagon variant matching octagon proportions with six clean sides.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
