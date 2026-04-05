@@ -340,7 +340,7 @@ function resolveAiTokenShapes(options, count) {
 }
 
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '82%' },
+  { left: '50%', top: '88%' },
   { left: '78%', top: '54%' },
   { left: '48%', top: '22%' },
   { left: '22%', top: '55%' }
@@ -1408,7 +1408,7 @@ export default function SnakeAndLadder() {
   const diceRollIdRef = useRef(0);
   const [diceBoardEvent, setDiceBoardEvent] = useState(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [, setDiceAnchor] = useState(null);
+  const [diceAnchor, setDiceAnchor] = useState(null);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -3709,7 +3709,7 @@ export default function SnakeAndLadder() {
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${Math.min(96, anchor.y + (seatIndex === 0 ? 5.8 : 0))}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
@@ -4013,6 +4013,24 @@ export default function SnakeAndLadder() {
           )}
         </div>
       )}
+      {canRoll && diceAnchor ? (
+        <button
+          type="button"
+          onClick={handleRollButtonClick}
+          className="fixed z-30 pointer-events-auto rounded-full"
+          style={{
+            left: `${diceAnchor.x}%`,
+            top: `${diceAnchor.y}%`,
+            width: '5.4rem',
+            height: '5.4rem',
+            transform: 'translate(-50%, -50%)',
+            background: 'radial-gradient(circle, rgba(250,204,21,0.22), rgba(250,204,21,0) 68%)',
+            border: '1px solid rgba(250,204,21,0.35)',
+            boxShadow: '0 0 18px rgba(250,204,21,0.24)'
+          }}
+          aria-label="Roll dice"
+        />
+      ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
           <InfoPopup
