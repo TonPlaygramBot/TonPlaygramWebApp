@@ -60,7 +60,7 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
-  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.14 * MODEL_SCALE;
+  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064;
@@ -73,7 +73,6 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.82;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -83,14 +82,16 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_CLEARANCE = (0.4 * MODEL_SCALE * 0.95) * 0.4;
+const CHAIR_DISTANCE = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
-const MIN_HDRI_RADIUS = 28;
+const MIN_HDRI_RADIUS = 24;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
-const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
+const CHECKERS_ROOM_HALF_SPAN = TABLE_RADIUS + CHAIR_CLEARANCE + SEAT_DEPTH;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -1097,6 +1098,17 @@ function resolveArenaFloorY(...groups) {
   return hasObject && Number.isFinite(box.min.y) ? box.min.y : 0;
 }
 
+function alignGroupToFloorY(group, targetY = 0) {
+  if (!group) return 0;
+  group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.y)) return 0;
+  const offset = targetY - box.min.y;
+  group.position.y += offset;
+  group.updateMatrixWorld(true);
+  return offset;
+}
+
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions =
@@ -2073,6 +2085,7 @@ export default function CheckersBattleRoyal() {
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
+        alignGroupToFloorY(table.group, 0);
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -2100,6 +2113,7 @@ export default function CheckersBattleRoyal() {
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
+          alignGroupToFloorY(g, 0);
           return g;
         };
         chairsRef.current = [
@@ -2119,6 +2133,7 @@ export default function CheckersBattleRoyal() {
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           scene.add(g);
+          alignGroupToFloorY(g, 0);
           return g;
         };
         chairsRef.current = [

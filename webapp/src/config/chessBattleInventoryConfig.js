@@ -407,6 +407,10 @@ export const CHESS_BATTLE_STORE_ITEMS = [
   }))
 ];
 
+export const CHECKERS_BATTLE_STORE_ITEMS = CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+  ...item
+}));
+
 export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tables', optionId: CHESS_TABLE_OPTIONS[0]?.id, label: CHESS_TABLE_OPTIONS[0]?.label },
   { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },

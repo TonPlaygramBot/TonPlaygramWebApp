@@ -49,7 +49,8 @@ import {
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
   CHESS_BATTLE_OPTION_LABELS,
-  CHESS_BATTLE_STORE_ITEMS
+  CHESS_BATTLE_STORE_ITEMS,
+  CHECKERS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
@@ -997,7 +998,7 @@ const storeMeta = {
   },
   checkersbattleroyal: {
     name: 'Checkers Battle Royal',
-    items: CHESS_BATTLE_STORE_ITEMS,
+    items: CHECKERS_BATTLE_STORE_ITEMS,
     defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
     labels: CHESS_BATTLE_OPTION_LABELS,
     typeLabels: CHESS_TYPE_LABELS,
@@ -1613,7 +1614,7 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'chessbattleroyal'
       })),
-      checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+      checkersbattleroyal: CHECKERS_BATTLE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'checkersbattleroyal'
