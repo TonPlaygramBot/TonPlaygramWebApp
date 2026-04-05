@@ -184,7 +184,7 @@ const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 3400;
 const AI_EXTRA_ROLL_DELAY_MS = 2600;
-const TURN_ADVANCE_AFTER_DICE_MS = 2300;
+const TURN_ADVANCE_AFTER_DICE_MS = 1400;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -345,6 +345,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '48%', top: '22%' },
   { left: '22%', top: '55%' }
 ];
+const SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT = 8.8;
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -3709,7 +3710,10 @@ export default function SnakeAndLadder() {
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${Math.min(96, anchor.y + (seatIndex === 0 ? 5.8 : 0))}%`,
+                  top: `${Math.min(
+                    97,
+                    anchor.y + (seatIndex === 0 ? SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT : 0)
+                  )}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {

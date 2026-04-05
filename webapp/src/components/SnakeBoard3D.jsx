@@ -270,7 +270,7 @@ const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 const CAMERA_2D_DISTANCE_FACTOR = 2.45;
-const CAMERA_2D_FORWARD_FACTOR = 0.7;
+const CAMERA_2D_FRAME_PADDING = 1.14;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -1961,7 +1961,8 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
   const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
   const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
-  const settleBaseDistance = boardHalf + DICE_THROW_LANDING_MARGIN + DICE_RETREAT_EXTRA;
+  const settleBaseDistance =
+    boardHalf + DICE_THROW_LANDING_MARGIN * 0.72 + DICE_RETREAT_EXTRA * 0.35;
 
   const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
   const forwardAdjust = seatAdjust.forward ?? {};
@@ -1993,16 +1994,16 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.75;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.35;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.8;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.9;
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
 
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.9;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.12;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
+    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
     const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.35,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.6
+      bounceDistance + DICE_SIZE * 0.22,
+      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
     );
 
     const start = centerLocal
@@ -3963,9 +3964,17 @@ export default function SnakeBoard3D({
           mouseButtons: { ...controls.mouseButtons }
         };
       }
-      const topDownDistance = clamp(CAM.minR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR * 1.55, CAM.maxR * 0.96);
+      const boardRadius = Math.max(BOARD_RADIUS, TABLE_RADIUS * 0.56);
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov || CAMERA_FOV);
+      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(camera.aspect || 1, 1e-3));
+      const limitingFov = Math.min(verticalFov, horizontalFov);
+      const fitDistance =
+        limitingFov > 1e-4
+          ? (boardRadius / Math.tan(limitingFov / 2)) * CAMERA_2D_FRAME_PADDING
+          : CAM.minR * CAMERA_2D_DISTANCE_FACTOR;
+      const topDownDistance = clamp(fitDistance, CAM.minR * 1.7, CAM.maxR * 0.98);
       const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
-      const forwardDistance = Math.sin(topDownPolar) * topDownDistance * CAMERA_2D_FORWARD_FACTOR;
+      const forwardDistance = 0;
       camera.position.set(
         boardLookTarget.x,
         boardLookTarget.y + verticalDistance,
