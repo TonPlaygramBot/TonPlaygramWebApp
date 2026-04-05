@@ -2482,7 +2482,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 11.5, y: 4.1 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
@@ -2579,7 +2579,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2610,22 +2610,22 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
-      const dither = Math.sin(x * 0.41 + y * 0.31) * 0.5 + Math.cos(x * 0.23 - y * 0.27) * 0.5;
-      const grain = (Math.sin((x + y) * 1.28) + Math.cos((x - y) * 1.14)) * 0.5;
-      const micropit = Math.sin(x * 2.1) * Math.cos(y * 2.24);
-      const colorLift = THREE.MathUtils.clamp(dither * 5 + grain * 5.8, -12, 18);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.16);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.16);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.16);
+      const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
+      const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
+      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 22, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 24, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(208 + micropit * 40, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(228 + dither * 8 + grain * 8 + micropit * 6, 176, 255);
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2645,7 +2645,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -3770,8 +3770,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false; // allow rail-overhead action switches while keeping broadcast framing in 3D
-const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // keep potting sequences on broadcast rail/pocket cameras and avoid 2D top-view cutaways
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -11910,12 +11909,7 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const legBottomY =
-        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
-          ? ctx.legY - ctx.legH * 0.5
-          : ctx.floorY;
-      const levelerMidY = levelerHeight * 0.5 + rubberHeight;
-      group.position.set(center.x, legBottomY - levelerMidY, center.z);
+      group.position.set(center.x, ctx.floorY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -21603,9 +21597,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
-            return null;
-          }
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -26128,9 +26119,14 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
+            if (forceImmediateRailOverheadView) {
+              enterTopView(true, { variant: 'rail' });
+              setIsTopDownView(true);
+            } else {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+            }
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -28535,7 +28531,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28545,9 +28541,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags ?? []),
@@ -28793,18 +28788,13 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+          shouldStartReplay = false;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay =
-          shouldStartReplay &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
