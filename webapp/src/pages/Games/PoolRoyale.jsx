@@ -1863,7 +1863,7 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.8; // shorten table bases by 20% for the lowered stance
+const BASE_HEIGHT_REDUCTION = 0.74; // trim table bases a bit more from the bottom so the full table sits lower on screen
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -1885,7 +1885,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly a touch more while keeping rail/camera framing stable
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -2477,6 +2477,8 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
+const LT_MATTE_PLASTIC_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2572,17 +2574,93 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
+  if (typeof document === 'undefined') return null;
+  const tintColor = new THREE.Color(tintHex);
+  const key = `${tintColor.getHexString()}-${size}`;
+  if (LT_MATTE_PLASTIC_TEXTURES.has(key)) {
+    return LT_MATTE_PLASTIC_TEXTURES.get(key);
+  }
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = size;
+  colorCanvas.height = size;
+  const colorCtx = colorCanvas.getContext('2d');
+  if (!colorCtx) return null;
+  const normalCanvas = document.createElement('canvas');
+  normalCanvas.width = size;
+  normalCanvas.height = size;
+  const normalCtx = normalCanvas.getContext('2d');
+  if (!normalCtx) return null;
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = size;
+  roughCanvas.height = size;
+  const roughCtx = roughCanvas.getContext('2d');
+  if (!roughCtx) return null;
+  const tintR = Math.round(THREE.MathUtils.clamp(tintColor.r, 0, 1) * 255);
+  const tintG = Math.round(THREE.MathUtils.clamp(tintColor.g, 0, 1) * 255);
+  const tintB = Math.round(THREE.MathUtils.clamp(tintColor.b, 0, 1) * 255);
+  const colorImage = colorCtx.createImageData(size, size);
+  const normalImage = normalCtx.createImageData(size, size);
+  const roughImage = roughCtx.createImageData(size, size);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const i = (y * size + x) * 4;
+      const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
+      const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
+      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
+      colorImage.data[i] = THREE.MathUtils.clamp(tintR + colorLift, 0, 255);
+      colorImage.data[i + 1] = THREE.MathUtils.clamp(tintG + colorLift, 0, 255);
+      colorImage.data[i + 2] = THREE.MathUtils.clamp(tintB + colorLift, 0, 255);
+      colorImage.data[i + 3] = 255;
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
+      normalImage.data[i + 3] = 255;
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
+      roughImage.data[i] = rough;
+      roughImage.data[i + 1] = rough;
+      roughImage.data[i + 2] = rough;
+      roughImage.data[i + 3] = 255;
+    }
+  }
+  colorCtx.putImageData(colorImage, 0, 0);
+  normalCtx.putImageData(normalImage, 0, 0);
+  roughCtx.putImageData(roughImage, 0, 0);
+  const map = new THREE.CanvasTexture(colorCanvas);
+  const normal = new THREE.CanvasTexture(normalCanvas);
+  const roughness = new THREE.CanvasTexture(roughCanvas);
+  const textures = [map, normal, roughness];
+  textures.forEach((texture, idx) => {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+    texture.needsUpdate = true;
+    if (idx === 0) {
+      applySRGBColorSpace(texture);
+    }
+  });
+  const result = Object.freeze({ map, normal, roughness });
+  LT_MATTE_PLASTIC_TEXTURES.set(key, result);
+  return result;
+}
+
 function applyMonoMattePlasticSurface(material) {
   if (!material) return;
-  material.map = null;
-  material.normalMap = null;
-  material.roughnessMap = null;
+  const matteTextures = getLtMattePlasticTextureSet(material.color?.getHex?.() ?? 0x0c0f14);
+  material.map = matteTextures?.map ?? null;
+  material.normalMap = matteTextures?.normal ?? null;
+  material.roughnessMap = matteTextures?.roughness ?? null;
   material.bumpMap = null;
   if ('metalness' in material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.96;
+    material.roughness = 0.94;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -2600,7 +2678,10 @@ function applyMonoMattePlasticSurface(material) {
     material.reflectivity = 0;
   }
   if ('envMapIntensity' in material) {
-    material.envMapIntensity = 0.05;
+    material.envMapIntensity = 0.09;
+  }
+  if ('normalScale' in material && material.normalMap) {
+    material.normalScale = new THREE.Vector2(0.5, 0.5);
   }
   material.needsUpdate = true;
 }
@@ -3563,8 +3644,8 @@ let runtimeTextureProfile = Object.freeze({
   hdriResolution: '4k',
   polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
   polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k', '2k']),
-  hdriFallbackResolution: '2k',
+  hdriPreferredResolutions: Object.freeze(['4k']),
+  hdriFallbackResolution: '4k',
   enforceTableFinishTextureSize: 4096,
   cueTextureSize: 4096,
   pocketTextureSize: 2048
@@ -3582,13 +3663,12 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
-    hdriResolution: tier.key,
+    hdriResolution: '4k',
     polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
     polyHavenFallbackResolution:
       tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
-    hdriPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
-    hdriFallbackResolution:
-      tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
+    hdriPreferredResolutions: Object.freeze(['4k']),
+    hdriFallbackResolution: '4k',
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
