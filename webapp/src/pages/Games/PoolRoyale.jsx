@@ -2614,9 +2614,9 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
       const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
       const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.14);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.14);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.14);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
@@ -2625,7 +2625,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
       normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(222 + dither * 11 + grain * 9 + micropit * 8, 168, 255);
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2645,7 +2645,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -3763,15 +3763,14 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     focusLift: 0,
     focusDepthBias: 0,
     focusPan: 0,
-    trackingBias: 0.42,
-    smoothing: 0.2,
+    trackingBias: 0,
+    smoothing: 1,
     avoidPocketCameras: false,
     forceActionActivation: true
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false; // allow rail-overhead action switches while keeping broadcast framing in 3D
-const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // keep potting sequences on broadcast rail/pocket cameras and avoid 2D top-view cutaways
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -11910,12 +11909,7 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const legBottomY =
-        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
-          ? ctx.legY - ctx.legH * 0.5
-          : ctx.floorY;
-      const levelerMidY = levelerHeight * 0.5 + rubberHeight;
-      group.position.set(center.x, legBottomY - levelerMidY, center.z);
+      group.position.set(center.x, ctx.floorY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -21603,9 +21597,6 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
-            return null;
-          }
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -26019,9 +26010,9 @@ const powerRef = useRef(hud.power);
             (!isShortShot &&
               (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
           const allowLongShotCameraSwitch =
-            forceImmediateRailOverheadView ||
-            ((RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY || !suppressOpeningShotViews) &&
-              allowRailOverheadActionView);
+            (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
+            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
+            allowRailOverheadActionView;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
@@ -26128,9 +26119,14 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
+            if (forceImmediateRailOverheadView) {
+              enterTopView(true, { variant: 'rail' });
+              setIsTopDownView(true);
+            } else {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+            }
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -26267,10 +26263,13 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            queuedPocketView = earlyPocketView;
-            queuedPocketView.pendingActivation = true;
-            queuedPocketView.activationDelay = null;
-            pocketViewActivated = false;
+            queuedPocketView = null;
+            earlyPocketView.pendingActivation = false;
+            earlyPocketView.activationDelay = null;
+            powerImpactHoldRef.current = 0;
+            updatePocketCameraState(true);
+            activeShotView = earlyPocketView;
+            pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
@@ -28532,7 +28531,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28542,9 +28541,8 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags ?? []),
@@ -28790,18 +28788,13 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+          shouldStartReplay = false;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay =
-          (shouldStartReplay || Boolean(replayDecision?.shouldReplay)) &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -30746,16 +30739,13 @@ const powerRef = useRef(hud.power);
           !topViewRef.current
         ) {
           if (!pocketHoldActive && queuedPocketView) {
-            const view = queuedPocketView;
-            const viewBall =
-              view?.ballId != null
-                ? (ballsRef.current?.find((entry) => entry.id === view.ballId) ?? null)
-                : null;
-            const hasBallDropped =
-              (viewBall && !viewBall.active) ||
-              lastPocketBallRef.current === view?.ballId ||
-              (view?.ballId != null && Boolean(pocketDropRef.current.get(view.ballId)));
-            if (hasBallDropped) {
+            const cueBall = cueRef.current;
+            const cueSpeed =
+              cueBall?.vel && typeof cueBall.vel.length === 'function'
+                ? cueBall.vel.length() * frameScale
+                : 0;
+            if (cueSpeed > STOP_EPS) {
+              const view = queuedPocketView;
               queuedPocketView = null;
               view.pendingActivation = false;
               view.activationDelay = null;
