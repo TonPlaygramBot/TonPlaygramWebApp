@@ -1150,7 +1150,6 @@ const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
-const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
@@ -2609,9 +2608,12 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
       const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
       const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
-      colorImage.data[i] = THREE.MathUtils.clamp(tintR + colorLift, 0, 255);
-      colorImage.data[i + 1] = THREE.MathUtils.clamp(tintG + colorLift, 0, 255);
-      colorImage.data[i + 2] = THREE.MathUtils.clamp(tintB + colorLift, 0, 255);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
+      colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
+      colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
+      colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
       normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
       normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
@@ -2678,7 +2680,7 @@ function applyMonoMattePlasticSurface(material) {
     material.reflectivity = 0;
   }
   if ('envMapIntensity' in material) {
-    material.envMapIntensity = 0.09;
+    material.envMapIntensity = 0.12;
   }
   if ('normalScale' in material && material.normalMap) {
     material.normalScale = new THREE.Vector2(0.5, 0.5);
@@ -3269,9 +3271,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0x7a8290,
-    base: 0x7a8290,
-    trim: 0x7a8290,
+    rail: 0xa7b0bf,
+    base: 0xa7b0bf,
+    trim: 0xa7b0bf,
     woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3281,9 +3283,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x3b434d,
-    base: 0x3b434d,
-    trim: 0x3b434d,
+    rail: 0x5a6471,
+    base: 0x5a6471,
+    trim: 0x5a6471,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3293,9 +3295,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0x6f3a2f,
-    base: 0x6f3a2f,
-    trim: 0x6f3a2f,
+    rail: 0x9b4a4f,
+    base: 0x9b4a4f,
+    trim: 0x9b4a4f,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3305,9 +3307,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xd2c2ac,
-    base: 0xd2c2ac,
-    trim: 0xd2c2ac,
+    rail: 0xf2e5cf,
+    base: 0xf2e5cf,
+    trim: 0xf2e5cf,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3317,9 +3319,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkGreen',
     label: 'LT Dark Green',
-    rail: 0x2b4533,
-    base: 0x2b4533,
-    trim: 0x2b4533,
+    rail: 0x3f6c4b,
+    base: 0x3f6c4b,
+    trim: 0x3f6c4b,
     woodTextureId: 'plastic_monoblock_lt_dark_green',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3329,9 +3331,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkYellow',
     label: 'LT Dark Yellow',
-    rail: 0x876426,
-    base: 0x876426,
-    trim: 0x876426,
+    rail: 0xb88b36,
+    base: 0xb88b36,
+    trim: 0xb88b36,
     woodTextureId: 'plastic_monoblock_lt_dark_yellow',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3341,9 +3343,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBrown',
     label: 'LT Dark Brown',
-    rail: 0x5a3a2a,
-    base: 0x5a3a2a,
-    trim: 0x5a3a2a,
+    rail: 0x7d5237,
+    base: 0x7d5237,
+    trim: 0x7d5237,
     woodTextureId: 'plastic_monoblock_lt_dark_brown',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3353,9 +3355,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkRed: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkRed',
     label: 'LT Dark Red',
-    rail: 0x6a2323,
-    base: 0x6a2323,
-    trim: 0x6a2323,
+    rail: 0x8f3434,
+    base: 0x8f3434,
+    trim: 0x8f3434,
     woodTextureId: 'plastic_monoblock_lt_dark_red',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -13042,18 +13044,9 @@ function PoolRoyaleGame({
     );
   });
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-  const [skipAllReplays, setSkipAllReplays] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return !POOL_ROYALE_REPLAY_ENABLED;
-  });
   const [commentaryPresetId, setCommentaryPresetId] = useState(DEFAULT_COMMENTARY_PRESET_ID);
   const [commentaryMuted, setCommentaryMuted] = useState(!POOL_ROYALE_VOICE_COMMENTARY_ENABLED);
   const skipReplayRef = useRef(() => {});
-  const skipAllReplaysRef = useRef(skipAllReplays);
   const cueStrokeAnimationStyleRef = useRef(DEFAULT_CUE_STROKE_STYLE);
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
@@ -13062,14 +13055,6 @@ function PoolRoyaleGame({
   const commentaryLastEventAtRef = useRef(0);
   const commentaryGreetingRef = useRef(false);
   const pendingCommentaryLinesRef = useRef(null);
-  useEffect(() => {
-    skipAllReplaysRef.current = skipAllReplays;
-  }, [skipAllReplays]);
-  useEffect(() => {
-    if (skipAllReplays) {
-      skipReplayRef.current?.();
-    }
-  }, [skipAllReplays]);
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
     if (commentaryMuted) {
@@ -14774,14 +14759,6 @@ function PoolRoyaleGame({
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        SKIP_REPLAYS_STORAGE_KEY,
-        skipAllReplays ? '1' : '0'
-      );
-    }
-  }, [skipAllReplays]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
@@ -28458,10 +28435,7 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          let shouldStartReplay =
-            !skipAllReplaysRef.current &&
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+          let shouldStartReplay = false;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28687,16 +28661,13 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = !skipAllReplaysRef.current;
+          shouldStartReplay = false;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay =
-          !skipAllReplaysRef.current &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -29161,13 +29132,7 @@ const powerRef = useRef(hud.power);
           remoteAimRef.current = null;
         }
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
-          const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current && pending?.postState) {
-            shotRecording = { ...pending };
-            startShotReplay(pending.postState);
-            shotRecording = null;
-          }
         }
         const frameTiming = frameTimingRef.current;
         const targetFrameTime =
@@ -32840,32 +32805,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replays
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSkipAllReplays((prev) => !prev)}
-                  aria-pressed={skipAllReplays}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    skipAllReplays
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span>Skip all replays</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      skipAllReplays
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {skipAllReplays ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
