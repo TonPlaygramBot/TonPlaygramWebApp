@@ -2572,6 +2572,39 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
+function applyMonoMattePlasticSurface(material) {
+  if (!material) return;
+  material.map = null;
+  material.normalMap = null;
+  material.roughnessMap = null;
+  material.bumpMap = null;
+  if ('metalness' in material) {
+    material.metalness = 0;
+  }
+  if ('roughness' in material) {
+    material.roughness = 0.96;
+  }
+  if ('clearcoat' in material) {
+    material.clearcoat = 0;
+  }
+  if ('clearcoatRoughness' in material) {
+    material.clearcoatRoughness = 1;
+  }
+  if ('sheen' in material) {
+    material.sheen = 0;
+  }
+  if ('sheenRoughness' in material) {
+    material.sheenRoughness = 1;
+  }
+  if ('reflectivity' in material) {
+    material.reflectivity = 0;
+  }
+  if ('envMapIntensity' in material) {
+    material.envMapIntensity = 0.05;
+  }
+  material.needsUpdate = true;
+}
+
 function applySharedWoodSurfaceProps(material) {
   if (!material) return;
   const mapUrl = material.userData?.__woodOptions?.mapUrl;
@@ -3150,7 +3183,7 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
@@ -3162,7 +3195,7 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
@@ -3174,7 +3207,7 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
@@ -3186,7 +3219,7 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
@@ -3198,7 +3231,7 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   })
 });
 
@@ -8204,6 +8237,9 @@ export function Table3D(
   [railMat, frameMat, legMat].forEach((mat) => {
     applyTableFinishDulling(mat);
     applyTableWoodVisibilityTuning(mat);
+    if (resolvedFinish?.surfaceStyle === 'matte') {
+      applyMonoMattePlasticSurface(mat);
+    }
   });
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
@@ -12302,6 +12338,10 @@ function applyTableFinishToTable(table, finish) {
     applyTableFinishDulling(frameMat);
     applyTableWoodVisibilityTuning(railMat);
     applyTableWoodVisibilityTuning(frameMat);
+    if (resolvedFinish?.surfaceStyle === 'matte') {
+      applyMonoMattePlasticSurface(railMat);
+      applyMonoMattePlasticSurface(frameMat);
+    }
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh) return;
       const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
@@ -12327,6 +12367,9 @@ function applyTableFinishToTable(table, finish) {
       }
       applyTableFinishDulling(mesh.material);
       applyTableWoodVisibilityTuning(mesh.material);
+      if (resolvedFinish?.surfaceStyle === 'matte') {
+        applyMonoMattePlasticSurface(mesh.material);
+      }
       if (mesh.material.color && sourceMaterial?.color) {
         mesh.material.color.copy(sourceMaterial.color);
       }
@@ -12348,6 +12391,9 @@ function applyTableFinishToTable(table, finish) {
     }
     applyTableFinishDulling(legMat);
     applyTableWoodVisibilityTuning(legMat);
+    if (resolvedFinish?.surfaceStyle === 'matte') {
+      applyMonoMattePlasticSurface(legMat);
+    }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
@@ -22571,9 +22617,34 @@ const powerRef = useRef(hud.power);
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
+          if (!shotRecording) return;
+          const fallbackStartState = Array.isArray(shotRecording?.startState)
+            ? shotRecording.startState
+            : captureBallSnapshot();
+          const fallbackPostState = Array.isArray(postShotSnapshot)
+            ? postShotSnapshot
+            : captureBallSnapshot();
+          const buildFallbackReplay = () => {
+            const fallbackDuration = Math.max(
+              420,
+              Number.isFinite(shotRecording?.frameTimeMs) ? shotRecording.frameTimeMs * 2 : 420
+            );
+            return {
+              frames: [
+                { t: 0, balls: fallbackStartState },
+                { t: fallbackDuration, balls: fallbackPostState }
+              ],
+              cuePath: shotRecording?.cuePath ?? [],
+              cueStroke: shotRecording?.cueStroke ?? null,
+              duration: fallbackDuration
+            };
+          };
           const trimmed = trimReplayRecording(shotRecording);
-          const duration = trimmed.duration;
+          const trimmedHasFrames = Array.isArray(trimmed?.frames) && trimmed.frames.length > 0;
+          const trimmedDuration = Number.isFinite(trimmed?.duration) ? trimmed.duration : 0;
+          const replayData =
+            trimmedHasFrames && trimmedDuration > 0 ? trimmed : buildFallbackReplay();
+          const duration = replayData.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
@@ -22583,9 +22654,9 @@ const powerRef = useRef(hud.power);
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
-            frames: trimmed.frames,
-            cuePath: trimmed.cuePath,
-            cueStroke: trimmed.cueStroke ?? null,
+            frames: replayData.frames,
+            cuePath: replayData.cuePath,
+            cueStroke: replayData.cueStroke ?? null,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
