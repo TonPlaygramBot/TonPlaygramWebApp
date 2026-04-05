@@ -57,15 +57,15 @@ const SIZE = 8;
 const CHECKERS_ARENA_SCALE = 0.5;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const TABLE_RADIUS = 3.15 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 0.98 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
-  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.23 * MODEL_SCALE;
+  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.31 * MODEL_SCALE;
 const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.064 * CHECKERS_ARENA_SCALE;
+const BOARD_SCALE = 0.058 * CHECKERS_ARENA_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
@@ -96,13 +96,13 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.68;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.6;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
-const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
+const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.66;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 // Sink grounded chairs enough to be clearly lower than previous builds.
-const CHAIR_GROUND_SINK = 0.14;
+const CHAIR_GROUND_SINK = 0.18;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -289,6 +289,7 @@ const TOUCH_TAP_MAX_DISTANCE_PX = 40;
 const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
+const CHECKER_PIECE_SCALE = 0.94;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -368,9 +369,9 @@ const createCheckerMesh = ({
   );
   const chip = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      tile * 0.352,
-      tile * 0.332,
-      tile * 0.176,
+      tile * 0.352 * CHECKER_PIECE_SCALE,
+      tile * 0.332 * CHECKER_PIECE_SCALE,
+      tile * 0.176 * CHECKER_PIECE_SCALE,
       56,
       1,
       false
@@ -382,16 +383,26 @@ const createCheckerMesh = ({
   pieceGroup.add(chip);
 
   const topCap = new THREE.Mesh(
-    new THREE.CylinderGeometry(tile * 0.264, tile * 0.292, tile * 0.064, 48),
+    new THREE.CylinderGeometry(
+      tile * 0.264 * CHECKER_PIECE_SCALE,
+      tile * 0.292 * CHECKER_PIECE_SCALE,
+      tile * 0.064 * CHECKER_PIECE_SCALE,
+      48
+    ),
     baseMaterial.clone()
   );
-  topCap.position.y = tile * 0.106;
+  topCap.position.y = tile * 0.106 * CHECKER_PIECE_SCALE;
   topCap.castShadow = true;
   topCap.receiveShadow = true;
   pieceGroup.add(topCap);
 
   const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(tile * 0.242, tile * 0.019, 16, 64),
+    new THREE.TorusGeometry(
+      tile * 0.242 * CHECKER_PIECE_SCALE,
+      tile * 0.019 * CHECKER_PIECE_SCALE,
+      16,
+      64
+    ),
     new THREE.MeshStandardMaterial({
       color: '#f8fafc',
       metalness: 0.88,
@@ -401,12 +412,17 @@ const createCheckerMesh = ({
     })
   );
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = tile * 0.118;
+  rim.position.y = tile * 0.118 * CHECKER_PIECE_SCALE;
   pieceGroup.add(rim);
 
   if (king) {
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(tile * 0.16, tile * 0.038, 12, 32),
+      new THREE.TorusGeometry(
+        tile * 0.16 * CHECKER_PIECE_SCALE,
+        tile * 0.038 * CHECKER_PIECE_SCALE,
+        12,
+        32
+      ),
       new THREE.MeshStandardMaterial({
         color: '#facc15',
         metalness: 0.94,
@@ -416,7 +432,7 @@ const createCheckerMesh = ({
       })
     );
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = tile * 0.13;
+    ring.position.y = tile * 0.13 * CHECKER_PIECE_SCALE;
     pieceGroup.add(ring);
   }
 
