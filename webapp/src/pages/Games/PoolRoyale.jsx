@@ -2645,7 +2645,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -3770,7 +3770,8 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // keep potting sequences on broadcast rail/pocket cameras and avoid 2D top-view cutaways
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false; // allow rail-overhead action switches while keeping broadcast framing in 3D
+const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -11909,7 +11910,12 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      group.position.set(center.x, ctx.floorY, center.z);
+      const legBottomY =
+        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
+          ? ctx.legY - ctx.legH * 0.5
+          : ctx.floorY;
+      const levelerMidY = levelerHeight * 0.5 + rubberHeight;
+      group.position.set(center.x, legBottomY - levelerMidY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -21488,7 +21494,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: true,
+            lockOverheadFocus: false,
             longShot,
             travelDistance,
             activationDelay,
@@ -21597,6 +21603,9 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
+            return null;
+          }
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -26119,14 +26128,9 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            if (forceImmediateRailOverheadView) {
-              enterTopView(true, { variant: 'rail' });
-              setIsTopDownView(true);
-            } else {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
-            }
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -26245,7 +26249,6 @@ const powerRef = useRef(hud.power);
               powerImpactHoldRef.current = earlyHold;
             }
           }
-          const holdActive = holdUntil > now;
           let pocketViewActivated = false;
           if (earlyPocketView) {
             earlyPocketView.lastUpdate = now;
@@ -26263,13 +26266,11 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            queuedPocketView = null;
-            earlyPocketView.pendingActivation = false;
-            earlyPocketView.activationDelay = null;
-            powerImpactHoldRef.current = 0;
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
+            earlyPocketView.pendingActivation = true;
+            earlyPocketView.activationDelay = now;
+            queuedPocketView = earlyPocketView;
+            updatePocketCameraState(false);
+            pocketViewActivated = false;
           }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
@@ -26282,33 +26283,30 @@ const powerRef = useRef(hud.power);
               !requiresCueBallMovementTrigger &&
               (!isLongShot || forceActionActivation) &&
               !isMaxPowerShot;
-            if (shouldActivateActionView && (!holdActive || forceImmediateRailOverheadView)) {
-              actionView.pendingActivation = false;
-              actionView.activationDelay = null;
-              actionView.activationTravel = 0;
-              actionView.strokeReadyAt = 0;
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
-            } else {
-              actionView.pendingActivation = true;
-              const baseDelay = actionView.activationDelay ?? null;
-              const delayed = requiresCueBallMovementTrigger
-                ? baseDelay ?? 0
-                : Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed > 0 ? delayed : null;
-              actionView.strokeReadyAt = strokeReadyAt;
-              const baseTravel = actionView.activationTravel ?? 0;
-              actionView.activationTravel = Math.max(
-                baseTravel,
-                requiresCueBallMovementTrigger
-                  ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+            actionView.pendingActivation = true;
+            const baseDelay = actionView.activationDelay ?? null;
+            const delayed = requiresCueBallMovementTrigger
+              ? baseDelay ?? 0
+              : Math.max(baseDelay ?? 0, holdUntil ?? 0);
+            actionView.activationDelay = delayed > 0 ? delayed : null;
+            actionView.strokeReadyAt = shouldActivateActionView ? strokeReadyAt : now + 1;
+            const baseTravel = actionView.activationTravel ?? 0;
+            actionView.activationTravel = Math.max(
+              baseTravel,
+              requiresCueBallMovementTrigger
+                ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+                : forceImmediateRailOverheadView
+                  ? 0
                   : isMaxPowerShot
                     ? BALL_R * 6
                     : 0
-              );
-              suspendedActionView = actionView;
+            );
+            if (forceImmediateRailOverheadView) {
+              powerImpactHoldRef.current = 0;
+              actionView.activationDelay = now;
+              actionView.strokeReadyAt = now;
             }
+            suspendedActionView = actionView;
           }
           openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
@@ -28531,7 +28529,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28541,8 +28539,9 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
+            shouldReplay,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags ?? []),
@@ -28788,13 +28787,17 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = false;
+          shouldStartReplay =
+            Boolean(replayDecision?.shouldReplay) &&
+            (shotRecording?.frames?.length ?? 0) > 1;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay = false;
+        shouldStartReplay =
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -30632,7 +30635,12 @@ const powerRef = useRef(hud.power);
             const strokeReadyAt = suspendedActionView.strokeReadyAt ?? 0;
             const strokeSettled = now >= strokeReadyAt;
             const cueMoving = cueSpeed >= CUEBALL_CAMERA_SWITCH_MIN_SPEED;
-            const cueTravelReady = travel >= CUEBALL_CAMERA_SWITCH_MIN_TRAVEL;
+            const cueTravelReady =
+              travel >=
+              Math.max(
+                0,
+                suspendedActionView.activationTravel ?? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+              );
             if (travelReady && delayReady && holdReady && strokeSettled && cueMoving && cueTravelReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
