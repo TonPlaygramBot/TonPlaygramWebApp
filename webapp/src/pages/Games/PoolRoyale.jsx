@@ -22551,16 +22551,57 @@ const powerRef = useRef(hud.power);
           }
         };
 
+        const ensureReplayRecording = (recording, postShotSnapshot) => {
+          if (!recording) return null;
+          const frameTimeMs =
+            Number.isFinite(recording?.frameTimeMs) && recording.frameTimeMs > 0
+              ? recording.frameTimeMs
+              : 1000 / 60;
+          const normalizedFrames = Array.isArray(recording?.frames)
+            ? recording.frames
+                .filter(Boolean)
+                .map((frame, index) => ({
+                  ...frame,
+                  t: Number.isFinite(frame?.t) ? frame.t : index * frameTimeMs
+                }))
+            : [];
+          if (normalizedFrames.length === 0) {
+            const seedBalls = Array.isArray(recording.startState)
+              ? recording.startState
+              : null;
+            if (!seedBalls) return null;
+            normalizedFrames.push({
+              t: 0,
+              balls: seedBalls,
+              camera: null,
+              cue: null
+            });
+          }
+          if (normalizedFrames.length === 1 && Array.isArray(postShotSnapshot)) {
+            normalizedFrames.push({
+              ...normalizedFrames[0],
+              t: Math.max(frameTimeMs, normalizedFrames[0]?.t ?? 0),
+              balls: postShotSnapshot
+            });
+          }
+          return {
+            ...recording,
+            frameTimeMs,
+            frames: normalizedFrames
+          };
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
-          const trimmed = trimReplayRecording(shotRecording);
+          const replayRecording = ensureReplayRecording(shotRecording, postShotSnapshot);
+          if (!replayRecording || !replayRecording.frames?.length) return;
+          const trimmed = trimReplayRecording(replayRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           setReplayActive(true);
-          setReplayFoul(shotRecording?.replayFoul ?? null);
+          setReplayFoul(replayRecording?.replayFoul ?? null);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
@@ -22580,8 +22621,8 @@ const powerRef = useRef(hud.power);
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
           lastReplayFrameAt = 0;
-          shotReplayRef.current = shotRecording;
-          applyBallSnapshot(shotRecording.startState ?? []);
+          shotReplayRef.current = replayRecording;
+          applyBallSnapshot(replayRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
           primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
