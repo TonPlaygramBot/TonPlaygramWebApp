@@ -253,6 +253,7 @@ const SNAKE_TYPE_LABELS = {
   boardPalette: 'Board Palette',
   snakeSkin: 'Snake Skins',
   diceTheme: 'Dice Finish',
+  railTheme: 'Rails & Nets',
   tokenFinish: 'Token Finish',
   tokenColor: 'Token Colors',
   headStyle: 'Pawn Heads',
@@ -591,6 +592,7 @@ const TYPE_SWATCHES = {
   boardPalette: ['#38bdf8', '#10b981'],
   snakeSkin: ['#16a34a', '#65a30d'],
   diceTheme: ['#f8fafc', '#e11d48'],
+  railTheme: ['#1e293b', '#64748b'],
   tokenFinish: ['#facc15', '#fb7185'],
   tokenColor: ['#f59e0b', '#10b981'],
   default: ['#22c55e', '#0ea5e9']
@@ -925,6 +927,10 @@ const USAGE_BY_TYPE = {
   diceTheme: {
     title: 'Dice finish',
     description: 'Updates dice materials shown in each roll and replay.'
+  },
+  railTheme: {
+    title: 'Rails & nets',
+    description: 'Changes the board rails and nets for Snake arenas.'
   },
   tokenFinish: {
     title: 'Token finish',

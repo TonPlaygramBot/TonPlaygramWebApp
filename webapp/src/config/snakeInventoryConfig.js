@@ -72,6 +72,10 @@ const SNAKE_THEME_THUMBNAILS = Object.freeze({
     onyxChrome: swatchThumbnail(['#111827', '#1f2937', '#e5e7eb']),
     auroraQuartz: swatchThumbnail(['#22d3ee', '#a855f7', '#f0abfc'])
   },
+  railTheme: {
+    obsidianSteel: swatchThumbnail(['#1f2937', '#0f172a', '#93c5fd']),
+    emberBrass: swatchThumbnail(['#f59e0b', '#92400e', '#fde68a'])
+  },
   tokenFinish: {
     matteVelvet: swatchThumbnail(['#6b7280', '#1f2937', '#e2e8f0']),
     holographicPulse: swatchThumbnail(['#a855f7', '#22d3ee', '#f0abfc'])
@@ -97,6 +101,7 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   boardPalette: ['desertMarble'],
   snakeSkin: ['emeraldScales'],
   diceTheme: ['imperialIvory'],
+  railTheme: ['platinumOak'],
   tokenFinish: ['ceramicSheen'],
   tokenColor: ['amberGlow', 'mintVale', 'royalWave', 'roseMist'],
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
@@ -127,6 +132,11 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
     imperialIvory: 'Imperial Ivory',
     onyxChrome: 'Onyx Chrome',
     auroraQuartz: 'Aurora Quartz'
+  }),
+  railTheme: Object.freeze({
+    platinumOak: 'Platinum & Oak',
+    obsidianSteel: 'Obsidian Steel',
+    emberBrass: 'Ember Brass'
   }),
   tokenFinish: Object.freeze({
     ceramicSheen: 'Ceramic Sheen',
@@ -219,6 +229,24 @@ export const SNAKE_STORE_ITEMS = [
     price: 470,
     description: 'Iridescent quartz finish with neon cyan pips and pink rims.',
     thumbnail: SNAKE_THEME_THUMBNAILS.diceTheme.auroraQuartz
+  },
+  {
+    id: 'rail-obsidianSteel',
+    type: 'railTheme',
+    optionId: 'obsidianSteel',
+    name: 'Obsidian Steel Rails',
+    price: 620,
+    description: 'Graphite rails with steel nets and cool blue ladder hardware.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.railTheme.obsidianSteel
+  },
+  {
+    id: 'rail-emberBrass',
+    type: 'railTheme',
+    optionId: 'emberBrass',
+    name: 'Ember Brass Rails',
+    price: 640,
+    description: 'Brass and ember rails with warm ladder rungs and vivid nets.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.railTheme.emberBrass
   },
   {
     id: 'token-matteVelvet',
@@ -339,6 +367,7 @@ export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'boardPalette', optionId: 'desertMarble', label: 'Desert Marble Board' },
   { type: 'snakeSkin', optionId: 'emeraldScales', label: 'Emerald Scales Skin' },
   { type: 'diceTheme', optionId: 'imperialIvory', label: 'Imperial Ivory Dice' },
+  { type: 'railTheme', optionId: 'platinumOak', label: 'Platinum & Oak Rails' },
   { type: 'tokenFinish', optionId: 'ceramicSheen', label: 'Ceramic Sheen Tokens' },
   { type: 'tokenColor', optionId: 'amberGlow', label: 'Amber Glow Tokens' },
   { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
