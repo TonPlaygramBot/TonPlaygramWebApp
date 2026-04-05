@@ -1863,7 +1863,7 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.74; // trim table bases a bit more from the bottom so the full table sits lower on screen
+const BASE_HEIGHT_REDUCTION = 0.8; // shorten table bases by 20% for the lowered stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -1885,7 +1885,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly a touch more while keeping rail/camera framing stable
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -3563,8 +3563,8 @@ let runtimeTextureProfile = Object.freeze({
   hdriResolution: '4k',
   polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
   polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k']),
-  hdriFallbackResolution: '4k',
+  hdriPreferredResolutions: Object.freeze(['4k', '2k']),
+  hdriFallbackResolution: '2k',
   enforceTableFinishTextureSize: 4096,
   cueTextureSize: 4096,
   pocketTextureSize: 2048
@@ -3582,12 +3582,13 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
-    hdriResolution: '4k',
+    hdriResolution: tier.key,
     polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
     polyHavenFallbackResolution:
       tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
-    hdriPreferredResolutions: Object.freeze(['4k']),
-    hdriFallbackResolution: '4k',
+    hdriPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
+    hdriFallbackResolution:
+      tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
