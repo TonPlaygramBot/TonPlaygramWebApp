@@ -62,6 +62,7 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
   BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.23 * MODEL_SCALE;
+const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064 * CHECKERS_ARENA_SCALE;
@@ -74,7 +75,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE;
+// Portrait mobile framing tweak: push chairs a bit farther from the table.
+const CHAIR_OUTWARD_OFFSET = 0.2 * CHECKERS_ARENA_SCALE;
+const CHAIR_DISTANCE =
+  TABLE_RADIUS + (0.56 + CHAIR_OUTWARD_OFFSET) * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -97,6 +101,8 @@ const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
+// Sink chairs deeper after grounding so they sit visibly lower in portrait view.
+const CHAIR_GROUND_SINK = 0.24 * CHECKERS_ARENA_SCALE;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -2228,9 +2234,12 @@ export default function CheckersBattleRoyal() {
               mat.needsUpdate = true;
             });
           });
-          g.position.set(0, CHAIR_BASE_HEIGHT, z);
+          g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
+          groundGroupToFloor(
+            g,
+            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
+          );
           scene.add(g);
           return g;
         };
@@ -2248,9 +2257,12 @@ export default function CheckersBattleRoyal() {
         const legColor = chairOption?.legColor || '#111827';
         const makeFallback = (z, ry) => {
           const g = createProceduralChairFallback(chairColor, legColor);
-          g.position.set(0, CHAIR_BASE_HEIGHT, z);
+          g.position.set(0, CHAIR_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
+          groundGroupToFloor(
+            g,
+            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
+          );
           scene.add(g);
           return g;
         };
