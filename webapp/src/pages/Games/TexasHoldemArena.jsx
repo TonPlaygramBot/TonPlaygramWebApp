@@ -267,7 +267,7 @@ const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
-const MAX_PLAYER_COUNT = 6;
+const MAX_PLAYER_COUNT = 8;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
@@ -797,7 +797,7 @@ const DEFAULT_APPEARANCE = {
   chairTheme: 0,
   tableTheme: 0,
   tableFinish: 0,
-  tableShape: 0,
+  tableShape: Math.max(0, TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === 'hexagonTable')),
   environmentHdri: TEXAS_DEFAULT_HDRI_INDEX
 };
 
@@ -818,11 +818,29 @@ const NON_DIAMOND_SHAPE_INDEX = (() => {
   return index >= 0 ? index : 0;
 })();
 
+const HEXAGON_SHAPE_ID = 'hexagonTable';
+const OCTAGON_SHAPE_ID = 'classicOctagon';
+const HEXAGON_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === HEXAGON_SHAPE_ID);
+  return index >= 0 ? index : 0;
+})();
+const OCTAGON_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === OCTAGON_SHAPE_ID);
+  return index >= 0 ? index : NON_DIAMOND_SHAPE_INDEX;
+})();
+
+function resolveForcedShapeOption(playerCount) {
+  const forceOctagon = playerCount >= 8;
+  const forcedIndex = forceOctagon ? OCTAGON_SHAPE_INDEX : HEXAGON_SHAPE_INDEX;
+  return TABLE_SHAPE_OPTIONS[forcedIndex] ?? TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
+}
+
 function enforceShapeForPlayers(appearance, playerCount) {
   const safe = { ...appearance };
-  const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
-  if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
-    safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
+  const forcedShape = resolveForcedShapeOption(playerCount);
+  const forcedIndex = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === forcedShape?.id);
+  if (forcedIndex >= 0) {
+    safe.tableShape = forcedIndex;
   }
   return safe;
 }
@@ -830,11 +848,14 @@ function enforceShapeForPlayers(appearance, playerCount) {
 function getEffectiveShapeConfig(shapeIndex, playerCount) {
   const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
   const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
-  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
-    return { option: fallback, rotationY: 0, forced: true };
-  }
-  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
-  return { option: requested ?? fallback, rotationY, forced: false };
+  const forcedOption = resolveForcedShapeOption(playerCount);
+  const option = forcedOption ?? requested ?? fallback;
+  const forced = option?.id !== requested?.id;
+  let rotationY = 0;
+  if (option?.id === HEXAGON_SHAPE_ID) rotationY = Math.PI / 6;
+  if (option?.id === OCTAGON_SHAPE_ID) rotationY = Math.PI / 8;
+  if (option?.id === DIAMOND_SHAPE_ID && playerCount <= 4) rotationY = Math.PI / 4;
+  return { option, rotationY, forced };
 }
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
@@ -941,33 +962,50 @@ function buildCardinalSeatAngles(count) {
   }
 }
 
+function buildHexagonSideAngles(count) {
+  if (!Number.isFinite(count) || count <= 0) {
+    return [];
+  }
+  const safeCount = Math.max(1, Math.floor(count));
+  const slotAngles = [Math.PI / 2, Math.PI / 6, -Math.PI / 6, -Math.PI / 2, (-5 * Math.PI) / 6, (5 * Math.PI) / 6];
+  const angles = [];
+  for (let i = 0; i < safeCount; i += 1) {
+    const slotAngle = slotAngles[i];
+    if (slotAngle == null) {
+      const fallbackAngle =
+        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+      angles.push(fallbackAngle);
+    } else {
+      angles.push(slotAngle);
+    }
+  }
+  return angles;
+}
+
 function buildClassicOctagonAngles(count) {
   if (!Number.isFinite(count) || count <= 0) {
     return [];
   }
   const safeCount = Math.max(1, Math.floor(count));
   const slotAngles = [
-    (3 * Math.PI) / 8,
-    Math.PI / 8,
-    -Math.PI / 8,
-    (-3 * Math.PI) / 8,
-    (-5 * Math.PI) / 8,
-    (-7 * Math.PI) / 8,
-    (7 * Math.PI) / 8,
-    (5 * Math.PI) / 8
+    Math.PI / 2,
+    Math.PI / 4,
+    0,
+    -Math.PI / 4,
+    -Math.PI / 2,
+    (-3 * Math.PI) / 4,
+    Math.PI,
+    (3 * Math.PI) / 4
   ];
-  // Skip the two slots that sit immediately to the human player's left and right
-  // so opponents remain on the flat edges in front of the user.
-  const preferredSlots = [0, 2, 3, 4, 5, 6];
   const angles = [];
   for (let i = 0; i < safeCount; i += 1) {
-    const slotIndex = preferredSlots[i];
-    if (slotIndex == null) {
+    const slotAngle = slotAngles[i];
+    if (slotAngle == null) {
       const fallbackAngle =
         Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
       angles.push(fallbackAngle);
     } else {
-      angles.push(slotAngles[slotIndex]);
+      angles.push(slotAngle);
     }
   }
   return angles;
@@ -1001,9 +1039,12 @@ function buildSeatAnchors(count) {
   const centerY = 52;
   const radiusX = 38;
   const radiusY = 32;
+  const octagonAngles = buildClassicOctagonAngles(safeCount);
+  const hexagonAngles = buildHexagonSideAngles(safeCount);
+  const preferredAngles = safeCount >= 8 ? octagonAngles : hexagonAngles;
   const anchors = [];
   for (let i = 0; i < safeCount; i += 1) {
-    const angle = Math.PI / 2 + (i / safeCount) * Math.PI * 2;
+    const angle = preferredAngles?.[i] ?? (Math.PI / 2 + (i / safeCount) * Math.PI * 2);
     anchors.push({
       left: `${centerX + Math.cos(angle) * radiusX}%`,
       top: `${centerY + Math.sin(angle) * radiusY}%`
@@ -2023,14 +2064,15 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     ? options.humanSeatInwardOffset
     : 0;
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
+  const hexagonAngles = tableInfo?.shapeId === HEXAGON_SHAPE_ID ? buildHexagonSideAngles(safeCount) : null;
   const classicAngles =
-    tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
+    tableInfo?.shapeId === OCTAGON_SHAPE_ID ? buildClassicOctagonAngles(safeCount) : null;
   const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
     ? 0
     : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
-    const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
+    const angle = classicAngles?.[i] ?? hexagonAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const isBottomSideOpponent = !isHuman && (i === 1 || i === safeCount - 1);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
