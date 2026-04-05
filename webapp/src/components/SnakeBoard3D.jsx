@@ -258,7 +258,7 @@ const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 3.6;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
-const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
@@ -266,8 +266,8 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.14,
   forwardOffset: 0,
-  heightOffset: 1.86,
-  targetLift: 0.08 * MODEL_SCALE
+  heightOffset: 2.02,
+  targetLift: 0.07 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.68,
@@ -300,19 +300,9 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.24,
-      bounce: TILE_SIZE * 0.28,
-      base: TILE_SIZE * 0.42
-    },
-    front: {
-      start: TILE_SIZE * 0.64,
-      bounce: TILE_SIZE * 0.98,
-      base: TILE_SIZE * 1.36
-    },
-    side: {
-      start: TILE_SIZE * 0.4,
-      bounce: TILE_SIZE * 0.48,
-      base: TILE_SIZE * 0.6
+      start: TILE_SIZE * 0.12,
+      bounce: TILE_SIZE * 0.1,
+      base: TILE_SIZE * 0.18
     }
   },
   {
@@ -324,19 +314,9 @@ const DICE_SEAT_ADJUSTMENTS = [
   },
   {
     forward: {
-      start: TILE_SIZE * 0.24,
-      bounce: TILE_SIZE * 0.28,
-      base: TILE_SIZE * 0.42
-    },
-    front: {
-      start: TILE_SIZE * 0.64,
-      bounce: TILE_SIZE * 0.98,
-      base: TILE_SIZE * 1.36
-    },
-    side: {
-      start: -TILE_SIZE * 0.4,
-      bounce: -TILE_SIZE * 0.48,
-      base: -TILE_SIZE * 0.6
+      start: TILE_SIZE * 0.12,
+      bounce: TILE_SIZE * 0.1,
+      base: TILE_SIZE * 0.18
     }
   }
 ];
