@@ -247,9 +247,9 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
 }));
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
-const CAMERA_LOOK_DRAG_SPEED = 0.0046;
-const CAMERA_LOOK_TARGET_DISTANCE = 6.2;
+const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_EXTRA_LIFT = 0.12;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.82,
   forwardOffset: 0.6,
@@ -446,7 +446,7 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const outwardSpread = 1.38;
+  const outwardSpread = 1.44;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -2649,6 +2649,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     TABLE_HEIGHT + cameraHeightOffset,
     Math.sin(cameraSeatAngle) * cameraRadius
   );
+  const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
+  const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+  camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
   camera.lookAt(boardLookTarget);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -2656,43 +2659,25 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
   controls.enableZoom = false;
+  controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
-  controls.minAzimuthAngle = -Infinity;
-  controls.maxAzimuthAngle = Infinity;
   controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE };
   controls.mouseButtons = {
     LEFT: null,
     MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: null
   };
-  controls.minDistance = CAM.minR;
-  controls.maxDistance = CAM.maxR;
+  const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
+  controls.minDistance = initialCameraRadius;
+  controls.maxDistance = initialCameraRadius;
   controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
-  const initialPolar = new THREE.Spherical().setFromVector3(camera.position.clone().sub(boardLookTarget)).phi;
-  controls.maxPolarAngle = Math.min(controls.maxPolarAngle, initialPolar);
   controls.target.copy(boardLookTarget);
+  const initialAzimuth = controls.getAzimuthalAngle();
+  controls.minAzimuthAngle = initialAzimuth;
+  controls.maxAzimuthAngle = initialAzimuth;
   controls.update();
-  const initialLookTarget = boardLookTarget.clone();
-  let cameraLookYaw = Math.atan2(
-    initialLookTarget.x - camera.position.x,
-    initialLookTarget.z - camera.position.z
-  );
-  const applyCameraLookYaw = () => {
-    const lookTarget = new THREE.Vector3(
-      camera.position.x + Math.sin(cameraLookYaw) * CAMERA_LOOK_TARGET_DISTANCE,
-      initialLookTarget.y,
-      camera.position.z + Math.cos(cameraLookYaw) * CAMERA_LOOK_TARGET_DISTANCE
-    );
-    camera.lookAt(lookTarget);
-    controls.target.copy(lookTarget);
-    controls.update();
-  };
-  const rotateCameraLookYaw = (deltaYaw = 0) => {
-    cameraLookYaw += deltaYaw;
-    applyCameraLookYaw();
-  };
   const startCameraState = {
     position: camera.position.clone(),
     target: boardLookTarget.clone()
@@ -2712,6 +2697,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+    controls.minDistance = radius;
+    controls.maxDistance = radius;
     controls.update();
   };
 
@@ -2782,7 +2769,6 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = camera.position.distanceTo(boardLookTarget);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-    applyCameraLookYaw();
     fit();
   };
 
@@ -2805,8 +2791,6 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     updateCameraTarget,
     updateHdriZoom,
     controls,
-    applyCameraLookYaw,
-    rotateCameraLookYaw,
     tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     startCameraState
@@ -3893,6 +3877,8 @@ export default function SnakeBoard3D({
           maxPolarAngle: controls.maxPolarAngle,
           minAzimuthAngle: controls.minAzimuthAngle,
           maxAzimuthAngle: controls.maxAzimuthAngle,
+          minDistance: controls.minDistance,
+          maxDistance: controls.maxDistance,
           touches: { ...controls.touches },
           mouseButtons: { ...controls.mouseButtons }
         };
@@ -3913,6 +3899,8 @@ export default function SnakeBoard3D({
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
+      controls.minDistance = CAM.minR;
+      controls.maxDistance = CAM.maxR;
       controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
       controls.mouseButtons = {
         LEFT: null,
@@ -3944,6 +3932,8 @@ export default function SnakeBoard3D({
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+      controls.minDistance = restore.minDistance ?? CAM.minR;
+      controls.maxDistance = restore.maxDistance ?? CAM.maxR;
       controls.touches = restore.touches || { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
       controls.mouseButtons = restore.mouseButtons || {
         LEFT: null,
@@ -4071,8 +4061,6 @@ export default function SnakeBoard3D({
       }
 
       if (cameraViewModeRef.current === '2d') return;
-      if (absX < 0.25) return;
-      arena.rotateCameraLookYaw?.(-deltaX * CAMERA_LOOK_DRAG_SPEED);
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
