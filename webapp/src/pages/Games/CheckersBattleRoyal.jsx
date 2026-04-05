@@ -61,7 +61,7 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
-  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.14 * MODEL_SCALE;
+  BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.18 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064 * CHECKERS_ARENA_SCALE;
@@ -264,7 +264,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const CHAIR_TARGET_SCALE_FACTOR = 0.84;
+const CHAIR_TARGET_SCALE_FACTOR = 0.8;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
   1.9173749900311232 * CHAIR_TARGET_SCALE_FACTOR,
