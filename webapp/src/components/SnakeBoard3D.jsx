@@ -251,11 +251,12 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_EXTRA_LIFT = 0.12;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.82,
-  forwardOffset: 0.6,
-  heightOffset: 1.1,
+  backOffset: 0.86,
+  forwardOffset: 0.74,
+  heightOffset: 1.32,
   targetLift: 0.06 * MODEL_SCALE
 });
+const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -2511,14 +2512,36 @@ function parseJumpMap(data = {}) {
 
 function createJumpLaneResolver(entries = []) {
   const laneByStart = new Map();
-  const densityByBucket = new Map();
-  entries.forEach(([start, end]) => {
-    const bucket = Math.floor((Math.min(start, end) - 1) / 6);
-    const density = densityByBucket.get(bucket) ?? 0;
-    const lane = density % 3;
-    const direction = density % 2 === 0 ? 1 : -1;
-    laneByStart.set(start, { lane, direction });
-    densityByBucket.set(bucket, density + 1);
+  const laneRanges = [];
+  const normalized = [...entries]
+    .map(([start, end]) => ({
+      start,
+      end,
+      min: Math.min(start, end),
+      max: Math.max(start, end),
+      span: Math.abs(end - start)
+    }))
+    .sort((a, b) => b.span - a.span || a.start - b.start);
+
+  normalized.forEach((entry) => {
+    let chosenLane = -1;
+    for (let laneIndex = 0; laneIndex < laneRanges.length; laneIndex += 1) {
+      const overlaps = laneRanges[laneIndex].some(
+        (range) => !(entry.max < range.min - 1 || entry.min > range.max + 1)
+      );
+      if (!overlaps) {
+        chosenLane = laneIndex;
+        break;
+      }
+    }
+    if (chosenLane < 0) {
+      chosenLane = laneRanges.length;
+      laneRanges.push([]);
+    }
+    laneRanges[chosenLane].push({ min: entry.min, max: entry.max });
+    const lane = Math.min(chosenLane, 4);
+    const direction = chosenLane % 2 === 0 ? 1 : -1;
+    laneByStart.set(entry.start, { lane, direction });
   });
   return (start) => laneByStart.get(start) ?? { lane: 0, direction: 1 };
 }
@@ -2658,7 +2681,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = false;
+  controls.enableZoom = true;
   controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
@@ -2669,8 +2692,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     RIGHT: null
   };
   const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-  controls.minDistance = initialCameraRadius;
-  controls.maxDistance = initialCameraRadius;
+  controls.minDistance = CAM.minR;
+  controls.maxDistance = CAM.maxR;
   controls.minPolarAngle = CAM.phiMin;
   controls.maxPolarAngle = CAM.phiMax;
   controls.target.copy(boardLookTarget);
@@ -2697,8 +2720,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-    controls.minDistance = radius;
-    controls.maxDistance = radius;
+    controls.minDistance = Math.max(CAM.minR, needed * 0.92);
+    controls.maxDistance = CAM.maxR;
     controls.update();
   };
 
@@ -2821,7 +2844,6 @@ function buildSnakeBoard(
   boardRotationRoot.add(tileGroup);
 
   const boardTheme = appearanceOptions.board ?? {};
-  const railTheme = appearanceOptions.rail ?? {};
   const snakeTheme = appearanceOptions.snakeSkin ?? {};
   const diceTheme = appearanceOptions.dice ?? {};
   const highlightColors = createHighlightColors(boardTheme);
@@ -2951,33 +2973,34 @@ function buildSnakeBoard(
     }
   );
 
-  railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
-    const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
-    const startPos = indexToPosition.get(startIndex);
-    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
-    let gapCenter;
-    if (entryConfig.center != null) {
-      gapCenter = entryConfig.center;
-    } else if (startPos) {
-      gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
-    } else {
-      gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
-    }
-    addChromeRailings(
-      platformGroup,
-      {
-        halfSize,
-        topY,
-        railHeight: RAIL_HEIGHT,
-        gapWidth,
-        gapCenter,
-        entrySide: entryConfig.side,
-        addNet: levelIndex > 0
-      },
-      platformMeshes,
-      railTheme
-    );
-  });
+  if (SHOW_BOARD_RAILS) {
+    railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
+      const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
+      const startPos = indexToPosition.get(startIndex);
+      const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
+      let gapCenter;
+      if (entryConfig.center != null) {
+        gapCenter = entryConfig.center;
+      } else if (startPos) {
+        gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
+      } else {
+        gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
+      }
+      addChromeRailings(
+        platformGroup,
+        {
+          halfSize,
+          topY,
+          railHeight: RAIL_HEIGHT,
+          gapWidth,
+          gapCenter,
+          entrySide: entryConfig.side,
+          addNet: levelIndex > 0
+        },
+        platformMeshes
+      );
+    });
+  }
 
   const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
   const baseStart = new THREE.Vector3(
@@ -3516,10 +3539,10 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     const baseLift = LADDER_BASE_LIFT;
     const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
     const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
-    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.1;
+    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.14;
 
-    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift));
-    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
+    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift), TILE_EDGE_INSET * 0.2);
+    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift), TILE_EDGE_INSET * 0.2);
     const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
     const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
     const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
@@ -3652,8 +3675,14 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const laneConfig = resolveSnakeLane(start);
     const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
     const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
-    const startPoint = pullPointTowardCenter(baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
-    const endPoint = pullPointTowardCenter(baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
+    const startPoint = pullPointTowardCenter(
+      baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)),
+      TILE_EDGE_INSET * 0.2
+    );
+    const endPoint = pullPointTowardCenter(
+      baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)),
+      TILE_EDGE_INSET * 0.2
+    );
     const length = Math.abs(start - end);
     const archHeight = Math.min(TILE_SIZE * 0.9, SNAKE_ARCH_BASE + length * SNAKE_ARCH_SCALE);
     const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight + SNAKE_CURVE_CLEARANCE, 0));
@@ -3665,7 +3694,7 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     }
     const lateralAmount =
       Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE) +
-      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.06;
+      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.1;
     const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
     const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
     const neckPoint = startPoint
@@ -3801,6 +3830,7 @@ export default function SnakeBoard3D({
   const turnCameraStateRef = useRef(null);
   const startCameraMinYRef = useRef(null);
   const previousTurnRef = useRef(null);
+  const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
@@ -3812,7 +3842,6 @@ export default function SnakeBoard3D({
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
   const tokenTheme = appearanceMemo?.token;
   const tokenShape = appearanceMemo?.tokenShape;
-  const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
 
   useEffect(() => {
@@ -3902,8 +3931,9 @@ export default function SnakeBoard3D({
       controls.enableZoom = true;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
-      controls.minAzimuthAngle = -Infinity;
-      controls.maxAzimuthAngle = Infinity;
+      const lockedAzimuth = controls.getAzimuthalAngle();
+      controls.minAzimuthAngle = lockedAzimuth;
+      controls.maxAzimuthAngle = lockedAzimuth;
       controls.minDistance = CAM.minR;
       controls.maxDistance = CAM.maxR;
       controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
@@ -4056,16 +4086,20 @@ export default function SnakeBoard3D({
       const absX = Math.abs(deltaX);
       const absY = Math.abs(deltaY);
 
-      if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
-        const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
-        if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
-          cameraTiltRef.current = nextTilt;
-          onCameraTiltChange(nextTilt);
+      if (cameraViewModeRef.current === '2d') {
+        if (absY >= absX && absY >= 0.25 && typeof onCameraTiltChange === 'function') {
+          const nextTilt = clamp01(cameraTiltRef.current + deltaY * 0.0015);
+          if (Math.abs(nextTilt - cameraTiltRef.current) > 0.0001) {
+            cameraTiltRef.current = nextTilt;
+            onCameraTiltChange(nextTilt);
+          }
         }
         return;
       }
 
-      if (cameraViewModeRef.current === '2d') return;
+      const look = headLookRef.current;
+      look.yaw = clamp(look.yaw - deltaX * 0.0016, -0.52, 0.52);
+      look.pitch = clamp(look.pitch + deltaY * 0.00125, -0.34, 0.34);
     };
     const onPointerEnd = (event) => {
       if (dragState.pointerId !== event.pointerId) return;
@@ -4220,6 +4254,27 @@ export default function SnakeBoard3D({
             diceAnchorCallbackRef.current(null);
           }
         }
+        if (cameraViewModeRef.current !== '2d') {
+          const look = headLookRef.current;
+          const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
+          if (baseTarget) {
+            const forward = baseTarget.clone().sub(camera.position);
+            const focusDistance = forward.length();
+            if (focusDistance > 1e-6) {
+              forward.normalize();
+              const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
+              if (right.lengthSq() > 1e-6) {
+                right.normalize();
+                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+                const lookTarget = baseTarget
+                  .clone()
+                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
+                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
+                camera.lookAt(lookTarget);
+              }
+            }
+          }
+        }
         renderer.render(scene, camera);
       }
     });
@@ -4355,10 +4410,9 @@ export default function SnakeBoard3D({
       ladders,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
-      railTextureRef.current,
-      railTheme
+      railTextureRef.current
     );
-  }, [ladders, ladderOffsets, keyForEffect, railTheme]);
+  }, [ladders, ladderOffsets, keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current || !snakeTextureRef.current) return;
