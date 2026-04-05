@@ -54,9 +54,9 @@ import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
-const CHECKERS_ARENA_SCALE = 0.68;
+const CHECKERS_ARENA_SCALE = 0.6;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
-const STOOL_SCALE = 1.25 * 1.08 * CHECKERS_ARENA_SCALE;
+const STOOL_SCALE = 1.12 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -74,7 +74,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.68 * CHECKERS_ARENA_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -92,10 +92,11 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.54;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.8;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.66;
-const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
+const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.8;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.82;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 0.9;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -1142,6 +1143,27 @@ function reduceCheckersTableBase(tableGroup) {
       node.position.y += beforeBox.min.y - afterBox.min.y;
       node.updateMatrixWorld(true);
     }
+    if (!isTrimRing) {
+      const leveledBox = new THREE.Box3().setFromObject(node);
+      if (Number.isFinite(leveledBox.max.y) && leveledBox.max.y > 1e-5) {
+        const chairLegTarget = CHAIR_BASE_HEIGHT;
+        const levelScale = THREE.MathUtils.clamp(
+          chairLegTarget / leveledBox.max.y,
+          0.65,
+          1.45
+        );
+        node.scale.y *= levelScale;
+        node.updateMatrixWorld(true);
+        const realignedBox = new THREE.Box3().setFromObject(node);
+        if (
+          Number.isFinite(realignedBox.min.y) &&
+          Number.isFinite(beforeBox.min.y)
+        ) {
+          node.position.y += beforeBox.min.y - realignedBox.min.y;
+          node.updateMatrixWorld(true);
+        }
+      }
+    }
     if (height < 0.001) {
       node.visible = false;
     }
@@ -1795,10 +1817,18 @@ export default function CheckersBattleRoyal() {
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset =
       ((isPortrait ? 2.55 : 1.78) + 0.35) * CHECKERS_ARENA_SCALE;
-    const cameraForwardOffset = (isPortrait ? 0.08 : 0.2) * CHECKERS_ARENA_SCALE;
-    const cameraHeightOffset = (isPortrait ? 1.72 : 1.34) * CHECKERS_ARENA_SCALE;
+    const cameraForwardOffset =
+      (isPortrait ? 0.08 : 0.2) *
+      CHECKERS_ARENA_SCALE *
+      CHECKERS_CAMERA_FRAME_COMPENSATION;
+    const cameraHeightOffset =
+      (isPortrait ? 1.72 : 1.34) *
+      CHECKERS_ARENA_SCALE *
+      CHECKERS_CAMERA_FRAME_COMPENSATION;
     const cameraRadius =
-      CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
+      CHAIR_DISTANCE +
+      cameraBackOffset * CHECKERS_CAMERA_FRAME_COMPENSATION -
+      cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
       TABLE_HEIGHT + cameraHeightOffset,
@@ -2667,10 +2697,13 @@ export default function CheckersBattleRoyal() {
       controls.maxPolarAngle = 0;
     } else {
       const cameraSeatAngle = Math.PI / 2;
-      const cameraRadius = CHAIR_DISTANCE + 2.7 * CHECKERS_ARENA_SCALE;
+      const cameraRadius =
+        CHAIR_DISTANCE +
+        2.7 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION;
       camera.position.set(
         Math.cos(cameraSeatAngle) * cameraRadius,
-        TABLE_HEIGHT + 1.72 * CHECKERS_ARENA_SCALE,
+        TABLE_HEIGHT +
+          1.72 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
         Math.sin(cameraSeatAngle) * cameraRadius
       );
       controls.enableRotate = true;
