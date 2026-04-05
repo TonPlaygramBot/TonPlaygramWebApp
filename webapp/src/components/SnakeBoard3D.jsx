@@ -199,7 +199,7 @@ const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
-const TOKEN_SCALE_MULTIPLIER = 1;
+const TOKEN_SCALE_MULTIPLIER = 1.16;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
@@ -214,12 +214,12 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.55,
-  TILE_SIZE * 1.18,
-  TILE_SIZE * 1.55,
-  TILE_SIZE * 1.18
+  TILE_SIZE * 1.12,
+  TILE_SIZE * 0.86,
+  TILE_SIZE * 1.12,
+  TILE_SIZE * 0.86
 ]);
-const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 3.55;
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.72;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
   TOKEN_RADIUS * 0.02,
@@ -268,15 +268,16 @@ const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.14,
   forwardOffset: 0,
-  heightOffset: 2.14,
+  heightOffset: 2.42,
   targetLift: 0.07 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.68,
   forwardOffset: 0,
-  heightOffset: 1.08,
+  heightOffset: 1.2,
   targetLift: 0.08 * MODEL_SCALE
 });
+const LOCK_BOTTOM_SEAT_CAMERA = true;
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -347,19 +348,19 @@ const createHighlightColors = (boardTheme = {}) => ({
 });
 
 const LADDER_BASE_LIFT = TILE_SIZE * 0.32;
-const LADDER_ARCH_BASE = TILE_SIZE * 0.96;
-const LADDER_ARCH_SCALE = TILE_SIZE * 0.0125;
+const LADDER_ARCH_BASE = TILE_SIZE * 1.22;
+const LADDER_ARCH_SCALE = TILE_SIZE * 0.016;
 const LADDER_SWAY_BASE = TILE_SIZE * 0.2;
 const LADDER_SWAY_SCALE = TILE_SIZE * 0.009;
 const LADDER_INNER_LIFT_RATIO = 0.78;
 const LADDER_OUTER_LIFT_RATIO = 0.78;
-const LADDER_CLEARANCE = TILE_SIZE * 0.16;
-const SNAKE_BASE_LIFT = TILE_SIZE * 0.3;
-const SNAKE_ARCH_BASE = TILE_SIZE * 0.62;
-const SNAKE_ARCH_SCALE = TILE_SIZE * 0.006;
-const SNAKE_LATERAL_BASE = TILE_SIZE * 0.16;
-const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0048;
-const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.22;
+const LADDER_CLEARANCE = TILE_SIZE * 0.28;
+const SNAKE_BASE_LIFT = TILE_SIZE * 0.4;
+const SNAKE_ARCH_BASE = TILE_SIZE * 0.92;
+const SNAKE_ARCH_SCALE = TILE_SIZE * 0.01;
+const SNAKE_LATERAL_BASE = TILE_SIZE * 0.24;
+const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
+const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.34;
 const SNAKE_NECK_LIFT_RATIO = 0.42;
 const SNAKE_TAIL_LIFT_RATIO = 0.36;
 
@@ -446,8 +447,37 @@ function buildSpiralGrid(size) {
 function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
-  const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
+  const startColor = new THREE.Color('#22c55e');
+  const midColorA = new THREE.Color('#84cc16');
+  const midColorB = new THREE.Color('#facc15');
+  const midColorC = new THREE.Color('#fb923c');
+  const endColor = new THREE.Color('#ef4444');
+  const gradientStops = [
+    { at: 0, color: startColor },
+    { at: 0.32, color: midColorA },
+    { at: 0.58, color: midColorB },
+    { at: 0.78, color: midColorC },
+    { at: 1, color: endColor }
+  ];
+  const getGradientHex = (ratio) => {
+    const t = clamp01(ratio);
+    let left = gradientStops[0];
+    let right = gradientStops[gradientStops.length - 1];
+    for (let i = 0; i < gradientStops.length - 1; i += 1) {
+      const a = gradientStops[i];
+      const b = gradientStops[i + 1];
+      if (t >= a.at && t <= b.at) {
+        left = a;
+        right = b;
+        break;
+      }
+    }
+    const span = Math.max(1e-6, right.at - left.at);
+    const localT = clamp01((t - left.at) / span);
+    return `#${left.color.clone().lerp(right.color, localT).getHexString()}`;
+  };
   const outwardSpread = 1.56; // nudge tiles a bit farther from center
+  const totalTiles = 50;
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
@@ -474,7 +504,7 @@ function createPreciseSnakeTiles(scale = 1) {
       z: dz * outwardSpread * scale,
       y: (baseTop + 0.26 / 2 + localIndex * riseStep) * scale,
       size: size * scale,
-      color: colors[(index + level) % colors.length]
+      color: getGradientHex(index / (totalTiles - 1))
     };
   });
   preciseTiles.push({
@@ -483,7 +513,7 @@ function createPreciseSnakeTiles(scale = 1) {
     z: 0,
     y: 2.46 * scale,
     size: 1.03 * scale,
-    color: '#3ccfc5'
+    color: getGradientHex(48 / (totalTiles - 1))
   });
   preciseTiles.push({
     id: 50,
@@ -491,7 +521,7 @@ function createPreciseSnakeTiles(scale = 1) {
     z: 0,
     y: 2.9 * scale,
     size: 1.18 * scale,
-    color: '#51d95a'
+    color: getGradientHex(1)
   });
   return preciseTiles;
 }
@@ -1634,6 +1664,7 @@ function computeBoardFacingRotation(board, camera, tileIndex) {
 
 function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (!board || !camera) return null;
+  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
   const player = Array.isArray(players) ? players[turnIndex] : null;
   const rawSeatIndex = Number.isFinite(player?.seatIndex)
@@ -1681,6 +1712,7 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
 
 function computeDiceCameraFocusState(board, camera) {
   if (!board || !camera) return null;
+  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
   if (!diceSet.length) return null;
   const boardLookTarget = board.boardLookTarget;
@@ -1704,6 +1736,7 @@ function computeDiceCameraFocusState(board, camera) {
 
 function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!board || !camera) return null;
+  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return null;
   const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
@@ -3574,18 +3607,35 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.035;
     const baseLift = LADDER_BASE_LIFT;
     const laneVector = rightBase.clone().multiplyScalar(laneSideOffset).addScaledVector(up, laneLift);
-    const startPoint = A.clone().addScaledVector(up, baseLift).add(laneVector);
-    const endPoint = B.clone().addScaledVector(up, baseLift).add(laneVector);
-    const centerPoints = [startPoint, endPoint];
-    const centerCurve = new THREE.CatmullRomCurve3(centerPoints);
+    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.78);
+    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.78);
+    const arcHeight = Math.max(
+      LADDER_CLEARANCE,
+      LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE + laneConfig.lane * TILE_SIZE * 0.06
+    );
+    const sway = (LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE) * laneConfig.direction;
+    const oneThird = startPoint.clone().lerp(endPoint, 0.34);
+    const twoThird = startPoint.clone().lerp(endPoint, 0.66);
+    oneThird.y += arcHeight * LADDER_INNER_LIFT_RATIO;
+    twoThird.y += arcHeight * LADDER_OUTER_LIFT_RATIO;
+    oneThird.addScaledVector(rightBase, sway * 0.9);
+    twoThird.addScaledVector(rightBase, -sway * 0.7);
+    const centerCurve = new THREE.CatmullRomCurve3([startPoint, oneThird, twoThird, endPoint]);
+    centerCurve.curveType = 'centripetal';
     const leftCurve = new THREE.CatmullRomCurve3([
       startPoint.clone().addScaledVector(rightBase, -railOffset),
+      oneThird.clone().addScaledVector(rightBase, -railOffset),
+      twoThird.clone().addScaledVector(rightBase, -railOffset),
       endPoint.clone().addScaledVector(rightBase, -railOffset)
     ]);
+    leftCurve.curveType = 'centripetal';
     const rightCurve = new THREE.CatmullRomCurve3([
       startPoint.clone().addScaledVector(rightBase, railOffset),
+      oneThird.clone().addScaledVector(rightBase, railOffset),
+      twoThird.clone().addScaledVector(rightBase, railOffset),
       endPoint.clone().addScaledVector(rightBase, railOffset)
     ]);
+    rightCurve.curveType = 'centripetal';
 
     const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
     const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
@@ -3676,9 +3726,28 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const laneLift = laneConfig.lane * TILE_SIZE * 0.06;
     const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.032;
     const laneVector = right.clone().multiplyScalar(laneSideOffset).add(new THREE.Vector3(0, laneLift, 0));
-    const startPoint = baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector);
-    const endPoint = baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector);
-    const fullCurve = new THREE.CatmullRomCurve3([startPoint, endPoint]);
+    const startPoint = pullPointTowardCenter(
+      baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
+      TILE_EDGE_INSET * 0.74
+    );
+    const endPoint = pullPointTowardCenter(
+      baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
+      TILE_EDGE_INSET * 0.74
+    );
+    const pathLen = startPoint.distanceTo(endPoint);
+    const arch = Math.max(SNAKE_CURVE_CLEARANCE, SNAKE_ARCH_BASE + pathLen * SNAKE_ARCH_SCALE);
+    const lateral = (SNAKE_LATERAL_BASE + pathLen * SNAKE_LATERAL_SCALE) * laneConfig.direction;
+    const controlA = startPoint.clone().lerp(endPoint, 0.26);
+    const controlB = startPoint.clone().lerp(endPoint, 0.52);
+    const controlC = startPoint.clone().lerp(endPoint, 0.78);
+    controlA.y += arch * SNAKE_NECK_LIFT_RATIO;
+    controlB.y += arch;
+    controlC.y += arch * SNAKE_TAIL_LIFT_RATIO;
+    controlA.addScaledVector(right, lateral * 1.1);
+    controlB.addScaledVector(right, -lateral * 0.7);
+    controlC.addScaledVector(right, lateral * 0.55);
+    const fullCurve = new THREE.CatmullRomCurve3([startPoint, controlA, controlB, controlC, endPoint]);
+    fullCurve.curveType = 'centripetal';
 
     const bodyRadius = TILE_SIZE * 0.072;
     const mainCurve = sampleSubCurve(fullCurve, 0.03, 0.8, 18);

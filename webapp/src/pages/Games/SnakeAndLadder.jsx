@@ -340,12 +340,12 @@ function resolveAiTokenShapes(options, count) {
 }
 
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '88%' },
+  { left: '50%', top: '92%' },
   { left: '78%', top: '54%' },
   { left: '48%', top: '22%' },
   { left: '22%', top: '55%' }
 ];
-const SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT = 8.8;
+const SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT = 12.4;
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
 
