@@ -46,7 +46,6 @@ import {
 } from '../../utils/textToSpeech.js';
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
-import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -972,7 +971,7 @@ function buildClassicOctagonAngles(count) {
   return angles;
 }
 
-function normalizeAppearance(value = {}, hdriOptionCount = TEXAS_HDRI_OPTIONS.length) {
+function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['tableFinish', TEXAS_TABLE_FINISH_OPTIONS.length],
@@ -982,7 +981,7 @@ function normalizeAppearance(value = {}, hdriOptionCount = TEXAS_HDRI_OPTIONS.le
     ['tableTheme', TEXAS_TABLE_THEME_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
-    ['environmentHdri', hdriOptionCount]
+    ['environmentHdri', TEXAS_HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -3145,30 +3144,6 @@ function TexasHoldemArena({ search }) {
     () => getTexasHoldemInventory(resolvedAccountId),
     [resolvedAccountId, inventoryVersion]
   );
-  const texasHdriOptions = useMemo(() => {
-    const customVariants = getCustomHdriVariantsForGame(
-      'texasholdem',
-      resolvedAccountId,
-      texasInventory?.environmentHdri
-    );
-    if (!customVariants.length) {
-      return TEXAS_HDRI_OPTIONS;
-    }
-    const seen = new Set(TEXAS_HDRI_OPTIONS.map((variant) => variant?.id).filter(Boolean));
-    const uniqueCustom = customVariants
-      .filter((variant) => {
-        if (!variant?.id || seen.has(variant.id)) return false;
-        seen.add(variant.id);
-        return true;
-      })
-      .map((variant) => ({
-        ...variant,
-        label:
-          variant?.label ||
-          `${variant?.name || 'Custom'} HDRI`
-      }));
-    return uniqueCustom.length ? [...TEXAS_HDRI_OPTIONS, ...uniqueCustom] : TEXAS_HDRI_OPTIONS;
-  }, [resolvedAccountId, texasInventory]);
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(searchOptions);
     const baseState = buildInitialState(players, searchOptions.token, searchOptions.stake);
@@ -3254,7 +3229,7 @@ function TexasHoldemArena({ search }) {
       const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
       if (!stored) return { ...DEFAULT_APPEARANCE };
       const parsed = JSON.parse(stored);
-      return normalizeAppearance(parsed, texasHdriOptions.length);
+      return normalizeAppearance(parsed);
     } catch (error) {
       console.warn('Failed to load Texas Hold\'em appearance', error);
       return { ...DEFAULT_APPEARANCE };
@@ -3262,14 +3237,14 @@ function TexasHoldemArena({ search }) {
   });
   const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
-  const hdriVariantRef = useRef(texasHdriOptions[TEXAS_DEFAULT_HDRI_INDEX] ?? texasHdriOptions[0] ?? null);
+  const hdriVariantRef = useRef(TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0] ?? null);
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
   const hdriApplyRequestRef = useRef(0);
   const hdriFallbackRetryCountRef = useRef(0);
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
-      const normalized = normalizeAppearance(value, texasHdriOptions.length);
+      const normalized = normalizeAppearance(value);
       const map = {
         tableFinish: TEXAS_TABLE_FINISH_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
@@ -3278,7 +3253,7 @@ function TexasHoldemArena({ search }) {
         tableTheme: TEXAS_TABLE_THEME_OPTIONS,
         tableShape: TABLE_SHAPE_OPTIONS,
         cards: CARD_THEMES,
-        environmentHdri: texasHdriOptions
+        environmentHdri: TEXAS_HDRI_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -3296,7 +3271,7 @@ function TexasHoldemArena({ search }) {
       });
       return changed ? next : normalized;
     },
-    [texasHdriOptions, texasInventory]
+    [texasInventory]
   );
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -3319,7 +3294,7 @@ function TexasHoldemArena({ search }) {
     () =>
       CUSTOMIZATION_SECTIONS.map((section) => ({
         ...section,
-        options: (section.key === 'environmentHdri' ? texasHdriOptions : section.options)
+        options: section.options
           .map((option, idx) => ({ ...option, idx }))
           .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
       }))
@@ -3329,7 +3304,7 @@ function TexasHoldemArena({ search }) {
           const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
           return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id);
         }),
-    [appearance.tableTheme, texasHdriOptions, texasInventory]
+    [appearance.tableTheme, texasInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -3451,15 +3426,8 @@ function TexasHoldemArena({ search }) {
         setInventoryVersion((value) => value + 1);
       }
     };
-    const handleCustomHdriUpdate = () => {
-      setInventoryVersion((value) => value + 1);
-    };
     window.addEventListener('texasHoldemInventoryUpdate', handler);
-    window.addEventListener('customHdriCatalogUpdate', handleCustomHdriUpdate);
-    return () => {
-      window.removeEventListener('texasHoldemInventoryUpdate', handler);
-      window.removeEventListener('customHdriCatalogUpdate', handleCustomHdriUpdate);
-    };
+    return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
   }, [resolvedAccountId]);
 
   useEffect(() => {
@@ -4093,7 +4061,7 @@ function TexasHoldemArena({ search }) {
     }
     const three = threeRef.current;
     if (!three) return;
-    const normalized = normalizeAppearance(appearance, texasHdriOptions.length);
+    const normalized = normalizeAppearance(appearance);
     const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
     const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const woodOption = resolveEffectiveWoodOption({
@@ -4105,9 +4073,9 @@ function TexasHoldemArena({ search }) {
     const chairOption = TEXAS_CHAIR_THEME_OPTIONS[safe.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
     const environmentOption =
       withHdriResolutionPreferences(
-        texasHdriOptions[safe.environmentHdri] ??
-          texasHdriOptions[TEXAS_DEFAULT_HDRI_INDEX] ??
-          texasHdriOptions[0],
+        TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
+          TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
+          TEXAS_HDRI_OPTIONS[0],
         preferredHdriResolutionsRef.current,
         hdriResolutionProfile.fallbackResolution
       );
@@ -4290,7 +4258,7 @@ function TexasHoldemArena({ search }) {
     ) {
       void applyHdriEnvironment(environmentOption);
     }
-  }, [appearance, effectivePlayerCount, hdriResolutionId, texasHdriOptions]);
+  }, [appearance, effectivePlayerCount, hdriResolutionId]);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
@@ -4501,7 +4469,7 @@ function TexasHoldemArena({ search }) {
   }, [applyRendererQuality, frameQualityProfile]);
 
   const applyHdriEnvironment = useCallback(
-    async (variantConfig = hdriVariantRef.current || texasHdriOptions[TEXAS_DEFAULT_HDRI_INDEX] || texasHdriOptions[0]) => {
+    async (variantConfig = hdriVariantRef.current || TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] || TEXAS_HDRI_OPTIONS[0]) => {
       const three = threeRef.current;
       if (!three?.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current;
@@ -4574,7 +4542,7 @@ function TexasHoldemArena({ search }) {
       hdriVariantRef.current = activeVariant;
       loadedHdriResolutionIdRef.current = usedFallbackEnvironment ? null : currentHdriResolutionId;
     },
-    [hdriResolutionId, texasHdriOptions]
+    [hdriResolutionId]
   );
 
   useEffect(() => {
@@ -4611,13 +4579,13 @@ function TexasHoldemArena({ search }) {
     rim.position.set(-4, 3, -4);
     scene.add(rim);
 
-    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current, texasHdriOptions.length);
+    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
     const initialEnvironment =
       withHdriResolutionPreferences(
-        texasHdriOptions[initialAppearance.environmentHdri] ??
-          texasHdriOptions[TEXAS_DEFAULT_HDRI_INDEX] ??
-          texasHdriOptions[0],
+        TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
+          TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
+          TEXAS_HDRI_OPTIONS[0],
         preferredHdriResolutionsRef.current,
         hdriResolutionProfile.fallbackResolution
       );
