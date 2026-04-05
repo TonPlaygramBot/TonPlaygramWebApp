@@ -723,7 +723,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalk',
     name: 'LT Black Finish',
     price: 1160,
-    description: 'Solid black molded-plastic finish with no wood grain texture.',
+    description: 'Black LT carbon-fiber weave finish with deep matte highlights.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
@@ -732,7 +732,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkGrey',
     name: 'LT Grey Finish',
     price: 1170,
-    description: 'Solid grey molded-plastic finish with no wood grain texture.',
+    description: 'Grey LT carbon-fiber weave finish with neutral satin contrast.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
   },
   {
@@ -741,7 +741,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkBeige',
     name: 'LT Dark Grey Finish',
     price: 1180,
-    description: 'Solid dark-grey molded-plastic finish with no wood grain texture.',
+    description: 'Dark-grey LT carbon-fiber weave finish with stronger depth.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
   },
   {
@@ -750,7 +750,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkBlue',
     name: 'LT Burgundy Finish',
     price: 1190,
-    description: 'Solid burgundy molded-plastic finish with no wood grain texture.',
+    description: 'Burgundy LT carbon-fiber weave finish with rich warm accents.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
   },
   {
@@ -759,7 +759,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkWhite',
     name: 'LT Milk Cream Finish',
     price: 1200,
-    description: 'Solid milk-cream molded-plastic finish with no wood grain texture.',
+    description: 'Milk-cream LT carbon-fiber weave finish with soft bright tones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
   },
   {

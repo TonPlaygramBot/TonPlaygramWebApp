@@ -1148,7 +1148,6 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
-const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
@@ -2476,7 +2475,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
-let CARBON_FIBER_TILE_TEXTURE = null;
+const CARBON_FIBER_TILE_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2527,11 +2526,28 @@ function getCarbonFiberPatternCanvas() {
   return CARBON_FIBER_TILE_CANVAS;
 }
 
-function getCarbonFiberTileTexture() {
-  if (CARBON_FIBER_TILE_TEXTURE) return CARBON_FIBER_TILE_TEXTURE;
+function getCarbonFiberTileTexture(tintHex = 0x0c0f14) {
+  const tintColor = new THREE.Color(tintHex);
+  const tintKey = tintColor.getHexString();
+  if (CARBON_FIBER_TILE_TEXTURES.has(tintKey)) {
+    return CARBON_FIBER_TILE_TEXTURES.get(tintKey);
+  }
   const canvas = getCarbonFiberPatternCanvas();
   if (!canvas) return null;
-  const texture = new THREE.CanvasTexture(canvas);
+  const tintedCanvas = document.createElement('canvas');
+  tintedCanvas.width = canvas.width;
+  tintedCanvas.height = canvas.height;
+  const tintedCtx = tintedCanvas.getContext('2d');
+  if (!tintedCtx) return null;
+  tintedCtx.drawImage(canvas, 0, 0);
+  tintedCtx.globalCompositeOperation = 'multiply';
+  tintedCtx.fillStyle = `#${tintKey}`;
+  tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
+  tintedCtx.globalCompositeOperation = 'screen';
+  tintedCtx.fillStyle = 'rgba(255,255,255,0.08)';
+  tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
+  tintedCtx.globalCompositeOperation = 'source-over';
+  const texture = new THREE.CanvasTexture(tintedCanvas);
   applySRGBColorSpace(texture);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -2541,13 +2557,13 @@ function getCarbonFiberTileTexture() {
   texture.magFilter = THREE.LinearFilter;
   texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
   texture.needsUpdate = true;
-  CARBON_FIBER_TILE_TEXTURE = texture;
-  return CARBON_FIBER_TILE_TEXTURE;
+  CARBON_FIBER_TILE_TEXTURES.set(tintKey, texture);
+  return texture;
 }
 
 function applyLtCarbonFiberTexture(material) {
   if (!material) return;
-  const carbonTexture = getCarbonFiberTileTexture();
+  const carbonTexture = getCarbonFiberTileTexture(material.color?.getHex?.() ?? 0x0c0f14);
   if (!carbonTexture) return;
   material.map = carbonTexture;
   material.normalMap = null;
@@ -12847,14 +12863,7 @@ function PoolRoyaleGame({
     );
   });
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-  const [skipAllReplays, setSkipAllReplays] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return !POOL_ROYALE_REPLAY_ENABLED;
-  });
+  const [skipAllReplays] = useState(true);
   const [commentaryPresetId, setCommentaryPresetId] = useState(DEFAULT_COMMENTARY_PRESET_ID);
   const [commentaryMuted, setCommentaryMuted] = useState(!POOL_ROYALE_VOICE_COMMENTARY_ENABLED);
   const skipReplayRef = useRef(() => {});
@@ -32599,32 +32608,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replays
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSkipAllReplays((prev) => !prev)}
-                  aria-pressed={skipAllReplays}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    skipAllReplays
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span>Skip all replays</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      skipAllReplays
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {skipAllReplays ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
