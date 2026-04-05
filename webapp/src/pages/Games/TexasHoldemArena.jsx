@@ -267,8 +267,10 @@ const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
-const MAX_PLAYER_COUNT = 6;
+const MAX_PLAYER_COUNT = 8;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
+const CLASSIC_OCTAGON_SHAPE_ID = 'classicOctagon';
+const HEXAGON_SHAPE_ID = 'hexagonTable';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
@@ -813,14 +815,34 @@ const CUSTOMIZATION_SECTIONS = [
 const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable', 'hexagonTable']);
 const TABLE_STYLE_MENU_SHAPE_IDS = new Set(['classicOctagon', 'grandOval', 'diamondEdge', 'hexagonTable']);
 
+const HEXAGON_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === HEXAGON_SHAPE_ID);
+  return index >= 0 ? index : 0;
+})();
+
+const CLASSIC_OCTAGON_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === CLASSIC_OCTAGON_SHAPE_ID);
+  return index >= 0 ? index : 0;
+})();
+
 const NON_DIAMOND_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
   return index >= 0 ? index : 0;
 })();
 
+DEFAULT_APPEARANCE.tableShape = HEXAGON_SHAPE_INDEX;
+
 function enforceShapeForPlayers(appearance, playerCount) {
   const safe = { ...appearance };
   const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
+  if (playerCount >= MAX_PLAYER_COUNT) {
+    safe.tableShape = CLASSIC_OCTAGON_SHAPE_INDEX;
+    return safe;
+  }
+  if (shapeOption?.id === CLASSIC_OCTAGON_SHAPE_ID) {
+    safe.tableShape = HEXAGON_SHAPE_INDEX;
+    return safe;
+  }
   if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
     safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
   }
@@ -830,6 +852,14 @@ function enforceShapeForPlayers(appearance, playerCount) {
 function getEffectiveShapeConfig(shapeIndex, playerCount) {
   const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
   const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
+  if (playerCount >= MAX_PLAYER_COUNT) {
+    const octagon = TABLE_SHAPE_OPTIONS[CLASSIC_OCTAGON_SHAPE_INDEX] ?? fallback;
+    return { option: octagon, rotationY: 0, forced: requested?.id !== octagon?.id };
+  }
+  if (requested?.id === CLASSIC_OCTAGON_SHAPE_ID) {
+    const hexagon = TABLE_SHAPE_OPTIONS[HEXAGON_SHAPE_INDEX] ?? fallback;
+    return { option: hexagon, rotationY: 0, forced: true };
+  }
   if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
     return { option: fallback, rotationY: 0, forced: true };
   }
@@ -956,21 +986,46 @@ function buildClassicOctagonAngles(count) {
     (7 * Math.PI) / 8,
     (5 * Math.PI) / 8
   ];
-  // Skip the two slots that sit immediately to the human player's left and right
-  // so opponents remain on the flat edges in front of the user.
-  const preferredSlots = [0, 2, 3, 4, 5, 6];
+  // Keep existing slot order for 6-handed tables and append the two seats
+  // next to the human player for 7-8 handed tables.
+  const preferredSlots = [0, 2, 3, 4, 5, 6, 1, 7];
+  const fallbackAngleStep = (Math.PI * 2) / Math.max(safeCount, 1);
   const angles = [];
   for (let i = 0; i < safeCount; i += 1) {
     const slotIndex = preferredSlots[i];
     if (slotIndex == null) {
-      const fallbackAngle =
-        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+      const fallbackAngle = slotAngles[0] - i * fallbackAngleStep;
       angles.push(fallbackAngle);
     } else {
       angles.push(slotAngles[slotIndex]);
     }
   }
   return angles;
+}
+
+function buildHexagonSeatAngles(count) {
+  if (!Number.isFinite(count) || count <= 0) {
+    return [];
+  }
+  const safeCount = Math.max(1, Math.floor(count));
+  const sideCenterAngles = [
+    -Math.PI / 2,
+    -Math.PI / 6,
+    Math.PI / 6,
+    Math.PI / 2,
+    (5 * Math.PI) / 6,
+    (-5 * Math.PI) / 6
+  ];
+  if (safeCount <= sideCenterAngles.length) {
+    return sideCenterAngles.slice(0, safeCount);
+  }
+  const extraCount = safeCount - sideCenterAngles.length;
+  const extras = [];
+  for (let i = 0; i < extraCount; i += 1) {
+    const t = (i + 1) / (extraCount + 1);
+    extras.push(THREE.MathUtils.lerp(Math.PI / 2, (5 * Math.PI) / 6, t));
+  }
+  return [...sideCenterAngles.slice(0, 4), ...extras, ...sideCenterAngles.slice(4)];
 }
 
 function normalizeAppearance(value = {}) {
@@ -2025,12 +2080,14 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
+  const hexagonAngles =
+    tableInfo?.shapeId === HEXAGON_SHAPE_ID ? buildHexagonSeatAngles(safeCount) : null;
   const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
     ? 0
     : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
-    const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
+    const angle = classicAngles?.[i] ?? hexagonAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const isBottomSideOpponent = !isHuman && (i === 1 || i === safeCount - 1);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -6608,7 +6665,12 @@ function TexasHoldemArena({ search }) {
                       {options.map((option) => {
                         const selected = appearance[key] === option.idx;
                         const disabled =
-                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
+                          key === 'tableShape' &&
+                          (
+                            (option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4) ||
+                            (option.id === CLASSIC_OCTAGON_SHAPE_ID && effectivePlayerCount < MAX_PLAYER_COUNT) ||
+                            (option.id !== CLASSIC_OCTAGON_SHAPE_ID && effectivePlayerCount >= MAX_PLAYER_COUNT)
+                          );
                         return (
                           <button
                             key={option.id}
