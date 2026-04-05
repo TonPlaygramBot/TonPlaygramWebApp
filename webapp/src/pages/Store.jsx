@@ -116,7 +116,6 @@ import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_HOLDEM_STORE_ITEMS
 } from '../config/texasHoldemInventoryConfig.js';
-import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -186,51 +185,6 @@ const CHESS_TYPE_LABELS = {
   headStyle: 'Pawn Heads',
   environmentHdri: 'HDR Environments'
 };
-const CHECKERS_TYPE_LABELS = {
-  ...CHESS_TYPE_LABELS,
-  tableCloth: 'Table Cloth'
-};
-const CHECKERS_TABLE_OPTIONS = Object.freeze([
-  { id: 'murlan-default', label: 'Octagon Table' },
-  { id: 'ovalTable', label: 'Oval Table' },
-  { id: 'diamondEdge', label: 'Diamond Edge Table' },
-  { id: 'hexagonTable', label: 'Hexagon Table' }
-]);
-const CHECKERS_OPTION_LABELS = Object.freeze({
-  ...CHESS_BATTLE_OPTION_LABELS,
-  tables: Object.freeze(
-    CHECKERS_TABLE_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, { ...CHESS_BATTLE_OPTION_LABELS.tables })
-  ),
-  tableCloth: Object.freeze(
-    TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  )
-});
-const CHECKERS_BATTLE_STORE_ITEMS = Object.freeze([
-  ...CHESS_BATTLE_STORE_ITEMS,
-  ...CHECKERS_TABLE_OPTIONS.slice(1).map((option, idx) => ({
-    id: `checkers-table-${option.id}`,
-    type: 'tables',
-    optionId: option.id,
-    name: option.label,
-    price: 980 + idx * 45,
-    description: `${option.label} layout for Checkers Battle Royal.`
-  })),
-  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
-    id: `checkers-cloth-${option.id}`,
-    type: 'tableCloth',
-    optionId: option.id,
-    name: option.label,
-    price: 360 + idx * 35,
-    description: 'Use Texas Holdem table cloth styles in Checkers Battle Royal.',
-    thumbnail: option.thumbnail
-  }))
-]);
 const TAVULL_TYPE_LABELS = {
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
@@ -1043,10 +997,10 @@ const storeMeta = {
   },
   checkersbattleroyal: {
     name: 'Checkers Battle Royal',
-    items: CHECKERS_BATTLE_STORE_ITEMS,
+    items: CHESS_BATTLE_STORE_ITEMS,
     defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
-    labels: CHECKERS_OPTION_LABELS,
-    typeLabels: CHECKERS_TYPE_LABELS,
+    labels: CHESS_BATTLE_OPTION_LABELS,
+    typeLabels: CHESS_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
   fourinrowroyale: {
@@ -1659,7 +1613,7 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'chessbattleroyal'
       })),
-      checkersbattleroyal: CHECKERS_BATTLE_STORE_ITEMS.map((item) => ({
+      checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'checkersbattleroyal'
@@ -1756,7 +1710,7 @@ export default function Store() {
       chessbattleroyal: (item) =>
         CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) =>
-        CHECKERS_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+        CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       fourinrowroyale: (item) =>
         FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] ||
         item.name,
@@ -1781,7 +1735,7 @@ export default function Store() {
       poolroyale: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
-      checkersbattleroyal: CHECKERS_TYPE_LABELS,
+      checkersbattleroyal: CHESS_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
       tavullbattleroyal: TAVULL_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
