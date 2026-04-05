@@ -248,17 +248,14 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-const CAMERA_EXTRA_LIFT = 0.28;
+const CAMERA_EXTRA_LIFT = 0.12;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.78,
-  forwardOffset: 0.72,
-  heightOffset: 1.28,
+  backOffset: 0.82,
+  forwardOffset: 0.6,
+  heightOffset: 1.1,
   targetLift: 0.06 * MODEL_SCALE
 });
-const CAMERA_HEAD_YAW_LIMIT = THREE.MathUtils.degToRad(42);
-const CAMERA_HEAD_PITCH_DOWN_LIMIT = THREE.MathUtils.degToRad(38);
-const CAMERA_HEAD_PITCH_UP_LIMIT = THREE.MathUtils.degToRad(78);
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -2526,30 +2523,6 @@ function createJumpLaneResolver(entries = []) {
   return (start) => laneByStart.get(start) ?? { lane: 0, direction: 1 };
 }
 
-function createJumpPathResolver(entries = []) {
-  const sorted = [...entries].sort((a, b) => {
-    const spanA = Math.abs(a[0] - a[1]);
-    const spanB = Math.abs(b[0] - b[1]);
-    return spanB - spanA;
-  });
-  const ranges = [];
-  const byStart = new Map();
-  sorted.forEach(([start, end]) => {
-    const minTile = Math.min(start, end);
-    const maxTile = Math.max(start, end);
-    let lane = 0;
-    while (
-      ranges.some((range) => range.lane === lane && !(maxTile < range.minTile || minTile > range.maxTile))
-    ) {
-      lane += 1;
-    }
-    const direction = lane % 2 === 0 ? 1 : -1;
-    ranges.push({ lane, minTile, maxTile });
-    byStart.set(start, { lane, direction });
-  });
-  return (start) => byStart.get(start) ?? { lane: 0, direction: 1 };
-}
-
 function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
   const arenaTheme = appearanceOptions.arena ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
@@ -2685,25 +2658,25 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = true;
+  controls.enableZoom = false;
   controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
-  controls.enableRotate = true;
-  controls.rotateSpeed = 0.72;
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.enableRotate = false;
+  controls.rotateSpeed = 0;
+  controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE };
   controls.mouseButtons = {
     LEFT: null,
     MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: null
   };
   const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-  controls.minDistance = clamp(initialCameraRadius * 0.8, CAM.minR * 0.82, CAM.maxR);
-  controls.maxDistance = clamp(initialCameraRadius * 1.28, CAM.minR, CAM.maxR * 1.12);
-  controls.minPolarAngle = CAMERA_HEAD_PITCH_DOWN_LIMIT;
-  controls.maxPolarAngle = CAMERA_HEAD_PITCH_UP_LIMIT;
+  controls.minDistance = initialCameraRadius;
+  controls.maxDistance = initialCameraRadius;
+  controls.minPolarAngle = CAM.phiMin;
+  controls.maxPolarAngle = CAM.phiMax;
   controls.target.copy(boardLookTarget);
   const initialAzimuth = controls.getAzimuthalAngle();
-  controls.minAzimuthAngle = initialAzimuth - CAMERA_HEAD_YAW_LIMIT;
-  controls.maxAzimuthAngle = initialAzimuth + CAMERA_HEAD_YAW_LIMIT;
+  controls.minAzimuthAngle = initialAzimuth;
+  controls.maxAzimuthAngle = initialAzimuth;
   controls.update();
   const startCameraState = {
     position: camera.position.clone(),
@@ -2724,8 +2697,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-    controls.minDistance = clamp(radius * 0.8, CAM.minR * 0.82, CAM.maxR);
-    controls.maxDistance = clamp(radius * 1.28, CAM.minR, CAM.maxR * 1.12);
+    controls.minDistance = radius;
+    controls.maxDistance = radius;
     controls.update();
   };
 
@@ -2848,6 +2821,7 @@ function buildSnakeBoard(
   boardRotationRoot.add(tileGroup);
 
   const boardTheme = appearanceOptions.board ?? {};
+  const railTheme = appearanceOptions.rail ?? {};
   const snakeTheme = appearanceOptions.snakeSkin ?? {};
   const diceTheme = appearanceOptions.dice ?? {};
   const highlightColors = createHighlightColors(boardTheme);
@@ -2862,6 +2836,7 @@ function buildSnakeBoard(
   boardRotationRoot.add(labelGroup);
 
   const platformMeshes = [];
+  const railingInfos = [];
   const addLayer = (sizeX, sizeY, sizeZ, y, color) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
@@ -2952,6 +2927,58 @@ function buildSnakeBoard(
     { tileTopY: 0.88 * preciseBoardScale + tileHeight },
     { tileTopY: 1.66 * preciseBoardScale + tileHeight }
   ];
+  railingInfos.push(
+    {
+      halfSize: Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ),
+      topY: -0.15 * preciseBoardScale,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: 0,
+      levelIndex: 0
+    },
+    {
+      halfSize: Math.max(levelDimensions[1].halfX, levelDimensions[1].halfZ),
+      topY: 0.07 * preciseBoardScale,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: 0,
+      levelIndex: 1
+    },
+    {
+      halfSize: Math.max(levelDimensions[2].halfX, levelDimensions[2].halfZ),
+      topY: 0.88 * preciseBoardScale,
+      gapWidth: RAIL_GAP_WIDTH,
+      walkwayCenter: 0,
+      levelIndex: 2
+    }
+  );
+
+  railingInfos.forEach(({ halfSize, topY, gapWidth, walkwayCenter, levelIndex }) => {
+    const startIndex = LEVEL_START_INDICES[levelIndex] ?? 1;
+    const startPos = indexToPosition.get(startIndex);
+    const entryConfig = getRailingEntryConfig(levelIndex, indexToPosition);
+    let gapCenter;
+    if (entryConfig.center != null) {
+      gapCenter = entryConfig.center;
+    } else if (startPos) {
+      gapCenter = entryConfig.axis === 'z' ? startPos.z : startPos.x;
+    } else {
+      gapCenter = entryConfig.axis === 'z' ? 0 : walkwayCenter;
+    }
+    addChromeRailings(
+      platformGroup,
+      {
+        halfSize,
+        topY,
+        railHeight: RAIL_HEIGHT,
+        gapWidth,
+        gapCenter,
+        entrySide: entryConfig.side,
+        addNet: levelIndex > 0
+      },
+      platformMeshes,
+      railTheme
+    );
+  });
+
   const baseHalf = Math.max(levelDimensions[0].halfX, levelDimensions[0].halfZ);
   const baseStart = new THREE.Vector3(
     -baseHalf - TILE_SIZE * 0.8,
@@ -3469,7 +3496,7 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
   group.userData.paths = new Map();
 
   const ladderEntries = parseJumpMap(ladders).filter(([a, b]) => b > a);
-  const resolveLadderLane = createJumpPathResolver(ladderEntries);
+  const resolveLadderLane = createJumpLaneResolver(ladderEntries);
   ladderEntries.forEach(([start, end]) => {
     const laneConfig = resolveLadderLane(start);
     const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
@@ -3489,10 +3516,10 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     const baseLift = LADDER_BASE_LIFT;
     const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
     const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
-    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.18;
+    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.1;
 
-    const startPoint = A.clone().addScaledVector(up, baseLift);
-    const endPoint = B.clone().addScaledVector(up, baseLift);
+    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift));
+    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift));
     const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
     const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
     const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
@@ -3617,7 +3644,7 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
   });
 
   const entries = parseJumpMap(snakes).filter(([a, b]) => b < a);
-  const resolveSnakeLane = createJumpPathResolver(entries);
+  const resolveSnakeLane = createJumpLaneResolver(entries);
 
   group.userData.paths = new Map();
 
@@ -3625,8 +3652,8 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const laneConfig = resolveSnakeLane(start);
     const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
     const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
-    const startPoint = baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0));
-    const endPoint = baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0));
+    const startPoint = pullPointTowardCenter(baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
+    const endPoint = pullPointTowardCenter(baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)), TILE_EDGE_INSET * 0.8);
     const length = Math.abs(start - end);
     const archHeight = Math.min(TILE_SIZE * 0.9, SNAKE_ARCH_BASE + length * SNAKE_ARCH_SCALE);
     const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight + SNAKE_CURVE_CLEARANCE, 0));
@@ -3637,8 +3664,8 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
       lateral.normalize();
     }
     const lateralAmount =
-      Math.min(TILE_SIZE * 0.26, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE) +
-      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.12;
+      Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE) +
+      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.06;
     const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
     const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
     const neckPoint = startPoint
