@@ -184,7 +184,7 @@ const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 3400;
 const AI_EXTRA_ROLL_DELAY_MS = 2600;
-const TURN_ADVANCE_AFTER_DICE_MS = 1400;
+const TURN_ADVANCE_AFTER_DICE_MS = 2000;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -3150,10 +3150,11 @@ export default function SnakeAndLadder() {
   const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
+  const rollReady = hasLocalExtraRoll || rollCooldown === 0;
   const canRoll =
     isMyTurnForRoll &&
     !moving &&
-    rollCooldown === 0 &&
+    rollReady &&
     !gameOver &&
     !waitingForPlayers &&
     !playerAutoRolling &&
