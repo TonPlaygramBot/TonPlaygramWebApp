@@ -445,7 +445,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return isMobileDevice ? '4k' : '8k';
+      return '8k';
     case 'qhd90':
       return '4k';
     case 'fhd60':
@@ -935,7 +935,8 @@ scene.background = null;
 const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
-const MODEL_SCALE = 0.75;
+const MODEL_SCALE = 0.7;
+const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
 const TABLE_RADIUS_SCALE = 0.8835;
 const TABLE_HEIGHT_SCALE = 0.95;
 const ARENA_GROWTH = 1.45;
@@ -998,9 +999,18 @@ const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
-const CAMERA_LATERAL_OFFSET = { portrait: 0, landscape: 0 };
-const CAMERA_REAR_OFFSET = { portrait: 1.14, landscape: 0.68 };
-const CAMERA_HEIGHT_BOOST = { portrait: 1.86, landscape: 1.08 };
+const CAMERA_LATERAL_OFFSET = {
+  portrait: 0 * CAMERA_LAYOUT_SCALE,
+  landscape: 0 * CAMERA_LAYOUT_SCALE
+};
+const CAMERA_REAR_OFFSET = {
+  portrait: 1.14 * CAMERA_LAYOUT_SCALE,
+  landscape: 0.68 * CAMERA_LAYOUT_SCALE
+};
+const CAMERA_HEIGHT_BOOST = {
+  portrait: 1.86 * CAMERA_LAYOUT_SCALE,
+  landscape: 1.08 * CAMERA_LAYOUT_SCALE
+};
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
@@ -4046,9 +4056,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
 
 function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 60) {
   if (qualityId === 'uhd120') {
-    return isMobileDevice
-      ? Object.freeze({ preferredResolutions: Object.freeze(['2k']) })
-      : Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
+    return Object.freeze({ preferredResolutions: Object.freeze(['4k']) });
   }
   if (qualityId === 'qhd90' || fps >= 90) {
     return Object.freeze({ preferredResolutions: Object.freeze(['2k']) });
