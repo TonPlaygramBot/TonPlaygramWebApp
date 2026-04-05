@@ -5769,6 +5769,8 @@ const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
+const REPLAY_EVENT_STEP_MS = 900;
+const REPLAY_EVENT_BUFFER_MS = 480;
 const REMATCH_DECISION_MS = 15000;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
@@ -14737,6 +14739,7 @@ function PoolRoyaleGame({
   const trainingPenaltyPopupTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
+  const replayEventTimeoutsRef = useRef([]);
   const waitForActiveReplay = useCallback(
     (timeoutMs = 8000) =>
       new Promise((resolve) => {
@@ -14773,6 +14776,10 @@ function PoolRoyaleGame({
       if (replaySlateTimeoutRef.current) {
         clearTimeout(replaySlateTimeoutRef.current);
         replaySlateTimeoutRef.current = null;
+      }
+      if (Array.isArray(replayEventTimeoutsRef.current) && replayEventTimeoutsRef.current.length) {
+        replayEventTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+        replayEventTimeoutsRef.current = [];
       }
       if (trainingPenaltyPopupTimeoutRef.current) {
         clearTimeout(trainingPenaltyPopupTimeoutRef.current);
@@ -17243,6 +17250,14 @@ const powerRef = useRef(hud.power);
 
       const recording = incomingRemoteShotRef.current;
       const hasState = Boolean(payload.state);
+      if (payload.replay && Array.isArray(payload.replay.events) && payload.replay.events.length) {
+        pendingRemoteReplayRef.current = {
+          banner: payload.replay.banner,
+          accent: payload.replay.accent,
+          events: payload.replay.events,
+          foul: payload.replay.foul ?? payload.state?.foul ?? null
+        };
+      }
       if (recording && (hasState || (payload.final && !hasLayout))) {
         recording.postState =
           payload.layout ??
@@ -22674,6 +22689,7 @@ const powerRef = useRef(hud.power);
           setReplayFoul(null);
         };
         const skipReplay = () => {
+          clearReplayEventTimers();
           if (replayBannerTimeoutRef.current) {
             clearTimeout(replayBannerTimeoutRef.current);
             replayBannerTimeoutRef.current = null;
@@ -22684,6 +22700,8 @@ const powerRef = useRef(hud.power);
           }
           setReplayBanner(null);
           setReplaySlate(null);
+          setReplayActive(false);
+          setReplayFoul(null);
           if (replayPlaybackRef.current) {
             finishReplayPlayback(replayPlaybackRef.current);
           }
@@ -28199,26 +28217,87 @@ const powerRef = useRef(hud.power);
           return REPLAY_TRANSITION_LEAD_MS;
         };
 
+        const clearReplayEventTimers = () => {
+          if (Array.isArray(replayEventTimeoutsRef.current) && replayEventTimeoutsRef.current.length) {
+            replayEventTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+          }
+          replayEventTimeoutsRef.current = [];
+        };
+
+        const buildReplayEvents = ({ pottedBalls = [], foul = null } = {}) => {
+          const events = [];
+          pottedBalls
+            .filter((entry) => String(entry?.id || '').toLowerCase() !== 'cue')
+            .forEach((entry) => {
+              const color = String(entry?.color || entry?.id || 'Ball')
+                .replaceAll('_', ' ')
+                .toLowerCase();
+              const pocketLabel = entry?.pocket ? ` • ${entry.pocket}` : '';
+              events.push(`Potted: ${color}${pocketLabel}`);
+            });
+          if (foul) {
+            const foulReason = typeof foul?.reason === 'string' && foul.reason.trim().length
+              ? foul.reason.trim()
+              : 'foul committed';
+            events.push(`Foul: ${foulReason}`);
+          }
+          return events;
+        };
+
+        const startBroadcastReplay = ({
+          banner,
+          accent = 'default',
+          events = [],
+          foul = null
+        } = {}) => {
+          if (!events.length) return false;
+          clearReplayEventTimers();
+          setReplayActive(true);
+          setReplayFoul(foul ?? null);
+          setReplayBanner(banner || 'Replay');
+          const leadMs = triggerReplaySlate(events[0], { accent });
+          const timers = [];
+          events.slice(1).forEach((label, index) => {
+            const timeoutId = window.setTimeout(() => {
+              setReplaySlate({ label, accent, startedAt: performance.now() });
+            }, Math.max(0, leadMs + (index + 1) * REPLAY_EVENT_STEP_MS));
+            timers.push(timeoutId);
+          });
+          const totalDuration =
+            leadMs +
+            Math.max(1, events.length) * REPLAY_EVENT_STEP_MS +
+            REPLAY_EVENT_BUFFER_MS;
+          const finishId = window.setTimeout(() => {
+            setReplayActive(false);
+            setReplayFoul(null);
+            setReplayBanner(null);
+            setReplaySlate(null);
+            replayEventTimeoutsRef.current = [];
+          }, totalDuration);
+          timers.push(finishId);
+          replayEventTimeoutsRef.current = timers;
+          return true;
+        };
+
         const resolveReplayDecision = ({
-          recording,
           hadObjectPot,
           pottedBalls,
-          shotContext
+          shotContext,
+          foul
         }) => {
-          if (!recording || !hadObjectPot) return null;
-          const tags = new Set(recording.replayTags ?? []);
+          if (!hadObjectPot && !foul) return null;
+          const tags = new Set();
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
+          if (foul) tags.add('foul');
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
-          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
             shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
-            zoomOnly,
             tags: Array.from(tags),
             primaryTag: primary
           };
@@ -28231,17 +28310,17 @@ const powerRef = useRef(hud.power);
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
           let replayDecision = resolveReplayDecision({
-            recording: shotRecording,
             hadObjectPot,
             pottedBalls: potted,
-            shotContext: shotContextRef.current
+            shotContext: shotContextRef.current,
+            foul: null
           });
           let shouldStartReplay =
             !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay);
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
-          let postShotSnapshot = null;
+          let replayEvents = [];
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -28417,7 +28496,7 @@ const powerRef = useRef(hud.power);
             : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
-        if (shotWasFoul && shotRecording) {
+        if (shotWasFoul) {
           const foulBanner = 'Foul';
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28433,7 +28512,6 @@ const powerRef = useRef(hud.power);
             replayDecision = {
               shouldReplay: true,
               banner: foulBanner,
-              zoomOnly: false,
               tags: ['foul'],
               primaryTag: 'foul'
             };
@@ -28441,8 +28519,7 @@ const powerRef = useRef(hud.power);
           replayBannerText = replayDecision.banner ?? foulBanner;
           replayAccent = replayDecision.primaryTag ?? 'foul';
         }
-        const isFinalShot =
-          Boolean(safeState?.frameOver) && Boolean(shotRecording);
+        const isFinalShot = Boolean(safeState?.frameOver);
         if (isFinalShot) {
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28457,7 +28534,6 @@ const powerRef = useRef(hud.power);
             replayDecision = {
               shouldReplay: true,
               banner: selectReplayBanner('final'),
-              zoomOnly: false,
               tags: ['final'],
               primaryTag: 'final'
             };
@@ -28466,14 +28542,14 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay = !skipAllReplaysRef.current;
         }
-        if (replayDecision && shotRecording) {
-          shotRecording.replayTags = replayDecision.tags;
-          shotRecording.zoomOnly = replayDecision.zoomOnly;
-        }
+        replayEvents = buildReplayEvents({
+          pottedBalls: potted,
+          foul: safeState?.foul ?? null
+        });
         shouldStartReplay =
           !skipAllReplaysRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
-          Boolean(shotRecording);
+          replayEvents.length > 0;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -28685,9 +28761,6 @@ const powerRef = useRef(hud.power);
               removePocketDropEntry(cue.id);
               respawnCueBallForInHand({ preferCenter: !isTraining });
             }
-            if (shouldStartReplay) {
-              postShotSnapshot = captureBallSnapshot();
-            }
             const nextMeta = safeState.meta;
             if (isTraining) {
               nextInHand = cueBallPotted;
@@ -28727,7 +28800,16 @@ const powerRef = useRef(hud.power);
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout
+              layout,
+              replay:
+                shouldStartReplay && replayEvents.length
+                  ? {
+                      banner: replayBannerText,
+                      accent: replayAccent,
+                      events: replayEvents,
+                      foul: safeState?.foul ?? null
+                    }
+                  : null
             });
           }
           setShootingState(false);
@@ -28743,36 +28825,20 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (shouldStartReplay && postShotSnapshot) {
-            const recordingForReplay = shotRecording;
-            const launchReplay = () => {
-              replayBannerTimeoutRef.current = null;
-              setReplayBanner(null);
-              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
-              const beginReplay = () => {
-                shotRecording = recordingForReplay;
-                if (recordingForReplay) {
-                  startShotReplay(postShotSnapshot);
-                } else {
-                  shotReplayRef.current = null;
-                }
-                shotRecording = null;
-              };
-              if (slateLead > 0) {
-                window.setTimeout(beginReplay, slateLead);
-              } else {
-                beginReplay();
-              }
-            };
+          if (shouldStartReplay && replayEvents.length) {
             if (replayBannerTimeoutRef.current) {
               clearTimeout(replayBannerTimeoutRef.current);
               replayBannerTimeoutRef.current = null;
             }
-            setReplayBanner(replayBannerText);
-            replayBannerTimeoutRef.current = window.setTimeout(
-              launchReplay,
-              GOOD_SHOT_REPLAY_DELAY_MS
-            );
+            replayBannerTimeoutRef.current = window.setTimeout(() => {
+              replayBannerTimeoutRef.current = null;
+              startBroadcastReplay({
+                banner: replayBannerText,
+                accent: replayAccent,
+                events: replayEvents,
+                foul: safeState?.foul ?? null
+              });
+            }, GOOD_SHOT_REPLAY_DELAY_MS);
           } else {
             shotReplayRef.current = null;
             shotRecording = null;
@@ -28940,17 +29006,17 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (!skipAllReplaysRef.current) {
-            shotRecording = {
-              ...pending,
-              startTime: pending.startTime ?? nowMs,
-              startState: pending.startState ?? captureBallSnapshot(),
-              zoomOnly: pending.zoomOnly ?? false,
-              replayTags: pending.replayTags ?? ['remote']
-            };
-            shotReplayRef.current = shotRecording;
-            const postState = pending.postState ?? captureBallSnapshot();
-            startShotReplay(postState);
+          if (
+            !skipAllReplaysRef.current &&
+            Array.isArray(pending?.events) &&
+            pending.events.length
+          ) {
+            startBroadcastReplay({
+              banner: pending.banner ?? 'Replay',
+              accent: pending.accent ?? 'default',
+              events: pending.events,
+              foul: pending.foul ?? null
+            });
           }
         }
         const frameTiming = frameTimingRef.current;
