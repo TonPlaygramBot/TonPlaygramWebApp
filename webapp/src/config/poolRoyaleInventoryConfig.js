@@ -527,12 +527,8 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   carbonFiberChalk: swatchThumbnail(['#0c0f14', '#171b22', '#303844']),
   carbonFiberChalkGrey: swatchThumbnail(['#5f6774', '#7f8794', '#c5cdd9']),
   carbonFiberChalkBeige: swatchThumbnail(['#2b313a', '#414854', '#646d7a']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#6f3a2f', '#8d5546', '#b27a67']),
-  carbonFiberChalkWhite: swatchThumbnail(['#d8c8af', '#ece0cd', '#f7efdf']),
-  carbonFiberChalkDarkGreen: swatchThumbnail(['#1f3e33', '#2f5a4a', '#4c7a66']),
-  carbonFiberChalkDarkYellow: swatchThumbnail(['#6a5418', '#8f7426', '#b59a4a']),
-  carbonFiberChalkDarkBrown: swatchThumbnail(['#4a2f23', '#684235', '#8a5d4c']),
-  carbonFiberChalkDarkRed: swatchThumbnail(['#5a1f24', '#7c3037', '#a14a53'])
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#5d1a2a', '#7f2a3d', '#a34860']),
+  carbonFiberChalkWhite: swatchThumbnail(['#ebddc9', '#f8efe1', '#fff9ee'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -635,11 +631,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberChalkGrey: 'LT Grey',
     carbonFiberChalkBeige: 'LT Dark Grey',
     carbonFiberChalkDarkBlue: 'LT Burgundy',
-    carbonFiberChalkWhite: 'LT Milk Cream',
-    carbonFiberChalkDarkGreen: 'LT Dark Green',
-    carbonFiberChalkDarkYellow: 'LT Dark Yellow',
-    carbonFiberChalkDarkBrown: 'LT Dark Brown',
-    carbonFiberChalkDarkRed: 'LT Dark Red'
+    carbonFiberChalkWhite: 'LT Milk Cream'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -771,42 +763,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1200,
     description: 'Milk-cream LT carbon-fiber weave finish with soft bright tones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkGreen',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkGreen',
-    name: 'LT Dark Green Finish',
-    price: 1210,
-    description: 'Dark-green LT molded finish with deep forest undertones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkGreen
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkYellow',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkYellow',
-    name: 'LT Dark Yellow Finish',
-    price: 1220,
-    description: 'Dark-yellow LT molded finish with warm golden depth.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkYellow
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkBrown',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkBrown',
-    name: 'LT Dark Brown Finish',
-    price: 1230,
-    description: 'Dark-brown LT molded finish with cocoa-toned satin sheen.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBrown
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkRed',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkRed',
-    name: 'LT Dark Red Finish',
-    price: 1240,
-    description: 'Dark-red LT molded finish with rich ruby undertones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
   },
   {
     id: 'chrome-chrome',
