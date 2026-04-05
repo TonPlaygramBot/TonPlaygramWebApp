@@ -97,6 +97,8 @@ const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
+const CHECKERS_CAMERA_ZOOM_OUT_FACTOR = 1.07;
+const CHECKERS_CHAIR_LOWER_OFFSET = 0.06 * MODEL_SCALE;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -1852,10 +1854,14 @@ export default function CheckersBattleRoyal() {
       CHAIR_DISTANCE +
       cameraBackOffset * CHECKERS_CAMERA_FRAME_COMPENSATION -
       cameraForwardOffset;
+    const tunedCameraRadius = cameraRadius * CHECKERS_CAMERA_ZOOM_OUT_FACTOR;
+    const tunedCameraHeight =
+      TABLE_HEIGHT +
+      cameraHeightOffset * CHECKERS_CAMERA_ZOOM_OUT_FACTOR;
     camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius,
-      TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius
+      Math.cos(cameraSeatAngle) * tunedCameraRadius,
+      tunedCameraHeight,
+      Math.sin(cameraSeatAngle) * tunedCameraRadius
     );
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -2230,7 +2236,10 @@ export default function CheckersBattleRoyal() {
           });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
+          groundGroupToFloor(
+            g,
+            -CHAIR_GROUNDING_EPSILON - CHECKERS_CHAIR_LOWER_OFFSET
+          );
           scene.add(g);
           return g;
         };
@@ -2250,7 +2259,10 @@ export default function CheckersBattleRoyal() {
           const g = createProceduralChairFallback(chairColor, legColor);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
+          groundGroupToFloor(
+            g,
+            -CHAIR_GROUNDING_EPSILON - CHECKERS_CHAIR_LOWER_OFFSET
+          );
           scene.add(g);
           return g;
         };
@@ -2764,7 +2776,7 @@ export default function CheckersBattleRoyal() {
     if (viewMode === '2d') {
       camera.position.set(
         0,
-        TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE,
+        TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_ZOOM_OUT_FACTOR,
         0.001
       );
       controls.enableRotate = false;
@@ -2773,12 +2785,16 @@ export default function CheckersBattleRoyal() {
     } else {
       const cameraSeatAngle = Math.PI / 2;
       const cameraRadius =
-        CHAIR_DISTANCE +
-        2.7 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION;
+        (CHAIR_DISTANCE +
+          2.7 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION) *
+        CHECKERS_CAMERA_ZOOM_OUT_FACTOR;
       camera.position.set(
         Math.cos(cameraSeatAngle) * cameraRadius,
         TABLE_HEIGHT +
-          1.72 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
+          1.72 *
+            CHECKERS_ARENA_SCALE *
+            CHECKERS_CAMERA_FRAME_COMPENSATION *
+            CHECKERS_CAMERA_ZOOM_OUT_FACTOR,
         Math.sin(cameraSeatAngle) * cameraRadius
       );
       controls.enableRotate = true;
