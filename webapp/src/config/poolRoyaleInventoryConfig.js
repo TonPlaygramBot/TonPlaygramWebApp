@@ -524,11 +524,15 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: swatchThumbnail(['#0c0f14', '#171b22', '#303844']),
-  carbonFiberChalkGrey: swatchThumbnail(['#5f6774', '#7f8794', '#c5cdd9']),
-  carbonFiberChalkBeige: swatchThumbnail(['#2b313a', '#414854', '#646d7a']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#5d1a2a', '#7f2a3d', '#a34860']),
-  carbonFiberChalkWhite: swatchThumbnail(['#ebddc9', '#f8efe1', '#fff9ee'])
+  carbonFiberChalk: swatchThumbnail(['#1a2028', '#313946', '#4a5667']),
+  carbonFiberChalkGrey: swatchThumbnail(['#676f7c', '#8e97a6', '#c5cdd9']),
+  carbonFiberChalkBeige: swatchThumbnail(['#39414b', '#505a67', '#727d8b']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#5b2f26', '#7c4a3b', '#9a6453']),
+  carbonFiberChalkWhite: swatchThumbnail(['#d2c2ac', '#e5d5c1', '#f2e8da']),
+  carbonFiberChalkDarkGreen: swatchThumbnail(['#2b4533', '#3d6148', '#5b8769']),
+  carbonFiberChalkDarkYellow: swatchThumbnail(['#876426', '#a27b33', '#c19947']),
+  carbonFiberChalkDarkBrown: swatchThumbnail(['#5a3a2a', '#734a37', '#8f614a']),
+  carbonFiberChalkDarkRed: swatchThumbnail(['#6a2323', '#8a3434', '#a74a4a'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -631,7 +635,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberChalkGrey: 'LT Grey',
     carbonFiberChalkBeige: 'LT Dark Grey',
     carbonFiberChalkDarkBlue: 'LT Burgundy',
-    carbonFiberChalkWhite: 'LT Milk Cream'
+    carbonFiberChalkWhite: 'LT Milk Cream',
+    carbonFiberChalkDarkGreen: 'LT Dark Green',
+    carbonFiberChalkDarkYellow: 'LT Dark Yellow',
+    carbonFiberChalkDarkBrown: 'LT Dark Brown',
+    carbonFiberChalkDarkRed: 'LT Dark Red'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -725,7 +733,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalk',
     name: 'LT Black Finish',
     price: 1160,
-    description: 'Black LT carbon-fiber weave finish with deep matte highlights.',
+    description: 'Black LT carbon-fiber weave finish with a brighter charcoal tone.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
   },
   {
@@ -734,7 +742,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkGrey',
     name: 'LT Grey Finish',
     price: 1170,
-    description: 'Grey LT carbon-fiber weave finish with neutral satin contrast.',
+    description: 'Grey LT carbon-fiber weave finish tuned a touch brighter for clarity.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
   },
   {
@@ -743,7 +751,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkBeige',
     name: 'LT Dark Grey Finish',
     price: 1180,
-    description: 'Dark-grey LT carbon-fiber weave finish with stronger depth.',
+    description: 'Dark-grey LT carbon-fiber weave finish with a slightly brighter lift.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
   },
   {
@@ -752,7 +760,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkDarkBlue',
     name: 'LT Burgundy Finish',
     price: 1190,
-    description: 'Burgundy LT carbon-fiber weave finish with rich warm accents.',
+    description: 'Burgundy LT finish shifted to rosewood-brown warmth.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
   },
   {
@@ -761,8 +769,44 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'carbonFiberChalkWhite',
     name: 'LT Milk Cream Finish',
     price: 1200,
-    description: 'Milk-cream LT carbon-fiber weave finish with soft bright tones.',
+    description: 'Milk-cream LT carbon-fiber weave finish with a deeper cream tone.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
+  },
+  {
+    id: 'finish-carbonFiberChalkDarkGreen',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkDarkGreen',
+    name: 'LT Dark Green Finish',
+    price: 1210,
+    description: 'Dark-green LT carbon-fiber weave finish with rich forest depth.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkGreen
+  },
+  {
+    id: 'finish-carbonFiberChalkDarkYellow',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkDarkYellow',
+    name: 'LT Dark Yellow Finish',
+    price: 1220,
+    description: 'Dark-yellow LT carbon-fiber weave finish with mustard-gold warmth.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkYellow
+  },
+  {
+    id: 'finish-carbonFiberChalkDarkBrown',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkDarkBrown',
+    name: 'LT Dark Brown Finish',
+    price: 1230,
+    description: 'Dark-brown LT carbon-fiber weave finish with earthy depth.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBrown
+  },
+  {
+    id: 'finish-carbonFiberChalkDarkRed',
+    type: 'tableFinish',
+    optionId: 'carbonFiberChalkDarkRed',
+    name: 'LT Dark Red Finish',
+    price: 1240,
+    description: 'Dark-red LT carbon-fiber weave finish with deep crimson character.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
   },
   {
     id: 'chrome-chrome',
