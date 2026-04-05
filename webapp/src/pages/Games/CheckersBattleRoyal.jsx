@@ -272,8 +272,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
-// Visual tuning for portrait screens: make chairs slightly bigger.
-const CHAIR_VISUAL_SCALE = 1.0;
+// Visual tuning for portrait screens: make chairs 20% bigger.
+const CHAIR_VISUAL_SCALE = 1.2;
 const CHAIR_TARGET_SCALE_FACTOR = 0.8;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -294,8 +294,9 @@ const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKER_PIECE_SCALE = 0.88;
-// Keep chips visually seated on the board surface instead of floating above it.
-const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.035;
+// Keep chips seated directly on the board surface in portrait view.
+const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.01;
+const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.055;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -2429,7 +2430,7 @@ export default function CheckersBattleRoyal() {
 
       boardOriginRef.current = {
         x: 0,
-        y: TABLE_HEIGHT + 0.08,
+        y: TABLE_HEIGHT + CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET,
         z: 0,
         tile: resolveCheckersPlayableTileSize(
           gltfBoardRef.current || proceduralBoard
