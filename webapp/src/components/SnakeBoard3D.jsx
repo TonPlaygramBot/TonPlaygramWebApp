@@ -269,6 +269,8 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
+const CAMERA_2D_DISTANCE_FACTOR = 2.45;
+const CAMERA_2D_FORWARD_FACTOR = 0.7;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -2216,6 +2218,39 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
   };
 }
 
+function createDiceHandoffAnimation(diceArray, { basePositions, baseY }) {
+  if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
+    return null;
+  }
+  const startPositions = diceArray.map((die) => die.position.clone());
+  const duration = 380;
+  return {
+    type: 'diceHandoff',
+    start: performance.now(),
+    update(now) {
+      const t = clamp01((now - this.start) / duration);
+      const eased = easeInOutCubic(t);
+      diceArray.forEach((die, index) => {
+        const from = startPositions[index] || die.position;
+        const to = basePositions[index] || die.position;
+        die.position.copy(from.clone().lerp(to, eased));
+        die.position.y = baseY;
+      });
+      if (t >= 1) {
+        diceArray.forEach((die, index) => {
+          const to = basePositions[index];
+          if (to) {
+            die.position.copy(to);
+            die.position.y = baseY;
+          }
+        });
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
 function createTileLabel(number) {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -3928,9 +3963,9 @@ export default function SnakeBoard3D({
           mouseButtons: { ...controls.mouseButtons }
         };
       }
-      const topDownDistance = clamp(CAM.minR * 2.25, CAM.minR * 1.55, CAM.maxR * 0.96);
+      const topDownDistance = clamp(CAM.minR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR * 1.55, CAM.maxR * 0.96);
       const verticalDistance = Math.cos(topDownPolar) * topDownDistance;
-      const forwardDistance = Math.sin(topDownPolar) * topDownDistance;
+      const forwardDistance = Math.sin(topDownPolar) * topDownDistance * CAMERA_2D_FORWARD_FACTOR;
       camera.position.set(
         boardLookTarget.x,
         boardLookTarget.y + verticalDistance,
@@ -4164,7 +4199,7 @@ export default function SnakeBoard3D({
       }
 
       const look = headLookRef.current;
-      look.yaw = clamp(look.yaw - deltaX * 0.0016, -0.52, 0.52);
+      look.yaw = clamp(look.yaw + deltaX * 0.0016, -0.52, 0.52);
       look.pitch = clamp(look.pitch + deltaY * 0.00125, -0.34, 0.34);
     };
     const onPointerEnd = (event) => {
@@ -4633,6 +4668,30 @@ export default function SnakeBoard3D({
   }, [slide, onSlideComplete, cameraViewMode]);
 
   useEffect(() => {
+    const board = boardRef.current;
+    if (!board || !Number.isInteger(currentTurn) || currentTurn < 0) return;
+    if (diceStateRef.current?.currentId != null) return;
+    const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
+    if (seatCount <= 0) return;
+    const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
+    const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
+    if (!visibleDice.length) return;
+    const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
+    const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
+    if (!basePositions.length) return;
+    removeAnimationsByType(animationsRef.current, 'diceHandoff');
+    const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
+      basePositions,
+      baseY: board.diceBaseY ?? 0
+    });
+    if (handoffAnimation) animationsRef.current.push(handoffAnimation);
+    diceStateRef.current = {
+      ...(diceStateRef.current || {}),
+      lastSeatIndex: seatIndex
+    };
+  }, [currentTurn]);
+
+  useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
     const board = boardRef.current;
     const diceSet = board.diceSet || [];
@@ -4642,6 +4701,7 @@ export default function SnakeBoard3D({
     if (diceEvent.phase === 'start') {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
+      removeAnimationsByType(animationsRef.current, 'diceHandoff');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
