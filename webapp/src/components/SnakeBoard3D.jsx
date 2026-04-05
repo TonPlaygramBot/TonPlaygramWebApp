@@ -263,10 +263,12 @@ const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
+const POINTER_TAP_MAX_DISTANCE = 14;
+const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.14,
   forwardOffset: 0,
-  heightOffset: 2.02,
+  heightOffset: 2.14,
   targetLift: 0.07 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -3567,61 +3569,23 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     } else {
       rightBase.normalize();
     }
-    const railOffset = TILE_SIZE * 0.14;
-
+    const railOffset = TILE_SIZE * 0.13;
+    const laneLift = laneConfig.lane * TILE_SIZE * 0.06;
+    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.035;
     const baseLift = LADDER_BASE_LIFT;
-    const archHeight = Math.min(TILE_SIZE * 1.05, LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE);
-    const swayAmount = Math.min(TILE_SIZE * 0.22, LADDER_SWAY_BASE + len * LADDER_SWAY_SCALE);
-    const laneOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.14;
-
-    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift), TILE_EDGE_INSET * 0.2);
-    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift), TILE_EDGE_INSET * 0.2);
-    const quarterLift = archHeight * LADDER_INNER_LIFT_RATIO;
-    const threeQuarterLift = archHeight * LADDER_OUTER_LIFT_RATIO;
-    const clearance = Math.max(LADDER_CLEARANCE, archHeight * 0.3);
-    const quarterPoint = startPoint
-      .clone()
-      .lerp(endPoint, 0.25)
-      .addScaledVector(up, quarterLift + clearance * 0.6)
-      .addScaledVector(rightBase, swayAmount + laneOffset);
-    const midPoint = startPoint
-      .clone()
-      .lerp(endPoint, 0.5)
-      .addScaledVector(up, archHeight + clearance)
-      .addScaledVector(rightBase, swayAmount * -0.35 + laneOffset * 0.7);
-    const threeQuarterPoint = startPoint
-      .clone()
-      .lerp(endPoint, 0.75)
-      .addScaledVector(up, threeQuarterLift + clearance * 0.6)
-      .addScaledVector(rightBase, -swayAmount + laneOffset);
-
-    const centerPoints = [startPoint, quarterPoint, midPoint, threeQuarterPoint, endPoint];
-    const centerCurve = new THREE.CatmullRomCurve3(centerPoints, false, 'centripetal');
-
-    const leftPoints = [];
-    const rightPoints = [];
-    centerPoints.forEach((point, pointIndex) => {
-        const prev = centerPoints[pointIndex - 1] ?? centerPoints[pointIndex];
-        const next = centerPoints[pointIndex + 1] ?? centerPoints[pointIndex];
-        const tangent = next.clone().sub(prev);
-        if (tangent.lengthSq() < 1e-6) {
-          tangent.copy(forward);
-        } else {
-          tangent.normalize();
-        }
-        const localRight = new THREE.Vector3().crossVectors(tangent, up);
-        if (localRight.lengthSq() < 1e-6) {
-          localRight.copy(rightBase);
-        } else {
-          localRight.normalize();
-        }
-        const ease = pointIndex === 1 || pointIndex === centerPoints.length - 2 ? 0.82 : 1;
-        leftPoints.push(point.clone().addScaledVector(localRight, -railOffset * ease));
-        rightPoints.push(point.clone().addScaledVector(localRight, railOffset * ease));
-    });
-
-    const leftCurve = new THREE.CatmullRomCurve3(leftPoints, false, 'centripetal');
-    const rightCurve = new THREE.CatmullRomCurve3(rightPoints, false, 'centripetal');
+    const laneVector = rightBase.clone().multiplyScalar(laneSideOffset).addScaledVector(up, laneLift);
+    const startPoint = A.clone().addScaledVector(up, baseLift).add(laneVector);
+    const endPoint = B.clone().addScaledVector(up, baseLift).add(laneVector);
+    const centerPoints = [startPoint, endPoint];
+    const centerCurve = new THREE.CatmullRomCurve3(centerPoints);
+    const leftCurve = new THREE.CatmullRomCurve3([
+      startPoint.clone().addScaledVector(rightBase, -railOffset),
+      endPoint.clone().addScaledVector(rightBase, -railOffset)
+    ]);
+    const rightCurve = new THREE.CatmullRomCurve3([
+      startPoint.clone().addScaledVector(rightBase, railOffset),
+      endPoint.clone().addScaledVector(rightBase, railOffset)
+    ]);
 
     const railGeomA = new THREE.TubeGeometry(leftCurve, 64, TILE_SIZE * 0.05, 12, false);
     const railGeomB = new THREE.TubeGeometry(rightCurve, 64, TILE_SIZE * 0.05, 12, false);
@@ -3637,17 +3601,10 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     for (let i = 1; i < rungCount; i++) {
         const t = i / rungCount;
         const point = centerCurve.getPoint(t);
-        const tangent = centerCurve.getTangent(t).normalize();
-        const localRight = new THREE.Vector3().crossVectors(tangent, up);
-        if (localRight.lengthSq() < 1e-6) {
-          localRight.copy(rightBase);
-        } else {
-          localRight.normalize();
-        }
         const rungGeom = new THREE.CylinderGeometry(TILE_SIZE * 0.04, TILE_SIZE * 0.04, railOffset * 2, 12);
         const rung = new THREE.Mesh(rungGeom, matRung);
         rung.position.copy(point);
-        rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), localRight);
+        rung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rightBase);
       group.add(rung);
     }
 
@@ -3708,44 +3665,23 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const laneConfig = resolveSnakeLane(start);
     const baseStart = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
     const baseEnd = (indexToPosition.get(end) || serpentineIndexToXZ(end)).clone();
-    const startPoint = pullPointTowardCenter(
-      baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)),
-      TILE_EDGE_INSET * 0.2
-    );
-    const endPoint = pullPointTowardCenter(
-      baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)),
-      TILE_EDGE_INSET * 0.2
-    );
-    const length = Math.abs(start - end);
-    const archHeight = Math.min(TILE_SIZE * 0.9, SNAKE_ARCH_BASE + length * SNAKE_ARCH_SCALE);
-    const peak = startPoint.clone().lerp(endPoint, 0.5).add(new THREE.Vector3(0, archHeight + SNAKE_CURVE_CLEARANCE, 0));
-    const lateral = new THREE.Vector3(endPoint.z - startPoint.z, 0, -(endPoint.x - startPoint.x));
-    if (lateral.lengthSq() < 1e-6) {
-      lateral.set(1, 0, 0);
+    const segment = baseEnd.clone().sub(baseStart);
+    const forward = segment.lengthSq() > 1e-6 ? segment.clone().normalize() : new THREE.Vector3(0, 0, 1);
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+    if (right.lengthSq() < 1e-6) {
+      right.set(1, 0, 0);
     } else {
-      lateral.normalize();
+      right.normalize();
     }
-    const lateralAmount =
-      Math.min(TILE_SIZE * 0.18, SNAKE_LATERAL_BASE + length * SNAKE_LATERAL_SCALE) +
-      laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.1;
-    const peakLeft = peak.clone().addScaledVector(lateral, lateralAmount);
-    const peakRight = peak.clone().addScaledVector(lateral, -lateralAmount);
-    const neckPoint = startPoint
-      .clone()
-      .lerp(peakLeft, 0.25)
-      .add(new THREE.Vector3(0, Math.max(SNAKE_CURVE_CLEARANCE, archHeight * SNAKE_NECK_LIFT_RATIO), 0));
-    const tailPoint = endPoint
-      .clone()
-      .lerp(peakRight, 0.25)
-      .add(new THREE.Vector3(0, Math.max(SNAKE_CURVE_CLEARANCE * 0.75, archHeight * SNAKE_TAIL_LIFT_RATIO), 0));
-    const fullCurve = new THREE.CatmullRomCurve3(
-      [startPoint, neckPoint, peakLeft, peakRight, tailPoint, endPoint],
-      false,
-      'centripetal'
-    );
+    const laneLift = laneConfig.lane * TILE_SIZE * 0.06;
+    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.032;
+    const laneVector = right.clone().multiplyScalar(laneSideOffset).add(new THREE.Vector3(0, laneLift, 0));
+    const startPoint = baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector);
+    const endPoint = baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector);
+    const fullCurve = new THREE.CatmullRomCurve3([startPoint, endPoint]);
 
-    const bodyRadius = TILE_SIZE * 0.075;
-    const mainCurve = sampleSubCurve(fullCurve, 0.06, 0.78, 28);
+    const bodyRadius = TILE_SIZE * 0.072;
+    const mainCurve = sampleSubCurve(fullCurve, 0.03, 0.8, 18);
     const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
     const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.78));
     bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
@@ -3758,9 +3694,9 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     });
 
     const tailSegments = [
-      [0.78, 0.88, bodyRadius * 0.9],
-      [0.88, 0.95, bodyRadius * 0.7],
-      [0.95, 1.0, bodyRadius * 0.48]
+      [0.8, 0.9, bodyRadius * 0.9],
+      [0.9, 0.96, bodyRadius * 0.68],
+      [0.96, 1.0, bodyRadius * 0.44]
     ];
     tailSegments.forEach(([t0, t1, r]) => {
       const segCurve = sampleSubCurve(fullCurve, t0, t1, 12);
@@ -3842,7 +3778,8 @@ export default function SnakeBoard3D({
   frameRate = 90,
   cameraViewMode = '3d',
   camera2dTilt = 0.2,
-  onCameraTiltChange
+  onCameraTiltChange,
+  onDiceTap
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -3856,6 +3793,7 @@ export default function SnakeBoard3D({
   const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
+  const diceTapCallbackRef = useRef(null);
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
   const prevPlayerPositionsRef = useRef([]);
@@ -4014,6 +3952,13 @@ export default function SnakeBoard3D({
   }, [onDiceAnchorChange]);
 
   useEffect(() => {
+    diceTapCallbackRef.current = typeof onDiceTap === 'function' ? onDiceTap : null;
+    return () => {
+      diceTapCallbackRef.current = null;
+    };
+  }, [onDiceTap]);
+
+  useEffect(() => {
     let active = true;
     const usesLudoTokens = tokenShape?.source === 'ludoBattleRoyal';
     const usesChessTokens = tokenShape?.source === 'chessBattleRoyal';
@@ -4132,7 +4077,10 @@ export default function SnakeBoard3D({
     const dragState = {
       pointerId: null,
       lastX: 0,
-      lastY: 0
+      lastY: 0,
+      startX: 0,
+      startY: 0,
+      startTime: 0
     };
     const pinchState = {
       mode: null,
@@ -4144,6 +4092,9 @@ export default function SnakeBoard3D({
       dragState.pointerId = event.pointerId;
       dragState.lastX = event.clientX;
       dragState.lastY = event.clientY;
+      dragState.startX = event.clientX;
+      dragState.startY = event.clientY;
+      dragState.startTime = performance.now();
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
@@ -4172,7 +4123,34 @@ export default function SnakeBoard3D({
         CAMERA_LOOK_PITCH_LIMIT
       );
     };
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    const tryHandleDiceTap = (event) => {
+      if (!diceTapCallbackRef.current) return;
+      if (cameraViewModeRef.current === '2d') return;
+      const board = boardRef.current;
+      const camera = cameraRef.current;
+      const diceSet = Array.isArray(board?.diceSet) ? board.diceSet : [];
+      if (!board || !camera || !diceSet.length) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObjects(diceSet, true);
+      if (hits.length) {
+        diceTapCallbackRef.current();
+      }
+    };
     const onPointerEnd = (event) => {
+      const isTrackedPointer = dragState.pointerId === event.pointerId;
+      if (isTrackedPointer) {
+        const moved = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+        const elapsed = performance.now() - dragState.startTime;
+        if (moved <= POINTER_TAP_MAX_DISTANCE && elapsed <= POINTER_TAP_MAX_DURATION_MS) {
+          tryHandleDiceTap(event);
+        }
+      }
       if (dragState.pointerId !== event.pointerId) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
       dragState.pointerId = null;

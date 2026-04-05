@@ -3171,9 +3171,10 @@ export default function SnakeAndLadder() {
     : null;
 
 
-  const handleRollButtonClick = () => {
+  const handleRollButtonClick = useCallback(() => {
+    if (!canRoll) return;
     diceRollerDivRef.current?.click();
-  };
+  }, [canRoll]);
 
   const renderPreview = (key, option) => {
     switch (key) {
@@ -3414,6 +3415,7 @@ export default function SnakeAndLadder() {
           cameraViewMode={cameraViewMode}
           camera2dTilt={camera2dTilt}
           onCameraTiltChange={setCamera2dTilt}
+          onDiceTap={handleRollButtonClick}
         />
       </div>
       <div
