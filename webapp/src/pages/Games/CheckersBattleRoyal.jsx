@@ -62,9 +62,6 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const CHAIR_BASE_HEIGHT =
   BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.23 * MODEL_SCALE;
-// Portrait mobile framing tweak: keep chairs slightly lower than the table rim.
-const CHAIR_LOWER_OFFSET = 0.04 * CHECKERS_ARENA_SCALE;
-const CHAIR_HEIGHT = CHAIR_BASE_HEIGHT - CHAIR_LOWER_OFFSET;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const BOARD_SCALE = 0.064 * CHECKERS_ARENA_SCALE;
@@ -77,10 +74,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-// Portrait mobile framing tweak: push chairs a touch away from the table.
-const CHAIR_OUTWARD_OFFSET = 0.12 * CHECKERS_ARENA_SCALE;
-const CHAIR_DISTANCE =
-  TABLE_RADIUS + (0.56 + CHAIR_OUTWARD_OFFSET) * CHECKERS_ARENA_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -2234,7 +2228,7 @@ export default function CheckersBattleRoyal() {
               mat.needsUpdate = true;
             });
           });
-          g.position.set(0, CHAIR_HEIGHT, z);
+          g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
@@ -2254,7 +2248,7 @@ export default function CheckersBattleRoyal() {
         const legColor = chairOption?.legColor || '#111827';
         const makeFallback = (z, ry) => {
           const g = createProceduralChairFallback(chairColor, legColor);
-          g.position.set(0, CHAIR_HEIGHT, z);
+          g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
           groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
