@@ -75,7 +75,8 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 5.2,
     groundResolution: 112,
-    arenaScale: 1.26
+    arenaScale: 1.26,
+    rotationY: Math.PI / 2
   },
   churchMeetingRoom: {
     cameraHeightM: 1.56,
@@ -135,7 +136,8 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 5,
     groundResolution: 112,
-    arenaScale: 1.24
+    arenaScale: 1.24,
+    rotationY: Math.PI / 2
   },
   lapa: {
     cameraHeightM: 1.58,
