@@ -446,13 +446,13 @@ function createPreciseSnakeTiles(scale = 1) {
   const center = 3;
   const spiral = buildSpiralGrid(7).slice(0, 48);
   const colors = ['#e34b4b', '#46d04d', '#4056d8', '#e8b84a'];
-  const outwardSpread = 1.44;
+  const outwardSpread = 1.49; // nudge tiles a bit farther from center
   const preciseTiles = spiral.map((cell, index) => {
     let level = 0;
     let localIndex = index;
     let baseTop = 0.07;
     let riseStep = 0.012;
-    let size = 0.98;
+    let size = 1.03; // make each tile slightly larger for readability
     if (index >= 24 && index < 40) {
       level = 1;
       localIndex = index - 24;
@@ -463,7 +463,7 @@ function createPreciseSnakeTiles(scale = 1) {
       localIndex = index - 40;
       baseTop = 1.66;
       riseStep = 0.048;
-      size = 0.96;
+      size = 1.0;
     }
     const dx = cell.col - center;
     const dz = cell.row - center;
@@ -481,7 +481,7 @@ function createPreciseSnakeTiles(scale = 1) {
     x: -outwardSpread * 0.54 * scale,
     z: 0,
     y: 2.46 * scale,
-    size: 0.94 * scale,
+    size: 0.98 * scale,
     color: '#3ccfc5'
   });
   preciseTiles.push({
@@ -489,7 +489,7 @@ function createPreciseSnakeTiles(scale = 1) {
     x: outwardSpread * 0.34 * scale,
     z: 0,
     y: 2.9 * scale,
-    size: 1.08 * scale,
+    size: 1.12 * scale,
     color: '#51d95a'
   });
   return preciseTiles;
