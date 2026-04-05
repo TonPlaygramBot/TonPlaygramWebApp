@@ -116,6 +116,8 @@ import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_HOLDEM_STORE_ITEMS
 } from '../config/texasHoldemInventoryConfig.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
@@ -179,12 +181,72 @@ const AIR_HOCKEY_TYPE_LABELS = {
 const CHESS_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
+  tableCloth: 'Table Cloth',
   chairColor: 'Chairs',
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
   environmentHdri: 'HDR Environments'
 };
+const CHECKERS_BATTLE_TYPE_LABELS = {
+  ...CHESS_TYPE_LABELS,
+  tableCloth: 'Table Cloth'
+};
+
+const CHECKERS_PROCEDURAL_TABLES = [
+  {
+    id: 'murlan-default',
+    label: 'Octagon Table',
+    thumbnail:
+      TABLE_SHAPE_OPTIONS.find((option) => option.id === 'classicOctagon')
+        ?.thumbnail
+  },
+  {
+    id: 'ovalTable',
+    label: 'Oval Table',
+    thumbnail:
+      TABLE_SHAPE_OPTIONS.find((option) => option.id === 'grandOval')?.thumbnail
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamond Edge Table',
+    thumbnail:
+      TABLE_SHAPE_OPTIONS.find((option) => option.id === 'diamondEdge')
+        ?.thumbnail
+  },
+  {
+    id: 'hexagonTable',
+    label: 'Hexagon Table',
+    thumbnail:
+      TABLE_SHAPE_OPTIONS.find((option) => option.id === 'hexagonTable')
+        ?.thumbnail
+  }
+];
+
+const CHECKERS_BATTLE_STORE_ITEMS = [
+  ...CHESS_BATTLE_STORE_ITEMS,
+  ...CHECKERS_PROCEDURAL_TABLES.filter((table) => table.id !== 'murlan-default')
+    .map((table, idx) => ({
+      id: `checkers-table-${table.id}`,
+      type: 'tables',
+      optionId: table.id,
+      name: table.label,
+      price: 980 + idx * 45,
+      description: `${table.label} layout for Checkers Battle Royal.`,
+      thumbnail: table.thumbnail,
+      previewShape: 'table'
+    })),
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+    id: `checkers-cloth-${option.id}`,
+    type: 'tableCloth',
+    optionId: option.id,
+    name: option.label,
+    price: 360 + idx * 35,
+    description: 'Premium table cloth option for procedural checkers tables.',
+    thumbnail: option.thumbnail,
+    previewShape: 'table'
+  }))
+];
 const TAVULL_TYPE_LABELS = {
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
@@ -1613,7 +1675,7 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'chessbattleroyal'
       })),
-      checkersbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+      checkersbattleroyal: CHECKERS_BATTLE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'checkersbattleroyal'
@@ -1735,7 +1797,7 @@ export default function Store() {
       poolroyale: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
-      checkersbattleroyal: CHESS_TYPE_LABELS,
+      checkersbattleroyal: CHECKERS_BATTLE_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
       tavullbattleroyal: TAVULL_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
