@@ -23,7 +23,8 @@ import {
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   createMurlanStyleTable,
-  applyTableMaterials
+  applyTableMaterials,
+  TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
@@ -34,6 +35,7 @@ import {
   CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
+import { TABLE_CLOTH_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
@@ -102,7 +104,7 @@ const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.66;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 // Lower chairs toward the floor for stronger downward screen placement.
-const CHAIR_GROUND_SINK = 0.32;
+const CHAIR_GROUND_SINK = 0.36;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -263,6 +265,43 @@ const CHECKERS_BOARD_THEME_OPTIONS = Object.freeze(
   }))
 );
 
+const CHECKERS_PROCEDURAL_TABLE_OPTIONS = Object.freeze([
+  {
+    id: 'oval-table',
+    label: 'Oval Table',
+    source: 'procedural',
+    shapeId: 'grandOval',
+    description: 'Oval checkers table tuned for portrait framing.'
+  },
+  {
+    id: 'diamond-edge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    shapeId: 'diamondEdge',
+    description: 'Diamond-edge table profile for tighter rails.'
+  },
+  {
+    id: 'hexagon-table',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    shapeId: 'royaleHexagon',
+    description: 'Six-sided table matching octagon play proportions.'
+  }
+]);
+
+const CHECKERS_TABLE_OPTIONS = Object.freeze(
+  [...CHESS_TABLE_OPTIONS, ...CHECKERS_PROCEDURAL_TABLE_OPTIONS].reduce(
+    (acc, option) => {
+      if (!option?.id || acc.find((entry) => entry.id === option.id)) return acc;
+      acc.push(option);
+      return acc;
+    },
+    []
+  )
+);
+
+const CHECKERS_TABLE_CLOTH_OPTIONS = Object.freeze([...TABLE_CLOTH_OPTIONS]);
+
 const BOARD_MATERIAL_CACHE = new WeakMap();
 
 const CHAIR_MODEL_URLS = [
@@ -270,9 +309,9 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-// Requested tweak: make chairs about 20% smaller than the current setup.
-const CHAIR_VISUAL_SCALE = 0.8;
-const CHAIR_TARGET_SCALE_FACTOR = 0.8;
+// Portrait-screen tuning request: chairs ~15% larger than the previous setup.
+const CHAIR_VISUAL_SCALE = 0.92;
+const CHAIR_TARGET_SCALE_FACTOR = 0.92;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
   1.9173749900311232 * CHAIR_TARGET_SCALE_FACTOR,
@@ -292,6 +331,7 @@ const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 const CHECKER_PIECE_SCALE = 0.88;
+const CHECKER_PIECE_HEIGHT_OFFSET = 0.07;
 const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
   selection: '#ff8e6e',
   move: '#7ef9a1',
@@ -325,6 +365,120 @@ const AI_SEARCH_DEPTH = 6;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
 const ONLINE_SOCKET_CONNECT_TIMEOUT_MS = 6000;
+
+function createRegularPolygonShape(sides = 6, radius = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < sides; i += 1) {
+    const angle = -Math.PI / 2 + (i / sides) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+  return shape;
+}
+
+const CHECKERS_HEXAGON_SHAPE_OPTION = Object.freeze({
+  id: 'royaleHexagon',
+  label: 'Hexagon Royale',
+  createShapes: ({ radius }) => {
+    const sideStretch = 1.06;
+    const topShape = createRegularPolygonShape(6, radius);
+    topShape.scale(sideStretch, 1);
+    const feltShape = createRegularPolygonShape(6, radius * 0.8);
+    feltShape.scale(sideStretch, 1);
+    const rimInnerShape = createRegularPolygonShape(6, radius * 0.768);
+    rimInnerShape.scale(sideStretch, 1);
+    return { topShape, feltShape, rimInnerShape };
+  }
+});
+
+const TABLE_SHAPE_BY_ID = Object.freeze(
+  [...TABLE_SHAPE_OPTIONS, CHECKERS_HEXAGON_SHAPE_OPTION].reduce((acc, option) => {
+    if (option?.id) acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const TABLE_IDS_WITH_FINISH_AND_CLOTH = new Set([
+  'murlan-default',
+  'oval-table',
+  'diamond-edge',
+  'hexagon-table'
+]);
+
+const supportsTableFinishAndCloth = (tableId = '') =>
+  TABLE_IDS_WITH_FINISH_AND_CLOTH.has(String(tableId || '').trim().toLowerCase());
+
+const resolveTableShape = (tableId = '') => {
+  const tableTheme = CHECKERS_TABLE_OPTIONS.find((option) => option.id === tableId);
+  const shapeId = tableTheme?.shapeId || 'classicOctagon';
+  return TABLE_SHAPE_BY_ID[shapeId] || TABLE_SHAPE_OPTIONS[0];
+};
+
+const resolveTableRotation = (shapeOption) =>
+  shapeOption?.id === 'classicOctagon' || shapeOption?.id === 'royaleHexagon'
+    ? Math.PI / 8
+    : 0;
+
+function createCheckersTableInstance({
+  scene,
+  renderer,
+  appearance,
+  fallbackToDefault = true
+}) {
+  if (!scene) return { table: null, tableId: null };
+  const selectedTableId =
+    CHECKERS_TABLE_OPTIONS.find((option) => option.id === appearance?.tableId)?.id ||
+    CHECKERS_TABLE_OPTIONS[0]?.id ||
+    null;
+  const selectedShape = resolveTableShape(selectedTableId);
+  const finish =
+    MURLAN_TABLE_FINISHES.find((f) => f.id === appearance?.tableFinish) ||
+    MURLAN_TABLE_FINISHES[0];
+  const cloth =
+    CHECKERS_TABLE_CLOTH_OPTIONS.find(
+      (clothOption) => clothOption.id === appearance?.tableCloth
+    ) || CHECKERS_TABLE_CLOTH_OPTIONS[0];
+
+  const attemptBuild = (shapeOption) => {
+    const table = createMurlanStyleTable({
+      arena: scene,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      shapeOption,
+      rotationY: resolveTableRotation(shapeOption)
+    });
+    applyTableMaterials(
+      table.materials,
+      { woodOption: finish?.woodOption, clothOption: cloth },
+      renderer
+    );
+    reduceCheckersTableBase(table.group);
+    return table;
+  };
+
+  try {
+    return { table: attemptBuild(selectedShape), tableId: selectedTableId };
+  } catch (error) {
+    console.error('Checkers table build failed for selected shape, falling back:', error);
+    if (!fallbackToDefault) return { table: null, tableId: selectedTableId };
+    try {
+      const fallbackShape = TABLE_SHAPE_OPTIONS[0];
+      return {
+        table: attemptBuild(fallbackShape),
+        tableId: CHECKERS_TABLE_OPTIONS[0]?.id || selectedTableId
+      };
+    } catch (fallbackError) {
+      console.error('Checkers fallback table build failed:', fallbackError);
+      return { table: null, tableId: selectedTableId };
+    }
+  }
+}
 
 async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIMEOUT_MS) {
   if (socket.connected) return true;
@@ -1375,6 +1529,7 @@ export default function CheckersBattleRoyal() {
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
+  const activeTableIdRef = useRef(null);
   const chairsRef = useRef([]);
   const keyLightRef = useRef(null);
   const shadowCatcherRef = useRef(null);
@@ -1441,8 +1596,12 @@ export default function CheckersBattleRoyal() {
 
   const unlockedTableOptions = useMemo(
     () =>
-      CHESS_TABLE_OPTIONS.filter((opt) =>
-        isChessOptionUnlocked('tables', opt.id, inventory)
+      CHECKERS_TABLE_OPTIONS.filter(
+        (opt) =>
+          isChessOptionUnlocked('tables', opt.id, inventory) ||
+          CHECKERS_PROCEDURAL_TABLE_OPTIONS.some(
+            (procedural) => procedural.id === opt.id
+          )
       ),
     [inventory]
   );
@@ -1459,6 +1618,10 @@ export default function CheckersBattleRoyal() {
         isChessOptionUnlocked('tableFinish', opt.id, inventory)
       ),
     [inventory]
+  );
+  const unlockedTableCloths = useMemo(
+    () => CHECKERS_TABLE_CLOTH_OPTIONS,
+    []
   );
   const unlockedBoardThemes = useMemo(
     () =>
@@ -1482,9 +1645,11 @@ export default function CheckersBattleRoyal() {
 
   const inv = useMemo(
     () => ({
-      tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
+      tableId: inventory.tables?.[0] || CHECKERS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
       tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
+      tableCloth:
+        inventory.tableCloth?.[0] || CHECKERS_TABLE_CLOTH_OPTIONS[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
@@ -1606,7 +1771,7 @@ export default function CheckersBattleRoyal() {
       tableId:
         unlockedTableOptions.find((opt) => opt.id === prev.tableId)?.id ||
         unlockedTableOptions[0]?.id ||
-        CHESS_TABLE_OPTIONS[0]?.id,
+        CHECKERS_TABLE_OPTIONS[0]?.id,
       chairId:
         unlockedChairOptions.find((opt) => opt.id === prev.chairId)?.id ||
         unlockedChairOptions[0]?.id ||
@@ -1615,6 +1780,10 @@ export default function CheckersBattleRoyal() {
         unlockedTableFinishes.find((opt) => opt.id === prev.tableFinish)?.id ||
         unlockedTableFinishes[0]?.id ||
         MURLAN_TABLE_FINISHES[0]?.id,
+      tableCloth:
+        unlockedTableCloths.find((opt) => opt.id === prev.tableCloth)?.id ||
+        unlockedTableCloths[0]?.id ||
+        CHECKERS_TABLE_CLOTH_OPTIONS[0]?.id,
       boardTheme:
         unlockedBoardThemes.find((opt) => opt.id === prev.boardTheme)?.id ||
         unlockedBoardThemes[0]?.id ||
@@ -1628,6 +1797,7 @@ export default function CheckersBattleRoyal() {
     unlockedBoardThemes,
     unlockedChairOptions,
     unlockedHdriOptions,
+    unlockedTableCloths,
     unlockedTableFinishes,
     unlockedTableOptions
   ]);
@@ -1643,6 +1813,12 @@ export default function CheckersBattleRoyal() {
         appearance.tableFinish,
         resolvedAccountId
       );
+    if (appearance.tableCloth)
+      setChessBattleEquippedOption(
+        'tableCloth',
+        appearance.tableCloth,
+        resolvedAccountId
+      );
     if (appearance.boardTheme)
       setChessBattleEquippedOption('boardTheme', appearance.boardTheme, resolvedAccountId);
     if (appearance.hdriId)
@@ -1655,6 +1831,7 @@ export default function CheckersBattleRoyal() {
     appearance.boardTheme,
     appearance.chairId,
     appearance.hdriId,
+    appearance.tableCloth,
     appearance.tableFinish,
     appearance.tableId,
     resolvedAccountId
@@ -1704,7 +1881,7 @@ export default function CheckersBattleRoyal() {
 
           pieceGroup.position.set(
             x + (c - 3.5) * tile,
-            y + tile * 0.1,
+            y + tile * CHECKER_PIECE_HEIGHT_OFFSET,
             z + (r - 3.5) * tile
           );
           pieceGroup.userData = { r, c, side: piece.side };
@@ -1741,7 +1918,7 @@ export default function CheckersBattleRoyal() {
           });
           checker.position.set(
             x + centered * tile * CAPTURE_STRIP_PIECE_GAP,
-            y + tile * 0.1,
+            y + tile * CHECKER_PIECE_HEIGHT_OFFSET,
             z + edge * (3.5 + CAPTURE_STRIP_OFFSET_ROWS + row * 0.74) * tile
           );
           group.add(checker);
@@ -2217,18 +2394,13 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
-        const table = createMurlanStyleTable({
-          arena: scene,
+        const { table, tableId } = createCheckersTableInstance({
+          scene,
           renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT
+          appearance
         });
-        const finish =
-          MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-          MURLAN_TABLE_FINISHES[0];
-        applyTableMaterials(table.parts, finish);
-        reduceCheckersTableBase(table.group);
         tableRef.current = table;
+        activeTableIdRef.current = tableId;
       } catch (error) {
         console.error('Checkers table load failed:', error);
       }
@@ -2666,13 +2838,37 @@ export default function CheckersBattleRoyal() {
 
   useEffect(() => {
     const scene = sceneRef.current;
+    const renderer = rendererRef.current;
     if (!scene) return;
+
+    const selectedTableId =
+      CHECKERS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId)
+        ?.id || CHECKERS_TABLE_OPTIONS[0]?.id;
+    if (selectedTableId && activeTableIdRef.current !== selectedTableId) {
+      tableRef.current?.dispose?.();
+      const { table: rebuiltTable, tableId } = createCheckersTableInstance({
+        scene,
+        renderer,
+        appearance,
+        fallbackToDefault: true
+      });
+      tableRef.current = rebuiltTable;
+      activeTableIdRef.current = tableId;
+    }
 
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
       MURLAN_TABLE_FINISHES[0];
-    if (tableRef.current?.parts)
-      applyTableMaterials(tableRef.current.parts, finish);
+    const cloth =
+      CHECKERS_TABLE_CLOTH_OPTIONS.find(
+        (clothOption) => clothOption.id === appearance.tableCloth
+      ) || CHECKERS_TABLE_CLOTH_OPTIONS[0];
+    if (tableRef.current?.materials)
+      applyTableMaterials(
+        tableRef.current.materials,
+        { woodOption: finish?.woodOption, clothOption: cloth },
+        renderer
+      );
 
     const chairOption =
       CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
@@ -2922,33 +3118,6 @@ export default function CheckersBattleRoyal() {
               </button>
               <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
                 <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
-                  Table Finish
-                </div>
-                <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
-                  {unlockedTableFinishes.map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() =>
-                        setAppearance((prev) => ({
-                          ...prev,
-                          tableFinish: opt.id
-                        }))
-                      }
-                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableFinish === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
-                    >
-                      {opt.thumbnail ? (
-                        <img
-                          src={opt.thumbnail}
-                          alt={`${opt.label} thumbnail`}
-                          className="mb-1 h-10 w-full rounded object-cover"
-                        />
-                      ) : null}
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
                   Tables
                 </div>
                 <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
@@ -2971,6 +3140,63 @@ export default function CheckersBattleRoyal() {
                     </button>
                   ))}
                 </div>
+                {supportsTableFinishAndCloth(appearance.tableId) ? (
+                  <>
+                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
+                      Table Cloth
+                    </div>
+                    <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                      {unlockedTableCloths.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() =>
+                            setAppearance((prev) => ({
+                              ...prev,
+                              tableCloth: opt.id
+                            }))
+                          }
+                          className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableCloth === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                        >
+                          {opt.thumbnail ? (
+                            <img
+                              src={opt.thumbnail}
+                              alt={`${opt.label} thumbnail`}
+                              className="mb-1 h-10 w-full rounded object-cover"
+                            />
+                          ) : null}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
+                      Table Finish
+                    </div>
+                    <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                      {unlockedTableFinishes.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() =>
+                            setAppearance((prev) => ({
+                              ...prev,
+                              tableFinish: opt.id
+                            }))
+                          }
+                          className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.tableFinish === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                        >
+                          {opt.thumbnail ? (
+                            <img
+                              src={opt.thumbnail}
+                              alt={`${opt.label} thumbnail`}
+                              className="mb-1 h-10 w-full rounded object-cover"
+                            />
+                          ) : null}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
 
                 <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
                   Board
