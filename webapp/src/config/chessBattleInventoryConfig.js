@@ -1,5 +1,6 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -70,11 +71,13 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
 ]);
 
 export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
+export const CHESS_TABLE_CLOTH_OPTIONS = Object.freeze([...TABLE_CLOTH_OPTIONS]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  tableCloth: [CHESS_TABLE_CLOTH_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -96,6 +99,12 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tableFinish: Object.freeze(
     MURLAN_TABLE_FINISHES.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  tableCloth: Object.freeze(
+    CHESS_TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -174,6 +183,19 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
 });
 
 export const CHESS_BATTLE_STORE_ITEMS = [
+  ...CHESS_TABLE_CLOTH_OPTIONS.map((cloth, idx) => ({
+    id: `chess-table-cloth-${cloth.id}`,
+    type: 'tableCloth',
+    optionId: cloth.id,
+    name: cloth.label,
+    price: cloth.price ?? 640 + idx * 20,
+    description:
+      cloth.description ||
+      `${cloth.label} cloth finish shared with Texas Hold'em customization.`,
+    swatches: cloth.swatches || [cloth.feltTop, cloth.feltBottom, cloth.emissive],
+    thumbnail: cloth.thumbnail,
+    previewShape: 'table'
+  })),
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `chess-table-finish-${finish.id}`,
     type: 'tableFinish',
