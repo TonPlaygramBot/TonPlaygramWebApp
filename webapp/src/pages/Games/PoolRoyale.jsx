@@ -17794,6 +17794,13 @@ const powerRef = useRef(hud.power);
         }
         return fallback;
       };
+      const isFiniteVector3 = (value) =>
+        Boolean(
+          value &&
+          Number.isFinite(value.x) &&
+          Number.isFinite(value.y) &&
+          Number.isFinite(value.z)
+        );
       const normalizeQuaternionSnapshot = (value, fallback = null) => {
         if (Array.isArray(value) && value.length >= 4) {
           const [x, y, z, w] = value;
@@ -19845,9 +19852,14 @@ const powerRef = useRef(hud.power);
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackTarget = storedReplayCamera?.target?.clone() ??
-            new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
-          const fallbackPosition = storedReplayCamera?.position?.clone() ?? camera.position.clone();
+          const fallbackTarget =
+            (isFiniteVector3(storedReplayCamera?.target)
+              ? storedReplayCamera.target.clone()
+              : null) ?? new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+          const fallbackPosition =
+            (isFiniteVector3(storedReplayCamera?.position)
+              ? storedReplayCamera.position.clone()
+              : null) ?? camera.position.clone();
           const fallbackFov = Number.isFinite(storedReplayCamera?.fov)
             ? storedReplayCamera.fov
             : camera.fov;
@@ -19885,12 +19897,14 @@ const powerRef = useRef(hud.power);
           const target =
             lerpVector(resolvedCameraA?.target, resolvedCameraB?.target, alpha) ??
             fallbackTarget;
+          const resolvedPosition = isFiniteVector3(position) ? position : fallbackPosition;
+          const resolvedTarget = isFiniteVector3(target) ? target : fallbackTarget;
           const fovA = Number.isFinite(resolvedCameraA?.fov) ? resolvedCameraA.fov : null;
           const fovB = Number.isFinite(resolvedCameraB?.fov) ? resolvedCameraB.fov : fovA;
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
             : fallbackFov;
-          return { position, target, fov: resolvedFov, minTargetY };
+          return { position: resolvedPosition, target: resolvedTarget, fov: resolvedFov, minTargetY };
         };
 
         const updateHdriScale = (renderCamera, target = null) => {
@@ -21562,10 +21576,12 @@ const powerRef = useRef(hud.power);
           const resolvedFov = Number.isFinite(railSnapshot?.fov)
             ? railSnapshot.fov
             : camera.fov;
-          if (!resolvedPosition && !resolvedTarget) return null;
+          const safePosition = isFiniteVector3(resolvedPosition) ? resolvedPosition : null;
+          const safeTarget = isFiniteVector3(resolvedTarget) ? resolvedTarget : null;
+          if (!safePosition && !safeTarget) return null;
           const snapshot = {
-            position: resolvedPosition,
-            target: resolvedTarget,
+            position: safePosition,
+            target: safeTarget,
             fov: resolvedFov,
             key: cameraMode
           };
@@ -22464,8 +22480,10 @@ const powerRef = useRef(hud.power);
             minTargetY
           });
           if (broadcastReplayCamera?.position) {
-            storedPosition = broadcastReplayCamera.position.clone();
-            if (broadcastReplayCamera?.target) {
+            if (isFiniteVector3(broadcastReplayCamera.position)) {
+              storedPosition = broadcastReplayCamera.position.clone();
+            }
+            if (isFiniteVector3(broadcastReplayCamera?.target)) {
               storedTarget.copy(broadcastReplayCamera.target);
             }
             storedFov = Number.isFinite(broadcastReplayCamera?.fov)
