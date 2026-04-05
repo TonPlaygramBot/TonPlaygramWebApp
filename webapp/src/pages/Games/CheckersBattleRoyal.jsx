@@ -54,7 +54,7 @@ import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
-const CHECKERS_ARENA_SCALE = 0.6;
+const CHECKERS_ARENA_SCALE = 0.52;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 1.12 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -92,11 +92,11 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.8;
-const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.66;
-const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.8;
-const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.82;
-const CHECKERS_CAMERA_FRAME_COMPENSATION = 0.9;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.68;
+const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
+const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
+const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -271,6 +271,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 );
 const TARGET_CHAIR_MIN_Y = -CHAIR_BASE_HEIGHT;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+const CHAIR_GROUNDING_EPSILON = 0.012 * MODEL_SCALE;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
@@ -2182,7 +2183,7 @@ export default function CheckersBattleRoyal() {
           });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, 0);
+          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
           return g;
         };
@@ -2202,7 +2203,7 @@ export default function CheckersBattleRoyal() {
           const g = createProceduralChairFallback(chairColor, legColor);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(g, 0);
+          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
           return g;
         };
@@ -2663,9 +2664,10 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        const floorY = Math.max(
-          0,
-          resolveArenaFloorY(...(chairsRef.current || []))
+        const floorY = resolveArenaFloorY(
+          tableRef.current?.group,
+          gltfBoardRef.current,
+          ...((chairsRef.current || []).filter(Boolean))
         );
         skybox.position.y = floorY + cameraHeight;
         if (typeof variant?.rotationY === 'number')
