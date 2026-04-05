@@ -1863,7 +1863,7 @@ const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
-const BASE_HEIGHT_REDUCTION = 0.74; // trim table bases a bit more from the bottom so the full table sits lower on screen
+const BASE_HEIGHT_REDUCTION = 0.7; // trim table bases a touch more from the bottom while preserving framing
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -3257,9 +3257,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'LT Black',
-    rail: 0x0c0f14,
-    base: 0x0c0f14,
-    trim: 0x0c0f14,
+    rail: 0x171b23,
+    base: 0x171b23,
+    trim: 0x171b23,
     woodTextureId: 'plastic_monoblock_lt_black',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3269,9 +3269,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0x6f7681,
-    base: 0x6f7681,
-    trim: 0x6f7681,
+    rail: 0x6c7482,
+    base: 0x6c7482,
+    trim: 0x6c7482,
     woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3281,9 +3281,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x2f353e,
-    base: 0x2f353e,
-    trim: 0x2f353e,
+    rail: 0x3b424d,
+    base: 0x3b424d,
+    trim: 0x3b424d,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3293,9 +3293,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0x652335,
-    base: 0x652335,
-    trim: 0x652335,
+    rail: 0x6f3a2f,
+    base: 0x6f3a2f,
+    trim: 0x6f3a2f,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3305,10 +3305,58 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xefe2cf,
-    base: 0xefe2cf,
-    trim: 0xefe2cf,
+    rail: 0xd8c8af,
+    base: 0xd8c8af,
+    trim: 0xd8c8af,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkGreen: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkGreen',
+    label: 'LT Dark Green',
+    rail: 0x1f3e33,
+    base: 0x1f3e33,
+    trim: 0x1f3e33,
+    woodTextureId: 'plastic_monoblock_lt_dark_green',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkYellow: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkYellow',
+    label: 'LT Dark Yellow',
+    rail: 0x6a5418,
+    base: 0x6a5418,
+    trim: 0x6a5418,
+    woodTextureId: 'plastic_monoblock_lt_dark_yellow',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkBrown: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkBrown',
+    label: 'LT Dark Brown',
+    rail: 0x4a2f23,
+    base: 0x4a2f23,
+    trim: 0x4a2f23,
+    woodTextureId: 'plastic_monoblock_lt_dark_brown',
+    woodRepeatScale: 1,
+    disableWoodPattern: true,
+    surfaceStyle: 'matte',
+    useBrandCarbonTexture: false
+  }),
+  carbonFiberChalkDarkRed: createStandardWoodFinish({
+    id: 'carbonFiberChalkDarkRed',
+    label: 'LT Dark Red',
+    rail: 0x5a1f24,
+    base: 0x5a1f24,
+    trim: 0x5a1f24,
+    woodTextureId: 'plastic_monoblock_lt_dark_red',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
@@ -3327,7 +3375,11 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.carbonFiberChalkGrey,
     TABLE_FINISHES.carbonFiberChalkBeige,
     TABLE_FINISHES.carbonFiberChalkDarkBlue,
-    TABLE_FINISHES.carbonFiberChalkWhite
+    TABLE_FINISHES.carbonFiberChalkWhite,
+    TABLE_FINISHES.carbonFiberChalkDarkGreen,
+    TABLE_FINISHES.carbonFiberChalkDarkYellow,
+    TABLE_FINISHES.carbonFiberChalkDarkBrown,
+    TABLE_FINISHES.carbonFiberChalkDarkRed
   ].filter(Boolean)
 );
 
@@ -23635,11 +23687,15 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
+        const decorDisabledEnvironments = new Set([
+          'dancingHall',
+          'abandonedHall',
+          'abandoned_hall_01',
+          'oldHall',
+          'musicHall02'
+        ]);
         if (
-          environmentId === 'dancingHall' ||
-          environmentId === 'abandonedHall' ||
-          environmentId === 'oldHall' ||
-          environmentId === 'musicHall02'
+          decorDisabledEnvironments.has(environmentId)
         ) {
           return;
         }
@@ -31341,8 +31397,8 @@ const powerRef = useRef(hud.power);
                 (TMP_VEC3_IN_HAND_ICON.x * 0.5 + 0.5) * rect.width + rect.left;
               const screenY =
                 (-TMP_VEC3_IN_HAND_ICON.y * 0.5 + 0.5) * rect.height + rect.top;
-              const offsetX = 0;
-              const offsetY = 0;
+              const offsetX = 26;
+              const offsetY = -20;
               const clampedX = clamp(
                 screenX + offsetX,
                 rect.left + 16,
@@ -34077,7 +34133,7 @@ const powerRef = useRef(hud.power);
           onPointerMove={handleInHandIconPointerMove}
           onPointerUp={handleInHandIconPointerUp}
           onPointerCancel={handleInHandIconPointerUp}
-          className={`fixed z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-xl text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative ${
+          className={`fixed z-40 flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-emerald-500/90 text-base text-white shadow-[0_12px_24px_rgba(0,0,0,0.45)] backdrop-blur transition relative ${
             canDragInHandIcon ? '' : 'opacity-70'
           }`}
           style={{ opacity: 0, pointerEvents: 'none', transform: 'translate(-9999px, -9999px)' }}
