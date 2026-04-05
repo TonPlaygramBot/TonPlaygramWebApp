@@ -230,6 +230,9 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
 const SHOW_PAVEMENT_LAYER = false;
+const UPPER_FLOOR_SIDE_SCALE = 0.96;
+const LEVEL_ONE_TILE_VERTICAL_OFFSET = -0.06;
+const LEVEL_TWO_TILE_VERTICAL_OFFSET = -0.1;
 const RAIL_HEIGHT = TILE_SIZE * 0.6;
 const RAIL_GAP_WIDTH = TILE_SIZE * 1.4;
 const RAIL_RADIUS = TILE_SIZE * 0.03;
@@ -487,12 +490,12 @@ function createPreciseSnakeTiles(scale = 1) {
     if (index >= 24 && index < 40) {
       level = 1;
       localIndex = index - 24;
-      baseTop = 0.88;
+      baseTop = 0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET;
       riseStep = 0.022;
     } else if (index >= 40) {
       level = 2;
       localIndex = index - 40;
-      baseTop = 1.66;
+      baseTop = 1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET;
       riseStep = 0.048;
       size = 1.04;
     }
@@ -511,7 +514,7 @@ function createPreciseSnakeTiles(scale = 1) {
     id: 49,
     x: -outwardSpread * 0.54 * scale,
     z: 0,
-    y: 2.46 * scale,
+    y: (2.46 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
     size: 1.03 * scale,
     color: getGradientHex(48 / (totalTiles - 1))
   });
@@ -519,7 +522,7 @@ function createPreciseSnakeTiles(scale = 1) {
     id: 50,
     x: outwardSpread * 0.34 * scale,
     z: 0,
-    y: 2.9 * scale,
+    y: (2.9 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * scale,
     size: 1.18 * scale,
     color: getGradientHex(1)
   });
@@ -2984,9 +2987,27 @@ function buildSnakeBoard(
     '#5a5a5a'
   );
   addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
-  addLayer(levelDimensions[1].sizeX, 0.24 * preciseBoardScale, levelDimensions[1].sizeZ, 0.76 * preciseBoardScale, '#555555');
-  addLayer(levelDimensions[2].sizeX, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ, 1.54 * preciseBoardScale, '#666666');
-  addLayer(levelDimensions[2].sizeX * 0.62, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ * 0.44, 2.22 * preciseBoardScale, '#7b7b7b');
+  addLayer(
+    levelDimensions[1].sizeX * UPPER_FLOOR_SIDE_SCALE,
+    0.24 * preciseBoardScale,
+    levelDimensions[1].sizeZ * UPPER_FLOOR_SIDE_SCALE,
+    0.76 * preciseBoardScale,
+    '#555555'
+  );
+  addLayer(
+    levelDimensions[2].sizeX * UPPER_FLOOR_SIDE_SCALE,
+    0.24 * preciseBoardScale,
+    levelDimensions[2].sizeZ * UPPER_FLOOR_SIDE_SCALE,
+    1.54 * preciseBoardScale,
+    '#666666'
+  );
+  addLayer(
+    levelDimensions[2].sizeX * 0.62 * UPPER_FLOOR_SIDE_SCALE,
+    0.24 * preciseBoardScale,
+    levelDimensions[2].sizeZ * 0.44 * UPPER_FLOOR_SIDE_SCALE,
+    2.22 * preciseBoardScale,
+    '#7b7b7b'
+  );
   preciseTiles.forEach((tileSpec) => {
     const baseColor = useReferenceSpiral
       ? SPIRAL_REFERENCE_COLORS[(tileSpec.id - 1) % SPIRAL_REFERENCE_COLORS.length]
@@ -3014,8 +3035,8 @@ function buildSnakeBoard(
 
   const levelPlacements = [
     { tileTopY: 0.07 * preciseBoardScale + tileHeight },
-    { tileTopY: 0.88 * preciseBoardScale + tileHeight },
-    { tileTopY: 1.66 * preciseBoardScale + tileHeight }
+    { tileTopY: (0.88 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight },
+    { tileTopY: (1.66 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale + tileHeight }
   ];
   railingInfos.push(
     {
@@ -3027,14 +3048,14 @@ function buildSnakeBoard(
     },
     {
       halfSize: Math.max(levelDimensions[1].halfX, levelDimensions[1].halfZ),
-      topY: 0.07 * preciseBoardScale,
+      topY: (0.07 + LEVEL_ONE_TILE_VERTICAL_OFFSET) * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
       walkwayCenter: 0,
       levelIndex: 1
     },
     {
       halfSize: Math.max(levelDimensions[2].halfX, levelDimensions[2].halfZ),
-      topY: 0.88 * preciseBoardScale,
+      topY: (0.88 + LEVEL_TWO_TILE_VERTICAL_OFFSET) * preciseBoardScale,
       gapWidth: RAIL_GAP_WIDTH,
       walkwayCenter: 0,
       levelIndex: 2
