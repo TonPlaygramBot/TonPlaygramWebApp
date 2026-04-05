@@ -325,7 +325,9 @@ const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 let proceduralTokenHeight = null;
 
-const ARENA_SCALE = 0.85;
+const BASE_ARENA_SCALE = 0.85;
+const ARENA_SCALE = 0.72;
+const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
@@ -389,7 +391,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
-const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 4;
+const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 8;
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
@@ -414,10 +416,15 @@ const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
+const LANDSCAPE_CAMERA_TUNING = Object.freeze({
+  backOffset: 1.08 * ARENA_SCALE_RATIO,
+  forwardOffset: 0.34 * ARENA_SCALE_RATIO,
+  heightOffset: 1.18 * ARENA_SCALE_RATIO
+});
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.82,
-  forwardOffset: 0.6,
-  heightOffset: 1.1,
+  backOffset: 0.82 * ARENA_SCALE_RATIO,
+  forwardOffset: 0.6 * ARENA_SCALE_RATIO,
+  heightOffset: 1.1 * ARENA_SCALE_RATIO,
   targetLift: 0.06 * MODEL_SCALE
 });
 
@@ -3445,6 +3452,57 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   }, []);
 
+  const groundArenaToHdriFloor = useCallback(({ preserveView = false } = {}) => {
+    const arena = arenaRef.current;
+    if (!arena?.arenaGroup) return;
+    const objects = [];
+    if (arena.tableInfo?.group) objects.push(arena.tableInfo.group);
+    if (Array.isArray(arena.chairs)) {
+      arena.chairs.forEach((chair) => {
+        if (chair?.group) objects.push(chair.group);
+      });
+    }
+    if (!objects.length) return;
+    const bounds = new THREE.Box3();
+    let hasBounds = false;
+    objects.forEach((obj) => {
+      if (!obj) return;
+      const box = new THREE.Box3().setFromObject(obj);
+      if (box.isEmpty()) return;
+      if (!hasBounds) {
+        bounds.copy(box);
+        hasBounds = true;
+      } else {
+        bounds.union(box);
+      }
+    });
+    if (!hasBounds || !Number.isFinite(bounds.min.y)) return;
+    const yShift = -bounds.min.y;
+    if (Math.abs(yShift) <= 1e-4) {
+      environmentFloorRef.current = 0;
+      return;
+    }
+
+    arena.arenaGroup.position.y += yShift;
+    if (arena.boardLookTarget) arena.boardLookTarget.y += yShift;
+    if (arena.defaultLookTarget) arena.defaultLookTarget.y += yShift;
+    if (preserveView) {
+      const camera = cameraRef.current;
+      if (camera) {
+        camera.position.y += yShift;
+      }
+      if (arena.controls?.target) {
+        arena.controls.target.y += yShift;
+        arena.controls.update();
+      }
+    }
+    environmentFloorRef.current = 0;
+    const skybox = envSkyboxRef.current;
+    if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
+      skybox.position.y = skybox.userData.cameraHeight;
+    }
+  }, []);
+
   const rebuildTable = useCallback(
     async (tableTheme, tableFinish, tableCloth = DEFAULT_CLOTH_OPTION) => {
       const arena = arenaRef.current;
@@ -3540,10 +3598,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         tableInfo.group.add(boardGroup);
       }
 
+      groundArenaToHdriFloor({ preserveView: true });
       updateEnvironmentFloor();
       return tableInfo;
     },
-    [textureResolutionStack, updateEnvironmentFloor]
+    [groundArenaToHdriFloor, textureResolutionStack, updateEnvironmentFloor]
   );
 
   const rebuildChairs = useCallback(
@@ -3590,9 +3649,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         group.add(clone);
         group.userData.chairModel = clone;
       });
+      groundArenaToHdriFloor({ preserveView: true });
       updateEnvironmentFloor();
     },
-    [textureResolutionStack, updateEnvironmentFloor]
+    [groundArenaToHdriFloor, textureResolutionStack, updateEnvironmentFloor]
   );
 
   const clearHumanRollTimeout = useCallback(() => {
@@ -4517,9 +4577,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
       const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.08;
-      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.34;
-      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.18;
+      const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : LANDSCAPE_CAMERA_TUNING.backOffset;
+      const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : LANDSCAPE_CAMERA_TUNING.forwardOffset;
+      const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : LANDSCAPE_CAMERA_TUNING.heightOffset;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
       camera.position.set(
@@ -4708,6 +4768,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor });
     }
+    groundArenaToHdriFloor({ preserveView: true });
+    updateEnvironmentFloor();
 
     const boardData = await buildLudoBoard(
       boardGroup,
