@@ -2482,7 +2482,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 11.5, y: 4.1 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
@@ -2579,7 +2579,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2610,25 +2610,22 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 768) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
-      const dither =
-        Math.sin(x * 0.54 + y * 0.42) * 0.52 +
-        Math.cos(x * 0.23 - y * 0.29) * 0.48;
-      const grain =
-        (Math.sin((x + y) * 1.62) + Math.cos((x - y) * 1.38)) * 0.5;
-      const micropit = Math.sin(x * 2.18) * Math.cos(y * 2.07);
-      const colorLift = THREE.MathUtils.clamp(dither * 7.4 + grain * 5.1, -14, 18);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.16);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.16);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.16);
+      const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
+      const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
+      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 23, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 23, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(224 + micropit * 31, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(228 + dither * 14 + grain * 15 + micropit * 11, 168, 255);
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2671,7 +2668,7 @@ function applyMonoMattePlasticSurface(material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.97;
+    material.roughness = 0.94;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -6779,7 +6776,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
@@ -6836,15 +6833,6 @@ const resolveLikelyPocketIntent = ({ ball, direction }) => {
 };
 const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
   if (!pocketId) return null;
-  const resolveMiddlePocketToCorner = (isLeftSide) => {
-    const sourceY =
-      (Number.isFinite(ballPos?.y) ? ballPos.y : null) ??
-      (Number.isFinite(approachDir?.y) ? approachDir.y : null) ??
-      (Number.isFinite(center?.y) ? center.y : 0);
-    const useBottomCorner = Number(sourceY) > 0;
-    if (isLeftSide) return useBottomCorner ? 'BL' : 'TL';
-    return useBottomCorner ? 'BR' : 'TR';
-  };
   switch (pocketId) {
     case 'TL':
     case 'TR':
@@ -6852,9 +6840,9 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BR':
       return pocketId;
     case 'TM':
-      return resolveMiddlePocketToCorner(true);
+      return 'TM';
     case 'BM':
-      return resolveMiddlePocketToCorner(false);
+      return 'BM';
     default:
       return pocketId;
   }
@@ -11921,8 +11909,7 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const centerY = Number.isFinite(center?.y) ? center.y : ctx.floorY;
-      group.position.set(center.x, centerY, center.z);
+      group.position.set(center.x, ctx.floorY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -11974,7 +11961,7 @@ export function Table3D(
       return attachLegLevelers(
         ctx,
         { meshes: legs, legMeshes: legs },
-        positions.map(([x, z]) => ({ x, y: ctx.legY - ctx.legH * 0.5, z }))
+        positions.map(([x, z]) => ({ x, z }))
       );
     },
     openPortal: (ctx) => {
@@ -21608,12 +21595,8 @@ const powerRef = useRef(hud.power);
             approachDir,
             pos
           );
-          const useCornerBroadcastAnchor =
-            typeof anchorId === 'string' && CORNER_POCKET_CAMERA_IDS.includes(anchorId);
           const anchorOutward = getPocketCameraOutward(anchorId);
-          const isSidePocket =
-            !useCornerBroadcastAnchor &&
-            (anchorPocketId === 'TM' || anchorPocketId === 'BM');
+          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -21844,19 +21827,25 @@ const powerRef = useRef(hud.power);
           }));
 
         const captureReplayCameraSnapshot = () => {
-          const liveCamera = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-          if (!liveCamera) return null;
-          const targetSnapshot =
-            lastCameraTargetRef.current?.clone?.() ??
-            broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
-            null;
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const targetSnapshot = lastCameraTargetRef.current
+            ? lastCameraTargetRef.current.clone()
+            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const railSnapshot = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY,
+            preferredRail: railOverheadSideRef.current
+          });
           const cameraMode =
             pocketCameraStateRef.current && activeShotView?.mode === 'pocket'
               ? `pocket:${activeShotView?.anchorId ?? activeShotView?.pocketId ?? 'active'}`
               : 'broadcast';
-          const resolvedPosition = liveCamera.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot;
-          const resolvedFov = Number.isFinite(liveCamera.fov) ? liveCamera.fov : camera.fov;
+          const resolvedPosition = railSnapshot?.position?.clone?.() ?? null;
+          const resolvedTarget = railSnapshot?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(railSnapshot?.fov)
+            ? railSnapshot.fov
+            : camera.fov;
           const safePosition = isFiniteVector3(resolvedPosition) ? resolvedPosition : null;
           const safeTarget = isFiniteVector3(resolvedTarget) ? resolvedTarget : null;
           if (!safePosition && !safeTarget) return null;
@@ -21866,8 +21855,6 @@ const powerRef = useRef(hud.power);
             fov: resolvedFov,
             key: cameraMode
           };
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           if (Number.isFinite(minTargetY)) {
             snapshot.minTargetY = minTargetY;
           }
@@ -28807,11 +28794,7 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        const replayHasFrames = (shotRecording?.frames?.length ?? 0) > 1;
-        const replayHasObjectPot = potted.some(
-          (entry) => String(entry?.id || '').toLowerCase() !== 'cue'
-        );
-        shouldStartReplay = replayHasFrames && (shotWasFoul || replayHasObjectPot);
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
