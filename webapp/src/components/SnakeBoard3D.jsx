@@ -2856,7 +2856,7 @@ function buildSnakeBoard(
     { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY },
     { minX: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, minZ: Number.POSITIVE_INFINITY, maxZ: Number.NEGATIVE_INFINITY }
   ];
-  const levelMargins = [TILE_SIZE * 0.78, TILE_SIZE * 0.7, TILE_SIZE * 0.62];
+  const levelMargins = [TILE_SIZE * 0.44, TILE_SIZE * 0.4, TILE_SIZE * 0.36];
   preciseTiles.forEach((tileSpec) => {
     const level = getTileLevelById(tileSpec.id);
     const half = tileSpec.size / 2;
@@ -2886,8 +2886,13 @@ function buildSnakeBoard(
     };
   });
 
-  const baseSize = Math.max(levelDimensions[0].sizeX, levelDimensions[0].sizeZ);
-  addLayer(baseSize, 0.42 * preciseBoardScale, baseSize, -0.36 * preciseBoardScale, '#5a5a5a');
+  addLayer(
+    levelDimensions[0].sizeX * 1.03,
+    0.42 * preciseBoardScale,
+    levelDimensions[0].sizeZ * 1.03,
+    -0.36 * preciseBoardScale,
+    '#5a5a5a'
+  );
   addLayer(levelDimensions[0].sizeX, 0.24 * preciseBoardScale, levelDimensions[0].sizeZ, -0.05 * preciseBoardScale, '#444f5d');
   addLayer(levelDimensions[1].sizeX, 0.24 * preciseBoardScale, levelDimensions[1].sizeZ, 0.76 * preciseBoardScale, '#555555');
   addLayer(levelDimensions[2].sizeX, 0.24 * preciseBoardScale, levelDimensions[2].sizeZ, 1.54 * preciseBoardScale, '#666666');
