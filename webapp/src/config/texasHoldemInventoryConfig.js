@@ -1,6 +1,7 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
+import { polyHavenThumb } from './storeThumbnails.js';
 import {
   BATTLE_ROYALE_SHARED_CHAIR_THEME_OPTIONS,
   BATTLE_ROYALE_SHARED_HDRI_VARIANTS,
@@ -14,10 +15,144 @@ const reduceLabels = (items) =>
     return acc;
   }, {});
 
-export const TEXAS_HDRI_OPTIONS = BATTLE_ROYALE_SHARED_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
+const TEXAS_EXCLUSIVE_HDRI_VARIANTS = Object.freeze([
+  {
+    id: 'churchMeetingRoom',
+    name: 'Church Meeting Room',
+    assetId: 'church_meeting_room',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2500,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#78716c', '#e7e5e4'],
+    description: 'Quiet church hall ambience with soft diffuse overhead light.'
+  },
+  {
+    id: 'warmBar',
+    name: 'Warm Bar',
+    assetId: 'warm_bar',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2560,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#78350f', '#f97316'],
+    description: 'Cozy bar interior with rich amber highlights and warm reflections.'
+  },
+  {
+    id: 'rostockArches',
+    name: 'Rostock Arches',
+    assetId: 'rostock_arches',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2600,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99,
+    swatches: ['#475569', '#cbd5e1'],
+    description: 'Historic stone arches with cool exterior spill and broad contrast.'
+  },
+  {
+    id: 'vignaioliNight',
+    name: 'Vignaioli Night',
+    assetId: 'vignaioli_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2620,
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02,
+    swatches: ['#1d4ed8', '#f59e0b'],
+    description: 'Nighttime courtyard with colorful practicals and cinematic contrast.'
+  },
+  {
+    id: 'stPetersSquareNight',
+    name: 'St. Peters Square Night',
+    assetId: 'st_peters_square_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2660,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#0f172a', '#f8fafc'],
+    description: 'Grand night plaza lighting with polished marble bounce and deep sky.'
+  },
+  {
+    id: 'zwingerNight',
+    name: 'Zwinger Night',
+    assetId: 'zwinger_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2680,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#1e3a8a', '#fcd34d'],
+    description: 'Illuminated baroque architecture with balanced cool-warm contrast.'
+  },
+  {
+    id: 'winterEvening',
+    name: 'Winter Evening',
+    assetId: 'winter_evening',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2700,
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98,
+    swatches: ['#334155', '#93c5fd'],
+    description: 'Cold dusk atmosphere with soft ambient fill and muted reflections.'
+  },
+  {
+    id: 'rathaus',
+    name: 'Rathaus',
+    assetId: 'rathaus',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2710,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#374151', '#fbbf24'],
+    description: 'European city hall scene with elegant night lighting and depth.'
+  },
+  {
+    id: 'medievalCafe',
+    name: 'Medieval Cafe',
+    assetId: 'medieval_cafe',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '8k',
+    price: 2790,
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01,
+    swatches: ['#78350f', '#facc15'],
+    description: 'Rustic cafe interior with lantern warmth and textured stone bounce.'
+  }
+]);
+
+const TEXAS_HDRI_VARIANT_MAP = new Map(
+  [...BATTLE_ROYALE_SHARED_HDRI_VARIANTS, ...TEXAS_EXCLUSIVE_HDRI_VARIANTS].map((variant) => [
+    variant.id,
+    {
+      ...variant,
+      preferredResolutions: variant.preferredResolutions || ['8k', '4k', '2k'],
+      fallbackResolution: variant.fallbackResolution || '8k',
+      thumbnail: variant.thumbnail || polyHavenThumb(variant.assetId)
+    }
+  ])
+);
+
+export const TEXAS_HDRI_OPTIONS = Object.freeze(
+  Array.from(TEXAS_HDRI_VARIANT_MAP.values()).map((variant) => ({
+    ...variant,
+    label: `${variant.name} HDRI`
+  }))
+);
 
 export const TEXAS_DEFAULT_HDRI_ID = 'dancingHall';
 
