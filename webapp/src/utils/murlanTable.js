@@ -355,6 +355,22 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       const rimInnerShape = createRoundedRectangleShape(innerWidth, innerHeight, 0.1 * factor);
       return { topShape, feltShape, rimInnerShape, feltRadius: Math.max(feltWidth, feltHeight) * 0.5 };
     }
+  },
+  {
+    id: 'royalHexagon',
+    label: 'Hexagon Royale',
+    preview: {
+      clipPath:
+        'polygon(50% 0%, 87% 25%, 87% 75%, 50% 100%, 13% 75%, 13% 25%)'
+    },
+    thumbnail: swatchThumbnail(['#0f172a', '#1e293b', '#22d3ee']),
+    createShapes: ({ radius }) => {
+      const widthScale = 1.1;
+      const topShape = scaleShape2D(createRegularPolygonShape(6, radius), widthScale, 1);
+      const feltShape = scaleShape2D(createRegularPolygonShape(6, radius * 0.8), widthScale, 1);
+      const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
+      return { topShape, feltShape, rimInnerShape };
+    }
   }
 ]);
 

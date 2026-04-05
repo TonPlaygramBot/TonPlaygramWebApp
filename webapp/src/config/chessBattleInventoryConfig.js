@@ -1,5 +1,7 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
+import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -75,6 +77,8 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
+  tableShape: [TABLE_SHAPE_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -96,6 +100,18 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tableFinish: Object.freeze(
     MURLAN_TABLE_FINISHES.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  tableCloth: Object.freeze(
+    TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  tableShape: Object.freeze(
+    TABLE_SHAPE_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -206,6 +222,26 @@ export const CHESS_BATTLE_STORE_ITEMS = [
       `${option.label} seating tuned for Chess Battle Royal.`,
     thumbnail: option.thumbnail,
     previewShape: 'chair'
+  })),
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
+    id: `chess-table-cloth-${option.id}`,
+    type: 'tableCloth',
+    optionId: option.id,
+    name: option.label,
+    price: 360 + idx * 30,
+    description: 'Swap a premium cloth texture for supported arena tables.',
+    thumbnail: option.thumbnail,
+    previewShape: 'table'
+  })),
+  ...TABLE_SHAPE_OPTIONS.slice(1).map((option, idx) => ({
+    id: `chess-table-shape-${option.id}`,
+    type: 'tableShape',
+    optionId: option.id,
+    name: option.label,
+    price: 680 + idx * 65,
+    description: 'Change the procedural arena silhouette.',
+    thumbnail: option.thumbnail,
+    previewShape: 'table'
   })),
   {
     id: 'chess-side-marble',
@@ -415,6 +451,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     optionId: MURLAN_TABLE_FINISHES[0]?.id,
     label: MURLAN_TABLE_FINISHES[0]?.label
   },
+  { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
+  { type: 'tableShape', optionId: TABLE_SHAPE_OPTIONS[0]?.id, label: TABLE_SHAPE_OPTIONS[0]?.label },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },

@@ -179,6 +179,8 @@ const AIR_HOCKEY_TYPE_LABELS = {
 const CHESS_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
+  tableCloth: 'Table Cloth',
+  tableShape: 'Table Shape',
   chairColor: 'Chairs',
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
