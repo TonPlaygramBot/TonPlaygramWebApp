@@ -2482,7 +2482,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 12, y: 4.2 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
 
 function createCarbonFiberPatternCanvas(size = 128) {
@@ -2579,7 +2579,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 512) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2610,23 +2610,22 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 512) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
-      const dither = Math.sin(x * 0.38 + y * 0.31) * 0.5 + Math.cos(x * 0.21 - y * 0.27) * 0.5;
-      const weave = Math.sin((x + y) * 1.26) * Math.cos((x - y) * 1.08);
-      const grain = (Math.sin((x + y) * 1.18) + Math.cos((x - y) * 1.02)) * 0.5;
-      const micropit = Math.sin(x * 1.86) * Math.cos(y * 1.92);
-      const colorLift = THREE.MathUtils.clamp(dither * 8 + grain * 6 + weave * 5, -22, 22);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.16);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.16);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.16);
+      const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
+      const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
+      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 24 + weave * 8, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 24 - weave * 8, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 30, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(228 + dither * 12 + grain * 10 + micropit * 8, 176, 255);
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2669,7 +2668,7 @@ function applyMonoMattePlasticSurface(material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.98;
+    material.roughness = 0.94;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -6777,7 +6776,7 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const CORNER_POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
@@ -11910,8 +11909,7 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      // Keep the center of the rounded metal cap exactly at leg-bottom height.
-      group.position.set(center.x, ctx.floorY - (levelerHeight * 0.5 + rubberHeight), center.z);
+      group.position.set(center.x, ctx.floorY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -21531,7 +21529,7 @@ const powerRef = useRef(hud.power);
           } else {
             dir.normalize();
           }
-          const centers = CORNER_POCKET_CAMERA_IDS.map((id) => getPocketCenterById(id)).filter((center) => Boolean(center));
+          const centers = pocketCenters();
           const pos = targetBall.pos.clone();
           let best = null;
           let bestScore = -Infinity;
@@ -21590,7 +21588,6 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
-          if (!CORNER_POCKET_CAMERA_IDS.includes(anchorPocketId)) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -28532,13 +28529,11 @@ const powerRef = useRef(hud.power);
           recording,
           hadObjectPot,
           pottedBalls,
-          shotContext,
-          hasFoul = false
+          shotContext
         }) => {
-          if (!recording || (!hadObjectPot && !hasFoul)) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
-          if (hasFoul) tags.add('foul');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
@@ -28547,7 +28542,7 @@ const powerRef = useRef(hud.power);
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
-            shouldReplay: hadObjectPot || hasFoul || tags.size > 0,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags ?? []),
@@ -28565,8 +28560,7 @@ const powerRef = useRef(hud.power);
             recording: shotRecording,
             hadObjectPot,
             pottedBalls: potted,
-            shotContext: shotContextRef.current,
-            hasFoul: false
+            shotContext: shotContextRef.current
           });
           let shouldStartReplay = false;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -28794,14 +28788,13 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
+          shouldStartReplay = false;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay =
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+        shouldStartReplay = false;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -31879,12 +31872,6 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const shotBroadcastActive = shotActive || pocketCameraActive;
-  useEffect(() => {
-    if (!(shotBroadcastActive || replayActive)) return;
-    if (!isTopDownView) return;
-    setIsRailOverheadView(false);
-    setIsTopDownView(false);
-  }, [isTopDownView, replayActive, shotBroadcastActive]);
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
@@ -33815,7 +33802,7 @@ const powerRef = useRef(hud.power);
             type="button"
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
-              if (!isPortrait || shotBroadcastActive || replayActive) return;
+              if (!isPortrait) return;
               setIsRailOverheadView(false);
               setIsTopDownView(true);
             }}
@@ -33823,9 +33810,8 @@ const powerRef = useRef(hud.power);
               isTopDownView && !isRailOverheadView
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            } ${(shotBroadcastActive || replayActive) ? 'pointer-events-none opacity-35' : ''}`}
+            }`}
             aria-label="Switch to 2D view"
-            disabled={shotBroadcastActive || replayActive}
           >
             <span aria-hidden="true">2D</span>
           </button>
