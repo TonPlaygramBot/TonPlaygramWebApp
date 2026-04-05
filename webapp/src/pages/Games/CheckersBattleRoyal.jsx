@@ -74,10 +74,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-// Portrait mobile framing tweak: push chairs a touch away from the table.
-const CHAIR_OUTWARD_OFFSET = 0.12 * CHECKERS_ARENA_SCALE;
-const CHAIR_DISTANCE =
-  TABLE_RADIUS + (0.56 + CHAIR_OUTWARD_OFFSET) * CHECKERS_ARENA_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -99,8 +96,6 @@ const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.68;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
-// Sink chairs slightly into the floor so seat/back read lower in portrait view.
-const CHAIR_GROUND_SINK = 0.16 * CHECKERS_ARENA_SCALE;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
@@ -2235,10 +2230,7 @@ export default function CheckersBattleRoyal() {
           });
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(
-            g,
-            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
-          );
+          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
           return g;
         };
@@ -2258,10 +2250,7 @@ export default function CheckersBattleRoyal() {
           const g = createProceduralChairFallback(chairColor, legColor);
           g.position.set(0, CHAIR_BASE_HEIGHT, z);
           g.rotation.y = ry;
-          groundGroupToFloor(
-            g,
-            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
-          );
+          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON);
           scene.add(g);
           return g;
         };
