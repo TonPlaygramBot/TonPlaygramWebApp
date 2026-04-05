@@ -54,9 +54,9 @@ import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
-const CHECKERS_ARENA_SCALE = 0.84;
+const CHECKERS_ARENA_SCALE = 0.68;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
-const STOOL_SCALE = 1.5 * 1.3 * CHECKERS_ARENA_SCALE;
+const STOOL_SCALE = 1.25 * 1.08 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -64,7 +64,7 @@ const CHAIR_BASE_HEIGHT =
   BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.14 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const BOARD_SCALE = 0.064;
+const BOARD_SCALE = 0.064 * CHECKERS_ARENA_SCALE;
 const BOARD_TILE_SIZE = ((SIZE * 4.2 + 3 * 2) * BOARD_SCALE) / SIZE;
 const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // ABeautifulGame GLTF contains a wider decorative frame than the fallback board,
@@ -74,7 +74,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-const CHAIR_DISTANCE = TABLE_RADIUS + 0.82 * CHECKERS_ARENA_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + 0.68 * CHECKERS_ARENA_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -92,6 +92,10 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.54;
+const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.66;
+const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.72;
+const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.82;
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
 const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
@@ -1105,6 +1109,45 @@ function resolveArenaFloorY(...groups) {
   return hasObject && Number.isFinite(box.min.y) ? box.min.y : 0;
 }
 
+function reduceCheckersTableBase(tableGroup) {
+  if (!tableGroup) return;
+  tableGroup.traverse((node) => {
+    if (!node?.isMesh || node.geometry?.type !== 'CylinderGeometry') return;
+    const isBelowTop = node.position.y < TABLE_HEIGHT - 0.06;
+    if (!isBelowTop) return;
+    const radiusTop = Number(node.geometry?.parameters?.radiusTop) || 0;
+    const radiusBottom = Number(node.geometry?.parameters?.radiusBottom) || 0;
+    const height = Number(node.geometry?.parameters?.height) || 0;
+    const avgRadius = (radiusTop + radiusBottom) / 2;
+    const isTrimRing = avgRadius > TABLE_RADIUS * 0.7;
+    const beforeBox = new THREE.Box3().setFromObject(node);
+    const heightScale = isTrimRing
+      ? CHECKERS_TABLE_TRIM_HEIGHT_SCALE
+      : CHECKERS_TABLE_BASE_HEIGHT_SCALE;
+    const radiusScale = isTrimRing
+      ? CHECKERS_TABLE_TRIM_RADIUS_SCALE
+      : CHECKERS_TABLE_BASE_RADIUS_SCALE;
+    node.scale.set(
+      node.scale.x * radiusScale,
+      node.scale.y * heightScale,
+      node.scale.z * radiusScale
+    );
+    node.updateMatrixWorld(true);
+    const afterBox = new THREE.Box3().setFromObject(node);
+    if (
+      Number.isFinite(beforeBox.min.y) &&
+      Number.isFinite(afterBox.min.y) &&
+      Math.abs(beforeBox.min.y - afterBox.min.y) > 1e-5
+    ) {
+      node.position.y += beforeBox.min.y - afterBox.min.y;
+      node.updateMatrixWorld(true);
+    }
+    if (height < 0.001) {
+      node.visible = false;
+    }
+  });
+}
+
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions =
@@ -2082,6 +2125,7 @@ export default function CheckersBattleRoyal() {
           MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
           MURLAN_TABLE_FINISHES[0];
         applyTableMaterials(table.parts, finish);
+        reduceCheckersTableBase(table.group);
         tableRef.current = table;
       } catch (error) {
         console.error('Checkers table load failed:', error);
@@ -2589,9 +2633,9 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        const floorY = resolveArenaFloorY(
-          tableRef.current?.group,
-          ...(chairsRef.current || [])
+        const floorY = Math.max(
+          0,
+          resolveArenaFloorY(...(chairsRef.current || []))
         );
         skybox.position.y = floorY + cameraHeight;
         if (typeof variant?.rotationY === 'number')
