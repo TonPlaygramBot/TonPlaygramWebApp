@@ -810,7 +810,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'environmentHdri', label: 'HDRI Environment', options: TEXAS_HDRI_OPTIONS }
 ];
-const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable']);
+const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable', 'hexagonTable']);
+const TABLE_STYLE_MENU_SHAPE_IDS = new Set(['classicOctagon', 'grandOval', 'diamondEdge', 'hexagonTable']);
 
 const NON_DIAMOND_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
@@ -3303,9 +3304,12 @@ function TexasHoldemArena({ search }) {
         .filter((section) => {
           if (section.key !== 'tableFinish' && section.key !== 'tableCloth') return true;
           const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
-          return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id);
+          const tableShape = TABLE_SHAPE_OPTIONS[appearance.tableShape] ?? TABLE_SHAPE_OPTIONS[0];
+          const proceduralThemeSupportsSurface =
+            tableTheme?.source === 'procedural' && TABLE_STYLE_MENU_SHAPE_IDS.has(tableShape?.id);
+          return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id) || proceduralThemeSupportsSurface;
         }),
-    [appearance.tableTheme, texasInventory]
+    [appearance.tableShape, appearance.tableTheme, texasInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {

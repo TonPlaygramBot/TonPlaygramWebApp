@@ -40,4 +40,11 @@ describe("Texas Hold'em HDRI inventory", () => {
       expect(storeHdriIds.has(id)).toBe(true);
     });
   });
+
+  test('includes hexagon table shape in store purchasables', () => {
+    const texasShapeIds = new Set(
+      TEXAS_HOLDEM_STORE_ITEMS.filter((item) => item.type === 'tableShape').map((item) => item.optionId)
+    );
+    expect(texasShapeIds.has('hexagonTable')).toBe(true);
+  });
 });
