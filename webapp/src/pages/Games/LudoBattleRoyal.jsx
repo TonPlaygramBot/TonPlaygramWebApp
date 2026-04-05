@@ -389,7 +389,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
-const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 2;
+const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 4;
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
