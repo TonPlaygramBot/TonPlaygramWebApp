@@ -185,6 +185,7 @@ const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 3400;
 const AI_EXTRA_ROLL_DELAY_MS = 2600;
 const TURN_ADVANCE_AFTER_DICE_MS = 850;
+const DICE_RESULT_VISIBLE_MS = 2300;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -542,48 +543,6 @@ const DICE_THEME_OPTIONS = Object.freeze([
     bodyMetalness: 0.52,
     pipEmissive: '#0ea5e9',
     rimEmissive: '#be185d'
-  }
-]);
-
-const RAIL_THEME_OPTIONS = Object.freeze([
-  {
-    id: 'platinumOak',
-    label: 'Platinum & Oak',
-    metal: '#f3f4f6',
-    woodLight: '#d6b68c',
-    woodDark: '#8b5e34',
-    netColor: '#f8fafc',
-    netPrimary: 'rgba(148, 163, 184, 0.7)',
-    netSecondary: 'rgba(15, 23, 42, 0.35)',
-    netOpacity: 0.58,
-    ladderRail: '#ffffff',
-    ladderRung: '#eab308'
-  },
-  {
-    id: 'obsidianSteel',
-    label: 'Obsidian Steel',
-    metal: '#e5e7eb',
-    woodLight: '#4b5563',
-    woodDark: '#1f2937',
-    netColor: '#cbd5f5',
-    netPrimary: 'rgba(96, 165, 250, 0.75)',
-    netSecondary: 'rgba(37, 99, 235, 0.35)',
-    netOpacity: 0.52,
-    ladderRail: '#cbd5f5',
-    ladderRung: '#60a5fa'
-  },
-  {
-    id: 'emberBrass',
-    label: 'Ember Brass',
-    metal: '#fbbf24',
-    woodLight: '#fb923c',
-    woodDark: '#7c2d12',
-    netColor: '#fee2e2',
-    netPrimary: 'rgba(248, 113, 113, 0.7)',
-    netSecondary: 'rgba(185, 28, 28, 0.4)',
-    netOpacity: 0.6,
-    ladderRail: '#fcd34d',
-    ladderRung: '#fb7185'
   }
 ]);
 
@@ -989,7 +948,6 @@ function normalizeAppearance(value = {}) {
     }
   });
   normalized.snakeSkin = 0;
-  normalized.railTheme = 0;
   normalized.tokenFinish = 0;
   return normalized;
 }
@@ -999,7 +957,6 @@ function resolveAppearance(appearance) {
   const arena = ARENA_THEME_OPTIONS[normalized.arenaTheme] ?? ARENA_THEME_OPTIONS[0];
   const board = BOARD_PALETTE_OPTIONS[normalized.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
   const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
-  const rail = RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
   const pawnHead = PAWN_HEAD_PRESET_OPTIONS[normalized.headStyle] ?? PAWN_HEAD_PRESET_OPTIONS[0];
@@ -1020,7 +977,10 @@ function resolveAppearance(appearance) {
     },
     board: { ...board },
     dice: { ...dice },
-    rail: { ...rail },
+    rail: {
+      ladderRail: board.highlightLadder ?? '#ffffff',
+      ladderRung: board.highlightNormal ?? '#eab308'
+    },
     token: { ...token },
     tokenShape,
     pawnHead,
@@ -2207,7 +2167,7 @@ export default function SnakeAndLadder() {
     };
     const onRolled = ({ value }) => {
       setRollResult(value);
-      setTimeout(() => setRollResult(null), 2000);
+      setTimeout(() => setRollResult(null), DICE_RESULT_VISIBLE_MS);
       playDiceRollSound();
     };
     const onWon = ({ playerId }) => {
@@ -2574,7 +2534,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), DICE_RESULT_VISIBLE_MS);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -2767,17 +2727,24 @@ export default function SnakeAndLadder() {
         setMoving(false);
         if (!gameOver) {
           const next = extraTurn ? currentTurn : getPreviousTurn(currentTurn);
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 1);
-          if (extraTurn && next === 0) {
-            // Do not delay the local extra roll button after a six/bonus.
-            setRollCooldown(0);
+          const applyNextTurn = () => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 1);
+          };
+          if (extraTurn) {
+            applyNextTurn();
+            if (next === 0) {
+              // Do not delay the local extra roll button after a six/bonus.
+              setRollCooldown(0);
+            }
+          } else {
+            setTimeout(applyNextTurn, DICE_RESULT_VISIBLE_MS);
           }
         }
       };
 
       moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, DICE_RESULT_VISIBLE_MS);
   };
 
   const triggerAIRoll = (index) => {
@@ -2823,7 +2790,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), DICE_RESULT_VISIBLE_MS);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -2965,9 +2932,16 @@ export default function SnakeAndLadder() {
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       }
       const next = extraTurn ? index : getPreviousTurn(index);
-      if (next === 0) setTurnMessage('Your turn');
-      setCurrentTurn(next);
-      setDiceCount(playerDiceCounts[next] ?? 1);
+      const applyNextTurn = () => {
+        if (next === 0) setTurnMessage('Your turn');
+        setCurrentTurn(next);
+        setDiceCount(playerDiceCounts[next] ?? 1);
+      };
+      if (extraTurn) {
+        applyNextTurn();
+      } else {
+        setTimeout(applyNextTurn, DICE_RESULT_VISIBLE_MS);
+      }
       setDiceVisible(true);
       setMoving(false);
       if (extraTurn && next === index) {
@@ -2979,7 +2953,7 @@ export default function SnakeAndLadder() {
       applyEffectHelper(startPos, ctx, (finalPos, type) => finalizeMove(finalPos, type, startPos));
 
     moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, DICE_RESULT_VISIBLE_MS);
   };
 
   useEffect(() => {
