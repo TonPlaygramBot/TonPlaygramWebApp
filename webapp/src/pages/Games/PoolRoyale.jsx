@@ -28417,7 +28417,7 @@ const powerRef = useRef(hud.power);
             : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
-        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
+        if (shotWasFoul && shotRecording) {
           const foulBanner = 'Foul';
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28442,7 +28442,7 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'foul';
         }
         const isFinalShot =
-          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
+          Boolean(safeState?.frameOver) && Boolean(shotRecording);
         if (isFinalShot) {
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28473,7 +28473,7 @@ const powerRef = useRef(hud.power);
         shouldStartReplay =
           !skipAllReplaysRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+          Boolean(shotRecording);
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
