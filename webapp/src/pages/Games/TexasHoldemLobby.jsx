@@ -42,7 +42,7 @@ export default function TexasHoldemLobby() {
   const [cleanupMatch, setCleanupMatch] = useState(() => () => {});
   const startBet = stake.amount / 100;
 
-  const totalPlayers = Math.min(Math.max(2, opponents + 1), 8);
+  const totalPlayers = Math.min(Math.max(2, opponents + 1), 6);
   const flagPickerCount = mode === 'local' ? totalPlayers : 1;
 
   const openAiFlagPicker = () => {
@@ -204,11 +204,11 @@ export default function TexasHoldemLobby() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">Opponents</h3>
-              <p className="text-xs text-white/60">Choose how many players you want to face (up to 8 total players).</p>
+              <p className="text-xs text-white/60">Choose how many players you want to face.</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            {Array.from({ length: 7 }, (_, idx) => idx + 1).map((count) => {
+          <div className="mt-4 grid grid-cols-5 gap-2">
+            {Array.from({ length: 5 }, (_, idx) => idx + 1).map((count) => {
               const isSelected = opponents === count;
               return (
                 <button
