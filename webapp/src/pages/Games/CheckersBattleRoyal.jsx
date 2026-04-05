@@ -56,7 +56,7 @@ import { socket } from '../../utils/socket.js';
 const SIZE = 8;
 const CHECKERS_ARENA_SCALE = 0.52;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
-const STOOL_SCALE = 1.12 * CHECKERS_ARENA_SCALE;
+const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -264,14 +264,18 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const CHAIR_TARGET_SCALE_FACTOR = 0.84;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679,
-  1.9173749900311232,
-  1.7001562547683715
+  1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
+  1.9173749900311232 * CHAIR_TARGET_SCALE_FACTOR,
+  1.7001562547683715 * CHAIR_TARGET_SCALE_FACTOR
 );
 const TARGET_CHAIR_MIN_Y = -CHAIR_BASE_HEIGHT;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const CHAIR_GROUNDING_EPSILON = 0.012 * MODEL_SCALE;
+const SHADOW_CATCHER_SIZE = CHECKERS_ROOM_HALF_SPAN * 2.9;
+const SHADOW_CATCHER_OPACITY = 0.26;
+const SHADOW_CATCHER_ELEVATION = 0.004;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
@@ -1111,6 +1115,21 @@ function resolveArenaFloorY(...groups) {
   return hasObject && Number.isFinite(box.min.y) ? box.min.y : 0;
 }
 
+function alignArenaGroundArtifacts({ shadowCatcher, skybox, table, board, chairs }) {
+  const floorY = resolveArenaFloorY(
+    table?.group,
+    board,
+    ...((chairs || []).filter(Boolean))
+  );
+  if (shadowCatcher) {
+    shadowCatcher.position.y = floorY + SHADOW_CATCHER_ELEVATION;
+  }
+  if (skybox?.userData?.cameraHeight) {
+    skybox.position.y = floorY + skybox.userData.cameraHeight;
+  }
+  return floorY;
+}
+
 function reduceCheckersTableBase(tableGroup) {
   if (!tableGroup) return;
   tableGroup.traverse((node) => {
@@ -1333,6 +1352,8 @@ export default function CheckersBattleRoyal() {
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
+  const keyLightRef = useRef(null);
+  const shadowCatcherRef = useRef(null);
   const envRef = useRef({ map: null, skybox: null });
   const boardThemeRef = useRef(CHECKERS_BOARD_THEME_OPTIONS[0]);
   const gltfBoardRef = useRef(null);
@@ -1804,6 +1825,7 @@ export default function CheckersBattleRoyal() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(
@@ -1856,7 +1878,32 @@ export default function CheckersBattleRoyal() {
     const key = new THREE.DirectionalLight('#ffffff', 1.08);
     key.position.set(18, 26, 12);
     key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.bias = -0.00008;
+    key.shadow.normalBias = 0.03;
+    key.shadow.radius = 2.8;
+    key.shadow.camera.near = 1;
+    key.shadow.camera.far = 120;
+    key.shadow.camera.left = -16;
+    key.shadow.camera.right = 16;
+    key.shadow.camera.top = 16;
+    key.shadow.camera.bottom = -16;
+    keyLightRef.current = key;
     scene.add(key);
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.CircleGeometry(SHADOW_CATCHER_SIZE, 72),
+      new THREE.ShadowMaterial({
+        color: '#000000',
+        transparent: true,
+        opacity: SHADOW_CATCHER_OPACITY
+      })
+    );
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.receiveShadow = true;
+    shadowCatcher.position.y = SHADOW_CATCHER_ELEVATION;
+    shadowCatcher.renderOrder = 1;
+    shadowCatcherRef.current = shadowCatcher;
+    scene.add(shadowCatcher);
 
     const piecesGroup = new THREE.Group();
     piecesGroupRef.current = piecesGroup;
@@ -2271,6 +2318,14 @@ export default function CheckersBattleRoyal() {
         )
       };
 
+      alignArenaGroundArtifacts({
+        shadowCatcher: shadowCatcherRef.current,
+        skybox: envRef.current?.skybox,
+        table: tableRef.current,
+        board: gltfBoardRef.current || proceduralBoard,
+        chairs: chairsRef.current
+      });
+
       setupPickTiles();
       renderPieces();
       renderCapturedPieces();
@@ -2664,15 +2719,33 @@ export default function CheckersBattleRoyal() {
           groundRadius,
           skyboxResolution
         );
-        const floorY = resolveArenaFloorY(
-          tableRef.current?.group,
-          gltfBoardRef.current,
-          ...((chairsRef.current || []).filter(Boolean))
-        );
-        skybox.position.y = floorY + cameraHeight;
+        skybox.userData.cameraHeight = cameraHeight;
         if (typeof variant?.rotationY === 'number')
           skybox.rotation.y = variant.rotationY;
         scene.add(skybox);
+        alignArenaGroundArtifacts({
+          shadowCatcher: shadowCatcherRef.current,
+          skybox,
+          table: tableRef.current,
+          board: gltfBoardRef.current,
+          chairs: chairsRef.current
+        });
+        const keyLight = keyLightRef.current;
+        if (keyLight) {
+          const lightAngle =
+            (typeof variant?.rotationY === 'number' ? variant.rotationY : 0) +
+            Math.PI * 0.28;
+          keyLight.position.set(
+            Math.cos(lightAngle) * 18,
+            25,
+            Math.sin(lightAngle) * 18
+          );
+          keyLight.intensity = THREE.MathUtils.clamp(
+            (variant?.environmentIntensity ?? 1.06) * 0.92,
+            0.72,
+            1.2
+          );
+        }
         envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
       } catch (error) {
         console.error('Checkers HDRI swap failed:', error);
