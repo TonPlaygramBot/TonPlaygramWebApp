@@ -136,7 +136,8 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
-const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
@@ -145,8 +146,8 @@ const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
   far: CAMERA_FAR,
-  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor,
-  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor,
+  minR: CAMERA_BASE_RADIUS * 0.55,
+  maxR: CAMERA_BASE_RADIUS * 3.2,
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
@@ -247,14 +248,23 @@ const STAIR_CONNECTIONS = LEVEL_START_INDICES.slice(0, -1).map((start, index) =>
 }));
 const COIN_SPIN_SPEED = Math.PI / 7;
 const TEXTURE_REPEAT_SCALE = 0.85;
-const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
+const CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR = 0.0014;
+const CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR = 0.01;
+const CAMERA_3D_ZOOM_WHEEL_FACTOR = 0.0012;
+const CAMERA_3D_ZOOM_PINCH_FACTOR = 0.0042;
 const CAMERA_EXTRA_LIFT = 0.12;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.86,
-  forwardOffset: 0.74,
-  heightOffset: 1.32,
-  targetLift: 0.06 * MODEL_SCALE
+  backOffset: 1.14,
+  forwardOffset: 0,
+  heightOffset: 1.86,
+  targetLift: 0.08 * MODEL_SCALE
+});
+const LANDSCAPE_CAMERA_TUNING = Object.freeze({
+  backOffset: 0.68,
+  forwardOffset: 0,
+  heightOffset: 1.08,
+  targetLift: 0.08 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
@@ -2627,18 +2637,19 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   let activeTableGroup = tableInfo.group;
   tableRoot.add(activeTableGroup);
   const isPortrait = host.clientHeight > host.clientWidth;
-  const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
+  const cameraTuning = isPortrait ? PORTRAIT_CAMERA_TUNING : LANDSCAPE_CAMERA_TUNING;
+  const targetLift = cameraTuning.targetLift;
 
   const boardGroup = new THREE.Group();
   boardGroup.scale.setScalar(BOARD_SCALE);
   const boardLookTarget = new THREE.Vector3(
     0,
-    tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE,
+    tableInfo.surfaceY + targetLift + CAMERA_TARGET_EXTRA,
     0
   );
   const attachBoard = (info, group) => {
     boardGroup.position.set(0, info.surfaceY + 0.004, 0);
-    boardLookTarget.set(0, info.surfaceY + targetLift + 0.12 * MODEL_SCALE, 0);
+    boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
     group.add(boardGroup);
   };
   attachBoard(tableInfo, activeTableGroup);
@@ -2663,9 +2674,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const chairRadius = (tableInfo.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const cameraSeatAngle = Math.PI / 2;
-  const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : 1.08;
-  const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : 0.34;
-  const cameraHeightOffset = (isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : 1.18) + CAMERA_EXTRA_LIFT;
+  const cameraBackOffset = cameraTuning.backOffset;
+  const cameraForwardOffset = cameraTuning.forwardOffset;
+  const cameraHeightOffset = cameraTuning.heightOffset + CAMERA_EXTRA_LIFT;
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
@@ -2681,15 +2692,15 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.enableZoom = true;
-  controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
+  controls.enableZoom = false;
+  controls.zoomSpeed = 0;
   controls.enableRotate = false;
   controls.rotateSpeed = 0;
-  controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE };
+  controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
   controls.mouseButtons = {
-    LEFT: null,
-    MIDDLE: THREE.MOUSE.DOLLY,
-    RIGHT: null
+    LEFT: THREE.MOUSE.NONE,
+    MIDDLE: THREE.MOUSE.NONE,
+    RIGHT: THREE.MOUSE.NONE
   };
   const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
   controls.minDistance = CAM.minR;
@@ -2720,7 +2731,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
     camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-    controls.minDistance = Math.max(CAM.minR, needed * 0.92);
+    controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR;
     controls.update();
   };
@@ -3928,7 +3939,7 @@ export default function SnakeBoard3D({
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       const lockedAzimuth = controls.getAzimuthalAngle();
@@ -3936,11 +3947,11 @@ export default function SnakeBoard3D({
       controls.maxAzimuthAngle = lockedAzimuth;
       controls.minDistance = CAM.minR;
       controls.maxDistance = CAM.maxR;
-      controls.touches = { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+      controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
       controls.mouseButtons = {
-        LEFT: null,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: null
+        LEFT: THREE.MOUSE.NONE,
+        MIDDLE: THREE.MOUSE.NONE,
+        RIGHT: THREE.MOUSE.NONE
       };
       controls.update();
       return;
@@ -3962,18 +3973,18 @@ export default function SnakeBoard3D({
       controls.target.copy(restore.target);
       controls.enableRotate = restore.enableRotate;
       controls.enablePan = false;
-      controls.enableZoom = restore.enableZoom;
+      controls.enableZoom = false;
       controls.minPolarAngle = restore.minPolarAngle;
       controls.maxPolarAngle = restore.maxPolarAngle;
       controls.minAzimuthAngle = restore.minAzimuthAngle;
       controls.maxAzimuthAngle = restore.maxAzimuthAngle;
       controls.minDistance = restore.minDistance ?? CAM.minR;
       controls.maxDistance = restore.maxDistance ?? CAM.maxR;
-      controls.touches = restore.touches || { ONE: THREE.TOUCH.DOLLY, TWO: THREE.TOUCH.DOLLY };
+      controls.touches = restore.touches || { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
       controls.mouseButtons = restore.mouseButtons || {
-        LEFT: null,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: null
+        LEFT: THREE.MOUSE.NONE,
+        MIDDLE: THREE.MOUSE.NONE,
+        RIGHT: THREE.MOUSE.NONE
       };
       controls.update();
       cameraRestoreRef.current = null;
@@ -4064,11 +4075,63 @@ export default function SnakeBoard3D({
       startCameraState: arena.startCameraState ?? null
     };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
+    const getCameraConstraints = () => {
+      if (cameraViewModeRef.current === '2d') {
+        return {
+          minPolar: THREE.MathUtils.degToRad(2),
+          maxPolar: THREE.MathUtils.degToRad(18),
+          minRadius: CAMERA_BASE_RADIUS * 1.2,
+          maxRadius: CAMERA_BASE_RADIUS * 3.6
+        };
+      }
+      return {
+        minPolar: CAM.phiMin,
+        maxPolar: CAM.phiMax,
+        minRadius: CAM.minR,
+        maxRadius: CAM.maxR
+      };
+    };
+    const clampCameraPosition = (position, target) => {
+      const { minPolar, maxPolar, minRadius, maxRadius } = getCameraConstraints();
+      const offset = position.clone().sub(target);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
+        spherical.radius = minRadius;
+        spherical.theta = Math.PI / 2;
+        spherical.phi = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, INITIAL_CAMERA_DISTANCE_FACTOR),
+          minPolar,
+          maxPolar
+        );
+      }
+      spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
+      spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
+      const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
+      return target.clone().add(clampedOffset);
+    };
+    const applyCameraZoomScale = (zoomScale = 1) => {
+      if (!Number.isFinite(zoomScale) || zoomScale <= 0) return;
+      const camera = cameraRef.current;
+      const controls = boardRef.current?.controls;
+      const target = boardRef.current?.boardLookTarget;
+      if (!camera || !controls || !target) return;
+      const nextPosition = target
+        .clone()
+        .add(camera.position.clone().sub(target).multiplyScalar(zoomScale));
+      camera.position.copy(clampCameraPosition(nextPosition, target));
+      controls.target.copy(target);
+      controls.update();
+    };
 
     const dragState = {
       pointerId: null,
       lastX: 0,
       lastY: 0
+    };
+    const pinchState = {
+      mode: null,
+      distance: null,
+      pointers: new Map()
     };
     const onPointerDown = (event) => {
       if (event.button !== 0 && event.pointerType !== 'touch') return;
@@ -4078,6 +4141,9 @@ export default function SnakeBoard3D({
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
+      if (pinchState.pointers.has(event.pointerId)) {
+        pinchState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, pointerType: event.pointerType });
+      }
       if (dragState.pointerId !== event.pointerId) return;
       const deltaX = event.clientX - dragState.lastX;
       const deltaY = event.clientY - dragState.lastY;
@@ -4105,17 +4171,77 @@ export default function SnakeBoard3D({
       if (dragState.pointerId !== event.pointerId) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
       dragState.pointerId = null;
+      pinchState.pointers.delete(event.pointerId);
+      pinchState.distance = null;
+      pinchState.mode = null;
+    };
+    const onWheel = (event) => {
+      const isTopDown = cameraViewModeRef.current === '2d';
+      event.preventDefault();
+      const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR : CAMERA_3D_ZOOM_WHEEL_FACTOR;
+      const bounds = isTopDown ? [0.86, 1.16] : [0.88, 1.14];
+      const zoomScale = 1 + event.deltaY * factor;
+      applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
+    };
+    const tryApplyPinchZoom = () => {
+      if (pinchState.pointers.size < 2) {
+        pinchState.distance = null;
+        pinchState.mode = null;
+        return;
+      }
+      const [a, b] = Array.from(pinchState.pointers.values());
+      if (a.pointerType !== 'touch' || b.pointerType !== 'touch') return;
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (!Number.isFinite(distance)) return;
+      if (Number.isFinite(pinchState.distance)) {
+        const deltaDistance = distance - pinchState.distance;
+        const isTopDown = cameraViewModeRef.current === '2d';
+        const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR : CAMERA_3D_ZOOM_PINCH_FACTOR;
+        const bounds = isTopDown ? [0.85, 1.15] : [0.9, 1.12];
+        const zoomScale = 1 - deltaDistance * factor;
+        applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
+      }
+      pinchState.distance = distance;
+      pinchState.mode = cameraViewModeRef.current;
+    };
+    const onTouchPointerDown = (event) => {
+      pinchState.pointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        pointerType: event.pointerType
+      });
+      tryApplyPinchZoom();
+    };
+    const onTouchPointerMove = () => {
+      tryApplyPinchZoom();
+    };
+    const onTouchPointerUp = (event) => {
+      pinchState.pointers.delete(event.pointerId);
+      if (pinchState.pointers.size < 2) {
+        pinchState.distance = null;
+        pinchState.mode = null;
+      }
     };
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerdown', onTouchPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointermove', onTouchPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerEnd);
+    renderer.domElement.addEventListener('pointerup', onTouchPointerUp);
     renderer.domElement.addEventListener('pointercancel', onPointerEnd);
+    renderer.domElement.addEventListener('pointercancel', onTouchPointerUp);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
     handlers.push(() => {
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerdown', onTouchPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointermove', onTouchPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerEnd);
+      renderer.domElement.removeEventListener('pointerup', onTouchPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerEnd);
+      renderer.domElement.removeEventListener('pointercancel', onTouchPointerUp);
+      renderer.domElement.removeEventListener('wheel', onWheel);
     });
 
     railTextureRef.current?.dispose?.();
