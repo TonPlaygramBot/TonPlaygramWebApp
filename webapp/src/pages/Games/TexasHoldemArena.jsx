@@ -807,7 +807,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'chairTheme', label: 'Chairs', options: TEXAS_CHAIR_THEME_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
-  { key: 'cards', label: 'Cards', options: CARD_THEMES }
+  { key: 'cards', label: 'Cards', options: CARD_THEMES },
+  { key: 'environmentHdri', label: 'HDRI Environment', options: TEXAS_HDRI_OPTIONS }
 ];
 const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable']);
 
