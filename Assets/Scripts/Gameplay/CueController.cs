@@ -48,6 +48,10 @@ namespace Aiming
         [Header("Camera sync")]
         [Tooltip("Optional cue camera that should mirror pull/push stroke motion for player, AI, and replay capture.")]
         public CueCamera cueCamera;
+        [Tooltip("When enabled, the cue camera stays active at shot trigger and dynamically turns to keep both cue ball and target ball tracked during the strike window.")]
+        public bool enableDynamicCueTrackingOnShotTrigger = true;
+        [Tooltip("Optional override to force an immediate rail-overhead handoff at shot trigger instead of dynamic cue tracking.")]
+        public bool forceImmediateRailOverheadOnShotTrigger;
         [Tooltip("Broadcast camera director used to force immediate rail-overhead switching at shot trigger.")]
         public ShotBroadcastCameraDirector broadcastCameraDirector;
         public CueStrikePhysics strikePhysics = new CueStrikePhysics();
@@ -173,7 +177,20 @@ namespace Aiming
         {
             if (cueCamera != null)
             {
-                cueCamera.SendMessage("SwitchToRailOverheadAfterPullback", SendMessageOptions.DontRequireReceiver);
+                if (enableDynamicCueTrackingOnShotTrigger)
+                {
+                    cueCamera.BeginShot(objectBall);
+                }
+
+                if (forceImmediateRailOverheadOnShotTrigger)
+                {
+                    cueCamera.SwitchToRailOverheadImmediate();
+                }
+            }
+
+            if (forceImmediateRailOverheadOnShotTrigger && broadcastCameraDirector != null)
+            {
+                broadcastCameraDirector.ForceRailOverheadForNextShot();
             }
         }
 
