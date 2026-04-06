@@ -1679,7 +1679,7 @@ const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.78; // restore prior pocket-camera inward scale to keep legacy framing/positioning
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.02; // pull corner-pocket cameras a touch more inward so portrait framing sits slightly closer to pocket center
 const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
@@ -1701,8 +1701,8 @@ const POCKET_CAM = Object.freeze({
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
   // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.58,
-  heightOffsetShortMultiplier: 1.28,
+  heightOffset: BALL_R * 2.72,
+  heightOffsetShortMultiplier: 1,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
     POCKET_CAM_BASE_OUTWARD_OFFSET * 1.9 * POCKET_CAM_INWARD_SCALE +
@@ -1715,7 +1715,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // restore earlier trigger distance so pocket cams engage at the previous point
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.34; // switch to pocket/rail broadcast heads earlier so the shot gets picked up before entering the jaw
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -1792,7 +1792,7 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 140;
 const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
-const POCKET_VIEW_EARLY_HOLD_MS = 320;
+const POCKET_VIEW_EARLY_HOLD_MS = 160;
 const SPIN_GLOBAL_SCALE = 0.98; // slightly stronger global spin so english/follow/draw feel closer to real-table response
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -6047,15 +6047,16 @@ const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Sno
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 180;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 420;
+const CAMERA_SWITCH_MIN_HOLD_MS = 180;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
-const STROKE_CAMERA_MIN_HOLD_MS = 210;
+const STROKE_CAMERA_MIN_HOLD_MS = 120;
+const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.45; // keep replay camera frame switching stable while still detecting live broadcast cuts
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -21742,8 +21743,9 @@ const powerRef = useRef(hud.power);
               : POCKET_CAM.triggerDist;
           if (!forceCornerCapture && best.dist > triggerDistance) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
-          const shortPocketHeightMultiplier =
-            POCKET_CAM.heightOffsetShortMultiplier ?? 1;
+          const shortPocketHeightMultiplier = isSidePocket
+            ? (POCKET_CAM.heightOffsetShortMultiplier ?? 1)
+            : 1;
           const heightOffset = baseHeightOffset * shortPocketHeightMultiplier;
           const railDir = isSidePocket
             ? signed(best.center.x, 1)
@@ -21762,13 +21764,12 @@ const powerRef = useRef(hud.power);
               }
             : null;
           const now = performance.now();
-          const minOutside = isSidePocket
-            ? POCKET_CAM.minOutside
-            : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const outsideDistanceMultiplier = isSidePocket
-            ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER
-            : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER;
-          const cameraDistance = minOutside * outsideDistanceMultiplier;
+          const cornerMinOutside =
+            POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
+          const cornerOutsideDistance =
+            cornerMinOutside * POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER;
+          // Keep middle-pocket cameras at the exact same center-distance as corner pockets.
+          const cameraDistance = cornerOutsideDistance;
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
