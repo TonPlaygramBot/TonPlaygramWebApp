@@ -3787,7 +3787,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
 const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // enforce only rail-overhead + pocket cameras during shot broadcast
-const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = false; // keep side-pocket cuts enabled to match Snooker Royal broadcast/replay routing
+const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // disable middle-pocket broadcast cuts and use only corner-pocket cameras for guaranteed pots
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -5962,6 +5962,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
+const ENABLE_SHOT_REPLAY = false; // Pool Royale broadcast update: remove replay playback and keep live rail-overhead coverage
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -13302,16 +13303,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    try {
-      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
-      if (stored == null) return true;
-      return stored !== '0';
-    } catch {
-      return true;
-    }
-  });
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(false);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14959,6 +14951,7 @@ function PoolRoyaleGame({
   }, [broadcastSystemId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      if (!ENABLE_SHOT_REPLAY) return;
       window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
     }
   }, [autoReplayEnabled]);
@@ -28752,6 +28745,7 @@ const powerRef = useRef(hud.power);
           });
           const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
           let shouldStartReplay =
+            ENABLE_SHOT_REPLAY &&
             autoReplayEnabled &&
             hasReplayFrames &&
             (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
@@ -28981,6 +28975,7 @@ const powerRef = useRef(hud.power);
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
+            ENABLE_SHOT_REPLAY &&
             autoReplayEnabled &&
             hasReplayFrames &&
             (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
@@ -28990,6 +28985,7 @@ const powerRef = useRef(hud.power);
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
         shouldStartReplay =
+          ENABLE_SHOT_REPLAY &&
           autoReplayEnabled &&
           hasReplayFrames &&
           (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
@@ -29459,7 +29455,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (autoReplayEnabled && pending?.frames?.length > 1) {
+          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -33560,33 +33556,35 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replay Controls
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                  aria-pressed={autoReplayEnabled}
-                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    autoReplayEnabled
-                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                      Auto Replay
+              {ENABLE_SHOT_REPLAY ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Replay Controls
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                    aria-pressed={autoReplayEnabled}
+                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      autoReplayEnabled
+                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Auto Replay
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                        {autoReplayEnabled ? 'On' : 'Off'}
+                      </span>
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                      {autoReplayEnabled ? 'On' : 'Off'}
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
-                  </span>
-                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                    Replays keep live graphics quality and appear on potted/foul moments.
-                  </span>
-                </button>
-              </div>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
