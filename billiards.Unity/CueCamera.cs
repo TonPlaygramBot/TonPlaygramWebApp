@@ -236,6 +236,33 @@ public class CueCamera : MonoBehaviour
     // Time to keep the cue camera locked on the strike after trigger before
     // switching to broadcast follow cameras.
     public float cueStrikeCameraHoldSeconds = 0.14f;
+    [Header("Broadcast shot behavior")]
+    // Switch to the rail-overhead broadcast framing immediately once a shot is
+    // triggered instead of waiting on the cue-strike hold timer.
+    public bool immediateRailBroadcastOnShot = false;
+    // Keep a fixed rail-overhead camera position during the entire shot so the
+    // view tracks action by turning/looking only (no zoom/dolly moves).
+    public bool lockRailBroadcastPositionDuringShot = true;
+    // Keep the rail-overhead camera active for the whole shot window and avoid
+    // corner-pocket cut-ins.
+    public bool forceRailOverheadForWholeShot = false;
+    [Header("Cue hold tracking")]
+    // During the cue-strike hold window keep cue camera position fixed and only
+    // rotate/turn to follow the target so it stays inside frame without zoom.
+    public bool turnOnlyCueTrackingDuringShotHold = true;
+    // Responsiveness of cue camera turn/look while holding position after shot.
+    public float cueHoldTurnSpeed = 10f;
+    // Weight to bias cue-hold look target toward target ball (1) vs cue ball (0).
+    [Range(0f, 1f)]
+    public float cueHoldTargetBias = 0.72f;
+    [Header("Pocket cut guarantee")]
+    // Only cut to pocket camera if target enters this inner capture radius.
+    public float pocketGuaranteedInnerRadius = 0.14f;
+    // Require inward motion before pocket camera cut unless already below lip.
+    [Range(0f, 1f)]
+    public float pocketGuaranteedInwardDot = 0.82f;
+    // Minimum planar speed for the inward-motion guarantee check.
+    public float pocketGuaranteedMinPlanarSpeed = 0.05f;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -266,6 +293,11 @@ public class CueCamera : MonoBehaviour
     private bool hasSmoothedCueDistance;
     private float cueStrikeHoldUntilTime;
     private bool holdCueAimDuringShot;
+    private bool hasShotRailAnchor;
+    private Vector3 shotRailAnchorPosition;
+    private bool hasCueHoldAnchor;
+    private Vector3 cueHoldAnchorPosition;
+    private float cueHoldAnchorFov;
     private Vector3 ballInHandTargetPosition;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
@@ -330,8 +362,10 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
-        holdCueAimDuringShot = cueStrikeCameraHoldSeconds > 0f;
+        holdCueAimDuringShot = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
         cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
+        hasShotRailAnchor = false;
+        hasCueHoldAnchor = false;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -401,7 +435,14 @@ public class CueCamera : MonoBehaviour
         }
         else if (holdCueAimDuringShot && Time.time < cueStrikeHoldUntilTime)
         {
-            PositionCueAimCamera(Time.deltaTime, false);
+            if (turnOnlyCueTrackingDuringShotHold)
+            {
+                UpdateCueHoldTrackingCamera();
+            }
+            else
+            {
+                PositionCueAimCamera(Time.deltaTime, false);
+            }
         }
         else
         {
@@ -744,35 +785,35 @@ public class CueCamera : MonoBehaviour
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
-        Vector3 cornerPocket;
-        float dynamicPocketRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
-        if (TargetBall != null)
-        {
-            Rigidbody targetRb = TargetBall.GetComponent<Rigidbody>();
-            if (targetRb != null && targetRb.velocity.sqrMagnitude > velocityThreshold)
-            {
-                dynamicPocketRadius += Mathf.Max(0f, cornerPocketApproachRadius);
-            }
-        }
-        bool shouldUsePocketCamera = TargetBall != null
-            && TargetBall.gameObject.activeInHierarchy
-            && TryGetCornerPocketForBall(TargetBall.position, dynamicPocketRadius, out cornerPocket);
-        if (shouldUsePocketCamera)
-        {
-            usingTargetCamera = true;
-            pocketCameraAwaitingDrop = true;
-            pocketDropDetected = false;
-            pocketCameraStartTime = Time.time;
-            pocketCameraReleaseTime = float.PositiveInfinity;
-            trackedCornerPocket = cornerPocket;
-            // Keep pocket framing anchored to the tracked pocket so the
-            // transition does not chase the travelling balls.
-            targetViewFocus = GetBroadcastFocus(cornerPocket);
-            UpdateTargetCamera();
-            return;
-        }
+        targetViewFocus = GetDynamicShotBroadcastFocus();
 
-        ApplyBroadcastCamera(targetViewFocus, false);
+        if (forceRailOverheadForWholeShot)
+        {
+            usingTargetCamera = false;
+            pocketCameraAwaitingDrop = false;
+            pocketDropDetected = false;
+            ApplyBroadcastCamera(targetViewFocus, false);
+        }
+        else
+        {
+            Vector3 guaranteedPocket;
+            if (IsGuaranteedPocketCut(TargetBall, out guaranteedPocket))
+            {
+                usingTargetCamera = true;
+                pocketCameraAwaitingDrop = true;
+                pocketDropDetected = false;
+                pocketCameraStartTime = Time.time;
+                pocketCameraReleaseTime = float.PositiveInfinity;
+                trackedCornerPocket = guaranteedPocket;
+                // Keep pocket framing anchored to the tracked pocket so the
+                // transition does not chase the travelling balls.
+                targetViewFocus = GetBroadcastFocus(guaranteedPocket);
+                UpdateTargetCamera();
+                return;
+            }
+
+            ApplyBroadcastCamera(targetViewFocus, false);
+        }
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -1021,7 +1062,109 @@ public class CueCamera : MonoBehaviour
             lookTarget.y -= Mathf.Max(0f, broadcastLookDownOffset);
         }
 
+        if (shotInProgress && !isPocketCamera && lockRailBroadcastPositionDuringShot)
+        {
+            if (!hasShotRailAnchor)
+            {
+                Vector3 anchor = focus - forward * distance + Vector3.up * height;
+                anchor.x = 0f;
+                shotRailAnchorPosition = anchor;
+                hasShotRailAnchor = true;
+            }
+
+            ApplyLockedRailBroadcastCamera(shotRailAnchorPosition, lookTarget, focus, minimumHeightOffset);
+            return;
+        }
+
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+    }
+
+    private void ApplyLockedRailBroadcastCamera(
+        Vector3 lockedPosition,
+        Vector3 lookTarget,
+        Vector3 focus,
+        float minimumHeightOffset)
+    {
+        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
+        float minimumHeight = focus.y + Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
+        minimumHeight = Mathf.Max(minimumHeight, minRailHeight);
+
+        Vector3 position = lockedPosition;
+        position.x = 0f;
+        position.y = Mathf.Max(position.y, minimumHeight);
+
+        transform.position = position;
+        transform.LookAt(lookTarget);
+    }
+
+    private Vector3 GetDynamicShotBroadcastFocus()
+    {
+        Vector3 desired = CueBall != null ? CueBall.position : tableBounds.center;
+        bool hasCue = CueBall != null && CueBall.gameObject.activeInHierarchy;
+        bool hasTarget = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
+        if (hasCue && hasTarget)
+        {
+            desired = (CueBall.position + TargetBall.position) * 0.5f;
+        }
+        else if (hasTarget)
+        {
+            desired = TargetBall.position;
+        }
+
+        return GetBroadcastFocus(desired);
+    }
+
+    private void UpdateCueHoldTrackingCamera()
+    {
+        if (CueBall == null)
+        {
+            return;
+        }
+
+        if (!hasCueHoldAnchor)
+        {
+            hasCueHoldAnchor = true;
+            cueHoldAnchorPosition = transform.position;
+            if (cachedCamera == null)
+            {
+                cachedCamera = GetComponent<Camera>();
+            }
+
+            Camera cam = cachedCamera != null ? cachedCamera : Camera.main;
+            cueHoldAnchorFov = cam != null ? cam.fieldOfView : cueRaisedFieldOfView;
+        }
+
+        Vector3 desiredLook = CueBall.position;
+        bool hasTarget = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
+        if (hasTarget)
+        {
+            float bias = Mathf.Clamp01(cueHoldTargetBias);
+            desiredLook = Vector3.Lerp(CueBall.position, TargetBall.position, bias);
+        }
+
+        Vector3 toLook = desiredLook - cueHoldAnchorPosition;
+        if (toLook.sqrMagnitude < 0.0001f)
+        {
+            toLook = transform.forward;
+        }
+
+        Quaternion desiredRotation = Quaternion.LookRotation(toLook.normalized, Vector3.up);
+        float turnSpeed = Mathf.Max(0f, cueHoldTurnSpeed);
+        float t = turnSpeed <= 0f ? 1f : 1f - Mathf.Exp(-turnSpeed * Time.deltaTime);
+
+        transform.position = cueHoldAnchorPosition;
+        transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, t);
+
+        if (cachedCamera == null)
+        {
+            cachedCamera = GetComponent<Camera>();
+        }
+
+        Camera camera = cachedCamera != null ? cachedCamera : Camera.main;
+        if (camera != null)
+        {
+            camera.fieldOfView = cueHoldAnchorFov;
+        }
     }
 
     private void CacheStandingCameraPose()
@@ -1386,6 +1529,8 @@ public class CueCamera : MonoBehaviour
         shotInProgress = false;
         usingTargetCamera = false;
         holdCueAimDuringShot = false;
+        hasShotRailAnchor = false;
+        hasCueHoldAnchor = false;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
@@ -1450,6 +1595,57 @@ public class CueCamera : MonoBehaviour
 
         float dropThreshold = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);
         return ballPosition.y <= dropThreshold;
+    }
+
+    private bool IsGuaranteedPocketCut(Transform targetBall, out Vector3 pocket)
+    {
+        pocket = Vector3.zero;
+        if (targetBall == null || !targetBall.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        float triggerRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        if (!TryGetCornerPocketForBall(targetBall.position, triggerRadius, out pocket))
+        {
+            return false;
+        }
+
+        Vector2 ballXZ = new Vector2(targetBall.position.x, targetBall.position.z);
+        Vector2 pocketXZ = new Vector2(pocket.x, pocket.z);
+        float innerRadius = Mathf.Max(0.01f, Mathf.Min(triggerRadius, pocketGuaranteedInnerRadius));
+        bool inInnerCapture = (ballXZ - pocketXZ).sqrMagnitude <= innerRadius * innerRadius;
+
+        float dropThreshold = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);
+        bool belowPocketLip = targetBall.position.y <= dropThreshold;
+        if (belowPocketLip)
+        {
+            return true;
+        }
+
+        Rigidbody rb = targetBall.GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            return false;
+        }
+
+        Vector3 planarVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        float minSpeed = Mathf.Max(0f, pocketGuaranteedMinPlanarSpeed);
+        if (planarVel.sqrMagnitude <= minSpeed * minSpeed)
+        {
+            return false;
+        }
+
+        Vector3 toPocket = pocket - targetBall.position;
+        toPocket.y = 0f;
+        if (toPocket.sqrMagnitude < 0.0001f)
+        {
+            return inInnerCapture;
+        }
+
+        float inwardDot = Vector3.Dot(planarVel.normalized, toPocket.normalized);
+        bool movingInward = inwardDot >= Mathf.Clamp01(pocketGuaranteedInwardDot);
+        return inInnerCapture && movingInward;
     }
 
     private static float GetShortRailYaw(int sideSign)
