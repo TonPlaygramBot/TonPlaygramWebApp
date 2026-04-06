@@ -319,7 +319,6 @@ public class CueCamera : MonoBehaviour
     private bool hasCueHoldAnchor;
     private Vector3 cueHoldAnchorPosition;
     private float cueHoldAnchorFov;
-    private bool forceRailOverheadForCurrentShot;
     private bool hasShotPullbackAnchor;
     private Vector3 shotPullbackStartPosition;
     private Quaternion shotPullbackStartRotation;
@@ -392,6 +391,7 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
+        holdCueAimDuringShot = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
         cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
         shotStartedTime = Time.time;
         hasShotRailAnchor = false;
@@ -404,8 +404,6 @@ public class CueCamera : MonoBehaviour
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
         bool breakShot = breakUsesWhiteLineRailSide && IsLikelyBreakShot(target);
-        forceRailOverheadForCurrentShot = breakShot;
-        holdCueAimDuringShot = !forceRailOverheadForCurrentShot && !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
         broadcastSideSign = breakShot ? aimSide : -aimSide;
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
@@ -478,7 +476,7 @@ public class CueCamera : MonoBehaviour
         }
         else if (holdCueAimDuringShot && Time.time < cueStrikeHoldUntilTime)
         {
-            if (!forceRailOverheadForCurrentShot && TrySwitchToGuaranteedPocketCamera())
+            if (TrySwitchToGuaranteedPocketCamera())
             {
                 return;
             }
@@ -840,7 +838,7 @@ public class CueCamera : MonoBehaviour
 
         targetViewFocus = GetDynamicShotBroadcastFocus();
 
-        if (forceRailOverheadForWholeShot || forceRailOverheadForCurrentShot)
+        if (forceRailOverheadForWholeShot)
         {
             usingTargetCamera = false;
             pocketCameraAwaitingDrop = false;
@@ -1760,7 +1758,6 @@ public class CueCamera : MonoBehaviour
         hasLastTargetPlanarVelocity = false;
         targetWasNearRail = false;
         handoffToCueBallAfterRailBounce = false;
-        forceRailOverheadForCurrentShot = false;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
