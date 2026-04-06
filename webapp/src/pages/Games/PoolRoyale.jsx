@@ -18079,13 +18079,9 @@ const powerRef = useRef(hud.power);
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
-            shotCameraHoldTimeoutRef.current = null;
-            if (!shooting) return;
-            topViewRef.current = true;
-            topViewLockedRef.current = true;
-            enterTopView(true, { variant: 'rail' });
-          }, SHOT_CAMERA_HOLD_MS);
+          topViewRef.current = true;
+          topViewLockedRef.current = true;
+          enterTopView(true, { variant: 'rail' });
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -20808,6 +20804,33 @@ const powerRef = useRef(hud.power);
                   camera.lookAt(activeShotView.smoothedTarget);
                   lookTarget = activeShotView.smoothedTarget;
                   renderCamera = camera;
+                  if (activeShotView.stage === 'pair' && activeShotView.targetId != null) {
+                    const targetBall = ballsList.find((b) => b.id === activeShotView.targetId);
+                    if (targetBall?.active) {
+                      const cueWorld = new THREE.Vector3(
+                        cueBall.pos.x * worldScaleFactor,
+                        BALL_CENTER_Y * worldScaleFactor,
+                        cueBall.pos.y * worldScaleFactor
+                      ).project(camera);
+                      const targetWorld = new THREE.Vector3(
+                        targetBall.pos.x * worldScaleFactor,
+                        BALL_CENTER_Y * worldScaleFactor,
+                        targetBall.pos.y * worldScaleFactor
+                      ).project(camera);
+                      const inFrame = (projected) =>
+                        Number.isFinite(projected.x) &&
+                        Number.isFinite(projected.y) &&
+                        Number.isFinite(projected.z) &&
+                        projected.z > -1 &&
+                        projected.z < 1 &&
+                        Math.abs(projected.x) < 0.94 &&
+                        Math.abs(projected.y) < 0.92;
+                      if (!inFrame(cueWorld) || !inFrame(targetWorld)) {
+                        activeShotView.preferRailOverhead = true;
+                        activeShotView.lockOverheadFocus = true;
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -21530,7 +21553,7 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = true;
+          const preferRailOverhead = Boolean(isBreakShot);
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -21558,7 +21581,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: true,
+            lockOverheadFocus: preferRailOverhead,
             longShot,
             travelDistance,
             activationDelay,
@@ -21644,6 +21667,7 @@ const powerRef = useRef(hud.power);
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           const allowEarly = forceCornerCapture;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
+          if (!forceCornerCapture && !isGuaranteedPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
