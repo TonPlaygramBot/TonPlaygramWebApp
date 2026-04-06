@@ -62,6 +62,58 @@ namespace Aiming.Tests.Broadcast
         }
 
         [Test]
+        public void ShotDirector_MiddlePocket_UsesRailOverheadCamera()
+        {
+            var go = new GameObject("shot-director-middle-pocket-test");
+            try
+            {
+                var director = go.AddComponent<ShotBroadcastCameraDirector>();
+                Vector3 pocketCameraPosition = new Vector3(0.2f, 0.1f, 0.2f);
+                var table = new Bounds(Vector3.zero, new Vector3(2f, 0.1f, 1f));
+
+                var mode = director.ResolveCamera(
+                    contactPoint: new Vector3(0f, 0f, 0.2f),
+                    tableBounds: table,
+                    cushionHits: 0,
+                    pocketKind: PocketKind.Middle,
+                    pocketCameraPosition: ref pocketCameraPosition,
+                    tableCenter: Vector3.zero);
+
+                Assert.That(mode, Is.EqualTo(BroadcastCameraMode.RailOverhead));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ShotDirector_BankShot_UsesRailOverheadCamera()
+        {
+            var go = new GameObject("shot-director-bank-shot-test");
+            try
+            {
+                var director = go.AddComponent<ShotBroadcastCameraDirector>();
+                Vector3 pocketCameraPosition = new Vector3(0.2f, 0.1f, 0.2f);
+                var table = new Bounds(Vector3.zero, new Vector3(2f, 0.1f, 1f));
+
+                var mode = director.ResolveCamera(
+                    contactPoint: new Vector3(0f, 0f, 0.2f),
+                    tableBounds: table,
+                    cushionHits: 2,
+                    pocketKind: PocketKind.Corner,
+                    pocketCameraPosition: ref pocketCameraPosition,
+                    tableCenter: Vector3.zero);
+
+                Assert.That(mode, Is.EqualTo(BroadcastCameraMode.RailOverhead));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void ReplayPayload_WithShotIdOnly_IsConsideredValid()
         {
             var payload = new ReplayBroadcastPayload
