@@ -3621,7 +3621,7 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 );
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
-const ENABLE_POOL_ROYALE_REPLAY = false;
+const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -13268,7 +13268,16 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const autoReplayEnabled = false;
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
+      if (stored == null) return true;
+      return stored !== '0';
+    } catch {
+      return true;
+    }
+  });
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14914,6 +14923,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
     }
   }, [broadcastSystemId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
+    }
+  }, [autoReplayEnabled]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -17548,11 +17562,7 @@ const powerRef = useRef(hud.power);
         } else if (hasState) {
           recording.replayFoul = null;
         }
-        if (ENABLE_POOL_ROYALE_REPLAY) {
-          pendingRemoteReplayRef.current = { ...recording };
-        } else {
-          pendingRemoteReplayRef.current = null;
-        }
+        pendingRemoteReplayRef.current = { ...recording };
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
         remoteShotUntilRef.current = 0;
@@ -17782,9 +17792,6 @@ const powerRef = useRef(hud.power);
   }, [aiOpponentEnabled, frameState, hud.turn, hud.over]);
 
   useEffect(() => {
-    if (shotActive || pocketCameraActive) {
-      return;
-    }
     const sph = sphRef.current;
     if (!sph || !cameraRef.current) return;
     const restore = inHandCameraRestoreRef.current;
@@ -17811,10 +17818,10 @@ const powerRef = useRef(hud.power);
       inHandCameraRestoreRef.current = null;
       cameraUpdateRef.current?.();
     }
-  }, [hud.inHand, pocketCameraActive, shotActive]);
+  }, [hud.inHand]);
 
   useEffect(() => {
-    if (replayActive || shotActive || pocketCameraActive) return;
+    if (replayActive) return;
     const controls = topViewControlsRef.current;
     if (hud.inHand) {
       if (controls?.exit && (inHandTopViewRef.current || topViewRef.current)) {
@@ -17827,7 +17834,7 @@ const powerRef = useRef(hud.power);
       controls.exit(true);
       inHandTopViewRef.current = false;
     }
-  }, [hud.inHand, pocketCameraActive, replayActive, shotActive]);
+  }, [hud.inHand, replayActive]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -21485,7 +21492,6 @@ const powerRef = useRef(hud.power);
             cueId: cueBall.id,
             targetId: targetId ?? null,
             stage: 'pair',
-            primaryFocus: 'target',
             exitAfterHold: false,
             resume: followView ?? null,
             orbitSnapshot,
@@ -21514,8 +21520,7 @@ const powerRef = useRef(hud.power);
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
-              : null,
-            lastTargetRailHitAt: targetBall?.lastRailHitAt ?? null
+              : null
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
@@ -29106,12 +29111,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (
-            ENABLE_POOL_ROYALE_REPLAY &&
-            autoReplayEnabled &&
-            shouldStartReplay &&
-            postShotSnapshot
-          ) {
+          if (autoReplayEnabled && shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
@@ -30722,40 +30722,21 @@ const powerRef = useRef(hud.power);
               if (activeShotView.axis === 'short' && targetBall) {
                 maybeForceShortRailPocketView(targetBall);
               }
-              const targetDroppedOrMissing = !targetBall?.active;
-              const targetRailHitAt = targetBall?.lastRailHitAt ?? null;
-              const targetBouncedRail =
-                targetBall &&
-                targetRailHitAt &&
-                (!activeShotView.lastTargetRailHitAt ||
-                  targetRailHitAt > activeShotView.lastTargetRailHitAt);
-              if (targetBouncedRail) {
-                activeShotView.lastTargetRailHitAt = targetRailHitAt;
-              }
-              if (targetDroppedOrMissing || targetBouncedRail) {
-                activeShotView.stage = 'cue';
-                activeShotView.primaryFocus = 'cue';
-                activeShotView.targetId = null;
-              } else if (activeShotView.hitConfirmed) {
-                const targetSpeed = targetBall.vel.length() * frameScale;
-                if (targetSpeed <= STOP_EPS) {
-                  activeShotView.stage = 'cue';
-                  activeShotView.primaryFocus = 'cue';
-                  activeShotView.targetId = null;
-                }
-              }
-            }
-            if (activeShotView.stage === 'cue') {
-              const cueSpeed = cueBall.vel.length() * frameScale;
-              if (cueSpeed <= STOP_EPS) {
+              if (!targetBall?.active) {
                 activeShotView.exitAfterHold = true;
                 activeShotView.holdUntil = Math.max(
                   activeShotView.holdUntil ?? 0,
                   now + ACTION_CAM.followHoldMs
                 );
-              } else {
-                activeShotView.exitAfterHold = false;
-                activeShotView.holdUntil = null;
+              } else if (activeShotView.hitConfirmed) {
+                const targetSpeed = targetBall.vel.length() * frameScale;
+                if (targetSpeed <= STOP_EPS) {
+                  activeShotView.exitAfterHold = true;
+                  activeShotView.holdUntil = Math.max(
+                    activeShotView.holdUntil ?? 0,
+                    now + ACTION_CAM.followHoldMs
+                  );
+                }
               }
             }
             if (activeShotView.exitAfterHold) {
@@ -30846,6 +30827,11 @@ const powerRef = useRef(hud.power);
               pocketIntent = null;
               pocketSwitchIntentRef.current = null;
             }
+            const movingBalls = ballsList.filter(
+              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+            );
+            const movingCount = movingBalls.length;
+            const lastPocketBall = lastPocketBallRef.current;
             let bestPocketView = null;
             for (const ball of ballsList) {
               if (!ball.active) continue;
@@ -30865,14 +30851,26 @@ const powerRef = useRef(hud.power);
                   shotPrediction?.railNormal === undefined);
               const qualifiesAsGuaranteed =
                 isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-              if (!qualifiesAsGuaranteed) {
+              const allowDuringChaos =
+                movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
+                matchesIntent ||
+                qualifiesAsGuaranteed ||
+                (lastPocketBall && lastPocketBall === ball.id);
+              if (!allowDuringChaos) continue;
+              if (
+                movingCount > POCKET_CHAOS_MOVING_THRESHOLD &&
+                !matchesIntent &&
+                !qualifiesAsGuaranteed &&
+                lastPocketBall &&
+                lastPocketBall !== ball.id
+              ) {
                 continue;
               }
               const baseScore = candidate.score ?? 0;
               let priority = baseScore;
-              if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 0.6;
-              else if (matchesIntent) priority += 0.3;
-              priority += 0.4;
+              if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
+              else if (matchesIntent) priority += 0.6;
+              if (qualifiesAsGuaranteed) priority += 0.4;
               if (candidate.forcedEarly) priority += 0.3;
               candidate.priority = priority;
               candidate.intentMatched = matchesIntent;
@@ -33396,6 +33394,33 @@ const powerRef = useRef(hud.power);
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Replay Controls
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                  aria-pressed={autoReplayEnabled}
+                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    autoReplayEnabled
+                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                      Auto Replay
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                      {autoReplayEnabled ? 'On' : 'Off'}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                    Replays keep live graphics quality and appear on potted/foul moments.
+                  </span>
+                </button>
               </div>
             </div>
           </div>
