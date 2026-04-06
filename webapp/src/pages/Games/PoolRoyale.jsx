@@ -1878,7 +1878,7 @@ const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward s
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
 const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
-const LEG_LEVELER_RADIUS_SCALE = 1.18; // make leveler plates slightly wider than table-leg radius
+const LEG_LEVELER_RADIUS_SCALE = 1.08; // slightly shrink the rounded metallic leveler so it reads less oversized on portrait screens
 const LEG_LEVELER_HEIGHT_SCALE = 0.2; // keep each plate low and rounded, similar to real metal levelers
 const LEG_LEVELER_STEM_RADIUS_SCALE = 0.42; // the inner cylinder that inserts into the leg center
 const LEG_LEVELER_STEM_HEIGHT_SCALE = 0.34; // visible neck before it disappears into the leg
@@ -1890,7 +1890,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly a touch more while keeping rail/camera framing stable
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -6047,12 +6047,12 @@ const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Sno
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 140; // release post-hit hold sooner so broadcast/pocket cameras can engage earlier
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 140; // reduce mandatory camera lock so rail-overhead and pocket cameras switch earlier
+const CAMERA_SWITCH_MIN_HOLD_MS = 70; // cut mandatory lock further so rail-overhead camera switches in noticeably earlier
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
 const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
@@ -11959,8 +11959,9 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const legBottomY =
-        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
+      const legBottomY = Number.isFinite(center?.legBottomY)
+        ? center.legBottomY
+        : Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
           ? ctx.legY - ctx.legH * 0.5
           : ctx.floorY;
       const levelerMidY = levelerHeight * 0.5 + rubberHeight;
@@ -12056,7 +12057,8 @@ export function Table3D(
           legMeshes.push(leg);
           levelerCenters.push({
             x: side * legOffsetX,
-            z: signZ * portalZ
+            z: signZ * portalZ,
+            legBottomY: legBaseY
           });
         });
         portal.position.set(0, 0, signZ * portalZ);
@@ -28748,10 +28750,11 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
+          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
           let shouldStartReplay =
             autoReplayEnabled &&
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+            hasReplayFrames &&
+            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28978,9 +28981,9 @@ const powerRef = useRef(hud.power);
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
-          autoReplayEnabled &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+            autoReplayEnabled &&
+            hasReplayFrames &&
+            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28988,8 +28991,8 @@ const powerRef = useRef(hud.power);
         }
         shouldStartReplay =
           autoReplayEnabled &&
-          Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 1;
+          hasReplayFrames &&
+          (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
