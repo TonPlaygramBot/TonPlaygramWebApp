@@ -12,6 +12,8 @@ namespace Aiming.Gameplay.Broadcast
     {
         [Header("Legacy replay broadcast")]
         [SerializeField] private bool forceLegacyReplayBroadcast = true;
+        [Tooltip("Pool Royal must mirror Snooker Royal replay behavior exactly, so always keep legacy replay routing enabled.")]
+        [SerializeField] private bool lockToSnookerRoyalReplayLogic = true;
         [SerializeField, Min(0f)] private float replayStartLeadSeconds = 0.08f;
         [Header("Replay frame fallback")]
         [SerializeField] private GameObject replayFrameRoot;
@@ -29,6 +31,11 @@ namespace Aiming.Gameplay.Broadcast
 
         public bool TryBroadcastReplay(ReplayBroadcastPayload payload)
         {
+            if (lockToSnookerRoyalReplayLogic)
+            {
+                forceLegacyReplayBroadcast = true;
+            }
+
             if (!forceLegacyReplayBroadcast)
             {
                 return false;
@@ -67,6 +74,12 @@ namespace Aiming.Gameplay.Broadcast
 
         public void SetLegacyReplayMode(bool enabled)
         {
+            if (lockToSnookerRoyalReplayLogic)
+            {
+                forceLegacyReplayBroadcast = true;
+                return;
+            }
+
             forceLegacyReplayBroadcast = enabled;
         }
 
