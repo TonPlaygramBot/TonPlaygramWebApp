@@ -820,6 +820,13 @@ const NON_DIAMOND_SHAPE_INDEX = (() => {
 
 const HEXAGON_SHAPE_ID = 'hexagonTable';
 const OCTAGON_SHAPE_ID = 'classicOctagon';
+const SEVEN_PLAYER_ALLOWED_TABLE_THEME_IDS = new Set([
+  'murlan-default',
+  'coffee_table_round_01',
+  'round_wooden_table_02'
+]);
+const SEVEN_PLAYER_WIDE_TABLE_THEME_IDS = new Set(['coffee_table_round_01', 'round_wooden_table_02']);
+const SEVEN_PLAYER_SPECIAL_SEAT_DROP = 0.065;
 const HEXAGON_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === HEXAGON_SHAPE_ID);
   return index >= 0 ? index : 0;
@@ -833,6 +840,25 @@ function resolveForcedShapeOption(playerCount) {
   const forceOctagon = playerCount >= 8;
   const forcedIndex = forceOctagon ? OCTAGON_SHAPE_INDEX : HEXAGON_SHAPE_INDEX;
   return TABLE_SHAPE_OPTIONS[forcedIndex] ?? TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
+}
+
+function getAllowedTableThemes(playerCount, inventory) {
+  const lockForSevenOpponents = playerCount >= 8;
+  const allThemes = TEXAS_TABLE_THEME_OPTIONS
+    .map((option, idx) => ({ ...option, idx }))
+    .filter(({ id }) => isTexasOptionUnlocked('tableTheme', id, inventory));
+  if (!lockForSevenOpponents) {
+    return allThemes;
+  }
+  const filtered = allThemes.filter(({ id }) => SEVEN_PLAYER_ALLOWED_TABLE_THEME_IDS.has(id));
+  return filtered.length ? filtered : allThemes.slice(0, 1);
+}
+
+function resolveSeatDropForTheme(playerCount, tableThemeId) {
+  if (playerCount >= 8 && SEVEN_PLAYER_WIDE_TABLE_THEME_IDS.has(tableThemeId)) {
+    return SEVEN_PLAYER_SPECIAL_SEAT_DROP;
+  }
+  return 0;
 }
 
 function enforceShapeForPlayers(appearance, playerCount) {
@@ -1420,7 +1446,21 @@ async function buildTableForTheme({
       }
       const tableGroup = new THREE.Group();
       tableGroup.add(model);
-      const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+      let { surfaceY, radius } = fitTableModelToArena(tableGroup);
+      if (SEVEN_PLAYER_WIDE_TABLE_THEME_IDS.has(theme.id)) {
+        const widenedScale = 1.22;
+        tableGroup.scale.set(tableGroup.scale.x * widenedScale, tableGroup.scale.y, tableGroup.scale.z * widenedScale);
+        const centeredBox = new THREE.Box3().setFromObject(tableGroup);
+        const centered = centeredBox.getCenter(new THREE.Vector3());
+        tableGroup.position.x += -centered.x;
+        tableGroup.position.z += -centered.z;
+        const topOffset = TABLE_MODEL_TARGET_HEIGHT - centeredBox.max.y;
+        if (topOffset !== 0) {
+          tableGroup.position.y += topOffset;
+        }
+        radius = Math.max(TABLE_RADIUS, radius * widenedScale);
+        surfaceY = TABLE_MODEL_TARGET_HEIGHT;
+      }
       arena.add(tableGroup);
       tableInfo = {
         group: tableGroup,
@@ -2051,6 +2091,31 @@ function hasSeatAvatar(state, index) {
   return Boolean(player && player.avatar);
 }
 
+function applySeatVerticalDropToSeatGroups(seatGroups, targetDrop = 0) {
+  if (!Array.isArray(seatGroups)) return;
+  const safeTarget = Number.isFinite(targetDrop) ? Math.max(0, targetDrop) : 0;
+  seatGroups.forEach((seat) => {
+    if (!seat) return;
+    const current = Number.isFinite(seat.appliedVerticalDrop) ? seat.appliedVerticalDrop : 0;
+    const delta = safeTarget - current;
+    if (!delta) return;
+    [
+      seat.cardAnchor,
+      seat.chipAnchor,
+      seat.cardRailAnchor,
+      seat.chipRailAnchor,
+      seat.betAnchor,
+      seat.previewAnchor
+    ].forEach((anchor) => {
+      if (anchor) {
+        anchor.y -= delta;
+      }
+    });
+    seat.seatLayerDrop = (Number.isFinite(seat.seatLayerDrop) ? seat.seatLayerDrop : 0) + delta;
+    seat.appliedVerticalDrop = safeTarget;
+  });
+}
+
 function createSeatLayout(count, tableInfo = null, options = {}) {
   const layout = [];
   const safeCount = Math.max(0, Math.floor(Number(count) || 0));
@@ -2063,13 +2128,15 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const humanSeatInwardOffset = Number.isFinite(options?.humanSeatInwardOffset)
     ? options.humanSeatInwardOffset
     : 0;
+  const themedSeatDrop = Number.isFinite(options?.seatVerticalDrop) ? Math.max(0, options.seatVerticalDrop) : 0;
   const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
   const hexagonAngles = tableInfo?.shapeId === HEXAGON_SHAPE_ID ? buildHexagonSideAngles(safeCount) : null;
   const classicAngles =
     tableInfo?.shapeId === OCTAGON_SHAPE_ID ? buildClassicOctagonAngles(safeCount) : null;
-  const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
+  const baseSeatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
     ? 0
     : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
+  const seatLayerDrop = baseSeatLayerDrop + themedSeatDrop;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? hexagonAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
@@ -3313,9 +3380,17 @@ function TexasHoldemArena({ search }) {
           }
         }
       });
+      const allowedThemes = getAllowedTableThemes(effectivePlayerCount, texasInventory);
+      if (allowedThemes.length) {
+        const allowedThemeIndexes = new Set(allowedThemes.map((option) => option.idx));
+        if (!allowedThemeIndexes.has(next.tableTheme)) {
+          next.tableTheme = allowedThemes[0].idx;
+          changed = true;
+        }
+      }
       return changed ? next : normalized;
     },
-    [texasInventory]
+    [effectivePlayerCount, texasInventory]
   );
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -3341,8 +3416,13 @@ function TexasHoldemArena({ search }) {
         options: section.options
           .map((option, idx) => ({ ...option, idx }))
           .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
+          .filter((option) => {
+            if (section.key !== 'tableTheme') return true;
+            return getAllowedTableThemes(effectivePlayerCount, texasInventory).some((theme) => theme.id === option.id);
+          })
       }))
         .filter((section) => section.options.length > 0)
+        .filter((section) => !(effectivePlayerCount >= 8 && section.key === 'tableShape'))
         .filter((section) => {
           if (section.key !== 'tableFinish' && section.key !== 'tableCloth') return true;
           const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
@@ -3351,7 +3431,7 @@ function TexasHoldemArena({ search }) {
             tableTheme?.source === 'procedural' && TABLE_STYLE_MENU_SHAPE_IDS.has(tableShape?.id);
           return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id) || proceduralThemeSupportsSurface;
         }),
-    [appearance.tableShape, appearance.tableTheme, texasInventory]
+    [appearance.tableShape, appearance.tableTheme, effectivePlayerCount, texasInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -4130,6 +4210,8 @@ function TexasHoldemArena({ search }) {
       safe.tableShape,
       effectivePlayerCount
     );
+    const seatVerticalDrop = resolveSeatDropForTheme(effectivePlayerCount, tableTheme?.id);
+    applySeatVerticalDropToSeatGroups(three.seatGroups, seatVerticalDrop);
     const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
     const shapeChanged = shapeOption && three.tableShapeId !== shapeOption.id;
     const rotationChanged = Number.isFinite(rotationY)
@@ -4627,7 +4709,11 @@ function TexasHoldemArena({ search }) {
     scene.add(rim);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+    let initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+    const allowedInitialThemes = getAllowedTableThemes(effectivePlayerCount, texasInventory);
+    if (allowedInitialThemes.length && !allowedInitialThemes.some((option) => option.idx === initialAppearance.tableTheme)) {
+      initialAppearance = { ...initialAppearance, tableTheme: allowedInitialThemes[0].idx };
+    }
     const initialEnvironment =
       withHdriResolutionPreferences(
         TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ??
@@ -4642,6 +4728,7 @@ function TexasHoldemArena({ search }) {
     hdriVariantRef.current = initialEnvironment;
 
     const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const initialSeatDrop = resolveSeatDropForTheme(effectivePlayerCount, initialTheme?.id);
     const initialWood = resolveEffectiveWoodOption({
       tableTheme: initialTheme,
       tableFinish: initialAppearance.tableFinish,
@@ -4684,7 +4771,8 @@ function TexasHoldemArena({ search }) {
       : HUMAN_SEAT_INWARD_OFFSETS.landscape;
     const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, {
       useCardinal: useCardinalLayout,
-      humanSeatInwardOffset
+      humanSeatInwardOffset,
+      seatVerticalDrop: initialSeatDrop
     });
     seatLayout.forEach((seat, idx) => {
       seat.player = initialPlayers[idx] || null;
@@ -5001,6 +5089,7 @@ function TexasHoldemArena({ search }) {
           folded: false,
           lastStatus: '',
           tableInfo,
+          appliedVerticalDrop: initialSeatDrop,
           isBottomSideOpponent: Boolean(seat.isBottomSideOpponent),
           potDropPiles: [],
           potDropCount: 0
