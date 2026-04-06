@@ -21,15 +21,8 @@ namespace Aiming.Gameplay.Broadcast
     public class ShotBroadcastCameraDirector : MonoBehaviour
     {
         [SerializeField, Min(0f)] private float maxBankDistanceToRail = 0.06f;
-        [SerializeField, Min(0f)] private float pocketCameraLift = 0f;
-        [SerializeField, Min(0f)] private float pocketCameraInward = 0f;
-
-        private bool forceRailOverheadForPendingShot;
-
-        public void ForceRailOverheadForNextShot()
-        {
-            forceRailOverheadForPendingShot = true;
-        }
+        [SerializeField, Min(0f)] private float pocketCameraLift = 0.06f;
+        [SerializeField, Min(0f)] private float pocketCameraInward = 0.05f;
 
         public BroadcastCameraMode ResolveCamera(
             Vector3 contactPoint,
@@ -39,12 +32,6 @@ namespace Aiming.Gameplay.Broadcast
             ref Vector3 pocketCameraPosition,
             Vector3 tableCenter)
         {
-            if (forceRailOverheadForPendingShot)
-            {
-                forceRailOverheadForPendingShot = false;
-                return BroadcastCameraMode.RailOverhead;
-            }
-
             bool isDoubleBank = cushionHits >= 2;
             bool isMiddlePocket = pocketKind == PocketKind.Middle;
             bool nearRail = DistanceToRail(contactPoint, tableBounds) <= maxBankDistanceToRail;
