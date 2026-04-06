@@ -20476,28 +20476,35 @@ const powerRef = useRef(hud.power);
               const heightBase = TABLE_Y + TABLE.THICK;
               const standingPhi = STANDING_VIEW_PHI;
               if (activeShotView.stage === 'pair') {
-                const targetBall =
+                let targetBall =
                   activeShotView.targetId != null
                     ? ballsList.find((b) => b.id === activeShotView.targetId)
                     : null;
+                if (!targetBall?.active && shooting) {
+                  targetBall =
+                    ballsList.find(
+                      (b) => b?.active && b.id !== cueBall.id && b.vel.lengthSq() > STOP_EPS * STOP_EPS
+                    ) ??
+                    targetBall;
+                }
                 pairTargetBall = targetBall ?? null;
                 let targetPos2;
                 if (targetBall?.active) {
                   targetPos2 = new THREE.Vector2(targetBall.pos.x, targetBall.pos.y);
-                  if (!shooting) {
-                    activeShotView.targetLastPos = targetPos2.clone();
-                  }
+                  activeShotView.targetLastPos = targetPos2.clone();
                 } else if (activeShotView.targetLastPos) {
                   targetPos2 = activeShotView.targetLastPos.clone();
                 } else {
                   targetPos2 = cueAnchor.clone().add(new THREE.Vector2(0, BALL_R * 6));
                 }
-                const targetAnchor = activeShotView.targetInitialPos
-                  ? activeShotView.targetInitialPos.clone()
-                  : targetPos2;
-                const mid = cueAnchor.clone().add(targetAnchor).multiplyScalar(0.5);
-                const span = Math.max(targetAnchor.distanceTo(cueAnchor), BALL_R * 4);
-                const forward = targetAnchor.clone().sub(cueAnchor);
+                const trackedCuePos = shooting ? cuePos2 : cueAnchor.clone();
+                const targetAnchor =
+                  shooting || !activeShotView.targetInitialPos
+                    ? targetPos2.clone()
+                    : activeShotView.targetInitialPos.clone();
+                const mid = trackedCuePos.clone().add(targetAnchor).multiplyScalar(0.5);
+                const span = Math.max(targetAnchor.distanceTo(trackedCuePos), BALL_R * 4);
+                const forward = targetAnchor.clone().sub(trackedCuePos);
                 if (forward.lengthSq() < 1e-6) forward.set(0, 1);
                 forward.normalize();
                 const side = new THREE.Vector2(-forward.y, forward.x);
