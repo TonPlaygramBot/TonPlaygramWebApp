@@ -101,12 +101,16 @@ namespace Aiming.Gameplay.Broadcast
         {
             if (replayFrameRoot == null && replayFrameCanvasGroup != null)
             {
-                replayFrameRoot = replayFrameCanvasGroup.transform.root.gameObject;
+                replayFrameRoot = replayFrameCanvasGroup.gameObject;
             }
 
             if (replayFrameCanvasGroup == null && replayFrameRoot != null)
             {
-                replayFrameCanvasGroup = replayFrameRoot.GetComponentInChildren<CanvasGroup>(true);
+                replayFrameCanvasGroup = replayFrameRoot.GetComponent<CanvasGroup>();
+                if (replayFrameCanvasGroup == null)
+                {
+                    replayFrameCanvasGroup = replayFrameRoot.GetComponentInChildren<CanvasGroup>(true);
+                }
             }
 
             if (replayFrameRoot == null && replayFrameCanvasGroup == null)
@@ -114,7 +118,7 @@ namespace Aiming.Gameplay.Broadcast
                 replayFrameCanvasGroup = GetComponentInChildren<CanvasGroup>(true);
                 if (replayFrameCanvasGroup != null)
                 {
-                    replayFrameRoot = replayFrameCanvasGroup.transform.root.gameObject;
+                    replayFrameRoot = replayFrameCanvasGroup.gameObject;
                 }
             }
         }

@@ -313,6 +313,7 @@ public class CueCamera : MonoBehaviour
     private float smoothedCueDistance;
     private bool hasSmoothedCueDistance;
     private float cueStrikeHoldUntilTime;
+    private bool forceImmediateRailOverheadOnNextShot;
     private bool holdCueAimDuringShot;
     private bool hasShotRailAnchor;
     private Vector3 shotRailAnchorPosition;
@@ -391,8 +392,12 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
-        holdCueAimDuringShot = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
-        cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
+        bool forceImmediate = forceImmediateRailOverheadOnNextShot;
+        forceImmediateRailOverheadOnNextShot = false;
+        holdCueAimDuringShot = !forceImmediate && !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
+        cueStrikeHoldUntilTime = holdCueAimDuringShot
+            ? Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds)
+            : Time.time;
         shotStartedTime = Time.time;
         hasShotRailAnchor = false;
         hasShotPullbackAnchor = false;
@@ -422,6 +427,28 @@ public class CueCamera : MonoBehaviour
         }
 
         nextShotIsAi = false;
+    }
+
+    /// <summary>
+    /// Forces an immediate handoff to rail-overhead broadcast framing. If called
+    /// before BeginShot it applies to the next shot start; if called mid-shot it
+    /// cancels cue-hold and pocket tracking delays right away.
+    /// </summary>
+    public void SwitchToRailOverheadImmediate()
+    {
+        forceImmediateRailOverheadOnNextShot = true;
+
+        if (!shotInProgress)
+        {
+            return;
+        }
+
+        holdCueAimDuringShot = false;
+        cueStrikeHoldUntilTime = Time.time;
+        usingTargetCamera = false;
+        pocketCameraAwaitingDrop = false;
+        pocketDropDetected = false;
+        UpdateBroadcastCamera();
     }
 
     private void Awake()
@@ -1059,24 +1086,7 @@ public class CueCamera : MonoBehaviour
 
         if (isPocketCamera)
         {
-            float halfLength = Mathf.Max(0.0001f, tableBounds.extents.z);
-            float middleZone = Mathf.Clamp01(pocketCameraMiddleZone) * halfLength;
-            float zFromCenter = Mathf.Abs(sourceFocus.z - tableBounds.center.z);
-            bool isMiddlePocketBand = zFromCenter <= middleZone;
-            if (isMiddlePocketBand)
-            {
-                float sideSign = Mathf.Sign(sourceFocus.x);
-                if (Mathf.Approximately(sideSign, 0f))
-                {
-                    sideSign = 1f;
-                }
-
-                float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
-                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset), 0f, maxX);
-                focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
-                focus.z = sourceFocus.z;
-                height += Mathf.Max(0f, pocketCameraMiddleHeightOffset);
-            }
+            focus = sourceFocus;
         }
 
         float distance = useStandingCameraForBroadcast && cachedStandingCamera
@@ -1868,7 +1878,7 @@ public class CueCamera : MonoBehaviour
             return false;
         }
 
-        float triggerRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
+        float triggerRadius = Mathf.Max(0.01f, cornerPocketCameraRadius + Mathf.Max(0f, cornerPocketApproachRadius));
         if (!TryGetCornerPocketForBall(targetBall.position, triggerRadius, out pocket))
         {
             return false;
@@ -1876,7 +1886,7 @@ public class CueCamera : MonoBehaviour
 
         Vector2 ballXZ = new Vector2(targetBall.position.x, targetBall.position.z);
         Vector2 pocketXZ = new Vector2(pocket.x, pocket.z);
-        float innerRadius = Mathf.Max(0.01f, Mathf.Min(triggerRadius, pocketGuaranteedInnerRadius));
+        float innerRadius = Mathf.Max(0.01f, Mathf.Min(triggerRadius, pocketGuaranteedInnerRadius + Mathf.Max(0f, cornerPocketApproachRadius)));
         bool inInnerCapture = (ballXZ - pocketXZ).sqrMagnitude <= innerRadius * innerRadius;
 
         float dropThreshold = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);

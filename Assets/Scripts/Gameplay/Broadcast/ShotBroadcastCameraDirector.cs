@@ -15,8 +15,9 @@ namespace Aiming.Gameplay.Broadcast
     }
 
     /// <summary>
-    /// Routes highlight camera selection for broadcast: bank/double rail + middle pockets
-    /// use rail overhead, corner pockets use pocket cameras.
+    /// Routes highlight camera selection for broadcast: bank/double rail shots use
+    /// rail overhead, while pocket shots use pocket cameras with configurable
+    /// lift/inward offsets.
     /// </summary>
     public class ShotBroadcastCameraDirector : MonoBehaviour
     {
@@ -46,10 +47,9 @@ namespace Aiming.Gameplay.Broadcast
             }
 
             bool isDoubleBank = cushionHits >= 2;
-            bool isMiddlePocket = pocketKind == PocketKind.Middle;
             bool nearRail = DistanceToRail(contactPoint, tableBounds) <= maxBankDistanceToRail;
 
-            if (isDoubleBank || isMiddlePocket || nearRail)
+            if (isDoubleBank || nearRail)
             {
                 return BroadcastCameraMode.RailOverhead;
             }
