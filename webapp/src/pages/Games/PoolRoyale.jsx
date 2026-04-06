@@ -2479,7 +2479,7 @@ function scaleWoodRepeatVector (repeatVec, scale) {
   return vec
 }
 
-const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 22, y: 5.5 });
+const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
 const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
@@ -2552,7 +2552,7 @@ function getCarbonFiberTileTexture(tintHex = 0x0c0f14) {
   tintedCtx.fillStyle = `#${tintKey}`;
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'screen';
-  tintedCtx.fillStyle = 'rgba(255,255,255,0.14)';
+  tintedCtx.fillStyle = 'rgba(255,255,255,0.08)';
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'source-over';
   const texture = new THREE.CanvasTexture(tintedCanvas);
@@ -3265,14 +3265,14 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'LT Black',
-    rail: 0x2a3038,
-    base: 0x2a3038,
-    trim: 0x2a3038,
+    rail: 0x1a2028,
+    base: 0x1a2028,
+    trim: 0x1a2028,
     woodTextureId: 'plastic_monoblock_lt_black',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
@@ -3284,91 +3284,91 @@ const TABLE_FINISHES = Object.freeze({
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x687381,
-    base: 0x687381,
-    trim: 0x687381,
+    rail: 0x5a6471,
+    base: 0x5a6471,
+    trim: 0x5a6471,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0xaa5960,
-    base: 0xaa5960,
-    trim: 0xaa5960,
+    rail: 0x9b4a4f,
+    base: 0x9b4a4f,
+    trim: 0x9b4a4f,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xf5ead8,
-    base: 0xf5ead8,
-    trim: 0xf5ead8,
+    rail: 0xf2e5cf,
+    base: 0xf2e5cf,
+    trim: 0xf2e5cf,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkGreen',
     label: 'LT Dark Green',
-    rail: 0x4e7b5a,
-    base: 0x4e7b5a,
-    trim: 0x4e7b5a,
+    rail: 0x3f6c4b,
+    base: 0x3f6c4b,
+    trim: 0x3f6c4b,
     woodTextureId: 'plastic_monoblock_lt_dark_green',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkYellow',
     label: 'LT Dark Yellow',
-    rail: 0xc69944,
-    base: 0xc69944,
-    trim: 0xc69944,
+    rail: 0xb88b36,
+    base: 0xb88b36,
+    trim: 0xb88b36,
     woodTextureId: 'plastic_monoblock_lt_dark_yellow',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBrown',
     label: 'LT Dark Brown',
-    rail: 0x8d6247,
-    base: 0x8d6247,
-    trim: 0x8d6247,
+    rail: 0x7d5237,
+    base: 0x7d5237,
+    trim: 0x7d5237,
     woodTextureId: 'plastic_monoblock_lt_dark_brown',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkRed: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkRed',
     label: 'LT Dark Red',
-    rail: 0x9f4444,
-    base: 0x9f4444,
-    trim: 0x9f4444,
+    rail: 0x8f3434,
+    base: 0x8f3434,
+    trim: 0x8f3434,
     woodTextureId: 'plastic_monoblock_lt_dark_red',
     woodRepeatScale: 1,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
-    useBrandCarbonTexture: true
+    useBrandCarbonTexture: false
   })
 });
 
@@ -26410,24 +26410,18 @@ const powerRef = useRef(hud.power);
             updatePocketCameraState(false);
             pocketViewActivated = false;
           }
-          const activateRailOverheadActionView = (view, activationTime = performance.now()) => {
-            if (!view) return;
-            view.pendingActivation = false;
-            view.activationDelay = null;
-            view.activationTravel = 0;
-            view.strokeReadyAt = 0;
-            view.preferRailOverhead = true;
-            view.lockOverheadFocus = true;
-            view.lastUpdate = activationTime;
-            activeShotView = view;
+          if (!pocketViewActivated && actionView && isBreakShot) {
+            const activationNow = performance.now();
+            actionView.pendingActivation = false;
+            actionView.activationDelay = null;
+            actionView.activationTravel = 0;
+            actionView.strokeReadyAt = 0;
+            actionView.preferRailOverhead = true;
+            actionView.lockOverheadFocus = true;
+            actionView.lastUpdate = activationNow;
+            activeShotView = actionView;
             suspendedActionView = null;
-            overheadBroadcastVariantRef.current = 'rail';
             updateCamera();
-          };
-          if (!pocketViewActivated && actionView) {
-            // Match Snooker Royal-style timing: the moment a shot is triggered (user or AI),
-            // immediately transition from cue pullback into rail-overhead broadcast framing.
-            activateRailOverheadActionView(actionView, now);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
@@ -26442,7 +26436,14 @@ const powerRef = useRef(hud.power);
               (!isLongShot || forceActionActivation) &&
               !isMaxPowerShot;
             if (shouldActivateActionView) {
-              activateRailOverheadActionView(actionView, now);
+              actionView.pendingActivation = false;
+              actionView.activationDelay = null;
+              actionView.activationTravel = 0;
+              actionView.strokeReadyAt = 0;
+              actionView.lastUpdate = now;
+              activeShotView = actionView;
+              suspendedActionView = null;
+              updateCamera();
             } else {
               actionView.pendingActivation = true;
               const baseDelay = actionView.activationDelay ?? null;
@@ -28722,7 +28723,7 @@ const powerRef = useRef(hud.power);
           });
           let shouldStartReplay =
             Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 0;
+            (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28901,7 +28902,7 @@ const powerRef = useRef(hud.power);
             : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
-        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 0) {
+        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
           const foulBanner = 'Foul';
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28926,7 +28927,7 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'foul';
         }
         const isFinalShot =
-          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 0;
+          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
         if (isFinalShot) {
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
@@ -28950,7 +28951,7 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
             Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 0;
+            (shotRecording?.frames?.length ?? 0) > 1;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28958,7 +28959,7 @@ const powerRef = useRef(hud.power);
         }
         shouldStartReplay =
           Boolean(replayDecision?.shouldReplay) &&
-          (shotRecording?.frames?.length ?? 0) > 0;
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
