@@ -5855,7 +5855,7 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.11; // lift the 2D camera slightly higher so portrait top view reads more elevated
-const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_PHI = 0; // lock explicit 2D mode to straight overhead
 const TOP_VIEW_RADIUS_SCALE = 1.11; // keep 2D framing a little higher so the camera sits a bit farther up
 const TOP_VIEW_REFERENCE_ASPECT = 9 / 16; // keep 2D framing anchored to portrait proportions across rotations
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
@@ -5867,8 +5867,8 @@ const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
   z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing a touch more inward so bottom pockets remain visible on portrait
 });
-const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with 2D framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // lift rail-overhead camera slightly higher for clearer broadcast context
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE * 0.97; // broadcast rail view sits closer than strict top-view mode
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 0.95; // keep broadcast in 3D perspective instead of 2D-like overhead
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
@@ -5877,7 +5877,7 @@ const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 const BROADCAST_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
-const BROADCAST_TOP_VIEW_PHI = 0;
+const BROADCAST_TOP_VIEW_PHI = 0.18; // keep broadcast camera visibly 3D (not flat 2D top view)
 const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
 const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
@@ -5892,9 +5892,8 @@ const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
 });
 const resolveBroadcastTopViewVariant = (variant) =>
   BROADCAST_TOP_VIEW_VARIANTS[variant] ?? BROADCAST_TOP_VIEW_VARIANTS.pool;
-// Keep the rail overhead broadcast framing nearly identical to the 2D top view while
-// leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.01; // keep overhead framing close to 2D while adding a slight broadcast tilt
+// Keep rail-overhead clearly broadcast/3D and avoid 2D-style straight-down framing.
+const RAIL_OVERHEAD_PHI = Math.max(BROADCAST_TOP_VIEW_RESOLVED_PHI, TOP_VIEW_RESOLVED_PHI + 0.18);
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5909,7 +5908,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // keep overhead rail/broadcast framing identical to 2D view
+const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward for stronger depth versus 2D mode
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5944,7 +5943,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
+const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
@@ -19720,6 +19719,7 @@ const powerRef = useRef(hud.power);
 
         const maybeForceShortRailPocketView = (ball) => {
           if (!ball?.active) return;
+          if (!shotPrediction || String(shotPrediction.ballId) !== String(ball.id)) return;
           const posY = ball.pos?.y;
           if (!Number.isFinite(posY)) return;
           if (Math.abs(posY) < SHORT_RAIL_POCKET_TRIGGER) return;
@@ -19733,6 +19733,26 @@ const powerRef = useRef(hud.power);
           const travelSign = forward > 0 ? 1 : -1;
           const railSign = posY > 0 ? 1 : posY < 0 ? -1 : travelSign;
           if (travelSign !== railSign) return;
+          const predictedDir = shotPrediction?.dir?.clone?.();
+          if (!predictedDir || predictedDir.lengthSq() < 1e-6) return;
+          predictedDir.normalize();
+          const centers = pocketCenters();
+          let bestCorner = null;
+          let bestDot = -Infinity;
+          for (const center of centers) {
+            const id = pocketIdFromCenter(center);
+            const isCorner = id === 'TL' || id === 'TR' || id === 'BL' || id === 'BR';
+            if (!isCorner) continue;
+            const toPocket = center.clone().sub(ball.pos);
+            if (toPocket.lengthSq() < 1e-6) continue;
+            const dot = toPocket.normalize().dot(predictedDir);
+            if (dot > bestDot) {
+              bestDot = dot;
+              bestCorner = { center, id };
+            }
+          }
+          if (!bestCorner) return;
+          if (bestDot < POCKET_GUARANTEED_ALIGNMENT) return;
           const now = performance.now();
           const currentIntent = pocketSwitchIntentRef.current;
           if (currentIntent?.ballId === ball.id && currentIntent.forced) {
@@ -19746,7 +19766,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = {
             ballId: ball.id,
             forced: true,
-            allowEarly: true,
+            allowEarly: false,
+            preferredPocketId: bestCorner.id,
             createdAt: now
           };
         };
@@ -29111,40 +29132,8 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (autoReplayEnabled && shouldStartReplay && postShotSnapshot) {
-            const recordingForReplay = shotRecording;
-            const launchReplay = () => {
-              replayBannerTimeoutRef.current = null;
-              setReplayBanner(null);
-              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
-              const beginReplay = () => {
-                shotRecording = recordingForReplay;
-                if (recordingForReplay) {
-                  startShotReplay(postShotSnapshot);
-                } else {
-                  shotReplayRef.current = null;
-                }
-                shotRecording = null;
-              };
-              if (slateLead > 0) {
-                window.setTimeout(beginReplay, slateLead);
-              } else {
-                beginReplay();
-              }
-            };
-            if (replayBannerTimeoutRef.current) {
-              clearTimeout(replayBannerTimeoutRef.current);
-              replayBannerTimeoutRef.current = null;
-            }
-            setReplayBanner(replayBannerText);
-            replayBannerTimeoutRef.current = window.setTimeout(
-              launchReplay,
-              GOOD_SHOT_REPLAY_DELAY_MS
-            );
-          } else {
-            shotReplayRef.current = null;
-            shotRecording = null;
-          }
+          shotReplayRef.current = null;
+          shotRecording = null;
           aiPlanRef.current = null;
           aiPlanCacheRef.current = { key: null, plan: null };
           clearEarlyAiShot();
@@ -32571,28 +32560,6 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {replayBanner && (
-        <div className="pointer-events-none absolute top-4 right-4 z-50">
-          <div
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
-            aria-live="polite"
-          >
-            <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
-              {replayBanner}
-            </span>
-          </div>
-        </div>
-      )}
-      {replaySlate && (
-        <div className="pointer-events-none absolute inset-0 z-[105] flex items-center justify-center">
-          <div className="rounded-2xl border border-white/35 bg-black/72 px-8 py-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.6)] backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/70">Replay frame</p>
-            <p className="mt-2 text-2xl font-black uppercase tracking-[0.2em] text-white">
-              {replaySlate.label || 'Replay'}
-            </p>
-          </div>
-        </div>
-      )}
       {ruleToast && (
         <div className="pointer-events-none absolute left-1/2 top-6 z-50 -translate-x-1/2 px-3 text-center">
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
@@ -32883,46 +32850,6 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {replayActive && (
-        <div className="pointer-events-none absolute inset-0 z-40">
-          <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
-          <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
-          <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
-          <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
-        </div>
-      )}
-      {replayActive && (
-        <>
-          <div className="pointer-events-none absolute left-4 top-4 z-50">
-            <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
-              Replay
-            </div>
-            {replayFoul && (
-              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
-                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
-              </div>
-            )}
-          </div>
-          <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
-            <button
-              type="button"
-              onClick={() => skipReplayRef.current?.()}
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
-              </svg>
-              <span className="sr-only">Skip replay</span>
-            </button>
-          </div>
-        </>
-      )}
 
       {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
       <div
@@ -33394,33 +33321,6 @@ const powerRef = useRef(hud.power);
                     );
                   })}
                 </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replay Controls
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                  aria-pressed={autoReplayEnabled}
-                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    autoReplayEnabled
-                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                      Auto Replay
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                      {autoReplayEnabled ? 'On' : 'Off'}
-                    </span>
-                  </span>
-                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                    Replays keep live graphics quality and appear on potted/foul moments.
-                  </span>
-                </button>
               </div>
             </div>
           </div>
