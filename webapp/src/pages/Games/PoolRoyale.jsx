@@ -25884,6 +25884,23 @@ const powerRef = useRef(hud.power);
             y: appliedSpinSnapshot.y ?? 0
           }
         };
+        const focusStoreAtShot = ensureOrbitFocus();
+        focusStoreAtShot.ballId = null;
+        const shotFocusScale =
+          Number.isFinite(worldScaleFactor) && Math.abs(worldScaleFactor) > 1e-6
+            ? worldScaleFactor
+            : WORLD_SCALE;
+        const lockedShotTargetWorld =
+          lastCameraTargetRef.current?.clone?.() ??
+          cameraRef.current?.position?.clone?.() ??
+          new THREE.Vector3(
+            playerOffsetRef.current,
+            ORBIT_FOCUS_BASE_Y,
+            0
+          ).multiplyScalar(shotFocusScale);
+        focusStoreAtShot.target.copy(
+          lockedShotTargetWorld.clone().divideScalar(shotFocusScale)
+        );
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
