@@ -2292,8 +2292,14 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
-  const rowSpacing = ballRadius * 1.9;
+  const diameter = ballRadius * 2;
+  const rackGap = Math.max(ballRadius * 0.028, 0.00075 * (ballRadius / 0.0525));
+  const columnSpacing = diameter + rackGap;
+  const halfColumn = columnSpacing * 0.5;
+  const baseRowSpacing = Math.sqrt(
+    Math.max(0, diameter * diameter - halfColumn * halfColumn)
+  );
+  const rowSpacing = baseRowSpacing + rackGap * 0.55;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
