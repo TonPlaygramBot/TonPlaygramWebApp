@@ -1677,10 +1677,10 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.78; // restore prior pocket-camera inward scale to keep legacy framing/positioning
-const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket camera center-distance aligned with corner-pocket framing
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 0.96; // match middle-pocket camera distance to the same inward pull used by corner pockets
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 0.96; // move corner-pocket cameras slightly inward for a tighter pocket read
-const POCKET_CAM_SIDE_LATERAL_BIAS = 0; // remove extra middle-pocket lateral skew so side and corner pocket offsets stay consistent
+const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
+const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1700,8 +1700,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  // Lift all pocket cameras a bit higher so side and corner cuts share the same vertical framing.
-  heightOffset: BALL_R * 2.72,
+  // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
+  heightOffset: BALL_R * 2.58,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -6047,12 +6047,12 @@ const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Sno
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 180;
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 180;
+const CAMERA_SWITCH_MIN_HOLD_MS = 420;
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
 const STROKE_CAMERA_MIN_HOLD_MS = 210;
@@ -21981,22 +21981,8 @@ const powerRef = useRef(hud.power);
           const resolvedFov = Number.isFinite(railSnapshot?.fov)
             ? railSnapshot.fov
             : camera.fov;
-          const fallbackCamera = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-          const safePosition =
-            isFiniteVector3(resolvedPosition) || !fallbackCamera?.position
-              ? resolvedPosition
-              : fallbackCamera.position.clone();
-          let safeTarget = isFiniteVector3(resolvedTarget) ? resolvedTarget : null;
-          if (!safeTarget && safePosition && fallbackCamera) {
-            const fallbackForward = new THREE.Vector3(0, 0, -1);
-            fallbackForward.applyQuaternion(fallbackCamera.quaternion);
-            if (fallbackForward.lengthSq() < 1e-8) {
-              fallbackForward.set(0, 0, -1);
-            } else {
-              fallbackForward.normalize();
-            }
-            safeTarget = safePosition.clone().addScaledVector(fallbackForward, BALL_R * 50);
-          }
+          const safePosition = isFiniteVector3(resolvedPosition) ? resolvedPosition : null;
+          const safeTarget = isFiniteVector3(resolvedTarget) ? resolvedTarget : null;
           if (!safePosition && !safeTarget) return null;
           const snapshot = {
             position: safePosition,
@@ -26469,7 +26455,7 @@ const powerRef = useRef(hud.power);
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
               pulledBackAtStrike &&
-              (forceActionActivation ?? true) &&
+              (!isLongShot || forceActionActivation) &&
               !isMaxPowerShot;
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
@@ -30848,7 +30834,7 @@ const powerRef = useRef(hud.power);
               !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
             const strokeReadyAt = suspendedActionView.strokeReadyAt ?? 0;
             const strokeSettled = now >= strokeReadyAt;
-            const cueMoving = cueSpeed > STOP_EPS * 0.25;
+            const cueMoving = cueSpeed > STOP_EPS;
             const cueTravelReady =
               travel >= Math.max(0, suspendedActionView.activationTravel ?? 0);
             if (travelReady && delayReady && holdReady && strokeSettled && cueMoving && cueTravelReady) {
