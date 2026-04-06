@@ -31253,6 +31253,9 @@ const powerRef = useRef(hud.power);
                 const shouldForceCornerPocketView =
                   !topViewRef.current &&
                   pocketIndex < 4;
+                const shouldForceRailOverheadPocketView =
+                  !topViewRef.current &&
+                  pocketIndex >= 4;
                 if (shouldForceCornerPocketView) {
                   const sph = sphRef.current;
                   const resumeView = sph
@@ -31286,6 +31289,13 @@ const powerRef = useRef(hud.power);
                     updatePocketCameraState(true);
                     activeShotView = forcedCornerView;
                   }
+                } else if (shouldForceRailOverheadPocketView) {
+                  if (activeShotView?.mode === 'action') {
+                    suspendedActionView = activeShotView;
+                  }
+                  activeShotView = null;
+                  updatePocketCameraState(false);
+                  enterTopView(true, { variant: 'rail' });
                 }
                 if (
                   activeShotView?.mode === 'pocket' &&
@@ -31440,6 +31450,9 @@ const powerRef = useRef(hud.power);
               const shouldForceCornerPocketView =
                 !topViewRef.current &&
                 pocketIndex < 4;
+              const shouldForceRailOverheadPocketView =
+                !topViewRef.current &&
+                pocketIndex >= 4;
               if (shouldForceCornerPocketView) {
                 const sph = sphRef.current;
                 const resumeView = sph
@@ -31473,6 +31486,13 @@ const powerRef = useRef(hud.power);
                   updatePocketCameraState(true);
                   activeShotView = forcedCornerView;
                 }
+              } else if (shouldForceRailOverheadPocketView) {
+                if (activeShotView?.mode === 'action') {
+                  suspendedActionView = activeShotView;
+                }
+                activeShotView = null;
+                updatePocketCameraState(false);
+                enterTopView(true, { variant: 'rail' });
               }
               if (
                 activeShotView?.mode === 'pocket' &&
