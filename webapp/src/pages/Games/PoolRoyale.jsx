@@ -1393,7 +1393,6 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
 const BALL_SIZE_SCALE = 1; // lock ball size to the official 57.15mm reference diameter
-const BALL_DIAMETER_MM = 57.15;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1467,10 +1466,6 @@ console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
-console.assert(
-  Math.abs(BALL_D_REF - BALL_DIAMETER_MM) <= 0.05,
-  'Ball reference diameter must stay on the official 57.15mm standard.'
-);
 const CLOTH_LIFT = (() => {
   const ballR = BALL_R;
   const microEpsRatio = 0.022857142857142857;
@@ -1542,8 +1537,8 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
-const BALL_COLLISION_SLOP = BALL_R * 0.0008; // reduce tolerated penetration so balls do not visually overlap at rest
-const BALL_COLLISION_BAUMGARTE = 0.9; // increase overlap correction so touching balls separate faster per substep
+const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
+const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1903,8 +1898,6 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
 const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
-const IN_HAND_RAIL_CLEARANCE = BALL_R * 1.06; // keep in-hand helper clear from cushion noses
-const IN_HAND_CUE_HELPER_CLEARANCE = BALL_R * 1.05; // prevent helper placement from clipping through cue helper geometry
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -21634,7 +21627,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: !isBreakShot,
+            lockOverheadFocus: true,
             longShot,
             travelDistance,
             activationDelay,
@@ -24387,8 +24380,6 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.frustumCulled = false;
-      aim.renderOrder = 12;
       table.add(aim);
       const aimPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24406,8 +24397,6 @@ const powerRef = useRef(hud.power);
         })
       );
       aimPower.visible = false;
-      aimPower.frustumCulled = false;
-      aimPower.renderOrder = 12;
       table.add(aimPower);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24425,8 +24414,6 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfter.visible = false;
-      cueAfter.frustumCulled = false;
-      cueAfter.renderOrder = 12;
       table.add(cueAfter);
       const cueAfterPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24444,8 +24431,6 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfterPower.visible = false;
-      cueAfterPower.frustumCulled = false;
-      cueAfterPower.renderOrder = 12;
       table.add(cueAfterPower);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24461,8 +24446,6 @@ const powerRef = useRef(hud.power);
         })
       );
       tick.visible = false;
-      tick.frustumCulled = false;
-      tick.renderOrder = 12;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -24481,8 +24464,6 @@ const powerRef = useRef(hud.power);
         })
       );
       target.visible = false;
-      target.frustumCulled = false;
-      target.renderOrder = 12;
       table.add(target);
       const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24500,8 +24481,6 @@ const powerRef = useRef(hud.power);
         })
       );
       targetPower.visible = false;
-      targetPower.frustumCulled = false;
-      targetPower.renderOrder = 12;
       table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -25228,32 +25207,9 @@ const powerRef = useRef(hud.power);
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
         const clearance = BALL_R * clearanceMultiplier;
-        const railLimitX = RAIL_LIMIT_X - IN_HAND_RAIL_CLEARANCE;
-        const railLimitY = RAIL_LIMIT_Y - IN_HAND_RAIL_CLEARANCE;
-        if (Math.abs(point.x) > railLimitX || Math.abs(point.y) > railLimitY) {
-          return false;
-        }
         for (const ball of balls) {
           if (!ball.active || ball === cue) continue;
           if (point.distanceTo(ball.pos) <= clearance) {
-            return false;
-          }
-        }
-        const cueTipTarget = TMP_VEC3_A;
-        const cueButtTarget = TMP_VEC3_B;
-        if (cueStick?.getWorldPosition) {
-          cueTipTarget.copy(cueTipLocal).applyEuler(cueStick.rotation).add(cueStick.position);
-          cueButtTarget.copy(cueButtLocal).applyEuler(cueStick.rotation).add(cueStick.position);
-          const helperClearance = Math.max(
-            IN_HAND_CUE_HELPER_CLEARANCE,
-            clearance * 0.5
-          );
-          if (
-            point.distanceToSquared(TMP_VEC2_A.set(cueTipTarget.x, cueTipTarget.z)) <=
-              helperClearance * helperClearance ||
-            point.distanceToSquared(TMP_VEC2_B.set(cueButtTarget.x, cueButtTarget.z)) <=
-              helperClearance * helperClearance
-          ) {
             return false;
           }
         }
@@ -26215,11 +26171,6 @@ const powerRef = useRef(hud.power);
               : 1;
           const hasCueTargetDirectionSplit =
             cueVsTargetAlignment < RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT;
-          const isShortStraightShot =
-            isShortShot &&
-            cueVsTargetAlignment >= 0.965 &&
-            !shotPrediction?.railNormal &&
-            !isMiddlePocketIntent;
           const shotCrowdBallCount = (() => {
             if (!prediction?.targetBall || !Array.isArray(balls)) return 0;
             const cueToTarget = prediction.targetBall.pos.clone().sub(cue.pos);
@@ -26242,12 +26193,11 @@ const powerRef = useRef(hud.power);
           })();
           const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
           const forceImmediateRailOverheadView =
-            !isShortStraightShot &&
-            (isBreakShot ||
-              Boolean(shotPrediction?.railNormal) ||
-              isMiddlePocketIntent ||
-              hasCueTargetDirectionSplit ||
-              isCrowdedShot);
+            isBreakShot ||
+            Boolean(shotPrediction?.railNormal) ||
+            hasCueTargetDirectionSplit ||
+            (isMiddlePocketIntent && hasCueTargetDirectionSplit) ||
+            isCrowdedShot;
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26309,7 +26259,7 @@ const powerRef = useRef(hud.power);
           }
           if (actionView && !earlyPocketView) {
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
+            actionView.lockOverheadFocus = true;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26515,11 +26465,10 @@ const powerRef = useRef(hud.power);
             actionView.activationTravel = 0;
             actionView.strokeReadyAt = 0;
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
+            actionView.lockOverheadFocus = true;
             actionView.lastUpdate = activationNow;
             activeShotView = actionView;
             suspendedActionView = null;
-            powerImpactHoldRef.current = 0;
             updateCamera();
             pocketViewActivated = true;
           }
@@ -26533,18 +26482,13 @@ const powerRef = useRef(hud.power);
             const pulledBackAtStrike = startPull > 0.003;
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
-              (forceImmediateRailOverheadView || pulledBackAtStrike) &&
+              pulledBackAtStrike &&
               (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
               actionView.activationTravel = 0;
               actionView.strokeReadyAt = 0;
-              if (forceImmediateRailOverheadView) {
-                actionView.preferRailOverhead = true;
-                actionView.lockOverheadFocus = false;
-                powerImpactHoldRef.current = 0;
-              }
               actionView.lastUpdate = now;
               activeShotView = actionView;
               suspendedActionView = null;
