@@ -26112,7 +26112,12 @@ const powerRef = useRef(hud.power);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const breakInProgressNow = Boolean(
+            frameStateCurrent?.meta?.breakInProgress ??
+              frameStateCurrent?.meta?.state?.breakInProgress
+          );
+          const isBreakShot =
+            breakInProgressNow || (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
@@ -26482,8 +26487,8 @@ const powerRef = useRef(hud.power);
             const pulledBackAtStrike = startPull > 0.003;
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
-              pulledBackAtStrike &&
-              (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
+              (forceImmediateRailOverheadView ||
+                (pulledBackAtStrike && (!isLongShot || forceActionActivation)));
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
@@ -30654,6 +30659,26 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
+              const isDoubleBankRuntime =
+                (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2;
+              if (isDoubleBankRuntime) {
+                if (activeShotView?.mode === 'action') {
+                  activeShotView.preferRailOverhead = true;
+                  activeShotView.lockOverheadFocus = true;
+                }
+                if (suspendedActionView?.mode === 'action') {
+                  suspendedActionView.preferRailOverhead = true;
+                  suspendedActionView.lockOverheadFocus = true;
+                  suspendedActionView.pendingActivation = false;
+                  suspendedActionView.activationDelay = null;
+                  suspendedActionView.activationTravel = 0;
+                  suspendedActionView.strokeReadyAt = 0;
+                  suspendedActionView.lastUpdate = performance.now();
+                  activeShotView = suspendedActionView;
+                  suspendedActionView = null;
+                  updateCamera();
+                }
+              }
             }
             if (railImpact) {
               applyRailImpulse(b, railImpact);
