@@ -21558,12 +21558,7 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          {
-            longShot = false,
-            travelDistance = 0,
-            isBreakShot = false,
-            isBankShot = false
-          } = {}
+          { longShot = false, travelDistance = 0, isBreakShot = false } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -21604,7 +21599,7 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = Boolean(isBreakShot || isBankShot);
+          const preferRailOverhead = Boolean(isBreakShot);
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -26246,8 +26241,7 @@ const powerRef = useRef(hud.power);
                 {
                   longShot: isLongShot,
                   travelDistance: predictedTravel,
-                  isBreakShot,
-                  isBankShot: Boolean(shotPrediction?.railNormal)
+                  isBreakShot
                 }
               )
             : null;
@@ -31259,27 +31253,6 @@ const powerRef = useRef(hud.power);
                 const shouldForceCornerPocketView =
                   !topViewRef.current &&
                   pocketIndex < 4;
-                const shouldForceMiddlePocketRailOverhead =
-                  !topViewRef.current &&
-                  pocketIndex >= 4;
-                if (shouldForceMiddlePocketRailOverhead) {
-                  const now = performance.now();
-                  const overheadView = activeShotView?.mode === 'action'
-                    ? activeShotView
-                    : suspendedActionView?.mode === 'action'
-                      ? suspendedActionView
-                      : null;
-                  if (overheadView) {
-                    overheadView.preferRailOverhead = true;
-                    overheadView.lockOverheadFocus = true;
-                    overheadView.holdUntil = Math.max(
-                      overheadView.holdUntil ?? now,
-                      now + POCKET_VIEW_POST_POT_HOLD_MS
-                    );
-                  }
-                  overheadBroadcastVariantRef.current = 'rail';
-                  updatePocketCameraState(false);
-                }
                 if (shouldForceCornerPocketView) {
                   const sph = sphRef.current;
                   const resumeView = sph
@@ -31467,27 +31440,6 @@ const powerRef = useRef(hud.power);
               const shouldForceCornerPocketView =
                 !topViewRef.current &&
                 pocketIndex < 4;
-              const shouldForceMiddlePocketRailOverhead =
-                !topViewRef.current &&
-                pocketIndex >= 4;
-              if (shouldForceMiddlePocketRailOverhead) {
-                const now = performance.now();
-                const overheadView = activeShotView?.mode === 'action'
-                  ? activeShotView
-                  : suspendedActionView?.mode === 'action'
-                    ? suspendedActionView
-                    : null;
-                if (overheadView) {
-                  overheadView.preferRailOverhead = true;
-                  overheadView.lockOverheadFocus = true;
-                  overheadView.holdUntil = Math.max(
-                    overheadView.holdUntil ?? now,
-                    now + POCKET_VIEW_POST_POT_HOLD_MS
-                  );
-                }
-                overheadBroadcastVariantRef.current = 'rail';
-                updatePocketCameraState(false);
-              }
               if (shouldForceCornerPocketView) {
                 const sph = sphRef.current;
                 const resumeView = sph
