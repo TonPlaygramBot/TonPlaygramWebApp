@@ -242,7 +242,9 @@ public class CueCamera : MonoBehaviour
     public bool immediateRailBroadcastOnShot = true;
     // Keep a fixed rail-overhead camera position during the entire shot so the
     // view tracks action by turning/looking only (no zoom/dolly moves).
-    public bool lockRailBroadcastPositionDuringShot = true;
+    // Disabled by default so action camera can dynamically follow cue-ball
+    // movement for both player and AI turns.
+    public bool lockRailBroadcastPositionDuringShot = false;
     // Keep the rail-overhead camera active for the whole shot window and avoid
     // corner-pocket cut-ins.
     public bool forceRailOverheadForWholeShot = false;
@@ -1222,14 +1224,13 @@ public class CueCamera : MonoBehaviour
 
     private Vector3 GetDynamicShotBroadcastFocus()
     {
+        // Keep action camera focus dynamic on the cue ball while the shot runs.
+        // This matches both player and AI shot broadcasts and avoids drift to a
+        // midpoint lock between cue and target balls.
         Vector3 desired = CueBall != null ? CueBall.position : tableBounds.center;
         bool hasCue = CueBall != null && CueBall.gameObject.activeInHierarchy;
         bool hasTarget = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
-        if (hasCue && hasTarget)
-        {
-            desired = (CueBall.position + TargetBall.position) * 0.5f;
-        }
-        else if (hasTarget)
+        if (!hasCue && hasTarget)
         {
             desired = TargetBall.position;
         }
