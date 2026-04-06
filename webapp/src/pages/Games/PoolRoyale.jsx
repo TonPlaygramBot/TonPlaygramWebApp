@@ -20448,13 +20448,6 @@ const powerRef = useRef(hud.power);
                       );
                 activeShotView.railDir = railDir;
               }
-              if (activeShotView.dynamicCueLook) {
-                railDir = resolveOppositeShortRailCamera({
-                  cueBall,
-                  fallback: Number.isFinite(railDir) && railDir !== 0 ? railDir : 1
-                });
-                activeShotView.railDir = railDir;
-              }
               if (!activeShotView.hasSwitchedRail) {
                 const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
                 if (shooting || cueMoving) {
@@ -20533,29 +20526,22 @@ const powerRef = useRef(hud.power);
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.5 : 0;
-                  const baseDistance =
-                    activeShotView.fixedShortRailDistance ??
-                    computeShortRailBroadcastDistance(camera);
-                  if (!Number.isFinite(activeShotView.fixedShortRailDistance)) {
-                    activeShotView.fixedShortRailDistance = baseDistance;
-                  }
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
                   const pairFraming = computeShortRailPairFraming(
                     camera,
                     cuePos2,
                     targetPos2
                   );
-                  const desiredDistance = baseDistance + longShotPullback;
+                  const desiredDistance = Math.max(
+                    baseDistance + longShotPullback,
+                    pairFraming ? pairFraming.requiredDistance : 0
+                  );
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.heightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
-                  lookAnchor.x = THREE.MathUtils.lerp(
-                    lookAnchor.x,
-                    cueBall.pos.x,
-                    activeShotView.dynamicCueLook ? 0.55 : 0.25
-                  );
                   if (activeShotView.longShot) {
                     lookAnchor.x = THREE.MathUtils.lerp(
                       lookAnchor.x,
@@ -20669,25 +20655,18 @@ const powerRef = useRef(hud.power);
                     activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.2 : 0;
-                  const baseDistance =
-                    activeShotView.fixedShortRailDistance ??
-                    computeShortRailBroadcastDistance(camera);
-                  if (!Number.isFinite(activeShotView.fixedShortRailDistance)) {
-                    activeShotView.fixedShortRailDistance = baseDistance;
-                  }
+                  const baseDistance = computeShortRailBroadcastDistance(camera);
                   const cueFraming = computeShortRailPairFraming(camera, cuePos2);
-                  const desiredDistance = baseDistance + longShotPullback;
+                  const desiredDistance = Math.max(
+                    baseDistance + longShotPullback,
+                    cueFraming ? cueFraming.requiredDistance : 0
+                  );
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.followHeightOffset + heightLift,
                     railDir * desiredDistance
                   );
                   const lookAnchor = anchor.clone();
-                  lookAnchor.x = THREE.MathUtils.lerp(
-                    lookAnchor.x,
-                    cueBall.pos.x,
-                    activeShotView.dynamicCueLook ? 0.7 : 0.3
-                  );
                   if (activeShotView.longShot) {
                     lookAnchor.x = THREE.MathUtils.lerp(
                       lookAnchor.x,
@@ -21649,8 +21628,6 @@ const powerRef = useRef(hud.power);
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
             lockOverheadFocus: false,
-            dynamicCueLook: true,
-            fixedShortRailDistance: null,
             longShot,
             travelDistance,
             activationDelay,
