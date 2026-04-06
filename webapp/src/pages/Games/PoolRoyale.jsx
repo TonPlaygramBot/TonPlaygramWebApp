@@ -6058,6 +6058,9 @@ const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
 const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
+const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
+const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
+const RAIL_OVERHEAD_CROWD_BALL_THRESHOLD = 3;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -26160,11 +26163,35 @@ const powerRef = useRef(hud.power);
             shotAimDir && shotPrediction?.dir
               ? shotAimDir.clone().normalize().dot(shotPrediction.dir.clone().normalize())
               : 1;
-          const hasCueTargetDirectionSplit = cueVsTargetAlignment < 0.45;
+          const hasCueTargetDirectionSplit =
+            cueVsTargetAlignment < RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT;
+          const shotCrowdBallCount = (() => {
+            if (!prediction?.targetBall || !Array.isArray(balls)) return 0;
+            const cueToTarget = prediction.targetBall.pos.clone().sub(cue.pos);
+            const span = cueToTarget.length();
+            if (!Number.isFinite(span) || span <= 1e-6) return 0;
+            cueToTarget.multiplyScalar(1 / span);
+            let count = 0;
+            for (const ball of balls) {
+              if (!ball?.active) continue;
+              if (ball.id === cue.id || ball.id === prediction.targetBall.id) continue;
+              const toBall = ball.pos.clone().sub(cue.pos);
+              const projection = toBall.dot(cueToTarget);
+              if (projection < 0 || projection > span) continue;
+              const nearest = cue.pos.clone().add(cueToTarget.clone().multiplyScalar(projection));
+              if (ball.pos.distanceTo(nearest) <= RAIL_OVERHEAD_CROWD_RADIUS) {
+                count += 1;
+              }
+            }
+            return count;
+          })();
+          const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
           const forceImmediateRailOverheadView =
             isBreakShot ||
             Boolean(shotPrediction?.railNormal) ||
-            (isMiddlePocketIntent && hasCueTargetDirectionSplit);
+            hasCueTargetDirectionSplit ||
+            (isMiddlePocketIntent && hasCueTargetDirectionSplit) ||
+            isCrowdedShot;
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26450,8 +26477,7 @@ const powerRef = useRef(hud.power);
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
               pulledBackAtStrike &&
-              (!isLongShot || forceActionActivation) &&
-              !isMaxPowerShot;
+              (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
@@ -34019,17 +34045,15 @@ const powerRef = useRef(hud.power);
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
-              setIsRailOverheadView(true);
+              setIsRailOverheadView(false);
               setIsTopDownView(true);
             }}
-            disabled
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-45 ${
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
               isTopDownView && !isRailOverheadView
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}
-            aria-label="2D view disabled during broadcast"
-            title="2D view is disabled for Pool Royale broadcast"
+            aria-label="Switch to 2D view"
           >
             <span aria-hidden="true">2D</span>
           </button>
