@@ -5865,10 +5865,10 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 const RAIL_OVERHEAD_SCREEN_OFFSET = Object.freeze({
   x: TOP_VIEW_SCREEN_OFFSET.x,
-  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.07 // align rail-overhead vertical framing with Snooker Royal
+  z: TOP_VIEW_SCREEN_OFFSET.z + PLAY_H * 0.014 // nudge rail-overhead framing a touch more inward so bottom pockets remain visible on portrait
 });
-const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE; // keep rail overhead aligned with Snooker Royal top-view framing
-const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 1.035; // align rail-overhead radius with Snooker Royal broadcast framing
+const RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE * 0.97; // broadcast rail view sits closer than strict top-view mode
+const RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 0.95; // keep broadcast in 3D perspective instead of 2D-like overhead
 const REPLAY_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
 const REPLAY_TOP_VIEW_PHI = TOP_VIEW_PHI;
@@ -5877,7 +5877,7 @@ const REPLAY_TOP_VIEW_RESOLVED_PHI = TOP_VIEW_RESOLVED_PHI;
 const REPLAY_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
 const BROADCAST_TOP_VIEW_MARGIN = TOP_VIEW_MARGIN;
 const BROADCAST_TOP_VIEW_MIN_RADIUS_SCALE = TOP_VIEW_MIN_RADIUS_SCALE;
-const BROADCAST_TOP_VIEW_PHI = TOP_VIEW_RESOLVED_PHI + 0.01; // align broadcast tilt with Snooker Royal
+const BROADCAST_TOP_VIEW_PHI = 0.18; // keep broadcast camera visibly 3D (not flat 2D top view)
 const BROADCAST_TOP_VIEW_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE;
 const BROADCAST_TOP_VIEW_RESOLVED_PHI = BROADCAST_TOP_VIEW_PHI;
 const BROADCAST_TOP_VIEW_SCREEN_OFFSET = TOP_VIEW_SCREEN_OFFSET;
@@ -5892,8 +5892,8 @@ const BROADCAST_TOP_VIEW_VARIANTS = Object.freeze({
 });
 const resolveBroadcastTopViewVariant = (variant) =>
   BROADCAST_TOP_VIEW_VARIANTS[variant] ?? BROADCAST_TOP_VIEW_VARIANTS.pool;
-// Keep the rail overhead framing nearly identical to Snooker Royal's top view with a subtle depth tilt.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.01;
+// Keep rail-overhead clearly broadcast/3D and avoid 2D-style straight-down framing.
+const RAIL_OVERHEAD_PHI = Math.max(BROADCAST_TOP_VIEW_RESOLVED_PHI, TOP_VIEW_RESOLVED_PHI + 0.18);
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5908,7 +5908,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
     (halfLength / Math.tan(halfVertical)) * RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Snooker Royal rail-overhead camera distance
+const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward for stronger depth versus 2D mode
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5935,7 +5935,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // align cue-view forward slide limit with Snooker Royal
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // nudge forward slightly at the floor of the cue view, then stop
 const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
@@ -5943,7 +5943,7 @@ const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended to
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // align rail-overhead aim zoom with Snooker Royal
+const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
@@ -5958,21 +5958,21 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const GOOD_SHOT_REPLAY_DELAY_MS = 900;
-const REPLAY_TRANSITION_LEAD_MS = 420;
+const GOOD_SHOT_REPLAY_DELAY_MS = 180;
+const REPLAY_TRANSITION_LEAD_MS = 80;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
-const AI_CUE_PULLBACK_DURATION_MS = 2500;
-const AI_CUE_FORWARD_DURATION_MS = 2500;
+const AI_CUE_PULLBACK_DURATION_MS = 260;
+const AI_CUE_FORWARD_DURATION_MS = 1160;
 const AI_STROKE_VISIBLE_DURATION_MS =
-  AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
+  (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
-const SHOT_CAMERA_HOLD_MS = 2000;
+const SHOT_CAMERA_HOLD_MS = 2600;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -6324,7 +6324,10 @@ const fitRadius = (camera, margin = 1.1, distanceScale = 0.65) => {
 };
 const fitTopViewRadius = (camera, margin = TOP_VIEW_MARGIN, distanceScale = 0.65) =>
   fitRadius(
-    camera ?? { aspect: 1, fov: STANDING_VIEW_FOV },
+    {
+      aspect: TOP_VIEW_REFERENCE_ASPECT,
+      fov: camera?.fov ?? STANDING_VIEW_FOV
+    },
     margin,
     distanceScale
   );
