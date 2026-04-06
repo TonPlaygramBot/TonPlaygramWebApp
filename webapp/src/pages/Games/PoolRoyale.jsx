@@ -806,7 +806,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rail edges squared off for a straight outside angle
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep pocket-adjacent rounded cuts exactly as before
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -1610,7 +1610,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.01; // trim the cushion tops a touch
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep exterior wooden rail edges straight so frame sides read with clean angles
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
@@ -2645,7 +2645,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -3770,7 +3770,8 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // keep potting sequences on broadcast rail/pocket cameras and avoid 2D top-view cutaways
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false; // allow rail-overhead action switches while keeping broadcast framing in 3D
+const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -5130,6 +5131,10 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   const depthSafe = depth <= 0 ? 1 : depth;
   const radius = Math.max(0, depthSafe * radiusRatio);
   const innerBounds = options?.innerBounds;
+  const axisOnly = Boolean(options?.axisOnly);
+  const axisNormalThreshold = Number.isFinite(options?.axisNormalThreshold)
+    ? options.axisNormalThreshold
+    : 0.96;
   const pos = new THREE.Vector3();
   const norm = new THREE.Vector3();
   const planarNormal = new THREE.Vector2();
@@ -5140,6 +5145,15 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
     if (!Number.isFinite(pos.z)) continue;
     planarNormal.set(norm.x, norm.y);
     if (planarNormal.lengthSq() < 1e-5) continue;
+    if (axisOnly) {
+      const ax = Math.abs(planarNormal.x);
+      const ay = Math.abs(planarNormal.y);
+      const major = Math.max(ax, ay);
+      const minor = Math.min(ax, ay);
+      if (major < axisNormalThreshold || minor > (1 - axisNormalThreshold)) {
+        continue;
+      }
+    }
     planarPos.set(pos.x, pos.y);
     if (innerBounds) {
       const padding = Number.isFinite(innerBounds.padding)
@@ -5160,8 +5174,10 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
     const dot = planarNormal.dot(planarPos);
     if (dot <= 0) continue;
     const heightT = THREE.MathUtils.clamp(pos.z / depthSafe, 0, 1);
-    if (heightT <= 0) continue;
-    const eased = Math.sin((heightT * Math.PI) / 2);
+    const dualEdge = Boolean(options?.dualEdge);
+    const edgeT = dualEdge ? Math.min(heightT, 1 - heightT) * 2 : heightT;
+    if (edgeT <= 0) continue;
+    const eased = Math.sin((edgeT * Math.PI) / 2);
     const inset = radius * eased * eased;
     pos.x -= planarNormal.x * inset;
     pos.y -= planarNormal.y * inset;
@@ -5943,8 +5959,8 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const GOOD_SHOT_REPLAY_DELAY_MS = 900;
-const REPLAY_TRANSITION_LEAD_MS = 420;
+const GOOD_SHOT_REPLAY_DELAY_MS = 180;
+const REPLAY_TRANSITION_LEAD_MS = 80;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
@@ -10748,7 +10764,9 @@ export function Table3D(
       halfWidth: Math.max(cushionInnerX, 0),
       halfHeight: Math.max(cushionInnerZ, 0),
       padding: TABLE.THICK * 0.04
-    }
+    },
+    dualEdge: true,
+    axisOnly: true
   });
   railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
@@ -11909,7 +11927,12 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      group.position.set(center.x, ctx.floorY, center.z);
+      const legBottomY =
+        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
+          ? ctx.legY - ctx.legH * 0.5
+          : ctx.floorY;
+      const levelerMidY = levelerHeight * 0.5 + rubberHeight;
+      group.position.set(center.x, legBottomY - levelerMidY, center.z);
       tagBasePart(group, 'trim');
       return group;
     });
@@ -11972,7 +11995,17 @@ export function Table3D(
       const thickness = ctx.legR;
       const legWidth = thickness * 1.35;
       const legHeight = ctx.legH * 0.94;
-      const legGeom = new THREE.BoxGeometry(legWidth, legHeight, frameDepth);
+      const portalLegRadius = Math.max(
+        0.005,
+        Math.min(legWidth, frameDepth) * 0.22
+      );
+      const legGeom = new RoundedBoxGeometry(
+        legWidth,
+        legHeight,
+        frameDepth,
+        6,
+        portalLegRadius
+      );
       const legOffsetX = Math.max(
         legWidth * 0.5,
         frameWidth - legWidth * 0.65 - PORTAL_LEG_CENTER_PULL
@@ -20334,9 +20367,7 @@ const powerRef = useRef(hud.power);
                   ? THREE.MathUtils.clamp(1 - Math.exp(-dt / smoothTime), 0, 1)
                   : 1;
               const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
-              const cueAnchor = shooting
-                ? activeShotView.startCuePos ?? cuePos2
-                : cuePos2;
+                const cueAnchor = activeShotView.startCuePos ?? cuePos2;
               let focusTargetVec3 = null;
               let desiredPosition = null;
               const axis = activeShotView.axis ?? 'short';
@@ -20401,10 +20432,9 @@ const powerRef = useRef(hud.power);
                 } else {
                   targetPos2 = cueAnchor.clone().add(new THREE.Vector2(0, BALL_R * 6));
                 }
-                const targetAnchor =
-                  shooting && activeShotView.targetInitialPos
-                    ? activeShotView.targetInitialPos.clone()
-                    : targetPos2;
+                const targetAnchor = activeShotView.targetInitialPos
+                  ? activeShotView.targetInitialPos.clone()
+                  : targetPos2;
                 const mid = cueAnchor.clone().add(targetAnchor).multiplyScalar(0.5);
                 const span = Math.max(targetAnchor.distanceTo(cueAnchor), BALL_R * 4);
                 const forward = targetAnchor.clone().sub(cueAnchor);
@@ -21597,6 +21627,9 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
+            return null;
+          }
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -22842,6 +22875,19 @@ const powerRef = useRef(hud.power);
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording) return;
+          if (replayBannerTimeoutRef.current) {
+            clearTimeout(replayBannerTimeoutRef.current);
+            replayBannerTimeoutRef.current = null;
+          }
+          setReplayBanner(null);
+          setReplaySlate({ label: 'Replay', accent: 'default', startedAt: performance.now() });
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+          }
+          replaySlateTimeoutRef.current = window.setTimeout(() => {
+            setReplaySlate(null);
+            replaySlateTimeoutRef.current = null;
+          }, REPLAY_SLATE_DURATION_MS);
           const fallbackStartState = Array.isArray(shotRecording?.startState)
             ? shotRecording.startState
             : captureBallSnapshot();
@@ -26119,14 +26165,9 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            if (forceImmediateRailOverheadView) {
-              enterTopView(true, { variant: 'rail' });
-              setIsTopDownView(true);
-            } else {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
-            }
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -26238,6 +26279,8 @@ const powerRef = useRef(hud.power);
           );
           let holdUntil = powerImpactHoldRef.current || 0;
           const now = performance.now();
+          powerImpactHoldRef.current = 0;
+          holdUntil = 0;
           if (earlyPocketView?.forcedEarly) {
             const earlyHold = now + POCKET_VIEW_EARLY_HOLD_MS;
             if (!holdUntil || holdUntil > earlyHold) {
@@ -26245,7 +26288,6 @@ const powerRef = useRef(hud.power);
               powerImpactHoldRef.current = earlyHold;
             }
           }
-          const holdActive = holdUntil > now;
           let pocketViewActivated = false;
           if (earlyPocketView) {
             earlyPocketView.lastUpdate = now;
@@ -26263,13 +26305,11 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            queuedPocketView = null;
-            earlyPocketView.pendingActivation = false;
+            earlyPocketView.pendingActivation = true;
             earlyPocketView.activationDelay = null;
-            powerImpactHoldRef.current = 0;
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
+            queuedPocketView = earlyPocketView;
+            updatePocketCameraState(false);
+            pocketViewActivated = false;
           }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
@@ -26282,33 +26322,28 @@ const powerRef = useRef(hud.power);
               !requiresCueBallMovementTrigger &&
               (!isLongShot || forceActionActivation) &&
               !isMaxPowerShot;
-            if (shouldActivateActionView && (!holdActive || forceImmediateRailOverheadView)) {
-              actionView.pendingActivation = false;
-              actionView.activationDelay = null;
-              actionView.activationTravel = 0;
-              actionView.strokeReadyAt = 0;
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
-            } else {
-              actionView.pendingActivation = true;
-              const baseDelay = actionView.activationDelay ?? null;
-              const delayed = requiresCueBallMovementTrigger
-                ? baseDelay ?? 0
-                : Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed > 0 ? delayed : null;
-              actionView.strokeReadyAt = strokeReadyAt;
-              const baseTravel = actionView.activationTravel ?? 0;
-              actionView.activationTravel = Math.max(
-                baseTravel,
-                requiresCueBallMovementTrigger
-                  ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+            actionView.pendingActivation = true;
+            const baseDelay = actionView.activationDelay ?? null;
+            const delayed = requiresCueBallMovementTrigger ? baseDelay ?? 0 : now;
+            actionView.activationDelay = delayed > 0 ? delayed : null;
+            actionView.strokeReadyAt = shouldActivateActionView ? strokeReadyAt : now + 1;
+            const baseTravel = actionView.activationTravel ?? 0;
+            actionView.activationTravel = Math.max(
+              baseTravel,
+              requiresCueBallMovementTrigger
+                ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+                : forceImmediateRailOverheadView
+                  ? 0
                   : isMaxPowerShot
                     ? BALL_R * 6
                     : 0
-              );
-              suspendedActionView = actionView;
+            );
+            if (forceImmediateRailOverheadView) {
+              powerImpactHoldRef.current = 0;
+              actionView.activationDelay = now;
+              actionView.strokeReadyAt = now;
             }
+            suspendedActionView = actionView;
           }
           openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
@@ -28531,7 +28566,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28541,8 +28576,9 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
+            shouldReplay,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags ?? []),
@@ -28788,13 +28824,18 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = false;
+          shouldStartReplay =
+            Boolean(replayDecision?.shouldReplay) &&
+            (shotRecording?.frames?.length ?? 0) > 1;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        shouldStartReplay = false;
+        const replayEventDetected = shotWasFoul || hadObjectPot;
+        shouldStartReplay =
+          Boolean(replayDecision?.shouldReplay || replayEventDetected) &&
+          (shotRecording?.frames?.length ?? 0) >= 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -30631,8 +30672,9 @@ const powerRef = useRef(hud.power);
               !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
             const strokeReadyAt = suspendedActionView.strokeReadyAt ?? 0;
             const strokeSettled = now >= strokeReadyAt;
-            const cueMoving = cueSpeed >= CUEBALL_CAMERA_SWITCH_MIN_SPEED;
-            const cueTravelReady = travel >= CUEBALL_CAMERA_SWITCH_MIN_TRAVEL;
+            const cueMoving = cueSpeed > STOP_EPS;
+            const cueTravelReady =
+              travel >= Math.max(0, suspendedActionView.activationTravel ?? 0);
             if (travelReady && delayReady && holdReady && strokeSettled && cueMoving && cueTravelReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
