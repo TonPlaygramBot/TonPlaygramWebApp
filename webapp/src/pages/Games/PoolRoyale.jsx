@@ -22956,7 +22956,7 @@ const powerRef = useRef(hud.power);
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording) return;
+          if (!shotRecording || !shotRecording.frames?.length) return;
           if (replayBannerTimeoutRef.current) {
             clearTimeout(replayBannerTimeoutRef.current);
             replayBannerTimeoutRef.current = null;
@@ -22970,33 +22970,8 @@ const powerRef = useRef(hud.power);
             setReplaySlate(null);
             replaySlateTimeoutRef.current = null;
           }, REPLAY_SLATE_DURATION_MS);
-          const fallbackStartState = Array.isArray(shotRecording?.startState)
-            ? shotRecording.startState
-            : captureBallSnapshot();
-          const fallbackPostState = Array.isArray(postShotSnapshot)
-            ? postShotSnapshot
-            : captureBallSnapshot();
-          const buildFallbackReplay = () => {
-            const fallbackDuration = Math.max(
-              420,
-              Number.isFinite(shotRecording?.frameTimeMs) ? shotRecording.frameTimeMs * 2 : 420
-            );
-            return {
-              frames: [
-                { t: 0, balls: fallbackStartState },
-                { t: fallbackDuration, balls: fallbackPostState }
-              ],
-              cuePath: shotRecording?.cuePath ?? [],
-              cueStroke: shotRecording?.cueStroke ?? null,
-              duration: fallbackDuration
-            };
-          };
           const trimmed = trimReplayRecording(shotRecording);
-          const trimmedHasFrames = Array.isArray(trimmed?.frames) && trimmed.frames.length > 0;
-          const trimmedDuration = Number.isFinite(trimmed?.duration) ? trimmed.duration : 0;
-          const replayData =
-            trimmedHasFrames && trimmedDuration > 0 ? trimmed : buildFallbackReplay();
-          const duration = replayData.duration;
+          const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           applyRendererQuality();
           cueStrokeStateRef.current = null;
@@ -23007,9 +22982,9 @@ const powerRef = useRef(hud.power);
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
-            frames: replayData.frames,
-            cuePath: replayData.cuePath,
-            cueStroke: replayData.cueStroke ?? null,
+            frames: trimmed.frames,
+            cuePath: trimmed.cuePath,
+            cueStroke: trimmed.cueStroke ?? null,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -25991,6 +25966,7 @@ const powerRef = useRef(hud.power);
           lockedShotTargetWorld.clone().divideScalar(shotFocusScale)
         );
         setShootingState(true);
+        enterTopView(true, { variant: 'rail' });
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
           shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
@@ -26232,53 +26208,16 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          const impactPayload = {
+            base: base.clone(),
+            aimDir: shotAimDir.clone(),
+            physicsSpin: { x: spinSide, y: spinTop },
+            clampedPower,
+            liftStrength
+          };
+          pendingImpactRef.current = null;
 
-          if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
-            const sph = sphRef.current;
-            const bounds = cameraBoundsRef.current;
-            const standingView = bounds?.standing;
-            if (standingView) {
-              sph.radius = clampOrbitRadius(standingView.radius);
-              sph.phi = THREE.MathUtils.clamp(
-                standingView.phi,
-                CAMERA.minPhi,
-                CAMERA.maxPhi
-              );
-              syncBlendToSpherical();
-            }
+          if (cameraRef.current) {
             updateCamera();
           }
 
@@ -26514,9 +26453,23 @@ const powerRef = useRef(hud.power);
               forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: true,
+              onImpact: () => {
+                applyShotAtImpact(impactPayload);
+                pendingImpactRef.current = null;
+              }
+            };
+            const impactThreshold = THREE.MathUtils.clamp(
+              strokeProfile.impactThreshold ?? 0.9,
+              0,
+              1
+            );
+            pendingImpactRef.current = {
+              time: startTime + strikeDuration * impactThreshold,
+              apply: () => applyShotAtImpact(impactPayload)
             };
           } else {
+            applyShotAtImpact(impactPayload);
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
