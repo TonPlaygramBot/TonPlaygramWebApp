@@ -20385,7 +20385,7 @@ const powerRef = useRef(hud.power);
                 (ball.active && ball.vel.lengthSq() > STOP_EPS * STOP_EPS ? 1 : 0),
               0
             );
-            const useOverheadBroadcast =
+            let useOverheadBroadcast =
               activeShotView.preferRailOverhead ||
               movingCount > POCKET_CHAOS_MOVING_THRESHOLD;
             let overheadApplied = false;
@@ -20770,6 +20770,42 @@ const powerRef = useRef(hud.power);
                 }
               }
               if (focusTargetVec3 && desiredPosition) {
+                if (!useOverheadBroadcast && activeShotView.stage === 'pair') {
+                  const targetBall =
+                    activeShotView.targetId != null
+                      ? ballsList.find((b) => b.id === activeShotView.targetId)
+                      : null;
+                  if (targetBall?.active) {
+                    const cueFramePoint = new THREE.Vector3(
+                      cueBall.pos.x * worldScaleFactor,
+                      BALL_CENTER_Y * worldScaleFactor,
+                      cueBall.pos.y * worldScaleFactor
+                    );
+                    const targetFramePoint = new THREE.Vector3(
+                      targetBall.pos.x * worldScaleFactor,
+                      BALL_CENTER_Y * worldScaleFactor,
+                      targetBall.pos.y * worldScaleFactor
+                    );
+                    const frameMargin = 0.92;
+                    const pointInFrame = (point) => {
+                      const projected = point.clone().project(camera);
+                      return (
+                        projected.z >= -1 &&
+                        projected.z <= 1 &&
+                        Math.abs(projected.x) <= frameMargin &&
+                        Math.abs(projected.y) <= frameMargin
+                      );
+                    };
+                    camera.position.copy(desiredPosition);
+                    camera.lookAt(focusTargetVec3);
+                    camera.updateMatrixWorld(true);
+                    if (!pointInFrame(cueFramePoint) || !pointInFrame(targetFramePoint)) {
+                      useOverheadBroadcast = true;
+                      activeShotView.preferRailOverhead = true;
+                      activeShotView.lockOverheadFocus = true;
+                    }
+                  }
+                }
                 if (useOverheadBroadcast) {
                   const railReplayCamera = resolveRailOverheadReplayCamera({
                     focusOverride: overheadFocusOverride,
@@ -21489,7 +21525,12 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0, isBreakShot = false } = {}
+          {
+            longShot = false,
+            travelDistance = 0,
+            isBreakShot = false,
+            preferRailOverhead = false
+          } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -21530,7 +21571,6 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = true;
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -21642,6 +21682,7 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          if (!isGuaranteedPocket) return null;
           const allowEarly = forceCornerCapture;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
@@ -26151,7 +26192,8 @@ const powerRef = useRef(hud.power);
                 {
                   longShot: isLongShot,
                   travelDistance: predictedTravel,
-                  isBreakShot
+                  isBreakShot,
+                  preferRailOverhead: forceImmediateRailOverheadView
                 }
               )
             : null;
@@ -28885,10 +28927,10 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        const replayEventDetected = shotWasFoul || hadObjectPot;
         shouldStartReplay =
-          Boolean(replayDecision?.shouldReplay || replayEventDetected) &&
-          (shotRecording?.frames?.length ?? 0) >= 1;
+          !skipAllReplaysRef.current &&
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
