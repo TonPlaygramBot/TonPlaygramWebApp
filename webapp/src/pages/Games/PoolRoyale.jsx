@@ -1677,10 +1677,10 @@ const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
 const POCKET_CAM_INWARD_SCALE = 0.78; // restore prior pocket-camera inward scale to keep legacy framing/positioning
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
-const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
+const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket camera offset centered so side pockets match corner-pocket distance framing
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 0.94; // move corner-pocket cameras a bit inward (closer to the pocket center framing)
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER; // enforce identical center-distance framing for middle and corner pockets
+const POCKET_CAM_SIDE_LATERAL_BIAS = 1; // align side-pocket outward vectors with corner-style radial vectors for consistent pocket camera geometry
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1700,8 +1700,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.58,
+  // Lift pocket cameras a bit higher across all pockets (corners + middle).
+  heightOffset: BALL_R * 2.76,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -5974,8 +5974,8 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const GOOD_SHOT_REPLAY_DELAY_MS = 900;
-const REPLAY_TRANSITION_LEAD_MS = 420;
+const GOOD_SHOT_REPLAY_DELAY_MS = 320; // start replay sequence sooner so replay frame/slate appears promptly after resolution
+const REPLAY_TRANSITION_LEAD_MS = 180; // shorten slate lead-in to reduce perceived dead time before replay playback
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
@@ -6047,15 +6047,15 @@ const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Sno
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 140; // release post-hit hold sooner so broadcast/pocket cameras can engage earlier
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 420;
+const CAMERA_SWITCH_MIN_HOLD_MS = 140; // reduce mandatory camera lock so rail-overhead and pocket cameras switch earlier
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
-const STROKE_CAMERA_MIN_HOLD_MS = 210;
+const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -28733,6 +28733,11 @@ const powerRef = useRef(hud.power);
 
         // Resolve shot
         function resolve() {
+          // Guarantee at least one fresh terminal replay sample before we decide
+          // whether to launch replay, so short shots still get a visible replay frame.
+          if (shotRecording) {
+            recordReplayFrame(performance.now());
+          }
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
