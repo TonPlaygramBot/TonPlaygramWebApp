@@ -268,6 +268,7 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DEFAULT_PLAYER_COUNT = 6;
 const MIN_PLAYER_COUNT = 2;
 const MAX_PLAYER_COUNT = 8;
+const VS_7_TOTAL_PLAYERS = 8;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
@@ -424,6 +425,10 @@ const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_DROP = CARD_H * 0.16;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES = new Set(['classicOctagon', 'grandOval', 'diamondEdge']);
+const VS_7_ALLOWED_TABLE_THEME_IDS = new Set(['murlan-default', 'coffee_table_round_01', 'round_wooden_table_02']);
+const VS_7_WIDE_TABLE_THEME_IDS = new Set(['coffee_table_round_01', 'round_wooden_table_02']);
+const VS_7_WIDE_TABLE_X_SCALE = 1.12;
+const VS_7_PLAYER_LAYER_EXTRA_DROP = CARD_H * 0.44;
 const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
 const POT_TWO_PILE_SIDE_OFFSET = CARD_W * 0.4;
 const POT_TWO_PILE_FORWARD_STEP = CARD_D * 1.5;
@@ -887,6 +892,50 @@ function clampPlayerCount(value) {
   return Math.min(Math.max(MIN_PLAYER_COUNT, Math.round(value)), MAX_PLAYER_COUNT);
 }
 
+function isVs7TableMode(playerCount) {
+  return clampPlayerCount(playerCount) >= VS_7_TOTAL_PLAYERS;
+}
+
+function getAllowedTableThemesForPlayerCount(playerCount) {
+  if (!isVs7TableMode(playerCount)) {
+    return TEXAS_TABLE_THEME_OPTIONS;
+  }
+  const allowed = TEXAS_TABLE_THEME_OPTIONS.filter((option) => VS_7_ALLOWED_TABLE_THEME_IDS.has(option.id));
+  return allowed.length ? allowed : TEXAS_TABLE_THEME_OPTIONS.slice(0, 1);
+}
+
+function resolveTableThemeForPlayerCount(tableThemeId, playerCount) {
+  const allowed = getAllowedTableThemesForPlayerCount(playerCount);
+  if (allowed.some((option) => option.id === tableThemeId)) {
+    return allowed.find((option) => option.id === tableThemeId) ?? allowed[0];
+  }
+  return allowed[0] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+}
+
+function resolvePlayerSeatLayerExtraDrop(playerCount, tableThemeId) {
+  return isVs7TableMode(playerCount) && VS_7_WIDE_TABLE_THEME_IDS.has(tableThemeId)
+    ? VS_7_PLAYER_LAYER_EXTRA_DROP
+    : 0;
+}
+
+function isVs7WideRoundTable(playerCount, tableThemeId) {
+  return isVs7TableMode(playerCount) && VS_7_WIDE_TABLE_THEME_IDS.has(tableThemeId);
+}
+
+function resolvePlayerCardVerticalLift(playerCount, tableThemeId, isHuman) {
+  if (isVs7WideRoundTable(playerCount, tableThemeId)) {
+    return isHuman ? -CARD_D * 0.4 : 0;
+  }
+  return isHuman ? 0 : CARD_H * 0.48;
+}
+
+function resolveTableFootprintScale(playerCount, tableThemeId) {
+  if (isVs7TableMode(playerCount) && VS_7_WIDE_TABLE_THEME_IDS.has(tableThemeId)) {
+    return { x: VS_7_WIDE_TABLE_X_SCALE, z: 1 };
+  }
+  return { x: 1, z: 1 };
+}
+
 function parseSearch(search) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'You';
@@ -1278,7 +1327,7 @@ function fitModelToHeight(model, targetHeight) {
   model.position.y += -fittedBox.min.y;
 }
 
-function fitTableModelToArena(model) {
+function fitTableModelToArena(model, footprintScale = { x: 1, z: 1 }) {
   if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -1294,6 +1343,11 @@ function fitTableModelToArena(model) {
       model.scale.y * scaleY,
       model.scale.z * scaleXZ
     );
+  }
+  const footprintX = Number.isFinite(footprintScale?.x) ? footprintScale.x : 1;
+  const footprintZ = Number.isFinite(footprintScale?.z) ? footprintScale.z : 1;
+  if (footprintX !== 1 || footprintZ !== 1) {
+    model.scale.set(model.scale.x * footprintX, model.scale.y, model.scale.z * footprintZ);
   }
 
   const scaledBox = new THREE.Box3().setFromObject(model);
@@ -1402,6 +1456,7 @@ async function buildTableForTheme({
   arena,
   renderer,
   tableTheme,
+  playerCount,
   woodOption,
   clothOption,
   baseOption,
@@ -1420,7 +1475,8 @@ async function buildTableForTheme({
       }
       const tableGroup = new THREE.Group();
       tableGroup.add(model);
-      const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+      const footprintScale = resolveTableFootprintScale(playerCount, theme.id);
+      const { surfaceY, radius } = fitTableModelToArena(tableGroup, footprintScale);
       arena.add(tableGroup);
       tableInfo = {
         group: tableGroup,
@@ -2070,6 +2126,8 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const seatLayerDrop = NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES.has(tableInfo?.shapeId)
     ? 0
     : NON_CLASSIC_TABLE_PLAYER_LAYER_DROP;
+  const extraSeatLayerDrop = Number.isFinite(options?.extraSeatLayerDrop) ? options.extraSeatLayerDrop : 0;
+  const totalSeatLayerDrop = Math.max(0, seatLayerDrop + extraSeatLayerDrop);
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? hexagonAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
@@ -2119,22 +2177,22 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, cardInwardShift)
       .addScaledVector(right, cardLateralShift);
-    cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET - seatLayerDrop;
+    cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET - totalSeatLayerDrop;
     const chipAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipAnchor.y = railSurfaceY - seatLayerDrop;
+    chipAnchor.y = railSurfaceY - totalSeatLayerDrop;
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
       .addScaledVector(right, cardLateralShift);
-    cardRailAnchor.y = railSurfaceY - seatLayerDrop;
+    cardRailAnchor.y = railSurfaceY - totalSeatLayerDrop;
     const chipRailAnchor = chipRailCenter
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipRailAnchor.y = railSurfaceY - seatLayerDrop;
+    chipRailAnchor.y = railSurfaceY - totalSeatLayerDrop;
     const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
@@ -2162,7 +2220,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       },
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
-      seatLayerDrop,
+      seatLayerDrop: totalSeatLayerDrop,
       isHuman,
       isBottomSideOpponent
     });
@@ -2179,6 +2237,56 @@ function getHumanCardAnchor(seatGroup) {
     .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
   blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET - HUMAN_CARD_LOWER_OFFSET - (seatGroup.seatLayerDrop ?? 0);
   return blended;
+}
+
+function syncSeatGroupsToLayout(seatGroups = [], seatLayout = []) {
+  if (!Array.isArray(seatGroups) || !Array.isArray(seatLayout) || !seatGroups.length) return;
+  const count = Math.min(seatGroups.length, seatLayout.length);
+  for (let idx = 0; idx < count; idx += 1) {
+    const seat = seatLayout[idx];
+    const seatGroup = seatGroups[idx];
+    if (!seat || !seatGroup) continue;
+    seatGroup.seatPos = seat.seatPos;
+    seatGroup.forward = seat.forward;
+    seatGroup.right = seat.right;
+    seatGroup.cardAnchor = seat.cardAnchor;
+    seatGroup.chipAnchor = seat.chipAnchor;
+    seatGroup.cardRailAnchor = seat.cardRailAnchor;
+    seatGroup.chipRailAnchor = seat.chipRailAnchor;
+    seatGroup.betAnchor = seat.betAnchor;
+    seatGroup.previewAnchor = seat.previewAnchor;
+    seatGroup.stoolAnchor = seat.stoolAnchor;
+    seatGroup.stoolHeight = seat.stoolHeight;
+    seatGroup.seatLayerDrop = seat.seatLayerDrop;
+    seatGroup.labelOffset = seat.labelOffset;
+    seatGroup.isBottomSideOpponent = Boolean(seat.isBottomSideOpponent);
+
+    seatGroup.group?.position?.copy?.(seat.seatPos);
+    seatGroup.group?.lookAt?.(new THREE.Vector3(0, seat.seatPos.y, 0));
+
+    if (seatGroup.chipStack) seatGroup.chipStack.position.copy(seat.chipRailAnchor);
+    if (seatGroup.betStack) seatGroup.betStack.position.copy(seat.betAnchor);
+    if (seatGroup.previewStack) seatGroup.previewStack.position.copy(seat.previewAnchor);
+    if (seatGroup.hoverChip) seatGroup.hoverChip.position.copy(seat.cardRailAnchor);
+    if (seatGroup.foldBadge) seatGroup.foldBadge.position.copy(seat.cardRailAnchor);
+    if (seatGroup.nameplate) {
+      const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
+      const labelForward = seat.labelOffset?.forward ?? 0;
+      const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
+      seatGroup.nameplate.position.copy(seat.seatPos.clone().add(labelOffset));
+      const seatNameplateFacing = seat.forward.clone().negate().setY(0).normalize();
+      seatGroup.nameplate.lookAt(seatGroup.nameplate.position.clone().add(seatNameplateFacing));
+      seatGroup.nameplate.rotateX(NAMEPLATE_BACK_TILT);
+    }
+    if (seatGroup.tableLayout) {
+      seatGroup.tableLayout.right = seat.right.clone();
+      seatGroup.tableLayout.forward = seat.forward.clone();
+    }
+    if (seatGroup.railLayout) {
+      seatGroup.railLayout.right = seat.right.clone();
+      seatGroup.railLayout.forward = seat.forward.clone();
+    }
+  }
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
@@ -2632,14 +2740,17 @@ function createFoldBadgeSprite() {
   return sprite;
 }
 
-function createRaiseControls({ arena, seat, chipFactory, tableInfo }) {
+function createRaiseControls({ arena, seat, chipFactory, tableInfo, playerCount, tableThemeId }) {
   if (!arena || !seat || !chipFactory || !tableInfo) return null;
   const group = new THREE.Group();
   group.visible = false;
   arena.add(group);
   const forward = seat.forward.clone().normalize();
   const axis = seat.right.clone().normalize();
-  const anchorY = seat.cardRailAnchor?.y ?? seat.chipRailAnchor?.y ?? tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT;
+  const controlDrop = isVs7WideRoundTable(playerCount, tableThemeId) ? CARD_H * 0.2 : 0;
+  const anchorY =
+    (seat.cardRailAnchor?.y ?? seat.chipRailAnchor?.y ?? tableInfo.surfaceY + RAIL_HEIGHT_OFFSET + RAIL_SURFACE_LIFT) -
+    controlDrop;
   const fallbackAnchor = forward.clone().multiplyScalar(tableInfo.radius * RAIL_ANCHOR_RATIO);
   fallbackAnchor.y = anchorY;
   const cardRailAnchor = seat.cardRailAnchor
@@ -3286,21 +3397,37 @@ function TexasHoldemArena({ search }) {
   const envTextureRef = useRef(null);
   const hdriApplyRequestRef = useRef(0);
   const hdriFallbackRetryCountRef = useRef(0);
+  const tableThemeOptions = useMemo(
+    () => getAllowedTableThemesForPlayerCount(effectivePlayerCount),
+    [effectivePlayerCount]
+  );
+  const allowedTableThemeIds = useMemo(
+    () => new Set(tableThemeOptions.map((option) => option.id)),
+    [tableThemeOptions]
+  );
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
+      const normalizedTheme = resolveTableThemeForPlayerCount(
+        (TEXAS_TABLE_THEME_OPTIONS[normalized.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0])?.id,
+        effectivePlayerCount
+      );
+      const normalizedThemeIndex = TEXAS_TABLE_THEME_OPTIONS.findIndex((option) => option.id === normalizedTheme?.id);
       const map = {
         tableFinish: TEXAS_TABLE_FINISH_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         chairTheme: TEXAS_CHAIR_THEME_OPTIONS,
-        tableTheme: TEXAS_TABLE_THEME_OPTIONS,
         tableShape: TABLE_SHAPE_OPTIONS,
         cards: CARD_THEMES,
         environmentHdri: TEXAS_HDRI_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
+      if (normalizedThemeIndex >= 0 && next.tableTheme !== normalizedThemeIndex) {
+        next.tableTheme = normalizedThemeIndex;
+        changed = true;
+      }
       Object.entries(map).forEach(([key, options]) => {
         const idx = Number.isFinite(next[key]) ? next[key] : 0;
         const option = options[idx];
@@ -3315,7 +3442,7 @@ function TexasHoldemArena({ search }) {
       });
       return changed ? next : normalized;
     },
-    [texasInventory]
+    [effectivePlayerCount, texasInventory]
   );
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -3338,9 +3465,20 @@ function TexasHoldemArena({ search }) {
     () =>
       CUSTOMIZATION_SECTIONS.map((section) => ({
         ...section,
-        options: section.options
-          .map((option, idx) => ({ ...option, idx }))
-          .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
+        options: (section.key === 'tableTheme' ? tableThemeOptions : section.options)
+          .map((option, idx) => ({
+            ...option,
+            idx:
+              section.key === 'tableTheme'
+                ? Math.max(0, TEXAS_TABLE_THEME_OPTIONS.findIndex((themeOption) => themeOption.id === option.id))
+                : idx
+          }))
+          .filter(({ id }) => {
+            if (section.key === 'tableTheme' && !allowedTableThemeIds.has(id)) {
+              return false;
+            }
+            return isTexasOptionUnlocked(section.key, id, texasInventory);
+          })
       }))
         .filter((section) => section.options.length > 0)
         .filter((section) => {
@@ -3351,7 +3489,7 @@ function TexasHoldemArena({ search }) {
             tableTheme?.source === 'procedural' && TABLE_STYLE_MENU_SHAPE_IDS.has(tableShape?.id);
           return TABLE_STYLE_MENU_THEME_IDS.has(tableTheme?.id) || proceduralThemeSupportsSurface;
         }),
-    [appearance.tableShape, appearance.tableTheme, texasInventory]
+    [allowedTableThemeIds, appearance.tableShape, appearance.tableTheme, tableThemeOptions, texasInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -4110,7 +4248,17 @@ function TexasHoldemArena({ search }) {
     if (!three) return;
     const normalized = normalizeAppearance(appearance);
     const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
-    const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const requestedTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const tableTheme = resolveTableThemeForPlayerCount(requestedTheme?.id, effectivePlayerCount);
+    if (tableTheme?.id !== requestedTheme?.id) {
+      const forcedThemeIndex = TEXAS_TABLE_THEME_OPTIONS.findIndex((option) => option.id === tableTheme?.id);
+      if (forcedThemeIndex >= 0 && forcedThemeIndex !== safe.tableTheme) {
+        setAppearance((prev) => {
+          if (prev.tableTheme === forcedThemeIndex) return prev;
+          return { ...prev, tableTheme: forcedThemeIndex };
+        });
+      }
+    }
     const woodOption = resolveEffectiveWoodOption({
       tableTheme,
       tableFinish: safe.tableFinish
@@ -4143,6 +4291,7 @@ function TexasHoldemArena({ search }) {
           arena: three.arenaGroup,
           renderer: three.renderer,
           tableTheme,
+          playerCount: effectivePlayerCount,
           woodOption,
           clothOption,
           baseOption,
@@ -4159,6 +4308,17 @@ function TexasHoldemArena({ search }) {
         three.tableShapeId = nextTable.shapeId;
         three.tableThemeId = tableTheme.id;
         three.tableRadius = nextTable.radius;
+        const viewport = three.renderer?.domElement;
+        const portrait = (viewport?.clientHeight ?? 0) > (viewport?.clientWidth ?? 0);
+        const humanSeatInwardOffset = portrait
+          ? HUMAN_SEAT_INWARD_OFFSETS.portrait
+          : HUMAN_SEAT_INWARD_OFFSETS.landscape;
+        const nextSeatLayout = createSeatLayout(effectivePlayerCount, nextTable, {
+          useCardinal: nextTable?.shapeId === DIAMOND_SHAPE_ID && effectivePlayerCount <= 4,
+          humanSeatInwardOffset,
+          extraSeatLayerDrop: resolvePlayerSeatLayerExtraDrop(effectivePlayerCount, tableTheme.id)
+        });
+        syncSeatGroupsToLayout(three.seatGroups, nextSeatLayout);
         if (nextTable.materials) {
           applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, three.renderer);
         }
@@ -4194,7 +4354,9 @@ function TexasHoldemArena({ search }) {
             arena: three.arenaGroup,
             seat: humanSeat,
             chipFactory: three.chipFactory,
-            tableInfo: nextTable
+            tableInfo: nextTable,
+            playerCount: effectivePlayerCount,
+            tableThemeId: tableTheme.id
           });
           if (nextControls) {
             if (previousVisible) {
@@ -4641,7 +4803,8 @@ function TexasHoldemArena({ search }) {
     scene.add(arenaGroup);
     hdriVariantRef.current = initialEnvironment;
 
-    const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const storedInitialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const initialTheme = resolveTableThemeForPlayerCount(storedInitialTheme?.id, effectivePlayerCount);
     const initialWood = resolveEffectiveWoodOption({
       tableTheme: initialTheme,
       tableFinish: initialAppearance.tableFinish,
@@ -4684,7 +4847,8 @@ function TexasHoldemArena({ search }) {
       : HUMAN_SEAT_INWARD_OFFSETS.landscape;
     const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, {
       useCardinal: useCardinalLayout,
-      humanSeatInwardOffset
+      humanSeatInwardOffset,
+      extraSeatLayerDrop: resolvePlayerSeatLayerExtraDrop(initialPlayerCount, initialTheme?.id)
     });
     seatLayout.forEach((seat, idx) => {
       seat.player = initialPlayers[idx] || null;
@@ -4710,7 +4874,14 @@ function TexasHoldemArena({ search }) {
       right: humanSeat?.right?.clone?.() ?? new THREE.Vector3(1, 0, 0),
       forward: humanSeat?.forward?.clone?.() ?? new THREE.Vector3(0, 0, 1)
     };
-    const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+    const raiseControls = createRaiseControls({
+      arena: arenaGroup,
+      seat: humanSeat,
+      chipFactory,
+      tableInfo,
+      playerCount: initialPlayerCount,
+      tableThemeId: initialTheme?.id
+    });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 
     const smoothCameraTransition = (targetPosition, targetQuaternion, onComplete = null, duration = 260) => {
@@ -4985,6 +5156,7 @@ function TexasHoldemArena({ search }) {
           previewAnchor: seat.previewAnchor,
           stoolAnchor: seat.stoolAnchor,
           stoolHeight: seat.stoolHeight,
+          seatLayerDrop: seat.seatLayerDrop,
           isHuman: seat.isHuman,
           cardMeshes,
           chipStack,
@@ -5084,7 +5256,14 @@ function TexasHoldemArena({ search }) {
             mesh.renderOrder = 20;
           });
           humanSeat.cardMeshes[1].position.add(new THREE.Vector3(0, HUMAN_CARD_VERTICAL_OFFSET * 1.2, 0));
-          const controls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+          const controls = createRaiseControls({
+            arena: arenaGroup,
+            seat: humanSeat,
+            chipFactory,
+            tableInfo,
+            playerCount: initialPlayerCount,
+            tableThemeId: initialTheme?.id
+          });
           if (controls) {
             threeRef.current = { ...threeRef.current, raiseControls: controls };
             controls.group.visible = true;
@@ -5775,7 +5954,9 @@ function TexasHoldemArena({ search }) {
           position.y = winnerDisplayCenter.y + SHOWDOWN_WINNER_CARD_Y_OFFSET;
         } else {
           const clothY = (three.tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_D * 0.4;
-          position.y = seat.isHuman ? clothY : clothY + CARD_H * 0.48;
+          position.y =
+            clothY +
+            resolvePlayerCardVerticalLift(effectivePlayerCount, three.tableThemeId, seat.isHuman);
         }
         const isNewHandCard = Boolean(card && !prevPlayer?.hand?.[cardIdx]);
         const cardDealOrder = cardIdx * state.players.length + idx;
