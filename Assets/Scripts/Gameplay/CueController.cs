@@ -171,14 +171,9 @@ namespace Aiming
 
         void TriggerShotBroadcastCamera()
         {
-            if (broadcastCameraDirector != null)
-            {
-                broadcastCameraDirector.ForceRailOverheadForNextShot();
-            }
-
             if (cueCamera != null)
             {
-                cueCamera.SendMessage("SwitchToRailOverheadImmediate", SendMessageOptions.DontRequireReceiver);
+                cueCamera.SendMessage("SwitchToRailOverheadAfterPullback", SendMessageOptions.DontRequireReceiver);
             }
         }
 
