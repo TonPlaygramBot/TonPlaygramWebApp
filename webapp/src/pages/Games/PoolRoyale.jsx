@@ -1676,11 +1676,11 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.78; // pull pocket cameras slightly further inward for tighter corner-pocket framing
-const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
-const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
-const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
-const POCKET_CAM_SIDE_LATERAL_BIAS = 0.34; // bias only middle-pocket outward vectors toward the nearest edge; corner-pocket vectors stay unchanged
+const POCKET_CAM_INWARD_SCALE = 0.78; // restore prior pocket-camera inward scale to keep legacy framing/positioning
+const POCKET_CAM_SIDE_EDGE_SHIFT = 0; // keep middle-pocket camera offset centered so side pockets match corner-pocket distance framing
+const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 0.94; // move corner-pocket cameras a bit inward (closer to the pocket center framing)
+const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER; // enforce identical center-distance framing for middle and corner pockets
+const POCKET_CAM_SIDE_LATERAL_BIAS = 1; // align side-pocket outward vectors with corner-style radial vectors for consistent pocket camera geometry
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1700,8 +1700,8 @@ const POCKET_CAM = Object.freeze({
     POCKET_CAM_BASE_MIN_OUTSIDE * 1.6 * POCKET_CAM_INWARD_SCALE +
     BALL_DIAMETER * 2.5,
   maxOutside: BALL_R * 30,
-  // Lift pocket cameras slightly higher so pocket closeups read a touch more top-down.
-  heightOffset: BALL_R * 2.58,
+  // Lift pocket cameras a bit higher across all pockets (corners + middle).
+  heightOffset: BALL_R * 2.76,
   heightOffsetShortMultiplier: 1.28,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_INWARD_SCALE,
   outwardOffsetShort:
@@ -1715,7 +1715,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // switch pocket cams in earlier so the target-ball run is visible from the pocket angle
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // restore earlier trigger distance so pocket cams engage at the previous point
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -1878,7 +1878,7 @@ const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward s
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
 const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
-const LEG_LEVELER_RADIUS_SCALE = 1.18; // make leveler plates slightly wider than table-leg radius
+const LEG_LEVELER_RADIUS_SCALE = 1.08; // slightly shrink the rounded metallic leveler so it reads less oversized on portrait screens
 const LEG_LEVELER_HEIGHT_SCALE = 0.2; // keep each plate low and rounded, similar to real metal levelers
 const LEG_LEVELER_STEM_RADIUS_SCALE = 0.42; // the inner cylinder that inserts into the leg center
 const LEG_LEVELER_STEM_HEIGHT_SCALE = 0.34; // visible neck before it disappears into the leg
@@ -1890,7 +1890,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so i
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly a touch more while keeping rail/camera framing stable
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -2479,11 +2479,14 @@ function scaleWoodRepeatVector (repeatVec, scale) {
   return vec
 }
 
-const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
+const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.5, y: 3.8 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
+const LT_FINISH_BRIGHTNESS_LIFT = 0.16;
+const LT_FINISH_CONTRAST_BOOST = 1.2;
+const LT_MATTE_NORMAL_SCALE = 0.68;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2552,9 +2555,22 @@ function getCarbonFiberTileTexture(tintHex = 0x0c0f14) {
   tintedCtx.fillStyle = `#${tintKey}`;
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'screen';
-  tintedCtx.fillStyle = 'rgba(255,255,255,0.08)';
+  tintedCtx.fillStyle = 'rgba(255,255,255,0.12)';
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'source-over';
+  const imageData = tintedCtx.getImageData(0, 0, tintedCanvas.width, tintedCanvas.height);
+  const pixels = imageData.data;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const applyCurve = (value) => {
+      const normalized = value / 255;
+      const contrasted = (normalized - 0.5) * LT_FINISH_CONTRAST_BOOST + 0.5 + LT_FINISH_BRIGHTNESS_LIFT;
+      return THREE.MathUtils.clamp(Math.round(contrasted * 255), 0, 255);
+    };
+    pixels[i] = applyCurve(pixels[i]);
+    pixels[i + 1] = applyCurve(pixels[i + 1]);
+    pixels[i + 2] = applyCurve(pixels[i + 2]);
+  }
+  tintedCtx.putImageData(imageData, 0, 0);
   const texture = new THREE.CanvasTexture(tintedCanvas);
   applySRGBColorSpace(texture);
   texture.wrapS = THREE.RepeatWrapping;
@@ -2613,17 +2629,17 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
       const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
       const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
-      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
+      const colorLift = THREE.MathUtils.clamp(dither * 9 + grain * 6, -22, 22);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.18);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.18);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.18);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 22, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 34, 0, 255);
       normalImage.data[i + 3] = 255;
       const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
@@ -2645,7 +2661,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -2689,7 +2705,7 @@ function applyMonoMattePlasticSurface(material) {
     material.envMapIntensity = 0.12;
   }
   if ('normalScale' in material && material.normalMap) {
-    material.normalScale = new THREE.Vector2(0.5, 0.5);
+    material.normalScale = new THREE.Vector2(LT_MATTE_NORMAL_SCALE, LT_MATTE_NORMAL_SCALE);
   }
   material.needsUpdate = true;
 }
@@ -3771,7 +3787,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
 const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // enforce only rail-overhead + pocket cameras during shot broadcast
-const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
+const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // disable middle-pocket broadcast cuts and use only corner-pocket cameras for guaranteed pots
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -5946,6 +5962,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
+const ENABLE_SHOT_REPLAY = false; // Pool Royale broadcast update: remove replay playback and keep live rail-overhead coverage
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -5958,8 +5975,8 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const GOOD_SHOT_REPLAY_DELAY_MS = 180;
-const REPLAY_TRANSITION_LEAD_MS = 80;
+const GOOD_SHOT_REPLAY_DELAY_MS = 320; // start replay sequence sooner so replay frame/slate appears promptly after resolution
+const REPLAY_TRANSITION_LEAD_MS = 180; // shorten slate lead-in to reduce perceived dead time before replay playback
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
@@ -6022,25 +6039,28 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // Snooker Royal does not shift replay start before the recorded cue timeline
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
+const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Snooker Royal
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 420;
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 420;
+const CAMERA_SWITCH_MIN_HOLD_MS = 70; // cut mandatory lock further so rail-overhead camera switches in noticeably earlier
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
-const STROKE_CAMERA_MIN_HOLD_MS = 210;
+const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
+const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
+const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
+const RAIL_OVERHEAD_CROWD_BALL_THRESHOLD = 3;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BREAK_DIE_SIZE = BALL_R * 2.25;
@@ -11943,8 +11963,9 @@ export function Table3D(
       rubberRing.castShadow = false;
       rubberRing.receiveShadow = true;
       group.add(rubberRing, disc, stem);
-      const legBottomY =
-        Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
+      const legBottomY = Number.isFinite(center?.legBottomY)
+        ? center.legBottomY
+        : Number.isFinite(ctx?.legY) && Number.isFinite(ctx?.legH)
           ? ctx.legY - ctx.legH * 0.5
           : ctx.floorY;
       const levelerMidY = levelerHeight * 0.5 + rubberHeight;
@@ -12040,7 +12061,8 @@ export function Table3D(
           legMeshes.push(leg);
           levelerCenters.push({
             x: side * legOffsetX,
-            z: signZ * portalZ
+            z: signZ * portalZ,
+            legBottomY: legBaseY
           });
         });
         portal.position.set(0, 0, signZ * portalZ);
@@ -13284,16 +13306,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    try {
-      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
-      if (stored == null) return true;
-      return stored !== '0';
-    } catch {
-      return true;
-    }
-  });
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(false);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14941,6 +14954,7 @@ function PoolRoyaleGame({
   }, [broadcastSystemId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      if (!ENABLE_SHOT_REPLAY) return;
       window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
     }
   }, [autoReplayEnabled]);
@@ -20405,9 +20419,10 @@ const powerRef = useRef(hud.power);
                   ? THREE.MathUtils.clamp(1 - Math.exp(-dt / smoothTime), 0, 1)
                   : 1;
               const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
-                const cueAnchor = activeShotView.startCuePos ?? cuePos2;
+              const cueAnchor = activeShotView.startCuePos ?? cuePos2;
               let focusTargetVec3 = null;
               let desiredPosition = null;
+              let pairTargetBall = null;
               const axis = activeShotView.axis ?? 'short';
               let railDir = activeShotView.railDir;
               if (!Number.isFinite(railDir) || railDir === 0) {
@@ -20459,6 +20474,7 @@ const powerRef = useRef(hud.power);
                   activeShotView.targetId != null
                     ? ballsList.find((b) => b.id === activeShotView.targetId)
                     : null;
+                pairTargetBall = targetBall ?? null;
                 let targetPos2;
                 if (targetBall?.active) {
                   targetPos2 = new THREE.Vector2(targetBall.pos.x, targetBall.pos.y);
@@ -20719,6 +20735,53 @@ const powerRef = useRef(hud.power);
                   );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
+                }
+              }
+              if (
+                activeShotView.stage === 'pair' &&
+                !activeShotView.preferRailOverhead &&
+                desiredPosition &&
+                focusTargetVec3
+              ) {
+                let shouldForceRailOverhead = false;
+                if (!pairTargetBall?.active) {
+                  shouldForceRailOverhead = true;
+                } else {
+                  const previewCamera = camera.clone();
+                  previewCamera.position.copy(desiredPosition);
+                  previewCamera.lookAt(focusTargetVec3);
+                  previewCamera.updateProjectionMatrix();
+                  previewCamera.updateMatrixWorld();
+                  const frameMargin = 0.86;
+                  const isPointInPreviewFrame = (point) => {
+                    if (!point) return false;
+                    const ndc = point.clone().project(previewCamera);
+                    return (
+                      Number.isFinite(ndc.x) &&
+                      Number.isFinite(ndc.y) &&
+                      Number.isFinite(ndc.z) &&
+                      Math.abs(ndc.x) <= frameMargin &&
+                      Math.abs(ndc.y) <= frameMargin &&
+                      ndc.z >= -1 &&
+                      ndc.z <= 1
+                    );
+                  };
+                  const cueWorld = new THREE.Vector3(
+                    cueBall.pos.x * worldScaleFactor,
+                    BALL_CENTER_Y,
+                    cueBall.pos.y * worldScaleFactor
+                  );
+                  const targetWorld = new THREE.Vector3(
+                    pairTargetBall.pos.x * worldScaleFactor,
+                    BALL_CENTER_Y,
+                    pairTargetBall.pos.y * worldScaleFactor
+                  );
+                  shouldForceRailOverhead =
+                    !isPointInPreviewFrame(cueWorld) || !isPointInPreviewFrame(targetWorld);
+                }
+                if (shouldForceRailOverhead) {
+                  activeShotView.preferRailOverhead = true;
+                  activeShotView.lockOverheadFocus = true;
                 }
               }
               const broadcastRailDir =
@@ -21530,7 +21593,7 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = true;
+          const preferRailOverhead = Boolean(isBreakShot);
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -21642,15 +21705,14 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const allowEarly = forceCornerCapture;
-          if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
+          if (!forceCornerCapture && !isGuaranteedPocket) return null;
+          if (!forceCornerCapture && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
             !forceCornerCapture &&
-            !isGuaranteedPocket &&
             ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
               best.dist < SHORT_SHOT_CAMERA_DISTANCE)
@@ -21670,6 +21732,7 @@ const powerRef = useRef(hud.power);
           if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
             return null;
           }
+          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           const triggerDistance = forceCornerCapture
             ? POCKET_CAM_EARLY_TRIGGER_DIST
             : isGuaranteedPocket
@@ -21747,10 +21810,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            minDistanceToPocket: best.dist,
-            escapeDistance: Math.max(BALL_R * 3.4, best.dist * 0.3),
-            escapedAt: null,
-            forcedEarly: false
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -26103,11 +26163,35 @@ const powerRef = useRef(hud.power);
             shotAimDir && shotPrediction?.dir
               ? shotAimDir.clone().normalize().dot(shotPrediction.dir.clone().normalize())
               : 1;
-          const hasCueTargetDirectionSplit = cueVsTargetAlignment < 0.45;
+          const hasCueTargetDirectionSplit =
+            cueVsTargetAlignment < RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT;
+          const shotCrowdBallCount = (() => {
+            if (!prediction?.targetBall || !Array.isArray(balls)) return 0;
+            const cueToTarget = prediction.targetBall.pos.clone().sub(cue.pos);
+            const span = cueToTarget.length();
+            if (!Number.isFinite(span) || span <= 1e-6) return 0;
+            cueToTarget.multiplyScalar(1 / span);
+            let count = 0;
+            for (const ball of balls) {
+              if (!ball?.active) continue;
+              if (ball.id === cue.id || ball.id === prediction.targetBall.id) continue;
+              const toBall = ball.pos.clone().sub(cue.pos);
+              const projection = toBall.dot(cueToTarget);
+              if (projection < 0 || projection > span) continue;
+              const nearest = cue.pos.clone().add(cueToTarget.clone().multiplyScalar(projection));
+              if (ball.pos.distanceTo(nearest) <= RAIL_OVERHEAD_CROWD_RADIUS) {
+                count += 1;
+              }
+            }
+            return count;
+          })();
+          const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
           const forceImmediateRailOverheadView =
             isBreakShot ||
             Boolean(shotPrediction?.railNormal) ||
-            (isMiddlePocketIntent && hasCueTargetDirectionSplit);
+            hasCueTargetDirectionSplit ||
+            (isMiddlePocketIntent && hasCueTargetDirectionSplit) ||
+            isCrowdedShot;
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26166,6 +26250,10 @@ const powerRef = useRef(hud.power);
             actionView.smoothedPos = cameraRef.current.position.clone();
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
+          }
+          if (actionView && !earlyPocketView) {
+            actionView.preferRailOverhead = true;
+            actionView.lockOverheadFocus = true;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26364,6 +26452,20 @@ const powerRef = useRef(hud.power);
             updatePocketCameraState(false);
             pocketViewActivated = false;
           }
+          if (!pocketViewActivated && actionView && isBreakShot) {
+            const activationNow = performance.now();
+            actionView.pendingActivation = false;
+            actionView.activationDelay = null;
+            actionView.activationTravel = 0;
+            actionView.strokeReadyAt = 0;
+            actionView.preferRailOverhead = true;
+            actionView.lockOverheadFocus = true;
+            actionView.lastUpdate = activationNow;
+            activeShotView = actionView;
+            suspendedActionView = null;
+            updateCamera();
+            pocketViewActivated = true;
+          }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
               holdUntil || 0,
@@ -26371,32 +26473,44 @@ const powerRef = useRef(hud.power);
             );
             const strokeReadyAt = Math.max(cameraHoldUntil, now + STROKE_CAMERA_MIN_HOLD_MS);
             const requiresCueBallMovementTrigger = false;
+            const pulledBackAtStrike = startPull > 0.003;
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
-              (!isLongShot || forceActionActivation) &&
-              !isMaxPowerShot;
-            actionView.pendingActivation = true;
-            const baseDelay = actionView.activationDelay ?? null;
-            const delayed = requiresCueBallMovementTrigger ? baseDelay ?? 0 : now;
-            actionView.activationDelay = delayed > 0 ? delayed : null;
-            actionView.strokeReadyAt = shouldActivateActionView ? strokeReadyAt : now + 1;
-            const baseTravel = actionView.activationTravel ?? 0;
-            actionView.activationTravel = Math.max(
-              baseTravel,
-              requiresCueBallMovementTrigger
-                ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
-                : forceImmediateRailOverheadView
-                  ? 0
-                  : isMaxPowerShot
-                    ? BALL_R * 6
-                    : 0
-            );
-            if (forceImmediateRailOverheadView) {
-              powerImpactHoldRef.current = 0;
-              actionView.activationDelay = now;
-              actionView.strokeReadyAt = now;
+              pulledBackAtStrike &&
+              (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
+            if (shouldActivateActionView) {
+              actionView.pendingActivation = false;
+              actionView.activationDelay = null;
+              actionView.activationTravel = 0;
+              actionView.strokeReadyAt = 0;
+              actionView.lastUpdate = now;
+              activeShotView = actionView;
+              suspendedActionView = null;
+              updateCamera();
+            } else {
+              actionView.pendingActivation = true;
+              const baseDelay = actionView.activationDelay ?? null;
+              const delayed = requiresCueBallMovementTrigger ? baseDelay ?? 0 : now;
+              actionView.activationDelay = delayed > 0 ? delayed : null;
+              actionView.strokeReadyAt = shouldActivateActionView ? strokeReadyAt : now + 1;
+              const baseTravel = actionView.activationTravel ?? 0;
+              actionView.activationTravel = Math.max(
+                baseTravel,
+                requiresCueBallMovementTrigger
+                  ? CUEBALL_CAMERA_SWITCH_MIN_TRAVEL
+                  : forceImmediateRailOverheadView
+                    ? 0
+                    : isMaxPowerShot
+                      ? BALL_R * 6
+                      : 0
+              );
+              if (forceImmediateRailOverheadView) {
+                powerImpactHoldRef.current = 0;
+                actionView.activationDelay = now;
+                actionView.strokeReadyAt = now;
+              }
+              suspendedActionView = actionView;
             }
-            suspendedActionView = actionView;
           }
           openingShotViewSuppressedRef.current = false;
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
@@ -28619,7 +28733,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28629,18 +28743,22 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
-            tags: Array.from(tags ?? []),
+            tags: Array.from(tags),
             primaryTag: primary
           };
         };
 
         // Resolve shot
         function resolve() {
+          // Guarantee at least one fresh terminal replay sample before we decide
+          // whether to launch replay, so short shots still get a visible replay frame.
+          if (shotRecording) {
+            recordReplayFrame(performance.now());
+          }
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
@@ -28651,7 +28769,12 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          let shouldStartReplay = false;
+          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
+          let shouldStartReplay =
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled &&
+            hasReplayFrames &&
+            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28878,17 +29001,20 @@ const powerRef = useRef(hud.power);
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled &&
+            hasReplayFrames &&
+            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        const replayEventDetected = shotWasFoul || hadObjectPot;
         shouldStartReplay =
-          Boolean(replayDecision?.shouldReplay || replayEventDetected) &&
-          (shotRecording?.frames?.length ?? 0) >= 1;
+          ENABLE_SHOT_REPLAY &&
+          autoReplayEnabled &&
+          hasReplayFrames &&
+          (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -29158,7 +29284,7 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          if (autoReplayEnabled && shouldStartReplay && postShotSnapshot) {
+          if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
@@ -29353,7 +29479,20 @@ const powerRef = useRef(hud.power);
           remoteAimRef.current = null;
         }
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
+          const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
+          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
+            shotRecording = {
+              ...pending,
+              startTime: pending.startTime ?? nowMs,
+              startState: pending.startState ?? captureBallSnapshot(),
+              zoomOnly: pending.zoomOnly ?? false,
+              replayTags: pending.replayTags ?? ['remote']
+            };
+            shotReplayRef.current = shotRecording;
+            const postState = pending.postState ?? captureBallSnapshot();
+            startShotReplay(postState);
+          }
         }
         const frameTiming = frameTimingRef.current;
         const targetFrameTime =
@@ -33443,33 +33582,35 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Replay Controls
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                  aria-pressed={autoReplayEnabled}
-                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    autoReplayEnabled
-                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                      Auto Replay
+              {ENABLE_SHOT_REPLAY ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Replay Controls
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                    aria-pressed={autoReplayEnabled}
+                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      autoReplayEnabled
+                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Auto Replay
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                        {autoReplayEnabled ? 'On' : 'Off'}
+                      </span>
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                      {autoReplayEnabled ? 'On' : 'Off'}
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
-                  </span>
-                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                    Replays keep live graphics quality and appear on potted/foul moments.
-                  </span>
-                </button>
-              </div>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -33904,17 +34045,15 @@ const powerRef = useRef(hud.power);
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
-              setIsRailOverheadView(true);
+              setIsRailOverheadView(false);
               setIsTopDownView(true);
             }}
-            disabled
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-45 ${
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
               isTopDownView && !isRailOverheadView
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}
-            aria-label="2D view disabled during broadcast"
-            title="2D view is disabled for Pool Royale broadcast"
+            aria-label="Switch to 2D view"
           >
             <span aria-hidden="true">2D</span>
           </button>
