@@ -252,6 +252,12 @@ public class CueCamera : MonoBehaviour
     public bool turnOnlyCueTrackingDuringShotHold = true;
     // Responsiveness of cue camera turn/look while holding position after shot.
     public float cueHoldTurnSpeed = 10f;
+    // Keep dynamic cue-hold tracking enabled at shot trigger even when a rail
+    // broadcast handoff is requested for the same shot.
+    public bool enableDynamicCueTrackingOnShotTrigger = true;
+    // Keep dynamic cue-hold tracking active for the entire shot until balls
+    // settle instead of timing out after cueStrikeCameraHoldSeconds.
+    public bool keepDynamicCueTrackingForWholeShot = true;
     // Weight to bias cue-hold look target toward target ball (1) vs cue ball (0).
     [Range(0f, 1f)]
     public float cueHoldTargetBias = 0.72f;
@@ -408,9 +414,13 @@ public class CueCamera : MonoBehaviour
         usingTargetCamera = false;
         bool forceImmediate = forceImmediateRailOverheadOnNextShot;
         forceImmediateRailOverheadOnNextShot = false;
-        holdCueAimDuringShot = !forceImmediate && !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
+        bool canHoldCueAim = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
+        bool preferDynamicCueHold = enableDynamicCueTrackingOnShotTrigger && turnOnlyCueTrackingDuringShotHold;
+        holdCueAimDuringShot = (!forceImmediate && canHoldCueAim) || (forceImmediate && preferDynamicCueHold);
         cueStrikeHoldUntilTime = holdCueAimDuringShot
-            ? Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds)
+            ? (keepDynamicCueTrackingForWholeShot
+                ? float.PositiveInfinity
+                : Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds))
             : Time.time;
         shotStartedTime = Time.time;
         hasShotRailAnchor = false;
@@ -549,7 +559,7 @@ public class CueCamera : MonoBehaviour
         {
             UpdateTargetCamera();
         }
-        else if (holdCueAimDuringShot && Time.time < cueStrikeHoldUntilTime)
+        else if (ShouldKeepCueHoldTrackingActive())
         {
             if (TrySwitchToGuaranteedPocketCamera())
             {
@@ -1390,6 +1400,11 @@ public class CueCamera : MonoBehaviour
 
     private bool ShouldSwitchToBroadcastBeforeFrameExit()
     {
+        if (keepDynamicCueTrackingForWholeShot)
+        {
+            return false;
+        }
+
         Transform primary = GetPrimaryShotTrackingBall();
         if (IsNearViewportEdge(primary))
         {
@@ -1407,6 +1422,16 @@ public class CueCamera : MonoBehaviour
         }
 
         return false;
+    }
+
+    private bool ShouldKeepCueHoldTrackingActive()
+    {
+        if (!holdCueAimDuringShot)
+        {
+            return false;
+        }
+
+        return keepDynamicCueTrackingForWholeShot || Time.time < cueStrikeHoldUntilTime;
     }
 
     private bool IsNearViewportEdge(Transform ball)
