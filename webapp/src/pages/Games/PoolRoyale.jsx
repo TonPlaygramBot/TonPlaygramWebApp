@@ -1676,7 +1676,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.78; // pull pocket cameras slightly further inward for tighter corner-pocket framing
+const POCKET_CAM_INWARD_SCALE = 0.82; // mirror Snooker Royal pocket-camera inward scale for identical broadcast framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
@@ -1715,7 +1715,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // switch pocket cams in earlier so the target-ball run is visible from the pocket angle
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist;
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -3771,7 +3771,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
 const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // enforce only rail-overhead + pocket cameras during shot broadcast
-const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
+const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = false; // keep side-pocket cuts enabled to match Snooker Royal broadcast/replay routing
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -5958,8 +5958,8 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const GOOD_SHOT_REPLAY_DELAY_MS = 180;
-const REPLAY_TRANSITION_LEAD_MS = 80;
+const GOOD_SHOT_REPLAY_DELAY_MS = 900;
+const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const REMATCH_DECISION_MS = 15000;
@@ -6022,12 +6022,12 @@ const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // begin replay in the charge phase so pullback + strike are both clearly visible
-const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1.42; // stretch the forward push more so cue impact is readable in replay
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // Snooker Royal does not shift replay start before the recorded cue timeline
+const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 360; // keep replay wind-up visible without consuming the whole replay window
+const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Snooker Royal
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
@@ -21692,15 +21692,13 @@ const powerRef = useRef(hud.power);
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           if (!forceCornerCapture && !isGuaranteedPocket) return null;
-          const allowEarly = forceCornerCapture;
-          if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
+          if (!forceCornerCapture && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
             !forceCornerCapture &&
-            !isGuaranteedPocket &&
             ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
               best.dist < SHORT_SHOT_CAMERA_DISTANCE)
@@ -21720,16 +21718,14 @@ const powerRef = useRef(hud.power);
           if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
             return null;
           }
-          const triggerDistance = forceCornerCapture
-            ? POCKET_CAM_EARLY_TRIGGER_DIST
-            : isGuaranteedPocket
-              ? POCKET_CAM_EARLY_TRIGGER_DIST
-              : POCKET_CAM.triggerDist;
-          if (!forceCornerCapture && best.dist > triggerDistance) return null;
+          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
+          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
-          const heightOffset = baseHeightOffset * shortPocketHeightMultiplier;
+          const heightOffset = isSidePocket
+            ? baseHeightOffset * 0.92
+            : baseHeightOffset * shortPocketHeightMultiplier;
           const railDir = isSidePocket
             ? signed(best.center.x, 1)
             : signed(best.center.y, 1);
@@ -21747,13 +21743,20 @@ const powerRef = useRef(hud.power);
               }
             : null;
           const now = performance.now();
+          const effectiveDist =
+            forcedEarly && !forceCornerCapture
+              ? Math.min(best.dist, POCKET_CAM.triggerDist)
+              : best.dist;
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const outsideDistanceMultiplier = isSidePocket
-            ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER
-            : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER;
-          const cameraDistance = minOutside * outsideDistanceMultiplier;
+          const cameraDistance = forceCornerCapture
+            ? minOutside * (isSidePocket ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER)
+            : THREE.MathUtils.clamp(
+                effectiveDist * POCKET_CAM.distanceScale,
+                minOutside,
+                POCKET_CAM.maxOutside
+              );
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
@@ -21763,19 +21766,12 @@ const powerRef = useRef(hud.power);
                 fallback: signed(pos.y, 1)
               })
             : railDir;
-          const focusLead = isSidePocket
-            ? POCKET_CAM.railFocusLong ?? POCKET_CAM.railFocusShort
-            : POCKET_CAM.railFocusShort ?? POCKET_CAM.railFocusLong;
-          const fixedTarget2D = best.center
-            .clone()
-            .add(approachDir.clone().multiplyScalar(-focusLead));
           return {
             mode: 'pocket',
             ballId,
             pocketId: anchorPocketId,
             pocketCenter: best.center.clone(),
             approach: approachDir,
-            fixedTarget2D,
             heightOffset,
             heightScale: POCKET_CAM.heightScale,
             lastBallPos: pos.clone(),
@@ -21793,14 +21789,10 @@ const powerRef = useRef(hud.power);
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
             cameraDistance,
-            distanceScale: POCKET_CAM.distanceScale,
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            minDistanceToPocket: best.dist,
-            escapeDistance: Math.max(BALL_R * 3.4, best.dist * 0.3),
-            escapedAt: null,
-            forcedEarly: false
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
