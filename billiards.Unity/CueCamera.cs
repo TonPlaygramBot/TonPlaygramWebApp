@@ -235,7 +235,10 @@ public class CueCamera : MonoBehaviour
     [Header("Shot timing")]
     // Time to keep the cue camera locked on the strike after trigger before
     // switching to broadcast follow cameras.
-    public float cueStrikeCameraHoldSeconds = 0.14f;
+    public float cueStrikeCameraHoldSeconds = 0f;
+    // When enabled, the broadcast shot camera keeps a fixed overhead short-rail
+    // position and only turns to follow cue/target action.
+    public bool lockBroadcastPositionDuringShot = true;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -266,6 +269,10 @@ public class CueCamera : MonoBehaviour
     private bool hasSmoothedCueDistance;
     private float cueStrikeHoldUntilTime;
     private bool holdCueAimDuringShot;
+    private bool hasLockedBroadcastAnchor;
+    private Vector3 lockedBroadcastFocus;
+    private float lockedBroadcastHeight;
+    private float lockedBroadcastDistance;
     private Vector3 ballInHandTargetPosition;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
@@ -332,6 +339,7 @@ public class CueCamera : MonoBehaviour
         usingTargetCamera = false;
         holdCueAimDuringShot = cueStrikeCameraHoldSeconds > 0f;
         cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
+        hasLockedBroadcastAnchor = false;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -958,6 +966,15 @@ public class CueCamera : MonoBehaviour
             }
         }
 
+        bool lockBroadcast = shotInProgress && lockBroadcastPositionDuringShot && !isPocketCamera;
+
+        if (lockBroadcast)
+        {
+            focus = tableBounds.center;
+            focus.x = 0f;
+            focus.y = Mathf.Max(focus.y, tableBounds.center.y);
+        }
+
         float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
         float heightOffset = baseHeight;
@@ -998,20 +1015,41 @@ public class CueCamera : MonoBehaviour
             }
         }
 
-        float distance = useStandingCameraForBroadcast && cachedStandingCamera
-            ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
-            : ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
-        if (isPocketCamera)
+        float distance;
+        if (lockBroadcast && hasLockedBroadcastAnchor)
         {
-            distance = Mathf.Max(distance - Mathf.Max(0f, pocketCameraDistanceInset), broadcastMinDistance);
+            focus = lockedBroadcastFocus;
+            height = lockedBroadcastHeight;
+            distance = lockedBroadcastDistance;
         }
         else
         {
-            distance = Mathf.Max(distance - Mathf.Max(0f, broadcastDistanceInset), broadcastMinDistance);
+            distance = useStandingCameraForBroadcast && cachedStandingCamera
+                ? Mathf.Max(standingCameraDistance - Mathf.Max(0f, standingCameraDistanceInset), broadcastMinDistance)
+                : ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+            if (isPocketCamera)
+            {
+                distance = Mathf.Max(distance - Mathf.Max(0f, pocketCameraDistanceInset), broadcastMinDistance);
+            }
+            else
+            {
+                distance = Mathf.Max(distance - Mathf.Max(0f, broadcastDistanceInset), broadcastMinDistance);
+            }
+            distance = Mathf.Clamp(distance, broadcastMinDistance, broadcastMaxDistance);
+
+            if (lockBroadcast)
+            {
+                hasLockedBroadcastAnchor = true;
+                lockedBroadcastFocus = focus;
+                lockedBroadcastHeight = height;
+                lockedBroadcastDistance = distance;
+            }
         }
-        distance = Mathf.Clamp(distance, broadcastMinDistance, broadcastMaxDistance);
+
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
-        Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
+        Vector3 lookTarget = lockBroadcast
+            ? GetLiveShotLookTarget(focus)
+            : focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
         if (isPocketCamera)
         {
             lookTarget.y -= Mathf.Max(0f, pocketCameraLookDownOffset);
@@ -1022,6 +1060,33 @@ public class CueCamera : MonoBehaviour
         }
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+    }
+
+    private Vector3 GetLiveShotLookTarget(Vector3 fallbackFocus)
+    {
+        Vector3 focus = fallbackFocus;
+        int count = 0;
+
+        if (CueBall != null && CueBall.gameObject.activeInHierarchy)
+        {
+            focus += CueBall.position;
+            count++;
+        }
+
+        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
+        {
+            focus += TargetBall.position;
+            count++;
+        }
+
+        if (count > 0)
+        {
+            focus /= (count + 1);
+        }
+
+        focus.y = Mathf.Max(focus.y, tableBounds.center.y);
+        focus += Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
+        return focus;
     }
 
     private void CacheStandingCameraPose()
@@ -1346,6 +1411,7 @@ public class CueCamera : MonoBehaviour
         SetBallInHandActive(true);
         shotInProgress = false;
         usingTargetCamera = false;
+        hasLockedBroadcastAnchor = false;
         currentBall = CueBall;
     }
 
@@ -1386,6 +1452,7 @@ public class CueCamera : MonoBehaviour
         shotInProgress = false;
         usingTargetCamera = false;
         holdCueAimDuringShot = false;
+        hasLockedBroadcastAnchor = false;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
