@@ -20405,9 +20405,10 @@ const powerRef = useRef(hud.power);
                   ? THREE.MathUtils.clamp(1 - Math.exp(-dt / smoothTime), 0, 1)
                   : 1;
               const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
-                const cueAnchor = activeShotView.startCuePos ?? cuePos2;
+              const cueAnchor = activeShotView.startCuePos ?? cuePos2;
               let focusTargetVec3 = null;
               let desiredPosition = null;
+              let pairTargetBall = null;
               const axis = activeShotView.axis ?? 'short';
               let railDir = activeShotView.railDir;
               if (!Number.isFinite(railDir) || railDir === 0) {
@@ -20459,6 +20460,7 @@ const powerRef = useRef(hud.power);
                   activeShotView.targetId != null
                     ? ballsList.find((b) => b.id === activeShotView.targetId)
                     : null;
+                pairTargetBall = targetBall ?? null;
                 let targetPos2;
                 if (targetBall?.active) {
                   targetPos2 = new THREE.Vector2(targetBall.pos.x, targetBall.pos.y);
@@ -20719,6 +20721,53 @@ const powerRef = useRef(hud.power);
                   );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
+                }
+              }
+              if (
+                activeShotView.stage === 'pair' &&
+                !activeShotView.preferRailOverhead &&
+                desiredPosition &&
+                focusTargetVec3
+              ) {
+                let shouldForceRailOverhead = false;
+                if (!pairTargetBall?.active) {
+                  shouldForceRailOverhead = true;
+                } else {
+                  const previewCamera = camera.clone();
+                  previewCamera.position.copy(desiredPosition);
+                  previewCamera.lookAt(focusTargetVec3);
+                  previewCamera.updateProjectionMatrix();
+                  previewCamera.updateMatrixWorld();
+                  const frameMargin = 0.86;
+                  const isPointInPreviewFrame = (point) => {
+                    if (!point) return false;
+                    const ndc = point.clone().project(previewCamera);
+                    return (
+                      Number.isFinite(ndc.x) &&
+                      Number.isFinite(ndc.y) &&
+                      Number.isFinite(ndc.z) &&
+                      Math.abs(ndc.x) <= frameMargin &&
+                      Math.abs(ndc.y) <= frameMargin &&
+                      ndc.z >= -1 &&
+                      ndc.z <= 1
+                    );
+                  };
+                  const cueWorld = new THREE.Vector3(
+                    cueBall.pos.x * worldScaleFactor,
+                    BALL_CENTER_Y,
+                    cueBall.pos.y * worldScaleFactor
+                  );
+                  const targetWorld = new THREE.Vector3(
+                    pairTargetBall.pos.x * worldScaleFactor,
+                    BALL_CENTER_Y,
+                    pairTargetBall.pos.y * worldScaleFactor
+                  );
+                  shouldForceRailOverhead =
+                    !isPointInPreviewFrame(cueWorld) || !isPointInPreviewFrame(targetWorld);
+                }
+                if (shouldForceRailOverhead) {
+                  activeShotView.preferRailOverhead = true;
+                  activeShotView.lockOverheadFocus = true;
                 }
               }
               const broadcastRailDir =
@@ -21530,7 +21579,7 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = true;
+          const preferRailOverhead = Boolean(isBreakShot);
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -21642,6 +21691,7 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          if (!forceCornerCapture && !isGuaranteedPocket) return null;
           const allowEarly = forceCornerCapture;
           if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
@@ -26167,6 +26217,10 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
+          if (actionView && !earlyPocketView) {
+            actionView.preferRailOverhead = true;
+            actionView.lockOverheadFocus = true;
+          }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
@@ -26363,6 +26417,20 @@ const powerRef = useRef(hud.power);
             queuedPocketView = earlyPocketView;
             updatePocketCameraState(false);
             pocketViewActivated = false;
+          }
+          if (!pocketViewActivated && actionView && isBreakShot) {
+            const activationNow = performance.now();
+            actionView.pendingActivation = false;
+            actionView.activationDelay = null;
+            actionView.activationTravel = 0;
+            actionView.strokeReadyAt = 0;
+            actionView.preferRailOverhead = true;
+            actionView.lockOverheadFocus = true;
+            actionView.lastUpdate = activationNow;
+            activeShotView = actionView;
+            suspendedActionView = null;
+            updateCamera();
+            pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
@@ -28619,7 +28687,7 @@ const powerRef = useRef(hud.power);
           pottedBalls,
           shotContext
         }) => {
-          if (!recording) return null;
+          if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
@@ -28629,12 +28697,11 @@ const powerRef = useRef(hud.power);
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
-          const shouldReplay = hadObjectPot || Boolean(recording.replayFoul) || tags.size > 0;
           return {
-            shouldReplay,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
-            tags: Array.from(tags ?? []),
+            tags: Array.from(tags),
             primaryTag: primary
           };
         };
@@ -28651,7 +28718,9 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          let shouldStartReplay = false;
+          let shouldStartReplay =
+            Boolean(replayDecision?.shouldReplay) &&
+            (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -28885,10 +28954,9 @@ const powerRef = useRef(hud.power);
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
-        const replayEventDetected = shotWasFoul || hadObjectPot;
         shouldStartReplay =
-          Boolean(replayDecision?.shouldReplay || replayEventDetected) &&
-          (shotRecording?.frames?.length ?? 0) >= 1;
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
