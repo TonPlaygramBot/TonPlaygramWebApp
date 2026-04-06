@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using Aiming.Gameplay.Broadcast;
 
 namespace Aiming
 {
@@ -48,8 +47,6 @@ namespace Aiming
         [Header("Camera sync")]
         [Tooltip("Optional cue camera that should mirror pull/push stroke motion for player, AI, and replay capture.")]
         public CueCamera cueCamera;
-        [Tooltip("Broadcast camera director used to force immediate rail-overhead switching at shot trigger.")]
-        public ShotBroadcastCameraDirector broadcastCameraDirector;
         public CueStrikePhysics strikePhysics = new CueStrikePhysics();
 
         Vector3 _aimDirection = Vector3.forward;
@@ -165,21 +162,7 @@ namespace Aiming
                 return;
             }
 
-            TriggerShotBroadcastCamera();
             StartCoroutine(StrikeRoutine(_latchedShotPower));
-        }
-
-        void TriggerShotBroadcastCamera()
-        {
-            if (broadcastCameraDirector != null)
-            {
-                broadcastCameraDirector.ForceRailOverheadForNextShot();
-            }
-
-            if (cueCamera != null)
-            {
-                cueCamera.SendMessage("SwitchToRailOverheadImmediate", SendMessageOptions.DontRequireReceiver);
-            }
         }
 
         void UpdateAimDirection()

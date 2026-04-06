@@ -1676,7 +1676,7 @@ const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve arou
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
-const POCKET_CAM_INWARD_SCALE = 0.78; // restore legacy Pool Royale pocket-camera inward scale
+const POCKET_CAM_INWARD_SCALE = 0.82; // mirror Snooker Royal pocket-camera inward scale for identical broadcast framing
 const POCKET_CAM_SIDE_EDGE_SHIFT = BALL_R * 4.7; // nudge middle-pocket cameras a bit farther toward the table edges and away from center framing
 const POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER = 2.72; // push middle-pocket cameras slightly farther outward so side pocket shots sit more off-center
 const POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER = 1.08; // pull corner-pocket cameras slightly inward so they frame a bit closer toward table center
@@ -1715,7 +1715,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // restore earlier trigger distance for legacy pocket-cam timing
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist;
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -21708,15 +21708,13 @@ const powerRef = useRef(hud.power);
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           if (!forceCornerCapture && !isGuaranteedPocket) return null;
-          const allowEarly = forceCornerCapture;
-          if (!allowEarly && bestScore < POCKET_CAM.dotThreshold) return null;
+          if (!forceCornerCapture && bestScore < POCKET_CAM.dotThreshold) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
             !forceCornerCapture &&
-            !isGuaranteedPocket &&
             ((predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
               best.dist < SHORT_SHOT_CAMERA_DISTANCE)
@@ -21736,16 +21734,14 @@ const powerRef = useRef(hud.power);
           if (!forceCornerCapture && BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS && isSidePocket) {
             return null;
           }
-          const triggerDistance = forceCornerCapture
-            ? POCKET_CAM_EARLY_TRIGGER_DIST
-            : isGuaranteedPocket
-              ? POCKET_CAM_EARLY_TRIGGER_DIST
-              : POCKET_CAM.triggerDist;
-          if (!forceCornerCapture && best.dist > triggerDistance) return null;
+          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
+          if (!forceCornerCapture && best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
-          const heightOffset = baseHeightOffset * shortPocketHeightMultiplier;
+          const heightOffset = isSidePocket
+            ? baseHeightOffset * 0.92
+            : baseHeightOffset * shortPocketHeightMultiplier;
           const railDir = isSidePocket
             ? signed(best.center.x, 1)
             : signed(best.center.y, 1);
@@ -21763,13 +21759,20 @@ const powerRef = useRef(hud.power);
               }
             : null;
           const now = performance.now();
+          const effectiveDist =
+            forcedEarly && !forceCornerCapture
+              ? Math.min(best.dist, POCKET_CAM.triggerDist)
+              : best.dist;
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
-          const outsideDistanceMultiplier = isSidePocket
-            ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER
-            : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER;
-          const cameraDistance = minOutside * outsideDistanceMultiplier;
+          const cameraDistance = forceCornerCapture
+            ? minOutside * (isSidePocket ? POCKET_CAM_SIDE_OUTSIDE_MULTIPLIER : POCKET_CAM_CORNER_OUTSIDE_MULTIPLIER)
+            : THREE.MathUtils.clamp(
+                effectiveDist * POCKET_CAM.distanceScale,
+                minOutside,
+                POCKET_CAM.maxOutside
+              );
           const broadcastRailDir = isSidePocket
             ? resolveShortRailBroadcastDirection({
                 pocketCenter: best.center,
@@ -21779,19 +21782,12 @@ const powerRef = useRef(hud.power);
                 fallback: signed(pos.y, 1)
               })
             : railDir;
-          const focusLead = isSidePocket
-            ? POCKET_CAM.railFocusLong ?? POCKET_CAM.railFocusShort
-            : POCKET_CAM.railFocusShort ?? POCKET_CAM.railFocusLong;
-          const fixedTarget2D = best.center
-            .clone()
-            .add(approachDir.clone().multiplyScalar(-focusLead));
           return {
             mode: 'pocket',
             ballId,
             pocketId: anchorPocketId,
             pocketCenter: best.center.clone(),
             approach: approachDir,
-            fixedTarget2D,
             heightOffset,
             heightScale: POCKET_CAM.heightScale,
             lastBallPos: pos.clone(),
@@ -21809,14 +21805,10 @@ const powerRef = useRef(hud.power);
             anchorOutward:
               anchorOutward?.normalize() ?? fallbackOutward,
             cameraDistance,
-            distanceScale: POCKET_CAM.distanceScale,
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            minDistanceToPocket: best.dist,
-            escapeDistance: Math.max(BALL_R * 3.4, best.dist * 0.3),
-            escapedAt: null,
-            forcedEarly: false
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
