@@ -342,7 +342,6 @@ public class CueCamera : MonoBehaviour
         if (target != null && target.gameObject.activeInHierarchy)
         {
             currentBall = target;
-            targetViewFocus = GetBroadcastFocus(target.position);
         }
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
@@ -766,7 +765,9 @@ public class CueCamera : MonoBehaviour
             pocketCameraStartTime = Time.time;
             pocketCameraReleaseTime = float.PositiveInfinity;
             trackedCornerPocket = cornerPocket;
-            targetViewFocus = GetBroadcastFocus(TargetBall.position);
+            // Keep pocket framing anchored to the tracked pocket so the
+            // transition does not chase the travelling balls.
+            targetViewFocus = GetBroadcastFocus(cornerPocket);
             UpdateTargetCamera();
             return;
         }
@@ -797,7 +798,6 @@ public class CueCamera : MonoBehaviour
     {
         if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
         {
-            targetViewFocus = GetBroadcastFocus(TargetBall.position);
             currentBall = TargetBall;
         }
 
