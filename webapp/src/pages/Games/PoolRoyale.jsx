@@ -1537,8 +1537,8 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
-const BALL_COLLISION_SLOP = BALL_R * 0.0002; // reduce allowed penetration so resting balls no longer visibly overlap
-const BALL_COLLISION_BAUMGARTE = 1.0; // fully correct detected overlap each substep to keep physical ball diameter exact
+const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
+const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1947,7 +1947,6 @@ const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
 const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.38, CUE_TIP_RADIUS * 2.3);
 const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.34;
-const CUE_OBSTRUCTION_BALL_MARGIN = BALL_R * 0.12; // extra spacing so cue helpers clear balls/cushions instead of clipping through
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -20788,7 +20787,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (shouldForceRailOverhead) {
                   activeShotView.preferRailOverhead = true;
-                  activeShotView.lockOverheadFocus = false;
+                  activeShotView.lockOverheadFocus = true;
                 }
               }
               const broadcastRailDir =
@@ -21559,13 +21558,7 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          {
-            longShot = false,
-            travelDistance = 0,
-            isBreakShot = false,
-            forceRailOverheadAtTrigger = false,
-            lockOverheadFocusAtTrigger = false
-          } = {}
+          { longShot = false, travelDistance = 0, isBreakShot = false } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -21606,7 +21599,7 @@ const powerRef = useRef(hud.power);
                 cueBall,
                 fallback: shortRailDir
               });
-          const preferRailOverhead = Boolean(isBreakShot || forceRailOverheadAtTrigger);
+          const preferRailOverhead = Boolean(isBreakShot);
           const now = performance.now();
           const activationDelay = null;
           const activationTravel = 0;
@@ -21634,7 +21627,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: Boolean(lockOverheadFocusAtTrigger),
+            lockOverheadFocus: true,
             longShot,
             travelDistance,
             activationDelay,
@@ -24489,20 +24482,6 @@ const powerRef = useRef(hud.power);
       );
       targetPower.visible = false;
       table.add(targetPower);
-      const ensureGuideLineVisibility = (line, renderOrder = 8) => {
-        if (!line) return;
-        line.frustumCulled = false;
-        line.renderOrder = renderOrder;
-      };
-      [
-        aim,
-        aimPower,
-        cueAfter,
-        cueAfterPower,
-        tick,
-        target,
-        targetPower
-      ].forEach((line) => ensureGuideLineVisibility(line));
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
         replayTrailGeom,
@@ -26192,18 +26171,6 @@ const powerRef = useRef(hud.power);
               : 1;
           const hasCueTargetDirectionSplit =
             cueVsTargetAlignment < RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT;
-          const cueToTargetDistance =
-            targetBallForPrediction?.pos && cue?.pos
-              ? cue.pos.distanceTo(targetBallForPrediction.pos)
-              : 0;
-          const isShortRangeStraightShot =
-            !isLongShot &&
-            cueToTargetDistance > 0 &&
-            cueToTargetDistance <= BALL_R * 14 &&
-            cueVsTargetAlignment >= 0.97 &&
-            !Boolean(shotPrediction?.railNormal) &&
-            !isMiddlePocketIntent;
-          const keepPlayerCameraForShortStraightShot = isShortRangeStraightShot;
           const shotCrowdBallCount = (() => {
             if (!prediction?.targetBall || !Array.isArray(balls)) return 0;
             const cueToTarget = prediction.targetBall.pos.clone().sub(cue.pos);
@@ -26225,15 +26192,12 @@ const powerRef = useRef(hud.power);
             return count;
           })();
           const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
-          const forceRailOverheadForDirectionSplit =
-            hasCueTargetDirectionSplit && !isShortRangeStraightShot;
           const forceImmediateRailOverheadView =
             isBreakShot ||
             Boolean(shotPrediction?.railNormal) ||
-            isMiddlePocketIntent ||
-            forceRailOverheadForDirectionSplit ||
+            hasCueTargetDirectionSplit ||
+            (isMiddlePocketIntent && hasCueTargetDirectionSplit) ||
             isCrowdedShot;
-          const lockRailOverheadFocusAtTrigger = false;
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26277,9 +26241,7 @@ const powerRef = useRef(hud.power);
                 {
                   longShot: isLongShot,
                   travelDistance: predictedTravel,
-                  isBreakShot,
-                  forceRailOverheadAtTrigger: forceImmediateRailOverheadView,
-                  lockOverheadFocusAtTrigger: lockRailOverheadFocusAtTrigger
+                  isBreakShot
                 }
               )
             : null;
@@ -26297,7 +26259,7 @@ const powerRef = useRef(hud.power);
           }
           if (actionView && !earlyPocketView) {
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
+            actionView.lockOverheadFocus = true;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26503,7 +26465,7 @@ const powerRef = useRef(hud.power);
             actionView.activationTravel = 0;
             actionView.strokeReadyAt = 0;
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
+            actionView.lockOverheadFocus = true;
             actionView.lastUpdate = activationNow;
             activeShotView = actionView;
             suspendedActionView = null;
@@ -26521,8 +26483,7 @@ const powerRef = useRef(hud.power);
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
               pulledBackAtStrike &&
-              !keepPlayerCameraForShortStraightShot &&
-              (forceImmediateRailOverheadView || isLongShot || forceActionActivation);
+              (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
@@ -29846,7 +29807,7 @@ const powerRef = useRef(hud.power);
               TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
               const gap =
                 point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
-                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS + CUE_OBSTRUCTION_BALL_MARGIN);
+                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
               if (gap < minDistance) minDistance = gap;
             }
             for (const box of cushionBoxes) {
@@ -30755,7 +30716,7 @@ const powerRef = useRef(hud.power);
                   }
                   d = 0;
                 }
-                const penetration = Math.max(0, minDist - d);
+                const penetration = Math.max(0, targetDist - d);
                 const overlap =
                   penetration > BALL_COLLISION_SLOP
                     ? ((penetration - BALL_COLLISION_SLOP) * BALL_COLLISION_BAUMGARTE) / 2
