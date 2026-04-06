@@ -2479,11 +2479,14 @@ function scaleWoodRepeatVector (repeatVec, scale) {
   return vec
 }
 
-const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 16, y: 4 });
+const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 9, y: 3.2 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.5, y: 3.8 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
+const LT_FINISH_BRIGHTNESS_LIFT = 0.16;
+const LT_FINISH_CONTRAST_BOOST = 1.2;
+const LT_MATTE_NORMAL_SCALE = 0.68;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2552,9 +2555,22 @@ function getCarbonFiberTileTexture(tintHex = 0x0c0f14) {
   tintedCtx.fillStyle = `#${tintKey}`;
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'screen';
-  tintedCtx.fillStyle = 'rgba(255,255,255,0.08)';
+  tintedCtx.fillStyle = 'rgba(255,255,255,0.12)';
   tintedCtx.fillRect(0, 0, tintedCanvas.width, tintedCanvas.height);
   tintedCtx.globalCompositeOperation = 'source-over';
+  const imageData = tintedCtx.getImageData(0, 0, tintedCanvas.width, tintedCanvas.height);
+  const pixels = imageData.data;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const applyCurve = (value) => {
+      const normalized = value / 255;
+      const contrasted = (normalized - 0.5) * LT_FINISH_CONTRAST_BOOST + 0.5 + LT_FINISH_BRIGHTNESS_LIFT;
+      return THREE.MathUtils.clamp(Math.round(contrasted * 255), 0, 255);
+    };
+    pixels[i] = applyCurve(pixels[i]);
+    pixels[i + 1] = applyCurve(pixels[i + 1]);
+    pixels[i + 2] = applyCurve(pixels[i + 2]);
+  }
+  tintedCtx.putImageData(imageData, 0, 0);
   const texture = new THREE.CanvasTexture(tintedCanvas);
   applySRGBColorSpace(texture);
   texture.wrapS = THREE.RepeatWrapping;
@@ -2613,17 +2629,17 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
       const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
       const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
-      const colorLift = THREE.MathUtils.clamp(dither * 6 + grain * 4, -16, 16);
-      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.12);
-      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.12);
-      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.12);
+      const colorLift = THREE.MathUtils.clamp(dither * 9 + grain * 6, -22, 22);
+      const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.18);
+      const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.18);
+      const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.18);
       colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
       colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
       colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 18, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 18, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(215 + micropit * 28, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 22, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 34, 0, 255);
       normalImage.data[i + 3] = 255;
       const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
@@ -2645,7 +2661,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -2689,7 +2705,7 @@ function applyMonoMattePlasticSurface(material) {
     material.envMapIntensity = 0.12;
   }
   if ('normalScale' in material && material.normalMap) {
-    material.normalScale = new THREE.Vector2(0.5, 0.5);
+    material.normalScale = new THREE.Vector2(LT_MATTE_NORMAL_SCALE, LT_MATTE_NORMAL_SCALE);
   }
   material.needsUpdate = true;
 }
@@ -26431,8 +26447,10 @@ const powerRef = useRef(hud.power);
             );
             const strokeReadyAt = Math.max(cameraHoldUntil, now + STROKE_CAMERA_MIN_HOLD_MS);
             const requiresCueBallMovementTrigger = false;
+            const pulledBackAtStrike = startPull > 0.003;
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
+              pulledBackAtStrike &&
               (!isLongShot || forceActionActivation) &&
               !isMaxPowerShot;
             if (shouldActivateActionView) {
@@ -28722,6 +28740,7 @@ const powerRef = useRef(hud.power);
             shotContext: shotContextRef.current
           });
           let shouldStartReplay =
+            autoReplayEnabled &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -28950,14 +28969,16 @@ const powerRef = useRef(hud.power);
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
+          autoReplayEnabled &&
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
         shouldStartReplay =
+          autoReplayEnabled &&
           Boolean(replayDecision?.shouldReplay) &&
           (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
@@ -29424,7 +29445,20 @@ const powerRef = useRef(hud.power);
           remoteAimRef.current = null;
         }
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
+          const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
+          if (autoReplayEnabled && pending?.frames?.length > 1) {
+            shotRecording = {
+              ...pending,
+              startTime: pending.startTime ?? nowMs,
+              startState: pending.startState ?? captureBallSnapshot(),
+              zoomOnly: pending.zoomOnly ?? false,
+              replayTags: pending.replayTags ?? ['remote']
+            };
+            shotReplayRef.current = shotRecording;
+            const postState = pending.postState ?? captureBallSnapshot();
+            startShotReplay(postState);
+          }
         }
         const frameTiming = frameTimingRef.current;
         const targetFrameTime =
