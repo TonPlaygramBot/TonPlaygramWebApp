@@ -240,9 +240,6 @@ public class CueCamera : MonoBehaviour
     // Switch to the rail-overhead broadcast framing immediately once a shot is
     // triggered instead of waiting on the cue-strike hold timer.
     public bool immediateRailBroadcastOnShot = true;
-    // Force immediate rail-overhead broadcast framing specifically on break
-    // shots so the opening spread is always shown from the broadcast rail view.
-    public bool immediateRailBroadcastOnBreakShot = true;
     // Keep a fixed rail-overhead camera position during the entire shot so the
     // view tracks action by turning/looking only (no zoom/dolly moves).
     public bool lockRailBroadcastPositionDuringShot = true;
@@ -287,9 +284,6 @@ public class CueCamera : MonoBehaviour
     public float cueBallExitLookAheadSeconds = 0.45f;
     // Keep break shot broadcast on the same short-rail side as the white-line end.
     public bool breakUsesWhiteLineRailSide = true;
-    // When enabled, pocket cameras are only allowed once the target is inside
-    // the guaranteed inner capture path (no speculative pocket cuts).
-    public bool pocketCameraOnlyOnGuaranteedDrop = true;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -352,75 +346,6 @@ public class CueCamera : MonoBehaviour
 
     private Camera cachedCamera;
 
-    public struct ReplayCameraSnapshot
-    {
-        public Vector3 position;
-        public Quaternion rotation;
-        public float fieldOfView;
-        public bool shotInProgress;
-        public bool usingTargetCamera;
-        public float yaw;
-        public float targetViewYaw;
-        public int cueAimSideSign;
-        public int broadcastSideSign;
-        public Vector3 targetViewFocus;
-        public bool holdCueAimDuringShot;
-    }
-
-    /// <summary>
-    /// Capture a replay-safe camera snapshot so replay systems can restore the
-    /// exact same shot framing logic used live.
-    /// </summary>
-    public ReplayCameraSnapshot CaptureReplayCameraSnapshot()
-    {
-        if (cachedCamera == null)
-        {
-            cachedCamera = GetComponent<Camera>();
-        }
-
-        return new ReplayCameraSnapshot
-        {
-            position = transform.position,
-            rotation = transform.rotation,
-            fieldOfView = cachedCamera != null ? cachedCamera.fieldOfView : 60f,
-            shotInProgress = shotInProgress,
-            usingTargetCamera = usingTargetCamera,
-            yaw = yaw,
-            targetViewYaw = targetViewYaw,
-            cueAimSideSign = cueAimSideSign,
-            broadcastSideSign = broadcastSideSign,
-            targetViewFocus = targetViewFocus,
-            holdCueAimDuringShot = holdCueAimDuringShot
-        };
-    }
-
-    /// <summary>
-    /// Restore camera state from replay data so playback can match live framing.
-    /// </summary>
-    public void ApplyReplayCameraSnapshot(ReplayCameraSnapshot snapshot)
-    {
-        transform.position = snapshot.position;
-        transform.rotation = snapshot.rotation;
-        shotInProgress = snapshot.shotInProgress;
-        usingTargetCamera = snapshot.usingTargetCamera;
-        yaw = snapshot.yaw;
-        targetViewYaw = snapshot.targetViewYaw;
-        cueAimSideSign = snapshot.cueAimSideSign;
-        broadcastSideSign = snapshot.broadcastSideSign;
-        targetViewFocus = snapshot.targetViewFocus;
-        holdCueAimDuringShot = snapshot.holdCueAimDuringShot;
-
-        if (cachedCamera == null)
-        {
-            cachedCamera = GetComponent<Camera>();
-        }
-
-        if (cachedCamera != null && snapshot.fieldOfView > 1f)
-        {
-            cachedCamera.fieldOfView = snapshot.fieldOfView;
-        }
-    }
-
     /// <summary>Adjust the cue aiming blend (0 = raised, 1 = closest view).</summary>
     public void SetCueAimLowering(float value)
     {
@@ -466,9 +391,7 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
-        bool breakShot = breakUsesWhiteLineRailSide && IsLikelyBreakShot(target);
-        bool forceImmediateRail = immediateRailBroadcastOnShot || (immediateRailBroadcastOnBreakShot && breakShot);
-        holdCueAimDuringShot = !forceImmediateRail && cueStrikeCameraHoldSeconds > 0f;
+        holdCueAimDuringShot = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
         cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
         shotStartedTime = Time.time;
         hasShotRailAnchor = false;
@@ -480,6 +403,7 @@ public class CueCamera : MonoBehaviour
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
+        bool breakShot = breakUsesWhiteLineRailSide && IsLikelyBreakShot(target);
         broadcastSideSign = breakShot ? aimSide : -aimSide;
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
@@ -1919,11 +1843,6 @@ public class CueCamera : MonoBehaviour
 
     private bool TrySwitchToGuaranteedPocketCamera()
     {
-        if (!pocketCameraOnlyOnGuaranteedDrop)
-        {
-            return false;
-        }
-
         Vector3 guaranteedPocket;
         if (!IsGuaranteedPocketCut(TargetBall, out guaranteedPocket))
         {
