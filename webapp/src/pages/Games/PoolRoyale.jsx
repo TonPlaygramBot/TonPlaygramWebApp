@@ -18156,6 +18156,42 @@ const powerRef = useRef(hud.power);
       let queuedPocketView = null;
       let shotPrediction = null;
       let lastShotPower = 0;
+      const forceRailOverheadBroadcastNow = (candidateView = null) => {
+        const now = performance.now();
+        const actionView =
+          (candidateView && candidateView.mode === 'action'
+            ? candidateView
+            : null) ||
+          (activeShotView?.mode === 'action' ? activeShotView : null) ||
+          (suspendedActionView?.mode === 'action' ? suspendedActionView : null) ||
+          (queuedPocketView?.resumeAction?.mode === 'action'
+            ? queuedPocketView.resumeAction
+            : null);
+        if (!actionView) return false;
+        actionView.preferRailOverhead = true;
+        actionView.lockOverheadFocus = true;
+        actionView.pendingActivation = false;
+        actionView.activationDelay = null;
+        actionView.activationTravel = 0;
+        actionView.strokeReadyAt = 0;
+        actionView.lastUpdate = now;
+        if (cameraRef.current) {
+          actionView.smoothedPos = cameraRef.current.position.clone();
+          const storedTarget = lastCameraTargetRef.current?.clone();
+          if (storedTarget) {
+            actionView.smoothedTarget = storedTarget;
+          }
+        }
+        if (activeShotView?.mode === 'pocket') {
+          queuedPocketView = null;
+          updatePocketCameraState(false);
+        }
+        activeShotView = actionView;
+        suspendedActionView = null;
+        powerImpactHoldRef.current = 0;
+        updateCamera();
+        return true;
+      };
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
       let maxPowerLiftTriggered = false;
@@ -26459,18 +26495,7 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = false;
           }
           if (!pocketViewActivated && actionView && isBreakShot) {
-            const activationNow = performance.now();
-            actionView.pendingActivation = false;
-            actionView.activationDelay = null;
-            actionView.activationTravel = 0;
-            actionView.strokeReadyAt = 0;
-            actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = true;
-            actionView.lastUpdate = activationNow;
-            activeShotView = actionView;
-            suspendedActionView = null;
-            updateCamera();
-            pocketViewActivated = true;
+            pocketViewActivated = forceRailOverheadBroadcastNow(actionView);
           }
           if (!pocketViewActivated && actionView) {
             const cameraHoldUntil = Math.max(
@@ -26485,14 +26510,18 @@ const powerRef = useRef(hud.power);
               pulledBackAtStrike &&
               (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
             if (shouldActivateActionView) {
-              actionView.pendingActivation = false;
-              actionView.activationDelay = null;
-              actionView.activationTravel = 0;
-              actionView.strokeReadyAt = 0;
-              actionView.lastUpdate = now;
-              activeShotView = actionView;
-              suspendedActionView = null;
-              updateCamera();
+              if (forceImmediateRailOverheadView) {
+                forceRailOverheadBroadcastNow(actionView);
+              } else {
+                actionView.pendingActivation = false;
+                actionView.activationDelay = null;
+                actionView.activationTravel = 0;
+                actionView.strokeReadyAt = 0;
+                actionView.lastUpdate = now;
+                activeShotView = actionView;
+                suspendedActionView = null;
+                updateCamera();
+              }
             } else {
               actionView.pendingActivation = true;
               const baseDelay = actionView.activationDelay ?? null;
@@ -30654,6 +30683,9 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
+              if ((shotContextRef.current.railContactCountAfterContact ?? 0) >= 2) {
+                forceRailOverheadBroadcastNow();
+              }
             }
             if (railImpact) {
               applyRailImpulse(b, railImpact);
