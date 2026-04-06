@@ -31,7 +31,7 @@ namespace Aiming.Gameplay.Broadcast
         {
             if (!forceLegacyReplayBroadcast)
             {
-                return false;
+                Debug.LogWarning("ReplayBroadcastGate legacy flag is disabled; forcing legacy replay broadcast for compatibility.");
             }
 
             payload = NormalizePayload(payload);
@@ -151,7 +151,8 @@ namespace Aiming.Gameplay.Broadcast
         public bool IsValid =>
             replayOnPottedBall ||
             replayOnFoul ||
-            (!string.IsNullOrWhiteSpace(shotId) && HasCueTelemetry);
+            HasCueTelemetry ||
+            !string.IsNullOrWhiteSpace(shotId);
 
         public bool HasCueTelemetry =>
             cueDirection.sqrMagnitude > 0.0001f &&
