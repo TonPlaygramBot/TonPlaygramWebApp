@@ -29158,8 +29158,40 @@ const powerRef = useRef(hud.power);
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
-          shotReplayRef.current = null;
-          shotRecording = null;
+          if (autoReplayEnabled && shouldStartReplay && postShotSnapshot) {
+            const recordingForReplay = shotRecording;
+            const launchReplay = () => {
+              replayBannerTimeoutRef.current = null;
+              setReplayBanner(null);
+              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
+              const beginReplay = () => {
+                shotRecording = recordingForReplay;
+                if (recordingForReplay) {
+                  startShotReplay(postShotSnapshot);
+                } else {
+                  shotReplayRef.current = null;
+                }
+                shotRecording = null;
+              };
+              if (slateLead > 0) {
+                window.setTimeout(beginReplay, slateLead);
+              } else {
+                beginReplay();
+              }
+            };
+            if (replayBannerTimeoutRef.current) {
+              clearTimeout(replayBannerTimeoutRef.current);
+              replayBannerTimeoutRef.current = null;
+            }
+            setReplayBanner(replayBannerText);
+            replayBannerTimeoutRef.current = window.setTimeout(
+              launchReplay,
+              GOOD_SHOT_REPLAY_DELAY_MS
+            );
+          } else {
+            shotReplayRef.current = null;
+            shotRecording = null;
+          }
           aiPlanRef.current = null;
           aiPlanCacheRef.current = { key: null, plan: null };
           clearEarlyAiShot();
@@ -32586,6 +32618,28 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
+      {replayBanner && (
+        <div className="pointer-events-none absolute top-4 right-4 z-50">
+          <div
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
+            aria-live="polite"
+          >
+            <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
+              {replayBanner}
+            </span>
+          </div>
+        </div>
+      )}
+      {replaySlate && (
+        <div className="pointer-events-none absolute inset-0 z-[105] flex items-center justify-center">
+          <div className="rounded-2xl border border-white/35 bg-black/72 px-8 py-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.6)] backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/70">Replay frame</p>
+            <p className="mt-2 text-2xl font-black uppercase tracking-[0.2em] text-white">
+              {replaySlate.label || 'Replay'}
+            </p>
+          </div>
+        </div>
+      )}
       {ruleToast && (
         <div className="pointer-events-none absolute left-1/2 top-6 z-50 -translate-x-1/2 px-3 text-center">
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
@@ -32874,6 +32928,47 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
           Scroll and click to change the cue
         </div>
+      )}
+
+      {replayActive && (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
+          <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
+          <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+          <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+        </div>
+      )}
+      {replayActive && (
+        <>
+          <div className="pointer-events-none absolute left-4 top-4 z-50">
+            <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+              Replay
+            </div>
+            {replayFoul && (
+              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
+            )}
+          </div>
+          <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
+            <button
+              type="button"
+              onClick={() => skipReplayRef.current?.()}
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
+              </svg>
+              <span className="sr-only">Skip replay</span>
+            </button>
+          </div>
+        </>
       )}
 
 
@@ -33347,6 +33442,33 @@ const powerRef = useRef(hud.power);
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Replay Controls
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                  aria-pressed={autoReplayEnabled}
+                  className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    autoReplayEnabled
+                      ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                      Auto Replay
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                      {autoReplayEnabled ? 'On' : 'Off'}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                    Replays keep live graphics quality and appear on potted/foul moments.
+                  </span>
+                </button>
               </div>
             </div>
           </div>
