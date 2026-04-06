@@ -3770,7 +3770,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
-const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = false; // allow rail-overhead action switches while keeping broadcast framing in 3D
+const RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY = true; // enforce only rail-overhead + pocket cameras during shot broadcast
 const BROADCAST_EXCLUDE_MIDDLE_POCKET_CAMERAS = true; // remove middle-pocket camera cuts from broadcast/replay camera capture
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
@@ -21485,15 +21485,8 @@ const powerRef = useRef(hud.power);
           });
           const preferRailOverhead = true;
           const now = performance.now();
-          const activationDelay = longShot
-            ? now + LONG_SHOT_ACTIVATION_DELAY_MS
-            : null;
-          const activationTravel = longShot
-            ? Math.max(
-                BALL_R * 12,
-                Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
-              )
-            : 0;
+          const activationDelay = null;
+          const activationTravel = 0;
           return {
             mode: 'action',
             cueId: cueBall.id,
@@ -21523,7 +21516,7 @@ const powerRef = useRef(hud.power);
             travelDistance,
             activationDelay,
             activationTravel,
-            pendingActivation: longShot,
+            pendingActivation: false,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
@@ -26051,13 +26044,9 @@ const powerRef = useRef(hud.power);
             isBreakShot ||
             Boolean(shotPrediction?.railNormal) ||
             (isMiddlePocketIntent && hasCueTargetDirectionSplit);
-          const allowRailOverheadActionView =
-            isBreakShot ||
-            (!isShortShot &&
-              (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD));
+          const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
-            !RAIL_OVERHEAD_AND_POCKET_CAMERA_ONLY &&
             allowRailOverheadActionView;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
@@ -31914,6 +31903,11 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const shotBroadcastActive = shotActive || pocketCameraActive;
+  useEffect(() => {
+    if (shotBroadcastActive && isTopDownView && !isRailOverheadView) {
+      setIsRailOverheadView(true);
+    }
+  }, [isRailOverheadView, isTopDownView, shotBroadcastActive]);
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
@@ -33845,15 +33839,17 @@ const powerRef = useRef(hud.power);
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
-              setIsRailOverheadView(false);
+              setIsRailOverheadView(true);
               setIsTopDownView(true);
             }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            disabled
+            className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-45 ${
               isTopDownView && !isRailOverheadView
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}
-            aria-label="Switch to 2D view"
+            aria-label="2D view disabled during broadcast"
+            title="2D view is disabled for Pool Royale broadcast"
           >
             <span aria-hidden="true">2D</span>
           </button>
