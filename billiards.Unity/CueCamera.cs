@@ -284,17 +284,6 @@ public class CueCamera : MonoBehaviour
     public float cueBallExitLookAheadSeconds = 0.45f;
     // Keep break shot broadcast on the same short-rail side as the white-line end.
     public bool breakUsesWhiteLineRailSide = true;
-    [Header("2D view icon")]
-    // Optional 2D-view icon that stays visible in aiming mode.
-    public GameObject twoDViewIcon;
-    // Hide the 2D-view icon while broadcast cameras are active.
-    public bool hide2DIconDuringBroadcast = true;
-    [Header("Rail-overhead selection")]
-    // Moving-ball threshold for forcing rail-overhead in crowded action.
-    [Min(2)]
-    public int crowdedActionBallCount = 4;
-    // Side padding around cue->target lane used for crowd detection.
-    public float crowdedLanePadding = 0.11f;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -324,7 +313,6 @@ public class CueCamera : MonoBehaviour
     private float smoothedCueDistance;
     private bool hasSmoothedCueDistance;
     private float cueStrikeHoldUntilTime;
-    private bool forceImmediateRailOverheadOnNextShot;
     private bool holdCueAimDuringShot;
     private bool hasShotRailAnchor;
     private Vector3 shotRailAnchorPosition;
@@ -339,9 +327,6 @@ public class CueCamera : MonoBehaviour
     private bool hasLastTargetPlanarVelocity;
     private bool targetWasNearRail;
     private bool handoffToCueBallAfterRailBounce;
-    private bool forceRailOverheadForCurrentShot;
-    private bool deferRailOverheadSwitchUntilPullback;
-    private float railOverheadSwitchAfterTime;
     private Vector3 ballInHandTargetPosition;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
@@ -406,12 +391,8 @@ public class CueCamera : MonoBehaviour
         shotInProgress = true;
         ballInHandActive = false;
         usingTargetCamera = false;
-        bool forceImmediate = forceImmediateRailOverheadOnNextShot;
-        forceImmediateRailOverheadOnNextShot = false;
-        holdCueAimDuringShot = !forceImmediate && !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
-        cueStrikeHoldUntilTime = holdCueAimDuringShot
-            ? Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds)
-            : Time.time;
+        holdCueAimDuringShot = !immediateRailBroadcastOnShot && cueStrikeCameraHoldSeconds > 0f;
+        cueStrikeHoldUntilTime = Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds);
         shotStartedTime = Time.time;
         hasShotRailAnchor = false;
         hasShotPullbackAnchor = false;
@@ -424,7 +405,6 @@ public class CueCamera : MonoBehaviour
         cueAimSideSign = aimSide;
         bool breakShot = breakUsesWhiteLineRailSide && IsLikelyBreakShot(target);
         broadcastSideSign = breakShot ? aimSide : -aimSide;
-        forceRailOverheadForCurrentShot = ShouldPreferRailOverheadAtShotStart(target);
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
         targetViewFocus = GetBroadcastFocus(focus);
@@ -441,51 +421,7 @@ public class CueCamera : MonoBehaviour
             shotPullbackStartRotation = transform.rotation;
         }
 
-        if (deferRailOverheadSwitchUntilPullback)
-        {
-            ScheduleRailOverheadAfterPullback();
-        }
-
         nextShotIsAi = false;
-    }
-
-    /// <summary>
-    /// Forces an immediate handoff to rail-overhead broadcast framing. If called
-    /// before BeginShot it applies to the next shot start; if called mid-shot it
-    /// cancels cue-hold and pocket tracking delays right away.
-    /// </summary>
-    public void SwitchToRailOverheadImmediate()
-    {
-        forceImmediateRailOverheadOnNextShot = true;
-        deferRailOverheadSwitchUntilPullback = false;
-
-        if (!shotInProgress)
-        {
-            return;
-        }
-
-        holdCueAimDuringShot = false;
-        cueStrikeHoldUntilTime = Time.time;
-        usingTargetCamera = false;
-        pocketCameraAwaitingDrop = false;
-        pocketDropDetected = false;
-        UpdateBroadcastCamera();
-    }
-
-    /// <summary>
-    /// Queues rail-overhead switching for the end of the pullback transition.
-    /// </summary>
-    public void SwitchToRailOverheadAfterPullback()
-    {
-        forceImmediateRailOverheadOnNextShot = true;
-        deferRailOverheadSwitchUntilPullback = true;
-
-        if (!shotInProgress)
-        {
-            return;
-        }
-
-        ScheduleRailOverheadAfterPullback();
     }
 
     private void Awake()
@@ -506,7 +442,6 @@ public class CueCamera : MonoBehaviour
         }
         targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
         ballInHandActive = startWithBallInHand;
-        Update2DViewIconVisibility();
         if (cacheStandingCameraOnStart)
         {
             CacheStandingCameraPose();
@@ -532,17 +467,7 @@ public class CueCamera : MonoBehaviour
             {
                 UpdateCueAimCamera();
             }
-            Update2DViewIconVisibility();
             return;
-        }
-
-        if (deferRailOverheadSwitchUntilPullback && Time.time >= railOverheadSwitchAfterTime)
-        {
-            deferRailOverheadSwitchUntilPullback = false;
-            holdCueAimDuringShot = false;
-            usingTargetCamera = false;
-            pocketCameraAwaitingDrop = false;
-            pocketDropDetected = false;
         }
 
         if (usingTargetCamera)
@@ -575,8 +500,6 @@ public class CueCamera : MonoBehaviour
             holdCueAimDuringShot = false;
             UpdateBroadcastCamera();
         }
-
-        Update2DViewIconVisibility();
     }
 
     private void UpdateCueAimCamera()
@@ -914,9 +837,8 @@ public class CueCamera : MonoBehaviour
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
         targetViewFocus = GetDynamicShotBroadcastFocus();
-        forceRailOverheadForCurrentShot = forceRailOverheadForCurrentShot || ShouldForceRailOverheadFromLiveAction();
 
-        if (forceRailOverheadForWholeShot || forceRailOverheadForCurrentShot)
+        if (forceRailOverheadForWholeShot)
         {
             usingTargetCamera = false;
             pocketCameraAwaitingDrop = false;
@@ -1137,7 +1059,24 @@ public class CueCamera : MonoBehaviour
 
         if (isPocketCamera)
         {
-            focus = sourceFocus;
+            float halfLength = Mathf.Max(0.0001f, tableBounds.extents.z);
+            float middleZone = Mathf.Clamp01(pocketCameraMiddleZone) * halfLength;
+            float zFromCenter = Mathf.Abs(sourceFocus.z - tableBounds.center.z);
+            bool isMiddlePocketBand = zFromCenter <= middleZone;
+            if (isMiddlePocketBand)
+            {
+                float sideSign = Mathf.Sign(sourceFocus.x);
+                if (Mathf.Approximately(sideSign, 0f))
+                {
+                    sideSign = 1f;
+                }
+
+                float maxX = Mathf.Max(0f, tableBounds.extents.x - broadcastFrameMargin);
+                float sideOffset = Mathf.Clamp(Mathf.Abs(pocketCameraMiddleSideOffset), 0f, maxX);
+                focus.x = Mathf.Clamp(sideSign * sideOffset, -maxX, maxX);
+                focus.z = sourceFocus.z;
+                height += Mathf.Max(0f, pocketCameraMiddleHeightOffset);
+            }
         }
 
         float distance = useStandingCameraForBroadcast && cachedStandingCamera
@@ -1819,9 +1758,6 @@ public class CueCamera : MonoBehaviour
         hasLastTargetPlanarVelocity = false;
         targetWasNearRail = false;
         handoffToCueBallAfterRailBounce = false;
-        forceRailOverheadForCurrentShot = false;
-        deferRailOverheadSwitchUntilPullback = false;
-        railOverheadSwitchAfterTime = 0f;
         pocketCameraAwaitingDrop = false;
         pocketDropDetected = false;
         pocketCameraStartTime = 0f;
@@ -1832,153 +1768,6 @@ public class CueCamera : MonoBehaviour
         broadcastSideSign = -cueAimSideSign;
         yaw = GetShortRailYaw(cueAimSideSign);
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
-        Update2DViewIconVisibility();
-    }
-
-    private void ScheduleRailOverheadAfterPullback()
-    {
-        float pullbackDuration = enableShotPullbackFromStanding ? Mathf.Max(0f, shotPullbackDuration) : 0f;
-        railOverheadSwitchAfterTime = Time.time + pullbackDuration;
-        holdCueAimDuringShot = pullbackDuration > 0f;
-        cueStrikeHoldUntilTime = Mathf.Max(cueStrikeHoldUntilTime, railOverheadSwitchAfterTime);
-    }
-
-    private bool ShouldPreferRailOverheadAtShotStart(Transform target)
-    {
-        if (target != null && target.gameObject.activeInHierarchy)
-        {
-            bool nearRail = DistanceToRail(target.position, tableBounds) <= Mathf.Max(0.005f, railBounceSwitchDistance);
-            if (nearRail)
-            {
-                return true;
-            }
-        }
-
-        return IsCrowdedShotLane();
-    }
-
-    private bool ShouldForceRailOverheadFromLiveAction()
-    {
-        bool railBounce = ShouldHandoffToCueBall();
-        bool oppositeDirectionTravel = AreCueAndTargetMovingOppositeDirections();
-        bool crowdedMotion = CountMovingActiveBalls() >= Mathf.Max(2, crowdedActionBallCount);
-        return railBounce || oppositeDirectionTravel || crowdedMotion;
-    }
-
-    private bool AreCueAndTargetMovingOppositeDirections()
-    {
-        Rigidbody cueRb = CueBall != null ? CueBall.GetComponent<Rigidbody>() : null;
-        Rigidbody targetRb = TargetBall != null ? TargetBall.GetComponent<Rigidbody>() : null;
-        if (cueRb == null || targetRb == null)
-        {
-            return false;
-        }
-
-        Vector3 cuePlanar = new Vector3(cueRb.velocity.x, 0f, cueRb.velocity.z);
-        Vector3 targetPlanar = new Vector3(targetRb.velocity.x, 0f, targetRb.velocity.z);
-        if (cuePlanar.sqrMagnitude < 0.0004f || targetPlanar.sqrMagnitude < 0.0004f)
-        {
-            return false;
-        }
-
-        return Vector3.Dot(cuePlanar.normalized, targetPlanar.normalized) <= -0.15f;
-    }
-
-    private bool IsCrowdedShotLane()
-    {
-        if (CueBall == null || TargetBall == null || Balls == null || Balls.Length == 0)
-        {
-            return false;
-        }
-
-        Vector3 laneStart = CueBall.position;
-        Vector3 laneEnd = TargetBall.position;
-        Vector3 lane = laneEnd - laneStart;
-        lane.y = 0f;
-        float laneLength = lane.magnitude;
-        if (laneLength < 0.0001f)
-        {
-            return false;
-        }
-
-        Vector3 laneDir = lane / laneLength;
-        float lanePadding = Mathf.Max(0.02f, crowdedLanePadding);
-        int nearbyBallCount = 0;
-        for (int i = 0; i < Balls.Length; i++)
-        {
-            Transform ball = Balls[i];
-            if (ball == null || !ball.gameObject.activeInHierarchy || ball == CueBall || ball == TargetBall)
-            {
-                continue;
-            }
-
-            Vector3 planar = ball.position - laneStart;
-            planar.y = 0f;
-            float along = Vector3.Dot(planar, laneDir);
-            if (along < 0f || along > laneLength)
-            {
-                continue;
-            }
-
-            Vector3 closest = laneStart + laneDir * along;
-            Vector2 ballXZ = new Vector2(ball.position.x, ball.position.z);
-            Vector2 closestXZ = new Vector2(closest.x, closest.z);
-            float distance = Vector2.Distance(ballXZ, closestXZ);
-            if (distance <= lanePadding)
-            {
-                nearbyBallCount++;
-                if (nearbyBallCount >= 2)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private int CountMovingActiveBalls()
-    {
-        if (Balls == null || Balls.Length == 0)
-        {
-            int fallbackMoving = 0;
-            if (IsMoving(CueBall))
-            {
-                fallbackMoving++;
-            }
-
-            if (IsMoving(TargetBall))
-            {
-                fallbackMoving++;
-            }
-
-            return fallbackMoving;
-        }
-
-        int moving = 0;
-        for (int i = 0; i < Balls.Length; i++)
-        {
-            if (IsMoving(Balls[i]))
-            {
-                moving++;
-            }
-        }
-
-        return moving;
-    }
-
-    private void Update2DViewIconVisibility()
-    {
-        if (twoDViewIcon == null)
-        {
-            return;
-        }
-
-        bool showIcon = !(hide2DIconDuringBroadcast && shotInProgress);
-        if (twoDViewIcon.activeSelf != showIcon)
-        {
-            twoDViewIcon.SetActive(showIcon);
-        }
     }
 
     private bool TryGetCornerPocketForBall(Vector3 ballPosition, float triggerRadius, out Vector3 pocket)
@@ -2054,11 +1843,6 @@ public class CueCamera : MonoBehaviour
 
     private bool TrySwitchToGuaranteedPocketCamera()
     {
-        if (forceRailOverheadForCurrentShot)
-        {
-            return false;
-        }
-
         Vector3 guaranteedPocket;
         if (!IsGuaranteedPocketCut(TargetBall, out guaranteedPocket))
         {
@@ -2084,7 +1868,7 @@ public class CueCamera : MonoBehaviour
             return false;
         }
 
-        float triggerRadius = Mathf.Max(0.01f, cornerPocketCameraRadius + Mathf.Max(0f, cornerPocketApproachRadius));
+        float triggerRadius = Mathf.Max(0.01f, cornerPocketCameraRadius);
         if (!TryGetCornerPocketForBall(targetBall.position, triggerRadius, out pocket))
         {
             return false;
@@ -2092,7 +1876,7 @@ public class CueCamera : MonoBehaviour
 
         Vector2 ballXZ = new Vector2(targetBall.position.x, targetBall.position.z);
         Vector2 pocketXZ = new Vector2(pocket.x, pocket.z);
-        float innerRadius = Mathf.Max(0.01f, Mathf.Min(triggerRadius, pocketGuaranteedInnerRadius + Mathf.Max(0f, cornerPocketApproachRadius)));
+        float innerRadius = Mathf.Max(0.01f, Mathf.Min(triggerRadius, pocketGuaranteedInnerRadius));
         bool inInnerCapture = (ballXZ - pocketXZ).sqrMagnitude <= innerRadius * innerRadius;
 
         float dropThreshold = railHeight + tableAssetHeightOffset - Mathf.Max(0f, pocketDropDepth);
