@@ -1537,8 +1537,8 @@ const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
-const BALL_COLLISION_SLOP = BALL_R * 0.0015; // keep resting balls stable by ignoring microscopic overlap noise
-const BALL_COLLISION_BAUMGARTE = 0.82; // stronger overlap correction so touching balls map more precisely on every substep
+const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
+const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1945,8 +1945,8 @@ const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
-const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.38, CUE_TIP_RADIUS * 2.3);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.34;
+const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.46, CUE_TIP_RADIUS * 2.6);
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.44;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -20787,7 +20787,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (shouldForceRailOverhead) {
                   activeShotView.preferRailOverhead = true;
-                  activeShotView.lockOverheadFocus = true;
+                  activeShotView.lockOverheadFocus = false;
                 }
               }
               const broadcastRailDir =
@@ -21627,7 +21627,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: true,
+            lockOverheadFocus: false,
             longShot,
             travelDistance,
             activationDelay,
@@ -26171,6 +26171,13 @@ const powerRef = useRef(hud.power);
               : 1;
           const hasCueTargetDirectionSplit =
             cueVsTargetAlignment < RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT;
+          const hasLikelyPocketIntent = Boolean(likelyPocketIntent);
+          const isShortStraightShot =
+            isShortShot &&
+            !Boolean(shotPrediction?.railNormal) &&
+            !isMiddlePocketIntent &&
+            !hasCueTargetDirectionSplit &&
+            !hasLikelyPocketIntent;
           const shotCrowdBallCount = (() => {
             if (!prediction?.targetBall || !Array.isArray(balls)) return 0;
             const cueToTarget = prediction.targetBall.pos.clone().sub(cue.pos);
@@ -26193,15 +26200,18 @@ const powerRef = useRef(hud.power);
           })();
           const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
           const forceImmediateRailOverheadView =
-            isBreakShot ||
-            Boolean(shotPrediction?.railNormal) ||
-            hasCueTargetDirectionSplit ||
-            (isMiddlePocketIntent && hasCueTargetDirectionSplit) ||
-            isCrowdedShot;
+            !isShortStraightShot &&
+            (isBreakShot ||
+              Boolean(shotPrediction?.railNormal) ||
+              hasCueTargetDirectionSplit ||
+              isMiddlePocketIntent ||
+              hasLikelyPocketIntent ||
+              isCrowdedShot);
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
-            allowRailOverheadActionView;
+            allowRailOverheadActionView &&
+            !isShortStraightShot;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
@@ -26259,7 +26269,7 @@ const powerRef = useRef(hud.power);
           }
           if (actionView && !earlyPocketView) {
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = true;
+            actionView.lockOverheadFocus = false;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26465,7 +26475,7 @@ const powerRef = useRef(hud.power);
             actionView.activationTravel = 0;
             actionView.strokeReadyAt = 0;
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = true;
+            actionView.lockOverheadFocus = false;
             actionView.lastUpdate = activationNow;
             activeShotView = actionView;
             suspendedActionView = null;
@@ -26483,7 +26493,9 @@ const powerRef = useRef(hud.power);
             const shouldActivateActionView =
               !requiresCueBallMovementTrigger &&
               pulledBackAtStrike &&
-              (forceImmediateRailOverheadView || !isLongShot || forceActionActivation);
+              (forceImmediateRailOverheadView ||
+                (!isLongShot && !isShortStraightShot) ||
+                forceActionActivation);
             if (shouldActivateActionView) {
               actionView.pendingActivation = false;
               actionView.activationDelay = null;
@@ -29998,9 +30010,13 @@ const powerRef = useRef(hud.power);
             cuePowerStrength,
             liftStrength
           });
+          const cueFollowLength = Math.max(
+            cueFollowPreview.length ?? 0,
+            BALL_R * 6
+          );
           const followEnd = end
             .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
+            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -30211,8 +30227,14 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            target.visible = false;
+            const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
+            const fallbackEnd = end.clone().add(dir.clone().multiplyScalar(fallbackLength));
+            targetGeom.setFromPoints([end, fallbackEnd]);
+            target.material.color.setHex(0x9fd8ff);
+            target.material.opacity = 0.35 + 0.22 * powerStrength;
+            target.visible = true;
             targetPower.visible = false;
+            target.computeLineDistances();
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -30311,9 +30333,13 @@ const powerRef = useRef(hud.power);
             cuePowerStrength,
             liftStrength: 0
           });
+          const cueFollowLength = Math.max(
+            cueFollowPreview.length ?? 0,
+            BALL_R * 6
+          );
           const followEnd = end
             .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowPreview.length));
+            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
@@ -30419,8 +30445,16 @@ const powerRef = useRef(hud.power);
             );
             target.computeLineDistances();
           } else {
-            target.visible = false;
+            const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
+            const fallbackEnd = end
+              .clone()
+              .add(remoteGuideDir.clone().multiplyScalar(fallbackLength));
+            targetGeom.setFromPoints([end, fallbackEnd]);
+            target.material.color.setHex(0x9fd8ff);
+            target.material.opacity = 0.35 + 0.22 * powerStrength;
+            target.visible = true;
             targetPower.visible = false;
+            target.computeLineDistances();
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
@@ -30716,7 +30750,7 @@ const powerRef = useRef(hud.power);
                   }
                   d = 0;
                 }
-                const penetration = Math.max(0, targetDist - d);
+                const penetration = Math.max(0, minDist - d);
                 const overlap =
                   penetration > BALL_COLLISION_SLOP
                     ? ((penetration - BALL_COLLISION_SLOP) * BALL_COLLISION_BAUMGARTE) / 2
