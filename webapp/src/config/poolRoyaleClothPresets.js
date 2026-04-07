@@ -51,7 +51,7 @@ const CABAN_TONE_GROUPS = Object.freeze([
     idPrefix: 'cabanBlue',
     label: 'Blue',
     tones: ['Sky', 'Royal', 'Navy'],
-    hex: ['#56b6ff', '#338ee4', '#236cc0']
+    hex: ['#4aa8ff', '#2f78d8', '#1d4eaa']
   },
   {
     idPrefix: 'cabanGreen',
@@ -63,13 +63,13 @@ const CABAN_TONE_GROUPS = Object.freeze([
     idPrefix: 'cabanBeige',
     label: 'Burgundy',
     tones: ['Ruby', 'Merlot', 'Oxblood'],
-    hex: ['#7b2d3a', '#63202d', '#45131d']
+    hex: ['#7d1f34', '#61162a', '#3f0f1e']
   },
   {
     idPrefix: 'cabanDarkGrey',
     label: 'Dark Grey',
     tones: ['Slate', 'Graphite', 'Charcoal'],
-    hex: ['#6e6860', '#54504a', '#3a3733']
+    hex: ['#686c76', '#4f5560', '#373c45']
   }
 ])
 
