@@ -1188,6 +1188,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: MURLAN_TABLE_CLOTHS },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
+  { key: 'environmentHdri', label: 'Arena HDRI', options: MURLAN_HDRI_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   ...(ENABLE_3D_HUMAN_CHARACTERS
@@ -4251,12 +4252,21 @@ export default function MurlanRoyaleArena({ search }) {
           : ['#0ea5e9', '#312e81'];
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `radial-gradient(circle at 30% 30%, ${primary}, transparent 45%), radial-gradient(circle at 80% 60%, ${secondary}, transparent 55%), linear-gradient(135deg, ${primary}99, ${secondary}dd)`
-              }}
-            />
+            {option?.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={option.label || 'HDRI option'}
+                className="absolute inset-0 h-full w-full object-cover opacity-90"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `radial-gradient(circle at 30% 30%, ${primary}, transparent 45%), radial-gradient(circle at 80% 60%, ${secondary}, transparent 55%), linear-gradient(135deg, ${primary}99, ${secondary}dd)`
+                }}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-black/60" />
             <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
               HDRI
