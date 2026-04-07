@@ -1815,7 +1815,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
 // Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
 const SHOT_POWER_REDUCTION = 0.425;
-const SHOT_POWER_MULTIPLIER = 1.79296875; // reduce total shot power by 15%
+const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
@@ -3463,78 +3463,6 @@ const TABLE_FINISHES = Object.freeze({
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalk: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalk',
-    label: 'LT Black Alligator',
-    rail: 0x3a4a39,
-    base: 0x3a4a39,
-    trim: 0x3a4a39,
-    woodTextureId: 'plastic_monoblock_lt_black_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalkGrey: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalkGrey',
-    label: 'LT Grey Alligator',
-    rail: 0x8b927e,
-    base: 0x8b927e,
-    trim: 0x8b927e,
-    woodTextureId: 'plastic_monoblock_lt_grey_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalkBeige: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalkBeige',
-    label: 'LT Dark Grey Alligator',
-    rail: 0x65705f,
-    base: 0x65705f,
-    trim: 0x65705f,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalkDarkBlue: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalkDarkBlue',
-    label: 'LT Burgundy Alligator',
-    rail: 0x7a5d4a,
-    base: 0x7a5d4a,
-    trim: 0x7a5d4a,
-    woodTextureId: 'plastic_monoblock_lt_burgundy_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalkWhite: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalkWhite',
-    label: 'LT Milk Cream Alligator',
-    rail: 0xd6cfb6,
-    base: 0xd6cfb6,
-    trim: 0xd6cfb6,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorChalkDarkGreen: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorChalkDarkGreen',
-    label: 'LT Dark Green Alligator',
-    rail: 0x57704a,
-    base: 0x57704a,
-    trim: 0x57704a,
-    woodTextureId: 'plastic_monoblock_lt_dark_green_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
-    useBrandCarbonTexture: false
   })
 });
 
@@ -3559,13 +3487,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.carbonFiberSnakeChalkBeige,
     TABLE_FINISHES.carbonFiberSnakeChalkDarkBlue,
     TABLE_FINISHES.carbonFiberSnakeChalkWhite,
-    TABLE_FINISHES.carbonFiberSnakeChalkDarkGreen,
-    TABLE_FINISHES.carbonFiberAlligatorChalk,
-    TABLE_FINISHES.carbonFiberAlligatorChalkGrey,
-    TABLE_FINISHES.carbonFiberAlligatorChalkBeige,
-    TABLE_FINISHES.carbonFiberAlligatorChalkDarkBlue,
-    TABLE_FINISHES.carbonFiberAlligatorChalkWhite,
-    TABLE_FINISHES.carbonFiberAlligatorChalkDarkGreen
+    TABLE_FINISHES.carbonFiberSnakeChalkDarkGreen
   ].filter(Boolean)
 );
 
@@ -6210,7 +6132,7 @@ const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Snooker Royal
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
-const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.72; // slight slow-motion on foul impact
+const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.35;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
@@ -15246,7 +15168,6 @@ function PoolRoyaleGame({
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
-  const [replayBannerAccent, setReplayBannerAccent] = useState('good');
   const replayBannerTimeoutRef = useRef(null);
   const [trainingPenaltyPopup, setTrainingPenaltyPopup] = useState(null);
   const trainingPenaltyPopupTimeoutRef = useRef(null);
@@ -23081,10 +23002,6 @@ const powerRef = useRef(hud.power);
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
-            replayFoul: shotRecording?.replayFoul ?? null,
-            firstCueImpactMs: Number.isFinite(shotRecording?.firstCueImpactMs)
-              ? shotRecording.firstCueImpactMs
-              : null,
             postState: postShotSnapshot,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current
           };
@@ -28995,8 +28912,8 @@ const powerRef = useRef(hud.power);
             : null;
         }
         const shotWasFoul = Boolean(safeState?.foul);
-        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 0) {
-          const foulBanner = 'Faul';
+        if (shotWasFoul && (shotRecording?.frames?.length ?? 0) > 1) {
+          const foulBanner = 'Foul';
           if (replayDecision) {
             const replayTags = new Set(replayDecision.tags ?? []);
             replayTags.add('foul');
@@ -29004,8 +28921,8 @@ const powerRef = useRef(hud.power);
               ...replayDecision,
               tags: Array.from(replayTags),
               shouldReplay: true,
-              banner: foulBanner,
-              primaryTag: 'foul'
+              banner: replayDecision.banner ?? foulBanner,
+              primaryTag: replayDecision.primaryTag ?? 'foul'
             };
           } else {
             replayDecision = {
@@ -29016,8 +28933,8 @@ const powerRef = useRef(hud.power);
               primaryTag: 'foul'
             };
           }
-          replayBannerText = foulBanner;
-          replayAccent = 'foul';
+          replayBannerText = replayDecision.banner ?? foulBanner;
+          replayAccent = replayDecision.primaryTag ?? 'foul';
         }
         const isFinalShot =
           Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
@@ -29330,7 +29247,6 @@ const powerRef = useRef(hud.power);
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
-              setReplayBannerAccent('good');
               const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
@@ -29352,13 +29268,11 @@ const powerRef = useRef(hud.power);
               replayBannerTimeoutRef.current = null;
             }
             setReplayBanner(replayBannerText);
-            setReplayBannerAccent(replayAccent === 'foul' ? 'foul' : 'good');
             replayBannerTimeoutRef.current = window.setTimeout(
               launchReplay,
               GOOD_SHOT_REPLAY_DELAY_MS
             );
           } else {
-            setReplayBannerAccent('good');
             shotReplayRef.current = null;
             shotRecording = null;
           }
@@ -29444,23 +29358,7 @@ const powerRef = useRef(hud.power);
             return;
           }
           try {
-            let targetTime = Math.min(elapsed, duration);
-            if (playback.replayFoul && Number.isFinite(playback.firstCueImpactMs)) {
-              const impactAt = playback.firstCueImpactMs;
-              const halfWindow = REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS * 0.5;
-              const slowStart = Math.max(0, impactAt - halfWindow);
-              const slowEnd = Math.min(duration, impactAt + halfWindow);
-              if (targetTime > slowStart) {
-                const span = Math.max(slowEnd - slowStart, 1e-6);
-                const capped = Math.min(targetTime, slowEnd);
-                const slowedSection =
-                  (capped - slowStart) * REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR;
-                targetTime =
-                  slowStart +
-                  slowedSection +
-                  Math.max(0, targetTime - slowEnd);
-              }
-            }
+            const targetTime = Math.min(elapsed, duration);
             let frameIndex = playback.lastIndex ?? 0;
             while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
               frameIndex += 1;
@@ -29493,8 +29391,7 @@ const powerRef = useRef(hud.power);
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
             renderer.render(scene, frameCamera ?? camera);
-            const finished =
-              targetTime >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
             }
@@ -32871,21 +32768,24 @@ const powerRef = useRef(hud.power);
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
-          <p
-            className={`text-xs font-black uppercase tracking-[0.3em] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${
-              replayBannerAccent === 'foul' ? 'text-red-500' : 'text-emerald-400'
-            }`}
+          <div
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
-            {replayBanner}
-          </p>
+            <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
+              {replayBanner}
+            </span>
+          </div>
         </div>
       )}
       {replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-[105] flex items-center justify-center">
-          <p className="text-2xl font-black uppercase tracking-[0.2em] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.75)]">
-            {replaySlate.label || 'Replay'}
-          </p>
+          <div className="rounded-2xl border border-white/35 bg-black/72 px-8 py-5 text-center shadow-[0_22px_48px_rgba(0,0,0,0.6)] backdrop-blur-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-white/70">Replay frame</p>
+            <p className="mt-2 text-2xl font-black uppercase tracking-[0.2em] text-white">
+              {replaySlate.label || 'Replay'}
+            </p>
+          </div>
         </div>
       )}
       {ruleToast && (
@@ -33179,13 +33079,23 @@ const powerRef = useRef(hud.power);
       )}
 
       {replayActive && (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
+          <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
+          <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+          <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+        </div>
+      )}
+      {replayActive && (
         <>
           <div className="pointer-events-none absolute left-4 top-4 z-50">
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
             {replayFoul && (
-              <p className="mt-2 text-[12px] font-black uppercase tracking-[0.28em] text-red-500 drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">Faul</p>
+              <div className="mt-2 rounded-full border border-red-300/70 bg-red-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-100 shadow-[0_10px_28px_rgba(0,0,0,0.45)]">
+                Foul{replayFoul.reason ? `: ${replayFoul.reason}` : ''}
+              </div>
             )}
           </div>
           <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">

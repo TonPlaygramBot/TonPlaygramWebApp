@@ -446,27 +446,6 @@ const makeInlinePlasticSnakePattern = ({ id, base = '#2b2f36', sheen = '#3f4652'
 </svg>`);
   return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
 };
-
-const makeInlinePlasticAlligatorPattern = ({ id, base = '#4a5b3b', sheen = '#6d8157' }) => {
-  const pattern = svgDataUrl(`
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <defs>
-    <linearGradient id="${id}-plastic" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="${base}"/>
-      <stop offset="45%" stop-color="${sheen}"/>
-      <stop offset="100%" stop-color="${base}"/>
-    </linearGradient>
-    <pattern id="${id}-gator" patternUnits="userSpaceOnUse" width="72" height="72">
-      <path d="M8 8 H36 Q44 8 44 16 V34 Q44 42 36 42 H8 Q0 42 0 34 V16 Q0 8 8 8Z" fill="none" stroke="#ffffff" stroke-opacity="0.11" stroke-width="2"/>
-      <path d="M48 20 H64 Q72 20 72 28 V52 Q72 60 64 60 H48 Q40 60 40 52 V28 Q40 20 48 20Z" fill="none" stroke="#000000" stroke-opacity="0.16" stroke-width="2"/>
-      <path d="M6 48 H30 Q38 48 38 56 V70 H6 Q0 70 0 64 V56 Q0 48 6 48Z" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.8"/>
-    </pattern>
-  </defs>
-  <rect width="256" height="256" fill="url(#${id}-plastic)"/>
-  <rect width="256" height="256" fill="url(#${id}-gator)"/>
-</svg>`);
-  return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
-};
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -682,48 +661,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
         sheen: '#3d6148'
       })
     }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_black_alligator',
-    label: 'LT Black Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Black)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-black-alligator-rail', base: '#1f2a1f', sheen: '#344535' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-black-alligator-frame', base: '#1f2a1f', sheen: '#344535' }) }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_grey_alligator',
-    label: 'LT Grey Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Grey)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-grey-alligator-rail', base: '#6f7667', sheen: '#8d967f' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-grey-alligator-frame', base: '#6f7667', sheen: '#8d967f' }) }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_dark_grey_alligator',
-    label: 'LT Dark Grey Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Dark Grey)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-dark-grey-alligator-rail', base: '#4c5548', sheen: '#65705f' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-dark-grey-alligator-frame', base: '#4c5548', sheen: '#65705f' }) }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_burgundy_alligator',
-    label: 'LT Burgundy Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Burgundy)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-burgundy-alligator-rail', base: '#5f4638', sheen: '#7a5d4a' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-burgundy-alligator-frame', base: '#5f4638', sheen: '#7a5d4a' }) }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_milk_cream_alligator',
-    label: 'LT Milk Cream Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Milk Cream)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-milk-cream-alligator-rail', base: '#bdb79e', sheen: '#d6cfb6' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-milk-cream-alligator-frame', base: '#bdb79e', sheen: '#d6cfb6' }) }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_dark_green_alligator',
-    label: 'LT Dark Green Alligator',
-    source: 'TonPlaygram molded-plastic satin alligator texture (LT Dark Green)',
-    rail: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-dark-green-alligator-rail', base: '#3c4f33', sheen: '#57704a' }) },
-    frame: { repeat: { x: 7, y: 7 }, rotation: 0, textureSize: 2048, ...makeInlinePlasticAlligatorPattern({ id: 'plastic-monoblock-lt-dark-green-alligator-frame', base: '#3c4f33', sheen: '#57704a' }) }
   }),
   Object.freeze({
     id: 'acg_birch_studio',
