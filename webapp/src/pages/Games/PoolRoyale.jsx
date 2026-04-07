@@ -2488,11 +2488,11 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.5, y: 3.8 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 8.6, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
-const LT_FINISH_BRIGHTNESS_LIFT = 0.16;
-const LT_FINISH_CONTRAST_BOOST = 1.2;
-const LT_MATTE_NORMAL_SCALE = 0.68;
+const LT_FINISH_BRIGHTNESS_LIFT = 0.2;
+const LT_FINISH_CONTRAST_BOOST = 1.26;
+const LT_MATTE_NORMAL_SCALE = 0.88;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2601,7 +2601,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 512) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2647,7 +2647,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22, 0, 255);
       normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 34, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
+      const rough = THREE.MathUtils.clamp(226 + dither * 16 + grain * 14 + micropit * 12, 170, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2667,7 +2667,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -2690,7 +2690,7 @@ function applyMonoMattePlasticSurface(material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.94;
+    material.roughness = 0.98;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -2708,7 +2708,7 @@ function applyMonoMattePlasticSurface(material) {
     material.reflectivity = 0;
   }
   if ('envMapIntensity' in material) {
-    material.envMapIntensity = 0.12;
+    material.envMapIntensity = 0.08;
   }
   if ('normalScale' in material && material.normalMap) {
     material.normalScale = new THREE.Vector2(LT_MATTE_NORMAL_SCALE, LT_MATTE_NORMAL_SCALE);
@@ -3287,9 +3287,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'LT Black',
-    rail: 0x1a2028,
-    base: 0x1a2028,
-    trim: 0x1a2028,
+    rail: 0x16181c,
+    base: 0x16181c,
+    trim: 0x16181c,
     woodTextureId: 'plastic_monoblock_lt_black',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3299,9 +3299,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0xa7b0bf,
-    base: 0xa7b0bf,
-    trim: 0xa7b0bf,
+    rail: 0x8f99a8,
+    base: 0x8f99a8,
+    trim: 0x8f99a8,
     woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3311,9 +3311,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x5a6471,
-    base: 0x5a6471,
-    trim: 0x5a6471,
+    rail: 0x4d545f,
+    base: 0x4d545f,
+    trim: 0x4d545f,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3323,9 +3323,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0x9b4a4f,
-    base: 0x9b4a4f,
-    trim: 0x9b4a4f,
+    rail: 0x7f2f45,
+    base: 0x7f2f45,
+    trim: 0x7f2f45,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3335,9 +3335,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xf2e5cf,
-    base: 0xf2e5cf,
-    trim: 0xf2e5cf,
+    rail: 0xe7dcc5,
+    base: 0xe7dcc5,
+    trim: 0xe7dcc5,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3359,9 +3359,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkYellow',
     label: 'LT Dark Yellow',
-    rail: 0xb88b36,
-    base: 0xb88b36,
-    trim: 0xb88b36,
+    rail: 0xa6782d,
+    base: 0xa6782d,
+    trim: 0xa6782d,
     woodTextureId: 'plastic_monoblock_lt_dark_yellow',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3371,9 +3371,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBrown',
     label: 'LT Dark Brown',
-    rail: 0x7d5237,
-    base: 0x7d5237,
-    trim: 0x7d5237,
+    rail: 0x6b4730,
+    base: 0x6b4730,
+    trim: 0x6b4730,
     woodTextureId: 'plastic_monoblock_lt_dark_brown',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3383,9 +3383,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkRed: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkRed',
     label: 'LT Dark Red',
-    rail: 0x8f3434,
-    base: 0x8f3434,
-    trim: 0x8f3434,
+    rail: 0x7f262d,
+    base: 0x7f262d,
+    trim: 0x7f262d,
     woodTextureId: 'plastic_monoblock_lt_dark_red',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3644,6 +3644,7 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -4490,6 +4491,7 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
+        map = neutralizePolyHavenColorMap(map);
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
@@ -13225,6 +13227,7 @@ function PoolRoyaleGame({
   const [commentaryPresetId, setCommentaryPresetId] = useState(DEFAULT_COMMENTARY_PRESET_ID);
   const [commentaryMuted, setCommentaryMuted] = useState(!POOL_ROYALE_VOICE_COMMENTARY_ENABLED);
   const skipReplayRef = useRef(() => {});
+  const skipAllReplaysRef = useRef(false);
   const cueStrokeAnimationStyleRef = useRef(DEFAULT_CUE_STROKE_STYLE);
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
@@ -13243,6 +13246,12 @@ function PoolRoyaleGame({
       pendingCommentaryLinesRef.current = null;
     }
   }, [commentaryMuted]);
+  useEffect(() => {
+    skipAllReplaysRef.current = skipAllReplays;
+    if (skipAllReplays) {
+      skipReplayRef.current?.();
+    }
+  }, [skipAllReplays]);
   useEffect(() => {
     if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) return;
     if (typeof window !== 'undefined') {
@@ -13312,7 +13321,22 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(true);
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
+      if (stored === '0') return false;
+      if (stored === '1') return true;
+    }
+    return true;
+  });
+  const [skipAllReplays, setSkipAllReplays] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14279,7 +14303,7 @@ function PoolRoyaleGame({
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
   const sharedHudLiftPx = portraitViewport ? 24 : 34;
-  const spinControllerLiftPx = portraitViewport ? 14 : 16;
+  const spinControllerLiftPx = portraitViewport ? 20 : 16;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -14287,8 +14311,8 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = portraitViewport ? 24 : 12;
-  const bottomHudLeftPx = -46;
+  const rightHudShiftPx = portraitViewport ? 18 : 12;
+  const bottomHudLeftPx = -54;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -14964,6 +14988,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
     }
   }, [autoReplayEnabled]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SKIP_REPLAYS_STORAGE_KEY, skipAllReplays ? '1' : '0');
+    }
+  }, [skipAllReplays]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -22747,7 +22776,10 @@ const powerRef = useRef(hud.power);
         };
 
         const trimReplayRecording = (recording) => {
-          const frames = recording?.frames ?? [];
+          const rawFrames = recording?.frames ?? [];
+          const frames = rawFrames
+            .map((frame) => ({ ...frame, t: Number(frame?.t) || 0 }))
+            .sort((a, b) => a.t - b.t);
           const cuePath = recording?.cuePath ?? [];
           const cueStrokeRaw = recording?.cueStroke ?? null;
           const normalizeStrokeVec = (value) =>
@@ -22770,7 +22802,22 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const duration = frames[frames.length - 1]?.t ?? 0;
+          let duration = frames[frames.length - 1]?.t ?? 0;
+          if (!Number.isFinite(duration) || duration <= 0) {
+            const frameSeed = frames[frames.length - 1] ?? frames[0];
+            const fallbackDuration = 180;
+            frames.push({
+              ...frameSeed,
+              t: fallbackDuration
+            });
+            duration = fallbackDuration;
+          } else if (frames.length === 1) {
+            frames.push({
+              ...frames[0],
+              t: duration + 16
+            });
+            duration = frames[1].t;
+          }
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -28600,10 +28647,20 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
+          if (!replayDecision && shotContextRef.current?.contactMade) {
+            replayDecision = {
+              shouldReplay: true,
+              banner: selectReplayBanner('default'),
+              zoomOnly: false,
+              tags: ['shot'],
+              primaryTag: 'default'
+            };
+          }
+          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 0;
           let shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
             autoReplayEnabled &&
+            !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             hasReplayFrames;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -28831,7 +28888,10 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = ENABLE_SHOT_REPLAY && autoReplayEnabled;
+          shouldStartReplay =
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled &&
+            !skipAllReplaysRef.current;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28840,6 +28900,7 @@ const powerRef = useRef(hud.power);
         shouldStartReplay =
           ENABLE_SHOT_REPLAY &&
           autoReplayEnabled &&
+          !skipAllReplaysRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
           hasReplayFrames;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
@@ -29307,7 +29368,12 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
+          if (
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled &&
+            !skipAllReplaysRef.current &&
+            pending?.frames?.length > 1
+          ) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -33054,6 +33120,32 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              {ENABLE_SHOT_REPLAY ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Replay
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setSkipAllReplays((prev) => !prev)}
+                    aria-pressed={skipAllReplays}
+                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      skipAllReplays
+                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Skip all replays
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                        {skipAllReplays ? 'On' : 'Off'}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
