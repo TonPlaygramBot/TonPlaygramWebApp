@@ -425,6 +425,27 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
 </svg>`);
   return { mapUrl: fallback, roughnessMapUrl: null, normalMapUrl: null };
 };
+
+const makeInlinePlasticSnakePattern = ({ id, base = '#2b2f36', sheen = '#3f4652' }) => {
+  const pattern = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="${id}-plastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${base}"/>
+      <stop offset="45%" stop-color="${sheen}"/>
+      <stop offset="100%" stop-color="${base}"/>
+    </linearGradient>
+    <pattern id="${id}-snake" patternUnits="userSpaceOnUse" width="64" height="64">
+      <path d="M32 0 C50 0 64 14 64 32 C64 50 50 64 32 64 C14 64 0 50 0 32 C0 14 14 0 32 0Z" fill="none" stroke="#ffffff" stroke-opacity="0.11" stroke-width="2.2"/>
+      <path d="M32 7 C46 7 57 18 57 32 C57 46 46 57 32 57 C18 57 7 46 7 32 C7 18 18 7 32 7Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.3"/>
+      <path d="M0 32 C0 14 14 0 32 0 C50 0 64 14 64 32" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.2"/>
+    </pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#${id}-plastic)"/>
+  <rect width="256" height="256" fill="url(#${id}-snake)"/>
+</svg>`);
+  return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
+};
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -489,6 +510,156 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_black_snake',
+    label: 'LT Black Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Black)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-black-snake-rail',
+        base: '#1a2028',
+        sheen: '#313946'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-black-snake-frame',
+        base: '#1a2028',
+        sheen: '#313946'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_grey_snake',
+    label: 'LT Grey Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Grey)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-grey-snake-rail',
+        base: '#676f7c',
+        sheen: '#8e97a6'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-grey-snake-frame',
+        base: '#676f7c',
+        sheen: '#8e97a6'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_dark_grey_snake',
+    label: 'LT Dark Grey Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Dark Grey)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-dark-grey-snake-rail',
+        base: '#39414b',
+        sheen: '#505a67'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-dark-grey-snake-frame',
+        base: '#39414b',
+        sheen: '#505a67'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_burgundy_snake',
+    label: 'LT Burgundy Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Burgundy)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-burgundy-snake-rail',
+        base: '#5b2f26',
+        sheen: '#7c4a3b'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-burgundy-snake-frame',
+        base: '#5b2f26',
+        sheen: '#7c4a3b'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_milk_cream_snake',
+    label: 'LT Milk Cream Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Milk Cream)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-milk-cream-snake-rail',
+        base: '#d2c2ac',
+        sheen: '#e5d5c1'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-milk-cream-snake-frame',
+        base: '#d2c2ac',
+        sheen: '#e5d5c1'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_dark_green_snake',
+    label: 'LT Dark Green Snake',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Dark Green)',
+    rail: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-dark-green-snake-rail',
+        base: '#2b4533',
+        sheen: '#3d6148'
+      })
+    },
+    frame: {
+      repeat: { x: 7.2, y: 7.2 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticSnakePattern({
+        id: 'plastic-monoblock-lt-dark-green-snake-frame',
+        base: '#2b4533',
+        sheen: '#3d6148'
+      })
     }
   }),
   Object.freeze({

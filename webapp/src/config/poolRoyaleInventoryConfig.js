@@ -530,15 +530,21 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: swatchThumbnail(['#1a2028', '#313946', '#4a5667']),
-  carbonFiberChalkGrey: swatchThumbnail(['#676f7c', '#8e97a6', '#c5cdd9']),
-  carbonFiberChalkBeige: swatchThumbnail(['#39414b', '#505a67', '#727d8b']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#5b2f26', '#7c4a3b', '#9a6453']),
-  carbonFiberChalkWhite: swatchThumbnail(['#d2c2ac', '#e5d5c1', '#f2e8da']),
-  carbonFiberChalkDarkGreen: swatchThumbnail(['#2b4533', '#3d6148', '#5b8769']),
-  carbonFiberChalkDarkYellow: swatchThumbnail(['#876426', '#a27b33', '#c19947']),
-  carbonFiberChalkDarkBrown: swatchThumbnail(['#5a3a2a', '#734a37', '#8f614a']),
-  carbonFiberChalkDarkRed: swatchThumbnail(['#6a2323', '#8a3434', '#a74a4a'])
+  carbonFiberChalk: swatchThumbnail(['#242b36', '#3b4452', '#576274']),
+  carbonFiberChalkGrey: swatchThumbnail(['#717b88', '#99a4b2', '#ced5df']),
+  carbonFiberChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
+  carbonFiberChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
+  carbonFiberChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878']),
+  carbonFiberChalkDarkYellow: swatchThumbnail(['#987330', '#b38a3e', '#ceaa5a']),
+  carbonFiberChalkDarkBrown: swatchThumbnail(['#684633', '#815843', '#9c7057']),
+  carbonFiberChalkDarkRed: swatchThumbnail(['#7a2f2f', '#9b4343', '#b75a5a']),
+  carbonFiberSnakeChalk: swatchThumbnail(['#242b36', '#3b4452', '#576274']),
+  carbonFiberSnakeChalkGrey: swatchThumbnail(['#717b88', '#99a4b2', '#ced5df']),
+  carbonFiberSnakeChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
+  carbonFiberSnakeChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
+  carbonFiberSnakeChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
+  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -645,7 +651,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberChalkDarkGreen: 'LT Dark Green',
     carbonFiberChalkDarkYellow: 'LT Dark Yellow',
     carbonFiberChalkDarkBrown: 'LT Dark Brown',
-    carbonFiberChalkDarkRed: 'LT Dark Red'
+    carbonFiberChalkDarkRed: 'LT Dark Red',
+    carbonFiberSnakeChalk: 'LT Black Snake',
+    carbonFiberSnakeChalkGrey: 'LT Grey Snake',
+    carbonFiberSnakeChalkBeige: 'LT Dark Grey Snake',
+    carbonFiberSnakeChalkDarkBlue: 'LT Burgundy Snake',
+    carbonFiberSnakeChalkWhite: 'LT Milk Cream Snake',
+    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -813,6 +825,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1240,
     description: 'Dark-red LT carbon-fiber weave finish with deep crimson character.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalk',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalk',
+    name: 'LT Black Snake Finish',
+    price: 1250,
+    description: 'Black LT snake-weave finish with the same scale density and a brighter charcoal tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalk
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkGrey',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkGrey',
+    name: 'LT Grey Snake Finish',
+    price: 1260,
+    description: 'Grey LT snake-weave finish with the same scale size and a clean brighter lift.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkGrey
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkBeige',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkBeige',
+    name: 'LT Dark Grey Snake Finish',
+    price: 1270,
+    description: 'Dark-grey LT snake-weave finish keeping identical pattern density.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkBeige
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkDarkBlue',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkDarkBlue',
+    name: 'LT Burgundy Snake Finish',
+    price: 1280,
+    description: 'Burgundy LT snake-weave finish tuned to match the LT burgundy palette.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkBlue
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkWhite',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkWhite',
+    name: 'LT Milk Cream Snake Finish',
+    price: 1290,
+    description: 'Milk-cream LT snake-weave finish with the same pattern scale and density.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkWhite
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkDarkGreen',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkDarkGreen',
+    name: 'LT Dark Green Snake Finish',
+    price: 1300,
+    description: 'Dark-green LT snake-weave finish with matching LT color tone and weave scale.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkGreen
   },
   {
     id: 'chrome-chrome',
