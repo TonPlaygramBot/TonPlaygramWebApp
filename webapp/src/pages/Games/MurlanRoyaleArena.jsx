@@ -639,11 +639,11 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
           }
           const pmrem = new THREE.PMREMGenerator(renderer);
           pmrem.compileEquirectangularShader();
+          texture.mapping = THREE.EquirectangularReflectionMapping;
           const envMap = pmrem.fromEquirectangular(texture).texture;
           envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-          texture.dispose();
           pmrem.dispose();
-          finish({ envMap, url });
+          finish({ envMap, url, backgroundMap: texture });
         },
         undefined,
         () => {
@@ -4008,8 +4008,16 @@ export default function MurlanRoyaleArena({ search }) {
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
+      const prevBackground = three.environmentTexture || null;
       three.scene.environment = envResult.envMap;
-      three.scene.background = envResult.envMap;
+      three.scene.background = envResult.backgroundMap || envResult.envMap;
+      const rotationY = Number.isFinite(activeVariant?.rotationY) ? activeVariant.rotationY : 0;
+      if ('backgroundRotation' in three.scene) {
+        three.scene.backgroundRotation.set(0, rotationY, 0);
+      }
+      if ('environmentRotation' in three.scene) {
+        three.scene.environmentRotation.set(0, rotationY, 0);
+      }
       if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
       }
@@ -4018,19 +4026,24 @@ export default function MurlanRoyaleArena({ search }) {
       }
       three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
       envTextureRef.current = envResult.envMap;
+      three.environmentTexture = envResult.backgroundMap || null;
       disposeEnvironmentRef.current = () => {
         if (three.scene) {
           if (three.scene.environment === envResult.envMap) {
             three.scene.environment = null;
           }
-          if (three.scene.background === envResult.envMap) {
+          if (three.scene.background === envResult.backgroundMap || three.scene.background === envResult.envMap) {
             three.scene.background = null;
           }
         }
+        envResult.backgroundMap?.dispose?.();
         envResult.envMap.dispose?.();
       };
       if (prevDispose && prevTexture !== envResult.envMap) {
         prevDispose();
+      }
+      if (prevBackground && prevBackground !== envResult.backgroundMap) {
+        prevBackground.dispose?.();
       }
     },
     [activeHdriPolicy, resolvedHdriResolution]
@@ -5312,7 +5325,7 @@ export default function MurlanRoyaleArena({ search }) {
                 <AvatarTimer
                   index={idx}
                   photoUrl={activePlayer?.avatar}
-                  active={isTurn}
+                  active={isTurn && idx !== humanPlayerIndex}
                   isTurn={isTurn}
                   timerPct={1}
                   name={activePlayer?.name}
