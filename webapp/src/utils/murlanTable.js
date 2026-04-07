@@ -312,7 +312,12 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
       const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
-      return { topShape, feltShape, rimInnerShape };
+      return {
+        topShape,
+        feltShape,
+        rimInnerShape,
+        clothRiseMultiplier: 0.82
+      };
     }
   },
   {
@@ -560,15 +565,9 @@ export function createMurlanStyleTable({
   const rimDepth = 0.06 * scaleFactor;
   const trimHeight = 0.08 * scaleFactor;
   const trimOffset = 0.06 * scaleFactor;
-  const clothRise = 0.07 * scaleFactor;
+  const defaultClothRise = 0.07 * scaleFactor;
   let baseHeight = 0.66 * scaleFactor;
-  const tableY = tableHeight - clothRise;
   const baseLift = 0.03 * scaleFactor;
-
-  const minBaseHeight = tableY > 0 ? tableY * 2 : 0;
-  if (baseHeight < minBaseHeight) {
-    baseHeight = minBaseHeight;
-  }
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({
@@ -624,6 +623,12 @@ export function createMurlanStyleTable({
   const feltShape = shapeData?.feltShape ?? createRegularPolygonShape(8, tableRadius * 0.8);
   const rimInnerShape = shapeData?.rimInnerShape ?? scaleShape2D(feltShape, 0.97, 0.97);
   const feltRadius = shapeData?.feltRadius ?? tableRadius * (0.72 / 0.9);
+  const clothRise = defaultClothRise * (shapeData?.clothRiseMultiplier ?? 1);
+  const tableY = tableHeight - clothRise;
+  const minBaseHeight = tableY > 0 ? tableY * 2 : 0;
+  if (baseHeight < minBaseHeight) {
+    baseHeight = minBaseHeight;
+  }
   const curveSegments = Math.max(1, Math.round((shapeOption?.curveSegments ?? 32) / 4));
 
   const outerOutline = getShapeOutlinePoints(topShape, curveSegments * 8);
