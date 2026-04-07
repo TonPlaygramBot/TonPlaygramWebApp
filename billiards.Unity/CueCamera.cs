@@ -240,10 +240,10 @@ public class CueCamera : MonoBehaviour
     // Switch to the rail-overhead broadcast framing immediately once a shot is
     // triggered instead of waiting on the cue-strike hold timer.
     public bool immediateRailBroadcastOnShot = true;
-    // Keep a fixed rail-overhead camera position during the entire shot so the
-    // view tracks action by turning/looking only (no zoom/dolly moves).
-    // Disabled by default so action camera can dynamically follow cue-ball
-    // movement for both player and AI turns.
+    // Legacy compatibility toggle kept in the inspector for existing scenes.
+    // The action camera now always stays dynamic during live shots so it can
+    // follow cue-ball movement for both player and AI turns.
+    [System.Obsolete("Rail broadcast lock is deprecated. Action camera is always dynamic during shots.")]
     public bool lockRailBroadcastPositionDuringShot = false;
     // Keep the rail-overhead camera active for the whole shot window and avoid
     // corner-pocket cut-ins.
@@ -492,6 +492,9 @@ public class CueCamera : MonoBehaviour
 
     private void Awake()
     {
+        // Force legacy lock off so existing prefabs/scenes cannot freeze the
+        // action camera position during player or AI shots.
+        lockRailBroadcastPositionDuringShot = false;
         cachedCamera = GetComponent<Camera>();
         defaultShortRailSign = startLookingTowardPositiveZ ? 1 : -1;
         cueAimSideSign = defaultShortRailSign;
@@ -1163,20 +1166,6 @@ public class CueCamera : MonoBehaviour
         else
         {
             lookTarget.y -= Mathf.Max(0f, broadcastLookDownOffset);
-        }
-
-        if (shotInProgress && !isPocketCamera && lockRailBroadcastPositionDuringShot)
-        {
-            if (!hasShotRailAnchor)
-            {
-                Vector3 anchor = focus - forward * distance + Vector3.up * height;
-                anchor.x = 0f;
-                shotRailAnchorPosition = anchor;
-                hasShotRailAnchor = true;
-            }
-
-            ApplyLockedRailBroadcastCamera(shotRailAnchorPosition, lookTarget, focus, minimumHeightOffset);
-            return;
         }
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
