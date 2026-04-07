@@ -14296,6 +14296,7 @@ function PoolRoyaleGame({
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 30 : 12;
+  const spinControllerRightOffsetPx = rightHudShiftPx + (portraitViewport ? 14 : 8);
   const bottomHudLeftPx = -56;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
@@ -22891,10 +22892,42 @@ const powerRef = useRef(hud.power);
           }
         };
 
+        const cloneReplayBallState = (balls = []) =>
+          Array.isArray(balls)
+            ? balls.map((entry) => ({
+                ...entry,
+                pos: entry?.pos?.clone?.() ?? entry?.pos,
+                vel: entry?.vel?.clone?.() ?? entry?.vel,
+                spin: entry?.spin?.clone?.() ?? entry?.spin,
+                omega: entry?.omega?.clone?.() ?? entry?.omega
+              }))
+            : [];
+
+        const buildSyntheticReplayFrames = (recording, postShotSnapshot) => {
+          const startBalls = cloneReplayBallState(recording?.startState ?? []);
+          const postBalls = cloneReplayBallState(postShotSnapshot ?? []);
+          const fallbackStart = startBalls.length ? startBalls : postBalls;
+          const fallbackEnd = postBalls.length ? postBalls : fallbackStart;
+          if (!fallbackStart.length || !fallbackEnd.length) return [];
+          return [
+            { t: 0, balls: fallbackStart },
+            { t: 0.9, balls: fallbackEnd }
+          ];
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
-          const trimmed = trimReplayRecording(shotRecording);
+          if (!shotRecording) return;
+          const hasCapturedFrames =
+            Array.isArray(shotRecording.frames) && shotRecording.frames.length > 0;
+          const recordingWithFrames = hasCapturedFrames
+            ? shotRecording
+            : {
+                ...shotRecording,
+                frames: buildSyntheticReplayFrames(shotRecording, postShotSnapshot)
+              };
+          if (!recordingWithFrames.frames?.length) return;
+          const trimmed = trimReplayRecording(recordingWithFrames);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           setReplayActive(true);
@@ -34479,7 +34512,7 @@ const powerRef = useRef(hud.power);
                 transformOrigin: 'bottom center'
               }
             : {
-                right: `${rightHudShiftPx}px`,
+                right: `${spinControllerRightOffsetPx}px`,
                 bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
                 transform: `scale(${uiScale * 0.88})`,
                 transformOrigin: 'bottom right'
