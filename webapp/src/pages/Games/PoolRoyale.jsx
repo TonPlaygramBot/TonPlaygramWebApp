@@ -5968,7 +5968,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
-const ENABLE_SHOT_REPLAY = false; // Pool Royale broadcast update: remove replay playback and keep live rail-overhead coverage
+const ENABLE_SHOT_REPLAY = true;
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -13312,7 +13312,8 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(false);
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(true);
+  const skipAllReplaysRef = useRef(!autoReplayEnabled);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14963,6 +14964,9 @@ function PoolRoyaleGame({
       if (!ENABLE_SHOT_REPLAY) return;
       window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
     }
+  }, [autoReplayEnabled]);
+  useEffect(() => {
+    skipAllReplaysRef.current = !autoReplayEnabled;
   }, [autoReplayEnabled]);
   useEffect(() => {
     if (!configOpen) return undefined;
@@ -20399,16 +20403,6 @@ const powerRef = useRef(hud.power);
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
-            const movingCount = ballsList.reduce(
-              (count, ball) =>
-                count +
-                (ball.active && ball.vel.lengthSq() > STOP_EPS * STOP_EPS ? 1 : 0),
-              0
-            );
-            const useOverheadBroadcast =
-              activeShotView.preferRailOverhead ||
-              movingCount > POCKET_CHAOS_MOVING_THRESHOLD;
-            let overheadApplied = false;
             if (!cueBall?.active) {
               activeShotView = null;
             } else {
@@ -20428,7 +20422,6 @@ const powerRef = useRef(hud.power);
               const cueAnchor = activeShotView.startCuePos ?? cuePos2;
               let focusTargetVec3 = null;
               let desiredPosition = null;
-              let pairTargetBall = null;
               const axis = activeShotView.axis ?? 'short';
               let railDir = activeShotView.railDir;
               if (!Number.isFinite(railDir) || railDir === 0) {
@@ -20480,7 +20473,6 @@ const powerRef = useRef(hud.power);
                   activeShotView.targetId != null
                     ? ballsList.find((b) => b.id === activeShotView.targetId)
                     : null;
-                pairTargetBall = targetBall ?? null;
                 let targetPos2;
                 if (targetBall?.active) {
                   targetPos2 = new THREE.Vector2(targetBall.pos.x, targetBall.pos.y);
@@ -20743,53 +20735,6 @@ const powerRef = useRef(hud.power);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
               }
-              if (
-                activeShotView.stage === 'pair' &&
-                !activeShotView.preferRailOverhead &&
-                desiredPosition &&
-                focusTargetVec3
-              ) {
-                let shouldForceRailOverhead = false;
-                if (!pairTargetBall?.active) {
-                  shouldForceRailOverhead = true;
-                } else {
-                  const previewCamera = camera.clone();
-                  previewCamera.position.copy(desiredPosition);
-                  previewCamera.lookAt(focusTargetVec3);
-                  previewCamera.updateProjectionMatrix();
-                  previewCamera.updateMatrixWorld();
-                  const frameMargin = 0.86;
-                  const isPointInPreviewFrame = (point) => {
-                    if (!point) return false;
-                    const ndc = point.clone().project(previewCamera);
-                    return (
-                      Number.isFinite(ndc.x) &&
-                      Number.isFinite(ndc.y) &&
-                      Number.isFinite(ndc.z) &&
-                      Math.abs(ndc.x) <= frameMargin &&
-                      Math.abs(ndc.y) <= frameMargin &&
-                      ndc.z >= -1 &&
-                      ndc.z <= 1
-                    );
-                  };
-                  const cueWorld = new THREE.Vector3(
-                    cueBall.pos.x * worldScaleFactor,
-                    BALL_CENTER_Y,
-                    cueBall.pos.y * worldScaleFactor
-                  );
-                  const targetWorld = new THREE.Vector3(
-                    pairTargetBall.pos.x * worldScaleFactor,
-                    BALL_CENTER_Y,
-                    pairTargetBall.pos.y * worldScaleFactor
-                  );
-                  shouldForceRailOverhead =
-                    !isPointInPreviewFrame(cueWorld) || !isPointInPreviewFrame(targetWorld);
-                }
-                if (shouldForceRailOverhead) {
-                  activeShotView.preferRailOverhead = true;
-                  activeShotView.lockOverheadFocus = false;
-                }
-              }
               const broadcastRailDir =
                 activeShotView.axis === 'short'
                   ? resolveOppositeShortRailCamera({
@@ -20805,16 +20750,11 @@ const powerRef = useRef(hud.power);
                 orbitWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
                 lerp: lerpT
               };
-              const overheadFocusOverride = activeShotView.lockOverheadFocus
-                ? null
-                : focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld;
-              const overheadMinTargetY = activeShotView.lockOverheadFocus
-                ? baseSurfaceWorldY
-                : focusTargetVec3?.y ?? baseSurfaceWorldY;
+              let railReplayCamera = null;
               if (activeShotView.preferRailOverhead) {
-                const railReplayCamera = resolveRailOverheadReplayCamera({
-                  focusOverride: overheadFocusOverride,
-                  minTargetY: overheadMinTargetY
+                railReplayCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                  minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
                 });
                 if (railReplayCamera) {
                   broadcastArgs.focusWorld =
@@ -20838,46 +20778,28 @@ const powerRef = useRef(hud.power);
                   broadcastArgs.orbitWorld = defaultFocus;
                 }
               }
-              if (focusTargetVec3 && desiredPosition) {
-                if (useOverheadBroadcast) {
-                  const railReplayCamera = resolveRailOverheadReplayCamera({
-                    focusOverride: overheadFocusOverride,
-                    minTargetY: overheadMinTargetY
-                  });
-                  if (railReplayCamera?.position) {
-                    const resolvedTarget = activeShotView.lockOverheadFocus
-                      ? railReplayCamera.target ?? broadcastArgs.focusWorld
-                      : railReplayCamera.target ??
-                        focusTargetVec3 ??
-                        lookTarget ??
-                        broadcastArgs.focusWorld;
-                    camera.position.copy(railReplayCamera.position);
-                    camera.lookAt(resolvedTarget);
-                    lookTarget = resolvedTarget;
-                    renderCamera = camera;
-                    broadcastArgs.focusWorld = resolvedTarget.clone();
-                    broadcastArgs.targetWorld = resolvedTarget.clone();
-                    broadcastArgs.orbitWorld = railReplayCamera.position.clone();
-                    broadcastArgs.lerp = 0.12;
-                    overheadApplied = true;
-                  }
+              if (activeShotView.preferRailOverhead && railReplayCamera?.position) {
+                const overheadTarget =
+                  railReplayCamera.target?.clone?.() ?? focusTargetVec3 ?? lookTarget;
+                camera.position.copy(railReplayCamera.position);
+                camera.lookAt(overheadTarget);
+                lookTarget = overheadTarget;
+                renderCamera = camera;
+              } else if (focusTargetVec3 && desiredPosition) {
+                if (!activeShotView.smoothedPos) {
+                  activeShotView.smoothedPos = desiredPosition.clone();
+                } else {
+                  activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
                 }
-                if (!overheadApplied) {
-                  if (!activeShotView.smoothedPos) {
-                    activeShotView.smoothedPos = desiredPosition.clone();
-                  } else {
-                    activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
-                  }
-                  if (!activeShotView.smoothedTarget) {
-                    activeShotView.smoothedTarget = focusTargetVec3.clone();
-                  } else {
-                    activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
-                  }
-                  camera.position.copy(activeShotView.smoothedPos);
-                  camera.lookAt(activeShotView.smoothedTarget);
-                  lookTarget = activeShotView.smoothedTarget;
-                  renderCamera = camera;
+                if (!activeShotView.smoothedTarget) {
+                  activeShotView.smoothedTarget = focusTargetVec3.clone();
+                } else {
+                  activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
                 }
+                camera.position.copy(activeShotView.smoothedPos);
+                camera.lookAt(activeShotView.smoothedTarget);
+                lookTarget = activeShotView.smoothedTarget;
+                renderCamera = camera;
               }
             }
           } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
@@ -21627,7 +21549,6 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: false,
             longShot,
             travelDistance,
             activationDelay,
@@ -26269,7 +26190,6 @@ const powerRef = useRef(hud.power);
           }
           if (actionView && !earlyPocketView) {
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26475,7 +26395,6 @@ const powerRef = useRef(hud.power);
             actionView.activationTravel = 0;
             actionView.strokeReadyAt = 0;
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
             actionView.lastUpdate = activationNow;
             activeShotView = actionView;
             suspendedActionView = null;
@@ -28772,11 +28691,6 @@ const powerRef = useRef(hud.power);
 
         // Resolve shot
         function resolve() {
-          // Guarantee at least one fresh terminal replay sample before we decide
-          // whether to launch replay, so short shots still get a visible replay frame.
-          if (shotRecording) {
-            recordReplayFrame(performance.now());
-          }
           const variantId = activeVariantRef.current?.id ?? 'american';
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
@@ -28787,12 +28701,10 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
           let shouldStartReplay =
-            ENABLE_SHOT_REPLAY &&
-            autoReplayEnabled &&
-            hasReplayFrames &&
-            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
+            !skipAllReplaysRef.current &&
+            Boolean(replayDecision?.shouldReplay) &&
+            (shotRecording?.frames?.length ?? 0) > 1;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
@@ -29018,21 +28930,16 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay =
-            ENABLE_SHOT_REPLAY &&
-            autoReplayEnabled &&
-            hasReplayFrames &&
-            (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
+          shouldStartReplay = !skipAllReplaysRef.current;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
           shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
         shouldStartReplay =
-          ENABLE_SHOT_REPLAY &&
-          autoReplayEnabled &&
-          hasReplayFrames &&
-          (Boolean(replayDecision?.shouldReplay) || hasReplayFrames);
+          !skipAllReplaysRef.current &&
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -29499,7 +29406,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
