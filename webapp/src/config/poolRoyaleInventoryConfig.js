@@ -531,12 +531,12 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
   carbonFiberChalk: swatchThumbnail(['#1a2028', '#313946', '#4a5667']),
-  carbonFiberChalkGrey: swatchThumbnail(['#5f6672', '#8b95a4', '#b9c1cd']),
-  carbonFiberChalkBeige: swatchThumbnail(['#363d46', '#525a66', '#707b8a']),
-  carbonFiberChalkDarkBlue: swatchThumbnail(['#5f2732', '#7e3642', '#9a4c58']),
-  carbonFiberChalkWhite: swatchThumbnail(['#c8b9a2', '#e3d4be', '#f1e8d9']),
-  carbonFiberChalkDarkGreen: swatchThumbnail(['#264132', '#355f43', '#4f7f61']),
-  carbonFiberChalkDarkYellow: swatchThumbnail(['#79591f', '#9f7a31', '#be9650']),
+  carbonFiberChalkGrey: swatchThumbnail(['#676f7c', '#8e97a6', '#c5cdd9']),
+  carbonFiberChalkBeige: swatchThumbnail(['#39414b', '#505a67', '#727d8b']),
+  carbonFiberChalkDarkBlue: swatchThumbnail(['#5b2f26', '#7c4a3b', '#9a6453']),
+  carbonFiberChalkWhite: swatchThumbnail(['#d2c2ac', '#e5d5c1', '#f2e8da']),
+  carbonFiberChalkDarkGreen: swatchThumbnail(['#2b4533', '#3d6148', '#5b8769']),
+  carbonFiberChalkDarkYellow: swatchThumbnail(['#876426', '#a27b33', '#c19947']),
   carbonFiberChalkDarkBrown: swatchThumbnail(['#5a3a2a', '#734a37', '#8f614a']),
   carbonFiberChalkDarkRed: swatchThumbnail(['#6a2323', '#8a3434', '#a74a4a'])
 });
