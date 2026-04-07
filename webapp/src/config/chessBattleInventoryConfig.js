@@ -1,6 +1,5 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
-import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -76,7 +75,6 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
-  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -98,12 +96,6 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tableFinish: Object.freeze(
     MURLAN_TABLE_FINISHES.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  tableCloth: Object.freeze(
-    TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -202,15 +194,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
     thumbnail: theme.thumbnail,
     previewShape: 'table'
-  })),
-  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
-    id: `chess-cloth-${option.id}`,
-    type: 'tableCloth',
-    optionId: option.id,
-    name: option.label,
-    price: 360 + idx * 35,
-    description: 'Premium felt surface color for procedural battle-royale table models.',
-    thumbnail: option.thumbnail
   })),
   ...CHESS_CHAIR_OPTIONS.slice(1).map((option, idx) => ({
     id: `chess-chair-${option.id}`,
@@ -431,11 +414,6 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     type: 'tableFinish',
     optionId: MURLAN_TABLE_FINISHES[0]?.id,
     label: MURLAN_TABLE_FINISHES[0]?.label
-  },
-  {
-    type: 'tableCloth',
-    optionId: TABLE_CLOTH_OPTIONS[0]?.id,
-    label: TABLE_CLOTH_OPTIONS[0]?.label
   },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
