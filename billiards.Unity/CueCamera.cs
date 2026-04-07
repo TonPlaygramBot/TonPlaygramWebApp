@@ -240,10 +240,9 @@ public class CueCamera : MonoBehaviour
     // Switch to the rail-overhead broadcast framing immediately once a shot is
     // triggered instead of waiting on the cue-strike hold timer.
     public bool immediateRailBroadcastOnShot = true;
-    // Keep a fixed rail-overhead camera position during the entire shot so the
-    // view tracks action by turning/looking only (no zoom/dolly moves).
-    // Disabled by default so action camera can dynamically follow cue-ball
-    // movement for both player and AI turns.
+    // Legacy toggle kept for backwards-compatible inspector data. Shot
+    // broadcast now always uses dynamic rail tracking so the action camera
+    // follows the cue ball for both player and AI turns.
     public bool lockRailBroadcastPositionDuringShot = false;
     // Keep the rail-overhead camera active for the whole shot window and avoid
     // corner-pocket cut-ins.
@@ -328,8 +327,6 @@ public class CueCamera : MonoBehaviour
     private float cueStrikeHoldUntilTime;
     private bool forceImmediateRailOverheadOnNextShot;
     private bool holdCueAimDuringShot;
-    private bool hasShotRailAnchor;
-    private Vector3 shotRailAnchorPosition;
     private bool hasCueHoldAnchor;
     private Vector3 cueHoldAnchorPosition;
     private float cueHoldAnchorFov;
@@ -415,7 +412,6 @@ public class CueCamera : MonoBehaviour
             ? Time.time + Mathf.Max(0f, cueStrikeCameraHoldSeconds)
             : Time.time;
         shotStartedTime = Time.time;
-        hasShotRailAnchor = false;
         hasShotPullbackAnchor = false;
         hasCueHoldAnchor = false;
         hasLastTargetPlanarVelocity = false;
@@ -1165,61 +1161,7 @@ public class CueCamera : MonoBehaviour
             lookTarget.y -= Mathf.Max(0f, broadcastLookDownOffset);
         }
 
-        if (shotInProgress && !isPocketCamera && lockRailBroadcastPositionDuringShot)
-        {
-            if (!hasShotRailAnchor)
-            {
-                Vector3 anchor = focus - forward * distance + Vector3.up * height;
-                anchor.x = 0f;
-                shotRailAnchorPosition = anchor;
-                hasShotRailAnchor = true;
-            }
-
-            ApplyLockedRailBroadcastCamera(shotRailAnchorPosition, lookTarget, focus, minimumHeightOffset);
-            return;
-        }
-
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
-    }
-
-    private void ApplyLockedRailBroadcastCamera(
-        Vector3 lockedPosition,
-        Vector3 lookTarget,
-        Vector3 focus,
-        float minimumHeightOffset)
-    {
-        float minRailHeight = railHeight + tableAssetHeightOffset + Mathf.Max(0f, railClearance);
-        float minimumHeight = focus.y + Mathf.Max(minimumHeightAboveFocus, minimumHeightOffset);
-        minimumHeight = Mathf.Max(minimumHeight, minRailHeight);
-
-        Vector3 position = lockedPosition;
-        position.x = 0f;
-        position.y = Mathf.Max(position.y, minimumHeight);
-
-        Vector3 finalPosition = position;
-        Quaternion finalRotation = Quaternion.LookRotation((lookTarget - finalPosition).normalized, Vector3.up);
-        if (shotInProgress && enableShotPullbackFromStanding && hasShotPullbackAnchor)
-        {
-            float duration = Mathf.Max(0f, shotPullbackDuration);
-            if (duration > 0.0001f)
-            {
-                float elapsed = Mathf.Max(0f, Time.time - shotStartedTime);
-                float blend = Mathf.Clamp01(elapsed / duration);
-                float eased = 1f - Mathf.Pow(1f - blend, 3f);
-                finalPosition = Vector3.Lerp(shotPullbackStartPosition, position, eased);
-                finalPosition.x = 0f;
-                finalPosition.y = Mathf.Max(finalPosition.y, minimumHeight);
-                Quaternion startRotation = shotPullbackStartRotation;
-                if (startRotation == default(Quaternion))
-                {
-                    startRotation = transform.rotation;
-                }
-                finalRotation = Quaternion.Slerp(startRotation, finalRotation, eased);
-            }
-        }
-
-        transform.position = finalPosition;
-        transform.rotation = finalRotation;
     }
 
     private Vector3 GetDynamicShotBroadcastFocus()
@@ -1814,7 +1756,6 @@ public class CueCamera : MonoBehaviour
         shotInProgress = false;
         usingTargetCamera = false;
         holdCueAimDuringShot = false;
-        hasShotRailAnchor = false;
         hasShotPullbackAnchor = false;
         hasCueHoldAnchor = false;
         hasLastTargetPlanarVelocity = false;
