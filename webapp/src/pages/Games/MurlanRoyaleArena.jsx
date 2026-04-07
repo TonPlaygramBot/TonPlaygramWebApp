@@ -105,8 +105,10 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
+const ARENA_PROP_SCALE = 0.94; // Slightly shrink arena props so table/chairs/cards sit better against HDRI scale.
+const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Portrait-space lift for the visual top player's avatar badge.
 
-const TABLE_RADIUS = 3.22 * MODEL_SCALE;
+const TABLE_RADIUS = 3.22 * MODEL_SCALE * ARENA_PROP_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -2254,8 +2256,8 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   return createProceduralChair(theme);
 }
 
-const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 1;
+const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
+const CARD_SCALE = ARENA_PROP_SCALE;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -2282,10 +2284,10 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
-const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12, landscape: 0.56 });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46, landscape: 0.52 });
-const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34, landscape: 1.12 });
+const CHAIR_VISUAL_SCALE = 1.12 * 1.15 * ARENA_PROP_SCALE;
+const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46 * ARENA_PROP_SCALE, landscape: 0.52 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.34 * ARENA_PROP_SCALE, landscape: 1.12 * ARENA_PROP_SCALE });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.3 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
@@ -2360,7 +2362,7 @@ const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
 const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.72 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -5265,6 +5267,21 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
+  const topSeatIndex = useMemo(() => {
+    let bestIndex = -1;
+    let bestY = Number.POSITIVE_INFINITY;
+    players.forEach((_, idx) => {
+      if (idx === humanPlayerIndex) return;
+      const anchor = seatAnchorMap.get(idx);
+      const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+      const y = anchor?.y ?? Number.parseFloat(fallback.top);
+      if (Number.isFinite(y) && y < bestY) {
+        bestY = y;
+        bestIndex = idx;
+      }
+    });
+    return bestIndex;
+  }, [humanPlayerIndex, players, seatAnchorMap]);
 
   return (
     <div className="absolute inset-0">
@@ -5291,6 +5308,7 @@ export default function MurlanRoyaleArena({ search }) {
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
             const sideSeatTopLift = isSideSeat ? 12 : 0;
+            const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
@@ -5303,13 +5321,13 @@ export default function MurlanRoyaleArena({ search }) {
                 ? {
                     position: 'absolute',
                     left: `${anchor.x}%`,
-                    top: `${clampValue(anchor.y - sideSeatTopLift, -10, 110)}%`,
+                    top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift, -10, 110)}%`,
                     transform: 'translate(-50%, -50%)'
                   }
                 : {
                     position: 'absolute',
                     left: fallback.left,
-                    top: fallback.top,
+                    top: `${clampValue(Number.parseFloat(fallback.top) - topSeatLift, -10, 110)}%`,
                     transform: 'translate(-50%, -50%)'
                   };
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
