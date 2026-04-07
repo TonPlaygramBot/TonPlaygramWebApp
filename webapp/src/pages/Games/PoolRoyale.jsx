@@ -13321,6 +13321,10 @@ function PoolRoyaleGame({
     }
     return true;
   });
+  const autoReplayEnabledRef = useRef(autoReplayEnabled);
+  useEffect(() => {
+    autoReplayEnabledRef.current = autoReplayEnabled;
+  }, [autoReplayEnabled]);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -20446,6 +20450,13 @@ const powerRef = useRef(hud.power);
               }
               const heightBase = TABLE_Y + TABLE.THICK;
               const standingPhi = STANDING_VIEW_PHI;
+              if (
+                activeShotView.stage === 'followCue' &&
+                activeShotView.hitConfirmed &&
+                activeShotView.targetId != null
+              ) {
+                activeShotView.stage = 'pair';
+              }
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -21552,7 +21563,7 @@ const powerRef = useRef(hud.power);
             mode: 'action',
             cueId: cueBall.id,
             targetId: targetId ?? null,
-            stage: 'pair',
+            stage: 'followCue',
             exitAfterHold: false,
             resume: followView ?? null,
             orbitSnapshot,
@@ -21569,7 +21580,7 @@ const powerRef = useRef(hud.power);
             axis,
             railDir: initialRailDir,
             broadcastRailDir: initialRailDir,
-            hasSwitchedRail: true,
+            hasSwitchedRail: false,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
             longShot,
@@ -26137,8 +26148,17 @@ const powerRef = useRef(hud.power);
             actionView.activationDelay = null;
             actionView.activationTravel = 0;
           }
+          const shouldForceImmediateRailOverhead =
+            Boolean(shotPrediction?.railNormal) ||
+            (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 2;
+          if (shouldForceImmediateRailOverhead) {
+            queuedPocketView = null;
+            suspendedActionView = actionView ?? null;
+            enterTopView(true, { variant: 'rail' });
+          }
           const earlyPocketView =
             !prioritizeRailOverheadCut &&
+            !shouldForceImmediateRailOverhead &&
             !suppressPocketCameras &&
             shotPrediction.ballId &&
             followView
@@ -28633,7 +28653,7 @@ const powerRef = useRef(hud.power);
           const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 0;
           let shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
-            autoReplayEnabled &&
+            autoReplayEnabledRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             hasReplayFrames;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -28863,7 +28883,7 @@ const powerRef = useRef(hud.power);
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
-            autoReplayEnabled;
+            autoReplayEnabledRef.current;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28871,7 +28891,7 @@ const powerRef = useRef(hud.power);
         }
         shouldStartReplay =
           ENABLE_SHOT_REPLAY &&
-          autoReplayEnabled &&
+          autoReplayEnabledRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
           hasReplayFrames;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
@@ -29334,7 +29354,7 @@ const powerRef = useRef(hud.power);
           pendingRemoteReplayRef.current = null;
           if (
             ENABLE_SHOT_REPLAY &&
-            autoReplayEnabled &&
+            autoReplayEnabledRef.current &&
             pending?.frames?.length > 1
           ) {
             shotRecording = {
