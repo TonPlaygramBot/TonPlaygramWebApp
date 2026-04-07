@@ -2363,6 +2363,7 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.32 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
+const CAMERA_HORIZONTAL_SWING_DEGREES = Object.freeze({ portrait: 30, landscape: 24 });
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -3669,9 +3670,11 @@ export default function MurlanRoyaleArena({ search }) {
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
-        const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
-          ? HUMAN_HAND_FAN_MAX_YAW
-          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
+        const fanYaw = isHumanCard
+          ? (HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+            ? HUMAN_HAND_FAN_MAX_YAW
+            : normalizedOffset * HUMAN_HAND_FAN_MAX_YAW * fanDirection)
+          : 0;
         const layoutAxis = (!isHumanCard && sharedHorizontalAxis)
           ? sharedHorizontalAxis.clone()
           : (right?.clone?.() ?? new THREE.Vector3(1, 0, 0));
@@ -3683,7 +3686,8 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
         target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
-        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
+        const directionalLift = isHumanCard ? leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0;
+        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + directionalLift;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3700,7 +3704,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
+            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
           },
           immediate,
           three.animations,
@@ -3730,7 +3734,11 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
-    state.tableCards.forEach((card, idx) => {
+    const visualTableCards = [...state.tableCards];
+    if (state.tableCombo?.type === ComboType.STRAIGHT || state.tableCombo?.type === ComboType.STRAIGHT_FLUSH) {
+      visualTableCards.sort((a, b) => cardRankValue(a) - cardRankValue(b));
+    }
+    visualTableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
@@ -4905,7 +4913,9 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
+      const horizontalSwing = THREE.MathUtils.degToRad(
+        isPortrait ? CAMERA_HORIZONTAL_SWING_DEGREES.portrait : CAMERA_HORIZONTAL_SWING_DEGREES.landscape
+      );
       const lockedPolarAngle = THREE.MathUtils.clamp(
         cameraSpherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
@@ -5319,6 +5329,11 @@ export default function MurlanRoyaleArena({ search }) {
                     top: fallback.top,
                     transform: 'translate(-50%, -50%)'
                   };
+            if (idx === 3 && anchor && idx !== humanPlayerIndex) {
+              const clampedTop = clampValue(anchor.y, 10, 26);
+              positionStyle.left = fallback.left;
+              positionStyle.top = `${clampedTop}%`;
+            }
             const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
@@ -5338,7 +5353,7 @@ export default function MurlanRoyaleArena({ search }) {
                   name={activePlayer?.name}
                   color={color}
                   size={avatarSize}
-                  frameScale={idx === humanPlayerIndex ? 2 : 1}
+                  frameScale={1}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
@@ -5503,13 +5518,13 @@ export default function MurlanRoyaleArena({ search }) {
           />
         </div>
         {!isLandscapeViewport && (
-          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
-            <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
-              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+          <div className="pointer-events-none fixed left-1/2 top-[calc(12.8rem+env(safe-area-inset-top,0px))] z-20 w-[min(76vw,22rem)] -translate-x-1/2 text-center">
+            <div className="rounded-xl border border-sky-200/45 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),rgba(12,23,42,0.9)_60%)] px-3 py-1.5 shadow-[0_8px_22px_rgba(2,132,199,0.3),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[2px]">
+              <p className="text-xs font-semibold tracking-wide text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
               {uiState.tableSummary && (
-                <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+                <p className="mt-0.5 text-[11px] font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
               )}
-              {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+              {actionError && <p className="mt-1 text-[10px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
             </div>
           </div>
         )}
@@ -5955,6 +5970,26 @@ function cardLabel(card) {
   if (card.rank === 'JR') return '🃏R';
   if (card.rank === 'JB') return '🃏B';
   return `${card.rank}${card.suit || ''}`;
+}
+
+function cardRankValue(card) {
+  if (!card) return -1;
+  if (card.rank === '3') return 0;
+  if (card.rank === '4') return 1;
+  if (card.rank === '5') return 2;
+  if (card.rank === '6') return 3;
+  if (card.rank === '7') return 4;
+  if (card.rank === '8') return 5;
+  if (card.rank === '9') return 6;
+  if (card.rank === '10') return 7;
+  if (card.rank === 'J') return 8;
+  if (card.rank === 'Q') return 9;
+  if (card.rank === 'K') return 10;
+  if (card.rank === 'A') return 11;
+  if (card.rank === '2') return 12;
+  if (card.rank === 'JB') return 13;
+  if (card.rank === 'JR') return 14;
+  return -1;
 }
 
 function buildPlayers(search) {
