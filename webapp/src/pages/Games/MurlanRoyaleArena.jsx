@@ -3408,12 +3408,7 @@ export default function MurlanRoyaleArena({ search }) {
       const shouldUseChairAnchor = !gameStateRef.current?.players?.[index]?.isHuman;
       if (shouldUseChairAnchor && seat?.chair) {
         seat.chair.getWorldPosition(anchorPoint);
-        const chairForward = seat?.forward?.clone?.() ?? new THREE.Vector3();
-        if (chairForward.lengthSq() > 1e-6) {
-          chairForward.normalize();
-          anchorPoint.addScaledVector(chairForward, 0.32 * MODEL_SCALE);
-        }
-        anchorPoint.y += 0.58 * MODEL_SCALE;
+        anchorPoint.y += 0.32 * MODEL_SCALE;
       } else {
         const headBone = seat?.characterRig?.bones?.head;
         if (headBone) {
@@ -3672,13 +3667,11 @@ export default function MurlanRoyaleArena({ search }) {
           : 0;
         const lateral = humanLineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
-        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : 0;
+        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
-        const fanYaw = isHumanCard
-          ? (HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
-            ? HUMAN_HAND_FAN_MAX_YAW
-            : normalizedOffset * HUMAN_HAND_FAN_MAX_YAW * fanDirection)
-          : 0;
+        const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+          ? HUMAN_HAND_FAN_MAX_YAW
+          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
         const layoutAxis = (!isHumanCard && sharedHorizontalAxis)
           ? sharedHorizontalAxis.clone()
           : (right?.clone?.() ?? new THREE.Vector3(1, 0, 0));
@@ -3690,8 +3683,7 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
         target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
-        const directionalLift = isHumanCard ? leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT : 0;
-        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + directionalLift;
+        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3708,7 +3700,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
+            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
           },
           immediate,
           three.animations,
@@ -4913,7 +4905,7 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 30 : 24);
+      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
       const lockedPolarAngle = THREE.MathUtils.clamp(
         cameraSpherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
@@ -5327,10 +5319,9 @@ export default function MurlanRoyaleArena({ search }) {
                     top: fallback.top,
                     transform: 'translate(-50%, -50%)'
                   };
-            const anchorAvatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
+            const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
-            const avatarSize = idx === humanPlayerIndex && !isTurn ? 1 : anchorAvatarSize;
             const handCount = activePlayer?.hand?.length ?? 0;
             return (
               <div
@@ -5347,6 +5338,7 @@ export default function MurlanRoyaleArena({ search }) {
                   name={activePlayer?.name}
                   color={color}
                   size={avatarSize}
+                  frameScale={idx === humanPlayerIndex ? 2 : 1}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
@@ -5511,13 +5503,13 @@ export default function MurlanRoyaleArena({ search }) {
           />
         </div>
         {!isLandscapeViewport && (
-          <div className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(82vw,21rem)] -translate-x-1/2 text-center">
-            <div className="rounded-xl border border-sky-200/45 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.22),rgba(12,23,42,0.9)_60%)] px-3 py-2 shadow-[0_10px_24px_rgba(2,132,199,0.3),inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-[2px]">
-              <p className="text-[0.78rem] font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
+            <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
+              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
               {uiState.tableSummary && (
-                <p className="mt-0.5 text-[0.66rem] font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+                <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
               )}
-              {actionError && <p className="mt-1 text-[10px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
+              {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
             </div>
           </div>
         )}
@@ -5734,7 +5726,7 @@ function buildPlayState(state, cards, combo) {
   const aliveCount = players.filter((p) => !p.finished).length;
   const lastWinner = state.activePlayer;
   let tableCombo = combo.type === ComboType.BOMB_4K ? null : combo;
-  let tableCards = reorderTableCards(cards, combo);
+  let tableCards = [...cards];
   let nextActive = getNextAlive(players, state.activePlayer);
 
   if (combo.type === ComboType.BOMB_4K) {
@@ -5766,15 +5758,6 @@ function buildPlayState(state, cards, combo) {
     lastAction,
     lastActionId: actionId
   };
-}
-
-function reorderTableCards(cards, combo) {
-  if (!Array.isArray(cards)) return [];
-  if (!combo) return [...cards];
-  if (combo.type === ComboType.STRAIGHT || combo.type === ComboType.STRAIGHT_FLUSH) {
-    return sortHand([...cards], GAME_CONFIG);
-  }
-  return [...cards];
 }
 
 function buildPassState(state) {
