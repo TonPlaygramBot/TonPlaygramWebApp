@@ -2488,12 +2488,11 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 11.2, y: 4.2 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.5, y: 3.8 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
 const LT_FINISH_BRIGHTNESS_LIFT = 0.16;
-const LT_FINISH_CONTRAST_BOOST = 1.24;
-const LT_FINISH_SATURATION_BOOST = 1.08;
-const LT_MATTE_NORMAL_SCALE = 0.8;
+const LT_FINISH_CONTRAST_BOOST = 1.2;
+const LT_MATTE_NORMAL_SCALE = 0.68;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2602,7 +2601,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 448) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2634,30 +2633,21 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 448) {
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
       const dither = Math.sin(x * 0.34 + y * 0.26) * 0.5 + Math.cos(x * 0.17 - y * 0.23) * 0.5;
-      const grain = (Math.sin((x + y) * 1.02) + Math.cos((x - y) * 0.86)) * 0.5;
+      const grain = (Math.sin((x + y) * 0.9) + Math.cos((x - y) * 0.78)) * 0.5;
       const micropit = Math.sin(x * 1.37) * Math.cos(y * 1.49);
-      const microWeave = Math.sin(x * 3.1 + y * 0.7) * Math.cos(y * 2.8 - x * 0.55);
-      const colorLift = THREE.MathUtils.clamp(dither * 9 + grain * 8 + microWeave * 5, -26, 26);
+      const colorLift = THREE.MathUtils.clamp(dither * 9 + grain * 6, -22, 22);
       const boostedR = THREE.MathUtils.lerp(tintR, 255, 0.18);
       const boostedG = THREE.MathUtils.lerp(tintG, 255, 0.18);
       const boostedB = THREE.MathUtils.lerp(tintB, 255, 0.18);
-      const tintAvg = (boostedR + boostedG + boostedB) / 3;
-      const satR = tintAvg + (boostedR - tintAvg) * LT_FINISH_SATURATION_BOOST;
-      const satG = tintAvg + (boostedG - tintAvg) * LT_FINISH_SATURATION_BOOST;
-      const satB = tintAvg + (boostedB - tintAvg) * LT_FINISH_SATURATION_BOOST;
-      colorImage.data[i] = THREE.MathUtils.clamp(satR + colorLift, 0, 255);
-      colorImage.data[i + 1] = THREE.MathUtils.clamp(satG + colorLift, 0, 255);
-      colorImage.data[i + 2] = THREE.MathUtils.clamp(satB + colorLift, 0, 255);
+      colorImage.data[i] = THREE.MathUtils.clamp(boostedR + colorLift, 0, 255);
+      colorImage.data[i + 1] = THREE.MathUtils.clamp(boostedG + colorLift, 0, 255);
+      colorImage.data[i + 2] = THREE.MathUtils.clamp(boostedB + colorLift, 0, 255);
       colorImage.data[i + 3] = 255;
-      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 22 + microWeave * 18, 0, 255);
-      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22 - microWeave * 14, 0, 255);
-      normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 42, 0, 255);
+      normalImage.data[i] = THREE.MathUtils.clamp(128 + dither * 22, 0, 255);
+      normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22, 0, 255);
+      normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 34, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(
-        224 + dither * 14 + grain * 13 + micropit * 15 + Math.abs(microWeave) * 10,
-        176,
-        255
-      );
+      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2677,7 +2667,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 448) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = idx === 0 ? THREE.LinearFilter : THREE.NearestFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -2700,7 +2690,7 @@ function applyMonoMattePlasticSurface(material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.97;
+    material.roughness = 0.94;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -3309,9 +3299,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0x8b95a4,
-    base: 0x8b95a4,
-    trim: 0x8b95a4,
+    rail: 0xa7b0bf,
+    base: 0xa7b0bf,
+    trim: 0xa7b0bf,
     woodTextureId: 'plastic_monoblock_lt_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3321,9 +3311,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x525a66,
-    base: 0x525a66,
-    trim: 0x525a66,
+    rail: 0x5a6471,
+    base: 0x5a6471,
+    trim: 0x5a6471,
     woodTextureId: 'plastic_monoblock_lt_dark_grey',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3333,9 +3323,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0x7e3642,
-    base: 0x7e3642,
-    trim: 0x7e3642,
+    rail: 0x9b4a4f,
+    base: 0x9b4a4f,
+    trim: 0x9b4a4f,
     woodTextureId: 'plastic_monoblock_lt_burgundy',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3345,9 +3335,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xe3d4be,
-    base: 0xe3d4be,
-    trim: 0xe3d4be,
+    rail: 0xf2e5cf,
+    base: 0xf2e5cf,
+    trim: 0xf2e5cf,
     woodTextureId: 'plastic_monoblock_lt_milk_cream',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3357,9 +3347,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkGreen',
     label: 'LT Dark Green',
-    rail: 0x355f43,
-    base: 0x355f43,
-    trim: 0x355f43,
+    rail: 0x3f6c4b,
+    base: 0x3f6c4b,
+    trim: 0x3f6c4b,
     woodTextureId: 'plastic_monoblock_lt_dark_green',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -3369,9 +3359,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkYellow',
     label: 'LT Dark Yellow',
-    rail: 0x9f7a31,
-    base: 0x9f7a31,
-    trim: 0x9f7a31,
+    rail: 0xb88b36,
+    base: 0xb88b36,
+    trim: 0xb88b36,
     woodTextureId: 'plastic_monoblock_lt_dark_yellow',
     woodRepeatScale: 1,
     disableWoodPattern: true,
@@ -8466,7 +8456,7 @@ export function Table3D(
   const isPolyHavenCloth = clothMapSource === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
-  const clothHighlight = new THREE.Color(0xffffff);
+  const clothHighlight = new THREE.Color(0xedfff4);
   const brightnessLift = CLOTH_BRIGHTNESS_LERP;
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
@@ -12780,7 +12770,7 @@ function applyTableFinishToTable(table, finish) {
   }
 
   const clothColor = new THREE.Color(resolvedFinish.colors.cloth);
-  const clothHighlight = new THREE.Color(0xffffff);
+  const clothHighlight = new THREE.Color(0xf6fff9);
   const cushionColor = new THREE.Color(
     resolvedFinish.colors.cushion ?? resolvedFinish.colors.cloth
   );
@@ -13322,10 +13312,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [skipAllReplays, setSkipAllReplays] = useState(() => {
-    if (!ENABLE_SHOT_REPLAY || typeof window === 'undefined') return false;
-    return window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY) === '0';
-  });
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(true);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14974,9 +14961,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!ENABLE_SHOT_REPLAY) return;
-      window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, skipAllReplays ? '0' : '1');
+      window.localStorage.setItem(AUTO_REPLAY_STORAGE_KEY, autoReplayEnabled ? '1' : '0');
     }
-  }, [skipAllReplays]);
+  }, [autoReplayEnabled]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -22783,14 +22770,7 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const rawDuration = frames[frames.length - 1]?.t ?? 0;
-          const duration =
-            Number.isFinite(rawDuration) && rawDuration > 0
-              ? rawDuration
-              : Math.max(
-                  0,
-                  ((frames.length > 1 ? frames.length - 1 : cuePath.length - 1) * 1000) / 60
-                );
+          const duration = frames[frames.length - 1]?.t ?? 0;
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -28623,7 +28603,7 @@ const powerRef = useRef(hud.power);
           const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
           let shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
-            !skipAllReplays &&
+            autoReplayEnabled &&
             Boolean(replayDecision?.shouldReplay) &&
             hasReplayFrames;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -28851,7 +28831,7 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = ENABLE_SHOT_REPLAY && !skipAllReplays;
+          shouldStartReplay = ENABLE_SHOT_REPLAY && autoReplayEnabled;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -28859,7 +28839,7 @@ const powerRef = useRef(hud.power);
         }
         shouldStartReplay =
           ENABLE_SHOT_REPLAY &&
-          !skipAllReplays &&
+          autoReplayEnabled &&
           Boolean(replayDecision?.shouldReplay) &&
           hasReplayFrames;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
@@ -29327,7 +29307,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (ENABLE_SHOT_REPLAY && !skipAllReplays && pending?.frames?.length > 1) {
+          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -33491,23 +33471,24 @@ const powerRef = useRef(hud.power);
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setSkipAllReplays((prev) => !prev)}
-                    aria-pressed={skipAllReplays}
-                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      skipAllReplays
-                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                    aria-pressed={autoReplayEnabled}
+                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      autoReplayEnabled
+                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                     }`}
                   >
-                    <span>Skip all replays</span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                        skipAllReplays
-                          ? 'border-black/30 text-black/70'
-                          : 'border-white/30 text-white/70'
-                      }`}
-                    >
-                      {skipAllReplays ? 'On' : 'Off'}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Auto Replay
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                        {autoReplayEnabled ? 'On' : 'Off'}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
                   </button>
                 </div>
