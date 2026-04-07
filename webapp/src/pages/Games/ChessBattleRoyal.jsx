@@ -1787,6 +1787,17 @@ function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
   return new THREE.Vector3(shiftX, 0, shiftZ);
 }
 
+function groundArenaGroups(groups = [], floorY = 0) {
+  const currentFloor = computeGroupFloorY(groups);
+  const offset = floorY - currentFloor;
+  if (!Number.isFinite(offset) || Math.abs(offset) <= 1e-4) return offset;
+  groups.forEach((group) => {
+    if (!group) return;
+    group.position.y += offset;
+  });
+  return offset;
+}
+
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
 const cameraPhiMin = clamp(
   ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET - CAMERA_TOPDOWN_EXTRA,
@@ -7055,10 +7066,9 @@ function Chess3D({
           cam.position.x += placementDelta.x;
           cam.position.z += placementDelta.z;
         });
-        const updatedFloorY = computeGroupFloorY([
-          nextTable?.group,
-          ...(arena.chairs || []).map((chair) => chair.group)
-        ]);
+        const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
+        groundArenaGroups(arenaGroups, 0);
+        const updatedFloorY = computeGroupFloorY(arenaGroups);
         environmentFloorRef.current = updatedFloorY;
         arena.environmentFloorY = updatedFloorY;
         updateEnvironmentRef.current?.(hdriVariantRef.current);
@@ -7550,6 +7560,7 @@ function Chess3D({
     );
     arena.tablePlacementOffset = tablePlacementOffset.clone();
 
+    groundArenaGroups([tableInfo?.group, chairA.group, chairB.group], 0);
     const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
     environmentFloorRef.current = environmentFloorY;
     arena.environmentFloorY = environmentFloorY;
@@ -9509,7 +9520,7 @@ function Chess3D({
                                 type="button"
                                 onClick={() =>
                                   setAppearance((prev) =>
-                                    normalizeAppearance({
+                                    ({
                                       ...prev,
                                       [activeCustomizationSection.key]: option.idx
                                     })
