@@ -106,7 +106,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.94; // Slightly shrink arena props so table/chairs/cards sit better against HDRI scale.
-const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Portrait-space lift for the visual top player's avatar badge.
+const TOP_SEAT_AVATAR_UP_LIFT = 3.2; // Portrait-space lift for the visual top player's avatar badge.
 
 const TABLE_RADIUS = 3.22 * MODEL_SCALE * ARENA_PROP_SCALE;
 const CHAIR_COUNT = 4;
@@ -2360,8 +2360,8 @@ const CAMERA_PLAY_FOLLOW_HOLD_MS = 420;
 const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
-const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
-const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
+const CAMERA_PLAYER_TARGET_WEIGHT = 0.52;
+const CAMERA_SIDE_LOOK_EXTRA = 0.28 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
@@ -4913,7 +4913,7 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
+      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 28 : 24);
       const lockedPolarAngle = THREE.MathUtils.clamp(
         cameraSpherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
