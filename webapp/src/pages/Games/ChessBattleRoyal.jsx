@@ -1840,6 +1840,7 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tables: 0,
   tableFinish: 0,
+  tableCloth: 0,
   boardColor: 0,
   whitePieceStyle: 0,
   blackPieceStyle: 1,
@@ -1857,11 +1858,24 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const DEFAULT_TABLE_SHAPE_OPTION =
   TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') || TABLE_SHAPE_OPTIONS[0];
+const CHESS_PROCEDURAL_TABLE_IDS = new Set([
+  'murlan-default',
+  'ovalTable',
+  'diamondEdge',
+  'hexagonTable'
+]);
+const CHESS_TABLE_SHAPE_BY_ID = Object.freeze({
+  'murlan-default': 'classicOctagon',
+  ovalTable: 'grandOval',
+  diamondEdge: 'diamondEdge',
+  hexagonTable: 'hexagonTable'
+});
 
 const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEME_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
@@ -1874,6 +1888,7 @@ function normalizeAppearance(value = {}) {
     : null;
   const entries = [
     ['tables', TABLE_THEME_OPTIONS.length],
+    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
@@ -1885,16 +1900,28 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  normalized.boardColor = Number.isFinite(Number(value?.boardColor))
+    ? Math.min(Math.max(0, Math.round(Number(value?.boardColor))), BEAUTIFUL_GAME_BOARD_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = Number.isFinite(Number(value?.whitePieceStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value?.whitePieceStyle))), PIECE_STYLE_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = Number.isFinite(Number(value?.blackPieceStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value?.blackPieceStyle))), PIECE_STYLE_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = Number.isFinite(Number(value?.headStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value?.headStyle))), HEAD_PRESET_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
-function getEffectiveShapeConfig() {
+function getEffectiveShapeConfig(appearance = DEFAULT_APPEARANCE) {
   const fallback = DEFAULT_TABLE_SHAPE_OPTION ?? TABLE_SHAPE_OPTIONS[0];
-  const requested = DEFAULT_TABLE_SHAPE_OPTION ?? fallback;
+  const selectedTable = TABLE_THEME_OPTIONS[appearance?.tables ?? 0];
+  const requestedShapeId = CHESS_TABLE_SHAPE_BY_ID[selectedTable?.id] || fallback?.id;
+  const requested =
+    TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) ||
+    fallback;
   return { option: requested ?? fallback, rotationY: 0, forced: false };
 }
 
@@ -6374,14 +6401,19 @@ function Chess3D({
   }, [viewMode]);
 
   const customizationSections = useMemo(
-    () =>
-      CUSTOMIZATION_SECTIONS.map((section) => ({
+    () => {
+      const selectedTableId = TABLE_THEME_OPTIONS[appearance.tables]?.id;
+      const showTableSurfaceOptions = CHESS_PROCEDURAL_TABLE_IDS.has(selectedTableId);
+      return CUSTOMIZATION_SECTIONS.filter((section) =>
+        showTableSurfaceOptions || (section.key !== 'tableCloth' && section.key !== 'tableFinish')
+      ).map((section) => ({
         ...section,
         options: section.options
           .map((option, idx) => ({ ...option, idx }))
           .filter(({ id }) => isChessOptionUnlocked(section.key, id, chessInventory))
-      })).filter((section) => section.options.length > 0),
-    [chessInventory]
+      })).filter((section) => section.options.length > 0);
+    },
+    [appearance.tables, chessInventory]
   );
 
   const quickSideOptions = useMemo(
@@ -6425,6 +6457,7 @@ function Chess3D({
       const normalized = normalizeAppearance(value);
       const map = {
         tables: TABLE_THEME_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
         tableFinish: TABLE_FINISH_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
@@ -6486,6 +6519,19 @@ function Chess3D({
           <div
             className="absolute inset-0"
             style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
+          />
+          <div className={overlay} />
+        </div>
+      );
+    }
+    if (key === 'tableCloth') {
+      const top = option.feltTop || option.baseColor || '#14532d';
+      const bottom = option.feltBottom || top;
+      return (
+        <div className={baseClass}>
+          <div
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(135deg, ${top}, ${bottom})` }}
           />
           <div className={overlay} />
         </div>
@@ -6981,11 +7027,11 @@ function Chess3D({
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
     const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-    const clothOption = DEFAULT_CLOTH_OPTION;
+    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
     const baseOption = DEFAULT_BASE_OPTION;
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig();
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
@@ -7183,6 +7229,11 @@ function Chess3D({
       }
       applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
+    arena.applySideColorHex?.('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+    arena.applySideColorHex?.('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+    const headPresetId = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
+    arena.applyPawnHeadPreset?.(headPresetId);
+    arena.applyBoardThemePreset?.(boardQuickIdx);
 
     const accentColor = palette.accent ?? '#4ce0c3';
     const effectivePlayerFlag =
@@ -7203,7 +7254,7 @@ function Chess3D({
       arenaRef.current.aiFlag = effectiveAiFlag;
       arenaRef.current.sandTimer = arena.sandTimer;
     }
-  }, [appearance]);
+  }, [appearance, boardQuickIdx, headQuickIdx, p1QuickIdx, p2QuickIdx]);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -7277,11 +7328,11 @@ function Chess3D({
       const tableFinish =
         TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ?? DEFAULT_TABLE_FINISH;
       const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-      const clothOption = DEFAULT_CLOTH_OPTION;
+      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? DEFAULT_CLOTH_OPTION;
       const baseOption = DEFAULT_BASE_OPTION;
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
       const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
-      const { option: shapeOption, rotationY } = getEffectiveShapeConfig();
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance);
       const pieceMaterials = createPieceMaterials(pieceStyleOption);
       disposers.push(() => {
         disposePieceMaterials(pieceMaterials);
