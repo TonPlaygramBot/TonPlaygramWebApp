@@ -2304,8 +2304,8 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
-const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
+const AI_HAND_FAN_MAX_YAW = 0;
+const AI_HAND_FAN_ARC_LIFT = 0;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2359,7 +2359,7 @@ const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
-const CAMERA_SIDE_LOOK_EXTRA = 0.32 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.46 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
@@ -3668,6 +3668,7 @@ export default function MurlanRoyaleArena({ search }) {
         const lateral = humanLineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
+        const directionalLift = isHumanCard ? HUMAN_HAND_DIRECTIONAL_LIFT : 0;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
@@ -3683,7 +3684,7 @@ export default function MurlanRoyaleArena({ search }) {
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
         target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
-        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
+        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * directionalLift;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -3700,7 +3701,7 @@ export default function MurlanRoyaleArena({ search }) {
           {
             face: isHumanCard ? 'front' : 'back',
             yawY: fanYaw,
-            pitchX: centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X
+            pitchX: isHumanCard ? centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X : 0
           },
           immediate,
           three.animations,
@@ -3741,7 +3742,7 @@ export default function MurlanRoyaleArena({ search }) {
       const target = tableAnchor.clone();
       const { normalizedOffset } = calcFanCardPose(tableCount, idx);
       const communityFanYaw = normalizedOffset * COMMUNITY_CARD_SIDE_ORIENTATION_YAW;
-      const lateralOffset = tableStartX + idx * tableSpacing;
+      const lateralOffset = tableStartX + (tableCount - 1 - idx) * tableSpacing;
       if (humanSeat?.right) {
         target.addScaledVector(humanSeat.right, lateralOffset + COMMUNITY_CARD_LEFT_SHIFT);
       } else {
@@ -4905,7 +4906,7 @@ export default function MurlanRoyaleArena({ search }) {
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       const cameraOffset = camera.position.clone().sub(target);
       const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 24 : 20);
+      const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 28 : 23);
       const lockedPolarAngle = THREE.MathUtils.clamp(
         cameraSpherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
@@ -5283,6 +5284,8 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+            const fallbackLeft = Number.parseFloat(fallback.left);
+            const fallbackTop = Number.parseFloat(fallback.top);
             const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
             const isTopSeat = Boolean(anchor) && anchor.y <= 35;
             const sideSeatTopLift = isSideSeat ? 12 : 0;
@@ -5290,12 +5293,21 @@ export default function MurlanRoyaleArena({ search }) {
             const inwardAnchorX = anchor
               ? 50 + (anchor.x - 50) * (isSideSeat ? 0.92 : 1)
               : null;
+            const stabilizedAnchorX = anchor && isTopSeat && Number.isFinite(fallbackLeft)
+              ? THREE.MathUtils.lerp(inwardAnchorX, fallbackLeft, 0.7)
+              : inwardAnchorX;
+            const rawAnchorTop = anchor
+              ? clampValue(anchor.y - sideSeatTopLift - topSeatLift, -12, 110)
+              : null;
+            const stabilizedAnchorTop = anchor && isTopSeat && Number.isFinite(fallbackTop)
+              ? THREE.MathUtils.lerp(rawAnchorTop, fallbackTop, 0.88)
+              : rawAnchorTop;
             const positionStyle = idx === humanPlayerIndex
               ? (anchor
                   ? {
                       position: 'absolute',
-                      left: `${inwardAnchorX}%`,
-                      top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift, -12, 110)}%`,
+                      left: `${stabilizedAnchorX}%`,
+                      top: `${stabilizedAnchorTop}%`,
                       transform: 'translate(-50%, -50%)',
                       zIndex: 24
                     }
@@ -5309,8 +5321,8 @@ export default function MurlanRoyaleArena({ search }) {
               : anchor
                 ? {
                     position: 'absolute',
-                    left: `${inwardAnchorX}%`,
-                    top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift, -12, 110)}%`,
+                    left: `${stabilizedAnchorX}%`,
+                    top: `${stabilizedAnchorTop}%`,
                     transform: 'translate(-50%, -50%)'
                   }
                 : {
@@ -5338,7 +5350,7 @@ export default function MurlanRoyaleArena({ search }) {
                   name={activePlayer?.name}
                   color={color}
                   size={avatarSize}
-                  frameScale={idx === humanPlayerIndex ? 2 : 1}
+                  frameScale={1}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
@@ -5503,11 +5515,11 @@ export default function MurlanRoyaleArena({ search }) {
           />
         </div>
         {!isLandscapeViewport && (
-          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
+          <div className="pointer-events-none fixed left-1/2 top-[58%] z-20 w-[min(78vw,20rem)] -translate-x-1/2 text-center">
             <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
-              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
+              <p className="text-[0.72rem] font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
               {uiState.tableSummary && (
-                <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
+                <p className="mt-0.5 text-[0.65rem] font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
               )}
               {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
             </div>
