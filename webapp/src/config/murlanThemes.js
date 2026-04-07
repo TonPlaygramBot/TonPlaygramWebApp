@@ -169,7 +169,31 @@ export const MURLAN_TABLE_THEMES = [
     source: 'procedural',
     price: 0,
     thumbnail: polyHavenThumb('CoffeeTable_01'),
-    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+    description: 'Standard Murlan Royale octagon table with the battle-royale pedestal base.'
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    price: 1040,
+    thumbnail: swatchThumbnail(['#111827', '#1f2937', '#a855f7']),
+    description: 'Diamond-edge procedural table shell used in Texas Hold’em arenas.'
+  },
+  {
+    id: 'ovalTable',
+    label: 'Oval Table',
+    source: 'procedural',
+    price: 1020,
+    thumbnail: swatchThumbnail(['#0f172a', '#111827', '#f97316']),
+    description: 'Oval procedural table shell used in Texas Hold’em arenas.'
+  },
+  {
+    id: 'hexagonTable',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    price: 1060,
+    thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee']),
+    description: 'Hexagon procedural table shell used in Texas Hold’em arenas.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
