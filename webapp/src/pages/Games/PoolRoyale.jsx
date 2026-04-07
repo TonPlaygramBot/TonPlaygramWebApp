@@ -20396,7 +20396,10 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
+          } else if (
+            activeShotView?.mode === 'action' &&
+            (!cameraHoldActive || activeShotView.dynamicFollowCueBall)
+          ) {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             const movingCount = ballsList.reduce(
@@ -21628,6 +21631,7 @@ const powerRef = useRef(hud.power);
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
             lockOverheadFocus: false,
+            dynamicFollowCueBall: true,
             longShot,
             travelDistance,
             activationDelay,
