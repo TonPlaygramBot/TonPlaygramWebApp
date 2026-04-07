@@ -18,7 +18,6 @@ export default function AvatarTimer({
   imageScale = 1,
   imageYOffset = 0,
   imageZoom = 1,
-  frameScale = 1,
   scoreStyle = {},
   rollHistoryStyle = {},
   nameCurveRadius = 45,
@@ -50,8 +49,7 @@ export default function AvatarTimer({
         <div
           className="avatar-timer-ring"
           style={{
-            '--timer-gradient': gradient,
-            transform: `scale(${frameScale})`
+            '--timer-gradient': gradient
           }}
         />
       )}
