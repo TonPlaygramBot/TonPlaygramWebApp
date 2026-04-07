@@ -4,7 +4,7 @@ import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js';
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
@@ -69,37 +69,7 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
   ...BASE_CHAIR_OPTIONS
 ]);
 
-const CHESS_SPECIAL_TABLE_OPTIONS = Object.freeze([
-  {
-    id: 'ovalTable',
-    label: 'Oval Table',
-    source: 'procedural',
-    price: 1120,
-    thumbnail: polyHavenThumb('modern_coffee_table_02'),
-    description: 'Oval battle table profile mirrored from Texas Hold’em table variants.'
-  },
-  {
-    id: 'diamondEdge',
-    label: 'Diamond Edge Table',
-    source: 'procedural',
-    price: 1160,
-    thumbnail: polyHavenThumb('gothic_coffee_table'),
-    description: 'Diamond-edge tournament table profile shared with Texas Hold’em.'
-  },
-  {
-    id: 'hexagonTable',
-    label: 'Hexagon Table',
-    source: 'procedural',
-    price: 1140,
-    thumbnail: polyHavenThumb('round_wooden_table_02'),
-    description: 'Hexagon battle table profile shared with Texas Hold’em.'
-  }
-]);
-
-export const CHESS_TABLE_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_THEMES,
-  ...CHESS_SPECIAL_TABLE_OPTIONS
-]);
+export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
