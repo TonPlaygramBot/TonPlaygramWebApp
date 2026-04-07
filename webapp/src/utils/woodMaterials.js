@@ -446,6 +446,27 @@ const makeInlinePlasticSnakePattern = ({ id, base = '#2b2f36', sheen = '#3f4652'
 </svg>`);
   return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
 };
+
+const makeInlinePlasticAlligatorPattern = ({ id, base = '#4f5a43', sheen = '#7a8668' }) => {
+  const pattern = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="${id}-plastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${base}"/>
+      <stop offset="45%" stop-color="${sheen}"/>
+      <stop offset="100%" stop-color="${base}"/>
+    </linearGradient>
+    <pattern id="${id}-alligator" patternUnits="userSpaceOnUse" width="72" height="72">
+      <path d="M4 18 L24 6 L42 14 L36 34 L16 40 Z" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="1.6"/>
+      <path d="M38 40 L58 30 L68 44 L58 62 L38 64 L30 52 Z" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.2"/>
+      <path d="M8 50 L24 42 L38 52 L32 68 L12 70 L4 60 Z" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1.1"/>
+    </pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#${id}-plastic)"/>
+  <rect width="256" height="256" fill="url(#${id}-alligator)"/>
+</svg>`);
+  return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
+};
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -659,6 +680,156 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
         id: 'plastic-monoblock-lt-dark-green-snake-frame',
         base: '#2b4533',
         sheen: '#3d6148'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_olive_alligator',
+    label: 'LT Olive Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Olive)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-olive-alligator-rail',
+        base: '#4c5d3f',
+        sheen: '#6d7d58'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-olive-alligator-frame',
+        base: '#4c5d3f',
+        sheen: '#6d7d58'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_swamp_alligator',
+    label: 'LT Swamp Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Swamp)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-swamp-alligator-rail',
+        base: '#304b36',
+        sheen: '#48624d'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-swamp-alligator-frame',
+        base: '#304b36',
+        sheen: '#48624d'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_clay_alligator',
+    label: 'LT Clay Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Clay)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-clay-alligator-rail',
+        base: '#5f4c3c',
+        sheen: '#816a56'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-clay-alligator-frame',
+        base: '#5f4c3c',
+        sheen: '#816a56'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_sand_alligator',
+    label: 'LT Sand Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Sand)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-sand-alligator-rail',
+        base: '#7e6e56',
+        sheen: '#a49277'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-sand-alligator-frame',
+        base: '#7e6e56',
+        sheen: '#a49277'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_moss_alligator',
+    label: 'LT Moss Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Moss)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-moss-alligator-rail',
+        base: '#435340',
+        sheen: '#60715c'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-moss-alligator-frame',
+        base: '#435340',
+        sheen: '#60715c'
+      })
+    }
+  }),
+  Object.freeze({
+    id: 'plastic_monoblock_lt_night_alligator',
+    label: 'LT Night Alligator',
+    source: 'TonPlaygram molded-plastic satin alligator texture (LT Night)',
+    rail: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-night-alligator-rail',
+        base: '#263129',
+        sheen: '#3a453c'
+      })
+    },
+    frame: {
+      repeat: { x: 6.8, y: 6.8 },
+      rotation: 0,
+      textureSize: 2048,
+      ...makeInlinePlasticAlligatorPattern({
+        id: 'plastic-monoblock-lt-night-alligator-frame',
+        base: '#263129',
+        sheen: '#3a453c'
       })
     }
   }),
