@@ -544,7 +544,13 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   carbonFiberSnakeChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
   carbonFiberSnakeChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
   carbonFiberSnakeChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
-  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878'])
+  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878']),
+  carbonFiberAlligatorChalk: swatchThumbnail(['#2d3a2d', '#445644', '#5f745f']),
+  carbonFiberAlligatorChalkGrey: swatchThumbnail(['#6f7667', '#8d967f', '#b3bc9f']),
+  carbonFiberAlligatorChalkBeige: swatchThumbnail(['#4c5548', '#65705f', '#85947c']),
+  carbonFiberAlligatorChalkDarkBlue: swatchThumbnail(['#5f4638', '#7a5d4a', '#9a775f']),
+  carbonFiberAlligatorChalkWhite: swatchThumbnail(['#bdb79e', '#d6cfb6', '#ebe4ce']),
+  carbonFiberAlligatorChalkDarkGreen: swatchThumbnail(['#3c4f33', '#57704a', '#76955f'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -657,7 +663,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberSnakeChalkBeige: 'LT Dark Grey Snake',
     carbonFiberSnakeChalkDarkBlue: 'LT Burgundy Snake',
     carbonFiberSnakeChalkWhite: 'LT Milk Cream Snake',
-    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake'
+    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake',
+    carbonFiberAlligatorChalk: 'LT Black Alligator',
+    carbonFiberAlligatorChalkGrey: 'LT Grey Alligator',
+    carbonFiberAlligatorChalkBeige: 'LT Dark Grey Alligator',
+    carbonFiberAlligatorChalkDarkBlue: 'LT Burgundy Alligator',
+    carbonFiberAlligatorChalkWhite: 'LT Milk Cream Alligator',
+    carbonFiberAlligatorChalkDarkGreen: 'LT Dark Green Alligator'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -879,6 +891,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1300,
     description: 'Dark-green LT snake-weave finish with matching LT color tone and weave scale.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkGreen
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalk',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalk',
+    name: 'LT Black Alligator Finish',
+    price: 1310,
+    description: 'Black LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalk
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalkGrey',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalkGrey',
+    name: 'LT Grey Alligator Finish',
+    price: 1320,
+    description: 'Grey LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalkGrey
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalkBeige',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalkBeige',
+    name: 'LT Dark Grey Alligator Finish',
+    price: 1330,
+    description: 'Dark-grey LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalkBeige
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalkDarkBlue',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalkDarkBlue',
+    name: 'LT Burgundy Alligator Finish',
+    price: 1340,
+    description: 'Burgundy LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalkDarkBlue
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalkWhite',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalkWhite',
+    name: 'LT Milk Cream Alligator Finish',
+    price: 1350,
+    description: 'Milk-cream LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalkWhite
+  },
+  {
+    id: 'finish-carbonFiberAlligatorChalkDarkGreen',
+    type: 'tableFinish',
+    optionId: 'carbonFiberAlligatorChalkDarkGreen',
+    name: 'LT Dark Green Alligator Finish',
+    price: 1360,
+    description: 'Dark-green LT alligator-skin texture finish tuned to natural alligator tones.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorChalkDarkGreen
   },
   {
     id: 'chrome-chrome',
