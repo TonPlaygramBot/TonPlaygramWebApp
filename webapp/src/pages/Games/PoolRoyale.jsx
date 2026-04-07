@@ -14974,12 +14974,6 @@ function PoolRoyaleGame({
     }
   }, [autoReplayEnabled]);
   useEffect(() => {
-    if (!ENABLE_SHOT_REPLAY) return;
-    if (!autoReplayEnabled && replayActive) {
-      skipReplayRef.current?.();
-    }
-  }, [autoReplayEnabled, replayActive]);
-  useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -21545,22 +21539,20 @@ const powerRef = useRef(hud.power);
           });
           const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
-          const forceImmediateRailOverhead = Boolean(railNormal);
-          const activationDelay = !forceImmediateRailOverhead && longShot
+          const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
-          const activationTravel = !forceImmediateRailOverhead && longShot
+          const activationTravel = longShot
             ? Math.max(
                 BALL_R * 12,
                 Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
               )
             : 0;
-          const beginsWithCueFollow = targetId != null;
           return {
             mode: 'action',
             cueId: cueBall.id,
             targetId: targetId ?? null,
-            stage: beginsWithCueFollow ? 'followCue' : 'pair',
+            stage: 'pair',
             exitAfterHold: false,
             resume: followView ?? null,
             orbitSnapshot,
@@ -21572,7 +21564,6 @@ const powerRef = useRef(hud.power);
               : null,
             holdUntil: null,
             hitConfirmed: false,
-            queuedPairStageAfterCueFollow: beginsWithCueFollow,
             lastCueDir: cueBall.vel.clone(),
             cueLookAhead: longShot ? BALL_R * 9 : BALL_R * 6,
             axis,
@@ -21585,7 +21576,7 @@ const powerRef = useRef(hud.power);
             travelDistance,
             activationDelay,
             activationTravel,
-            pendingActivation: !forceImmediateRailOverhead && longShot,
+            pendingActivation: longShot,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
@@ -30800,22 +30791,6 @@ const powerRef = useRef(hud.power);
             if (cueBall.vel.lengthSq() > 1e-6) {
               activeShotView.lastCueDir = cueBall.vel.clone().normalize();
             }
-            if (
-              activeShotView.stage === 'followCue' &&
-              activeShotView.queuedPairStageAfterCueFollow &&
-              activeShotView.hitConfirmed
-            ) {
-              activeShotView.stage = 'pair';
-              activeShotView.queuedPairStageAfterCueFollow = false;
-              activeShotView.lastUpdate = now;
-              if (cameraRef.current) {
-                activeShotView.smoothedPos = cameraRef.current.position.clone();
-                const storedTarget = lastCameraTargetRef.current?.clone();
-                if (storedTarget) {
-                  activeShotView.smoothedTarget = storedTarget;
-                }
-              }
-            }
             if (activeShotView.stage === 'pair') {
               const targetBall =
                 activeShotView.targetId != null
@@ -33130,23 +33105,23 @@ const powerRef = useRef(hud.power);
                   <button
                     type="button"
                     onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                    aria-pressed={!autoReplayEnabled}
+                    aria-pressed={autoReplayEnabled}
                     className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      !autoReplayEnabled
+                      autoReplayEnabled
                         ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                         : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                        Skip all replays
+                        Auto Replay
                       </span>
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                        {autoReplayEnabled ? 'Off' : 'On'}
+                        {autoReplayEnabled ? 'On' : 'Off'}
                       </span>
                     </span>
                     <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                      Turn this on to disable automatic replay playback for every shot.
+                      Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
                   </button>
                 </div>
