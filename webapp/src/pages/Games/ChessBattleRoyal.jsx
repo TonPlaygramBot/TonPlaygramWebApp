@@ -206,6 +206,8 @@ const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_UNITS_PER_METER = 1;
+const TABLE_GROUND_CONTACT_PATTERN = /(leg|base|foot|pedestal|support|column|stand)/i;
+const CHAIR_GROUND_CONTACT_PATTERN = /(leg|foot|base|stand|support)/i;
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   CHESS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -1741,11 +1743,30 @@ function computeGroupFloorY(objects = []) {
   return box.min.y;
 }
 
-function alignGroupToFloorY(group, floorY = 0) {
+function resolveGroundContactMinY(group, contactNamePattern) {
+  if (!group || !(contactNamePattern instanceof RegExp)) return null;
+  const box = new THREE.Box3();
+  let hasMatch = false;
+  group.traverse((node) => {
+    if (!node?.isObject3D) return;
+    const nodeName = `${node.name || ''}`;
+    if (!contactNamePattern.test(nodeName)) return;
+    const nodeBox = new THREE.Box3().setFromObject(node);
+    if (!Number.isFinite(nodeBox.min.y)) return;
+    box.expandByObject(node);
+    hasMatch = true;
+  });
+  if (!hasMatch || !Number.isFinite(box.min.y)) return null;
+  return box.min.y;
+}
+
+function alignGroupToFloorY(group, floorY = 0, options = {}) {
   if (!group) return 0;
+  const contactMinY = resolveGroundContactMinY(group, options?.contactNamePattern);
   const box = new THREE.Box3().setFromObject(group);
-  if (!Number.isFinite(box.min.y)) return 0;
-  const offset = floorY - box.min.y;
+  const sourceMinY = Number.isFinite(contactMinY) ? contactMinY : box.min.y;
+  if (!Number.isFinite(sourceMinY)) return 0;
+  const offset = floorY - sourceMinY;
   if (Math.abs(offset) > 1e-4) {
     group.position.y += offset;
   }
@@ -6037,6 +6058,7 @@ function Chess3D({
     return { ...DEFAULT_APPEARANCE };
   });
   const appearanceRef = useRef(appearance);
+  const appearanceAutoSyncDoneRef = useRef(false);
   const paletteRef = useRef(createChessPalette(appearance));
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
     CUSTOMIZATION_SECTIONS[0]?.key ?? 'tables'
@@ -6438,7 +6460,9 @@ function Chess3D({
   );
 
   useEffect(() => {
+    if (appearanceAutoSyncDoneRef.current) return;
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
+    appearanceAutoSyncDoneRef.current = true;
   }, [ensureAppearanceUnlocked]);
 
   const renderCustomizationPreview = useCallback((key, option) => {
@@ -7013,7 +7037,9 @@ function Chess3D({
         if (nextTable?.materials) {
           applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         }
-        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, 0);
+        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, 0, {
+          contactNamePattern: TABLE_GROUND_CONTACT_PATTERN
+        });
         if (nextTable?.surfaceY != null) {
           nextTable.surfaceY += tableFloorOffset;
         }
@@ -7031,7 +7057,11 @@ function Chess3D({
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, 0));
+        (arena.chairs || []).forEach((chair) =>
+          alignGroupToFloorY(chair.group, 0, {
+            contactNamePattern: CHAIR_GROUND_CONTACT_PATTERN
+          })
+        );
         const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
         const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
         const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
@@ -7493,7 +7523,9 @@ function Chess3D({
     if (tableInfo?.materials) {
       applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
     }
-    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, 0);
+    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, 0, {
+      contactNamePattern: TABLE_GROUND_CONTACT_PATTERN
+    });
     if (tableInfo?.surfaceY != null) {
       tableInfo.surfaceY += tableFloorOffset;
     }
@@ -7535,12 +7567,16 @@ function Chess3D({
     chairA.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE);
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
-    alignGroupToFloorY(chairA.group, 0);
+    alignGroupToFloorY(chairA.group, 0, {
+      contactNamePattern: CHAIR_GROUND_CONTACT_PATTERN
+    });
     chairs.push(chairA);
     const chairB = makeChair(1);
     chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
     arena.add(chairB.group);
-    alignGroupToFloorY(chairB.group, 0);
+    alignGroupToFloorY(chairB.group, 0, {
+      contactNamePattern: CHAIR_GROUND_CONTACT_PATTERN
+    });
     chairs.push(chairB);
 
     const tablePlacementOffset = alignArenaContentsToRoom(
