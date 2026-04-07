@@ -2280,7 +2280,7 @@ const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
 const CHAIR_INWARD_OFFSET = 0.18 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
 const AI_CHAIR_GAP = CARD_W * 0.2;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
+const AI_CHAIR_RADIUS = (TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45) * 0.96;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.12 * 1.15;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12, landscape: 0.56 });
@@ -2359,7 +2359,7 @@ const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.45;
-const CAMERA_SIDE_LOOK_EXTRA = 0.22 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.32 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
@@ -3626,6 +3626,11 @@ export default function MurlanRoyaleArena({ search }) {
     const discardSet = new Set(state.discardPile.map((card) => card.id));
 
     const seatConfigs = three.seatConfigs;
+    const humanSeatLayout = seatConfigs.find((seat, seatIdx) => state.players?.[seatIdx]?.isHuman);
+    const sharedHorizontalAxis = humanSeatLayout?.right?.clone?.() ?? null;
+    if (sharedHorizontalAxis && sharedHorizontalAxis.lengthSq() > 1e-6) {
+      sharedHorizontalAxis.normalize();
+    }
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
@@ -3667,7 +3672,9 @@ export default function MurlanRoyaleArena({ search }) {
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
-        const layoutAxis = right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
+        const layoutAxis = (!isHumanCard && sharedHorizontalAxis)
+          ? sharedHorizontalAxis.clone()
+          : (right?.clone?.() ?? new THREE.Vector3(1, 0, 0));
         if (layoutAxis.lengthSq() > 1e-6) {
           layoutAxis.normalize();
         } else {
@@ -5277,20 +5284,33 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
+            const isTopSeat = Boolean(anchor) && anchor.y <= 35;
             const sideSeatTopLift = isSideSeat ? 12 : 0;
+            const topSeatLift = isTopSeat ? 7 : 0;
+            const inwardAnchorX = anchor
+              ? 50 + (anchor.x - 50) * (isSideSeat ? 0.92 : 1)
+              : null;
             const positionStyle = idx === humanPlayerIndex
-              ? {
-                  position: 'fixed',
-                  left: '50%',
-                  bottom: 'calc(12rem + env(safe-area-inset-bottom, 0px))',
-                  transform: 'translateX(-50%)',
-                  zIndex: 24
-                }
+              ? (anchor
+                  ? {
+                      position: 'absolute',
+                      left: `${inwardAnchorX}%`,
+                      top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift, -12, 110)}%`,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 24
+                    }
+                  : {
+                      position: 'absolute',
+                      left: fallback.left,
+                      top: fallback.top,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 24
+                    })
               : anchor
                 ? {
                     position: 'absolute',
-                    left: `${anchor.x}%`,
-                    top: `${clampValue(anchor.y - sideSeatTopLift, -10, 110)}%`,
+                    left: `${inwardAnchorX}%`,
+                    top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift, -12, 110)}%`,
                     transform: 'translate(-50%, -50%)'
                   }
                 : {
