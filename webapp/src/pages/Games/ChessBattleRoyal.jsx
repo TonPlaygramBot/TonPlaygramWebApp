@@ -1857,13 +1857,6 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const DEFAULT_TABLE_SHAPE_OPTION =
   TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') || TABLE_SHAPE_OPTIONS[0];
-const TABLE_STYLE_MENU_THEME_IDS = new Set(['murlan-default', 'diamondEdge', 'ovalTable', 'hexagonTable']);
-const TABLE_THEME_TO_SHAPE_ID = Object.freeze({
-  'murlan-default': 'classicOctagon',
-  ovalTable: 'grandOval',
-  diamondEdge: 'diamondEdge',
-  hexagonTable: 'hexagonTable'
-});
 
 const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
@@ -1899,16 +1892,10 @@ function normalizeAppearance(value = {}) {
   return normalized;
 }
 
-function getEffectiveShapeConfig(tableThemeId) {
+function getEffectiveShapeConfig() {
   const fallback = DEFAULT_TABLE_SHAPE_OPTION ?? TABLE_SHAPE_OPTIONS[0];
-  const requestedShapeId = TABLE_THEME_TO_SHAPE_ID[tableThemeId] || fallback?.id;
-  const requested =
-    TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) || fallback;
-  let rotationY = 0;
-  if (requested?.id === 'hexagonTable') rotationY = Math.PI / 6;
-  if (requested?.id === 'classicOctagon') rotationY = Math.PI / 8;
-  if (requested?.id === 'diamondEdge') rotationY = Math.PI / 4;
-  return { option: requested ?? fallback, rotationY, forced: false };
+  const requested = DEFAULT_TABLE_SHAPE_OPTION ?? fallback;
+  return { option: requested ?? fallback, rotationY: 0, forced: false };
 }
 
 const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -6046,7 +6033,6 @@ function Chess3D({
     pixelRatioScale: RENDER_PIXEL_RATIO_SCALE
   });
   const aiMovingRef = useRef(false);
-  const tableRebuildTokenRef = useRef(0);
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
@@ -6387,22 +6373,15 @@ function Chess3D({
     setMoveMode('click');
   }, [viewMode]);
 
-  const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
-  const activeTableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
-  const showTableSurfaceOptions = TABLE_STYLE_MENU_THEME_IDS.has(activeTableTheme?.id);
-
   const customizationSections = useMemo(
     () =>
-      CUSTOMIZATION_SECTIONS
-        .filter((section) => (section.key === 'tableFinish' ? showTableSurfaceOptions : true))
-        .map((section) => ({
-          ...section,
-          options: section.options
-            .map((option, idx) => ({ ...option, idx }))
-            .filter(({ id }) => isChessOptionUnlocked(section.key, id, chessInventory))
-        }))
-        .filter((section) => section.options.length > 0),
-    [chessInventory, showTableSurfaceOptions]
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isChessOptionUnlocked(section.key, id, chessInventory))
+      })).filter((section) => section.options.length > 0),
+    [chessInventory]
   );
 
   const quickSideOptions = useMemo(
@@ -7006,7 +6985,7 @@ function Chess3D({
     const baseOption = DEFAULT_BASE_OPTION;
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(tableTheme?.id);
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig();
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
@@ -7019,7 +6998,6 @@ function Chess3D({
       const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
 
       const rebuildTable = async () => {
-        const rebuildToken = ++tableRebuildTokenRef.current;
         const { boardGroup } = arena;
         if (boardGroup && arena.tableInfo?.group) {
           arena.tableInfo.group.remove(boardGroup);
@@ -7039,14 +7017,6 @@ function Chess3D({
           textureCache: arena.textureCache,
           fallbackTexture: arena.fallbackTexture
         });
-        if (rebuildToken !== tableRebuildTokenRef.current) {
-          if (boardGroup && !boardGroup.parent && arena.tableInfo?.group) {
-            arena.tableInfo.group.add(boardGroup);
-            alignBoardGroupToTableSurface(boardGroup, arena.tableInfo);
-          }
-          nextTable?.dispose?.();
-          return;
-        }
         if (!arenaRef.current) {
           nextTable?.dispose?.();
           return;
@@ -7311,7 +7281,7 @@ function Chess3D({
       const baseOption = DEFAULT_BASE_OPTION;
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
       const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
-      const { option: shapeOption, rotationY } = getEffectiveShapeConfig(tableTheme?.id);
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfig();
       const pieceMaterials = createPieceMaterials(pieceStyleOption);
       disposers.push(() => {
         disposePieceMaterials(pieceMaterials);
