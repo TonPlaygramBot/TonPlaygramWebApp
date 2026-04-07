@@ -2488,11 +2488,11 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.5, y: 3.8 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 8.6, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
-const LT_FINISH_BRIGHTNESS_LIFT = 0.16;
-const LT_FINISH_CONTRAST_BOOST = 1.2;
-const LT_MATTE_NORMAL_SCALE = 0.68;
+const LT_FINISH_BRIGHTNESS_LIFT = 0.2;
+const LT_FINISH_CONTRAST_BOOST = 1.26;
+const LT_MATTE_NORMAL_SCALE = 0.88;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -2601,7 +2601,7 @@ function applyLtCarbonFiberTexture(material) {
   material.needsUpdate = true;
 }
 
-function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
+function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 512) {
   if (typeof document === 'undefined') return null;
   const tintColor = new THREE.Color(tintHex);
   const key = `${tintColor.getHexString()}-${size}`;
@@ -2647,7 +2647,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
       normalImage.data[i + 1] = THREE.MathUtils.clamp(128 + grain * 22, 0, 255);
       normalImage.data[i + 2] = THREE.MathUtils.clamp(220 + micropit * 34, 0, 255);
       normalImage.data[i + 3] = 255;
-      const rough = THREE.MathUtils.clamp(214 + dither * 16 + grain * 12 + micropit * 10, 150, 255);
+      const rough = THREE.MathUtils.clamp(226 + dither * 16 + grain * 14 + micropit * 12, 170, 255);
       roughImage.data[i] = rough;
       roughImage.data[i + 1] = rough;
       roughImage.data[i + 2] = rough;
@@ -2667,7 +2667,7 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 320) {
     texture.repeat.set(LT_MATTE_PLASTIC_TEXTURE_REPEAT.x, LT_MATTE_PLASTIC_TEXTURE_REPEAT.y);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
     texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
     texture.needsUpdate = true;
     if (idx === 0) {
@@ -2690,7 +2690,7 @@ function applyMonoMattePlasticSurface(material) {
     material.metalness = 0;
   }
   if ('roughness' in material) {
-    material.roughness = 0.94;
+    material.roughness = 0.98;
   }
   if ('clearcoat' in material) {
     material.clearcoat = 0;
@@ -2708,7 +2708,7 @@ function applyMonoMattePlasticSurface(material) {
     material.reflectivity = 0;
   }
   if ('envMapIntensity' in material) {
-    material.envMapIntensity = 0.12;
+    material.envMapIntensity = 0.08;
   }
   if ('normalScale' in material && material.normalMap) {
     material.normalScale = new THREE.Vector2(LT_MATTE_NORMAL_SCALE, LT_MATTE_NORMAL_SCALE);
@@ -4490,6 +4490,7 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
+        map = neutralizePolyHavenColorMap(map);
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
@@ -13312,7 +13313,14 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(true);
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(AUTO_REPLAY_STORAGE_KEY);
+      if (stored === '0') return false;
+      if (stored === '1') return true;
+    }
+    return true;
+  });
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -14279,7 +14287,7 @@ function PoolRoyaleGame({
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
   const sharedHudLiftPx = portraitViewport ? 24 : 34;
-  const spinControllerLiftPx = portraitViewport ? 14 : 16;
+  const spinControllerLiftPx = portraitViewport ? 18 : 16;
   const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = -14;
   const menuButtonCenterNudgePx = 0;
@@ -14287,8 +14295,8 @@ function PoolRoyaleGame({
   const sideActionButtonsDropPx = 18;
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
-  const rightHudShiftPx = portraitViewport ? 24 : 12;
-  const bottomHudLeftPx = -46;
+  const rightHudShiftPx = portraitViewport ? 30 : 12;
+  const bottomHudLeftPx = -56;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -22747,7 +22755,10 @@ const powerRef = useRef(hud.power);
         };
 
         const trimReplayRecording = (recording) => {
-          const frames = recording?.frames ?? [];
+          const rawFrames = recording?.frames ?? [];
+          const frames = rawFrames
+            .map((frame) => ({ ...frame, t: Number(frame?.t) || 0 }))
+            .sort((a, b) => a.t - b.t);
           const cuePath = recording?.cuePath ?? [];
           const cueStrokeRaw = recording?.cueStroke ?? null;
           const normalizeStrokeVec = (value) =>
@@ -22770,7 +22781,22 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const duration = frames[frames.length - 1]?.t ?? 0;
+          let duration = frames[frames.length - 1]?.t ?? 0;
+          if (!Number.isFinite(duration) || duration <= 0) {
+            const frameSeed = frames[frames.length - 1] ?? frames[0];
+            const fallbackDuration = 180;
+            frames.push({
+              ...frameSeed,
+              t: fallbackDuration
+            });
+            duration = fallbackDuration;
+          } else if (frames.length === 1) {
+            frames.push({
+              ...frames[0],
+              t: duration + 16
+            });
+            duration = frames[1].t;
+          }
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -28600,7 +28626,7 @@ const powerRef = useRef(hud.power);
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 1;
+          const hasReplayFrames = (shotRecording?.frames?.length ?? 0) > 0;
           let shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
             autoReplayEnabled &&
@@ -28831,7 +28857,9 @@ const powerRef = useRef(hud.power);
           }
           replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
           replayAccent = replayDecision.primaryTag ?? 'final';
-          shouldStartReplay = ENABLE_SHOT_REPLAY && autoReplayEnabled;
+          shouldStartReplay =
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -29307,7 +29335,11 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (ENABLE_SHOT_REPLAY && autoReplayEnabled && pending?.frames?.length > 1) {
+          if (
+            ENABLE_SHOT_REPLAY &&
+            autoReplayEnabled &&
+            pending?.frames?.length > 1
+          ) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -33469,6 +33501,20 @@ const powerRef = useRef(hud.power);
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                     Replay Controls
                   </h3>
+                  <button
+                    type="button"
+                    onClick={() => skipReplayRef.current?.()}
+                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-left text-white/80 transition-all duration-200 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Skip replay now
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Immediately close the active replay and return to gameplay.
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setAutoReplayEnabled((prev) => !prev)}
