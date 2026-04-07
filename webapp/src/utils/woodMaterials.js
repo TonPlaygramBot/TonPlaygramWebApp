@@ -373,7 +373,14 @@ const makeInlineOakVeneerPattern = ({
 };
 
 
-const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4652' }) => {
+const makeInlinePlasticMonoblockPattern = ({
+  id,
+  base = '#2b2f36',
+  sheen = '#3f4652',
+  patternScale = 1,
+  patternStrength = 1,
+  brightnessBoost = 0
+}) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -388,10 +395,13 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const { data } = imageData;
+      const tunedScale = Number.isFinite(patternScale) && patternScale > 0 ? patternScale : 1;
+      const tunedStrength = Number.isFinite(patternStrength) ? patternStrength : 1;
+      const tunedBrightness = Number.isFinite(brightnessBoost) ? brightnessBoost : 0;
       const tileNoise = (u, v) => {
-        const n1 = Math.sin((u * Math.PI * 2 * 7.1) + (v * Math.PI * 2 * 4.3));
-        const n2 = Math.cos((u * Math.PI * 2 * 11.7) - (v * Math.PI * 2 * 9.6));
-        const n3 = Math.sin((u * Math.PI * 2 * 17.2) + (v * Math.PI * 2 * 15.8));
+        const n1 = Math.sin((u * Math.PI * 2 * 7.1 * tunedScale) + (v * Math.PI * 2 * 4.3 * tunedScale));
+        const n2 = Math.cos((u * Math.PI * 2 * 11.7 * tunedScale) - (v * Math.PI * 2 * 9.6 * tunedScale));
+        const n3 = Math.sin((u * Math.PI * 2 * 17.2 * tunedScale) + (v * Math.PI * 2 * 15.8 * tunedScale));
         return (n1 * 0.45 + n2 * 0.35 + n3 * 0.2) * 0.5;
       };
       for (let y = 0; y < canvas.height; y += 1) {
@@ -399,10 +409,10 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
         for (let x = 0; x < canvas.width; x += 1) {
           const u = x / canvas.width;
           const i = (y * canvas.width + x) * 4;
-          const grain = tileNoise(u, v) * 18;
-          const speck = tileNoise(u * 1.9 + 0.17, v * 2.2 + 0.33) * 8;
-          const swirl = Math.sin((u + v) * Math.PI * 2 * 5.3) * 3.5;
-          const delta = grain + speck + swirl;
+          const grain = tileNoise(u, v) * 18 * tunedStrength;
+          const speck = tileNoise(u * 1.9 + 0.17, v * 2.2 + 0.33) * 8 * tunedStrength;
+          const swirl = Math.sin((u + v) * Math.PI * 2 * 5.3 * tunedScale) * 3.5 * tunedStrength;
+          const delta = grain + speck + swirl + tunedBrightness;
           data[i] = Math.max(0, Math.min(255, data[i] + delta));
           data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + delta));
           data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + delta));
@@ -425,6 +435,12 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
 </svg>`);
   return { mapUrl: fallback, roughnessMapUrl: null, normalMapUrl: null };
 };
+
+const LT_PLASTIC_PATTERN_TUNING = Object.freeze({
+  patternScale: 1.2,
+  patternStrength: 1.18,
+  brightnessBoost: 7
+});
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -738,7 +754,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-black-rail',
         base: '#1a2028',
-        sheen: '#313946'
+        sheen: '#313946',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -748,7 +765,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-black-frame',
         base: '#1a2028',
-        sheen: '#313946'
+        sheen: '#313946',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -763,7 +781,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-grey-rail',
         base: '#676f7c',
-        sheen: '#8e97a6'
+        sheen: '#8e97a6',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -773,7 +792,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-grey-frame',
         base: '#676f7c',
-        sheen: '#8e97a6'
+        sheen: '#8e97a6',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -788,7 +808,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-grey-rail',
         base: '#39414b',
-        sheen: '#505a67'
+        sheen: '#505a67',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -798,7 +819,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-grey-frame',
         base: '#39414b',
-        sheen: '#505a67'
+        sheen: '#505a67',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -813,7 +835,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-burgundy-rail',
         base: '#5b2f26',
-        sheen: '#7c4a3b'
+        sheen: '#7c4a3b',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -823,7 +846,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-burgundy-frame',
         base: '#5b2f26',
-        sheen: '#7c4a3b'
+        sheen: '#7c4a3b',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -838,7 +862,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-milk-cream-rail',
         base: '#d2c2ac',
-        sheen: '#e5d5c1'
+        sheen: '#e5d5c1',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -848,7 +873,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-milk-cream-frame',
         base: '#d2c2ac',
-        sheen: '#e5d5c1'
+        sheen: '#e5d5c1',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -863,7 +889,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-green-rail',
         base: '#2b4533',
-        sheen: '#3d6148'
+        sheen: '#3d6148',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -873,7 +900,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-green-frame',
         base: '#2b4533',
-        sheen: '#3d6148'
+        sheen: '#3d6148',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -888,7 +916,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-yellow-rail',
         base: '#876426',
-        sheen: '#a27b33'
+        sheen: '#a27b33',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -898,7 +927,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-yellow-frame',
         base: '#876426',
-        sheen: '#a27b33'
+        sheen: '#a27b33',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -913,7 +943,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-brown-rail',
         base: '#5a3a2a',
-        sheen: '#734a37'
+        sheen: '#734a37',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -923,7 +954,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-brown-frame',
         base: '#5a3a2a',
-        sheen: '#734a37'
+        sheen: '#734a37',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
@@ -938,7 +970,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-red-rail',
         base: '#6a2323',
-        sheen: '#8a3434'
+        sheen: '#8a3434',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     },
     frame: {
@@ -948,7 +981,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       ...makeInlinePlasticMonoblockPattern({
         id: 'plastic-monoblock-lt-dark-red-frame',
         base: '#6a2323',
-        sheen: '#8a3434'
+        sheen: '#8a3434',
+        ...LT_PLASTIC_PATTERN_TUNING
       })
     }
   }),
