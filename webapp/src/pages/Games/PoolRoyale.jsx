@@ -5968,7 +5968,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look dynamics only
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
-const ENABLE_SHOT_REPLAY = false; // Pool Royale broadcast update: remove replay playback and keep live rail-overhead coverage
+const ENABLE_SHOT_REPLAY = true;
 const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
@@ -13312,7 +13312,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [autoReplayEnabled, setAutoReplayEnabled] = useState(false);
+  const [autoReplayEnabled, setAutoReplayEnabled] = useState(true);
   const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -20399,16 +20399,6 @@ const powerRef = useRef(hud.power);
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
-            const movingCount = ballsList.reduce(
-              (count, ball) =>
-                count +
-                (ball.active && ball.vel.lengthSq() > STOP_EPS * STOP_EPS ? 1 : 0),
-              0
-            );
-            const useOverheadBroadcast =
-              activeShotView.preferRailOverhead ||
-              movingCount > POCKET_CHAOS_MOVING_THRESHOLD;
-            let overheadApplied = false;
             if (!cueBall?.active) {
               activeShotView = null;
             } else {
@@ -20787,7 +20777,6 @@ const powerRef = useRef(hud.power);
                 }
                 if (shouldForceRailOverhead) {
                   activeShotView.preferRailOverhead = true;
-                  activeShotView.lockOverheadFocus = false;
                 }
               }
               const broadcastRailDir =
@@ -20805,16 +20794,11 @@ const powerRef = useRef(hud.power);
                 orbitWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
                 lerp: lerpT
               };
-              const overheadFocusOverride = activeShotView.lockOverheadFocus
-                ? null
-                : focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld;
-              const overheadMinTargetY = activeShotView.lockOverheadFocus
-                ? baseSurfaceWorldY
-                : focusTargetVec3?.y ?? baseSurfaceWorldY;
+              let railReplayCamera = null;
               if (activeShotView.preferRailOverhead) {
-                const railReplayCamera = resolveRailOverheadReplayCamera({
-                  focusOverride: overheadFocusOverride,
-                  minTargetY: overheadMinTargetY
+                railReplayCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                  minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
                 });
                 if (railReplayCamera) {
                   broadcastArgs.focusWorld =
@@ -20838,46 +20822,28 @@ const powerRef = useRef(hud.power);
                   broadcastArgs.orbitWorld = defaultFocus;
                 }
               }
-              if (focusTargetVec3 && desiredPosition) {
-                if (useOverheadBroadcast) {
-                  const railReplayCamera = resolveRailOverheadReplayCamera({
-                    focusOverride: overheadFocusOverride,
-                    minTargetY: overheadMinTargetY
-                  });
-                  if (railReplayCamera?.position) {
-                    const resolvedTarget = activeShotView.lockOverheadFocus
-                      ? railReplayCamera.target ?? broadcastArgs.focusWorld
-                      : railReplayCamera.target ??
-                        focusTargetVec3 ??
-                        lookTarget ??
-                        broadcastArgs.focusWorld;
-                    camera.position.copy(railReplayCamera.position);
-                    camera.lookAt(resolvedTarget);
-                    lookTarget = resolvedTarget;
-                    renderCamera = camera;
-                    broadcastArgs.focusWorld = resolvedTarget.clone();
-                    broadcastArgs.targetWorld = resolvedTarget.clone();
-                    broadcastArgs.orbitWorld = railReplayCamera.position.clone();
-                    broadcastArgs.lerp = 0.12;
-                    overheadApplied = true;
-                  }
+              if (activeShotView.preferRailOverhead && railReplayCamera?.position) {
+                const overheadTarget =
+                  railReplayCamera.target?.clone?.() ?? focusTargetVec3 ?? lookTarget;
+                camera.position.copy(railReplayCamera.position);
+                camera.lookAt(overheadTarget);
+                lookTarget = overheadTarget;
+                renderCamera = camera;
+              } else if (focusTargetVec3 && desiredPosition) {
+                if (!activeShotView.smoothedPos) {
+                  activeShotView.smoothedPos = desiredPosition.clone();
+                } else {
+                  activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
                 }
-                if (!overheadApplied) {
-                  if (!activeShotView.smoothedPos) {
-                    activeShotView.smoothedPos = desiredPosition.clone();
-                  } else {
-                    activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
-                  }
-                  if (!activeShotView.smoothedTarget) {
-                    activeShotView.smoothedTarget = focusTargetVec3.clone();
-                  } else {
-                    activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
-                  }
-                  camera.position.copy(activeShotView.smoothedPos);
-                  camera.lookAt(activeShotView.smoothedTarget);
-                  lookTarget = activeShotView.smoothedTarget;
-                  renderCamera = camera;
+                if (!activeShotView.smoothedTarget) {
+                  activeShotView.smoothedTarget = focusTargetVec3.clone();
+                } else {
+                  activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
                 }
+                camera.position.copy(activeShotView.smoothedPos);
+                camera.lookAt(activeShotView.smoothedTarget);
+                lookTarget = activeShotView.smoothedTarget;
+                renderCamera = camera;
               }
             }
           } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
@@ -21627,7 +21593,6 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
-            lockOverheadFocus: false,
             longShot,
             travelDistance,
             activationDelay,
@@ -26269,7 +26234,6 @@ const powerRef = useRef(hud.power);
           }
           if (actionView && !earlyPocketView) {
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
           }
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
@@ -26475,7 +26439,6 @@ const powerRef = useRef(hud.power);
             actionView.activationTravel = 0;
             actionView.strokeReadyAt = 0;
             actionView.preferRailOverhead = true;
-            actionView.lockOverheadFocus = false;
             actionView.lastUpdate = activationNow;
             activeShotView = actionView;
             suspendedActionView = null;
