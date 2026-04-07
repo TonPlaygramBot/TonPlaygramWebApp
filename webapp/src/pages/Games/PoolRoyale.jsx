@@ -14296,7 +14296,7 @@ function PoolRoyaleGame({
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 30 : 12;
-  const spinControllerRightOffsetPx = rightHudShiftPx + (portraitViewport ? 14 : 8);
+  const spinControllerRightOffsetPx = portraitViewport ? 8 : 6;
   const bottomHudLeftPx = -56;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
@@ -20190,35 +20190,6 @@ const powerRef = useRef(hud.power);
             position.y = Math.max((minTargetY ?? baseSurfaceWorldY) + BALL_R * 10.6, position.y + BALL_R * 1.8); // lift rail-overhead camera and reduce forward push so both bottom pockets remain in frame
           }
           return { position, target, fov: RAIL_OVERHEAD_REPLAY_FOV, minTargetY };
-        };
-
-        const hasReplayCameraChanged = (previous, next) => {
-          if (!next) return false;
-          if (!previous) return true;
-          const dist = (a, b) => {
-            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
-            if (a && b) {
-              const ax = Number.isFinite(a.x) ? a.x : 0;
-              const ay = Number.isFinite(a.y) ? a.y : 0;
-              const az = Number.isFinite(a.z) ? a.z : 0;
-              const bx = Number.isFinite(b.x) ? b.x : 0;
-              const by = Number.isFinite(b.y) ? b.y : 0;
-              const bz = Number.isFinite(b.z) ? b.z : 0;
-              return Math.hypot(ax - bx, ay - by, az - bz);
-            }
-            return Infinity;
-          };
-          const positionShift = dist(previous.position, next.position);
-          const targetShift = dist(previous.target, next.target);
-          const fovShift =
-            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
-              ? Math.abs(previous.fov - next.fov)
-              : 0;
-          return (
-            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            fovShift > 1e-3
-          );
         };
 
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
@@ -29269,7 +29240,7 @@ const powerRef = useRef(hud.power);
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
             frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
+              ? Math.min(frameTiming.targetMs, 1000 / 60)
               : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
             rafRef.current = requestAnimationFrame(step);
@@ -29305,20 +29276,13 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-              const previousFrameCamera =
-                replayFrameCameraRef.current?.frameB ??
-                replayFrameCameraRef.current?.frameA ??
-                null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
+              const frameCameraA = frameA?.camera ?? frameB?.camera ?? null;
+              const frameCameraB = frameB?.camera ?? frameCameraA;
+              if (frameCameraA || frameCameraB) {
                 replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
+                  frameA: frameCameraA,
+                  frameB: frameCameraB,
+                  alpha
                 };
               }
             } else {
