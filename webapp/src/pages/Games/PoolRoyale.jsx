@@ -1743,7 +1743,8 @@ const ACTION_CAM = Object.freeze({
   followSmoothingTime: 0.18,
   followDistance: BALL_R * 54,
   followHeightOffset: BALL_R * 7.4,
-  followHoldMs: 900
+  followHoldMs: 900,
+  followCueLeadMs: 360
 });
 /**
  * Pool Camera Direction
@@ -21548,11 +21549,13 @@ const powerRef = useRef(hud.power);
                 Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
               )
             : 0;
+          const followCueFirst = !preferRailOverhead;
           return {
             mode: 'action',
             cueId: cueBall.id,
             targetId: targetId ?? null,
-            stage: 'pair',
+            stage: followCueFirst ? 'followCue' : 'pair',
+            stageSwitchAt: followCueFirst ? now + ACTION_CAM.followCueLeadMs : null,
             exitAfterHold: false,
             resume: followView ?? null,
             orbitSnapshot,
@@ -30525,6 +30528,11 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
+              if (activeShotView?.mode === 'action') {
+                activeShotView.preferRailOverhead = true;
+                activeShotView.stage = 'pair';
+                activeShotView.stageSwitchAt = null;
+              }
               if (
                 (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2 &&
                 !shotContextRef.current.doubleBankBroadcastCutApplied
@@ -30790,6 +30798,14 @@ const powerRef = useRef(hud.power);
             }
             if (cueBall.vel.lengthSq() > 1e-6) {
               activeShotView.lastCueDir = cueBall.vel.clone().normalize();
+            }
+            if (activeShotView.stage === 'followCue') {
+              const switchReadyAt = activeShotView.stageSwitchAt ?? 0;
+              if (activeShotView.hitConfirmed || now >= switchReadyAt) {
+                activeShotView.stage = 'pair';
+                activeShotView.stageSwitchAt = null;
+                activeShotView.lastUpdate = now;
+              }
             }
             if (activeShotView.stage === 'pair') {
               const targetBall =
@@ -33104,24 +33120,32 @@ const powerRef = useRef(hud.power);
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                    aria-pressed={autoReplayEnabled}
+                    onClick={() =>
+                      setAutoReplayEnabled((prev) => {
+                        const nextAutoReplay = !prev;
+                        if (!nextAutoReplay) {
+                          skipReplayRef.current?.();
+                        }
+                        return nextAutoReplay;
+                      })
+                    }
+                    aria-pressed={!autoReplayEnabled}
                     className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      autoReplayEnabled
+                      !autoReplayEnabled
                         ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                         : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                        Auto Replay
+                        Skip all replays
                       </span>
                       <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                        {autoReplayEnabled ? 'On' : 'Off'}
+                        {!autoReplayEnabled ? 'On' : 'Off'}
                       </span>
                     </span>
                     <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                      Replays keep live graphics quality and appear on potted/foul moments.
+                      Turn this on to skip replay playback automatically. Turn off to see replays again.
                     </span>
                   </button>
                 </div>
