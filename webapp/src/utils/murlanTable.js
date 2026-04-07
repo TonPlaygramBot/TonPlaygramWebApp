@@ -312,7 +312,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
       const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
-      return { topShape, feltShape, rimInnerShape };
+      return { topShape, feltShape, rimInnerShape, surfaceLiftMultiplier: 1.1 };
     }
   },
   {
@@ -624,6 +624,7 @@ export function createMurlanStyleTable({
   const feltShape = shapeData?.feltShape ?? createRegularPolygonShape(8, tableRadius * 0.8);
   const rimInnerShape = shapeData?.rimInnerShape ?? scaleShape2D(feltShape, 0.97, 0.97);
   const feltRadius = shapeData?.feltRadius ?? tableRadius * (0.72 / 0.9);
+  const surfaceLift = clothRise * (shapeData?.surfaceLiftMultiplier ?? 1);
   const curveSegments = Math.max(1, Math.round((shapeOption?.curveSegments ?? 32) / 4));
 
   const outerOutline = getShapeOutlinePoints(topShape, curveSegments * 8);
@@ -650,7 +651,7 @@ export function createMurlanStyleTable({
   const feltGeometry = new ThreeNamespace.ShapeGeometry(feltShape, curveSegments * 4);
   feltGeometry.rotateX(-Math.PI / 2);
   const feltMesh = new ThreeNamespace.Mesh(feltGeometry, surfaceMat);
-  feltMesh.position.y = tableY + clothRise;
+  feltMesh.position.y = tableY + surfaceLift;
   feltMesh.receiveShadow = true;
   tableGroup.add(feltMesh);
 
@@ -667,7 +668,7 @@ export function createMurlanStyleTable({
   });
   rimGeometry.rotateX(-Math.PI / 2);
   const rimMesh = new ThreeNamespace.Mesh(rimGeometry, rimWoodMat);
-  rimMesh.position.y = tableY + clothRise * 0.36;
+  rimMesh.position.y = tableY + surfaceLift * 0.36;
   rimMesh.castShadow = true;
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
@@ -759,7 +760,7 @@ export function createMurlanStyleTable({
 
   return {
     group: tableGroup,
-    surfaceY: tableY + clothRise,
+    surfaceY: tableY + surfaceLift,
     tableHeight,
     radius: tableRadius,
     feltRadius,
