@@ -2488,11 +2488,11 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 const LT_CARBON_TEXTURE_REPEAT = Object.freeze({ x: 20, y: 5.2 });
 let CARBON_FIBER_TILE_CANVAS = null;
 const CARBON_FIBER_TILE_TEXTURES = new Map();
-const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 10.2, y: 3.9 });
+const LT_MATTE_PLASTIC_TEXTURE_REPEAT = Object.freeze({ x: 8.6, y: 3.2 });
 const LT_MATTE_PLASTIC_TEXTURES = new Map();
-const LT_FINISH_BRIGHTNESS_LIFT = 0.24;
-const LT_FINISH_CONTRAST_BOOST = 1.32;
-const LT_MATTE_NORMAL_SCALE = 0.94;
+const LT_FINISH_BRIGHTNESS_LIFT = 0.2;
+const LT_FINISH_CONTRAST_BOOST = 1.26;
+const LT_MATTE_NORMAL_SCALE = 0.88;
 
 function createCarbonFiberPatternCanvas(size = 128) {
   if (typeof document === 'undefined') return null;
@@ -14296,8 +14296,8 @@ function PoolRoyaleGame({
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 30 : 12;
-  const spinControllerRightOffsetPx = portraitViewport ? 2 : 6;
-  const bottomHudLeftPx = -72;
+  const spinControllerRightOffsetPx = portraitViewport ? 8 : 6;
+  const bottomHudLeftPx = -56;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -33083,49 +33083,6 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              {ENABLE_SHOT_REPLAY ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Replay Controls
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => skipReplayRef.current?.()}
-                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-left text-white/80 transition-all duration-200 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                        Skip replay now
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                      Immediately close the active replay and return to gameplay.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
-                    aria-pressed={autoReplayEnabled}
-                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      autoReplayEnabled
-                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                    }`}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                        Auto Replay
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
-                        {autoReplayEnabled ? 'On' : 'Off'}
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
-                      Replays keep live graphics quality and appear on potted/foul moments.
-                    </span>
-                  </button>
-                </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
@@ -33536,6 +33493,49 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
+              {ENABLE_SHOT_REPLAY ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Replay Controls
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => skipReplayRef.current?.()}
+                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-left text-white/80 transition-all duration-200 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Skip replay now
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Immediately close the active replay and return to gameplay.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAutoReplayEnabled((prev) => !prev)}
+                    aria-pressed={autoReplayEnabled}
+                    className={`mt-2 w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                      autoReplayEnabled
+                        ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                        Auto Replay
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+                        {autoReplayEnabled ? 'On' : 'Off'}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-white/60">
+                      Replays keep live graphics quality and appear on potted/foul moments.
+                    </span>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
