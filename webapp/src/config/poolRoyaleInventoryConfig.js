@@ -544,13 +544,7 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
   carbonFiberSnakeChalkBeige: swatchThumbnail(['#45505c', '#5f6b79', '#84909e']),
   carbonFiberSnakeChalkDarkBlue: swatchThumbnail(['#6a3a31', '#8d5546', '#aa6f5c']),
   carbonFiberSnakeChalkWhite: swatchThumbnail(['#dacbb7', '#ecdecb', '#f7ede0']),
-  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878']),
-  carbonFiberAlligatorOlive: swatchThumbnail(['#45573a', '#62774f', '#87996d']),
-  carbonFiberAlligatorSwamp: swatchThumbnail(['#2e4733', '#3f5f46', '#5f7c64']),
-  carbonFiberAlligatorClay: swatchThumbnail(['#5c4939', '#7a624d', '#a3876d']),
-  carbonFiberAlligatorSand: swatchThumbnail(['#786850', '#98856a', '#bba88a']),
-  carbonFiberAlligatorMoss: swatchThumbnail(['#3f4f3c', '#5a6b54', '#7f9075']),
-  carbonFiberAlligatorNight: swatchThumbnail(['#253128', '#36443a', '#566258'])
+  carbonFiberSnakeChalkDarkGreen: swatchThumbnail(['#36523f', '#4a6f56', '#6a9878'])
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -663,13 +657,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberSnakeChalkBeige: 'LT Dark Grey Snake',
     carbonFiberSnakeChalkDarkBlue: 'LT Burgundy Snake',
     carbonFiberSnakeChalkWhite: 'LT Milk Cream Snake',
-    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake',
-    carbonFiberAlligatorOlive: 'LT Olive Alligator',
-    carbonFiberAlligatorSwamp: 'LT Swamp Alligator',
-    carbonFiberAlligatorClay: 'LT Clay Alligator',
-    carbonFiberAlligatorSand: 'LT Sand Alligator',
-    carbonFiberAlligatorMoss: 'LT Moss Alligator',
-    carbonFiberAlligatorNight: 'LT Night Alligator'
+    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -891,60 +879,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1300,
     description: 'Dark-green LT snake-weave finish with matching LT color tone and weave scale.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkGreen
-  },
-  {
-    id: 'finish-carbonFiberAlligatorOlive',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorOlive',
-    name: 'LT Olive Alligator Finish',
-    price: 1310,
-    description: 'Olive LT alligator-scale texture with natural reptile tone transitions.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorOlive
-  },
-  {
-    id: 'finish-carbonFiberAlligatorSwamp',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorSwamp',
-    name: 'LT Swamp Alligator Finish',
-    price: 1320,
-    description: 'Swamp-green LT alligator texture tuned to deep marsh tones.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSwamp
-  },
-  {
-    id: 'finish-carbonFiberAlligatorClay',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorClay',
-    name: 'LT Clay Alligator Finish',
-    price: 1330,
-    description: 'Clay-brown LT alligator pattern with warm hide-inspired contrast.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorClay
-  },
-  {
-    id: 'finish-carbonFiberAlligatorSand',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorSand',
-    name: 'LT Sand Alligator Finish',
-    price: 1340,
-    description: 'Sand LT alligator scales with brighter khaki highlights.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSand
-  },
-  {
-    id: 'finish-carbonFiberAlligatorMoss',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorMoss',
-    name: 'LT Moss Alligator Finish',
-    price: 1350,
-    description: 'Moss LT alligator texture balancing olive and slate greens.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorMoss
-  },
-  {
-    id: 'finish-carbonFiberAlligatorNight',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorNight',
-    name: 'LT Night Alligator Finish',
-    price: 1360,
-    description: 'Night LT alligator scales with muted charcoal-green depth.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorNight
   },
   {
     id: 'chrome-chrome',
