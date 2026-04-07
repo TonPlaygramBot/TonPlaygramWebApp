@@ -426,20 +426,26 @@ const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4
   return { mapUrl: fallback, roughnessMapUrl: null, normalMapUrl: null };
 };
 
-const OPEN_GAME_ART_SNAKE_TEXTURE_URL = 'https://opengameart.org/sites/default/files/snakeskin_0.png';
-const OPEN_GAME_ART_ALLIGATOR_TEXTURE_URL = 'https://opengameart.org/sites/default/files/alligatorskin_0.png';
-
-const makeInlinePlasticSnakePattern = () => ({
-  mapUrl: OPEN_GAME_ART_SNAKE_TEXTURE_URL,
-  roughnessMapUrl: null,
-  normalMapUrl: null
-});
-
-const makeInlinePlasticAlligatorPattern = () => ({
-  mapUrl: OPEN_GAME_ART_ALLIGATOR_TEXTURE_URL,
-  roughnessMapUrl: null,
-  normalMapUrl: null
-});
+const makeInlinePlasticSnakePattern = ({ id, base = '#2b2f36', sheen = '#3f4652' }) => {
+  const pattern = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="${id}-plastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${base}"/>
+      <stop offset="45%" stop-color="${sheen}"/>
+      <stop offset="100%" stop-color="${base}"/>
+    </linearGradient>
+    <pattern id="${id}-snake" patternUnits="userSpaceOnUse" width="64" height="64">
+      <path d="M32 0 C50 0 64 14 64 32 C64 50 50 64 32 64 C14 64 0 50 0 32 C0 14 14 0 32 0Z" fill="none" stroke="#ffffff" stroke-opacity="0.11" stroke-width="2.2"/>
+      <path d="M32 7 C46 7 57 18 57 32 C57 46 46 57 32 57 C18 57 7 46 7 32 C7 18 18 7 32 7Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.3"/>
+      <path d="M0 32 C0 14 14 0 32 0 C50 0 64 14 64 32" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.2"/>
+    </pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#${id}-plastic)"/>
+  <rect width="256" height="256" fill="url(#${id}-snake)"/>
+</svg>`);
+  return { mapUrl: pattern, roughnessMapUrl: null, normalMapUrl: null };
+};
 const makeInlineCarbonFiberPattern = ({ id }) => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
@@ -509,7 +515,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_black_snake',
     label: 'LT Black Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Black)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -534,7 +540,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_grey_snake',
     label: 'LT Grey Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Grey)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -559,7 +565,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_grey_snake',
     label: 'LT Dark Grey Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Dark Grey)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -584,7 +590,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_burgundy_snake',
     label: 'LT Burgundy Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Burgundy)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -609,7 +615,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_milk_cream_snake',
     label: 'LT Milk Cream Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Milk Cream)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -634,7 +640,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_green_snake',
     label: 'LT Dark Green Snake',
-    source: 'OpenGameArt CC0 snakeskin texture (Simple Textures pack)',
+    source: 'TonPlaygram molded-plastic satin snake texture (LT Dark Green)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
@@ -653,156 +659,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
         id: 'plastic-monoblock-lt-dark-green-snake-frame',
         base: '#2b4533',
         sheen: '#3d6148'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_olive_alligator',
-    label: 'LT Olive Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-olive-alligator-rail',
-        base: '#4c5d3f',
-        sheen: '#6d7d58'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-olive-alligator-frame',
-        base: '#4c5d3f',
-        sheen: '#6d7d58'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_swamp_alligator',
-    label: 'LT Swamp Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-swamp-alligator-rail',
-        base: '#304b36',
-        sheen: '#48624d'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-swamp-alligator-frame',
-        base: '#304b36',
-        sheen: '#48624d'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_clay_alligator',
-    label: 'LT Clay Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-clay-alligator-rail',
-        base: '#5f4c3c',
-        sheen: '#816a56'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-clay-alligator-frame',
-        base: '#5f4c3c',
-        sheen: '#816a56'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_sand_alligator',
-    label: 'LT Sand Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-sand-alligator-rail',
-        base: '#7e6e56',
-        sheen: '#a49277'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-sand-alligator-frame',
-        base: '#7e6e56',
-        sheen: '#a49277'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_moss_alligator',
-    label: 'LT Moss Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-moss-alligator-rail',
-        base: '#435340',
-        sheen: '#60715c'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-moss-alligator-frame',
-        base: '#435340',
-        sheen: '#60715c'
-      })
-    }
-  }),
-  Object.freeze({
-    id: 'plastic_monoblock_lt_night_alligator',
-    label: 'LT Night Alligator',
-    source: 'OpenGameArt CC0 alligator skin texture (Simple Textures pack)',
-    rail: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-night-alligator-rail',
-        base: '#263129',
-        sheen: '#3a453c'
-      })
-    },
-    frame: {
-      repeat: { x: 6.8, y: 6.8 },
-      rotation: 0,
-      textureSize: 2048,
-      ...makeInlinePlasticAlligatorPattern({
-        id: 'plastic-monoblock-lt-night-alligator-frame',
-        base: '#263129',
-        sheen: '#3a453c'
       })
     }
   }),
