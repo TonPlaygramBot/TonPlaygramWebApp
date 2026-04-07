@@ -15071,6 +15071,7 @@ function PoolRoyaleGame({
     contactMade: false,
     cushionAfterContact: false,
     railContactCountAfterContact: 0,
+    doubleBankBroadcastCutApplied: false,
     attemptsPenaltyApplied: false
   });
   const shotReplayRef = useRef(null);
@@ -25834,6 +25835,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
+          doubleBankBroadcastCutApplied: false,
           attemptsPenaltyApplied: false,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
@@ -26050,6 +26052,8 @@ const powerRef = useRef(hud.power);
               isMiddlePocketIntent ||
               hasLikelyPocketIntent ||
               isCrowdedShot);
+          const prioritizeRailOverheadCut =
+            forceImmediateRailOverheadView || isBreakShot || Boolean(shotPrediction?.railNormal);
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26097,8 +26101,17 @@ const powerRef = useRef(hud.power);
                 }
               )
             : null;
+          if (actionView && prioritizeRailOverheadCut) {
+            actionView.preferRailOverhead = true;
+            actionView.pendingActivation = false;
+            actionView.activationDelay = null;
+            actionView.activationTravel = 0;
+          }
           const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
+            !prioritizeRailOverheadCut &&
+            !suppressPocketCameras &&
+            shotPrediction.ballId &&
+            followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -26308,9 +26321,11 @@ const powerRef = useRef(hud.power);
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
-              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
+              (prioritizeRailOverheadCut || !isLongShot || forceActionActivation) &&
+              (!isMaxPowerShot || prioritizeRailOverheadCut);
             const holdUntil = powerImpactHoldRef.current || 0;
-            const holdActive = holdUntil > performance.now();
+            const holdActive =
+              !prioritizeRailOverheadCut && holdUntil > performance.now();
             if (shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
@@ -28957,6 +28972,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
+          doubleBankBroadcastCutApplied: false,
           attemptsPenaltyApplied: false,
           spin: { x: 0, y: 0 }
         };
@@ -29228,23 +29244,21 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const currentFrameCamera = frameA?.camera ?? null;
-              const nextFrameCamera = frameB?.camera ?? currentFrameCamera;
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
               const previousFrameCamera =
                 replayFrameCameraRef.current?.frameB ??
                 replayFrameCameraRef.current?.frameA ??
                 null;
-              const cameraChanged =
-                hasReplayCameraChanged(previousFrameCamera, currentFrameCamera) ||
-                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera);
-              if ((currentFrameCamera || nextFrameCamera) && (cameraChanged || !replayFrameCameraRef.current)) {
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
                 replayFrameCameraRef.current = {
-                  frameA: currentFrameCamera ?? nextFrameCamera,
-                  frameB: nextFrameCamera ?? currentFrameCamera,
-                  alpha
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
                 };
-              } else if (replayFrameCameraRef.current) {
-                replayFrameCameraRef.current.alpha = alpha;
               }
             } else {
               replayFrameCameraRef.current = null;
@@ -30482,6 +30496,20 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
+              if (
+                (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2 &&
+                !shotContextRef.current.doubleBankBroadcastCutApplied
+              ) {
+                shotContextRef.current.doubleBankBroadcastCutApplied = true;
+                if (activeShotView?.mode === 'action') {
+                  activeShotView.preferRailOverhead = true;
+                  activeShotView.pendingActivation = false;
+                  activeShotView.activationDelay = null;
+                  activeShotView.activationTravel = 0;
+                }
+                queuedPocketView = null;
+                enterTopView(true, { variant: 'rail' });
+              }
             }
             if (railImpact) {
               applyRailImpulse(b, railImpact);
