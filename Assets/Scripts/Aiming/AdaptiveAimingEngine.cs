@@ -147,36 +147,8 @@ namespace Aiming
             if (toPocket.sqrMagnitude < 1e-8f)
                 return normalized;
 
-            Vector3 objectToPocketDir = toPocket.normalized;
-            Vector3 objectToCueDir = (ctx.cueBallPos - ctx.objectBallPos).normalized;
-            float cutAngleDeg = Mathf.Acos(Mathf.Clamp(Vector3.Dot(objectToPocketDir, objectToCueDir), -1f, 1f)) * Mathf.Rad2Deg;
-
-            float baseDepth = config ? config.pocketApproachDepth : 0.12f;
-            float straightDepth = config ? config.straightPocketApproachDepth : 0.06f;
-            float minDepth = ctx.ballRadius * 0.5f;
-            float depth = cutAngleDeg <= (config ? config.straightAngleDeg : 5f) ? straightDepth : baseDepth;
-            depth = Mathf.Max(depth, minDepth);
-
-            Vector3 target = ctx.pocketPos - objectToPocketDir * depth;
-            float jawAssistMinAngle = config ? config.jawAssistMinAngleDeg : 8f;
-            if (cutAngleDeg >= jawAssistMinAngle)
-            {
-                Vector3 lateral = Vector3.Cross(Vector3.up, objectToPocketDir).normalized;
-                if (lateral.sqrMagnitude > 1e-8f)
-                {
-                    float sideSign = Mathf.Sign(Vector3.Dot(objectToCueDir, lateral));
-                    if (Mathf.Approximately(sideSign, 0f))
-                    {
-                        sideSign = 1f;
-                    }
-
-                    float jawAssist = config ? config.jawAssistLateralOffset : 0.022f;
-                    float maxByBall = ctx.ballRadius * 0.9f;
-                    target += lateral * sideSign * Mathf.Min(jawAssist, maxByBall);
-                }
-            }
-
-            normalized.pocketPos = target;
+            float depth = config ? config.pocketApproachDepth : 0.12f;
+            normalized.pocketPos = ctx.pocketPos - toPocket.normalized * Mathf.Max(depth, ctx.ballRadius * 0.5f);
             return normalized;
         }
 
