@@ -16,7 +16,6 @@ namespace Aiming
         public AdaptiveAimingEngine aiming;
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
-        public AutoTargetSelector autoTargetSelector;
         public Rigidbody cueBallBody;
         public Bounds tableBounds;
         public float ballRadius = 0.028575f;
@@ -28,7 +27,6 @@ namespace Aiming
         public float pullRange = 0.34f;
 
         [Header("Aiming feel")]
-        [Range(0f, 1f)] public float minimumAutoTargetProbability = 0.05f;
         [Range(1f, 30f)] public float rotationDamping = 14f;
         public bool allowAimAdjustWhileCharging = false;
 
@@ -66,13 +64,7 @@ namespace Aiming
 
         void Update()
         {
-            if (aiming == null || cueBall == null)
-            {
-                return;
-            }
-
-            RefreshAutoTarget();
-            if (objectBall == null || pocket == null)
+            if (aiming == null || cueBall == null || objectBall == null || pocket == null)
             {
                 return;
             }
@@ -185,22 +177,6 @@ namespace Aiming
             }
         }
 
-
-        void RefreshAutoTarget()
-        {
-            if (autoTargetSelector == null)
-            {
-                return;
-            }
-
-            if (autoTargetSelector.TrySelectBest(out Transform bestBall, out Transform bestPocket, out float probability, out _)
-                && probability >= minimumAutoTargetProbability)
-            {
-                objectBall = bestBall;
-                pocket = bestPocket;
-            }
-        }
-
         void UpdateAimDirection()
         {
             var sol = BuildAimSolution();
@@ -290,12 +266,7 @@ namespace Aiming
                 highSpin = spinInput.sqrMagnitude > 0.0001f,
                 collisionMask = aiming.config ? aiming.config.collisionMask : default
             };
-            if (aiming.TryGetAimSolution(ctx, out AimSolution solution, visualize: true))
-            {
-                return solution;
-            }
-
-            return solution;
+            return aiming.GetAimSolution(ctx);
         }
 
         bool AreBallsMoving()
