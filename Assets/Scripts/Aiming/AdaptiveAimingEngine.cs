@@ -143,13 +143,52 @@ namespace Aiming
         ShotContext NormalizePocketTarget(in ShotContext ctx)
         {
             var normalized = ctx;
+            normalized.pocketPos = ComputePocketAimPoint(ctx, config);
+            return normalized;
+        }
+
+        public static Vector3 ComputePocketAimPoint(in ShotContext ctx, AimingConfig cfg)
+        {
             Vector3 toPocket = ctx.pocketPos - ctx.objectBallPos;
             if (toPocket.sqrMagnitude < 1e-8f)
-                return normalized;
+                return ctx.pocketPos;
 
-            float depth = config ? config.pocketApproachDepth : 0.12f;
-            normalized.pocketPos = ctx.pocketPos - toPocket.normalized * Mathf.Max(depth, ctx.ballRadius * 0.5f);
-            return normalized;
+            Vector3 pocketDir = toPocket.normalized;
+            float depth = cfg ? cfg.pocketApproachDepth : 0.12f;
+            Vector3 entranceCenter = ctx.pocketPos - pocketDir * Mathf.Max(depth, ctx.ballRadius * 0.5f);
+
+            Vector3 objectToCue = ctx.cueBallPos - ctx.objectBallPos;
+            if (objectToCue.sqrMagnitude < 1e-8f)
+                return entranceCenter;
+
+            Vector3 cueDir = objectToCue.normalized;
+            float cutDot = Mathf.Clamp(Vector3.Dot(-pocketDir, cueDir), -1f, 1f);
+            float cutAngleDeg = Mathf.Acos(cutDot) * Mathf.Rad2Deg;
+            float straightThreshold = cfg ? cfg.straightPocketCenterAngleDeg : 7f;
+            if (cutAngleDeg <= straightThreshold)
+                return entranceCenter;
+
+            float startAngle = cfg ? cfg.jawGuideStartAngleDeg : 12f;
+            float maxAngle = cfg ? cfg.jawGuideMaxAngleDeg : 50f;
+            if (maxAngle <= startAngle)
+                maxAngle = startAngle + 1f;
+
+            float t = Mathf.InverseLerp(startAngle, maxAngle, cutAngleDeg);
+            float minOffset = cfg ? cfg.jawGuideOffsetMin : 0.01f;
+            float maxOffset = cfg ? cfg.jawGuideOffsetMax : 0.028f;
+            float offset = Mathf.Lerp(minOffset, maxOffset, t);
+            offset = Mathf.Clamp(offset, 0f, Mathf.Max(0f, maxOffset));
+
+            Vector3 lateral = Vector3.Cross(Vector3.up, pocketDir);
+            if (lateral.sqrMagnitude < 1e-8f)
+                return entranceCenter;
+
+            lateral.Normalize();
+            float sideSign = Mathf.Sign(Vector3.Cross(cueDir, pocketDir).y);
+            if (Mathf.Approximately(sideSign, 0f))
+                return entranceCenter;
+
+            return entranceCenter + lateral * sideSign * offset;
         }
 
         AimSolution SelectBestSolution(in ShotContext ctx, in ShotInfo info)
