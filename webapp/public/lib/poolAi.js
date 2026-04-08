@@ -124,6 +124,20 @@ function pocketNormal (pocket, width, height) {
 }
 
 function pocketMouthCenter (pocket, radius, width, height) {
+  if (
+    pocket?.mouth &&
+    Number.isFinite(pocket.mouth.x) &&
+    Number.isFinite(pocket.mouth.y)
+  ) {
+    return { x: pocket.mouth.x, y: pocket.mouth.y }
+  }
+  if (
+    pocket?.mouthCenter &&
+    Number.isFinite(pocket.mouthCenter.x) &&
+    Number.isFinite(pocket.mouthCenter.y)
+  ) {
+    return { x: pocket.mouthCenter.x, y: pocket.mouthCenter.y }
+  }
   const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
   const nearLeft = pocket.x <= edgeTol
   const nearRight = pocket.x >= width - edgeTol
@@ -155,6 +169,25 @@ function pocketMouthCenter (pocket, radius, width, height) {
 }
 
 function pocketMouthProfile (pocket, radius, width, height) {
+  if (
+    pocket?.jawA &&
+    pocket?.jawB &&
+    Number.isFinite(pocket.jawA.x) &&
+    Number.isFinite(pocket.jawA.y) &&
+    Number.isFinite(pocket.jawB.x) &&
+    Number.isFinite(pocket.jawB.y)
+  ) {
+    const mouth = pocketMouthCenter(pocket, radius, width, height)
+    const lateralRaw = { x: pocket.jawB.x - pocket.jawA.x, y: pocket.jawB.y - pocket.jawA.y }
+    const lateralLen = Math.hypot(lateralRaw.x, lateralRaw.y) || 1
+    return {
+      mouth,
+      jawA: { x: pocket.jawA.x, y: pocket.jawA.y },
+      jawB: { x: pocket.jawB.x, y: pocket.jawB.y },
+      lateral: { x: lateralRaw.x / lateralLen, y: lateralRaw.y / lateralLen },
+      halfSpan: lateralLen * 0.5
+    }
+  }
   const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
   const nearLeft = pocket.x <= edgeTol
   const nearRight = pocket.x >= width - edgeTol
@@ -280,6 +313,40 @@ function pocketEntryOptionsForTarget (req, target) {
     balls: req.state.balls,
     ignoreBallIds: [cueBallId, target.id]
   }
+}
+
+function targetPocketLaneBlocked (target, pocket, entry, req, balls) {
+  if (!target || !pocket || !entry || !req?.state) return true
+  const r = req.state.ballRadius
+  const cueBallId = resolveCueBallId(req.state)
+  const tableBalls = balls || req.state.balls || []
+  const ignore = [cueBallId, target.id]
+
+  // Object ball path must be clear up to the pocket entry and through the mouth center.
+  const mouth = pocketMouthCenter(pocket, r, req.state.width, req.state.height)
+  if (pathBlocked(target, entry, tableBalls, ignore, r, 1.02)) return true
+  if (pathBlocked(entry, mouth, tableBalls, ignore, r, 0.96)) return true
+
+  // Also verify a clear corridor around the pocket lane (not just line-center).
+  const laneLen = Math.max(dist(target, entry), 1e-6)
+  const laneDir = { x: (entry.x - target.x) / laneLen, y: (entry.y - target.y) / laneLen }
+  const laneHalfWidth = r * 1.06
+  for (const b of tableBalls) {
+    if (!b || b.pocketed || ignore.includes(b.id)) continue
+    const relX = b.x - target.x
+    const relY = b.y - target.y
+    const along = relX * laneDir.x + relY * laneDir.y
+    if (along <= r * 0.2 || along >= laneLen + r * 1.15) continue
+    const lateral = Math.abs(relX * laneDir.y - relY * laneDir.x)
+    if (lateral < laneHalfWidth * 2) return true
+  }
+
+  for (const b of tableBalls) {
+    if (!b || b.pocketed || ignore.includes(b.id)) continue
+    if (dist(b, entry) < r * 1.1 || dist(b, mouth) < r * 1.02) return true
+  }
+
+  return false
 }
 
 function pocketAlignment (pocket, target, width, height) {
@@ -601,13 +668,10 @@ function clearShotCandidates (req) {
       }
 
       // check paths from cue->ghost and target->pocket are unobstructed
-      if (
-        pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1) ||
-        pathBlocked(target, entry, req.state.balls, [cueBallId, target.id], r) ||
-        req.state.balls.some(
-          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
-        )
-      ) {
+      if (pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1)) {
+        continue
+      }
+      if (targetPocketLaneBlocked(target, pocket, entry, req, req.state.balls)) {
         continue
       }
 
@@ -738,7 +802,7 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
 // imprecision and rewards shorter, straighter shots.
-function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20, rng = Math.random) {
+function monteCarloPotChance (req, cue, target, pocket, entry, ghost, balls, samples = 20, rng = Math.random) {
   const r = req.state.ballRadius
   const cueBallId = resolveCueBallId(req.state)
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
@@ -758,7 +822,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
       g.y > req.state.height - r
     ) continue
     if (pathBlocked(cue, g, balls, [cueBallId, target.id], r, 1.1)) continue
-    if (pathBlocked(target, entry, balls, [cueBallId, target.id], r)) continue
+    if (targetPocketLaneBlocked(target, pocket, entry, req, balls)) continue
     // if jitter deviates too far from ideal contact, treat as miss
     if (dist(g, ghost) > r * 0.42) continue
     success++
@@ -889,18 +953,17 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (scratchRiskAlongLine(cue, ghost, req.state.pockets || [], r)) {
     return null
   }
-  if (
-    pathBlocked(cue, ghost, balls, [cueBallId, target.id], r, 1.1) ||
-    pathBlocked(target, entry, balls, [cueBallId, target.id], r) ||
-    balls.some(b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
-  ) {
+  if (pathBlocked(cue, ghost, balls, [cueBallId, target.id], r, 1.1)) {
+    return null
+  }
+  if (targetPocketLaneBlocked(target, pocket, entry, req, balls)) {
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
   const mcSamples = Number.isFinite(options.mcSamples)
     ? Math.max(24, Math.round(options.mcSamples))
     : 20
-  const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, mcSamples, rng)
+  const potChance = monteCarloPotChance(req, cue, target, pocket, entry, ghost, balls, mcSamples, rng)
   const minPotChance = strict ? 0.2 : 0.1
   if (potChance < minPotChance) return null
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
