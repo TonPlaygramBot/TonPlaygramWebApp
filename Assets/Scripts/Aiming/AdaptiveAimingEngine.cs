@@ -212,7 +212,9 @@ namespace Aiming
                 farJawSide = fallbackSide;
 
             float farJawBias = cfg ? cfg.jawFarSideBias : 0.8f;
-            float rawSide = Mathf.Lerp(fallbackSide, farJawSide, Mathf.Clamp01(farJawBias));
+            float autoFarBias = cfg ? cfg.jawFarSideAutoBias : 0.85f;
+            float cutDrivenFarBias = Mathf.Lerp(farJawBias, 1f, Mathf.Clamp01(t * autoFarBias));
+            float rawSide = Mathf.Lerp(fallbackSide, farJawSide, Mathf.Clamp01(cutDrivenFarBias));
             float sideSign = Mathf.Sign(rawSide);
             if (Mathf.Approximately(sideSign, 0f))
                 return entranceCenter;
@@ -224,7 +226,28 @@ namespace Aiming
                 return entranceCenter;
 
             offset = Mathf.Min(offset, maxAllowedOffset);
-            return entranceCenter + lateral * sideSign * offset;
+            float deadZoneRatio = cfg ? cfg.jawNearSideDeadZoneRatio : 0.3f;
+            float minFarSideOffset = maxAllowedOffset * Mathf.Clamp01(deadZoneRatio) * t;
+            offset = Mathf.Max(offset, minFarSideOffset);
+
+            Vector3 aimPoint = entranceCenter + lateral * sideSign * offset;
+            Vector3 shotToAim = aimPoint - ctx.objectBallPos;
+            if (shotToAim.sqrMagnitude > 1e-8f)
+            {
+                Vector3 shotDir = shotToAim.normalized;
+                float inwardDot = Vector3.Dot(shotDir, inward);
+                if (inwardDot < 0.12f)
+                {
+                    Vector3 inwardOnly = Vector3.Project(shotToAim, inward);
+                    if (inwardOnly.sqrMagnitude > 1e-8f)
+                    {
+                        float safeLateral = Mathf.Min(Mathf.Abs(Vector3.Dot(shotToAim, lateral)), maxAllowedOffset * 0.75f);
+                        aimPoint = ctx.objectBallPos + inwardOnly.normalized * inwardOnly.magnitude + lateral * sideSign * safeLateral;
+                    }
+                }
+            }
+
+            return aimPoint;
         }
 
         static Vector3 ResolvePocketInwardDirection(in ShotContext ctx)
