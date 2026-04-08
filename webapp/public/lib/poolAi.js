@@ -193,11 +193,6 @@ function pocketMouthProfile (pocket, radius, width, height) {
     mouth,
     jawA,
     jawB,
-    nearLeft,
-    nearRight,
-    nearTop,
-    nearBottom,
-    isCorner: (nearLeft || nearRight) && (nearTop || nearBottom),
     lateral: { x: lateral.x / lateralLen, y: lateral.y / lateralLen },
     halfSpan: lateralLen * 0.5
   }
@@ -270,24 +265,10 @@ function pocketEntry (pocket, radius, width, height, target, options = null) {
   }
 
   const offset = Math.max(radius * 0.34, Math.min(radius * 0.48, radius * 0.38 + safeHalfGap * 0.08))
-  const point = {
+  return {
     x: mouth.x + profile.lateral.x * lateralOffset - dir.x * offset,
     y: mouth.y + profile.lateral.y * lateralOffset - dir.y * offset
   }
-
-  // Corner-pocket safety: for bigger cut angles, keep entry away from both
-  // adjacent cushions so the target lane goes through the open jaw window.
-  if (target && profile.isCorner) {
-    const normalDot = Math.max(0, dir.x * normal.x + dir.y * normal.y)
-    const cutness = 1 - normalDot
-    const minInset = radius * (0.86 + Math.min(0.78, cutness * 0.92))
-    if (profile.nearLeft) point.x = Math.max(point.x, minInset)
-    if (profile.nearRight) point.x = Math.min(point.x, width - minInset)
-    if (profile.nearTop) point.y = Math.max(point.y, minInset)
-    if (profile.nearBottom) point.y = Math.min(point.y, height - minInset)
-  }
-
-  return point
 }
 
 function pocketEntryOptionsForTarget (req, target) {
