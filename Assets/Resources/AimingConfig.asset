@@ -16,6 +16,10 @@ MonoBehaviour:
   ctePivotDeg: 3
   shortDist: 0.8
   mediumDist: 1.6
+  pocketApproachDepth: 0.12
+  cuePathClearanceRadiusScale: 0.92
+  cutAnglePenalty: 0.55
+  distancePenalty: 0.2
   sideSpinAmount: 0.35
   verticalSpinAmount: 0.35
   tipOffsetMax: 0.85
