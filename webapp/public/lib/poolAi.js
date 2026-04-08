@@ -483,80 +483,6 @@ function resolveBallId (ball, fallback, indexByColour) {
   return fallback
 }
 
-function normaliseTargetToken (token) {
-  if (token == null) return null
-  if (Number.isFinite(token)) return Number(token)
-  if (typeof token !== 'string') return null
-  const value = token.trim().toUpperCase()
-  if (!value) return null
-  const directNumber = Number(value)
-  if (Number.isFinite(directNumber)) return directNumber
-  const numberedBall = /^BALL[_\s-]?(\d+)$/i.exec(value)
-  if (numberedBall) return Number.parseInt(numberedBall[1], 10)
-  if (value === 'BLACK' || value === 'EIGHT') return 8
-  if (value === 'SOLID' || value === 'SOLIDS' || value === 'RED') return 'SOLIDS'
-  if (value === 'STRIPE' || value === 'STRIPES' || value === 'BLUE' || value === 'YELLOW') return 'STRIPES'
-  return value
-}
-
-function legalTargetMatch (ball, token) {
-  const normalized = normaliseTargetToken(token)
-  if (normalized == null) return false
-  if (Number.isFinite(normalized)) return ball.id === normalized
-  if (normalized === 'SOLIDS') return ball.id >= 1 && ball.id <= 7
-  if (normalized === 'STRIPES') return ball.id >= 9 && ball.id <= 15
-  return false
-}
-
-function extractTargetTokens (value) {
-  if (value == null) return []
-  if (Array.isArray(value)) return value.flatMap(extractTargetTokens)
-  if (Number.isFinite(value) || typeof value === 'string') return [value]
-  if (typeof value !== 'object') return []
-  return [
-    value.id,
-    value.ballId,
-    value.targetBallId,
-    value.number,
-    value.ballNumber,
-    value.colour,
-    value.color,
-    value.type
-  ].flatMap(extractTargetTokens)
-}
-
-function legalTargetIdsForState (state, balls) {
-  const raw = [
-    state?.legalBallIds,
-    state?.ballOn,
-    state?.legalTargets,
-    state?.legalTargetSuggestion,
-    state?.nextLegalTargetSuggestion
-  ]
-  const tokens = raw.flatMap(extractTargetTokens)
-  if (tokens.length === 0) return []
-  const ids = new Set()
-  for (const ball of balls) {
-    if (ball?.pocketed) continue
-    if (tokens.some(token => legalTargetMatch(ball, token))) ids.add(ball.id)
-  }
-  return Array.from(ids)
-}
-
-function preferredLegalTargetId (state, legalTargetIds) {
-  if (!Array.isArray(legalTargetIds) || legalTargetIds.length === 0) return null
-  const suggestionTokens = extractTargetTokens([
-    state?.legalTargetSuggestion,
-    state?.nextLegalTargetSuggestion
-  ])
-  for (const token of suggestionTokens) {
-    const normalized = normaliseTargetToken(token)
-    if (!Number.isFinite(normalized)) continue
-    if (legalTargetIds.includes(normalized)) return normalized
-  }
-  return null
-}
-
 function normaliseAimRequest (req) {
   const state = req?.state || {}
   const indexByColour = { red: 0, yellow: 0 }
@@ -582,17 +508,13 @@ function normaliseAimRequest (req) {
 function chooseTargets (req) {
   const cueBallId = resolveCueBallId(req.state)
   const balls = req.state.balls.filter(b => !b.pocketed && b.id !== cueBallId)
-  const legalBallIds = legalTargetIdsForState(req.state, balls)
+  const legalBallIds = Array.isArray(req.state.legalBallIds)
+    ? req.state.legalBallIds
+      .map(value => Number(value))
+      .filter(Number.isFinite)
+    : []
   if (legalBallIds.length > 0) {
-    const preferredId = preferredLegalTargetId(req.state, legalBallIds)
-    const legalTargets = balls
-      .filter(ball => legalBallIds.includes(ball.id))
-      .sort((a, b) => {
-        if (preferredId == null) return 0
-        if (a.id === preferredId) return -1
-        if (b.id === preferredId) return 1
-        return 0
-      })
+    const legalTargets = balls.filter(ball => legalBallIds.includes(ball.id))
     if (legalTargets.length > 0) return legalTargets
   }
   if (req.game === 'NINE_BALL') {
@@ -644,7 +566,12 @@ function chooseTargets (req) {
 function nextTargetsAfter (targetId, req) {
   const cueBallId = resolveCueBallId(req.state)
   const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== cueBallId)
-  const legalBallIds = legalTargetIdsForState(req.state, cloned).filter(id => id !== targetId)
+  const legalBallIds = Array.isArray(req.state.legalBallIds)
+    ? req.state.legalBallIds
+      .map(value => Number(value))
+      .filter(Number.isFinite)
+      .filter(id => id !== targetId)
+    : []
   if (legalBallIds.length > 0) {
     const legalTargets = cloned.filter(ball => legalBallIds.includes(ball.id))
     if (legalTargets.length > 0) return legalTargets
