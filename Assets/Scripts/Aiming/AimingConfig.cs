@@ -26,6 +26,14 @@ namespace Aiming
         public float jawGuideOffsetMin = 0.01f;
         [Tooltip("Maximum lateral offset from pocket-center target used when jaw guidance is active.")]
         public float jawGuideOffsetMax = 0.028f;
+        [Tooltip("Additional inward depth at steep cuts so the object ball line points deeper into the mouth entrance.")]
+        public float pocketApproachExtraDepthMax = 0.02f;
+        [Tooltip("Estimated half-width of a pocket mouth at the table entrance used for AI target clamping.")]
+        public float pocketMouthHalfWidth = 0.06f;
+        [Tooltip("Safety scale for ball radius when checking if there is enough entrance gap for a jaw-guided target.")]
+        public float pocketBallClearanceRadiusScale = 1.08f;
+        [Tooltip("Bias toward aiming at the far jaw side (away from first jaw impact) on cut shots.")]
+        [Range(0f, 1f)] public float jawFarSideBias = 0.8f;
         [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]

@@ -166,8 +166,8 @@ namespace Aiming
                 return ctx.pocketPos;
 
             inward.Normalize();
-            float depth = cfg ? cfg.pocketApproachDepth : 0.12f;
-            Vector3 entranceCenter = ctx.pocketPos + inward * Mathf.Max(depth, ctx.ballRadius * 0.5f);
+            float baseDepth = cfg ? cfg.pocketApproachDepth : 0.12f;
+            Vector3 entranceCenter = ctx.pocketPos + inward * Mathf.Max(baseDepth, ctx.ballRadius * 0.5f);
 
             Vector3 objectToCue = ctx.cueBallPos - ctx.objectBallPos;
             if (objectToCue.sqrMagnitude < 1e-8f)
@@ -191,6 +191,10 @@ namespace Aiming
                 maxAngle = startAngle + 1f;
 
             float t = Mathf.InverseLerp(startAngle, maxAngle, cutAngleDeg);
+            float extraDepth = cfg ? cfg.pocketApproachExtraDepthMax : 0.02f;
+            float effectiveDepth = Mathf.Max(baseDepth + extraDepth * t, ctx.ballRadius * 0.5f);
+            entranceCenter = ctx.pocketPos + inward * effectiveDepth;
+
             float minOffset = cfg ? cfg.jawGuideOffsetMin : 0.01f;
             float maxOffset = cfg ? cfg.jawGuideOffsetMax : 0.028f;
             float offset = Mathf.Lerp(minOffset, maxOffset, t);
@@ -201,10 +205,25 @@ namespace Aiming
                 return entranceCenter;
 
             lateral.Normalize();
-            float sideSign = Mathf.Sign(Vector3.Cross(cueDir, pocketApproachDir).y);
+            float incomingSide = Mathf.Sign(Vector3.Dot(cueDir, lateral));
+            float farJawSide = -incomingSide;
+            float fallbackSide = Mathf.Sign(Vector3.Cross(cueDir, pocketApproachDir).y);
+            if (Mathf.Approximately(farJawSide, 0f))
+                farJawSide = fallbackSide;
+
+            float farJawBias = cfg ? cfg.jawFarSideBias : 0.8f;
+            float rawSide = Mathf.Lerp(fallbackSide, farJawSide, Mathf.Clamp01(farJawBias));
+            float sideSign = Mathf.Sign(rawSide);
             if (Mathf.Approximately(sideSign, 0f))
                 return entranceCenter;
 
+            float mouthHalfWidth = cfg ? cfg.pocketMouthHalfWidth : 0.06f;
+            float clearanceRadius = ctx.ballRadius * (cfg ? cfg.pocketBallClearanceRadiusScale : 1.08f);
+            float maxAllowedOffset = Mathf.Max(0f, mouthHalfWidth - clearanceRadius);
+            if (maxAllowedOffset <= 1e-4f)
+                return entranceCenter;
+
+            offset = Mathf.Min(offset, maxAllowedOffset);
             return entranceCenter + lateral * sideSign * offset;
         }
 
