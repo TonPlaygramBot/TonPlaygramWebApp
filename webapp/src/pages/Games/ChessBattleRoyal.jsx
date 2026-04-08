@@ -233,7 +233,7 @@ const CARD_SCALE = 0.95;
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
-const PIECE_SCALE_FACTOR = 0.82;
+const PIECE_SCALE_FACTOR = 0.88;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -241,13 +241,13 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.044;
+const BOARD_SCALE = 0.049;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_RADIUS = 2.62 * MODEL_SCALE;
+const TABLE_RADIUS = 2.86 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -268,7 +268,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.94;
+const CHAIR_SCALE = 1.08;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
@@ -1875,10 +1875,10 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval', 'diamondEdge']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.11,
-  hexagonTable: -0.11,
-  grandOval: -0.11,
-  diamondEdge: -0.125
+  classicOctagon: -0.065,
+  hexagonTable: -0.065,
+  grandOval: -0.065,
+  diamondEdge: -0.07
 });
 
 function normalizeAppearance(value = {}) {
