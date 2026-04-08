@@ -114,6 +114,7 @@ import {
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
+import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -28755,7 +28756,39 @@ const powerRef = useRef(hud.power);
           }
         };
         const refineAiPotAimLine = (plan) => {
-          return plan;
+          if (!plan || plan.type !== 'pot' || !cue?.active) return plan;
+          if (!plan.targetBall?.pos || !plan.pocketCenter) return plan;
+          const baseAim =
+            plan.aimDir?.clone?.()?.normalize?.() ??
+            new THREE.Vector2().subVectors(plan.targetBall.pos, cue.pos).normalize();
+          if (!baseAim || baseAim.lengthSq() < 1e-6) return plan;
+          const ghostAim = resolveAiPotGhostAim({
+            cuePos: cue.pos,
+            targetPos: plan.targetBall.pos,
+            pocketPos: plan.pocketCenter,
+            ballRadius: BALL_R,
+            spin: plan.spin ?? { x: 0, y: 0 },
+            power: clampPower(plan.power, 0.6)
+          });
+          if (!ghostAim?.aimDir || ghostAim.aimDir.lengthSq() < 1e-6) return plan;
+          const compensatedAim = ghostAim.aimDir.clone().normalize();
+          const delta = baseAim.angleTo(compensatedAim);
+          const maxCompensationAngle = THREE.MathUtils.degToRad(4.5);
+          const blend = THREE.MathUtils.clamp(
+            maxCompensationAngle > 0 ? maxCompensationAngle / Math.max(delta, 1e-6) : 1,
+            0,
+            1
+          );
+          const stableAim = baseAim.lerp(compensatedAim, blend).normalize();
+          return {
+            ...plan,
+            aimDir: stableAim,
+            cueToTarget: cue.pos.distanceTo(ghostAim.ghost),
+            aiMeta: {
+              ...(plan.aiMeta ?? {}),
+              ghostCompensated: true
+            }
+          };
         };
 
         fireRef.current = fire;
