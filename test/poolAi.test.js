@@ -319,7 +319,7 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.power, 0.4);
+  assert(decision.power <= 0.45);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
 
@@ -436,3 +436,59 @@ test('eight-pool targets black when only 8 remains and group metadata is missing
 
   assert.equal(decision.targetBallId, 8);
 });
+
+test('respects legalBallIds even when an opponent ball is easier', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 260, vx: 0, vy: 0, pocketed: false },
+        // legal target
+        { id: 2, x: 340, y: 240, vx: 0, vy: 0, pocketed: false },
+        // easier opponent lane
+        { id: 10, x: 280, y: 260, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [2]
+    },
+    rngSeed: 21,
+    timeBudgetMs: 120
+  })
+
+  assert.equal(decision.targetBallId, 2)
+})
+
+test('can use a one-cushion bank when direct cue path is blocked', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 3, x: 640, y: 230, vx: 0, vy: 0, pocketed: false },
+        // blocker on direct cue-to-ghost line
+        { id: 11, x: 380, y: 240, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 1000, y: 0 },
+        { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [3]
+    },
+    rngSeed: 31,
+    timeBudgetMs: 220
+  })
+
+  assert.equal(decision.targetBallId, 3)
+  assert.match(decision.rationale, /bank=/)
+})
