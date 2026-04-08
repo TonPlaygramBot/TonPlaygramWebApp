@@ -944,12 +944,12 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.7;
 const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const TABLE_RADIUS_SCALE = 0.82;
+const TABLE_RADIUS_SCALE = 0.72;
 const TABLE_HEIGHT_SCALE = 0.95;
-const ARENA_GROWTH = 1.45;
+const ARENA_GROWTH = 1.72;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const STOOL_SCALE = 1.5 * 1.38;
+const STOOL_SCALE = 1.32 * 1.38;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -1011,8 +1011,8 @@ const CAMERA_LATERAL_OFFSET = {
   landscape: 0 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_REAR_OFFSET = {
-  portrait: 1.14 * CAMERA_LAYOUT_SCALE,
-  landscape: 0.68 * CAMERA_LAYOUT_SCALE
+  portrait: 1.3 * CAMERA_LAYOUT_SCALE,
+  landscape: 0.8 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_HEIGHT_BOOST = {
   portrait: 1.86 * CAMERA_LAYOUT_SCALE,
@@ -5770,34 +5770,39 @@ const tableParts = {};
 const chairs = [];
 
 function centerFurnitureInHdri() {
-  const centerCandidates = [];
   const tableRoot = tableThemeG.visible ? tableThemeG : tableG;
+  let targetCenter = null;
   if (tableRoot?.children?.length) {
     const tableBounds = new THREE.Box3().setFromObject(tableRoot);
     const tableCenter = tableBounds.getCenter(new THREE.Vector3());
     if (Number.isFinite(tableCenter.x) && Number.isFinite(tableCenter.z)) {
-      centerCandidates.push(tableCenter);
+      targetCenter = tableCenter;
     }
   }
-  chairs.forEach((chairRoot) => {
-    if (!chairRoot) return;
-    const chairBounds = new THREE.Box3().setFromObject(chairRoot);
-    const chairCenter = chairBounds.getCenter(new THREE.Vector3());
-    if (Number.isFinite(chairCenter.x) && Number.isFinite(chairCenter.z)) {
-      centerCandidates.push(chairCenter);
+  if (!targetCenter) {
+    const centerCandidates = [];
+    chairs.forEach((chairRoot) => {
+      if (!chairRoot) return;
+      const chairBounds = new THREE.Box3().setFromObject(chairRoot);
+      const chairCenter = chairBounds.getCenter(new THREE.Vector3());
+      if (Number.isFinite(chairCenter.x) && Number.isFinite(chairCenter.z)) {
+        centerCandidates.push(chairCenter);
+      }
+    });
+    if (centerCandidates.length) {
+      targetCenter = centerCandidates.reduce(
+        (acc, center) => acc.add(center),
+        new THREE.Vector3()
+      );
+      targetCenter.multiplyScalar(1 / centerCandidates.length);
     }
-  });
-  if (!centerCandidates.length) {
+  }
+  if (!targetCenter) {
     arenaG.position.set(0, arenaG.position.y, 0);
     return;
   }
-  const avgCenter = centerCandidates.reduce(
-    (acc, center) => acc.add(center),
-    new THREE.Vector3()
-  );
-  avgCenter.multiplyScalar(1 / centerCandidates.length);
-  arenaG.position.x -= avgCenter.x;
-  arenaG.position.z -= avgCenter.z;
+  arenaG.position.x = -targetCenter.x;
+  arenaG.position.z = -targetCenter.z;
 }
 
 function syncArenaGroundToFurniture() {
@@ -6386,7 +6391,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
+const DOMINO_SCALE = 1.3 * 1.22; // tuned smaller to match HDRI room proportions
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.1;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
