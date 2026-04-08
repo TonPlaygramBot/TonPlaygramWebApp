@@ -16,6 +16,16 @@ namespace Aiming
         [Header("AI competitiveness")]
         [Tooltip("Offsets pocket targeting away from jaw collisions by aiming slightly inside the pocket entrance.")]
         public float pocketApproachDepth = 0.12f;
+        [Tooltip("Cut-angle threshold that keeps the pocket target centered (straight pots).")]
+        public float straightPocketCenterAngleDeg = 7f;
+        [Tooltip("Cut-angle where jaw-guided targeting starts blending in.")]
+        public float jawGuideStartAngleDeg = 12f;
+        [Tooltip("Cut-angle where jaw-guided targeting reaches full lateral offset.")]
+        public float jawGuideMaxAngleDeg = 50f;
+        [Tooltip("Minimum lateral offset from pocket-center target used when jaw guidance is active.")]
+        public float jawGuideOffsetMin = 0.01f;
+        [Tooltip("Maximum lateral offset from pocket-center target used when jaw guidance is active.")]
+        public float jawGuideOffsetMax = 0.028f;
         [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]
