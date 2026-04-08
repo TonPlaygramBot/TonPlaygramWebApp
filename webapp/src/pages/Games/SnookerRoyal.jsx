@@ -15449,13 +15449,14 @@ const powerRef = useRef(hud.power);
       const CHESS_BATTLE_TABLE_SPAN_UNITS = 5.1;
       const CHESS_BATTLE_BOARD_SPAN_UNITS = 1.9008;
       const CHESS_BATTLE_CHAIR_MAX_DIM = 1.917;
+      const CHESS_BATTLE_LAYOUT_SCALE = 0.85; // keep layout proportions, make the full chess lounge set 15% smaller
       const chessBattleScale = TABLE_H / CHESS_BATTLE_TABLE_HEIGHT_UNITS;
       const chessBattleTargetSpan =
-        CHESS_BATTLE_TABLE_SPAN_UNITS * chessBattleScale;
+        CHESS_BATTLE_TABLE_SPAN_UNITS * chessBattleScale * CHESS_BATTLE_LAYOUT_SCALE;
       const chessBattleTargetBoard =
-        CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale;
+        CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale * CHESS_BATTLE_LAYOUT_SCALE;
       const chessBattleTargetChair =
-        CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale;
+        CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale * CHESS_BATTLE_LAYOUT_SCALE;
       const fitGroupToChessBattle = (group) => {
         if (!group) return;
         const box = new THREE.Box3().setFromObject(group);
