@@ -113,6 +113,19 @@ export const CHESS_TABLE_OPTIONS = Object.freeze([
   ...MURLAN_TABLE_THEMES.filter((theme) => theme.id !== 'murlan-default')
 ]);
 
+const CHESS_BATTLE_REMOVED_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'diamondEdge']);
+const CHESS_BATTLE_DEFAULT_TABLE_ID = 'coffee_table_round_01';
+
+export const CHESS_BATTLE_TABLE_OPTIONS = Object.freeze(
+  CHESS_TABLE_OPTIONS
+    .filter((option) => !CHESS_BATTLE_REMOVED_TABLE_IDS.has(option.id))
+    .sort((a, b) => {
+      if (a.id === CHESS_BATTLE_DEFAULT_TABLE_ID) return -1;
+      if (b.id === CHESS_BATTLE_DEFAULT_TABLE_ID) return 1;
+      return 0;
+    })
+);
+
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
@@ -450,7 +463,11 @@ export const CHESS_BATTLE_STORE_ITEMS = [
 ];
 
 export const CHESS_BATTLE_DEFAULT_LOADOUT = [
-  { type: 'tables', optionId: CHESS_TABLE_OPTIONS[0]?.id, label: CHESS_TABLE_OPTIONS[0]?.label },
+  {
+    type: 'tables',
+    optionId: CHESS_TABLE_OPTIONS[0]?.id,
+    label: CHESS_TABLE_OPTIONS[0]?.label
+  },
   { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },
   {
     type: 'tableFinish',
@@ -467,3 +484,35 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     label: CHESS_BATTLE_OPTION_LABELS.environmentHdri[DEFAULT_HDRI_ID] || 'HDR Environment'
   }
 ];
+
+export const CHESS_BATTLE_ROYAL_OPTION_LABELS = Object.freeze({
+  ...CHESS_BATTLE_OPTION_LABELS,
+  tables: Object.freeze(
+    CHESS_BATTLE_TABLE_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  )
+});
+
+export const CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS = Object.freeze({
+  ...CHESS_BATTLE_DEFAULT_UNLOCKS,
+  tables: [CHESS_BATTLE_TABLE_OPTIONS[0]?.id]
+});
+
+export const CHESS_BATTLE_ROYAL_DEFAULT_LOADOUT = Object.freeze(
+  CHESS_BATTLE_DEFAULT_LOADOUT.map((item) => {
+    if (item.type !== 'tables') return item;
+    return {
+      ...item,
+      optionId: CHESS_BATTLE_TABLE_OPTIONS[0]?.id,
+      label: CHESS_BATTLE_TABLE_OPTIONS[0]?.label
+    };
+  })
+);
+
+export const CHESS_BATTLE_ROYAL_STORE_ITEMS = Object.freeze(
+  CHESS_BATTLE_STORE_ITEMS.filter(
+    (item) => item.type !== 'tables' || !CHESS_BATTLE_REMOVED_TABLE_IDS.has(item.optionId)
+  )
+);

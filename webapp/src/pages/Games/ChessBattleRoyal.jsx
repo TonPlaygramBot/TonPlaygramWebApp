@@ -45,7 +45,7 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   CHESS_CHAIR_OPTIONS,
-  CHESS_TABLE_OPTIONS,
+  CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_BATTLE_OPTION_THUMBNAILS
 } from '../../config/chessBattleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
@@ -226,8 +226,8 @@ const resolveHdriVariant = (value) => {
   return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
-const MODEL_SCALE = 0.75;
-const STOOL_SCALE = 1.5 * 1.3;
+const MODEL_SCALE = 0.62;
+const STOOL_SCALE = 1.5 * 1.05;
 const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
@@ -241,7 +241,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.049;
+const BOARD_SCALE = 0.042;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -1853,7 +1853,7 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS]);
-const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_TABLE_OPTIONS]);
+const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_BATTLE_TABLE_OPTIONS]);
 
 const TABLE_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
@@ -6997,29 +6997,40 @@ function Chess3D({
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
     if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-  }, [appearance.tables, p1QuickIdx]);
+  }, [p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
     if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-  }, [appearance.tables, p2QuickIdx]);
+  }, [p2QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applyPawnHeadPreset;
     const presetId = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
     if (apply) apply(presetId);
-  }, [appearance.tables, headQuickIdx]);
+  }, [headQuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applyBoardThemePreset;
     if (apply) apply(boardQuickIdx);
-  }, [appearance.tables, boardQuickIdx]);
+  }, [boardQuickIdx]);
 
   useEffect(() => {
     const arena = arenaRef.current;
     if (!arena) return;
 
     const normalized = normalizeAppearance(appearance);
+    const previousAppearance = arena.lastAppliedAppearance ?? normalized;
+    const tableOrSeatAppearanceChanged =
+      previousAppearance.tables !== normalized.tables ||
+      previousAppearance.tableFinish !== normalized.tableFinish ||
+      previousAppearance.tableCloth !== normalized.tableCloth ||
+      previousAppearance.chairColor !== normalized.chairColor;
+    const boardOrPieceAppearanceChanged =
+      previousAppearance.boardColor !== normalized.boardColor ||
+      previousAppearance.whitePieceStyle !== normalized.whitePieceStyle ||
+      previousAppearance.blackPieceStyle !== normalized.blackPieceStyle ||
+      previousAppearance.headStyle !== normalized.headStyle;
     const palette = createChessPalette(normalized);
     paletteRef.current = palette;
     arena.palette = palette;
@@ -7146,22 +7157,25 @@ function Chess3D({
       }
     }
 
-    if (arena.piecePrototypes) {
+    const shouldRefreshBoardPieces = !tableOrSeatAppearanceChanged || boardOrPieceAppearanceChanged;
+    if (shouldRefreshBoardPieces && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
     }
-    if (arena.allPieceMeshes) {
+    if (shouldRefreshBoardPieces && arena.allPieceMeshes) {
       applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
       applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
-    if (arena.boardModel) {
+    if (shouldRefreshBoardPieces && arena.boardModel) {
       applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
       arena.boardModel.visible = true;
       arena.setProceduralBoardVisible?.(false);
     }
 
-    const shouldSwapPieces = !arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId;
+    const shouldSwapPieces =
+      shouldRefreshBoardPieces &&
+      (!arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId);
     if (shouldSwapPieces) {
       loadPieceSet(RAW_BOARD_SIZE)
         .then((assets) => {
@@ -7172,6 +7186,7 @@ function Chess3D({
           console.warn('Chess Battle Royal: failed to swap piece set', error);
         });
     }
+    arena.lastAppliedAppearance = normalized;
 
     if (arena.boardMaterials && (!arena.boardModel || arena.usingProceduralBoard)) {
       const usingExternalBoard = Boolean(arena.boardModel && !arena.usingProceduralBoard);
@@ -8506,6 +8521,7 @@ function Chess3D({
         boardModel: currentBoardModel,
         piecePrototypes: currentPiecePrototypes,
         activePieceSetId: currentPieceSetId,
+        lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
         setProceduralBoardVisible,
         usingProceduralBoard: proceduralBoardVisible
