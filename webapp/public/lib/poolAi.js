@@ -154,29 +154,84 @@ function pocketMouthCenter (pocket, radius, width, height) {
   }
 }
 
-function pocketEntry (pocket, radius, width, height, target) {
+function pocketMouthProfile (pocket, radius, width, height) {
+  const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
+  const nearLeft = pocket.x <= edgeTol
+  const nearRight = pocket.x >= width - edgeTol
+  const nearTop = pocket.y <= edgeTol
+  const nearBottom = pocket.y >= height - edgeTol
   const mouth = pocketMouthCenter(pocket, radius, width, height)
+
+  // Approximate jaw-tip locations at the cushion cuts for each pocket type.
+  let jawA
+  let jawB
+  if ((nearLeft || nearRight) && (nearTop || nearBottom)) {
+    const jawInset = radius * 1.8
+    jawA = {
+      x: nearLeft ? jawInset : width - jawInset,
+      y: mouth.y
+    }
+    jawB = {
+      x: mouth.x,
+      y: nearTop ? jawInset : height - jawInset
+    }
+  } else if (nearLeft || nearRight) {
+    const x = nearLeft ? radius * 0.55 : width - radius * 0.55
+    const jawSpan = radius * 2.5
+    jawA = { x, y: Math.max(radius, mouth.y - jawSpan) }
+    jawB = { x, y: Math.min(height - radius, mouth.y + jawSpan) }
+  } else {
+    const y = nearTop ? radius * 0.55 : nearBottom ? height - radius * 0.55 : mouth.y
+    const jawSpan = radius * 2.5
+    jawA = { x: Math.max(radius, mouth.x - jawSpan), y }
+    jawB = { x: Math.min(width - radius, mouth.x + jawSpan), y }
+  }
+
+  const lateral = { x: jawB.x - jawA.x, y: jawB.y - jawA.y }
+  const lateralLen = Math.hypot(lateral.x, lateral.y) || 1
+  return {
+    mouth,
+    jawA,
+    jawB,
+    lateral: { x: lateral.x / lateralLen, y: lateral.y / lateralLen },
+    halfSpan: lateralLen * 0.5
+  }
+}
+
+function pocketEntry (pocket, radius, width, height, target) {
+  const profile = pocketMouthProfile(pocket, radius, width, height)
+  const mouth = profile.mouth
   const normal = pocketNormal(mouth, width, height)
+  const safeHalfGap = Math.max(0, profile.halfSpan - radius * 1.05)
+  let lateralOffset = 0
   let dir = normal
 
   if (target) {
     const targetDir = { x: mouth.x - target.x, y: mouth.y - target.y }
     const len = Math.hypot(targetDir.x, targetDir.y) || 1
     const unitTargetDir = { x: targetDir.x / len, y: targetDir.y / len }
-    // Blend target-driven line with pocket inward normal so AI is guided
-    // through the cushion jaw entrance instead of aiming at pocket depth.
     dir = {
-      x: unitTargetDir.x * 0.72 + normal.x * 0.28,
-      y: unitTargetDir.y * 0.72 + normal.y * 0.28
+      x: unitTargetDir.x * 0.8 + normal.x * 0.2,
+      y: unitTargetDir.y * 0.8 + normal.y * 0.2
     }
     const blendedLen = Math.hypot(dir.x, dir.y) || 1
     dir = { x: dir.x / blendedLen, y: dir.y / blendedLen }
+
+    // Use cushion jaw cuts as a guide:
+    // choose the far jaw side (opposite the first jaw) on cut shots.
+    const cutness = 1 - Math.max(0, unitTargetDir.x * normal.x + unitTargetDir.y * normal.y)
+    if (cutness > 0.05 && safeHalfGap > 0) {
+      const approachAlongMouth = unitTargetDir.x * profile.lateral.x + unitTargetDir.y * profile.lateral.y
+      const farSide = approachAlongMouth >= 0 ? 1 : -1
+      const desired = safeHalfGap * Math.min(cutness * 0.95, 0.9)
+      lateralOffset = farSide * desired
+    }
   }
 
-  const offset = radius * 0.38
+  const offset = Math.max(radius * 0.34, Math.min(radius * 0.48, radius * 0.38 + safeHalfGap * 0.08))
   return {
-    x: mouth.x - dir.x * offset,
-    y: mouth.y - dir.y * offset
+    x: mouth.x + profile.lateral.x * lateralOffset - dir.x * offset,
+    y: mouth.y + profile.lateral.y * lateralOffset - dir.y * offset
   }
 }
 
@@ -191,7 +246,14 @@ function pocketAlignment (pocket, target, width, height) {
 function pocketEntranceOpenness (target, pocket, req) {
   if (!target || !pocket || !req?.state) return 0
   const r = req.state.ballRadius
+  const profile = pocketMouthProfile(pocket, r, req.state.width, req.state.height)
+  const minJawClearance = Math.max(0, profile.halfSpan - r * 1.05)
+  if (minJawClearance <= 0) return 0
   const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+  const dx = entry.x - profile.mouth.x
+  const dy = entry.y - profile.mouth.y
+  const entryLateral = Math.abs(dx * profile.lateral.x + dy * profile.lateral.y)
+  const jawClearanceScore = Math.max(0, 1 - entryLateral / (minJawClearance + 1e-6))
   const laneLen = Math.max(dist(target, entry), r * 2)
   const laneDir = { x: (entry.x - target.x) / laneLen, y: (entry.y - target.y) / laneLen }
   let minEdge = Infinity
@@ -210,7 +272,7 @@ function pocketEntranceOpenness (target, pocket, req) {
     : 1
   const alignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
   const straightness = Math.max(0, Math.min((alignment - 0.2) / 0.8, 1))
-  return Math.min(1, clearance * 0.65 + straightness * 0.35)
+  return Math.min(1, clearance * 0.5 + straightness * 0.2 + jawClearanceScore * 0.3)
 }
 
 function ghostPointForTargetPocket (target, pocket, req) {
