@@ -229,6 +229,7 @@ const resolveHdriVariant = (value) => {
 const MODEL_SCALE = 0.55;
 const STOOL_SCALE = 1.5 * 1.05;
 const CARD_SCALE = 0.95;
+const BATTLE_SCENE_SCALE = 0.85; // Requested: table/chairs/board/pieces 15% smaller while keeping layout
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
@@ -241,14 +242,14 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0368;
+const BOARD_SCALE = 0.0368 * BATTLE_SCENE_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_SIZE_FACTOR = 0.94;
-const CHAIR_SIZE_FACTOR = 0.9;
+const TABLE_SIZE_FACTOR = 0.94 * BATTLE_SCENE_SCALE;
+const CHAIR_SIZE_FACTOR = 0.9 * BATTLE_SCENE_SCALE;
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
@@ -270,7 +271,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.88;
+const CHAIR_SCALE = 0.88 * BATTLE_SCENE_SCALE;
 const CHAIR_VERTICAL_OFFSET = -0.04 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
