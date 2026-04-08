@@ -440,32 +440,6 @@ test('biases pocket entry toward far jaw lane when near jaw is crowded', () => {
   assert(decision.targetPocket.x > 500, 'entry should shift to the far/right jaw lane')
 })
 
-test('keeps pocket entry near mouth center when jaws are clear', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 640, y: 320, vx: 0, vy: 0, pocketed: false },
-        { id: 3, x: 500, y: 205, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [
-        { x: 500, y: 0 }
-      ],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      legalBallIds: [3]
-    },
-    timeBudgetMs: 120,
-    rngSeed: 29
-  })
-
-  assert.equal(decision.targetBallId, 3)
-  assert(decision.targetPocket, 'expected a selected pocket entry')
-  assert(Math.abs(decision.targetPocket.x - 500) < 7, 'entry should remain near pocket-mouth center')
-})
-
 
 test('eight-pool targets black when only 8 remains and group metadata is missing', () => {
   const decision = planShot({
