@@ -1016,6 +1016,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
     ? Math.max(0, options.lookaheadDepth)
     : LOOKAHEAD_DEPTH
+  const monteCarloRunout = potChance
   const runoutPotential = options.skipLookahead
     ? 0
     : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth, rng)
@@ -1046,7 +1047,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     targetPocket: entry,
     aimPoint: ghost,
     quality,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} mcr=${monteCarloRunout.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
