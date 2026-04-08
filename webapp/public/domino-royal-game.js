@@ -3325,26 +3325,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 0.99
   },
   {
-    id: 'blockyPhotoStudio',
-    name: 'Blocky Photo Studio',
-    assetId: 'blocky_photo_studio',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.12,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.05
-  },
-  {
-    id: 'cycloramaHardLight',
-    name: 'Cyclorama Hard Light',
-    assetId: 'cyclorama_hard_light',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.16,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.08
-  },
-  {
     id: 'abandonedGarage',
     name: 'Abandoned Garage',
     assetId: 'abandoned_garage',
@@ -3365,16 +3345,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 1.02
   },
   {
-    id: 'countryClub',
-    name: 'Country Club',
-    assetId: 'country_club',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.11,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.03
-  },
-  {
     id: 'sepulchralChapelRotunda',
     name: 'Sepulchral Chapel Rotunda',
     assetId: 'sepulchral_chapel_rotunda',
@@ -3383,16 +3353,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     exposure: 1.06,
     environmentIntensity: 1.03,
     backgroundIntensity: 0.98
-  },
-  {
-    id: 'squashCourt',
-    name: 'Squash Court',
-    assetId: 'squash_court',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.1,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1.02
   },
   {
     id: 'polyHavenStudio',
@@ -3555,6 +3515,7 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 0.99
   }
 ]);
+
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
   ...theme,
