@@ -944,7 +944,7 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.7;
 const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const TABLE_RADIUS_SCALE = 0.84;
+const TABLE_RADIUS_SCALE = 0.82;
 const TABLE_HEIGHT_SCALE = 0.95;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
@@ -5645,10 +5645,11 @@ function fitTableModelToFootprint(
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetDiameter = TABLE_RADIUS * 2.1;
+  const targetDiameter = TABLE_RADIUS * 2.04;
   const maxSide = Math.max(size.x, size.z, 0.0001);
   const scale = targetDiameter / maxSide;
   model.scale.multiplyScalar(scale);
+  model.scale.y *= 0.94;
   if (shrinkSides) {
     model.scale.x *= sideShrinkScale;
     model.scale.z *= sideShrinkScale;
@@ -6364,7 +6365,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableParts.accent = accentMesh;
   proceduralTableParts.push(accentMesh);
 
-  const columnHeight = TABLE_HEIGHT + 0.25;
+  const columnHeight = TABLE_HEIGHT * 0.58;
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(
       TABLE_OUTER_RADIUS * 0.34,
@@ -7505,7 +7506,7 @@ function placeChairsWithOption(option, chairData, token) {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
-    wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
+    wrapper.position.set(basis.position.x, 0, basis.position.z);
     wrapper.lookAt(lookTarget);
 
     const chair = cloneChairWithTheme(chairData, option);
