@@ -17,6 +17,15 @@ MonoBehaviour:
   shortDist: 0.8
   mediumDist: 1.6
   pocketApproachDepth: 0.12
+  straightPocketCenterAngleDeg: 7
+  jawGuideStartAngleDeg: 12
+  jawGuideMaxAngleDeg: 50
+  jawGuideOffsetMin: 0.01
+  jawGuideOffsetMax: 0.028
+  pocketApproachExtraDepthMax: 0.02
+  pocketMouthHalfWidth: 0.06
+  pocketBallClearanceRadiusScale: 1.08
+  jawFarSideBias: 0.8
   cuePathClearanceRadiusScale: 0.92
   cutAnglePenalty: 0.55
   distancePenalty: 0.2
