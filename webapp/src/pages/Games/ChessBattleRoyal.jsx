@@ -226,7 +226,8 @@ const resolveHdriVariant = (value) => {
   return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
-const MODEL_SCALE = 0.55;
+const CHESS_SET_GLOBAL_SCALE = 0.10;
+const MODEL_SCALE = 0.55 * CHESS_SET_GLOBAL_SCALE;
 const STOOL_SCALE = 1.5 * 1.05;
 const CARD_SCALE = 0.95;
 
@@ -241,7 +242,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0368;
+const BOARD_SCALE = 0.0368 * CHESS_SET_GLOBAL_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -7697,8 +7698,8 @@ function Chess3D({
       return cam;
     }
 
-    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
-    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
+    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4 * CHESS_SET_GLOBAL_SCALE;
+    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2 * CHESS_SET_GLOBAL_SCALE;
     const studioCamA = makeStudioCamera();
     studioCamA.position.set(
       -cameraRigOffsetX + tablePlacementOffset.x,
@@ -7734,9 +7735,9 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraBackOffset = ((isPortrait ? 2.55 : 1.78) + 0.35) * CHESS_SET_GLOBAL_SCALE;
+    const cameraForwardOffset = (isPortrait ? 0.08 : 0.2) * CHESS_SET_GLOBAL_SCALE;
+    const cameraHeightOffset = (isPortrait ? 1.72 : 1.34) * CHESS_SET_GLOBAL_SCALE;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
