@@ -226,7 +226,7 @@ const resolveHdriVariant = (value) => {
   return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
-const MODEL_SCALE = 0.68;
+const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
@@ -241,7 +241,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.045;
+const BOARD_SCALE = 0.049;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -268,7 +268,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.98;
+const CHAIR_SCALE = 1.08;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
@@ -1875,10 +1875,10 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval', 'diamondEdge']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.12,
-  hexagonTable: -0.12,
-  grandOval: -0.12,
-  diamondEdge: -0.13
+  classicOctagon: -0.065,
+  hexagonTable: -0.065,
+  grandOval: -0.065,
+  diamondEdge: -0.07
 });
 
 function normalizeAppearance(value = {}) {
