@@ -13,7 +13,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
-const DEFAULT_HDRI_RESOLUTION_KEY = '2k';
+const DEFAULT_HDRI_RESOLUTION_KEY = '8k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
@@ -454,9 +454,9 @@ function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
     case 'uhd120':
       return IS_HIGH_REFRESH_MOBILE ? '4k' : '8k';
     case 'qhd90':
-      return '4k';
+      return '8k';
     case 'fhd60':
-      return '2k';
+      return '8k';
     default:
       return DEFAULT_HDRI_RESOLUTION_KEY;
   }
@@ -4114,7 +4114,10 @@ function shouldLoadExternalHdri() {
 function isCachedHdriTexture(texture) {
   if (!texture) return false;
   for (const cachedTexture of hdriTextureCache.values()) {
-    if (cachedTexture === texture) {
+    if (
+      cachedTexture?.envMap === texture ||
+      cachedTexture?.skyboxMap === texture
+    ) {
       return true;
     }
   }
@@ -4125,9 +4128,10 @@ function pruneHdriCache() {
   const entries = [...hdriTextureCache.entries()];
   const overflow = Math.max(0, entries.length - MAX_HDRI_CACHE_SIZE);
   for (let i = 0; i < overflow; i += 1) {
-    const [key, texture] = entries[i];
+    const [key, textureBundle] = entries[i];
     hdriTextureCache.delete(key);
-    texture?.dispose?.();
+    textureBundle?.envMap?.dispose?.();
+    textureBundle?.skyboxMap?.dispose?.();
   }
 }
 let activeEnvironmentHdri = null;
@@ -4272,11 +4276,15 @@ async function loadHdriEnvironment(variant) {
         try {
           const texture = await hdriLoader.loadAsync(url);
           texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.generateMipmaps = true;
+          texture.needsUpdate = true;
           const envMap = pmrem.fromEquirectangular(texture).texture;
-          hdriTextureCache.set(cacheKey, envMap);
+          const skyboxMap = texture;
+          hdriTextureCache.set(cacheKey, { envMap, skyboxMap });
           pruneHdriCache();
-          texture.dispose?.();
-          return envMap;
+          return { envMap, skyboxMap };
         } catch (error) {
           lastError = error;
         }
@@ -4291,9 +4299,16 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
   const variant = option || ENVIRONMENT_HDRI_OPTIONS[0];
   const token = ++environmentApplyToken;
   try {
-    const envMap = await loadHdriEnvironment(variant);
+    const maps = await loadHdriEnvironment(variant);
+    const envMap = maps?.envMap ?? null;
+    const skyboxMap = maps?.skyboxMap ?? null;
     if (token !== environmentApplyToken) {
-      envMap?.dispose?.();
+      if (!isCachedHdriTexture(envMap)) {
+        envMap?.dispose?.();
+      }
+      if (!isCachedHdriTexture(skyboxMap)) {
+        skyboxMap?.dispose?.();
+      }
       return;
     }
     if (
@@ -4305,15 +4320,18 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
     }
     if (
       hdriBackground &&
-      hdriBackground !== envMap &&
+      hdriBackground !== skyboxMap &&
       hdriBackground !== fallbackEnvTexture &&
       !isCachedHdriTexture(hdriBackground)
     ) {
       hdriBackground.dispose?.();
     }
     scene.environment = envMap || fallbackEnvTexture;
-    scene.background = envMap || null;
-    hdriBackground = envMap || fallbackEnvTexture;
+    scene.background = skyboxMap || null;
+    scene.backgroundBlurriness = 0;
+    scene.backgroundIntensity = variant.backgroundIntensity ?? 1;
+    scene.environmentIntensity = variant.environmentIntensity ?? 1;
+    hdriBackground = skyboxMap || fallbackEnvTexture;
     renderer.toneMappingExposure =
       variant.exposure ?? renderer.toneMappingExposure;
     activeEnvironmentHdri = variant;
@@ -5744,6 +5762,37 @@ async function applyTableTheme(
 const tableParts = {};
 const chairs = [];
 
+function centerFurnitureInHdri() {
+  const centerCandidates = [];
+  const tableRoot = tableThemeG.visible ? tableThemeG : tableG;
+  if (tableRoot?.children?.length) {
+    const tableBounds = new THREE.Box3().setFromObject(tableRoot);
+    const tableCenter = tableBounds.getCenter(new THREE.Vector3());
+    if (Number.isFinite(tableCenter.x) && Number.isFinite(tableCenter.z)) {
+      centerCandidates.push(tableCenter);
+    }
+  }
+  chairs.forEach((chairRoot) => {
+    if (!chairRoot) return;
+    const chairBounds = new THREE.Box3().setFromObject(chairRoot);
+    const chairCenter = chairBounds.getCenter(new THREE.Vector3());
+    if (Number.isFinite(chairCenter.x) && Number.isFinite(chairCenter.z)) {
+      centerCandidates.push(chairCenter);
+    }
+  });
+  if (!centerCandidates.length) {
+    arenaG.position.set(0, arenaG.position.y, 0);
+    return;
+  }
+  const avgCenter = centerCandidates.reduce(
+    (acc, center) => acc.add(center),
+    new THREE.Vector3()
+  );
+  avgCenter.multiplyScalar(1 / centerCandidates.length);
+  arenaG.position.x -= avgCenter.x;
+  arenaG.position.z -= avgCenter.z;
+}
+
 function syncArenaGroundToFurniture() {
   if (USE_MINIMAL_STAGE || !arenaFloorMesh) return;
   const floorCandidates = [];
@@ -5767,6 +5816,7 @@ function syncArenaGroundToFurniture() {
   if (arenaCarpetMesh) {
     arenaCarpetMesh.position.y = groundedY + 0.01;
   }
+  centerFurnitureInHdri();
 }
 
 let seatLabelMesh = null;
