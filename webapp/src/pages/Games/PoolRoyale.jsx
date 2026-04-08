@@ -27880,6 +27880,20 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+            if (toPocket.lengthSq() > 1e-6) {
+              const toPocketDir = toPocket.normalize();
+              const ghost = plan.targetBall.pos
+                .clone()
+                .sub(toPocketDir.multiplyScalar(BALL_R * 2));
+              const cueVec = ghost.sub(cueBall.pos);
+              if (cueVec.lengthSq() > 1e-6) {
+                corrected = cueVec.normalize();
+                plan.cueToTarget = cueBall.pos.distanceTo(ghost);
+              }
+            }
+          }
           if (!corrected && plan.targetBall?.pos) {
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
