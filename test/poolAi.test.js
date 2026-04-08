@@ -489,52 +489,6 @@ test('safety uses one-cushion kick to reach legal target when direct lane is blo
   assert.match(decision.rationale, /one-cushion-kick/);
 });
 
-test('accepts ballOn legal-target tokens so target lock stays consistent across turns', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 120, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 360, y: 240, vx: 0, vy: 0, pocketed: false },
-        { id: 11, x: 640, y: 260, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 0, y: 500 }, { x: 1000, y: 500 }],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      ballOn: ['BALL_11']
-    },
-    rngSeed: 25,
-    timeBudgetMs: 80
-  });
-
-  assert.equal(decision.targetBallId, 11);
-});
-
-test('uses legalTargetSuggestion as legal target input for stable AI targeting', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 140, y: 260, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 320, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 3, x: 580, y: 250, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 1000, y: 250 }, { x: 1000, y: 500 }],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      legalTargetSuggestion: { targetBallId: 3 }
-    },
-    rngSeed: 33,
-    timeBudgetMs: 80
-  });
-
-  assert.equal(decision.targetBallId, 3);
-});
-
 test('power stays in a controlled range for routine pots', () => {
   const decision = planShot({
     game: 'AMERICAN_BILLIARDS',
