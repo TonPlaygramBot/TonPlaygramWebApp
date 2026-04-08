@@ -38,6 +38,10 @@ namespace Aiming
         [Range(0f, 1f)] public float jawFarSideAutoBias = 0.85f;
         [Tooltip("Keeps jaw-guided targets away from the first-jaw side by reserving part of the pocket mouth as a dead zone.")]
         [Range(0f, 0.95f)] public float jawNearSideDeadZoneRatio = 0.3f;
+        [Tooltip("For corner pockets, minimum directional component toward each adjacent cushion axis; higher values avoid cushion-first lines.")]
+        [Range(0f, 0.8f)] public float cornerPocketAxisTowardMin = 0.14f;
+        [Tooltip("How strongly corner-pocket correction blends targets back toward center/deeper pocket when cushion-first risk is detected.")]
+        [Range(0f, 1f)] public float cornerPocketSafetyBlend = 0.72f;
         [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]

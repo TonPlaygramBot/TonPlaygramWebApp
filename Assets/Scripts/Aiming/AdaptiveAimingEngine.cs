@@ -247,7 +247,53 @@ namespace Aiming
                 }
             }
 
+            aimPoint = EnforceCornerPocketSafety(ctx, cfg, inward, entranceCenter, aimPoint);
             return aimPoint;
+        }
+
+        static Vector3 EnforceCornerPocketSafety(in ShotContext ctx, AimingConfig cfg, Vector3 inward, Vector3 entranceCenter, Vector3 aimPoint)
+        {
+            // Side pockets have only one inward axis and do not need corner-jaw correction.
+            if (Mathf.Abs(inward.x) < 0.01f || Mathf.Abs(inward.z) < 0.01f)
+                return aimPoint;
+
+            Vector3 shot = aimPoint - ctx.objectBallPos;
+            if (shot.sqrMagnitude < 1e-8f)
+                return aimPoint;
+
+            float minToward = cfg ? cfg.cornerPocketAxisTowardMin : 0.14f;
+            float blend = cfg ? cfg.cornerPocketSafetyBlend : 0.72f;
+            Vector3 axisX = new Vector3(Mathf.Sign(inward.x), 0f, 0f);
+            Vector3 axisZ = new Vector3(0f, 0f, Mathf.Sign(inward.z));
+
+            float xToward = Vector3.Dot(shot.normalized, axisX);
+            float zToward = Vector3.Dot(shot.normalized, axisZ);
+            if (xToward >= minToward && zToward >= minToward)
+                return aimPoint;
+
+            float worst = Mathf.Min(xToward, zToward);
+            float deficiency = Mathf.Clamp01((minToward - worst) / Mathf.Max(minToward, 1e-4f));
+            float correction = Mathf.Clamp01(deficiency * Mathf.Clamp01(blend));
+            if (correction <= 1e-4f)
+                return aimPoint;
+
+            float maxDepthBoost = Mathf.Max(ctx.ballRadius * 0.8f, 0.015f);
+            Vector3 deeperCenter = entranceCenter + inward * (maxDepthBoost * correction);
+            Vector3 corrected = Vector3.Lerp(aimPoint, deeperCenter, correction);
+
+            // Final guard: if still too flat on one axis, hard snap to deeper center.
+            Vector3 correctedShot = corrected - ctx.objectBallPos;
+            if (correctedShot.sqrMagnitude > 1e-8f)
+            {
+                Vector3 correctedDir = correctedShot.normalized;
+                if (Vector3.Dot(correctedDir, axisX) < minToward * 0.7f ||
+                    Vector3.Dot(correctedDir, axisZ) < minToward * 0.7f)
+                {
+                    corrected = deeperCenter;
+                }
+            }
+
+            return corrected;
         }
 
         static Vector3 ResolvePocketInwardDirection(in ShotContext ctx)
