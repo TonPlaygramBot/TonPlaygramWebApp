@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-08-domino-hdri-original-size-v15';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-08-domino-hdri-centered-scale-v16';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -165,6 +165,10 @@ export default function DominoRoyalArena() {
         .seat-badge.is-self .seat-badge-avatar,
         .seat-badge.is-self .seat-badge-core {
           transform: none !important;
+        }
+        html[data-domino-live-avatar-active="false"] .seat-badge.is-self .avatar-timer-ring,
+        html:not([data-domino-live-avatar-active]) .seat-badge.is-self .avatar-timer-ring {
+          opacity: 0 !important;
         }
         .seat-badge-name {
           font-size: 0.69rem !important;

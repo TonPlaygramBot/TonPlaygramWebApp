@@ -257,6 +257,18 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [anchorElement, liveMode]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined' || gameSlug !== 'domino-royal') {
+      return undefined;
+    }
+    document.documentElement.dataset.dominoLiveAvatarActive = liveMode
+      ? 'true'
+      : 'false';
+    return () => {
+      delete document.documentElement.dataset.dominoLiveAvatarActive;
+    };
+  }, [gameSlug, liveMode]);
+
   return (
     <>
       {children}
