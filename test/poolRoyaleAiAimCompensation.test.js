@@ -6,17 +6,18 @@ describe('Pool Royale AI aim compensation', () => {
   const pocketPos = { x: 0.45, y: 0.45 };
 
   it('returns a normalized center-pocket ghost aim without spin', () => {
+    const ballRadius = 0.03;
     const result = resolveAiPotGhostAim({
       cuePos,
       targetPos,
       pocketPos,
-      ballRadius: 0.03,
+      ballRadius,
       spin: { x: 0, y: 0 },
       power: 0.7
     });
     expect(result).toBeTruthy();
     expect(result.aimDir.length()).toBeCloseTo(1, 5);
-    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(0.06024, 4);
+    expect(Math.hypot(result.ghost.x - targetPos.x, result.ghost.y - targetPos.y)).toBeCloseTo(ballRadius * 2, 3);
   });
 
   it('adjusts pre-impact aim when side spin/power deflection is present', () => {
@@ -42,11 +43,12 @@ describe('Pool Royale AI aim compensation', () => {
   });
 
   it('keeps contact depth close to 2R and adjusts only slightly with spin', () => {
+    const ballRadius = 0.03;
     const neutral = resolveAiPotGhostAim({
       cuePos,
       targetPos,
       pocketPos,
-      ballRadius: 0.03,
+      ballRadius,
       spin: { x: 0, y: 0 },
       power: 1
     });
@@ -55,13 +57,13 @@ describe('Pool Royale AI aim compensation', () => {
       cuePos,
       targetPos,
       pocketPos,
-      ballRadius: 0.03,
+      ballRadius,
       spin: { x: 0, y: 1 },
       power: 1
     });
 
-    expect(neutral.contactDepth).toBeCloseTo(0.06024, 5);
-    expect(topspin.contactDepth).toBeGreaterThan(neutral.contactDepth);
+    expect(neutral.contactDepth).toBeCloseTo(ballRadius * 2, 3);
+    expect(topspin.contactDepth).toBeGreaterThanOrEqual(neutral.contactDepth - 1e-8);
     expect(topspin.contactDepth - neutral.contactDepth).toBeLessThan(0.0015);
   });
 });

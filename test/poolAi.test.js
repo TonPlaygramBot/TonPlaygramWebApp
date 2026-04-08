@@ -412,6 +412,34 @@ test('prioritises clearer pocket entrance when one lane is cluttered', () => {
   assert(decision.targetPocket.y > 300, 'should prefer the clearer bottom-pocket lane');
 });
 
+test('biases pocket entry toward far jaw lane when near jaw is crowded', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 500, y: 350, vx: 0, vy: 0, pocketed: false },
+        { id: 3, x: 500, y: 210, vx: 0, vy: 0, pocketed: false },
+        // crowd the left/near jaw side of the top-middle pocket
+        { id: 14, x: 476, y: 44, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 500, y: 0 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [3]
+    },
+    timeBudgetMs: 120,
+    rngSeed: 19
+  })
+
+  assert.equal(decision.targetBallId, 3)
+  assert(decision.targetPocket, 'expected a selected pocket entry')
+  assert(decision.targetPocket.x > 500, 'entry should shift to the far/right jaw lane')
+})
+
 
 test('eight-pool targets black when only 8 remains and group metadata is missing', () => {
   const decision = planShot({
