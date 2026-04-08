@@ -6176,6 +6176,7 @@ const SHORT_RAIL_POCKET_TRIGGER =
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_MIN_SHOT_TIME_MS = 5000;
 const AI_MAX_SHOT_TIME_MS = 7000;
+const AI_TARGET_SHOT_TIME_MS = 5600; // keep AI pacing steady between turns instead of swinging from min/max timing
 const AI_MIN_AIM_PREVIEW_MS = 900;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
@@ -27566,14 +27567,22 @@ const powerRef = useRef(hud.power);
           const playableCushionPots = scoredPots.filter(
             (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
           );
-          const bestPot = playableCushionPots[0]?.plan ?? null;
+          const relaxedPot =
+            scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
+            scoredPots[0]?.plan ??
+            null;
+          const bestPot = playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
+          const relaxedSafety =
+            !bestPot && !bestSafety
+              ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
+              : null;
           return {
             bestPot,
-            bestSafety
+            bestSafety: bestSafety ?? relaxedSafety
           };
         };
 
@@ -27955,7 +27964,8 @@ const powerRef = useRef(hud.power);
             return;
           }
           const started = performance.now();
-          const windowDuration = THREE.MathUtils.randInt(
+          const windowDuration = THREE.MathUtils.clamp(
+            AI_TARGET_SHOT_TIME_MS,
             AI_MIN_SHOT_TIME_MS,
             AI_MAX_SHOT_TIME_MS
           );
