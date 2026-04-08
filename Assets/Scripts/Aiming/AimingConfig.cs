@@ -16,6 +16,12 @@ namespace Aiming
         [Header("AI competitiveness")]
         [Tooltip("Offsets pocket targeting away from jaw collisions by aiming slightly inside the pocket entrance.")]
         public float pocketApproachDepth = 0.12f;
+        [Tooltip("Depth used for near-straight pots so the AI targets the mouth center instead of overcutting into a jaw.")]
+        public float straightPocketApproachDepth = 0.06f;
+        [Tooltip("Above this cut angle, AI starts using jaw-assisted target offsets for angled pots.")]
+        public float jawAssistMinAngleDeg = 8f;
+        [Tooltip("Lateral offset from pocket centerline used to guide angled shots through the jaw side.")]
+        public float jawAssistLateralOffset = 0.022f;
         [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]
