@@ -333,6 +333,10 @@ namespace Aiming
         AimSolution SelectBestSolution(in ShotContext ctx, in ShotInfo info)
         {
             IAimingStrategy[] candidates = { ghost, contact, fractional, cte };
+            const int maxCandidates = 4;
+            AimSolution[] validSolutions = new AimSolution[maxCandidates];
+            float[] deterministicScores = new float[maxCandidates];
+            int validCount = 0;
             bool hasBest = false;
             float bestScore = float.MaxValue;
             AimSolution best = default;
@@ -347,6 +351,14 @@ namespace Aiming
                     continue;
 
                 float score = ScoreAttempt(ctx, info, attempt);
+                if (validCount < maxCandidates)
+                {
+                    attempt.strategyUsed = candidate.Name;
+                    deterministicScores[validCount] = score;
+                    validSolutions[validCount] = attempt;
+                    validCount++;
+                }
+
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -359,6 +371,11 @@ namespace Aiming
 
             if (!hasBest)
                 return default;
+
+            if (config != null && config.enableMonteCarlo && validCount > 1 && config.monteCarloRollouts > 0)
+            {
+                best = SelectWithMonteCarlo(ctx, info, validSolutions, deterministicScores, validCount);
+            }
 
             best.isValid = true;
             return best;
@@ -389,6 +406,111 @@ namespace Aiming
             float cutPenalty = (config ? config.cutAnglePenalty : 0.55f) * (info.angleDeg / 90f);
             float distancePenalty = (config ? config.distancePenalty : 0.2f) * Vector3.Distance(ctx.cueBallPos, attempt.aimEnd);
             return directionalMiss + cutPenalty + distancePenalty;
+        }
+
+        AimSolution SelectWithMonteCarlo(in ShotContext ctx, in ShotInfo info, AimSolution[] solutions, float[] deterministicScores, int count)
+        {
+            float blend = Mathf.Clamp01(config.monteCarloBlend);
+            int rollouts = Mathf.Max(1, config.monteCarloRollouts);
+            float jitterDeg = Mathf.Max(0f, config.monteCarloAimJitterDeg);
+            float powerJitter = Mathf.Max(0f, config.monteCarloPowerJitter);
+
+            float bestCost = float.MaxValue;
+            int bestIndex = 0;
+            int contextSeed = BuildContextSeed(ctx, info);
+
+            for (int i = 0; i < count; i++)
+            {
+                var candidate = solutions[i];
+                Vector3 baseDir = (candidate.aimEnd - ctx.cueBallPos);
+                if (baseDir.sqrMagnitude <= 1e-8f)
+                    continue;
+                baseDir.Normalize();
+
+                float expectedCost = 0f;
+                for (int rollout = 0; rollout < rollouts; rollout++)
+                {
+                    int seed = contextSeed + (i * 92821) + (rollout * 68917);
+                    Vector3 sampledDir = ApplyDirectionalNoise(baseDir, jitterDeg, seed);
+                    float sampledPower = Mathf.Clamp01(RecommendPower(info.distBucket, ctx.requiresPower) + SignedNoise(seed + 17) * powerJitter);
+                    expectedCost += ScoreMonteCarloRollout(ctx, info, sampledDir, sampledPower);
+                }
+
+                expectedCost /= rollouts;
+                float blendedCost = Mathf.Lerp(deterministicScores[i], expectedCost, blend);
+                if (blendedCost < bestCost)
+                {
+                    bestCost = blendedCost;
+                    bestIndex = i;
+                }
+            }
+
+            var best = solutions[bestIndex];
+            best.debugNote = $"{best.debugNote} mc={bestCost:0.###}";
+            return best;
+        }
+
+        float ScoreMonteCarloRollout(in ShotContext ctx, in ShotInfo info, Vector3 cueDir, float shotPower01)
+        {
+            Vector3 cueToObject = ctx.objectBallPos - ctx.cueBallPos;
+            float cueToObjectDistance = cueToObject.magnitude;
+            if (cueToObjectDistance <= 1e-6f)
+                return 10f;
+
+            Vector3 cueToObjectDir = cueToObject / cueToObjectDistance;
+            Vector3 objectToPocket = ctx.pocketPos - ctx.objectBallPos;
+            float objectToPocketDistance = objectToPocket.magnitude;
+            if (objectToPocketDistance <= 1e-6f)
+                return 10f;
+
+            Vector3 objectToPocketDir = objectToPocket / objectToPocketDistance;
+            float hitAlignment = Mathf.Clamp01(Vector3.Dot(cueDir, cueToObjectDir));
+            float cutAlignment = Mathf.Clamp01(Vector3.Dot(cueToObjectDir, objectToPocketDir));
+            float powerPenalty = Mathf.Abs(shotPower01 - RecommendPower(info.distBucket, ctx.requiresPower)) * 0.15f;
+            float missPenalty = (1f - hitAlignment) * 1.5f + (1f - cutAlignment) * 1.2f;
+
+            return missPenalty + powerPenalty + (info.angleDeg / 90f) * 0.15f;
+        }
+
+        static Vector3 ApplyDirectionalNoise(Vector3 baseDir, float jitterDeg, int seed)
+        {
+            if (jitterDeg <= 0.0001f)
+                return baseDir;
+
+            Vector3 tangent = Vector3.Cross(baseDir, Vector3.up);
+            if (tangent.sqrMagnitude <= 1e-8f)
+                tangent = Vector3.Cross(baseDir, Vector3.right);
+            tangent.Normalize();
+            Vector3 bitangent = Vector3.Cross(baseDir, tangent).normalized;
+            float maxRadians = jitterDeg * Mathf.Deg2Rad;
+            float a = SignedNoise(seed + 101) * maxRadians;
+            float b = SignedNoise(seed + 202) * maxRadians;
+            Vector3 noisy = (baseDir + tangent * a + bitangent * b).normalized;
+            return noisy.sqrMagnitude > 1e-8f ? noisy : baseDir;
+        }
+
+        static int BuildContextSeed(in ShotContext ctx, in ShotInfo info)
+        {
+            int seed = HashVector(ctx.cueBallPos);
+            seed = seed * 31 + HashVector(ctx.objectBallPos);
+            seed = seed * 31 + HashVector(ctx.pocketPos);
+            seed = seed * 31 + Mathf.RoundToInt(info.angleDeg * 10f);
+            return seed;
+        }
+
+        static int HashVector(Vector3 value)
+        {
+            int x = Mathf.RoundToInt(value.x * 1000f);
+            int y = Mathf.RoundToInt(value.y * 1000f);
+            int z = Mathf.RoundToInt(value.z * 1000f);
+            return (x * 73856093) ^ (y * 19349663) ^ (z * 83492791);
+        }
+
+        static float SignedNoise(int seed)
+        {
+            float n = Mathf.Sin(seed * 12.9898f) * 43758.5453f;
+            float fract = n - Mathf.Floor(n);
+            return (fract * 2f) - 1f;
         }
     }
 }
