@@ -247,16 +247,18 @@ const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_RADIUS = 2.74 * MODEL_SCALE;
-const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
-const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
-const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const TABLE_SIZE_FACTOR = 0.94;
+const CHAIR_SIZE_FACTOR = 0.93;
+const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -268,7 +270,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.98;
+const CHAIR_SCALE = 0.92;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
@@ -7087,7 +7089,8 @@ function Chess3D({
         if (nextTable?.materials) {
           applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         }
-        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, 0);
+        const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
+        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, arenaFloorY);
         if (nextTable?.surfaceY != null) {
           nextTable.surfaceY += tableFloorOffset;
         }
@@ -7105,7 +7108,7 @@ function Chess3D({
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, 0));
+        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
         const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
         const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
         const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
@@ -7130,7 +7133,7 @@ function Chess3D({
           cam.position.z += placementDelta.z;
         });
         const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
-        groundArenaGroups(arenaGroups, 0);
+        groundArenaGroups(arenaGroups, arenaFloorY);
         const updatedFloorY = computeGroupFloorY(arenaGroups);
         environmentFloorRef.current = updatedFloorY;
         arena.environmentFloorY = updatedFloorY;
@@ -7570,7 +7573,8 @@ function Chess3D({
     if (tableInfo?.materials) {
       applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
     }
-    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, 0);
+    const initialArenaFloorY = Number.isFinite(environmentFloorRef.current) ? environmentFloorRef.current : 0;
+    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, initialArenaFloorY);
     if (tableInfo?.surfaceY != null) {
       tableInfo.surfaceY += tableFloorOffset;
     }
@@ -7612,12 +7616,12 @@ function Chess3D({
     chairA.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE);
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
-    alignGroupToFloorY(chairA.group, 0);
+    alignGroupToFloorY(chairA.group, initialArenaFloorY);
     chairs.push(chairA);
     const chairB = makeChair(1);
     chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
     arena.add(chairB.group);
-    alignGroupToFloorY(chairB.group, 0);
+    alignGroupToFloorY(chairB.group, initialArenaFloorY);
     chairs.push(chairB);
 
     const tablePlacementOffset = alignArenaContentsToRoom(
@@ -7627,7 +7631,7 @@ function Chess3D({
     );
     arena.tablePlacementOffset = tablePlacementOffset.clone();
 
-    groundArenaGroups([tableInfo?.group, chairA.group, chairB.group], 0);
+    groundArenaGroups([tableInfo?.group, chairA.group, chairB.group], initialArenaFloorY);
     const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
     environmentFloorRef.current = environmentFloorY;
     arena.environmentFloorY = environmentFloorY;
