@@ -6557,7 +6557,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
+const DOMINO_SCALE = 1.5 * 1.26; // slight upscale so the chain reads a bit bigger on mobile
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.1;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
@@ -6577,7 +6577,7 @@ const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const ZMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0042;
-const CHAIN_TILE_Y = CLOTH_TOP + 0.021;
+const CHAIN_TILE_Y = CLOTH_TOP + 0.025; // nudge chain slightly farther out from the table cloth
 
 function getTileSpanAlongChain(isDouble = false) {
   return (isDouble ? DOMINO_WIDTH : DOMINO_LENGTH) * 0.5;
