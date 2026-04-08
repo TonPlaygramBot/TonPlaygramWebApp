@@ -3325,26 +3325,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 0.99
   },
   {
-    id: 'blockyPhotoStudio',
-    name: 'Blocky Photo Studio',
-    assetId: 'blocky_photo_studio',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.12,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.05
-  },
-  {
-    id: 'cycloramaHardLight',
-    name: 'Cyclorama Hard Light',
-    assetId: 'cyclorama_hard_light',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.16,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.08
-  },
-  {
     id: 'abandonedGarage',
     name: 'Abandoned Garage',
     assetId: 'abandoned_garage',
@@ -3365,16 +3345,6 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 1.02
   },
   {
-    id: 'countryClub',
-    name: 'Country Club',
-    assetId: 'country_club',
-    preferredResolutions: ['8k', '4k', '2k'],
-    fallbackResolution: '2k',
-    exposure: 1.11,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.03
-  },
-  {
     id: 'sepulchralChapelRotunda',
     name: 'Sepulchral Chapel Rotunda',
     assetId: 'sepulchral_chapel_rotunda',
@@ -3385,16 +3355,167 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     backgroundIntensity: 0.98
   },
   {
-    id: 'squashCourt',
-    name: 'Squash Court',
-    assetId: 'squash_court',
+    id: 'polyHavenStudio',
+    name: 'Poly Haven Studio',
+    assetId: 'poly_haven_studio',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.14,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05
+  },
+  {
+    id: 'cinemaLobby',
+    name: 'Cinema Lobby',
+    assetId: 'cinema_lobby',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02
+  },
+  {
+    id: 'churchMeetingRoom',
+    name: 'Church Meeting Room',
+    assetId: 'church_meeting_room',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'warmBar',
+    name: 'Warm Bar',
+    assetId: 'warm_bar',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'pineAttic',
+    name: 'Pine Attic',
+    assetId: 'pine_attic',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'rostockArches',
+    name: 'Rostock Arches',
+    assetId: 'rostock_arches',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99
+  },
+  {
+    id: 'vignaioliNight',
+    name: 'Vignaioli Night',
+    assetId: 'vignaioli_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02
+  },
+  {
+    id: 'stPetersSquareNight',
+    name: 'St. Peters Square Night',
+    assetId: 'st_peters_square_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'zwingerNight',
+    name: 'Zwinger Night',
+    assetId: 'zwinger_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'winterEvening',
+    name: 'Winter Evening',
+    assetId: 'winter_evening',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98
+  },
+  {
+    id: 'rathaus',
+    name: 'Rathaus',
+    assetId: 'rathaus',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'newmanLobby',
+    name: 'Newman Lobby',
+    assetId: 'newman_lobby',
     preferredResolutions: ['8k', '4k', '2k'],
     fallbackResolution: '2k',
     exposure: 1.1,
     environmentIntensity: 1.06,
-    backgroundIntensity: 1.02
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'lapa',
+    name: 'Lapa',
+    assetId: 'lapa',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'medievalCafe',
+    name: 'Medieval Cafe',
+    assetId: 'medieval_cafe',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1
+  },
+  {
+    id: 'crossfitGym',
+    name: 'Crossfit Gym',
+    assetId: 'crossfit_gym',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.09,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.01
+  },
+  {
+    id: 'voortrekkerInterior',
+    name: 'Voortrekker Interior',
+    assetId: 'voortrekker_interior',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '2k',
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.99
   }
 ]);
+
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
   ...theme,
