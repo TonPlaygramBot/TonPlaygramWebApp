@@ -149,20 +149,37 @@ namespace Aiming
 
         public static Vector3 ComputePocketAimPoint(in ShotContext ctx, AimingConfig cfg)
         {
-            Vector3 toPocket = ctx.pocketPos - ctx.objectBallPos;
-            if (toPocket.sqrMagnitude < 1e-8f)
+            Vector3 inward = ResolvePocketInwardDirection(ctx);
+            if (inward.sqrMagnitude < 1e-8f)
+            {
+                Vector3 toCenter = ctx.tableBounds.center - ctx.pocketPos;
+                inward = new Vector3(toCenter.x, 0f, toCenter.z);
+            }
+
+            if (inward.sqrMagnitude < 1e-8f)
+            {
+                Vector3 toPocketFallback = ctx.pocketPos - ctx.objectBallPos;
+                inward = -new Vector3(toPocketFallback.x, 0f, toPocketFallback.z);
+            }
+
+            if (inward.sqrMagnitude < 1e-8f)
                 return ctx.pocketPos;
 
-            Vector3 pocketDir = toPocket.normalized;
+            inward.Normalize();
             float depth = cfg ? cfg.pocketApproachDepth : 0.12f;
-            Vector3 entranceCenter = ctx.pocketPos - pocketDir * Mathf.Max(depth, ctx.ballRadius * 0.5f);
+            Vector3 entranceCenter = ctx.pocketPos + inward * Mathf.Max(depth, ctx.ballRadius * 0.5f);
 
             Vector3 objectToCue = ctx.cueBallPos - ctx.objectBallPos;
             if (objectToCue.sqrMagnitude < 1e-8f)
                 return entranceCenter;
 
+            Vector3 objectToEntrance = entranceCenter - ctx.objectBallPos;
+            if (objectToEntrance.sqrMagnitude < 1e-8f)
+                return entranceCenter;
+
             Vector3 cueDir = objectToCue.normalized;
-            float cutDot = Mathf.Clamp(Vector3.Dot(-pocketDir, cueDir), -1f, 1f);
+            Vector3 pocketApproachDir = objectToEntrance.normalized;
+            float cutDot = Mathf.Clamp(Vector3.Dot(-pocketApproachDir, cueDir), -1f, 1f);
             float cutAngleDeg = Mathf.Acos(cutDot) * Mathf.Rad2Deg;
             float straightThreshold = cfg ? cfg.straightPocketCenterAngleDeg : 7f;
             if (cutAngleDeg <= straightThreshold)
@@ -179,16 +196,50 @@ namespace Aiming
             float offset = Mathf.Lerp(minOffset, maxOffset, t);
             offset = Mathf.Clamp(offset, 0f, Mathf.Max(0f, maxOffset));
 
-            Vector3 lateral = Vector3.Cross(Vector3.up, pocketDir);
+            Vector3 lateral = Vector3.Cross(Vector3.up, inward);
             if (lateral.sqrMagnitude < 1e-8f)
                 return entranceCenter;
 
             lateral.Normalize();
-            float sideSign = Mathf.Sign(Vector3.Cross(cueDir, pocketDir).y);
+            float sideSign = Mathf.Sign(Vector3.Cross(cueDir, pocketApproachDir).y);
             if (Mathf.Approximately(sideSign, 0f))
                 return entranceCenter;
 
             return entranceCenter + lateral * sideSign * offset;
+        }
+
+        static Vector3 ResolvePocketInwardDirection(in ShotContext ctx)
+        {
+            Bounds bounds = ctx.tableBounds;
+            if (bounds.size.sqrMagnitude < 1e-8f)
+                return Vector3.zero;
+
+            Vector3 min = bounds.min;
+            Vector3 max = bounds.max;
+            float nearEdgeEpsilon = Mathf.Max(ctx.ballRadius * 2.5f, 0.14f);
+
+            float dxMin = Mathf.Abs(ctx.pocketPos.x - min.x);
+            float dxMax = Mathf.Abs(max.x - ctx.pocketPos.x);
+            float dzMin = Mathf.Abs(ctx.pocketPos.z - min.z);
+            float dzMax = Mathf.Abs(max.z - ctx.pocketPos.z);
+
+            float x = 0f;
+            if (dxMin <= nearEdgeEpsilon && dxMin <= dxMax) x = 1f;
+            else if (dxMax <= nearEdgeEpsilon) x = -1f;
+
+            float z = 0f;
+            if (dzMin <= nearEdgeEpsilon && dzMin <= dzMax) z = 1f;
+            else if (dzMax <= nearEdgeEpsilon) z = -1f;
+
+            if (Mathf.Approximately(x, 0f) && Mathf.Approximately(z, 0f))
+            {
+                float centerDx = Mathf.Abs(ctx.pocketPos.x - bounds.center.x);
+                float centerDz = Mathf.Abs(ctx.pocketPos.z - bounds.center.z);
+                if (centerDx >= centerDz) x = ctx.pocketPos.x < bounds.center.x ? 1f : -1f;
+                else z = ctx.pocketPos.z < bounds.center.z ? 1f : -1f;
+            }
+
+            return new Vector3(x, 0f, z).normalized;
         }
 
         AimSolution SelectBestSolution(in ShotContext ctx, in ShotInfo info)
