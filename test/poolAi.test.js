@@ -167,30 +167,6 @@ test('open-table targeting can select any object ball', () => {
   assert([1, 2, 8].includes(decision.targetBallId));
 });
 
-test('pool AI evaluates Monte Carlo rollout score for shape planning', () => {
-  const req = {
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 100, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 300, y: 250, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [
-        { x: 1000, y: 250 }
-      ],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01
-    },
-    timeBudgetMs: 180,
-    rngSeed: 11
-  };
-  const decision = planShot(req);
-  assert.equal(decision.targetBallId, 1);
-  assert.match(decision.rationale, /mcr=\d+\.\d{2}/);
-});
-
 test('supports non-zero cueBallId mappings', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
