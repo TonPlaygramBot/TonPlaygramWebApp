@@ -34,6 +34,10 @@ namespace Aiming
         public float pocketBallClearanceRadiusScale = 1.08f;
         [Tooltip("Bias toward aiming at the far jaw side (away from first jaw impact) on cut shots.")]
         [Range(0f, 1f)] public float jawFarSideBias = 0.8f;
+        [Tooltip("High-cut shots automatically increase far-jaw preference to avoid clipping the first jaw cut.")]
+        [Range(0f, 1f)] public float jawFarSideAutoBias = 0.85f;
+        [Tooltip("Keeps jaw-guided targets away from the first-jaw side by reserving part of the pocket mouth as a dead zone.")]
+        [Range(0f, 0.95f)] public float jawNearSideDeadZoneRatio = 0.3f;
         [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]

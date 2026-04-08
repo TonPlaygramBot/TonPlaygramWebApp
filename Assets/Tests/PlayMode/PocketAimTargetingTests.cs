@@ -119,6 +119,47 @@ namespace Aiming.Tests
         }
 
         [Test]
+        public void SteepCutAutoBiasesToFarJawAndAvoidsNearJawDeadZone()
+        {
+            var cfg = ScriptableObject.CreateInstance<AimingConfig>();
+            cfg.pocketApproachDepth = 0.12f;
+            cfg.straightPocketCenterAngleDeg = 7f;
+            cfg.jawGuideStartAngleDeg = 10f;
+            cfg.jawGuideMaxAngleDeg = 50f;
+            cfg.jawGuideOffsetMin = 0.008f;
+            cfg.jawGuideOffsetMax = 0.03f;
+            cfg.pocketMouthHalfWidth = 0.06f;
+            cfg.pocketBallClearanceRadiusScale = 1.05f;
+            cfg.jawFarSideBias = 0f;
+            cfg.jawFarSideAutoBias = 1f;
+            cfg.jawNearSideDeadZoneRatio = 0.35f;
+
+            var ctx = new ShotContext
+            {
+                objectBallPos = Vector3.zero,
+                cueBallPos = new Vector3(1f, 0f, -0.2f),
+                pocketPos = new Vector3(0f, 0f, 2f),
+                ballRadius = 0.028f,
+                tableBounds = new Bounds(Vector3.zero, new Vector3(2f, 0.2f, 4f))
+            };
+
+            Vector3 aimPoint = AdaptiveAimingEngine.ComputePocketAimPoint(ctx, cfg);
+            Vector3 entranceCenter = new Vector3(0f, 0f, 1.88f);
+            Vector3 inward = (entranceCenter - ctx.pocketPos).normalized;
+            Vector3 lateral = Vector3.Cross(Vector3.up, inward).normalized;
+            Vector3 cueDir = (ctx.cueBallPos - ctx.objectBallPos).normalized;
+
+            float incomingSide = Mathf.Sign(Vector3.Dot(cueDir, lateral));
+            float offsetSide = Mathf.Sign(Vector3.Dot(aimPoint - entranceCenter, lateral));
+            float maxAllowed = cfg.pocketMouthHalfWidth - (ctx.ballRadius * cfg.pocketBallClearanceRadiusScale);
+            float minDeadZoneOffset = maxAllowed * cfg.jawNearSideDeadZoneRatio * 0.5f;
+            float offset = Mathf.Abs(Vector3.Dot(aimPoint - entranceCenter, lateral));
+
+            Assert.That(offsetSide, Is.EqualTo(-incomingSide));
+            Assert.That(offset, Is.GreaterThan(minDeadZoneOffset));
+        }
+
+        [Test]
         public void CornerPocketUsesTableEntranceNotPocketBack()
         {
             var cfg = ScriptableObject.CreateInstance<AimingConfig>();
