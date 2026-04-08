@@ -3868,10 +3868,6 @@ function resolveDefaultOptionId(key, options = []) {
 }
 const DOMINO_DEFAULT_UNLOCKS = Object.freeze(
   Object.entries(DOMINO_OPTIONS_BY_KEY).reduce((acc, [key, options]) => {
-    if (key === 'environmentHdri' || key === 'tableTheme' || key === 'chairTheme') {
-      acc[key] = options.map((option) => option.id).filter(Boolean);
-      return acc;
-    }
     const defaultId = resolveDefaultOptionId(key, options);
     acc[key] = defaultId ? [defaultId] : [];
     return acc;
