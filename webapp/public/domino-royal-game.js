@@ -944,7 +944,7 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.7;
 const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const TABLE_RADIUS_SCALE = 0.8835;
+const TABLE_RADIUS_SCALE = 0.84;
 const TABLE_HEIGHT_SCALE = 0.95;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
@@ -1043,6 +1043,8 @@ const CAMERA_TOPDOWN_FRAMING = Object.freeze({
 });
 const CAMERA_TURN_FOCUS_LERP = 0.07;
 const CAMERA_TURN_SEAT_WEIGHT = 0.42;
+const CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT = 0.1;
+const CAMERA_TURN_SIDE_SEAT_SCREEN_OFFSET = 0.16 * MODEL_SCALE;
 const CAMERA_DOMINO_FOCUS_HOLD_MS = 1250;
 const TURN_ADVANCE_AFTER_PLACEMENT_MS = 950;
 const PASS_TURN_ADVANCE_DELAY_MS = 680;
@@ -1501,9 +1503,13 @@ function updateTurnCameraFocus() {
 
   const focusSeat = seatBasisForIndex(current % Math.max(1, N));
   const focusCenter = getActiveCameraTarget();
-  turnSeatTarget
-    .copy(focusCenter)
-    .lerp(focusSeat.position, CAMERA_TURN_SEAT_WEIGHT);
+  const isSideSeat = Math.abs(focusSeat.position.x) > Math.abs(focusSeat.position.z);
+  const seatWeight = CAMERA_TURN_SEAT_WEIGHT + (isSideSeat ? CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT : 0);
+  turnSeatTarget.copy(focusCenter).lerp(focusSeat.position, seatWeight);
+  if (isSideSeat) {
+    turnSeatTarget.x +=
+      Math.sign(focusSeat.position.x || 0) * CAMERA_TURN_SIDE_SEAT_SCREEN_OFFSET;
+  }
   turnSeatTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
 
   const now = performance.now();
@@ -5982,11 +5988,25 @@ function pickSelfVideoCandidate() {
   return videoCandidate;
 }
 
+function hideSelfVideoUntilSeatAnchor(candidate) {
+  if (!candidate) return;
+  candidate.style.position = 'fixed';
+  candidate.style.left = '-9999px';
+  candidate.style.top = '-9999px';
+  candidate.style.width = '56px';
+  candidate.style.height = '56px';
+  candidate.style.opacity = '0';
+  candidate.style.pointerEvents = 'none';
+}
+
 function anchorSelfVideoToBottomSeat() {
-  if (!humanSeatBadgeAnchor) return;
   const candidate = pickSelfVideoCandidate();
   if (!candidate) return;
   anchoredSelfVideoElement = candidate;
+  if (!humanSeatBadgeAnchor) {
+    hideSelfVideoUntilSeatAnchor(candidate);
+    return;
+  }
   const width = 56;
   const height = 56;
   const x = humanSeatBadgeAnchor.x;
@@ -6005,6 +6025,7 @@ function anchorSelfVideoToBottomSeat() {
   candidate.style.boxShadow = '0 8px 18px rgba(0,0,0,0.36)';
   candidate.style.background = 'rgba(8,12,24,0.66)';
   candidate.style.pointerEvents = 'none';
+  candidate.style.opacity = '1';
   if (candidate.tagName === 'VIDEO') {
     candidate.setAttribute('playsinline', 'true');
   }
