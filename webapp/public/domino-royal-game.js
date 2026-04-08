@@ -2272,12 +2272,12 @@ async function loadPolyhavenModel(
   throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3952249968409541,
-  2.0324174894329905,
-  1.802165630054474
+  1.3162499970197679,
+  1.9173749900311232,
+  1.7001562547683715
 );
-const TARGET_CHAIR_MIN_Y = -0.9084862492892147;
-const TARGET_CHAIR_CENTER_Z = -0.16471408019065854;
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
 const clamp01f = (value) => Math.min(1, Math.max(0, value));
 const normalizeHue = (h) => {
@@ -7664,7 +7664,6 @@ function placeChairsWithOption(option, chairData, token) {
     disposeChairResources(chair);
   }
 
-  const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
   const seatBottomOffset = -chairTemplateBounds.min.y;
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
   const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
@@ -7676,7 +7675,7 @@ function placeChairsWithOption(option, chairData, token) {
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
     wrapper.position.set(basis.position.x, 0, basis.position.z);
-    wrapper.lookAt(lookTarget);
+    wrapper.lookAt(new THREE.Vector3(0, wrapper.position.y, 0));
 
     const chair = cloneChairWithTheme(chairData, option);
     chair.position.y = -seatBottomOffset;
