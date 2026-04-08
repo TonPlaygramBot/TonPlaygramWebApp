@@ -123,29 +123,60 @@ function pocketNormal (pocket, width, height) {
   return { x: dir.x / len, y: dir.y / len }
 }
 
+function pocketMouthCenter (pocket, radius, width, height) {
+  const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
+  const nearLeft = pocket.x <= edgeTol
+  const nearRight = pocket.x >= width - edgeTol
+  const nearTop = pocket.y <= edgeTol
+  const nearBottom = pocket.y >= height - edgeTol
+
+  // Corner pockets: mouth center is between the two angled jaw cuts.
+  if ((nearLeft || nearRight) && (nearTop || nearBottom)) {
+    const jawInset = radius * 1.8
+    return {
+      x: nearLeft ? jawInset * 0.5 : width - jawInset * 0.5,
+      y: nearTop ? jawInset * 0.5 : height - jawInset * 0.5
+    }
+  }
+
+  // Side pockets: mouth center is between the two jaw points on that rail.
+  if (nearLeft || nearRight) {
+    const jawSpan = radius * 2.5
+    return {
+      x: nearLeft ? radius * 0.55 : width - radius * 0.55,
+      y: Math.max(jawSpan, Math.min(height - jawSpan, pocket.y))
+    }
+  }
+
+  return {
+    x: Math.max(radius * 0.55, Math.min(width - radius * 0.55, pocket.x)),
+    y: nearTop ? radius * 0.55 : nearBottom ? height - radius * 0.55 : pocket.y
+  }
+}
+
 function pocketEntry (pocket, radius, width, height, target) {
-  const normal = pocketNormal(pocket, width, height)
+  const mouth = pocketMouthCenter(pocket, radius, width, height)
+  const normal = pocketNormal(mouth, width, height)
   let dir = normal
 
   if (target) {
-    const targetDir = { x: pocket.x - target.x, y: pocket.y - target.y }
+    const targetDir = { x: mouth.x - target.x, y: mouth.y - target.y }
     const len = Math.hypot(targetDir.x, targetDir.y) || 1
     const unitTargetDir = { x: targetDir.x / len, y: targetDir.y / len }
-    // Blend target-driven line with pocket inward normal so the AI
-    // prefers hitting a central entrance trajectory instead of grazing
-    // the near jaw on steep cuts.
+    // Blend target-driven line with pocket inward normal so AI is guided
+    // through the cushion jaw entrance instead of aiming at pocket depth.
     dir = {
-      x: unitTargetDir.x * 0.62 + normal.x * 0.38,
-      y: unitTargetDir.y * 0.62 + normal.y * 0.38
+      x: unitTargetDir.x * 0.72 + normal.x * 0.28,
+      y: unitTargetDir.y * 0.72 + normal.y * 0.28
     }
     const blendedLen = Math.hypot(dir.x, dir.y) || 1
     dir = { x: dir.x / blendedLen, y: dir.y / blendedLen }
   }
 
-  const offset = radius * 1.05
+  const offset = radius * 0.38
   return {
-    x: pocket.x - dir.x * offset,
-    y: pocket.y - dir.y * offset
+    x: mouth.x - dir.x * offset,
+    y: mouth.y - dir.y * offset
   }
 }
 
