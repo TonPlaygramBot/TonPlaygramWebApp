@@ -193,7 +193,7 @@ setMode('online');
 
 // === Three.js + chess visuals ===
 let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null;
-let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x:0,y:0}; const DRAG_PX=8; const dragLift=0.06; const GLOBAL_SCALE=0.5;
+let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x:0,y:0}; const DRAG_PX=8; const dragLift=0.06; const GLOBAL_SCALE=0.47;
 const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js','https://unpkg.com/three@0.159.0/build/three.module.js','https://esm.sh/three@0.159.0','https://cdn.skypack.dev/three@0.159.0'];
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
