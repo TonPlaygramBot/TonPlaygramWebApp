@@ -48,6 +48,16 @@ namespace Aiming
         public float cutAnglePenalty = 0.55f;
         [Tooltip("Penalty weight for long cue-ball travel.")]
         public float distancePenalty = 0.2f;
+        [Tooltip("Enables Monte Carlo rollouts so AI picks aim lines with the best expected pot probability under noise.")]
+        public bool enableMonteCarlo = true;
+        [Tooltip("How many stochastic rollouts are simulated per candidate shot.")]
+        [Range(8, 256)] public int monteCarloRollouts = 48;
+        [Tooltip("Angular jitter in degrees used for Monte Carlo rollout perturbations.")]
+        [Range(0f, 8f)] public float monteCarloAimJitterDeg = 1.35f;
+        [Tooltip("Power jitter used for Monte Carlo rollout perturbations.")]
+        [Range(0f, 0.4f)] public float monteCarloPowerJitter = 0.12f;
+        [Tooltip("Blend between deterministic score (0) and Monte Carlo expected cost (1).")]
+        [Range(0f, 1f)] public float monteCarloBlend = 0.7f;
 
         [Header("Spin")]
         public float sideSpinAmount = 0.35f;
