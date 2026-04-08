@@ -46,9 +46,9 @@ import {
 import {
   CHESS_CHAIR_OPTIONS,
   CHESS_BATTLE_TABLE_OPTIONS,
-  CHESS_BATTLE_OPTION_THUMBNAILS
+  CHESS_BATTLE_OPTION_THUMBNAILS,
+  CHESS_TABLE_FINISH_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
   chessBattleAccountId,
   getChessBattleInventory,
@@ -1855,7 +1855,7 @@ const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS]);
 const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_BATTLE_TABLE_OPTIONS]);
 
-const TABLE_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
+const TABLE_FINISH_OPTIONS = Object.freeze([...CHESS_TABLE_FINISH_OPTIONS]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
 const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
@@ -1873,7 +1873,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
 ];
 
-const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval', 'diamondEdge']);
+const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
   hexagonTable: -0.065,
@@ -7822,7 +7822,7 @@ function Chess3D({
       );
       const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
 
-      const initialRadius = CAMERA_SAFE_MAX_RADIUS;
+      const initialRadius = CAMERA_3D_MAX_RADIUS;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
       if (mode === '2d') {
@@ -7853,7 +7853,7 @@ function Chess3D({
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
         const target = new THREE.Spherical(
-          clamp(CAMERA_SAFE_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
+          clamp(CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
           clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );

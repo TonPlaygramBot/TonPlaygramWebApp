@@ -2,7 +2,8 @@ import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_STORE_ITEMS
 } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
@@ -71,22 +72,22 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
 
 const PROCEDURAL_TABLE_OPTIONS = [
   {
-    id: 'hexagonTable',
-    label: 'Hexagon Table',
-    source: 'procedural',
-    proceduralShapeId: 'hexagonTable',
-    price: 0,
-    description: 'Default six-sided battle table tuned for Chess Battle Royal.',
-    thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee'])
-  },
-  {
     id: 'murlan-default',
     label: 'Octagon Table',
     source: 'procedural',
     proceduralShapeId: 'classicOctagon',
-    price: 980,
-    description: 'Classic octagon battle table with shared royale proportions.',
+    price: 0,
+    description: 'Default octagon battle table with shared royale proportions.',
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8'])
+  },
+  {
+    id: 'hexagonTable',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    proceduralShapeId: 'hexagonTable',
+    price: 980,
+    description: 'Six-sided battle table tuned for Chess Battle Royal.',
+    thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee'])
   },
   {
     id: 'grandOval',
@@ -113,8 +114,8 @@ export const CHESS_TABLE_OPTIONS = Object.freeze([
   ...MURLAN_TABLE_THEMES.filter((theme) => theme.id !== 'murlan-default')
 ]);
 
-const CHESS_BATTLE_REMOVED_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'diamondEdge']);
-const CHESS_BATTLE_DEFAULT_TABLE_ID = 'coffee_table_round_01';
+const CHESS_BATTLE_REMOVED_TABLE_IDS = new Set(['diamondEdge']);
+const CHESS_BATTLE_DEFAULT_TABLE_ID = 'murlan-default';
 
 export const CHESS_BATTLE_TABLE_OPTIONS = Object.freeze(
   CHESS_TABLE_OPTIONS
@@ -126,10 +127,58 @@ export const CHESS_BATTLE_TABLE_OPTIONS = Object.freeze(
     })
 );
 
+const POOL_ROYALE_LT_TABLE_FINISH_IDS = new Set([
+  'carbonFiberChalk',
+  'carbonFiberChalkGrey',
+  'carbonFiberChalkBeige',
+  'carbonFiberChalkDarkBlue',
+  'carbonFiberChalkWhite',
+  'carbonFiberChalkDarkGreen',
+  'carbonFiberChalkDarkYellow',
+  'carbonFiberChalkDarkBrown',
+  'carbonFiberChalkDarkRed',
+  'carbonFiberSnakeChalk',
+  'carbonFiberSnakeChalkGrey',
+  'carbonFiberSnakeChalkBeige',
+  'carbonFiberSnakeChalkDarkBlue',
+  'carbonFiberSnakeChalkWhite',
+  'carbonFiberSnakeChalkDarkGreen',
+  'carbonFiberAlligatorOlive',
+  'carbonFiberAlligatorSwamp',
+  'carbonFiberAlligatorClay',
+  'carbonFiberAlligatorSand',
+  'carbonFiberAlligatorMoss',
+  'carbonFiberAlligatorNight'
+]);
+
+const CHESS_LT_TABLE_FINISHES = Object.freeze(
+  POOL_ROYALE_STORE_ITEMS.filter(
+    (item) => item.type === 'tableFinish' && POOL_ROYALE_LT_TABLE_FINISH_IDS.has(item.optionId)
+  ).map((item) => ({
+    id: item.optionId,
+    label: item.name.replace(/\s*Finish$/i, ''),
+    description: item.description,
+    price: item.price,
+    swatches: item.swatches,
+    thumbnail: item.thumbnail,
+    woodOption: Object.freeze({
+      id: item.optionId,
+      label: item.name.replace(/\s*Finish$/i, ''),
+      presetId: 'smokedOak',
+      grainId: 'dark_wood'
+    })
+  }))
+);
+
+export const CHESS_TABLE_FINISH_OPTIONS = Object.freeze([
+  ...MURLAN_TABLE_FINISHES,
+  ...CHESS_LT_TABLE_FINISHES
+]);
+
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
-  tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  tableFinish: [CHESS_TABLE_FINISH_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -150,7 +199,7 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   tableFinish: Object.freeze(
-    MURLAN_TABLE_FINISHES.reduce((acc, option) => {
+    CHESS_TABLE_FINISH_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -229,7 +278,7 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
 });
 
 export const CHESS_BATTLE_STORE_ITEMS = [
-  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
+  ...CHESS_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
     id: `chess-table-finish-${finish.id}`,
     type: 'tableFinish',
     optionId: finish.id,
@@ -240,7 +289,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     thumbnail: finish.thumbnail,
     previewShape: 'table'
   })),
-  ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
+  ...CHESS_TABLE_OPTIONS.map((theme, idx) => ({
     id: `chess-table-${theme.id}`,
     type: 'tables',
     optionId: theme.id,
@@ -471,8 +520,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },
   {
     type: 'tableFinish',
-    optionId: MURLAN_TABLE_FINISHES[0]?.id,
-    label: MURLAN_TABLE_FINISHES[0]?.label
+    optionId: CHESS_TABLE_FINISH_OPTIONS[0]?.id,
+    label: CHESS_TABLE_FINISH_OPTIONS[0]?.label
   },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
