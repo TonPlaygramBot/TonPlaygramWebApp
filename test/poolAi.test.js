@@ -510,3 +510,55 @@ test('power stays in a controlled range for routine pots', () => {
 
   assert(decision.power >= 0.35 && decision.power <= 0.7, `unexpected power ${decision.power}`);
 });
+
+test('uses legalTargetSuggestion ballId when legalBallIds are missing', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 110, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 340, y: 150, vx: 0, vy: 0, pocketed: false },
+        { id: 11, x: 360, y: 340, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalTargetSuggestion: { ballId: 11 }
+    },
+    timeBudgetMs: 100,
+    rngSeed: 41
+  })
+
+  assert.equal(decision.targetBallId, 11)
+})
+
+test('maps legalTargetSuggestion position to nearest live ball for consistent targeting', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 260, vx: 0, vy: 0, pocketed: false },
+        { id: 3, x: 420, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 10, x: 650, y: 250, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalTargetSuggestion: { target: { x: 647, y: 252 } }
+    },
+    timeBudgetMs: 100,
+    rngSeed: 43
+  })
+
+  assert.equal(decision.targetBallId, 10)
+})
