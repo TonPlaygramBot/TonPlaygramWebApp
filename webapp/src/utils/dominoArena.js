@@ -799,6 +799,7 @@ export function buildDominoArena({ scene, renderer }) {
     TABLE_DIMENSIONS.outerHalfWidth + CHAIR_DIMENSIONS.seatDepth / 2 + CHAIR_GAP;
   const chairHeight =
     CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
+  const lookTarget = new THREE.Vector3(0, chairHeight, 0);
   const dominoFacing = new THREE.Vector3(1, 0, 0);
   const chairs = [
     { position: new THREE.Vector3(0, 0, chairRadius) },
@@ -808,10 +809,8 @@ export function buildDominoArena({ scene, renderer }) {
   ].map(({ position, forward }) => {
     const chair = createDominoChair(DEFAULT_CHAIR_OPTION, renderer, sharedChairMaterials);
     chair.position.copy(position);
-    const forwardDir = forward?.clone().normalize() ?? new THREE.Vector3(0, 0, -1);
-    const flatLookTarget = chair.position.clone().add(forwardDir);
-    flatLookTarget.y = chair.position.y;
-    chair.lookAt(flatLookTarget);
+    const forwardDir = forward?.clone().normalize() ?? lookTarget.clone().sub(chair.position).normalize();
+    chair.lookAt(chair.position.clone().add(forwardDir));
     chair.rotateY(Math.PI);
     table.group.add(chair);
     chair.traverse((child) => {

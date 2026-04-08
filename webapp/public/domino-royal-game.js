@@ -7664,6 +7664,7 @@ function placeChairsWithOption(option, chairData, token) {
     disposeChairResources(chair);
   }
 
+  const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
   const seatBottomOffset = -chairTemplateBounds.min.y;
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
   const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
@@ -7675,9 +7676,7 @@ function placeChairsWithOption(option, chairData, token) {
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
     wrapper.position.set(basis.position.x, 0, basis.position.z);
-    const flatLookTarget = wrapper.position.clone().add(basis.forward);
-    flatLookTarget.y = wrapper.position.y;
-    wrapper.lookAt(flatLookTarget);
+    wrapper.lookAt(lookTarget);
 
     const chair = cloneChairWithTheme(chairData, option);
     chair.position.y = -seatBottomOffset;
