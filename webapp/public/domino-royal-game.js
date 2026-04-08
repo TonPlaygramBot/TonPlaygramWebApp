@@ -966,7 +966,9 @@ const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
 const CHAIR_GAP = 0.04 * MODEL_SCALE;
-const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP;
+const CHAIR_OUTWARD_OFFSET = 0.05 * MODEL_SCALE;
+const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
+const CHAIR_VISUAL_SCALE = 1.06;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -7678,6 +7680,7 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.lookAt(new THREE.Vector3(0, wrapper.position.y, 0));
 
     const chair = cloneChairWithTheme(chairData, option);
+    chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
     chair.position.y = -seatBottomOffset;
     wrapper.add(chair);
 
