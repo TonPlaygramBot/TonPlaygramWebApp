@@ -75,15 +75,16 @@ namespace Aiming
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AimSolution GetAimSolution(in ShotContext ctx)
         {
-            var info = classifier.Classify(ctx, config);
+            ShotContext evalCtx = NormalizePocketTarget(ctx);
+            var info = classifier.Classify(evalCtx, config);
             if (!info.losCueToObj || !info.losObjToPocket)
             {
                 var blocked = new AimSolution
                 {
                     isValid = false,
                     strategyUsed = "None",
-                    aimStart = ctx.cueBallPos,
-                    aimEnd = ctx.objectBallPos,
+                    aimStart = evalCtx.cueBallPos,
+                    aimEnd = evalCtx.objectBallPos,
                     recommendedPower01 = 0f,
                     tipOffset = Vector2.zero,
                     cueElevationDeg = 0f,
@@ -91,31 +92,15 @@ namespace Aiming
                 };
 
                 DrawGuideLine(blocked.aimStart, blocked.aimEnd);
-                if (showDebug) overlay.UpdateOverlay(ctx, info, blocked);
+                if (showDebug) overlay.UpdateOverlay(evalCtx, info, blocked);
                 return blocked;
             }
 
-            IAimingStrategy strat;
-            if (info.isStraight)
+            var sol = SelectBestSolution(evalCtx, info);
+            if (!sol.isValid)
             {
-                strat = ghost;
+                sol = BuildDefaultSolution(evalCtx, info);
             }
-            else if (info.isRailShot || info.angleDeg < 30f)
-            {
-                strat = contact;
-            }
-            else if (info.angleDeg <= 45f)
-            {
-                bool longOrSpin = (info.distBucket == ShotClassifier.DistBucket.Long) || ctx.highSpin;
-                strat = longOrSpin ? cte : ghost;
-            }
-            else
-            {
-                strat = fractional;
-            }
-            if ((ctx.requiresPower || ctx.highSpin) && info.distBucket != ShotClassifier.DistBucket.Short) strat = cte;
-
-            var sol = strat.Solve(ctx, info, config);
             sol.recommendedPower01 = RecommendPower(info.distBucket, ctx.requiresPower);
             if (ctx.highSpin)
             {
@@ -130,10 +115,9 @@ namespace Aiming
                     Mathf.Clamp(vert, -config.tipOffsetMax, config.tipOffsetMax));
                 sol.cueElevationDeg = (ctx.requiresPower && info.isRailShot) ? config.elevationForPower : 0f;
             }
-            sol.strategyUsed = strat.Name;
 
             DrawGuideLine(sol.aimStart, sol.aimEnd);
-            if (showDebug) overlay.UpdateOverlay(ctx, info, sol);
+            if (showDebug) overlay.UpdateOverlay(evalCtx, info, sol);
 
             return sol;
         }
@@ -154,6 +138,79 @@ namespace Aiming
                 case ShotClassifier.DistBucket.Medium: return requiresPower ? 0.70f : 0.50f;
                 default: return requiresPower ? 0.90f : 0.70f;
             }
+        }
+
+        ShotContext NormalizePocketTarget(in ShotContext ctx)
+        {
+            var normalized = ctx;
+            Vector3 toPocket = ctx.pocketPos - ctx.objectBallPos;
+            if (toPocket.sqrMagnitude < 1e-8f)
+                return normalized;
+
+            float depth = config ? config.pocketApproachDepth : 0.12f;
+            normalized.pocketPos = ctx.pocketPos - toPocket.normalized * Mathf.Max(depth, ctx.ballRadius * 0.5f);
+            return normalized;
+        }
+
+        AimSolution SelectBestSolution(in ShotContext ctx, in ShotInfo info)
+        {
+            IAimingStrategy[] candidates = { ghost, contact, fractional, cte };
+            bool hasBest = false;
+            float bestScore = float.MaxValue;
+            AimSolution best = default;
+
+            foreach (var candidate in candidates)
+            {
+                var attempt = candidate.Solve(ctx, info, config);
+                if (!attempt.isValid)
+                    continue;
+
+                if (!IsCuePathClear(ctx.cueBallPos, attempt.aimEnd, ctx))
+                    continue;
+
+                float score = ScoreAttempt(ctx, info, attempt);
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = attempt;
+                    best.strategyUsed = candidate.Name;
+                    best.debugNote = $"{attempt.debugNote} score={score:0.###}";
+                    hasBest = true;
+                }
+            }
+
+            if (!hasBest)
+                return default;
+
+            best.isValid = true;
+            return best;
+        }
+
+        AimSolution BuildDefaultSolution(in ShotContext ctx, in ShotInfo info)
+        {
+            IAimingStrategy fallback = info.isStraight ? ghost :
+                (info.isRailShot || info.angleDeg < 30f) ? contact :
+                (info.angleDeg <= 45f) ? ghost : fractional;
+            var sol = fallback.Solve(ctx, info, config);
+            sol.strategyUsed = fallback.Name;
+            return sol;
+        }
+
+        bool IsCuePathClear(Vector3 cue, Vector3 target, in ShotContext ctx)
+        {
+            float clearance = ctx.ballRadius * (config ? config.cuePathClearanceRadiusScale : 0.92f);
+            return PhysicsUtil.SphereLineClear(cue, target, clearance, ctx.collisionMask);
+        }
+
+        float ScoreAttempt(in ShotContext ctx, in ShotInfo info, in AimSolution attempt)
+        {
+            Vector3 cueDir = (attempt.aimEnd - ctx.cueBallPos).normalized;
+            Vector3 idealDir = (ctx.objectBallPos - ctx.cueBallPos).normalized;
+            float directionalMiss = 1f - Mathf.Clamp01(Vector3.Dot(cueDir, idealDir));
+
+            float cutPenalty = (config ? config.cutAnglePenalty : 0.55f) * (info.angleDeg / 90f);
+            float distancePenalty = (config ? config.distancePenalty : 0.2f) * Vector3.Distance(ctx.cueBallPos, attempt.aimEnd);
+            return directionalMiss + cutPenalty + distancePenalty;
         }
     }
 }

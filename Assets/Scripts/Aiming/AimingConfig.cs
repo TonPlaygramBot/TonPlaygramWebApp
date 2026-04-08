@@ -13,6 +13,16 @@ namespace Aiming
         public float shortDist = 0.8f;
         public float mediumDist = 1.6f;
 
+        [Header("AI competitiveness")]
+        [Tooltip("Offsets pocket targeting away from jaw collisions by aiming slightly inside the pocket entrance.")]
+        public float pocketApproachDepth = 0.12f;
+        [Tooltip("Rejects candidate aims where cue-to-contact line is significantly blocked.")]
+        public float cuePathClearanceRadiusScale = 0.92f;
+        [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]
+        public float cutAnglePenalty = 0.55f;
+        [Tooltip("Penalty weight for long cue-ball travel.")]
+        public float distancePenalty = 0.2f;
+
         [Header("Spin")]
         public float sideSpinAmount = 0.35f;
         public float verticalSpinAmount = 0.35f;
