@@ -1,5 +1,7 @@
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -69,12 +71,51 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
   ...BASE_CHAIR_OPTIONS
 ]);
 
-export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
+const PROCEDURAL_CHESS_TABLE_OPTIONS = [
+  {
+    id: 'hexagonTable',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    proceduralShapeId: 'hexagonTable',
+    thumbnail: TABLE_SHAPE_OPTIONS.find((option) => option.id === 'hexagonTable')?.thumbnail,
+    description: 'Default Chess Battle Royal procedural hexagon table.'
+  },
+  {
+    id: 'murlan-default',
+    label: 'Octagon Table',
+    source: 'procedural',
+    proceduralShapeId: 'classicOctagon',
+    thumbnail: TABLE_SHAPE_OPTIONS.find((option) => option.id === 'classicOctagon')?.thumbnail,
+    description: 'Procedural octagon table layout.'
+  },
+  {
+    id: 'grandOval',
+    label: 'Oval Table',
+    source: 'procedural',
+    proceduralShapeId: 'grandOval',
+    thumbnail: TABLE_SHAPE_OPTIONS.find((option) => option.id === 'grandOval')?.thumbnail,
+    description: 'Procedural oval table layout.'
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    proceduralShapeId: 'diamondEdge',
+    thumbnail: TABLE_SHAPE_OPTIONS.find((option) => option.id === 'diamondEdge')?.thumbnail,
+    description: 'Procedural diamond edge table layout.'
+  }
+];
+
+export const CHESS_TABLE_OPTIONS = Object.freeze([
+  ...PROCEDURAL_CHESS_TABLE_OPTIONS,
+  ...MURLAN_TABLE_THEMES.filter((option) => option.id !== 'murlan-default')
+]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -96,6 +137,12 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tableFinish: Object.freeze(
     MURLAN_TABLE_FINISHES.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  tableCloth: Object.freeze(
+    TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -193,6 +240,16 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     price: theme.price ?? 980 + idx * 40,
     description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
     thumbnail: theme.thumbnail,
+    previewShape: 'table'
+  })),
+  ...TABLE_CLOTH_OPTIONS.slice(1).map((cloth, idx) => ({
+    id: `chess-table-cloth-${cloth.id}`,
+    type: 'tableCloth',
+    optionId: cloth.id,
+    name: cloth.label,
+    price: cloth.price ?? 360 + idx * 35,
+    description: `Premium ${cloth.label} cloth option for procedural chess tables.`,
+    thumbnail: cloth.thumbnail,
     previewShape: 'table'
   })),
   ...CHESS_CHAIR_OPTIONS.slice(1).map((option, idx) => ({
@@ -410,6 +467,11 @@ export const CHESS_BATTLE_STORE_ITEMS = [
 export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tables', optionId: CHESS_TABLE_OPTIONS[0]?.id, label: CHESS_TABLE_OPTIONS[0]?.label },
   { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },
+  {
+    type: 'tableCloth',
+    optionId: TABLE_CLOTH_OPTIONS[0]?.id,
+    label: TABLE_CLOTH_OPTIONS[0]?.label
+  },
   {
     type: 'tableFinish',
     optionId: MURLAN_TABLE_FINISHES[0]?.id,
