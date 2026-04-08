@@ -44,6 +44,8 @@ const LOOKAHEAD_DEPTH = 6
 const LOOKAHEAD_CANDIDATES = 14
 const MONTE_CARLO_BASE_SAMPLES = 128
 const POWER_SCALE = 0.8
+const MIN_SHOT_POWER = 0.34 * POWER_SCALE
+const MAX_SHOT_POWER = 0.98 * POWER_SCALE
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -748,6 +750,8 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
   if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
+  const recommendedPower = computePowerForShot(req, cue, target, entry, cutAngle, spin)
+  const powerDelta = Math.abs(power - recommendedPower)
   const centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
@@ -763,7 +767,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     Math.abs(spin.side || 0) * 0.06 +
     Math.max(0, spin.back || 0) * 0.12 +
     Math.max(0, spin.top || 0) * 0.04
-  const powerControlPenalty = Math.max(0, power - (0.5 * POWER_SCALE)) * 0.35
+  const powerControlPenalty = Math.max(0, powerDelta - 0.045) * 0.85
   const clearanceScore = Math.max(0, Math.min((laneClearance - 0.5) / 0.7, 1))
   if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
@@ -795,13 +799,13 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   return {
     angleRad: angle,
-    power,
+    power: recommendedPower,
     spin,
     targetBallId: target.id,
     targetPocket: entry,
     aimPoint: ghost,
     quality,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${recommendedPower.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
@@ -820,11 +824,94 @@ function safetyShot (req) {
   const angle = Math.atan2(target.y - cue.y, target.x - cue.x)
   return {
     angleRad: angle,
-    power: 0.5 * POWER_SCALE,
+    power: 0.44 * POWER_SCALE,
     spin: { top: 0, side: 0, back: 0 },
     quality: 0,
     rationale: 'safety'
   }
+}
+
+function computePowerForShot (req, cue, target, pocket, cutAngle = 0, spin = { top: 0, side: 0, back: 0 }) {
+  const r = req.state.ballRadius
+  const cueDistance = dist(cue, target)
+  const pocketDistance = dist(target, pocket)
+  const tableDiag = Math.hypot(req.state.width, req.state.height) || 1
+  const cueNorm = cueDistance / tableDiag
+  const pocketNorm = pocketDistance / tableDiag
+  const cutSeverity = Math.min(Math.abs(cutAngle) / (Math.PI / 2), 1)
+  const spinLoad = Math.min(
+    1,
+    Math.abs(spin.side || 0) * 0.6 + Math.max(0, spin.top || 0) * 0.35 + Math.max(0, spin.back || 0) * 0.7
+  )
+
+  const geometryPower =
+    0.33 +
+    cueNorm * 0.55 +
+    pocketNorm * 0.46 +
+    (1 - cutSeverity) * 0.1 +
+    spinLoad * 0.08
+
+  const minForDistance = 0.29 + Math.min(0.2, (cueDistance + pocketDistance) / Math.max(r * 120, 1))
+  return Math.min(MAX_SHOT_POWER, Math.max(MIN_SHOT_POWER, Math.max(geometryPower, minForDistance) * POWER_SCALE))
+}
+
+function firstCushionContactPoint (cue, target, table, side) {
+  const r = table.ballRadius
+  if (side === 'left' || side === 'right') {
+    const wallX = side === 'left' ? r : table.width - r
+    const mirroredTargetX = side === 'left' ? 2 * r - target.x : 2 * (table.width - r) - target.x
+    const dx = mirroredTargetX - cue.x
+    if (Math.abs(dx) < 1e-6) return null
+    const t = (wallX - cue.x) / dx
+    if (t <= 0 || t >= 1) return null
+    const y = cue.y + (target.y - cue.y) * t
+    if (y <= r || y >= table.height - r) return null
+    return { x: wallX, y }
+  }
+  const wallY = side === 'top' ? r : table.height - r
+  const mirroredTargetY = side === 'top' ? 2 * r - target.y : 2 * (table.height - r) - target.y
+  const dy = mirroredTargetY - cue.y
+  if (Math.abs(dy) < 1e-6) return null
+  const t = (wallY - cue.y) / dy
+  if (t <= 0 || t >= 1) return null
+  const x = cue.x + (target.x - cue.x) * t
+  if (x <= r || x >= table.width - r) return null
+  return { x, y: wallY }
+}
+
+function findCushionEscapeShot (req) {
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
+  const targets = chooseTargets(req)
+  if (!cue || !targets.length) return null
+
+  const r = req.state.ballRadius
+  let best = null
+  for (const target of targets) {
+    for (const side of ['left', 'right', 'top', 'bottom']) {
+      const bounce = firstCushionContactPoint(cue, target, req.state, side)
+      if (!bounce) continue
+      if (pathBlocked(cue, bounce, req.state.balls, [cueBallId, target.id], r, 1.05)) continue
+      if (pathBlocked(bounce, target, req.state.balls, [cueBallId, target.id], r, 1.05)) continue
+      const cueToBounce = dist(cue, bounce)
+      const bounceToTarget = dist(bounce, target)
+      const pressure = Math.min((cueToBounce + bounceToTarget) / Math.max(r * 90, 1), 1)
+      const quality = Math.max(0.08, 0.36 - pressure * 0.2)
+      const power = Math.min(MAX_SHOT_POWER, Math.max(0.48 * POWER_SCALE, (0.52 + pressure * 0.34) * POWER_SCALE))
+      const angle = Math.atan2(bounce.y - cue.y, bounce.x - cue.x)
+      const candidate = {
+        angleRad: angle,
+        power,
+        spin: { top: 0.06, side: 0, back: 0 },
+        targetBallId: target.id,
+        aimPoint: bounce,
+        quality,
+        rationale: `cushion-escape target=${target.id} via=${side}`
+      }
+      if (!best || candidate.quality > best.quality) best = candidate
+    }
+  }
+  return best
 }
 
 function fallbackAimAtTarget (req) {
@@ -890,7 +977,7 @@ function isBetterShotCandidate (candidate, currentBest) {
   if (candSpinLoad + 0.03 < bestSpinLoad) return true
   if (candSpinLoad > bestSpinLoad + 0.03) return false
 
-  return candidate.power < currentBest.power
+  return Math.abs(candidate.power - (0.58 * POWER_SCALE)) < Math.abs(currentBest.power - (0.58 * POWER_SCALE))
 }
 
 /**
@@ -914,7 +1001,7 @@ export function planShot (req) {
 
   const powers = req.state?.breakInProgress
     ? [1 * POWER_SCALE]
-    : [0.5 * POWER_SCALE, 0.66 * POWER_SCALE, 0.82 * POWER_SCALE, 0.94 * POWER_SCALE]
+    : [MIN_SHOT_POWER, 0.48 * POWER_SCALE, 0.62 * POWER_SCALE, 0.78 * POWER_SCALE, MAX_SHOT_POWER]
   const defaultSpins = [
     { top: 0, side: 0, back: 0 },
     { top: 0.3, side: 0, back: 0 },
@@ -1056,10 +1143,10 @@ export function planShot (req) {
     if (best.quality >= 0.1) return best
     if (hasViableShot) return best
   }
-  if (!hasViableShot) return safetyShot(req)
+  if (!hasViableShot) return findCushionEscapeShot(req) || safetyShot(req)
   fallback = fallbackAimAtTarget(req)
   if (fallback) return fallback
-  return safetyShot(req)
+  return findCushionEscapeShot(req) || safetyShot(req)
 }
 
 export default planShot
