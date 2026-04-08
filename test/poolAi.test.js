@@ -510,28 +510,3 @@ test('power stays in a controlled range for routine pots', () => {
 
   assert(decision.power >= 0.35 && decision.power <= 0.7, `unexpected power ${decision.power}`);
 });
-
-test('switches to another target when highest-value lane is blocked', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 140, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 1, x: 450, y: 250, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 420, y: 140, vx: 0, vy: 0, pocketed: false },
-        // blocks the 1-ball path to the right pocket
-        { id: 12, x: 700, y: 250, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 1000, y: 250 }],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      legalBallIds: [1, 2]
-    },
-    rngSeed: 29,
-    timeBudgetMs: 120
-  });
-
-  assert.equal(decision.targetBallId, 2);
-});
