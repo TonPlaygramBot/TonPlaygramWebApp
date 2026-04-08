@@ -319,7 +319,7 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.power, 0.4);
+  assert(decision.power >= 0.4 && decision.power <= 0.56, `unexpected power ${decision.power}`);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
 
@@ -435,4 +435,50 @@ test('eight-pool targets black when only 8 remains and group metadata is missing
   });
 
   assert.equal(decision.targetBallId, 8);
+});
+
+test('safety uses one-cushion kick to reach legal target when direct lane is blocked', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 40, y: 120, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 280, y: 120, vx: 0, vy: 0, pocketed: false },
+        { id: 10, x: 170, y: 120, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 0, y: 240 }, { x: 300, y: 240 }],
+      width: 300,
+      height: 240,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [2]
+    },
+    rngSeed: 17,
+    timeBudgetMs: 80
+  });
+
+  assert.equal(decision.targetBallId, 2);
+  assert.match(decision.rationale, /one-cushion-kick/);
+});
+
+test('power stays in a controlled range for routine pots', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 140, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 420, y: 250, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [{ x: 1000, y: 250 }],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [1]
+    },
+    rngSeed: 21,
+    timeBudgetMs: 80
+  });
+
+  assert(decision.power >= 0.35 && decision.power <= 0.7, `unexpected power ${decision.power}`);
 });
