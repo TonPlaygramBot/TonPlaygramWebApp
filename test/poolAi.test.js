@@ -301,6 +301,19 @@ test('straight shots stay on line regardless of power', () => {
   }
 });
 
+test('side spin direction stays consistent with shot orientation', () => {
+  const cue = { id: 0, x: 250, y: 250, vx: 0, vy: 0, pocketed: false };
+  const target = { id: 1, x: 450, y: 250, vx: 0, vy: 0, pocketed: false };
+  const pocket = { x: 900, y: 250 };
+  const table = { width: 1000, height: 500, ballRadius: 10 };
+
+  const left = estimateCueAfterShot(cue, target, pocket, 0.8, { top: 0, side: -0.7, back: 0 }, table);
+  const right = estimateCueAfterShot(cue, target, pocket, 0.8, { top: 0, side: 0.7, back: 0 }, table);
+
+  assert(left.y < target.y, `expected left spin to deflect upward, got y=${left.y}`);
+  assert(right.y > target.y, `expected right spin to deflect downward, got y=${right.y}`);
+});
+
 test('avoids unnecessary spin when natural position is good', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
