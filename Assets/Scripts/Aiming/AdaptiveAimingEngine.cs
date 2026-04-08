@@ -75,6 +75,12 @@ namespace Aiming
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AimSolution GetAimSolution(in ShotContext ctx)
         {
+            TryGetAimSolution(ctx, out AimSolution solution, visualize: true);
+            return solution;
+        }
+
+        public bool TryGetAimSolution(in ShotContext ctx, out AimSolution solution, bool visualize)
+        {
             ShotContext evalCtx = NormalizePocketTarget(ctx);
             var info = classifier.Classify(evalCtx, config);
             if (!info.losCueToObj || !info.losObjToPocket)
@@ -91,9 +97,14 @@ namespace Aiming
                     debugNote = !info.losCueToObj ? "Blocked: cue→object" : "Blocked: object→pocket"
                 };
 
-                DrawGuideLine(blocked.aimStart, blocked.aimEnd);
-                if (showDebug) overlay.UpdateOverlay(evalCtx, info, blocked);
-                return blocked;
+                if (visualize)
+                {
+                    DrawGuideLine(blocked.aimStart, blocked.aimEnd);
+                    if (showDebug) overlay.UpdateOverlay(evalCtx, info, blocked);
+                }
+
+                solution = blocked;
+                return false;
             }
 
             var sol = SelectBestSolution(evalCtx, info);
@@ -101,6 +112,7 @@ namespace Aiming
             {
                 sol = BuildDefaultSolution(evalCtx, info);
             }
+
             sol.recommendedPower01 = RecommendPower(info.distBucket, ctx.requiresPower);
             if (ctx.highSpin)
             {
@@ -116,10 +128,14 @@ namespace Aiming
                 sol.cueElevationDeg = (ctx.requiresPower && info.isRailShot) ? config.elevationForPower : 0f;
             }
 
-            DrawGuideLine(sol.aimStart, sol.aimEnd);
-            if (showDebug) overlay.UpdateOverlay(evalCtx, info, sol);
+            if (visualize)
+            {
+                DrawGuideLine(sol.aimStart, sol.aimEnd);
+                if (showDebug) overlay.UpdateOverlay(evalCtx, info, sol);
+            }
 
-            return sol;
+            solution = sol;
+            return sol.isValid;
         }
 
         void DrawGuideLine(Vector3 start, Vector3 end)
