@@ -17,6 +17,9 @@ MonoBehaviour:
   shortDist: 0.8
   mediumDist: 1.6
   pocketApproachDepth: 0.12
+  straightPocketApproachDepth: 0.06
+  jawAssistMinAngleDeg: 8
+  jawAssistLateralOffset: 0.022
   cuePathClearanceRadiusScale: 0.92
   cutAnglePenalty: 0.55
   distancePenalty: 0.2
