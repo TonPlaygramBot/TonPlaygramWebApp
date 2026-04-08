@@ -1957,18 +1957,14 @@ const MURLAN_TABLE_THEMES = Object.freeze(
         'Shared Battle Royale octagon table baseline used across Chess, Ludo, Texas, and Domino.'
     },
     { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
-    { id: 'WoodenTable_02', label: 'Wooden Table 02' },
     { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
     { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
-    { id: 'gallinera_table', label: 'Gallinera Table' },
     { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
     { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
     { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
     { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
     { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
-    { id: 'side_table_01', label: 'Side Table 01' },
-    { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
-    { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
+    { id: 'side_table_tall_01', label: 'Side Table Tall 01' }
   ].map((option, index) => {
     const source = option.source || 'polyhaven';
     const rotationY =
@@ -2276,12 +2272,12 @@ async function loadPolyhavenModel(
   throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679,
-  1.9173749900311232,
-  1.7001562547683715
+  1.3952249968409541,
+  2.0324174894329905,
+  1.802165630054474
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
-const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+const TARGET_CHAIR_MIN_Y = -0.9084862492892147;
+const TARGET_CHAIR_CENTER_Z = -0.16471408019065854;
 
 const clamp01f = (value) => Math.min(1, Math.max(0, value));
 const normalizeHue = (h) => {
@@ -5776,6 +5772,8 @@ const NON_OCTAGON_TABLE_SIDE_SHRINK = 0.9;
 const LEGACY_NON_OCTAGON_TABLE_SIDE_SHRINK = 0.94;
 const GOTHIC_BASELINE_TABLE_THEME_ID = 'gothic_coffee_table';
 const NON_GOTHIC_TABLE_WIDTH_BOOST = 1.12;
+const COFFEE_TABLE_TOP_BOTTOM_WIDTH_BOOST = 1.08;
+const MODERN_COFFEE_LEFT_RIGHT_WIDTH_BOOST = 1.08;
 
 function shouldKeepOriginalTableTransform(themeId = '') {
   const normalized = String(themeId || '').trim().toLowerCase();
@@ -5788,10 +5786,21 @@ function shouldKeepOriginalTableTransform(themeId = '') {
   );
 }
 
-function getTableWidthScale(themeId = '') {
+function getTableAxisScale(themeId = '') {
   const normalized = String(themeId || '').trim().toLowerCase();
-  if (!normalized || normalized === GOTHIC_BASELINE_TABLE_THEME_ID) return 1;
-  return NON_GOTHIC_TABLE_WIDTH_BOOST;
+  if (!normalized || normalized === GOTHIC_BASELINE_TABLE_THEME_ID) {
+    return { x: 1, z: 1 };
+  }
+  const axisScale = {
+    x: NON_GOTHIC_TABLE_WIDTH_BOOST,
+    z: NON_GOTHIC_TABLE_WIDTH_BOOST
+  };
+  if (normalized === 'coffeetable_01') {
+    axisScale.z *= COFFEE_TABLE_TOP_BOTTOM_WIDTH_BOOST;
+  } else if (normalized === 'modern_coffee_table_01') {
+    axisScale.x *= MODERN_COFFEE_LEFT_RIGHT_WIDTH_BOOST;
+  }
+  return axisScale;
 }
 
 function fitTableModelToFootprint(
@@ -5814,9 +5823,9 @@ function fitTableModelToFootprint(
     model.scale.x *= sideShrinkScale;
     model.scale.z *= sideShrinkScale;
   }
-  const widthScale = getTableWidthScale(themeId);
-  model.scale.x *= widthScale;
-  model.scale.z *= widthScale;
+  const axisScale = getTableAxisScale(themeId);
+  model.scale.x *= axisScale.x;
+  model.scale.z *= axisScale.z;
 
   const scaled = new THREE.Box3().setFromObject(model);
   const offset = new THREE.Vector3(

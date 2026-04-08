@@ -89,18 +89,14 @@ const POLYHAVEN_CHAIR_THEMES = [
 
 const POLYHAVEN_TABLE_THEMES = [
   { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
-  { id: 'WoodenTable_02', label: 'Wooden Table 02' },
   { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
   { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
-  { id: 'gallinera_table', label: 'Gallinera Table' },
   { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
   { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
   { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
   { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
   { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
-  { id: 'side_table_01', label: 'Side Table 01' },
-  { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
-  { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' }
+  { id: 'side_table_tall_01', label: 'Side Table Tall 01' }
 ].map((option, index) => ({
   ...option,
   assetId: option.id,
