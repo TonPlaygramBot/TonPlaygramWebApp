@@ -27266,6 +27266,22 @@ const powerRef = useRef(hud.power);
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
               };
+              if (!plan.viaCushion) {
+                const predictedContact = calcTarget(cueBall, plan.aimDir, activeBalls);
+                if (predictedContact?.targetBall) {
+                  const matchesTarget =
+                    String(predictedContact.targetBall.id) === String(targetBall.id);
+                  if (!matchesTarget) continue;
+                  plan.contactConfidence = 1;
+                  if (Number.isFinite(predictedContact.tHit)) {
+                    plan.cueToTarget = predictedContact.tHit;
+                  }
+                } else {
+                  plan.contactConfidence = 0.35;
+                }
+              } else {
+                plan.contactConfidence = 0.82;
+              }
               const leaveProbe = targetBall.pos
                 .clone()
                 .add(aimDir.clone().multiplyScalar(ballDiameter * 2.5));
@@ -27310,6 +27326,9 @@ const powerRef = useRef(hud.power);
                 1
               );
               plan.potChance = potChance;
+              if (!Number.isFinite(plan.contactConfidence)) {
+                plan.contactConfidence = plan.viaCushion ? 0.82 : 0.9;
+              }
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -27518,6 +27537,11 @@ const powerRef = useRef(hud.power);
             const potChance = Number.isFinite(plan.potChance)
               ? plan.potChance
               : quality;
+            const contactConfidence = Number.isFinite(plan.contactConfidence)
+              ? plan.contactConfidence
+              : plan.viaCushion
+                ? 0.82
+                : 0.9;
             const routeEase = Math.max(
               0,
               1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
@@ -27538,9 +27562,10 @@ const powerRef = useRef(hud.power);
             const leaveScore = scoreNextShotPosition(plan);
             const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
             return (
-              quality * 0.32 +
-              potChance * 0.28 +
-              difficultyEase * 0.18 +
+              quality * 0.27 +
+              potChance * 0.24 +
+              contactConfidence * 0.2 +
+              difficultyEase * 0.16 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
               priorityBonus * priorityWeight +
@@ -27555,9 +27580,8 @@ const powerRef = useRef(hud.power);
             .map((plan) => ({ plan, score: scorePotPlan(plan) }))
             .sort(
               (a, b) =>
-                (b.plan?.potChance ?? b.score ?? 0) -
-                  (a.plan?.potChance ?? a.score ?? 0) ||
                 b.score - a.score ||
+                (b.plan?.potChance ?? 0) - (a.plan?.potChance ?? 0) ||
                 (a.plan?.difficulty ?? 0) - (b.plan?.difficulty ?? 0)
             );
           safetyShots.sort(
@@ -27890,6 +27914,7 @@ const powerRef = useRef(hud.power);
             return plan;
           }
           let corrected = null;
+          let correctedCueToTarget = null;
           if (plan.pocketCenter && plan.targetBall?.pos) {
             const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
             if (toPocket.lengthSq() > 1e-6) {
@@ -27900,7 +27925,7 @@ const powerRef = useRef(hud.power);
               const cueVec = ghost.sub(cueBall.pos);
               if (cueVec.lengthSq() > 1e-6) {
                 corrected = cueVec.normalize();
-                plan.cueToTarget = cueBall.pos.distanceTo(ghost);
+                correctedCueToTarget = cueBall.pos.distanceTo(ghost);
               }
             }
           }
@@ -27908,11 +27933,52 @@ const powerRef = useRef(hud.power);
             const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
             if (direct.lengthSq() > 1e-6) {
               corrected = direct.normalize();
-              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
+              correctedCueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
             }
+          }
+          if (!corrected && plan.aimDir) {
+            corrected = plan.aimDir.clone();
+            correctedCueToTarget = plan.cueToTarget ?? null;
+          }
+          if (corrected) {
+            const baseAngle = Math.atan2(corrected.y, corrected.x);
+            let bestDir = corrected.clone();
+            let bestCueToTarget = correctedCueToTarget;
+            let bestScore = -Infinity;
+            for (let i = -7; i <= 7; i += 1) {
+              const angle = baseAngle + THREE.MathUtils.degToRad(i * 0.6);
+              const dir = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+              const probe = calcTarget(cueBall, dir, activeBalls);
+              if (!probe?.targetBall) continue;
+              if (String(probe.targetBall.id) !== String(plan.targetBall.id)) continue;
+              const distancePenalty = Number.isFinite(probe.tHit)
+                ? Math.abs(probe.tHit - (plan.cueToTarget ?? probe.tHit))
+                : BALL_R * 4;
+              const pocketAlign = plan.pocketCenter
+                ? Math.max(
+                    0,
+                    plan.pocketCenter
+                      .clone()
+                      .sub(plan.targetBall.pos)
+                      .normalize()
+                      .dot(plan.targetBall.pos.clone().sub(cueBall.pos).normalize())
+                  )
+                : 0.5;
+              const score = 1 - distancePenalty / Math.max(BALL_R * 8, 1e-6) + pocketAlign * 0.25;
+              if (score > bestScore) {
+                bestScore = score;
+                bestDir = dir;
+                bestCueToTarget = Number.isFinite(probe.tHit) ? probe.tHit : bestCueToTarget;
+              }
+            }
+            corrected = bestDir.normalize();
+            correctedCueToTarget = bestCueToTarget;
           }
           if (corrected) {
             plan.aimDir = corrected;
+            if (Number.isFinite(correctedCueToTarget)) {
+              plan.cueToTarget = correctedCueToTarget;
+            }
           }
           return plan;
         };
@@ -28773,7 +28839,13 @@ const powerRef = useRef(hud.power);
           if (!ghostAim?.aimDir || ghostAim.aimDir.lengthSq() < 1e-6) return plan;
           const compensatedAim = ghostAim.aimDir.clone().normalize();
           const delta = baseAim.angleTo(compensatedAim);
-          const maxCompensationAngle = THREE.MathUtils.degToRad(4.5);
+          const targetDistance = cue.pos.distanceTo(plan.targetBall.pos);
+          const distanceFactor = THREE.MathUtils.clamp(
+            targetDistance / Math.max(PLAY_W * 0.55, BALL_R * 10),
+            0,
+            1
+          );
+          const maxCompensationAngle = THREE.MathUtils.degToRad(4.5 + distanceFactor * 2.5);
           const blend = THREE.MathUtils.clamp(
             maxCompensationAngle > 0 ? maxCompensationAngle / Math.max(delta, 1e-6) : 1,
             0,
