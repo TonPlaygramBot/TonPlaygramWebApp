@@ -56,7 +56,10 @@ import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 
 const SIZE = 8;
-const CHECKERS_ARENA_SCALE = 0.48;
+const CHECKERS_ARENA_BASE_SCALE = 0.48;
+// Requested visual tuning: make the arena setup 15% smaller while preserving
+// the exact same layout relationships between table, board, pieces, and chairs.
+const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.85;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.0 * MODEL_SCALE;
