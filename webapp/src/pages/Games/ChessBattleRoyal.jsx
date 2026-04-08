@@ -226,14 +226,14 @@ const resolveHdriVariant = (value) => {
   return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
-const MODEL_SCALE = 0.52;
+const MODEL_SCALE = 0.55;
 const STOOL_SCALE = 1.5 * 1.05;
 const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
-const PIECE_SCALE_FACTOR = 0.75;
+const PIECE_SCALE_FACTOR = 0.79;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -241,7 +241,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.0352;
+const BOARD_SCALE = 0.0368;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
