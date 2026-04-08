@@ -69,7 +69,49 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
   ...BASE_CHAIR_OPTIONS
 ]);
 
-export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
+const PROCEDURAL_TABLE_OPTIONS = [
+  {
+    id: 'hexagonTable',
+    label: 'Hexagon Table',
+    source: 'procedural',
+    proceduralShapeId: 'hexagonTable',
+    price: 0,
+    description: 'Default six-sided battle table tuned for Chess Battle Royal.',
+    thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee'])
+  },
+  {
+    id: 'murlan-default',
+    label: 'Octagon Table',
+    source: 'procedural',
+    proceduralShapeId: 'classicOctagon',
+    price: 980,
+    description: 'Classic octagon battle table with shared royale proportions.',
+    thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8'])
+  },
+  {
+    id: 'grandOval',
+    label: 'Oval Table',
+    source: 'procedural',
+    proceduralShapeId: 'grandOval',
+    price: 1020,
+    description: 'Oval battle table variant for a softer arena silhouette.',
+    thumbnail: swatchThumbnail(['#0b1220', '#111827', '#f97316'])
+  },
+  {
+    id: 'diamondEdge',
+    label: 'Diamond Edge Table',
+    source: 'procedural',
+    proceduralShapeId: 'diamondEdge',
+    price: 1060,
+    description: 'Diamond-edge table shape with crisp rounded corners.',
+    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#a855f7'])
+  }
+];
+
+export const CHESS_TABLE_OPTIONS = Object.freeze([
+  ...PROCEDURAL_TABLE_OPTIONS,
+  ...MURLAN_TABLE_THEMES.filter((theme) => theme.id !== 'murlan-default')
+]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
