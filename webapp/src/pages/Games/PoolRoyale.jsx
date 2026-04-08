@@ -1741,9 +1741,9 @@ const ACTION_CAM = Object.freeze({
   heightOffset: BALL_R * 9.2,
   smoothingTime: 0.24,
   followSmoothingTime: 0.18,
-  followDistance: BALL_R * 54,
+  followDistance: BALL_R * 42,
   followHeightOffset: BALL_R * 7.4,
-  followHoldMs: 900
+  followHoldMs: 520
 });
 /**
  * Pool Camera Direction
@@ -1793,7 +1793,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.98; // slightly stronger global spin so english/follow/draw feel closer to real-table response
+const SPIN_GLOBAL_SCALE = 1.176; // increase global spin response by ~20% so english/follow/draw are more pronounced
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -27563,11 +27563,23 @@ const powerRef = useRef(hud.power);
             );
           };
           const scoredPots = potShots
-            .map((plan) => ({ plan, score: scorePotPlan(plan) }))
+            .map((plan) => {
+              const score = scorePotPlan(plan);
+              const potChance = Number.isFinite(plan?.potChance) ? plan.potChance : 0;
+              const difficultyNorm = Math.max(PLAY_W + PLAY_H, BALL_R * 120);
+              const difficultyPenalty = Number.isFinite(plan?.difficulty)
+                ? Math.min(plan.difficulty / difficultyNorm, 1)
+                : 1;
+              const weightedScore =
+                potChance * 0.62 + score * 0.46 - difficultyPenalty * 0.18;
+              return { plan, score, weightedScore, potChance };
+            })
             .sort(
               (a, b) =>
-                (b.plan?.potChance ?? b.score ?? 0) -
-                  (a.plan?.potChance ?? a.score ?? 0) ||
+                (b.weightedScore ?? b.score ?? 0) -
+                  (a.weightedScore ?? a.score ?? 0) ||
+                (b.potChance ?? b.plan?.potChance ?? 0) -
+                  (a.potChance ?? a.plan?.potChance ?? 0) ||
                 b.score - a.score ||
                 (a.plan?.difficulty ?? 0) - (b.plan?.difficulty ?? 0)
             );
@@ -27579,7 +27591,14 @@ const powerRef = useRef(hud.power);
           const playableCushionPots = scoredPots.filter(
             (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
           );
-          const bestPot = playableCushionPots[0]?.plan ?? null;
+          const HIGH_CONFIDENCE_POT_THRESHOLD = isRotationVariant ? 0.68 : 0.64;
+          const highConfidencePots = playableCushionPots.filter(
+            (entry) => (entry.potChance ?? entry.plan?.potChance ?? 0) >= HIGH_CONFIDENCE_POT_THRESHOLD
+          );
+          const bestPot =
+            highConfidencePots[0]?.plan ??
+            playableCushionPots[0]?.plan ??
+            null;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
