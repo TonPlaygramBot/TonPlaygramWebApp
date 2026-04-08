@@ -198,12 +198,14 @@ const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
-const TABLE_SET_SCALE=0.7225; // 15% smaller than previous scale while preserving layout
+const TABLE_SET_SCALE=0.85; // keep the same layout but make the full table set 15% smaller
+const PIECE_SIZE_MULTIPLIER=1.25; // chess pieces are 25% bigger than their current size
 const BOARD_GROWTH=0.98;
 const PIECE_SPACING_SCALE=0.9;
 const BOARD_Y_OFFSET=0.04;
 const TABLE_SET_Y_ROTATION=Math.PI;
 const BOARD_PIECE_VERTICAL_LIFT=0.03;
+const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -322,10 +324,11 @@ function onModel(gltf){
     const bb=new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=((maxX-minX)/7)*PIECE_SPACING_SCALE; stepZ=((maxZ-minZ)/7)*PIECE_SPACING_SCALE; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
   }
   origin[0]=originXZ[0]; origin[1]=originXZ[1];
-  function ensurePieces(color, code, need){ const arr=pool[color][code]; if(arr.length>=need) return; const protoNode=proto[color][code]; if(!protoNode) return; while(arr.length<need){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); arr.push(nn); extraNodes.push(nn); }
+  function ensurePieces(color, code, need){ const arr=pool[color][code]; if(arr.length>=need) return; const protoNode=proto[color][code]; if(!protoNode) return; while(arr.length<need){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); arr.push(nn); extraNodes.push(nn); }
   }
   ensurePieces('w','p',8); ensurePieces('w','r',2); ensurePieces('w','n',2); ensurePieces('w','b',2); ensurePieces('w','q',1); ensurePieces('w','k',1);
   ensurePieces('b','p',8); ensurePieces('b','r',2); ensurePieces('b','n',2); ensurePieces('b','b',2); ensurePieces('b','q',1); ensurePieces('b','k',1);
+  Object.values(pool).forEach(group=>{ Object.values(group).forEach(arr=>arr.forEach(scalePieceNode)); });
   const startW={ p:['a2','b2','c2','d2','e2','f2','g2','h2'], r:['a1','h1'], n:['b1','g1'], b:['c1','f1'], q:['d1'], k:['e1'] };
   const startB={ p:['a7','b7','c7','d7','e7','f7','g7','h7'], r:['a8','h8'], n:['b8','g8'], b:['c8','f8'], q:['d8'], k:['e8'] };
   initialPositions={startW,startB,pool};
@@ -367,7 +370,7 @@ function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.pa
 function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
   if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
-  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
+  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
   updateTurn();
 }
