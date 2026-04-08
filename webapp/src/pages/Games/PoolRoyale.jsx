@@ -113,6 +113,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -6892,34 +6893,20 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const centers = pocketCenters();
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
-  const inward = pocketCenter.clone().multiplyScalar(-1);
-  if (inward.lengthSq() < MICRO_EPS * MICRO_EPS) {
-    return pocketCenter.clone();
-  }
-  inward.normalize();
-  const lateral = new THREE.Vector2(-inward.y, inward.x);
-  const targetVec = targetPos?.clone?.()?.sub?.(pocketCenter) ?? null;
+
   const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-  const mouthHalfWidth = (pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH) * 0.5;
-  const entranceBase = pocketCenter
-    .clone()
-    .add(inward.clone().multiplyScalar(baseRadius * 0.62));
-  if (!targetVec || targetVec.lengthSq() < 1e-6) {
-    return entranceBase;
-  }
-  targetVec.normalize();
-  const lateralBias = THREE.MathUtils.clamp(targetVec.dot(lateral), -1, 1);
-  const inwardAlignment = THREE.MathUtils.clamp(targetVec.dot(inward), -1, 1);
-  const sideShift =
-    mouthHalfWidth *
-    (pocketIndex >= 4 ? 0.44 : 0.36) *
-    lateralBias *
-    (0.7 + 0.3 * Math.max(0, inwardAlignment));
-  const depthShift = baseRadius * 0.18 * Math.max(0, inwardAlignment);
-  return entranceBase
-    .clone()
-    .addScaledVector(lateral, sideShift)
-    .addScaledVector(inward, depthShift);
+  const mouthWidth = pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
+  const entry = resolvePocketMouthAimPoint({
+    pocketCenter,
+    targetPos,
+    baseRadius,
+    mouthWidth,
+    pocketType: pocketIndex >= 4 ? 'side' : 'corner',
+    microEps: MICRO_EPS
+  });
+
+  if (!entry?.point) return pocketCenter.clone();
+  return new THREE.Vector2(entry.point.x, entry.point.y);
 };
 const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
