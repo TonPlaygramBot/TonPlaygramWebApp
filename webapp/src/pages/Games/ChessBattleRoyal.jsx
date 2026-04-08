@@ -248,7 +248,7 @@ const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94;
-const CHAIR_SIZE_FACTOR = 0.93;
+const CHAIR_SIZE_FACTOR = 0.9;
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
@@ -270,7 +270,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.92;
+const CHAIR_SCALE = 0.88;
+const CHAIR_VERTICAL_OFFSET = -0.04 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
@@ -7613,13 +7614,17 @@ function Chess3D({
 
     const chairs = [];
     const chairA = makeChair(0);
-    chairA.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE);
+    chairA.group.position.set(
+      0,
+      CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
+      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
+    );
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
     alignGroupToFloorY(chairA.group, initialArenaFloorY);
     chairs.push(chairA);
     const chairB = makeChair(1);
-    chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
+    chairB.group.position.set(0, CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET, -chairDistance);
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
     chairs.push(chairB);
