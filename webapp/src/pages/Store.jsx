@@ -49,6 +49,9 @@ import {
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
   CHESS_BATTLE_OPTION_LABELS,
+  CHESS_BATTLE_ROYAL_DEFAULT_LOADOUT,
+  CHESS_BATTLE_ROYAL_OPTION_LABELS,
+  CHESS_BATTLE_ROYAL_STORE_ITEMS,
   CHESS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
@@ -1051,9 +1054,9 @@ const storeMeta = {
   },
   chessbattleroyal: {
     name: 'Chess Battle Royal',
-    items: CHESS_BATTLE_STORE_ITEMS,
-    defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
-    labels: CHESS_BATTLE_OPTION_LABELS,
+    items: CHESS_BATTLE_ROYAL_STORE_ITEMS,
+    defaults: CHESS_BATTLE_ROYAL_DEFAULT_LOADOUT,
+    labels: CHESS_BATTLE_ROYAL_OPTION_LABELS,
     typeLabels: CHESS_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
@@ -1670,7 +1673,7 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'airhockey'
       })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({
+      chessbattleroyal: CHESS_BATTLE_ROYAL_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'chessbattleroyal'
@@ -1770,7 +1773,7 @@ export default function Store() {
       airhockey: (item) =>
         AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) =>
-        CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+        CHESS_BATTLE_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) =>
         CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       fourinrowroyale: (item) =>

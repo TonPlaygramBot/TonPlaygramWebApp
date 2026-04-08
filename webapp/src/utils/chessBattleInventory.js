@@ -1,7 +1,7 @@
 import {
-  CHESS_BATTLE_DEFAULT_LOADOUT,
-  CHESS_BATTLE_DEFAULT_UNLOCKS,
-  CHESS_BATTLE_OPTION_LABELS
+  CHESS_BATTLE_ROYAL_DEFAULT_LOADOUT,
+  CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS,
+  CHESS_BATTLE_ROYAL_OPTION_LABELS
 } from '../config/chessBattleInventoryConfig.js';
 
 const STORAGE_KEY = 'chessBattleInventoryByAccount';
@@ -9,7 +9,7 @@ let memoryInventories = {};
 let storageHealthy = true;
 
 const copyDefaults = () =>
-  Object.entries(CHESS_BATTLE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
+  Object.entries(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
     acc[key] = Array.isArray(values) ? [...values].filter(Boolean) : [];
     return acc;
   }, {});
@@ -118,7 +118,7 @@ export const listOwnedChessOptions = (accountId) => {
   const inventory = getChessBattleInventory(accountId);
   return Object.entries(inventory).flatMap(([type, values]) => {
     if (!Array.isArray(values)) return [];
-    const labels = CHESS_BATTLE_OPTION_LABELS[type] || {};
+    const labels = CHESS_BATTLE_ROYAL_OPTION_LABELS[type] || {};
     return values.map((optionId) => ({
       type,
       optionId,
@@ -127,7 +127,7 @@ export const listOwnedChessOptions = (accountId) => {
   });
 };
 
-export const getDefaultChessBattleLoadout = () => [...CHESS_BATTLE_DEFAULT_LOADOUT];
+export const getDefaultChessBattleLoadout = () => [...CHESS_BATTLE_ROYAL_DEFAULT_LOADOUT];
 
 export const chessBattleAccountId = resolveAccountId;
 
@@ -155,4 +155,3 @@ export const setChessBattleEquippedOption = (type, optionId, accountId) => {
   }
   return nextInventory;
 };
-
