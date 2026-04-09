@@ -6192,6 +6192,8 @@ const AI_CUE_VIEW_HOLD_MS = 180;
 const AI_SPIN_ADJUST_DELAY_MS = 2000;
 const AI_EASY_POT_CHANCE_THRESHOLD = 0.48; // if this chance is available on a legal direct shot, force attack instead of safety
 const AI_EASY_POT_QUALITY_THRESHOLD = 0.45; // keep attack bias only for reasonably clean pots
+const AI_AGGRESSIVE_ATTACK_CHANCE_FLOOR = 0.3; // keep attacking whenever a legal pot is reasonably makeable
+const AI_AGGRESSIVE_ATTACK_QUALITY_FLOOR = 0.26; // avoid passive safeties when legal attack lines are available
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -27176,12 +27178,27 @@ const powerRef = useRef(hud.power);
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
+          const legalTargetList = Array.from(legalTargets);
+          const hasRecognizedLegalTargets = legalTargetList.length > 0;
+          const legalTargetsAvailableOnTable =
+            hasRecognizedLegalTargets &&
+            activeBalls.some((ball) => {
+              if (!ball?.active || ball === cueBall) return false;
+              return legalTargetList.some((id) => matchesTargetId(ball, id));
+            });
+          const isTargetBallLegal = (ball) => {
+            if (!ball) return false;
+            if (!hasRecognizedLegalTargets) return true;
+            const directMatch = legalTargetList.some((id) => matchesTargetId(ball, id));
+            if (directMatch) return true;
+            // If the rules snapshot is stale and none of the declared legal targets are present,
+            // allow fallback attack planning to avoid contradictory "safety-only" behaviour.
+            return !legalTargetsAvailableOnTable;
+          };
           activeBalls.forEach((targetBall) => {
             if (targetBall === cueBall) return;
             const colorId = toBallColorId(targetBall.id);
-            const targetAllowed =
-              legalTargets.size > 0 &&
-              Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
+            const targetAllowed = isTargetBallLegal(targetBall);
             if (!colorId || !targetAllowed) return;
             const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
@@ -27597,6 +27614,7 @@ const powerRef = useRef(hud.power);
             scoredPots.find((entry) => {
               const plan = entry?.plan;
               if (!plan || plan.viaCushion) return false;
+              if (!isTargetBallLegal(plan.targetBall)) return false;
               if (!isFirstContactLegal(plan)) return false;
               if (detectScratchRisk(plan)) return false;
               if (isAimLaneBlocked(plan)) return false;
@@ -27609,15 +27627,37 @@ const powerRef = useRef(hud.power);
                 quality >= AI_EASY_POT_QUALITY_THRESHOLD
               );
             })?.plan ?? null;
+          const aggressiveLegalPot =
+            scoredPots.find((entry) => {
+              const plan = entry?.plan;
+              if (!plan) return false;
+              if (!isTargetBallLegal(plan.targetBall)) return false;
+              if (!isPlayablePlan(plan, { allowCushion: true })) return false;
+              const potChance = Number.isFinite(plan.potChance) ? plan.potChance : 0;
+              const quality = Number.isFinite(plan.quality) ? plan.quality : 0;
+              return (
+                potChance >= AI_AGGRESSIVE_ATTACK_CHANCE_FLOOR &&
+                quality >= AI_AGGRESSIVE_ATTACK_QUALITY_FLOOR
+              );
+            })?.plan ?? null;
           const relaxedPot =
-            scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
+            scoredPots.find(
+              (entry) =>
+                entry?.plan &&
+                isTargetBallLegal(entry.plan.targetBall) &&
+                isFirstContactLegal(entry.plan)
+            )?.plan ??
             scoredPots[0]?.plan ??
             null;
-          const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
+          const bestPot =
+            easyAttackPot ??
+            aggressiveLegalPot ??
+            playableCushionPots.find((entry) => isTargetBallLegal(entry.plan?.targetBall))?.plan ??
+            relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
-            easyAttackPot || (activeVariantId === 'uk' && bestPot) ? null : bestSafetyCandidate;
+            bestPot ? null : bestSafetyCandidate;
           const relaxedSafety =
             !bestPot && !bestSafety
               ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
