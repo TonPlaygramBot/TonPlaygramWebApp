@@ -2130,20 +2130,15 @@ export default function SnakeAndLadder() {
       }, 1000);
     };
     const onTurn = ({ playerId, seatIndex }) => {
-      const players = playersRef.current;
-      const seatAssignments = computeSeatAssignments(players, myAccountId);
       let idx = -1;
 
       if (Number.isInteger(seatIndex)) {
-        idx = players.findIndex((_, playerIdx) => seatAssignments.get(playerIdx) === seatIndex);
-        if (idx === -1 && seatIndex >= 0 && seatIndex < players.length) idx = seatIndex;
-      }
+        idx = seatIndex;
+      } else {
+        idx = playersRef.current.findIndex((pl) => pl.id === playerId);
 
-      if (idx === -1 && playerId != null) {
-        idx = players.findIndex((pl) => pl.id === playerId);
-
-        // Some servers emit the active player index instead of a playerId.
-        if (idx === -1 && Number.isInteger(playerId) && playerId >= 0 && playerId < players.length) {
+        // Some servers emit the active seat index instead of a playerId.
+        if (idx === -1 && Number.isInteger(playerId)) {
           idx = playerId;
         }
       }
@@ -2151,7 +2146,7 @@ export default function SnakeAndLadder() {
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 1);
-        const turnBelongsToMe = players[idx]?.id === myAccountId;
+        const turnBelongsToMe = playersRef.current[idx]?.id === myAccountId;
         if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
@@ -3152,16 +3147,9 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
-  const mySeatIndex =
-    myPlayerIndex !== null && seatAssignments.has(myPlayerIndex)
-      ? seatAssignments.get(myPlayerIndex)
-      : null;
   const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
   const isMyTurnForRoll =
-    myPlayerIndex !== null &&
-    (currentTurn === myPlayerIndex ||
-      (mySeatIndex != null && currentTurn === mySeatIndex) ||
-      hasLocalExtraRoll);
+    myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = hasLocalExtraRoll || rollCooldown === 0;
   const canRoll =
     isMyTurnForRoll &&
