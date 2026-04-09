@@ -6895,7 +6895,7 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
-const resolvePocketEntranceForTarget = (targetPos, pocketIndex, context = null) => {
+const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const centers = pocketCenters();
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
@@ -6905,9 +6905,6 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex, context = null) 
   const entry = resolvePocketMouthAimPoint({
     pocketCenter,
     targetPos,
-    balls: context?.balls ?? [],
-    ignoredBallIds: context?.ignoredBallIds ?? [],
-    ballRadius: context?.ballRadius ?? BALL_R,
     baseRadius,
     mouthWidth,
     pocketType: pocketIndex >= 4 ? 'side' : 'corner',
@@ -15228,7 +15225,6 @@ function PoolRoyaleGame({
   const aiPlanningRef = useRef(null);
   const aiTurnShotCountRef = useRef(0);
   const aiLastPlannedShotRef = useRef(0);
-  const aiPlanSelectionRef = useRef({ key: null, plan: null, options: null });
   const lastTurnRef = useRef(0);
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
@@ -26379,15 +26375,13 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            if (!shouldForceImmediateRailOverhead) {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
-            }
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
-            if (!shouldForceImmediateRailOverhead && standingView) {
+            if (standingView) {
               sph.radius = clampOrbitRadius(standingView.radius);
               sph.phi = THREE.MathUtils.clamp(
                 standingView.phi,
@@ -27210,11 +27204,7 @@ const powerRef = useRef(hud.power);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
               const mappedEntrance =
-                resolvePocketEntranceForTarget(targetBall.pos, i, {
-                  balls: activeBalls,
-                  ignoredBallIds: [cueBall.id, targetBall.id],
-                  ballRadius: BALL_R
-                }) ?? centers[i];
+                resolvePocketEntranceForTarget(targetBall.pos, i) ?? centers[i];
               const pocketCenter = mappedEntrance.clone();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               const toPocketLenSq = toPocket.lengthSq();
@@ -28090,7 +28080,6 @@ const powerRef = useRef(hud.power);
             aiLastPlannedShotRef.current = aiTurnShotCountRef.current;
             aiPlanRef.current = null;
             aiPlanCacheRef.current = { key: null, plan: null };
-            aiPlanSelectionRef.current = { key: null, plan: null, options: null };
             setAiPlanning(null);
           }
           if (!allStopped(balls)) {
@@ -28120,16 +28109,6 @@ const powerRef = useRef(hud.power);
             Math.max(AI_MIN_AIM_PREVIEW_MS, windowDuration - AI_MIN_AIM_PREVIEW_MS)
           );
           const deadline = started + thinkingBudget;
-          const stoppedLayoutKey = (ballsList) =>
-            (ballsList || [])
-              .filter((ball) => ball?.active)
-              .map((ball) => {
-                const x = Number.isFinite(ball?.pos?.x) ? ball.pos.x.toFixed(3) : '0';
-                const y = Number.isFinite(ball?.pos?.y) ? ball.pos.y.toFixed(3) : '0';
-                return `${ball.id}:${x}:${y}`;
-              })
-              .sort()
-              .join('|');
           const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
@@ -28144,25 +28123,12 @@ const powerRef = useRef(hud.power);
               ballsRef.current?.length > 0 ? ballsRef.current : balls;
             if (!allStopped(ballsList)) {
               aiPlanRef.current = null;
-              aiPlanSelectionRef.current = { key: null, plan: null, options: null };
               updateAiPlanningState(null, { bestPot: null, bestSafety: null }, remaining / 1000);
               aiThinkingHandle = requestAnimationFrame(think);
               return;
             }
-            const selectionKey = stoppedLayoutKey(ballsList);
-            let selectedPlan = aiPlanSelectionRef.current?.plan ?? null;
-            let selectedOptions = aiPlanSelectionRef.current?.options ?? null;
-            if (aiPlanSelectionRef.current?.key !== selectionKey) {
-              const options = evaluateShotOptions();
-              selectedOptions = options;
-              selectedPlan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
-              aiPlanSelectionRef.current = {
-                key: selectionKey,
-                plan: selectedPlan,
-                options
-              };
-            }
-            const plan = selectedPlan;
+            const options = evaluateShotOptions();
+            const plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -28177,11 +28143,7 @@ const powerRef = useRef(hud.power);
                 alignStandingCameraToAim(cueBall, fallbackDir, { preserveOrbit: false });
               }
             }
-            updateAiPlanningState(
-              plan,
-              selectedOptions ?? { bestPot: null, bestSafety: null },
-              remaining / 1000
-            );
+            updateAiPlanningState(plan, options, remaining / 1000);
             scheduleEarlyAiShot(plan);
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
