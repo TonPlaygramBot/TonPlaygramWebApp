@@ -6194,9 +6194,6 @@ const AI_EASY_POT_CHANCE_THRESHOLD = 0.48; // if this chance is available on a l
 const AI_EASY_POT_QUALITY_THRESHOLD = 0.45; // keep attack bias only for reasonably clean pots
 const AI_AGGRESSIVE_ATTACK_CHANCE_FLOOR = 0.3; // keep attacking whenever a legal pot is reasonably makeable
 const AI_AGGRESSIVE_ATTACK_QUALITY_FLOOR = 0.26; // avoid passive safeties when legal attack lines are available
-const AI_MIN_ENTRY_ALIGNMENT = 0.2; // avoid near-jaw entries that tend to rattle or jaw out
-const AI_MIN_MOUTH_CLARITY = 0.35; // ignore pocket routes with crowded/blocked mouth lanes
-const AI_MIN_POCKET_LANE_CLEARANCE = 0.68; // require a clean final lane into the pocket mouth
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -27124,11 +27121,6 @@ const powerRef = useRef(hud.power);
             const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
-            if (plan.type === 'pot') {
-              if ((plan.entryAlignment ?? 0) < AI_MIN_ENTRY_ALIGNMENT) return false;
-              if ((plan.pocketMouthClarity ?? 0) < AI_MIN_MOUTH_CLARITY) return false;
-              if ((plan.pocketLaneClearance ?? 1) < AI_MIN_POCKET_LANE_CLEARANCE) return false;
-            }
             if (!isFirstContactLegal(plan)) return false;
             if (isAimLaneBlocked(plan)) return false;
             const clearanceTarget = isRotationVariant ? 0.7 : 0.6;
@@ -27140,29 +27132,6 @@ const powerRef = useRef(hud.power);
             if (potChance < minimumPotChance) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
-          };
-          const measurePocketLaneClearance = (targetBall, pocketPoint, ignoreIds = new Set()) => {
-            if (!targetBall?.pos || !pocketPoint) return 1;
-            const laneVec = pocketPoint.clone().sub(targetBall.pos);
-            const laneLenSq = laneVec.lengthSq();
-            if (laneLenSq < 1e-6) return 0;
-            const laneLen = Math.sqrt(laneLenSq);
-            const laneDir = laneVec.clone().divideScalar(laneLen);
-            let minClearanceSq = Infinity;
-            activeBalls.forEach((ball) => {
-              if (!ball?.active || ignoreIds.has(ball.id)) return;
-              const rel = ball.pos.clone().sub(targetBall.pos);
-              const proj = THREE.MathUtils.clamp(rel.dot(laneDir), 0, laneLen);
-              const closest = targetBall.pos.clone().add(laneDir.clone().multiplyScalar(proj));
-              const dSq = ball.pos.distanceToSquared(closest);
-              if (dSq < minClearanceSq) minClearanceSq = dSq;
-            });
-            if (!Number.isFinite(minClearanceSq)) return 1;
-            return THREE.MathUtils.clamp(
-              Math.sqrt(minClearanceSq) / Math.max(BALL_R * 2, 1e-6),
-              0,
-              2
-            );
           };
           const tryCushionRoute = (start, target, ignoreIds = new Set()) => {
             const walls = [
@@ -27240,27 +27209,12 @@ const powerRef = useRef(hud.power);
             const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
-              const pocketBaseCenter = centers[i];
-              const pocketBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-              const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
-              const pocketAim = resolvePocketMouthAimPoint({
-                pocketCenter: pocketBaseCenter,
-                targetPos: targetBall.pos,
-                balls: activeBalls,
-                ignoredBallIds: [cueBall.id, targetBall.id],
-                ballRadius: BALL_R,
-                baseRadius: pocketBaseRadius,
-                mouthWidth: pocketMouth,
-                pocketType: i >= 4 ? 'side' : 'corner',
-                microEps: MICRO_EPS
-              });
-              const mappedEntrance = pocketAim?.point
-                ? new THREE.Vector2(pocketAim.point.x, pocketAim.point.y)
-                : resolvePocketEntranceForTarget(targetBall.pos, i, {
-                    balls: activeBalls,
-                    ignoredBallIds: [cueBall.id, targetBall.id],
-                    ballRadius: BALL_R
-                  }) ?? centers[i];
+              const mappedEntrance =
+                resolvePocketEntranceForTarget(targetBall.pos, i, {
+                  balls: activeBalls,
+                  ignoredBallIds: [cueBall.id, targetBall.id],
+                  ballRadius: BALL_R
+                }) ?? centers[i];
               const pocketCenter = mappedEntrance.clone();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               const toPocketLenSq = toPocket.lengthSq();
@@ -27268,32 +27222,22 @@ const powerRef = useRef(hud.power);
               const toPocketLen = Math.sqrt(toPocketLenSq);
               const toPocketDir = toPocket.clone().divideScalar(toPocketLen);
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
-              const pocketLaneClearance = measurePocketLaneClearance(
-                targetBall,
-                pocketCenter,
-                ignore
-              );
+              let mouthObstructions = 0;
+              const mouthProbeRadius = BALL_R * 2.2;
+              activeBalls.forEach((other) => {
+                if (!other?.active || ignore.has(other.id)) return;
+                const distSq = other.pos.distanceToSquared(pocketCenter);
+                if (distSq <= mouthProbeRadius * mouthProbeRadius) {
+                  mouthObstructions += 1;
+                }
+              });
+              const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
               const idealEntryDir = pocketCenter.clone().normalize().multiplyScalar(-1);
               const entryAlignment = Math.max(
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
               );
-              const mouthCrowdCount =
-                (pocketAim?.nearJawCrowd ?? 0) +
-                (pocketAim?.farJawCrowd ?? 0);
-              const laneCrowdPenalty = (pocketAim?.cleanMouth ?? false) ? 0 : 0.22;
-              const mouthClarity = THREE.MathUtils.clamp(
-                1 - mouthCrowdCount * 0.2 - laneCrowdPenalty,
-                0.08,
-                1
-              );
-              if (
-                entryAlignment < AI_MIN_ENTRY_ALIGNMENT ||
-                mouthClarity < AI_MIN_MOUTH_CLARITY ||
-                pocketLaneClearance < AI_MIN_POCKET_LANE_CLEARANCE
-              ) {
-                continue;
-              }
+              const mouthClarity = THREE.MathUtils.clamp(1 - mouthObstructions * 0.22, 0.1, 1);
               const entranceFavor = THREE.MathUtils.clamp(
                 entryAlignment * (pocketMouth / POCKET_CORNER_MOUTH),
                 0.2,
@@ -27346,8 +27290,6 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 pocketMouthClarity: mouthClarity,
-                pocketLaneClearance,
-                entryAlignment,
                 cushionPoint: cushionAid?.cushionPoint?.clone?.() ?? null,
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
@@ -27395,7 +27337,6 @@ const powerRef = useRef(hud.power);
                 0.15 * viewScore +
                 0.1 * openLaneNorm +
                 0.12 * mouthClarity +
-                0.08 * THREE.MathUtils.clamp(pocketLaneClearance / 2, 0, 1) +
                 0.05 * (1 - travelPenalty) -
                 cushionPenalty,
                 0,
@@ -27407,8 +27348,7 @@ const powerRef = useRef(hud.power);
                   0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
                   0.14 * viewScore +
-                  0.1 * mouthClarity +
-                  0.08 * THREE.MathUtils.clamp(pocketLaneClearance / 2, 0, 1) -
+                  0.1 * mouthClarity -
                   cushionPenalty,
                 0,
                 1
@@ -27561,13 +27501,6 @@ const powerRef = useRef(hud.power);
                   difficulty: cueDist + toPocket,
                   cueToTarget: cueDist,
                   targetToPocket: toPocket,
-                  pocketMouthClarity: 0.8,
-                  pocketLaneClearance: measurePocketLaneClearance(
-                    targetBall,
-                    pocketCenter,
-                    new Set([cueBall.id, targetBall.id])
-                  ),
-                  entryAlignment,
                   railNormal: null,
                   viaCushion: false,
                   quality,
@@ -27722,8 +27655,10 @@ const powerRef = useRef(hud.power);
               (entry) =>
                 entry?.plan &&
                 isTargetBallLegal(entry.plan.targetBall) &&
-                isPlayablePlan(entry.plan, { allowCushion: true })
-            )?.plan ?? null;
+                isFirstContactLegal(entry.plan)
+            )?.plan ??
+            scoredPots[0]?.plan ??
+            null;
           const bestPot =
             easyAttackPot ??
             aggressiveLegalPot ??
