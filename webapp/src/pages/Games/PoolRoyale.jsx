@@ -27875,16 +27875,6 @@ const powerRef = useRef(hud.power);
             const stateSnapshot = frameRef.current ?? frameState;
             const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
             if (!advancedPlan) return baseline;
-            const baselinePot = baseline?.bestPot ?? null;
-            const baselinePotChance = Number.isFinite(baselinePot?.potChance)
-              ? baselinePot.potChance
-              : Number.isFinite(baselinePot?.quality)
-                ? baselinePot.quality
-                : 0;
-            const baselinePotLooksAttackable =
-              baselinePot?.type === 'pot' &&
-              baselinePot?.targetBall?.active &&
-              baselinePotChance >= 0.4;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
               result.bestPot = advancedPlan;
@@ -27892,13 +27882,6 @@ const powerRef = useRef(hud.power);
             } else {
               result.bestSafety = advancedPlan;
               if (!result.bestPot) result.bestPot = baseline.bestPot;
-              // Keep AI attacking whenever a legal pot is reasonably makeable.
-              // This prevents the mid-rack drift toward repetitive safeties when
-              // the baseline planner still sees clear pot routes.
-              if (baselinePotLooksAttackable) {
-                result.bestPot = baselinePot;
-                result.bestSafety = null;
-              }
             }
             return result;
           } catch (err) {
