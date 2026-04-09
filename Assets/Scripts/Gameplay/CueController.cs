@@ -17,6 +17,8 @@ namespace Aiming
         public Transform cueTip;
         public Transform cueBall, objectBall, pocket;
         public Rigidbody cueBallBody;
+        [Tooltip("All table ball rigidbodies to monitor. AI/cue waits until every listed ball is fully settled before re-aiming.")]
+        public Rigidbody[] monitoredBallBodies;
         public Bounds tableBounds;
         public float ballRadius = 0.028575f;
 
@@ -41,6 +43,11 @@ namespace Aiming
         [Range(0.02f, 0.25f)] public float contactDrivePortion = 0.1f;
         [Tooltip("Minimum pull used for strike animation so the cue visibly drives forward every shot.")]
         [Min(0f)] public float minimumVisualPull = 0.025f;
+        [Header("Motion settle")]
+        [Tooltip("Linear velocity threshold used to decide whether a ball is still moving.")]
+        [Min(0f)] public float settleLinearVelocitySqr = 0.0004f;
+        [Tooltip("Angular velocity threshold used to decide whether a ball is still spinning/moving.")]
+        [Min(0f)] public float settleAngularVelocitySqr = 0.0009f;
 
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
@@ -271,7 +278,40 @@ namespace Aiming
 
         bool AreBallsMoving()
         {
-            return cueBallBody != null && cueBallBody.velocity.sqrMagnitude > 0.0004f;
+            if (IsBodyMoving(cueBallBody))
+            {
+                return true;
+            }
+
+            if (monitoredBallBodies == null || monitoredBallBodies.Length == 0)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < monitoredBallBodies.Length; i++)
+            {
+                if (IsBodyMoving(monitoredBallBodies[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        bool IsBodyMoving(Rigidbody body)
+        {
+            if (body == null)
+            {
+                return false;
+            }
+
+            if (body.velocity.sqrMagnitude > settleLinearVelocitySqr)
+            {
+                return true;
+            }
+
+            return body.angularVelocity.sqrMagnitude > settleAngularVelocitySqr;
         }
 
         IEnumerator StrikeRoutine(float shotPower)

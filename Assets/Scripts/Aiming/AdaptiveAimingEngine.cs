@@ -399,13 +399,19 @@ namespace Aiming
 
         float ScoreAttempt(in ShotContext ctx, in ShotInfo info, in AimSolution attempt)
         {
-            Vector3 cueDir = (attempt.aimEnd - ctx.cueBallPos).normalized;
+            Vector3 cueDirRaw = attempt.aimEnd - ctx.cueBallPos;
+            if (cueDirRaw.sqrMagnitude < 1e-8f)
+                return 10f;
+
+            Vector3 cueDir = cueDirRaw.normalized;
             Vector3 idealDir = (ctx.objectBallPos - ctx.cueBallPos).normalized;
             float directionalMiss = 1f - Mathf.Clamp01(Vector3.Dot(cueDir, idealDir));
 
             float cutPenalty = (config ? config.cutAnglePenalty : 0.55f) * (info.angleDeg / 90f);
             float distancePenalty = (config ? config.distancePenalty : 0.2f) * Vector3.Distance(ctx.cueBallPos, attempt.aimEnd);
-            return directionalMiss + cutPenalty + distancePenalty;
+            float potLinePenalty = EvaluatePotLinePenalty(ctx, attempt);
+            float scratchRiskPenalty = EvaluateScratchRiskPenalty(ctx, cueDir);
+            return directionalMiss + cutPenalty + distancePenalty + potLinePenalty + scratchRiskPenalty;
         }
 
         AimSolution SelectWithMonteCarlo(in ShotContext ctx, in ShotInfo info, AimSolution[] solutions, float[] deterministicScores, int count)
@@ -465,11 +471,58 @@ namespace Aiming
 
             Vector3 objectToPocketDir = objectToPocket / objectToPocketDistance;
             float hitAlignment = Mathf.Clamp01(Vector3.Dot(cueDir, cueToObjectDir));
-            float cutAlignment = Mathf.Clamp01(Vector3.Dot(cueToObjectDir, objectToPocketDir));
+            Vector3 sampledObjectTravel = EstimateObjectTravelDirection(ctx, cueDir);
+            float cutAlignment = sampledObjectTravel.sqrMagnitude > 1e-8f
+                ? Mathf.Clamp01(Vector3.Dot(sampledObjectTravel, objectToPocketDir))
+                : Mathf.Clamp01(Vector3.Dot(cueToObjectDir, objectToPocketDir));
             float powerPenalty = Mathf.Abs(shotPower01 - RecommendPower(info.distBucket, ctx.requiresPower)) * 0.15f;
             float missPenalty = (1f - hitAlignment) * 1.5f + (1f - cutAlignment) * 1.2f;
+            float scratchRiskPenalty = EvaluateScratchRiskPenalty(ctx, cueDir);
 
-            return missPenalty + powerPenalty + (info.angleDeg / 90f) * 0.15f;
+            return missPenalty + powerPenalty + scratchRiskPenalty + (info.angleDeg / 90f) * 0.15f;
+        }
+
+        static Vector3 EstimateObjectTravelDirection(in ShotContext ctx, Vector3 cueDir)
+        {
+            Vector3 cueToObject = ctx.objectBallPos - ctx.cueBallPos;
+            if (cueToObject.sqrMagnitude <= 1e-8f)
+                return Vector3.zero;
+
+            Vector3 contactNormal = cueToObject.normalized;
+            float forwardComponent = Mathf.Max(0f, Vector3.Dot(cueDir, contactNormal));
+            if (forwardComponent <= 1e-5f)
+                return Vector3.zero;
+
+            Vector3 objectTravel = contactNormal * forwardComponent;
+            return objectTravel.sqrMagnitude > 1e-8f ? objectTravel.normalized : Vector3.zero;
+        }
+
+        float EvaluatePotLinePenalty(in ShotContext ctx, in AimSolution attempt)
+        {
+            Vector3 objectToPocket = ctx.pocketPos - ctx.objectBallPos;
+            if (objectToPocket.sqrMagnitude < 1e-8f)
+                return 0f;
+
+            Vector3 projectedObjectTravel = ctx.objectBallPos - attempt.aimEnd;
+            if (projectedObjectTravel.sqrMagnitude < 1e-8f)
+                return 1.2f;
+
+            float alignment = Mathf.Clamp01(Vector3.Dot(projectedObjectTravel.normalized, objectToPocket.normalized));
+            return (1f - alignment) * 1.35f;
+        }
+
+        float EvaluateScratchRiskPenalty(in ShotContext ctx, Vector3 cueDir)
+        {
+            Vector3 objectToPocket = ctx.pocketPos - ctx.objectBallPos;
+            if (objectToPocket.sqrMagnitude < 1e-8f)
+                return 0f;
+
+            float sameLane = Mathf.Clamp01(Vector3.Dot(cueDir, objectToPocket.normalized));
+            if (sameLane < 0.82f)
+                return 0f;
+
+            // Very aligned cue paths tend to follow the object toward the same pocket (scratch risk).
+            return (sameLane - 0.82f) * 1.1f;
         }
 
         static Vector3 ApplyDirectionalNoise(Vector3 baseDir, float jitterDeg, int seed)
