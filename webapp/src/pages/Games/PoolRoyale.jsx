@@ -26902,10 +26902,10 @@ const powerRef = useRef(hud.power);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const shouldAnalyzeLeave =
-            aiOpponentEnabled &&
-            hudRef.current?.turn === 1 &&
-            aiTurnShotCountRef.current > 0;
+          // Keep shot-selection behavior consistent across the whole AI turn.
+          // Prioritizing leave-position only after the opening shot made later shots
+          // feel less accurate than the first one.
+          const shouldAnalyzeLeave = false;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
