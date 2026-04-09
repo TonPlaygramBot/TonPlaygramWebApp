@@ -988,11 +988,6 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
-const CAPTURE_STYLE = Object.freeze({
-  SLASH: 'slash',
-  BLAST: 'blast',
-  DRONE: 'drone'
-});
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
@@ -8759,96 +8754,6 @@ function Chess3D({
     }
     clearHighlightsRef.current = clearHighlights;
 
-    let captureFxAudioCtx = null;
-    const getCaptureFxAudioCtx = () => {
-      if (typeof window === 'undefined') return null;
-      if (captureFxAudioCtx) return captureFxAudioCtx;
-      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextCtor) return null;
-      captureFxAudioCtx = new AudioContextCtor();
-      return captureFxAudioCtx;
-    };
-    const playCaptureSynth = (style) => {
-      if (!settingsRef.current.soundEnabled) return;
-      const ctx = getCaptureFxAudioCtx();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const gain = ctx.createGain();
-      gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0.001, now);
-      if (style === CAPTURE_STYLE.SLASH) {
-        const osc = ctx.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(900, now);
-        osc.frequency.exponentialRampToValueAtTime(230, now + 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.09, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        osc.connect(gain);
-        osc.start(now);
-        osc.stop(now + 0.16);
-        return;
-      }
-      if (style === CAPTURE_STYLE.DRONE) {
-        const osc = ctx.createOscillator();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(420, now);
-        osc.frequency.exponentialRampToValueAtTime(120, now + 0.36);
-        gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-        osc.connect(gain);
-        osc.start(now);
-        osc.stop(now + 0.4);
-      }
-    };
-    const worldToViewport = (pos) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const v = pos.clone().project(camera);
-      return {
-        x: rect.left + ((v.x + 1) / 2) * rect.width,
-        y: rect.top + ((-v.y + 1) / 2) * rect.height
-      };
-    };
-    const spawnOverlayFx = ({ className, text, worldPos, durationMs = 650, styles = {} }) => {
-      if (typeof document === 'undefined' || !worldPos) return null;
-      const point = worldToViewport(worldPos);
-      const el = document.createElement('div');
-      el.className = className;
-      el.textContent = text;
-      el.style.position = 'fixed';
-      el.style.left = `${point.x}px`;
-      el.style.top = `${point.y}px`;
-      el.style.setProperty('--fx-x-start', `${point.x}px`);
-      el.style.setProperty('--fx-y-start', `${point.y}px`);
-      el.style.setProperty('--fx-x-end', `${point.x}px`);
-      el.style.setProperty('--fx-y-end', `${point.y}px`);
-      el.style.pointerEvents = 'none';
-      el.style.zIndex = '220';
-      Object.entries(styles).forEach(([key, value]) => {
-        el.style.setProperty(key, value);
-      });
-      document.body.appendChild(el);
-      window.setTimeout(() => {
-        try {
-          el.remove();
-        } catch {}
-      }, durationMs);
-      return el;
-    };
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const animatePieceToPromise = (mesh, target, duration = 0.28) =>
-      new Promise((resolve) => {
-        animatePieceTo(mesh, target, duration, resolve);
-      });
-    const resolveCaptureStyle = (pieceType, moveDistance) => {
-      if ((pieceType === 'B' || pieceType === 'Q' || pieceType === 'R') && moveDistance >= 3) {
-        return CAPTURE_STYLE.DRONE;
-      }
-      if (moveDistance <= 1.6 || pieceType === 'P' || pieceType === 'N' || pieceType === 'K') {
-        return CAPTURE_STYLE.SLASH;
-      }
-      return CAPTURE_STYLE.BLAST;
-    };
-
     const isPlayerPiece = (piece) => {
       if (!piece) return false;
       if (onlineRef.current.enabled) {
@@ -8903,7 +8808,7 @@ function Chess3D({
       if (captureSquares.length) highlightMoves(captureSquares, palette?.capture);
     }
 
-    async function moveSelTo(rr, cc, options = {}) {
+    function moveSelTo(rr, cc, options = {}) {
       const { byAi = false } = options;
       const finalizeAiMove = () => {
         if (byAi) aiMovingRef.current = false;
@@ -8947,17 +8852,9 @@ function Chess3D({
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
       const toSquare = resolveChessSquare(rr, cc);
-      const moveDistance = Math.max(Math.abs(rr - sel.r), Math.abs(cc - sel.c));
-      const captureStyle = capturedPiece
-        ? resolveCaptureStyle(movingPiece?.t, moveDistance)
-        : null;
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
-      const movingMesh = pieceMeshes[sel.r][sel.c];
-      let captureResolved = false;
-      const resolveCaptureMesh = async () => {
-        if (!targetMesh || captureResolved) return;
-        captureResolved = true;
+      if (targetMesh) {
         const worldPos = new THREE.Vector3();
         targetMesh.getWorldPosition(worldPos);
         const capturingWhite = board[sel.r][sel.c].w;
@@ -8974,73 +8871,17 @@ function Chess3D({
           : -half - BOARD.rim - 1 - row * captureRowSpacing;
         cancelPieceAnimation(targetMesh);
         targetMesh.position.y = captureY;
-        await animatePieceToPromise(
+        animatePieceTo(
           targetMesh,
           new THREE.Vector3(capX, captureY, capZ),
           0.35
         );
-        pieceMeshes[rr][cc] = null;
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
           bombSoundRef.current.play().catch(() => {});
         }
-      };
-      if (targetMesh) {
-        const fromPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
-        const targetPos = piecePosition(rr, cc, currentPieceYOffset);
-        if (captureStyle === CAPTURE_STYLE.SLASH && movingMesh) {
-          playCaptureSynth(CAPTURE_STYLE.SLASH);
-          spawnOverlayFx({
-            className: 'chess-capture-slash',
-            text: '⚔️',
-            worldPos: targetPos,
-            durationMs: 340
-          });
-          const lungePos = targetPos.clone().lerp(fromPos, 0.35);
-          cancelPieceAnimation(movingMesh);
-          await animatePieceToPromise(movingMesh, lungePos, 0.16);
-          await resolveCaptureMesh();
-        } else if (captureStyle === CAPTURE_STYLE.DRONE) {
-          playCaptureSynth(CAPTURE_STYLE.DRONE);
-          const drone = spawnOverlayFx({
-            className: 'chess-capture-drone',
-            text: '🛸',
-            worldPos: fromPos,
-            durationMs: 700
-          });
-          const missile = spawnOverlayFx({
-            className: 'chess-capture-missile',
-            text: '🚀',
-            worldPos: fromPos.clone().lerp(targetPos, 0.55),
-            durationMs: 700
-          });
-          const end = worldToViewport(targetPos);
-          if (drone) {
-            drone.style.setProperty('--fx-x-end', `${end.x}px`);
-            drone.style.setProperty('--fx-y-end', `${end.y - 16}px`);
-          }
-          if (missile) {
-            missile.style.setProperty('--fx-x-end', `${end.x}px`);
-            missile.style.setProperty('--fx-y-end', `${end.y}px`);
-          }
-          await wait(320);
-          spawnOverlayFx({
-            className: 'chess-capture-shockwave',
-            text: '💥',
-            worldPos: targetPos,
-            durationMs: 520
-          });
-          await resolveCaptureMesh();
-        } else {
-          spawnOverlayFx({
-            className: 'chess-capture-shockwave',
-            text: '💥',
-            worldPos: targetPos,
-            durationMs: 460
-          });
-          await resolveCaptureMesh();
-        }
+        pieceMeshes[rr][cc] = null;
       }
       // move board
       const movedPiece = movingPiece;
@@ -9080,7 +8921,7 @@ function Chess3D({
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      await animatePieceToPromise(m, targetPosition, 0.32);
+      animatePieceTo(m, targetPosition, 0.32);
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
