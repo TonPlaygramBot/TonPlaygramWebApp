@@ -25983,7 +25983,7 @@ const powerRef = useRef(hud.power);
           breakRollStateRef.current !== 'done' ||
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
-          !allStopped(balls) ||
+          !allStopped((ballsRef.current?.length > 0 ? ballsRef.current : balls)) ||
           currentHud?.over ||
           replayPlaybackRef.current
         )
@@ -27888,9 +27888,16 @@ const powerRef = useRef(hud.power);
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            if (variantId !== 'uk' || !cue?.active) return baseline;
+            const liveCue = cueRef.current ?? cue;
+            const liveBalls =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            if (variantId !== 'uk' || !liveCue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            const advancedPlan = computeUkAdvancedPlan(
+              liveBalls,
+              liveCue,
+              stateSnapshot
+            );
             if (!advancedPlan) return baseline;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
@@ -28035,7 +28042,9 @@ const powerRef = useRef(hud.power);
             aiPlanCacheRef.current = { key: null, plan: null };
             setAiPlanning(null);
           }
-          if (!allStopped(balls)) {
+          const liveBalls =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          if (!allStopped(liveBalls)) {
             aiPlanRef.current = null;
             setAiPlanning(null);
             aiThinkingHandle = requestAnimationFrame(startAiThinking);
@@ -28645,7 +28654,7 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (!allStopped(balls)) {
+          if (!allStopped(ballsList)) {
             aiRetryTimeoutRef.current = window.setTimeout(() => {
               aiRetryTimeoutRef.current = null;
               aiShoot.current();
