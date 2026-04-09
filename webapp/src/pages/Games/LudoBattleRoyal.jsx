@@ -70,6 +70,156 @@ import {
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
+const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
+const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+function easeSmooth(t) {
+  const n = clamp(t, 0, 1);
+  return n * n * (3 - 2 * n);
+}
+
+function quadraticBezier(a, b, c, t) {
+  const ab = new THREE.Vector3().copy(a).lerp(b, t);
+  const bc = new THREE.Vector3().copy(b).lerp(c, t);
+  return ab.lerp(bc, t);
+}
+
+function addFxBox(
+  group,
+  size,
+  position,
+  color,
+  roughness = 0.7,
+  metalness = 0.2
+) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(size[0], size[1], size[2]),
+    new THREE.MeshStandardMaterial({ color, roughness, metalness })
+  );
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function addFxCylinder(
+  group,
+  radiusTop,
+  radiusBottom,
+  height,
+  position,
+  rotation,
+  color,
+  radialSegments = 18,
+  roughness = 0.62,
+  metalness = 0.28
+) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments),
+    new THREE.MeshStandardMaterial({ color, roughness, metalness })
+  );
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function addFxSphere(
+  group,
+  radius,
+  position,
+  color,
+  roughness = 0.45,
+  metalness = 0.25,
+  transparent = false,
+  opacity = 1
+) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 16, 16),
+    new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
+  );
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function createCaptureMissileFx() {
+  const root = new THREE.Group();
+  addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.08, 0.24, 16),
+    new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+  );
+  nose.position.set(0.63, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
+  root.add(nose);
+
+  addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+  addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+
+  const trail = [];
+  for (let i = 0; i < 5; i += 1) {
+    const puff = addFxSphere(
+      root,
+      0.1 + i * 0.025,
+      [-0.7 - i * 0.16, 0, 0],
+      i < 2 ? '#f6af4b' : '#8f989d',
+      i < 2 ? 0.2 : 1,
+      0,
+      true,
+      i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+    );
+    trail.push(puff);
+  }
+  root.visible = false;
+  return { root, trail };
+}
+
+function createCaptureExplosionFx() {
+  const root = new THREE.Group();
+  const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
+  const fire = [];
+  const smoke = [];
+  for (let i = 0; i < 4; i += 1) {
+    fire.push(
+      addFxSphere(
+        root,
+        0.18 + i * 0.05,
+        [0, 0.22 + i * 0.06, 0],
+        i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
+        0.2,
+        0,
+        true,
+        0.95 - i * 0.15
+      )
+    );
+  }
+  for (let i = 0; i < 6; i += 1) {
+    smoke.push(
+      addFxSphere(
+        root,
+        0.18 + i * 0.035,
+        [0, 0.18 + i * 0.08, 0],
+        '#646b72',
+        1,
+        0,
+        true,
+        0.42 - i * 0.04
+      )
+    );
+  }
+  root.visible = false;
+  return { root, flash, fire, smoke };
+}
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -2709,6 +2859,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraRef = useRef(null);
   const boardLookTargetRef = useRef(null);
   const saved3dCameraStateRef = useRef(null);
+  const captureFxRef = useRef(null);
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -5023,8 +5174,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               }
               clearAnimationHighlights(anim);
               state.animation = null;
-              if (typeof done === 'function') done();
-              updateTokenStacks();
+              if (typeof done === 'function') {
+                const result = done();
+                if (result && typeof result.then === 'function') {
+                  result.finally(() => updateTokenStacks());
+                } else {
+                  updateTokenStacks();
+                }
+              } else {
+                updateTokenStacks();
+              }
             }
           }
         }
@@ -5158,6 +5317,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       textureLoaderRef.current = null;
       maxAnisotropyRef.current = 1;
       fallbackTextureRef.current = null;
+      if (captureFxRef.current) {
+        captureFxRef.current.missile?.parent?.remove?.(captureFxRef.current.missile);
+        captureFxRef.current.explosion?.parent?.remove?.(captureFxRef.current.explosion);
+        captureFxRef.current = null;
+      }
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -5185,12 +5349,138 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const playCapture = () => {
     if (!settingsRef.current.soundEnabled) return;
-    if (captureSoundRef.current) {
-      captureSoundRef.current.currentTime = 0;
-      captureSoundRef.current.play().catch(() => {});
-    }
     playHahaSound();
   };
+
+  const playExplosionBombSound = () => {
+    if (!settingsRef.current.soundEnabled || !captureSoundRef.current) return;
+    captureSoundRef.current.currentTime = 0;
+    captureSoundRef.current.play().catch(() => {});
+  };
+
+  const getReferenceKingSize = (player, fallbackToken) => {
+    const state = stateRef.current;
+    const sourceTokens = state?.tokens?.[player] ?? [];
+    const kingToken =
+      sourceTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) || fallbackToken;
+    const box = new THREE.Box3().setFromObject(kingToken || fallbackToken);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const kingHeight = Math.max(0.28, size.y || 0.28);
+    const kingWidth = Math.max(0.14, Math.max(size.x, size.z) || 0.14);
+    return { kingHeight, kingWidth };
+  };
+
+  const playCaptureMissileSequence = ({ attackerToken, attackerPlayer, startPosition, targetPosition }) =>
+    new Promise((resolve) => {
+        const arena = arenaRef.current;
+        const scene = arena?.scene;
+        if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
+          resolve();
+          return;
+        }
+
+        const missile = createCaptureMissileFx();
+        const explosion = createCaptureExplosionFx();
+        scene.add(missile.root);
+        scene.add(explosion.root);
+        captureFxRef.current = { missile: missile.root, explosion: explosion.root };
+
+        const { kingHeight, kingWidth } = getReferenceKingSize(attackerPlayer, attackerToken);
+        const missileLengthScale = kingHeight / 1.02;
+        const missileThicknessScale = ((kingWidth * 0.5) / 0.16) * 0.98;
+        missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
+
+        const from = startPosition.clone().add(new THREE.Vector3(0, kingHeight * 0.55, 0));
+        const to = targetPosition.clone().add(new THREE.Vector3(0, kingHeight * 0.32, 0));
+        const travelTime = 620;
+        const explosionTime = 920;
+        const control = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, kingHeight * 1.25, 0));
+        const started = performance.now();
+        let explosionTriggered = false;
+
+        const updateExplosionRig = (elapsedSinceImpact) => {
+          if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
+            explosion.root.visible = false;
+            return;
+          }
+          explosion.root.visible = true;
+          const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
+          const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
+          const fireGrow = 1 + elapsedSinceImpact * 4.5;
+          const smokeGrow = 1 + elapsedSinceImpact * 2.3;
+
+          explosion.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+          explosion.flash.material.opacity = fireLife;
+          explosion.fire.forEach((mesh, i) => {
+            const angle = elapsedSinceImpact * 5 + i * 1.35;
+            mesh.position.set(
+              Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
+              0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
+              Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+            );
+            mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
+            mesh.material.opacity = fireLife * (0.95 - i * 0.12);
+          });
+          explosion.smoke.forEach((mesh, i) => {
+            const angle = i * 1.1 + elapsedSinceImpact * 1.8;
+            mesh.position.set(
+              Math.cos(angle) * (0.14 + i * 0.08),
+              0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
+              Math.sin(angle) * (0.14 + i * 0.08)
+            );
+            mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
+            mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+          });
+        };
+
+        const tick = () => {
+          const elapsed = performance.now() - started;
+          if (elapsed < travelTime) {
+            const u = easeSmooth(elapsed / travelTime);
+            const nextU = clamp(u + 0.02, 0, 1);
+            const pos = quadraticBezier(from, control, to, u);
+            const next = quadraticBezier(from, control, to, nextU);
+            const dir = next.clone().sub(pos).normalize();
+            const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
+            missile.root.visible = true;
+            missile.root.position.copy(pos);
+            missile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
+            missile.trail.forEach((puff, i) => {
+              puff.position.set(
+                -0.55 - i * 0.16,
+                Math.sin(elapsed * 0.02 + i) * 0.02,
+                Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
+              );
+              const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
+              puff.scale.setScalar(s);
+            });
+            updateExplosionRig(-1);
+            requestAnimationFrame(tick);
+            return;
+          }
+
+          missile.root.visible = false;
+          const explosionElapsed = (elapsed - travelTime) / 1000;
+          explosion.root.position.copy(targetPosition.clone().add(new THREE.Vector3(0, 0.006, 0)));
+          updateExplosionRig(explosionElapsed);
+          if (!explosionTriggered) {
+            explosionTriggered = true;
+            playExplosionBombSound();
+            playCapture();
+          }
+          if (elapsed < travelTime + explosionTime) {
+            requestAnimationFrame(tick);
+            return;
+          }
+
+          if (missile.root.parent) missile.root.parent.remove(missile.root);
+          if (explosion.root.parent) explosion.root.parent.remove(explosion.root);
+          captureFxRef.current = null;
+          resolve();
+        };
+        requestAnimationFrame(tick);
+      });
 
   const playTokenStepSound = () => {
     if (!settingsRef.current.soundEnabled) return;
@@ -5280,7 +5570,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const step = () => {
       const now = performance.now();
       const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
-      const eased = easeInOutQuad(t);
+      const eased = easeSmooth(t);
       controls.target.copy(fromTarget).lerp(destination, eased);
       camera.position.copy(fromPosition).lerp(destinationPosition, eased);
       cameraTurnStateRef.current.currentTarget.copy(controls.target);
@@ -5790,31 +6080,41 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   };
 
-  const handleCaptures = (player, tokenIndex) => {
+  const getCaptureVictims = (player, tokenIndex) => {
     const state = stateRef.current;
-    if (!state) return { count: 0, opponents: [] };
+    if (!state) return [];
     const prog = state.progress[player][tokenIndex];
-    if (prog < 0 || prog >= RING_STEPS) return { count: 0, opponents: [] };
+    if (prog < 0 || prog >= RING_STEPS) return [];
     const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
-    if (SAFE_TRACK_INDEXES.has(landingIdx)) return { count: 0, opponents: [] };
-    const opponents = [];
+    if (SAFE_TRACK_INDEXES.has(landingIdx)) return [];
+    const victims = [];
     for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
         if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS) continue;
         const idx = (PLAYER_START_INDEX[p] + state.progress[p][t]) % RING_STEPS;
         if (idx === landingIdx) {
-          state.progress[p][t] = -1;
-          const token = state.tokens[p][t];
-          const pos = state.startPads[p][t].clone();
-          pos.y = getTokenRailHeight(p);
-          token.position.copy(pos);
-          token.rotation.set(0, 0, 0);
-          playCapture();
-          opponents.push(resolvePlayerLabel(p));
+          victims.push({ player: p, token: t });
         }
       }
     }
+    return victims;
+  };
+
+  const applyCaptureVictims = (victims = []) => {
+    const state = stateRef.current;
+    if (!state || !victims.length) return { count: 0, opponents: [] };
+    const opponents = [];
+    victims.forEach(({ player, token }) => {
+      if (state.progress[player][token] < 0) return;
+      state.progress[player][token] = -1;
+      const tokenNode = state.tokens[player][token];
+      const pos = state.startPads[player][token].clone();
+      pos.y = getTokenRailHeight(player);
+      tokenNode.position.copy(pos);
+      tokenNode.rotation.set(0, 0, 0);
+      opponents.push(resolvePlayerLabel(player));
+    });
     return { count: opponents.length, opponents };
   };
 
@@ -5868,12 +6168,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
-    const applyResult = () => {
+    const applyResult = async () => {
       state.progress[player][tokenIndex] = target;
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
-      const captures = handleCaptures(player, tokenIndex);
+      const captureVictims = getCaptureVictims(player, tokenIndex);
+      if (captureVictims.length) {
+        const currentAttackerPos = state.tokens[player][tokenIndex].position.clone();
+        const firstVictim = captureVictims[0];
+        const victimProgress = state.progress[firstVictim.player][firstVictim.token];
+        const victimPos = getWorldForProgress(firstVictim.player, victimProgress, firstVictim.token);
+        await playCaptureMissileSequence({
+          attackerToken: state.tokens[player][tokenIndex],
+          attackerPlayer: player,
+          startPosition: currentAttackerPos,
+          targetPosition: victimPos
+        });
+      }
+      const captures = applyCaptureVictims(captureVictims);
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
       const tokensHome = resolveTokensHomeCount(state, player);
@@ -5921,7 +6234,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (entering || target !== current) {
       scheduleMove(player, tokenIndex, target, applyResult);
     } else {
-      applyResult();
+      void applyResult();
     }
   };
 
