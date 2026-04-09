@@ -26303,8 +26303,6 @@ const powerRef = useRef(hud.power);
           }
           const shouldForceImmediateRailOverhead =
             Boolean(shotPrediction?.railNormal) ||
-            hasCueTargetDirectionSplit ||
-            Boolean(shotPrediction?.targetInitialPos && shotPrediction?.dir && cueVsTargetAlignment < 0.2) ||
             (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 2;
           if (shouldForceImmediateRailOverhead) {
             queuedPocketView = null;
@@ -26640,19 +26638,6 @@ const powerRef = useRef(hud.power);
           const targetRemaining = duration - elapsed;
           const desiredWindow = Math.max(AI_MIN_AIM_PREVIEW_MS, targetRemaining);
           return Math.min(maxRemaining, desiredWindow);
-        };
-        const buildAiPlanningSnapshotKey = (ballsList) => {
-          if (!Array.isArray(ballsList) || ballsList.length === 0) return 'none';
-          return ballsList
-            .filter((ball) => ball?.active)
-            .slice()
-            .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-            .map((ball) => {
-              const x = Math.round((ball?.pos?.x ?? 0) * 100);
-              const y = Math.round((ball?.pos?.y ?? 0) * 100);
-              return `${ball.id}:${x}:${y}`;
-            })
-            .join('|');
         };
         const scheduleEarlyAiShot = (plan) => {
           if (!plan || plan.type !== 'pot') {
@@ -27741,42 +27726,6 @@ const powerRef = useRef(hud.power);
               return colour.toUpperCase();
           }
         };
-        const resolveAiPocketJawGeometry = (localPocketCenter, localPocketId) => {
-          if (!localPocketCenter) return null;
-          const tableJaws = table?.userData?.pocketJaws;
-          if (!Array.isArray(tableJaws) || tableJaws.length < 2) return null;
-          const nearby = tableJaws
-            .map((jaw) => ({
-              jaw,
-              distance: jaw?.center?.distanceTo?.(localPocketCenter) ?? Infinity
-            }))
-            .filter((entry) => Number.isFinite(entry.distance))
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, 6);
-          if (nearby.length < 2) return null;
-          const closest = nearby[0]?.distance ?? Infinity;
-          const radiusWindow = Math.max(BALL_R * 8.5, closest * 1.65);
-          const inPocket = nearby
-            .filter((entry) => entry.distance <= radiusWindow)
-            .slice(0, 4);
-          if (inPocket.length < 2) return null;
-          inPocket.sort((a, b) => a.jaw.center.x - b.jaw.center.x || a.jaw.center.y - b.jaw.center.y);
-          const jawA = inPocket[0]?.jaw?.center;
-          const jawB = inPocket[inPocket.length - 1]?.jaw?.center;
-          if (!(jawA && jawB)) return null;
-          const middlePocket = localPocketId === 'TM' || localPocketId === 'BM';
-          const mouth = middlePocket
-            ? new THREE.Vector2(
-                (jawA.x + jawB.x) * 0.5,
-                (jawA.y + jawB.y) * 0.5
-              )
-            : localPocketCenter.clone();
-          return {
-            mouth,
-            jawA: jawA.clone(),
-            jawB: jawB.clone()
-          };
-        };
 
         const normalizeAiGroup = (value) => {
           if (!value) return undefined;
@@ -27861,17 +27810,7 @@ const powerRef = useRef(hud.power);
           const pockets = pocketPositions.map((center, idx) => {
             const aiPos = toAi(center);
             const localId = POCKET_IDS[idx] ?? `P${idx}`;
-            const jawGeometry = resolveAiPocketJawGeometry(center, localId);
-            return {
-              x: aiPos.x,
-              y: aiPos.y,
-              name: mapLocalPocketToAi(localId),
-              mouth: jawGeometry?.mouth
-                ? toAi(jawGeometry.mouth)
-                : aiPos,
-              jawA: jawGeometry?.jawA ? toAi(jawGeometry.jawA) : undefined,
-              jawB: jawGeometry?.jawB ? toAi(jawGeometry.jawB) : undefined
-            };
+            return { x: aiPos.x, y: aiPos.y, name: mapLocalPocketToAi(localId) };
           });
           const aiBalls = [];
           allBalls.forEach((ball) => {
@@ -28182,28 +28121,15 @@ const powerRef = useRef(hud.power);
             const remaining = Math.max(0, deadline - now);
             const ballsList =
               ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const planningSnapshotKey = buildAiPlanningSnapshotKey(ballsList);
             if (!allStopped(ballsList)) {
               aiPlanRef.current = null;
               updateAiPlanningState(null, { bestPot: null, bestSafety: null }, remaining / 1000);
               aiThinkingHandle = requestAnimationFrame(think);
               return;
             }
-            let plan = aiPlanRef.current;
-            let options = null;
-            const currentPlanKey = plan ? planKey(plan) : null;
-            const shouldReplan = !plan || plan._snapshotKey !== planningSnapshotKey;
-            if (shouldReplan) {
-              options = evaluateShotOptions();
-              plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
-            } else {
-              options = {
-                bestPot: plan?.type === 'pot' ? plan : null,
-                bestSafety: plan?.type === 'safety' ? plan : null
-              };
-            }
+            const options = evaluateShotOptions();
+            const plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (plan) {
-              plan._snapshotKey = planningSnapshotKey;
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
               const cueBall = cueRef.current ?? cue;
@@ -28218,9 +28144,7 @@ const powerRef = useRef(hud.power);
               }
             }
             updateAiPlanningState(plan, options, remaining / 1000);
-            if (plan && (shouldReplan || currentPlanKey !== planKey(plan))) {
-              scheduleEarlyAiShot(plan);
-            }
+            scheduleEarlyAiShot(plan);
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
             } else {
@@ -28782,12 +28706,8 @@ const powerRef = useRef(hud.power);
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
-            const planningSnapshotKey = buildAiPlanningSnapshotKey(ballsList);
-            let plan = aiPlanRef.current;
-            if (!plan || plan._snapshotKey !== planningSnapshotKey) {
-              const options = evaluateShotOptions();
-              plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
-            }
+            const options = evaluateShotOptions();
+            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
@@ -28805,7 +28725,6 @@ const powerRef = useRef(hud.power);
                 spin: { x: 0, y: 0 }
               };
             }
-            plan._snapshotKey = planningSnapshotKey;
             plan = refineAiPotAimLine(plan);
             const frameSnapshot = frameRef.current ?? frameState;
             const breakState = frameSnapshot?.meta?.state ?? null;
