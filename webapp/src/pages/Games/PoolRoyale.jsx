@@ -6190,6 +6190,8 @@ const AI_CAMERA_DROP_LEAD_MS =
   AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
 const AI_CUE_VIEW_HOLD_MS = 180;
 const AI_SPIN_ADJUST_DELAY_MS = 2000;
+const AI_EASY_POT_CHANCE_THRESHOLD = 0.48; // if this chance is available on a legal direct shot, force attack instead of safety
+const AI_EASY_POT_QUALITY_THRESHOLD = 0.45; // keep attack bias only for reasonably clean pots
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -26902,10 +26904,9 @@ const powerRef = useRef(hud.power);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          // Keep shot-selection behavior consistent across the whole AI turn.
-          // Prioritizing leave-position only after the opening shot made later shots
-          // feel less accurate than the first one.
-          const shouldAnalyzeLeave = false;
+          // Always evaluate leave/position so AI attacking logic is consistent from the first
+          // shot to the endgame instead of only improving late in the frame.
+          const shouldAnalyzeLeave = true;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
@@ -27592,15 +27593,31 @@ const powerRef = useRef(hud.power);
           const playableCushionPots = scoredPots.filter(
             (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
           );
+          const easyAttackPot =
+            scoredPots.find((entry) => {
+              const plan = entry?.plan;
+              if (!plan || plan.viaCushion) return false;
+              if (!isFirstContactLegal(plan)) return false;
+              if (detectScratchRisk(plan)) return false;
+              if (isAimLaneBlocked(plan)) return false;
+              const laneClearance = measureLaneClearance(plan);
+              const potChance = Number.isFinite(plan.potChance) ? plan.potChance : 0;
+              const quality = Number.isFinite(plan.quality) ? plan.quality : 0;
+              return (
+                laneClearance >= 0.72 &&
+                potChance >= AI_EASY_POT_CHANCE_THRESHOLD &&
+                quality >= AI_EASY_POT_QUALITY_THRESHOLD
+              );
+            })?.plan ?? null;
           const relaxedPot =
             scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
             scoredPots[0]?.plan ??
             null;
-          const bestPot = playableCushionPots[0]?.plan ?? relaxedPot;
+          const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
-            activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
+            easyAttackPot || (activeVariantId === 'uk' && bestPot) ? null : bestSafetyCandidate;
           const relaxedSafety =
             !bestPot && !bestSafety
               ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
