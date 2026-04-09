@@ -1,57 +1,70 @@
 import { resolvePocketMouthAimPoint } from '../webapp/src/pages/Games/poolRoyalePocketAim.js';
 
-describe('Pool Royale pocket-mouth aim targeting', () => {
-  it('returns an entry point pulled inward from the pocket center', () => {
-    const result = resolvePocketMouthAimPoint({
-      pocketCenter: { x: -1, y: -1 },
-      targetPos: { x: -0.4, y: -0.7 },
-      mouthWidth: 0.2,
-      baseRadius: 0.1,
-      pocketType: 'corner'
+describe('Pool Royale pocket-mouth aiming', () => {
+  const pocketCenter = { x: -450, y: -220 };
+  const targetPos = { x: -260, y: -90 };
+
+  it('keeps the entry near center when the mouth is clean', () => {
+    const entry = resolvePocketMouthAimPoint({
+      pocketCenter,
+      targetPos,
+      mouthWidth: 120,
+      baseRadius: 48,
+      pocketType: 'corner',
+      balls: [],
+      ignoredBallIds: [],
+      ballRadius: 10
     });
 
-    expect(result).toBeTruthy();
-    const inwardDot =
-      (result.point.x + 1) * 1 +
-      (result.point.y + 1) * 1;
-    expect(inwardDot).toBeGreaterThan(0);
+    expect(entry).toBeTruthy();
+    expect(entry.cleanMouth).toBe(true);
+    const inward = {
+      x: -pocketCenter.x,
+      y: -pocketCenter.y
+    };
+    const inwardLen = Math.hypot(inward.x, inward.y);
+    const inwardUnit = { x: inward.x / inwardLen, y: inward.y / inwardLen };
+    const lateralUnit = { x: -inwardUnit.y, y: inwardUnit.x };
+    const rel = {
+      x: entry.point.x - pocketCenter.x,
+      y: entry.point.y - pocketCenter.y
+    };
+    const lateral = rel.x * lateralUnit.x + rel.y * lateralUnit.y;
+    expect(Math.abs(lateral)).toBeLessThan(0.001);
   });
 
-  it('keeps lateral shift within a safe center-lane corridor', () => {
-    const mouthWidth = 0.22;
-    const halfMouth = mouthWidth * 0.5;
-    const result = resolvePocketMouthAimPoint({
-      pocketCenter: { x: 1, y: -1 },
-      targetPos: { x: 0.9, y: -0.15 },
-      mouthWidth,
-      baseRadius: 0.11,
-      pocketType: 'corner'
+  it('biases toward the far jaw lane when near jaw is crowded', () => {
+    const cleanEntry = resolvePocketMouthAimPoint({
+      pocketCenter,
+      targetPos,
+      mouthWidth: 120,
+      baseRadius: 48,
+      pocketType: 'corner',
+      balls: [],
+      ignoredBallIds: [],
+      ballRadius: 10
+    });
+    const crowdedNearJaw = {
+      id: 99,
+      active: true,
+      pos: { x: -430, y: -196 }
+    };
+    const entry = resolvePocketMouthAimPoint({
+      pocketCenter,
+      targetPos,
+      mouthWidth: 120,
+      baseRadius: 48,
+      pocketType: 'corner',
+      balls: [crowdedNearJaw],
+      ignoredBallIds: [],
+      ballRadius: 10
     });
 
-    expect(result).toBeTruthy();
-    expect(Math.abs(result.lateralBias)).toBeLessThanOrEqual(1);
-
-    const inward = { x: -1 / Math.sqrt(2), y: 1 / Math.sqrt(2) };
-    const lateral = { x: -inward.y, y: inward.x };
-    const dx = result.point.x - 1;
-    const dy = result.point.y + 1;
-    const lateralOffset = dx * lateral.x + dy * lateral.y;
-    expect(Math.abs(lateralOffset)).toBeLessThan(halfMouth * 0.4);
-  });
-
-  it('works for side pockets and keeps aim between jaws', () => {
-    const result = resolvePocketMouthAimPoint({
-      pocketCenter: { x: -1.1, y: 0 },
-      targetPos: { x: -0.6, y: 0.42 },
-      mouthWidth: 0.24,
-      baseRadius: 0.12,
-      pocketType: 'side'
-    });
-
-    expect(result).toBeTruthy();
-    // Side pocket inward is +X in this setup, so entry should move right.
-    expect(result.point.x).toBeGreaterThan(-1.1);
-    // Should still stay near the middle lane, not near a jaw edge.
-    expect(Math.abs(result.point.y)).toBeLessThan(0.05);
+    expect(entry).toBeTruthy();
+    expect(cleanEntry).toBeTruthy();
+    expect(entry.cleanMouth).toBe(false);
+    expect(entry.nearJawCrowd).toBeGreaterThan(entry.farJawCrowd);
+    expect(entry.point.x).not.toBeCloseTo(cleanEntry.point.x, 4);
+    expect(entry.point.y).not.toBeCloseTo(cleanEntry.point.y, 4);
   });
 });
