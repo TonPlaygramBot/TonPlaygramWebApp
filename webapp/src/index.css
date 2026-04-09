@@ -591,12 +591,7 @@ input:focus {
 
 .bomb-explosion {
   animation: bomb-pop 1s forwards;
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, rgba(255, 243, 199, 0.95) 0%, rgba(255, 157, 66, 0.82) 35%, rgba(244, 63, 94, 0.35) 62%, rgba(0, 0, 0, 0) 78%);
-  filter: drop-shadow(0 0 20px rgba(248, 113, 113, 0.95));
+  filter: drop-shadow(0 0 18px rgba(248, 113, 113, 0.95));
 }
 
 @keyframes bomb-pop {
@@ -615,10 +610,6 @@ input:focus {
   filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.9));
 }
 
-.chess-capture-slice-second {
-  animation-delay: 0.06s;
-}
-
 @keyframes chess-capture-slice-pop {
   0% {
     transform: translate(-50%, -50%) rotate(-20deg) scale(0.4);
@@ -635,67 +626,20 @@ input:focus {
 }
 
 .chess-capture-drone {
-  animation: chess-capture-drone-fly 0.9s linear forwards;
+  animation: chess-capture-drone-fly 0.85s linear forwards;
   filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.95));
-}
-
-.chess-capture-jet {
-  animation: chess-capture-jet-fly 0.98s linear forwards;
-  filter: drop-shadow(0 0 12px rgba(148, 163, 184, 0.95));
-}
-
-@keyframes chess-capture-jet-fly {
-  0% {
-    transform: translate(-50%, -50%) translate(0px, 0px) scale(0.62) rotate(-8deg);
-    opacity: 0;
-  }
-  20% {
-    transform: translate(-50%, -50%) translate(calc(var(--flight-dx, 0px) * 0.45), calc(var(--flight-dy, 0px) * 0.42 - var(--flight-arc, 90px))) scale(0.86) rotate(2deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) translate(var(--flight-dx, 0px), var(--flight-dy, 0px)) scale(1.08) rotate(7deg);
-    opacity: 0;
-  }
-}
-
-.chess-capture-bazooka {
-  animation: chess-capture-bazooka-fire 0.84s ease-out forwards;
-  filter: drop-shadow(0 0 12px rgba(148, 163, 184, 0.95));
-}
-
-@keyframes chess-capture-bazooka-fire {
-  0% {
-    transform: translate(-50%, -50%) translate(0px, 0px) scale(0.66) rotate(-14deg);
-    opacity: 0;
-  }
-  18% {
-    opacity: 1;
-  }
-  60% {
-    transform: translate(-50%, -50%) translate(calc(var(--flight-dx, 0px) * 0.55), calc(var(--flight-dy, 0px) * 0.5 - var(--flight-arc, 60px))) scale(0.92) rotate(-8deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) translate(var(--flight-dx, 0px), var(--flight-dy, 0px)) scale(1.02) rotate(-4deg);
-    opacity: 0;
-  }
 }
 
 @keyframes chess-capture-drone-fly {
   0% {
-    transform: translate(-50%, -50%) translate(0px, 0px) scale(0.45);
+    transform: translate(-120%, -160%) scale(0.45);
     opacity: 0;
   }
   20% {
     opacity: 1;
   }
-  58% {
-    transform: translate(-50%, -50%) translate(calc(var(--flight-dx, 0px) * 0.55), calc(var(--flight-dy, 0px) * 0.5 - var(--flight-arc, 100px))) scale(0.82);
-    opacity: 1;
-  }
   100% {
-    transform: translate(-50%, -50%) translate(var(--flight-dx, 0px), var(--flight-dy, 0px)) scale(0.95);
+    transform: translate(60%, -80%) scale(0.95);
     opacity: 0;
   }
 }
@@ -707,199 +651,20 @@ input:focus {
 
 @keyframes chess-capture-missile-hit {
   0% {
-    transform: translate(-50%, -50%) translate(0px, 0px) scale(0.5) rotate(-18deg);
+    transform: translate(120%, -120%) scale(0.5) rotate(-18deg);
     opacity: 0;
   }
   30% {
     opacity: 1;
   }
   65% {
-    transform: translate(-50%, -50%) translate(calc(var(--flight-dx, 0px) * 0.6), calc(var(--flight-dy, 0px) * 0.58 - var(--flight-arc, 70px))) scale(1.08) rotate(12deg);
+    transform: translate(-30%, -20%) scale(1.08) rotate(12deg);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -50%) translate(var(--flight-dx, 0px), var(--flight-dy, 0px)) scale(1.9) rotate(12deg);
+    transform: translate(-50%, -50%) scale(1.9) rotate(12deg);
     opacity: 0;
   }
-}
-
-.chess-capture-model {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.chess-capture-model span {
-  position: absolute;
-  display: block;
-}
-
-.chess-capture-model.drone .body,
-.chess-capture-model.jet .body {
-  left: 14%;
-  top: 38%;
-  width: 66%;
-  height: 24%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%);
-}
-
-.chess-capture-model.drone .wing {
-  left: 24%;
-  top: 14%;
-  width: 48%;
-  height: 72%;
-  clip-path: polygon(0 50%, 100% 0, 100% 100%);
-  background: #a3b4c6;
-}
-
-.chess-capture-model.drone .tail {
-  left: 7%;
-  top: 43%;
-  width: 15%;
-  height: 14%;
-  border-radius: 999px;
-  background: #6b7280;
-}
-
-.chess-capture-model.drone .prop {
-  left: 0%;
-  top: 32%;
-  width: 18%;
-  height: 36%;
-}
-
-.chess-capture-model.drone .prop::before,
-.chess-capture-model.drone .prop::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  background: #111827;
-}
-
-.chess-capture-model.drone .prop::before {
-  width: 100%;
-  height: 12%;
-}
-
-.chess-capture-model.drone .prop::after {
-  width: 12%;
-  height: 100%;
-}
-
-.chess-capture-model.jet .body {
-  width: 74%;
-  left: 12%;
-}
-
-.chess-capture-model.jet .wing {
-  left: 20%;
-  top: 11%;
-  width: 54%;
-  height: 78%;
-  clip-path: polygon(0 50%, 100% 6%, 80% 50%, 100% 94%);
-  background: #94a3b8;
-}
-
-.chess-capture-model.jet .tail {
-  left: 10%;
-  top: 30%;
-  width: 20%;
-  height: 40%;
-  clip-path: polygon(0 50%, 100% 0, 72% 50%, 100% 100%);
-  background: #cbd5e1;
-}
-
-.chess-capture-model.jet .cockpit {
-  left: 58%;
-  top: 30%;
-  width: 14%;
-  height: 34%;
-  border-radius: 999px;
-  background: #0f172a;
-}
-
-.chess-capture-model.bazooka .tube {
-  left: 10%;
-  top: 34%;
-  width: 78%;
-  height: 32%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 100%);
-}
-
-.chess-capture-model.bazooka .grip {
-  left: 36%;
-  top: 56%;
-  width: 12%;
-  height: 24%;
-  border-radius: 3px;
-  background: #1f2937;
-}
-
-.chess-capture-model.bazooka .tip {
-  right: 6%;
-  top: 36%;
-  width: 14%;
-  height: 28%;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  background: #e2e8f0;
-}
-
-.chess-capture-model.missile .body {
-  left: 16%;
-  top: 37%;
-  width: 64%;
-  height: 26%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #e5e7eb 0%, #9ca3af 100%);
-}
-
-.chess-capture-model.missile .tip {
-  right: 10%;
-  top: 34%;
-  width: 14%;
-  height: 32%;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  background: #f3f4f6;
-}
-
-.chess-capture-model.missile .fins {
-  left: 18%;
-  top: 24%;
-  width: 14%;
-  height: 52%;
-  background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
-  clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 90%);
-}
-
-.chess-capture-model.sword .blade {
-  left: 42%;
-  top: 8%;
-  width: 14%;
-  height: 70%;
-  clip-path: polygon(50% 0, 100% 14%, 75% 100%, 25% 100%, 0 14%);
-  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
-}
-
-.chess-capture-model.sword .guard {
-  left: 29%;
-  top: 62%;
-  width: 40%;
-  height: 8%;
-  border-radius: 999px;
-  background: #fbbf24;
-}
-
-.chess-capture-model.sword .handle {
-  left: 44%;
-  top: 70%;
-  width: 10%;
-  height: 22%;
-  border-radius: 999px;
-  background: #4b5563;
 }
 
 /* Larger token variant used for inactive pieces */
