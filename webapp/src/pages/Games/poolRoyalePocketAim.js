@@ -1,9 +1,6 @@
 export const resolvePocketMouthAimPoint = ({
   pocketCenter,
   targetPos,
-  balls = [],
-  ignoredBallIds = [],
-  ballRadius = null,
   mouthWidth,
   baseRadius,
   pocketType = 'corner',
@@ -52,46 +49,8 @@ export const resolvePocketMouthAimPoint = ({
   const entranceDepth =
     baseRadius * (isSidePocket ? 0.72 : 0.68) + baseRadius * 0.14 * Math.max(0, inwardAlignment);
 
-  const entryDepth = entranceDepth;
-  const laneHalfWidth = Math.max(corridorHalfWidth * 0.72, baseRadius * 0.24);
-  const ballR = Number.isFinite(ballRadius) && ballRadius > 0
-    ? ballRadius
-    : baseRadius * 0.22;
-  const ignored = new Set(ignoredBallIds.map((id) => String(id)));
-  const nearJawSign = lateralBias >= 0 ? 1 : -1;
-  let nearJawCrowd = 0;
-  let farJawCrowd = 0;
-  let laneCrowd = 0;
-  balls.forEach((ball) => {
-    if (!ball?.active) return;
-    const id = ball?.id == null ? null : String(ball.id);
-    if (id && ignored.has(id)) return;
-    const relX = ball.pos.x - pocketCenter.x;
-    const relY = ball.pos.y - pocketCenter.y;
-    const depth = relX * inwardDir.x + relY * inwardDir.y;
-    if (depth < -ballR * 0.5 || depth > entryDepth + ballR * 2.8) return;
-    const lateral = relX * lateralDir.x + relY * lateralDir.y;
-    if (Math.abs(lateral) <= laneHalfWidth + ballR * 0.4) {
-      laneCrowd += 1;
-    }
-    if (Math.abs(lateral) < laneHalfWidth + ballR * 0.5) {
-      const sign = lateral >= 0 ? 1 : -1;
-      if (sign === nearJawSign) nearJawCrowd += 1;
-      else farJawCrowd += 1;
-    }
-  });
-
-  const cleanMouth = laneCrowd === 0 && nearJawCrowd === 0 && farJawCrowd === 0;
-  const farJawBias =
-    !cleanMouth && nearJawCrowd > farJawCrowd
-      ? -nearJawSign
-      : nearJawCrowd < farJawCrowd
-        ? nearJawSign
-        : 0;
-  const sideShiftScale = cleanMouth
-    ? 0
-    : (isSidePocket ? 0.24 : 0.29) * (0.55 + 0.45 * Math.max(0, inwardAlignment));
-  const sideShift = corridorHalfWidth * (farJawBias || lateralBias) * sideShiftScale;
+  const sideShiftScale = (isSidePocket ? 0.28 : 0.32) * (0.6 + 0.4 * Math.max(0, inwardAlignment));
+  const sideShift = corridorHalfWidth * lateralBias * sideShiftScale;
 
   return {
     point: {
@@ -99,9 +58,6 @@ export const resolvePocketMouthAimPoint = ({
       y: pocketCenter.y + inwardDir.y * entranceDepth + lateralDir.y * sideShift
     },
     lateralBias,
-    inwardAlignment,
-    cleanMouth,
-    nearJawCrowd,
-    farJawCrowd
+    inwardAlignment
   };
 };
