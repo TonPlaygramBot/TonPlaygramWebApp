@@ -27928,9 +27928,16 @@ const powerRef = useRef(hud.power);
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            if (variantId !== 'uk' || !cue?.active) return baseline;
+            const cueBall = cueRef.current ?? cue;
+            if (variantId !== 'uk' || !cueBall?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            const ballsSnapshot =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const advancedPlan = computeUkAdvancedPlan(
+              ballsSnapshot,
+              cueBall,
+              stateSnapshot
+            );
             if (!advancedPlan) return baseline;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
@@ -27947,8 +27954,8 @@ const powerRef = useRef(hud.power);
           }
         };
         const normalizeAiPlanAim = (plan) => {
-          if (!plan || !cue?.active) return plan;
-          const cueBall = cue;
+          const cueBall = cueRef.current ?? cue;
+          if (!plan || !cueBall?.active) return plan;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!plan.aimDir || !Number.isFinite(plan.aimDir.x) || !Number.isFinite(plan.aimDir.y)) {
@@ -28125,13 +28132,15 @@ const powerRef = useRef(hud.power);
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
-              alignStandingCameraToAim(cue, plan.aimDir, { preserveOrbit: false });
+              const cueBall = cueRef.current ?? cue;
+              alignStandingCameraToAim(cueBall, plan.aimDir, { preserveOrbit: false });
             } else {
               aiPlanRef.current = null;
               const fallbackDir = resolveAutoAimDirection();
               if (fallbackDir) {
                 aimDirRef.current.copy(fallbackDir);
-                alignStandingCameraToAim(cue, fallbackDir, { preserveOrbit: false });
+                const cueBall = cueRef.current ?? cue;
+                alignStandingCameraToAim(cueBall, fallbackDir, { preserveOrbit: false });
               }
             }
             updateAiPlanningState(plan, options, remaining / 1000);
@@ -28148,13 +28157,14 @@ const powerRef = useRef(hud.power);
           think();
         };
         const resolveAutoAimDirection = (options = {}) => {
-          if (!cue?.active) return null;
+          const cueBall = cueRef.current ?? cue;
+          if (!cueBall?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!Array.isArray(ballsList) || ballsList.length === 0) return null;
           const frameSnapshot = frameRef.current ?? frameState;
-          const cuePos = cue?.pos
-            ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+          const cuePos = cueBall?.pos
+            ? new THREE.Vector2(cueBall.pos.x, cueBall.pos.y)
             : null;
           if (!cuePos) return null;
 
