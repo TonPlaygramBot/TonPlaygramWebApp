@@ -43,25 +43,6 @@
   .hidden{display:none;}
   #badge{position:fixed;right:12px;bottom:12px;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(12,180,75,.15);border:1px solid rgba(12,180,75,.35);color:#c7f7da;z-index:9;pointer-events:auto;}
   #badge.fail{background:rgba(200,20,20,.15);border-color:rgba(200,20,20,.45);color:#ffd8d8}
-
-  .matchStatus{position:absolute;top:66px;left:50%;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:rgba(11,18,32,.9);border:1px solid #233050;color:#e5e7eb;font-size:13px;font-weight:700;box-shadow:0 10px 28px rgba(0,0,0,.35);}
-  .modalBackdrop{position:fixed;inset:0;background:rgba(2,6,18,.72);display:flex;align-items:center;justify-content:center;z-index:12;padding:14px;pointer-events:auto;}
-  .modalCard{background:#0b1220;border:1px solid #233050;border-radius:16px;padding:18px;max-width:420px;width:100%;box-shadow:0 16px 32px rgba(0,0,0,.5);}
-  .modalCard h2{margin:0 0 8px;font-size:24px;color:#f8fafc;}
-  .modalCard p{margin:0 0 12px;color:#cbd5e1;font-size:14px;line-height:1.35;}
-  .modalActions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
-  .modalActions button{background:#121d33;color:#fff;border:1px solid #233050;border-radius:10px;padding:9px 12px;font-family:inherit;font-size:14px;cursor:pointer;}
-  .modalActions .danger{background:#dc2626;border-color:#ef4444;}
-  .captureFx{position:fixed;inset:0;pointer-events:none;z-index:11;overflow:hidden;}
-  .captureFx .slash{position:absolute;width:86px;height:8px;border-radius:999px;background:linear-gradient(90deg,#fef08a,#f97316,#ef4444);transform:translate(-50%,-50%) rotate(-30deg);box-shadow:0 0 18px rgba(251,113,133,.75);animation:slashFx .45s ease-out forwards;}
-  .captureFx .spark{position:absolute;width:10px;height:10px;border-radius:999px;background:#fde047;transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(250,204,21,.85);animation:sparkFx .52s ease-out forwards;}
-  .captureFx .blast{position:absolute;width:22px;height:22px;border-radius:50%;border:3px solid rgba(251,146,60,.95);transform:translate(-50%,-50%);animation:blastFx .55s ease-out forwards;}
-  .captureFx .projectile{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff7ed,#f97316 58%,#7f1d1d 100%);box-shadow:0 0 16px rgba(249,115,22,.8);transform:translate(-50%,-50%);}
-  .captureFx .drone{position:absolute;width:28px;height:12px;border-radius:8px;background:linear-gradient(90deg,#67e8f9,#22d3ee,#0284c7);box-shadow:0 0 14px rgba(34,211,238,.7);transform:translate(-50%,-50%);}
-  @keyframes slashFx{0%{opacity:0;transform:translate(-50%,-50%) rotate(-36deg) scale(.6);}25%{opacity:1;}100%{opacity:0;transform:translate(-50%,-50%) rotate(-20deg) scale(1.25);}}
-  @keyframes sparkFx{0%{opacity:.95;transform:translate(-50%,-50%) scale(.5);}100%{opacity:0;transform:translate(-50%,-50%) scale(2.6);}}
-  @keyframes blastFx{0%{opacity:.92;transform:translate(-50%,-50%) scale(.4);}100%{opacity:0;transform:translate(-50%,-50%) scale(3.3);}}
-
 </style>
 </head>
 <body>
@@ -101,7 +82,6 @@
 </div>
 <div class="ui">
   <div class="scoreboard">
-    <div id="matchStatus" class="matchStatus" aria-live="polite">White to move</div>
     <div class="score" aria-live="polite">
       <span id="p1" class="badge p1"><span id="p1Avatar" class="avatar"></span><span id="p1Name">P1</span></span>
       <span>vs</span>
@@ -114,9 +94,6 @@
     <button id="zoomIn" aria-label="Zoom in">+</button>
   </div>
 </div>
-
-<div id="modalRoot" class="hidden" aria-live="polite"></div>
-<div id="captureFx" class="captureFx"></div>
 <script src="/flag-emojis.js"></script>
 <script type="module">
 const params = new URLSearchParams(location.search);
@@ -142,10 +119,7 @@ const zoomInput = document.getElementById('zoom');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomInBtn = document.getElementById('zoomIn');
 const badge = document.getElementById('badge');
-const matchStatusEl = document.getElementById('matchStatus');
-const modalRoot = document.getElementById('modalRoot');
-const captureFxRoot = document.getElementById('captureFx');
-let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null; let gameOver=false; let pendingExitChoice=false; let audioCtx=null;
+let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null;
 
 function setAvatar(el,param){
   if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
@@ -165,154 +139,6 @@ function updateTurn(){
     p2Badge.classList.add('active');
     p1Badge.classList.remove('active');
   }
-}
-function updateMatchStatus(text){
-  if(matchStatusEl) matchStatusEl.textContent = text;
-}
-
-function routeToLobby(){
-  const game = params.get('game') || 'chessbattleroyal';
-  window.location.href = `/games/${game}/lobby`;
-}
-
-function showModal({title, message, actions}){
-  if(!modalRoot) return;
-  modalRoot.classList.remove('hidden');
-  modalRoot.innerHTML = '';
-  const wrap = document.createElement('div');
-  wrap.className = 'modalBackdrop';
-  const card = document.createElement('div');
-  card.className = 'modalCard';
-  const h = document.createElement('h2');
-  h.textContent = title;
-  const p = document.createElement('p');
-  p.textContent = message;
-  const bar = document.createElement('div');
-  bar.className = 'modalActions';
-  actions.forEach(action=>{
-    const btn=document.createElement('button');
-    btn.textContent=action.label;
-    if(action.variant==='danger') btn.classList.add('danger');
-    btn.addEventListener('click', ()=>{ if(action.close !== false) hideModal(); action.onClick?.(); });
-    bar.appendChild(btn);
-  });
-  card.append(h,p,bar);
-  wrap.appendChild(card);
-  modalRoot.appendChild(wrap);
-}
-
-function hideModal(){
-  if(!modalRoot) return;
-  modalRoot.classList.add('hidden');
-  modalRoot.innerHTML='';
-}
-
-function ensureAudioContext(){
-  if(audioCtx) return audioCtx;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if(!Ctx) return null;
-  audioCtx = new Ctx();
-  return audioCtx;
-}
-
-function playTone({freq=180, duration=0.2, type='triangle', volume=0.05}={}){
-  const ctx = ensureAudioContext();
-  if(!ctx) return;
-  if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
-  gain.gain.setValueAtTime(volume, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + duration);
-}
-
-function boardToScreen(sq){
-  if(!camera || !renderer) return {x: innerWidth * 0.5, y: innerHeight * 0.5};
-  const v = squareCenterVec3(sq).clone().project(camera);
-  return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
-}
-
-function spawnFx(cls, x, y, ttl=560){
-  if(!captureFxRoot) return;
-  const el = document.createElement('div');
-  el.className = cls;
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
-  captureFxRoot.appendChild(el);
-  setTimeout(()=>el.remove(), ttl);
-  return el;
-}
-
-function runCaptureAnimation({fromSq, toSq, pieceCode, distance}){
-  const from = boardToScreen(fromSq);
-  const to = boardToScreen(toSq);
-  const longRange = ['b','r','q'].includes(pieceCode) && distance > 1;
-  if(longRange){
-    const projectile = spawnFx('projectile', from.x, from.y, 820);
-    const drone = spawnFx('drone', from.x, from.y - 16, 820);
-    const start = performance.now();
-    const duration = 320;
-    const tick = now => {
-      const t = Math.min(1, (now - start) / duration);
-      const x = from.x + (to.x - from.x) * t;
-      const y = from.y + (to.y - from.y) * t;
-      if(projectile){ projectile.style.left = `${x}px`; projectile.style.top = `${y}px`; }
-      if(drone){ drone.style.left = `${x - 16}px`; drone.style.top = `${y - 20}px`; }
-      if(t < 1) requestAnimationFrame(tick);
-      else {
-        spawnFx('blast', to.x, to.y, 620);
-        spawnFx('spark', to.x + 12, to.y - 6, 520);
-      }
-    };
-    requestAnimationFrame(tick);
-    playTone({freq:260, duration:0.18, type:'sawtooth', volume:0.055});
-    setTimeout(()=>playTone({freq:110, duration:0.22, type:'triangle', volume:0.045}), 180);
-    return;
-  }
-  spawnFx('slash', to.x, to.y, 520);
-  spawnFx('spark', to.x + 8, to.y - 8, 540);
-  playTone({freq:420, duration:0.14, type:'square', volume:0.04});
-}
-
-function assessGameState(){
-  const legal = genLegal(state);
-  const sideToMove = state.turn === 'w' ? 'White' : 'Black';
-  const inCheck = isInCheck(state, state.turn);
-  if(!legal.length){
-    gameOver = true;
-    if(inCheck){
-      const winnerColor = other(state.turn);
-      const winnerName = winnerColor === 'w' ? p1NameEl.textContent : p2NameEl.textContent;
-      updateMatchStatus(`Checkmate · ${winnerName} wins`);
-      showModal({
-        title: 'Checkmate',
-        message: `${winnerName} wins by checkmate.`,
-        actions: [
-          { label: 'Play Again', onClick: () => { resetGame(); gameOver=false; updateTurn(); updateMatchStatus('White to move'); } },
-          { label: 'Go to Lobby', variant: 'danger', onClick: routeToLobby }
-        ]
-      });
-      playTone({freq:520, duration:0.26, type:'triangle', volume:0.05});
-      setTimeout(()=>playTone({freq:660, duration:0.26, type:'triangle', volume:0.045}), 130);
-      return;
-    }
-    updateMatchStatus('Stalemate · Draw');
-    showModal({
-      title: 'Draw',
-      message: 'No legal moves left. The game ends in stalemate.',
-      actions: [
-        { label: 'Play Again', onClick: () => { resetGame(); gameOver=false; updateTurn(); updateMatchStatus('White to move'); } },
-        { label: 'Go to Lobby', onClick: routeToLobby }
-      ]
-    });
-    return;
-  }
-  if(inCheck) updateMatchStatus(`${sideToMove} to move · Check`);
-  else updateMatchStatus(`${sideToMove} to move`);
 }
 
 function populateFlags(){
@@ -353,8 +179,6 @@ function startMatch(){
   resetGame();
   updateTurn();
   applyZoom();
-  gameOver=false;
-  updateMatchStatus("White to move");
   if(aiTimer){clearTimeout(aiTimer); aiTimer=null;}
   if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove, 260);
 }
@@ -374,8 +198,8 @@ const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
-const TABLE_SET_SCALE=0.88; // table + board + chairs are scaled 12% smaller while preserving layout
-const PIECE_SIZE_MULTIPLIER=1.3; // chess pieces are scaled a bit bigger for clearer mobile readability
+const TABLE_SET_SCALE=0.85; // table + board + chairs are scaled 15% smaller while preserving layout
+const PIECE_SIZE_MULTIPLIER=1.25; // chess pieces are scaled 25% larger than their original size
 const BOARD_GROWTH=1.0;
 const PIECE_SPACING_SCALE=1.0;
 const BOARD_Y_OFFSET=0.04;
@@ -519,7 +343,7 @@ function onModel(gltf){
 
 function getHit(e){ if(!renderer||!camera) return null; const rect=renderer.domElement.getBoundingClientRect(); const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); const x=(cx-rect.left)/rect.width*2-1; const y=-(cy-rect.top)/rect.height*2+1; const mouse=new THREE.Vector2(x,y); ray.setFromCamera(mouse,camera); const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-boardY); const hit=new THREE.Vector3(); return ray.ray.intersectPlane(plane,hit)?hit:null; }
 function worldToSquareString(x,z){ const p=[x-origin[0], z-origin[1]]; let f=Math.round((p[0]*vx[0]+p[1]*vx[1])/(vx[0]*vx[0]+vx[1]*vx[1])); let r=Math.round((p[0]*vz[0]+p[1]*vz[1])/(vz[0]*vz[0]+vz[1]*vz[1])); f=Math.max(0,Math.min(7,f)); r=Math.max(0,Math.min(7,r)); const rc=[7-r,f]; return rcToSq(rc[0],rc[1]); }
-function onPointerDown(e){ if(!ready || gameOver || pendingExitChoice) return; const hit=getHit(e); if(!hit) return; if(e.pointerId!=null && renderer.domElement.setPointerCapture){ try{ renderer.domElement.setPointerCapture(e.pointerId);}catch(_){} }
+function onPointerDown(e){ if(!ready) return; const hit=getHit(e); if(!hit) return; if(e.pointerId!=null && renderer.domElement.setPointerCapture){ try{ renderer.domElement.setPointerCapture(e.pointerId);}catch(_){} }
   down.x=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0));
   down.y=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0));
   const sq=worldToSquareString(hit.x,hit.z); const rc=sqToRC(sq); const p=state.board[rc[0]][rc[1]];
@@ -543,17 +367,12 @@ function moveNodeInstant(from,to){ const n=piecesBySquare[from]; if(!n) return; 
 function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.parent.remove(n); delete piecesBySquare[sq]; }
 }
 
-function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const moverPiece=(state.board[m.tr]?.[m.tc]||'').toLowerCase(); const capturedAtTarget=Boolean(aux?.captured); const node=piecesBySquare[from];
-  if(capturedAtTarget) removePieceAt(to);
-  if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
-  const captureDistance=Math.max(Math.abs(m.tr-m.fr), Math.abs(m.tc-m.fc));
-  if(capturedAtTarget){ runCaptureAnimation({ fromSq:from, toSq:to, pieceCode:moverPiece, distance:captureDistance }); }
-  if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); runCaptureAnimation({ fromSq:from, toSq:capSq, pieceCode:'p', distance:1 }); }
+function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
+  if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
-  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node?.userData?.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
+  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
   updateTurn();
-  assessGameState();
 }
 
 function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; extraNodes.forEach(n=>{ if(n.parent) n.parent.remove(n); }); extraNodes=[];
@@ -561,11 +380,7 @@ function resetGame(){ state=makeStart(); if(!initialPositions) return; const {st
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
-  hideModal();
-  pendingExitChoice=false;
-  updateMatchStatus("White to move");
 }
-
 
 function applyZoom(){ if(!camera||!controls||!baseCameraPos) return; const level=zoomLevel; camera.position.copy(baseCameraPos.clone().multiplyScalar(level)); controls.update(); }
 function clampZoom(val){ zoomLevel=Math.min(1.4, Math.max(0.7, val)); zoomInput.value=Math.round(zoomLevel*100); applyZoom(); }
@@ -573,34 +388,7 @@ zoomInput.addEventListener('input', e=>clampZoom(Number(e.target.value)/100));
 zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
 zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
 
-function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b' || gameOver || pendingExitChoice) return; const moves=genLegal(state); if(!moves.length) return updateTurn(); const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove,260); }
-
-function showExitPrompt(){
-  if(pendingExitChoice) return;
-  pendingExitChoice=true;
-  showModal({
-    title: 'Leave match?',
-    message: 'Do you want to return to the lobby, or keep playing this match?',
-    actions: [
-      { label: 'Continue Match', onClick: () => { pendingExitChoice=false; history.pushState({chessStay:true}, '', location.href); } },
-      { label: 'Go to Lobby', variant: 'danger', onClick: routeToLobby }
-    ]
-  });
-}
-
-window.addEventListener('popstate', event => {
-  event.preventDefault();
-  showExitPrompt();
-});
-history.replaceState({chessRoot:true}, '', location.href);
-history.pushState({chessStay:true}, '', location.href);
-const tg = window.Telegram?.WebApp;
-if(tg?.BackButton){
-  tg.BackButton.show();
-  tg.BackButton.onClick(() => showExitPrompt());
-}
-
-['pointerdown','touchstart','keydown'].forEach(evt=>window.addEventListener(evt,()=>ensureAudioContext(),{once:true,passive:true}));
+function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b') return; const moves=genLegal(state); if(!moves.length) return updateTurn(); const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove,260); }
 
 boot();
 
