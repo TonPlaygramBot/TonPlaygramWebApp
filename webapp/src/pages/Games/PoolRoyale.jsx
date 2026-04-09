@@ -26905,7 +26905,7 @@ const powerRef = useRef(hud.power);
           // Keep shot-selection behavior consistent across the whole AI turn.
           // Prioritizing leave-position only after the opening shot made later shots
           // feel less accurate than the first one.
-          const shouldAnalyzeLeave = false;
+          const shouldAnalyzeLeave = true;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
@@ -27590,17 +27590,30 @@ const powerRef = useRef(hud.power);
               a.difficulty - b.difficulty
           );
           const playableCushionPots = scoredPots.filter(
-            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
+            (entry) =>
+              entry.plan &&
+              Number.isFinite(entry.score) &&
+              entry.score > -Infinity &&
+              isPlayablePlan(entry.plan, { allowCushion: true })
           );
+          const strongAttackingPot = playableCushionPots.find(({ plan }) => {
+            const potChance = Number.isFinite(plan?.potChance) ? plan.potChance : plan?.quality ?? 0;
+            const contactConfidence = Number.isFinite(plan?.contactConfidence)
+              ? plan.contactConfidence
+              : plan?.viaCushion
+                ? 0.82
+                : 0.9;
+            return potChance >= 0.42 && contactConfidence >= 0.72;
+          });
           const relaxedPot =
             scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
             scoredPots[0]?.plan ??
             null;
-          const bestPot = playableCushionPots[0]?.plan ?? relaxedPot;
+          const bestPot = strongAttackingPot?.plan ?? playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
-          const bestSafety =
-            activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
+          const shouldUseSafety = !bestPot;
+          const bestSafety = shouldUseSafety ? bestSafetyCandidate : null;
           const relaxedSafety =
             !bestPot && !bestSafety
               ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
