@@ -990,7 +990,6 @@ const CHECKMATE_SOUND_URL =
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const SWORD_SLASH_SOUND_URL = '/assets/sounds/punch-03-352040.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
-const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const MISSILE_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 
@@ -6032,7 +6031,6 @@ function Chess3D({
   const laughSoundRef = useRef(null);
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
-  const jetSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
@@ -6975,7 +6973,7 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, jetSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -7012,7 +7010,7 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [swordSoundRef, droneSoundRef, jetSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -7334,8 +7332,6 @@ function Chess3D({
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
-    jetSoundRef.current = new Audio(JET_FLY_SOUND_URL);
-    jetSoundRef.current.volume = baseVolume;
     missileLaunchSoundRef.current = new Audio(MISSILE_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -7936,229 +7932,89 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    const activeCaptureEffects = [];
-    const MATTE_DRONE_COLOR = new THREE.Color('#44494d');
-    const MILITARY_ACCENT_COLOR = new THREE.Color('#2f3539');
-
-    const spawnCaptureExplosion = (pos) => {
-      const root = new THREE.Group();
-      root.position.copy(pos);
-      root.position.y += tile * 0.18;
-      boardGroup.add(root);
-
-      const fireGeo = new THREE.SphereGeometry(tile * 0.22, 16, 12);
-      const fireMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#ff6b1a'),
-        transparent: true,
-        opacity: 0.95,
-        depthWrite: false
-      });
-      const fire = new THREE.Mesh(fireGeo, fireMat);
-      fire.scale.setScalar(0.2);
-      root.add(fire);
-
-      const smokeGeo = new THREE.SphereGeometry(tile * 0.3, 14, 10);
-      const smokeMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#4b5563'),
-        transparent: true,
-        opacity: 0.6,
-        depthWrite: false
-      });
-      const smoke = new THREE.Mesh(smokeGeo, smokeMat);
-      smoke.position.y = tile * 0.05;
-      smoke.scale.setScalar(0.24);
-      root.add(smoke);
-
-      activeCaptureEffects.push({
-        type: 'explosion',
-        root,
-        fire,
-        smoke,
-        fireMat,
-        smokeMat,
-        elapsed: 0,
-        duration: 0.72
-      });
+    const createExplosion = (pos) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '200';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
     };
 
-    const buildKamikazeDrone = (scaleMultiplier = 1) => {
-      const root = new THREE.Group();
-      const droneSize = tile * scaleMultiplier;
-      const bodyGeo = new THREE.ConeGeometry(droneSize * 0.28, droneSize * 0.86, 3);
-      const bodyMat = new THREE.MeshStandardMaterial({
-        color: MATTE_DRONE_COLOR,
-        roughness: 0.9,
-        metalness: 0.22
-      });
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.rotation.x = Math.PI / 2;
-      body.castShadow = true;
-      body.receiveShadow = true;
-      root.add(body);
-
-      const wingGeo = new THREE.BoxGeometry(droneSize * 0.92, droneSize * 0.06, droneSize * 0.26);
-      const wingMat = new THREE.MeshStandardMaterial({
-        color: MILITARY_ACCENT_COLOR,
-        roughness: 0.86,
-        metalness: 0.2
-      });
-      const wing = new THREE.Mesh(wingGeo, wingMat);
-      wing.position.y = droneSize * 0.02;
-      wing.castShadow = true;
-      wing.receiveShadow = true;
-      root.add(wing);
-
-      const tail = new THREE.Mesh(
-        new THREE.BoxGeometry(droneSize * 0.18, droneSize * 0.22, droneSize * 0.05),
-        wingMat
-      );
-      tail.position.set(0, droneSize * 0.11, -droneSize * 0.24);
-      tail.castShadow = true;
-      root.add(tail);
-
-      return { root, disposables: [bodyGeo, bodyMat, wingGeo, wingMat, tail.geometry] };
-    };
-
-    const buildFighterJet = () => {
-      const root = new THREE.Group();
-      const jetSize = tile * 2;
-      const fuselageGeo = new THREE.CylinderGeometry(jetSize * 0.12, jetSize * 0.2, jetSize * 1.2, 10);
-      const fuselageMat = new THREE.MeshStandardMaterial({
-        color: MATTE_DRONE_COLOR,
-        roughness: 0.82,
-        metalness: 0.3
-      });
-      const fuselage = new THREE.Mesh(fuselageGeo, fuselageMat);
-      fuselage.rotation.z = Math.PI / 2;
-      fuselage.castShadow = true;
-      root.add(fuselage);
-
-      const wingGeo = new THREE.BoxGeometry(jetSize * 0.9, jetSize * 0.05, jetSize * 0.34);
-      const wingMat = new THREE.MeshStandardMaterial({
-        color: MILITARY_ACCENT_COLOR,
-        roughness: 0.9,
-        metalness: 0.24
-      });
-      const wing = new THREE.Mesh(wingGeo, wingMat);
-      wing.castShadow = true;
-      root.add(wing);
-
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(jetSize * 0.11, jetSize * 0.35, 10),
-        wingMat
-      );
-      nose.rotation.z = -Math.PI / 2;
-      nose.position.x = jetSize * 0.74;
-      root.add(nose);
-
-      const camoA = new THREE.Mesh(
-        new THREE.BoxGeometry(jetSize * 0.34, jetSize * 0.03, jetSize * 0.14),
-        new THREE.MeshStandardMaterial({ color: new THREE.Color('#586065'), roughness: 0.88, metalness: 0.2 })
-      );
-      camoA.position.set(0, jetSize * 0.08, 0);
-      root.add(camoA);
-      const camoB = camoA.clone();
-      camoB.position.set(-jetSize * 0.18, -jetSize * 0.05, 0);
-      root.add(camoB);
-
-      return {
-        root,
-        disposables: [
-          fuselageGeo,
-          fuselageMat,
-          wingGeo,
-          wingMat,
-          nose.geometry,
-          camoA.geometry,
-          camoA.material
-        ]
-      };
+    const createScreenEffect = ({
+      pos,
+      className,
+      text,
+      fontSize = 56,
+      durationMs = 900
+    }) => {
+      if (!pos) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = text;
+      el.className = className;
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%)';
+      el.style.fontSize = `${fontSize}px`;
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '201';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), durationMs);
     };
 
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
       const pieceType = (movingType || '').toUpperCase();
-      if (['B', 'R'].includes(pieceType) && distance >= 2) {
-        const drone = buildKamikazeDrone(1);
-        const start = fromPos.clone();
-        const end = targetPos.clone();
-        const peak = Math.max(start.y, end.y) + tile * 1.45;
-        drone.root.position.copy(start);
-        drone.root.position.y = start.y + tile * 0.22;
-        boardGroup.add(drone.root);
-        activeCaptureEffects.push({
-          type: 'kamikazeDrone',
-          root: drone.root,
-          start,
-          end,
-          peak,
-          elapsed: 0,
-          duration: 0.52,
-          disposables: drone.disposables,
-          exploded: false
+      const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
+      if (longRangeStrike) {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-drone',
+          text: '🚁',
+          fontSize: 52,
+          durationMs: 850
         });
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-missile',
+            text: '🚀',
+            fontSize: 54,
+            durationMs: 760
+          });
+        }, 180);
+        setTimeout(() => createExplosion(targetPos), 350);
         playAudio(droneSoundRef);
-        setTimeout(() => playAudio(missileImpactSoundRef), 380);
+        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
+        setTimeout(() => playAudio(missileImpactSoundRef), 360);
         return { moveDelayMs: 520 };
       }
-      if (pieceType === 'Q' && distance >= 2) {
-        const jet = buildFighterJet();
-        const start = fromPos.clone();
-        const end = targetPos.clone();
-        const travelHeight = Math.max(start.y, end.y) + tile * 2.2;
-        jet.root.position.copy(start);
-        jet.root.position.y = start.y + tile * 0.5;
-        boardGroup.add(jet.root);
-        const missiles = [0.3, 0.52, 0.74].map((dropAt) => ({
-          dropAt,
-          dropped: false,
-          mesh: null,
-          velocity: new THREE.Vector3()
-        }));
-        activeCaptureEffects.push({
-          type: 'queenJet',
-          root: jet.root,
-          start,
-          end,
-          travelHeight,
-          elapsed: 0,
-          duration: 0.9,
-          returnDuration: 0.55,
-          returning: false,
-          smokeTick: 0,
-          disposables: jet.disposables,
-          missiles
-        });
-        playAudio(jetSoundRef);
-        setTimeout(() => playAudio(missileLaunchSoundRef), 220);
-        setTimeout(() => playAudio(missileImpactSoundRef), 420);
-        setTimeout(() => playAudio(missileImpactSoundRef), 560);
-        setTimeout(() => playAudio(missileImpactSoundRef), 700);
-        return { moveDelayMs: 760 };
-      }
       if (distance <= 1.5) {
-        const slash = new THREE.Mesh(
-          new THREE.TorusGeometry(tile * 0.4, tile * 0.03, 8, 18, Math.PI * 1.35),
-          new THREE.MeshBasicMaterial({
-            color: new THREE.Color('#facc15'),
-            transparent: true,
-            opacity: 0.95,
-            depthWrite: false
-          })
-        );
-        slash.position.copy(targetPos);
-        slash.position.y += tile * 0.35;
-        slash.rotation.x = Math.PI / 2.3;
-        boardGroup.add(slash);
-        activeCaptureEffects.push({
-          type: 'slice',
-          root: slash,
-          elapsed: 0,
-          duration: 0.42
+        createScreenEffect({
+          pos: targetPos,
+          className: 'chess-capture-slice',
+          text: '⚔️',
+          fontSize: 64,
+          durationMs: 620
         });
         playAudio(swordSoundRef);
         return { moveDelayMs: 220 };
       }
-      spawnCaptureExplosion(targetPos);
+      createExplosion(targetPos);
       playAudio(missileImpactSoundRef);
       return { moveDelayMs: 280 };
     };
@@ -9592,146 +9448,6 @@ function Chess3D({
         }
       }
 
-      if (activeCaptureEffects.length) {
-        for (let i = activeCaptureEffects.length - 1; i >= 0; i -= 1) {
-          const effect = activeCaptureEffects[i];
-          effect.elapsed += animDt;
-          if (effect.type === 'slice') {
-            const t = clamp01(effect.elapsed / effect.duration);
-            effect.root.rotation.z = -0.6 + t * 1.4;
-            effect.root.scale.setScalar(0.8 + t * 0.85);
-            if (effect.root.material) effect.root.material.opacity = 1 - t;
-            effect.root.position.y += animDt * tile * 0.8;
-            if (t >= 1) {
-              boardGroup.remove(effect.root);
-              effect.root.geometry?.dispose?.();
-              effect.root.material?.dispose?.();
-              activeCaptureEffects.splice(i, 1);
-            }
-            continue;
-          }
-          if (effect.type === 'explosion') {
-            const t = clamp01(effect.elapsed / effect.duration);
-            const fireScale = 0.25 + t * 1.75;
-            const smokeScale = 0.3 + t * 2.4;
-            effect.fire.scale.setScalar(fireScale);
-            effect.smoke.scale.setScalar(smokeScale);
-            effect.smoke.position.y += animDt * tile * 0.55;
-            effect.fireMat.opacity = Math.max(0, 0.95 - t * 1.2);
-            effect.smokeMat.opacity = Math.max(0, 0.62 - t * 0.6);
-            if (t >= 1) {
-              boardGroup.remove(effect.root);
-              effect.fire.geometry?.dispose?.();
-              effect.smoke.geometry?.dispose?.();
-              effect.fireMat?.dispose?.();
-              effect.smokeMat?.dispose?.();
-              activeCaptureEffects.splice(i, 1);
-            }
-            continue;
-          }
-          if (effect.type === 'kamikazeDrone') {
-            const t = clamp01(effect.elapsed / effect.duration);
-            const arc = Math.sin(t * Math.PI) * (effect.peak - effect.start.y);
-            effect.root.position.lerpVectors(effect.start, effect.end, t);
-            effect.root.position.y = effect.start.y + arc;
-            const dir = effect.end.clone().sub(effect.start);
-            effect.root.lookAt(effect.root.position.clone().add(dir));
-            effect.root.rotation.z = -Math.PI * 0.08 + t * Math.PI * 0.16;
-            if (!effect.exploded && t >= 0.86) {
-              effect.exploded = true;
-              spawnCaptureExplosion(effect.end);
-            }
-            if (t >= 1) {
-              boardGroup.remove(effect.root);
-              effect.disposables?.forEach((item) => item?.dispose?.());
-              activeCaptureEffects.splice(i, 1);
-            }
-            continue;
-          }
-          if (effect.type === 'queenJet') {
-            if (!effect.returning) {
-              const t = clamp01(effect.elapsed / effect.duration);
-              effect.root.position.lerpVectors(effect.start, effect.end, t);
-              effect.root.position.y =
-                effect.travelHeight - Math.sin(t * Math.PI) * tile * 0.28;
-              const fwd = effect.end.clone().sub(effect.start).normalize();
-              effect.root.lookAt(effect.root.position.clone().add(fwd));
-              effect.missiles.forEach((missile) => {
-                if (!missile.dropped && t >= missile.dropAt) {
-                  missile.dropped = true;
-                  const mesh = new THREE.Mesh(
-                    new THREE.CylinderGeometry(tile * 0.035, tile * 0.05, tile * 0.22, 8),
-                    new THREE.MeshStandardMaterial({
-                      color: new THREE.Color('#71717a'),
-                      roughness: 0.76,
-                      metalness: 0.42
-                    })
-                  );
-                  mesh.rotation.z = Math.PI / 2;
-                  mesh.position.copy(effect.root.position);
-                  boardGroup.add(mesh);
-                  missile.mesh = mesh;
-                  missile.velocity.set(0, -tile * 3.2, 0);
-                }
-                if (missile.mesh) {
-                  missile.mesh.position.addScaledVector(missile.velocity, animDt);
-                  missile.mesh.rotation.y += animDt * 6.2;
-                  if (missile.mesh.position.y <= effect.end.y + tile * 0.1) {
-                    spawnCaptureExplosion(effect.end);
-                    boardGroup.remove(missile.mesh);
-                    missile.mesh.geometry?.dispose?.();
-                    missile.mesh.material?.dispose?.();
-                    missile.mesh = null;
-                  }
-                }
-              });
-              if (t >= 1) {
-                effect.returning = true;
-                effect.elapsed = 0;
-              }
-            } else {
-              const t = clamp01(effect.elapsed / effect.returnDuration);
-              effect.root.position.lerpVectors(effect.end, effect.start, t);
-              effect.root.position.y = effect.travelHeight - t * tile * 1.25;
-              const back = effect.start.clone().sub(effect.end).normalize();
-              effect.root.lookAt(effect.root.position.clone().add(back));
-              effect.smokeTick += animDt;
-              if (effect.smokeTick >= 0.06) {
-                effect.smokeTick = 0;
-                const smokePuff = new THREE.Mesh(
-                  new THREE.SphereGeometry(tile * 0.09, 8, 8),
-                  new THREE.MeshBasicMaterial({
-                    color: new THREE.Color('#6b7280'),
-                    transparent: true,
-                    opacity: 0.35,
-                    depthWrite: false
-                  })
-                );
-                smokePuff.position.copy(effect.root.position);
-                boardGroup.add(smokePuff);
-                activeCaptureEffects.push({
-                  type: 'slice',
-                  root: smokePuff,
-                  elapsed: 0,
-                  duration: 0.3
-                });
-              }
-              if (t >= 1) {
-                boardGroup.remove(effect.root);
-                effect.disposables?.forEach((item) => item?.dispose?.());
-                effect.missiles.forEach((missile) => {
-                  if (!missile.mesh) return;
-                  boardGroup.remove(missile.mesh);
-                  missile.mesh.geometry?.dispose?.();
-                  missile.mesh.material?.dispose?.();
-                });
-                activeCaptureEffects.splice(i, 1);
-              }
-            }
-          }
-        }
-      }
-
       controls?.update();
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
       if (now - lastRender >= targetInterval) {
@@ -9767,19 +9483,6 @@ function Chess3D({
         window.removeEventListener('resize', onResize);
       }
       clearInterval(timerRef.current);
-      activeCaptureEffects.forEach((effect) => {
-        try {
-          effect.root?.parent?.remove?.(effect.root);
-          effect.root?.geometry?.dispose?.();
-          effect.root?.material?.dispose?.();
-          effect.fire?.geometry?.dispose?.();
-          effect.smoke?.geometry?.dispose?.();
-          effect.fireMat?.dispose?.();
-          effect.smokeMat?.dispose?.();
-          effect.disposables?.forEach((item) => item?.dispose?.());
-        } catch {}
-      });
-      activeCaptureEffects.length = 0;
       disposers.forEach((fn) => {
         try {
           fn();
@@ -9827,7 +9530,6 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
-      jetSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
       clearLaughTimeout();
