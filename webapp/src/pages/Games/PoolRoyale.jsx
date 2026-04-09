@@ -6192,8 +6192,6 @@ const AI_CUE_VIEW_HOLD_MS = 180;
 const AI_SPIN_ADJUST_DELAY_MS = 2000;
 const AI_EASY_POT_CHANCE_THRESHOLD = 0.48; // if this chance is available on a legal direct shot, force attack instead of safety
 const AI_EASY_POT_QUALITY_THRESHOLD = 0.45; // keep attack bias only for reasonably clean pots
-const AI_AGGRESSIVE_ATTACK_CHANCE_FLOOR = 0.3; // keep attacking whenever a legal pot is reasonably makeable
-const AI_AGGRESSIVE_ATTACK_QUALITY_FLOOR = 0.26; // avoid passive safeties when legal attack lines are available
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -6895,7 +6893,7 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
-const resolvePocketEntranceForTarget = (targetPos, pocketIndex, context = null) => {
+const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const centers = pocketCenters();
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
@@ -6905,9 +6903,6 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex, context = null) 
   const entry = resolvePocketMouthAimPoint({
     pocketCenter,
     targetPos,
-    balls: context?.balls ?? [],
-    ignoredBallIds: context?.ignoredBallIds ?? [],
-    ballRadius: context?.ballRadius ?? BALL_R,
     baseRadius,
     mouthWidth,
     pocketType: pocketIndex >= 4 ? 'side' : 'corner',
@@ -15228,7 +15223,6 @@ function PoolRoyaleGame({
   const aiPlanningRef = useRef(null);
   const aiTurnShotCountRef = useRef(0);
   const aiLastPlannedShotRef = useRef(0);
-  const aiPlanSelectionRef = useRef({ key: null, plan: null, options: null });
   const lastTurnRef = useRef(0);
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
@@ -26379,15 +26373,13 @@ const powerRef = useRef(hud.power);
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
-            if (!shouldForceImmediateRailOverhead) {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
-            }
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
-            if (!shouldForceImmediateRailOverhead && standingView) {
+            if (standingView) {
               sph.radius = clampOrbitRadius(standingView.radius);
               sph.phi = THREE.MathUtils.clamp(
                 standingView.phi,
@@ -27184,37 +27176,18 @@ const powerRef = useRef(hud.power);
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
-          const legalTargetList = Array.from(legalTargets);
-          const hasRecognizedLegalTargets = legalTargetList.length > 0;
-          const legalTargetsAvailableOnTable =
-            hasRecognizedLegalTargets &&
-            activeBalls.some((ball) => {
-              if (!ball?.active || ball === cueBall) return false;
-              return legalTargetList.some((id) => matchesTargetId(ball, id));
-            });
-          const isTargetBallLegal = (ball) => {
-            if (!ball) return false;
-            if (!hasRecognizedLegalTargets) return true;
-            const directMatch = legalTargetList.some((id) => matchesTargetId(ball, id));
-            if (directMatch) return true;
-            // If the rules snapshot is stale and none of the declared legal targets are present,
-            // allow fallback attack planning to avoid contradictory "safety-only" behaviour.
-            return !legalTargetsAvailableOnTable;
-          };
           activeBalls.forEach((targetBall) => {
             if (targetBall === cueBall) return;
             const colorId = toBallColorId(targetBall.id);
-            const targetAllowed = isTargetBallLegal(targetBall);
+            const targetAllowed =
+              legalTargets.size > 0 &&
+              Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
             if (!colorId || !targetAllowed) return;
             const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
               const mappedEntrance =
-                resolvePocketEntranceForTarget(targetBall.pos, i, {
-                  balls: activeBalls,
-                  ignoredBallIds: [cueBall.id, targetBall.id],
-                  ballRadius: BALL_R
-                }) ?? centers[i];
+                resolvePocketEntranceForTarget(targetBall.pos, i) ?? centers[i];
               const pocketCenter = mappedEntrance.clone();
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               const toPocketLenSq = toPocket.lengthSq();
@@ -27624,7 +27597,6 @@ const powerRef = useRef(hud.power);
             scoredPots.find((entry) => {
               const plan = entry?.plan;
               if (!plan || plan.viaCushion) return false;
-              if (!isTargetBallLegal(plan.targetBall)) return false;
               if (!isFirstContactLegal(plan)) return false;
               if (detectScratchRisk(plan)) return false;
               if (isAimLaneBlocked(plan)) return false;
@@ -27637,37 +27609,15 @@ const powerRef = useRef(hud.power);
                 quality >= AI_EASY_POT_QUALITY_THRESHOLD
               );
             })?.plan ?? null;
-          const aggressiveLegalPot =
-            scoredPots.find((entry) => {
-              const plan = entry?.plan;
-              if (!plan) return false;
-              if (!isTargetBallLegal(plan.targetBall)) return false;
-              if (!isPlayablePlan(plan, { allowCushion: true })) return false;
-              const potChance = Number.isFinite(plan.potChance) ? plan.potChance : 0;
-              const quality = Number.isFinite(plan.quality) ? plan.quality : 0;
-              return (
-                potChance >= AI_AGGRESSIVE_ATTACK_CHANCE_FLOOR &&
-                quality >= AI_AGGRESSIVE_ATTACK_QUALITY_FLOOR
-              );
-            })?.plan ?? null;
           const relaxedPot =
-            scoredPots.find(
-              (entry) =>
-                entry?.plan &&
-                isTargetBallLegal(entry.plan.targetBall) &&
-                isFirstContactLegal(entry.plan)
-            )?.plan ??
+            scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
             scoredPots[0]?.plan ??
             null;
-          const bestPot =
-            easyAttackPot ??
-            aggressiveLegalPot ??
-            playableCushionPots.find((entry) => isTargetBallLegal(entry.plan?.targetBall))?.plan ??
-            relaxedPot;
+          const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
-            bestPot ? null : bestSafetyCandidate;
+            easyAttackPot || (activeVariantId === 'uk' && bestPot) ? null : bestSafetyCandidate;
           const relaxedSafety =
             !bestPot && !bestSafety
               ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
@@ -27938,16 +27888,9 @@ const powerRef = useRef(hud.power);
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            const cueBall = cueRef.current ?? cue;
-            if (variantId !== 'uk' || !cueBall?.active) return baseline;
+            if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const ballsSnapshot =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const advancedPlan = computeUkAdvancedPlan(
-              ballsSnapshot,
-              cueBall,
-              stateSnapshot
-            );
+            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
             if (!advancedPlan) return baseline;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
@@ -27964,8 +27907,8 @@ const powerRef = useRef(hud.power);
           }
         };
         const normalizeAiPlanAim = (plan) => {
-          const cueBall = cueRef.current ?? cue;
-          if (!plan || !cueBall?.active) return plan;
+          if (!plan || !cue?.active) return plan;
+          const cueBall = cue;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!plan.aimDir || !Number.isFinite(plan.aimDir.x) || !Number.isFinite(plan.aimDir.y)) {
@@ -28090,7 +28033,6 @@ const powerRef = useRef(hud.power);
             aiLastPlannedShotRef.current = aiTurnShotCountRef.current;
             aiPlanRef.current = null;
             aiPlanCacheRef.current = { key: null, plan: null };
-            aiPlanSelectionRef.current = { key: null, plan: null, options: null };
             setAiPlanning(null);
           }
           if (!allStopped(balls)) {
@@ -28120,16 +28062,6 @@ const powerRef = useRef(hud.power);
             Math.max(AI_MIN_AIM_PREVIEW_MS, windowDuration - AI_MIN_AIM_PREVIEW_MS)
           );
           const deadline = started + thinkingBudget;
-          const stoppedLayoutKey = (ballsList) =>
-            (ballsList || [])
-              .filter((ball) => ball?.active)
-              .map((ball) => {
-                const x = Number.isFinite(ball?.pos?.x) ? ball.pos.x.toFixed(3) : '0';
-                const y = Number.isFinite(ball?.pos?.y) ? ball.pos.y.toFixed(3) : '0';
-                return `${ball.id}:${x}:${y}`;
-              })
-              .sort()
-              .join('|');
           const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
@@ -28144,44 +28076,25 @@ const powerRef = useRef(hud.power);
               ballsRef.current?.length > 0 ? ballsRef.current : balls;
             if (!allStopped(ballsList)) {
               aiPlanRef.current = null;
-              aiPlanSelectionRef.current = { key: null, plan: null, options: null };
               updateAiPlanningState(null, { bestPot: null, bestSafety: null }, remaining / 1000);
               aiThinkingHandle = requestAnimationFrame(think);
               return;
             }
-            const selectionKey = stoppedLayoutKey(ballsList);
-            let selectedPlan = aiPlanSelectionRef.current?.plan ?? null;
-            let selectedOptions = aiPlanSelectionRef.current?.options ?? null;
-            if (aiPlanSelectionRef.current?.key !== selectionKey) {
-              const options = evaluateShotOptions();
-              selectedOptions = options;
-              selectedPlan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
-              aiPlanSelectionRef.current = {
-                key: selectionKey,
-                plan: selectedPlan,
-                options
-              };
-            }
-            const plan = selectedPlan;
+            const options = evaluateShotOptions();
+            const plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
-              const cueBall = cueRef.current ?? cue;
-              alignStandingCameraToAim(cueBall, plan.aimDir, { preserveOrbit: false });
+              alignStandingCameraToAim(cue, plan.aimDir, { preserveOrbit: false });
             } else {
               aiPlanRef.current = null;
               const fallbackDir = resolveAutoAimDirection();
               if (fallbackDir) {
                 aimDirRef.current.copy(fallbackDir);
-                const cueBall = cueRef.current ?? cue;
-                alignStandingCameraToAim(cueBall, fallbackDir, { preserveOrbit: false });
+                alignStandingCameraToAim(cue, fallbackDir, { preserveOrbit: false });
               }
             }
-            updateAiPlanningState(
-              plan,
-              selectedOptions ?? { bestPot: null, bestSafety: null },
-              remaining / 1000
-            );
+            updateAiPlanningState(plan, options, remaining / 1000);
             scheduleEarlyAiShot(plan);
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
@@ -28195,14 +28108,13 @@ const powerRef = useRef(hud.power);
           think();
         };
         const resolveAutoAimDirection = (options = {}) => {
-          const cueBall = cueRef.current ?? cue;
-          if (!cueBall?.active) return null;
+          if (!cue?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!Array.isArray(ballsList) || ballsList.length === 0) return null;
           const frameSnapshot = frameRef.current ?? frameState;
-          const cuePos = cueBall?.pos
-            ? new THREE.Vector2(cueBall.pos.x, cueBall.pos.y)
+          const cuePos = cue?.pos
+            ? new THREE.Vector2(cue.pos.x, cue.pos.y)
             : null;
           if (!cuePos) return null;
 
