@@ -988,6 +988,10 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
+const SWORD_SLASH_SOUND_URL = '/assets/sounds/punch-03-352040.mp3';
+const DRONE_FLY_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
+const MISSILE_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
+const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
@@ -6025,6 +6029,10 @@ function Chess3D({
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
+  const swordSoundRef = useRef(null);
+  const droneSoundRef = useRef(null);
+  const missileLaunchSoundRef = useRef(null);
+  const missileImpactSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const controlsRef = useRef(null);
@@ -6965,6 +6973,16 @@ function Chess3D({
         } catch {}
       }
     }
+    [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      if (!ref.current) return;
+      ref.current.volume = effectiveSoundEnabled ? volume : 0;
+      if (!effectiveSoundEnabled) {
+        try {
+          ref.current.pause();
+          ref.current.currentTime = 0;
+        } catch {}
+      }
+    });
     if (!effectiveSoundEnabled && laughTimeoutRef.current) {
       clearTimeout(laughTimeoutRef.current);
       laughTimeoutRef.current = null;
@@ -6992,6 +7010,10 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
+      [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+        if (!ref.current) return;
+        ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      });
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
     return () => {
@@ -7306,6 +7328,14 @@ function Chess3D({
     mateSoundRef.current.volume = baseVolume;
     laughSoundRef.current = new Audio(LAUGH_SOUND_URL);
     laughSoundRef.current.volume = baseVolume;
+    swordSoundRef.current = new Audio(SWORD_SLASH_SOUND_URL);
+    swordSoundRef.current.volume = baseVolume;
+    droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
+    droneSoundRef.current.volume = baseVolume;
+    missileLaunchSoundRef.current = new Audio(MISSILE_FIRE_SOUND_URL);
+    missileLaunchSoundRef.current.volume = baseVolume;
+    missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
+    missileImpactSoundRef.current.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -7919,6 +7949,74 @@ function Chess3D({
       el.style.top = `${y}px`;
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 1000);
+    };
+
+    const createScreenEffect = ({
+      pos,
+      className,
+      text,
+      fontSize = 56,
+      durationMs = 900
+    }) => {
+      if (!pos) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = text;
+      el.className = className;
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%)';
+      el.style.fontSize = `${fontSize}px`;
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '201';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), durationMs);
+    };
+
+    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
+      const pieceType = (movingType || '').toUpperCase();
+      const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
+      if (longRangeStrike) {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-drone',
+          text: '🚁',
+          fontSize: 52,
+          durationMs: 850
+        });
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-missile',
+            text: '🚀',
+            fontSize: 54,
+            durationMs: 760
+          });
+        }, 180);
+        setTimeout(() => createExplosion(targetPos), 350);
+        playAudio(droneSoundRef);
+        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
+        setTimeout(() => playAudio(missileImpactSoundRef), 360);
+        return { moveDelayMs: 520 };
+      }
+      if (distance <= 1.5) {
+        createScreenEffect({
+          pos: targetPos,
+          className: 'chess-capture-slice',
+          text: '⚔️',
+          fontSize: 64,
+          durationMs: 620
+        });
+        playAudio(swordSoundRef);
+        return { moveDelayMs: 220 };
+      }
+      createExplosion(targetPos);
+      playAudio(missileImpactSoundRef);
+      return { moveDelayMs: 280 };
     };
 
     // Board base + rim
@@ -8852,6 +8950,9 @@ function Chess3D({
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
       const toSquare = resolveChessSquare(rr, cc);
+      const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
+      const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
+      let moveDelayMs = 0;
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
@@ -8876,11 +8977,13 @@ function Chess3D({
           new THREE.Vector3(capX, captureY, capZ),
           0.35
         );
-        createExplosion(worldPos);
-        if (bombSoundRef.current && settingsRef.current.soundEnabled) {
-          bombSoundRef.current.currentTime = 0;
-          bombSoundRef.current.play().catch(() => {});
-        }
+        const captureFx = playCaptureAnimation({
+          fromPos: fromWorldPos,
+          targetPos: worldPos,
+          movingType: movingPiece?.t,
+          distance: Math.hypot(rr - sel.r, cc - sel.c)
+        });
+        moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -8920,8 +9023,17 @@ function Chess3D({
       m.userData.c = cc;
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
-      const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      animatePieceTo(m, targetPosition, 0.32);
+      const targetPosition = toWorldPos;
+      if (moveDelayMs > 0) {
+        setTimeout(() => {
+          cancelPieceAnimation(m);
+          animatePieceTo(m, targetPosition, 0.32);
+          playMoveSound();
+        }, moveDelayMs);
+      } else {
+        animatePieceTo(m, targetPosition, 0.32);
+        playMoveSound();
+      }
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
@@ -8977,8 +9089,6 @@ function Chess3D({
         highlightColor: paletteRef.current?.highlight
       };
       setCanReplay(true);
-
-      playMoveSound();
 
       // turn switch & status
       const nextWhite = !uiRef.current.turnWhite;
@@ -9418,6 +9528,10 @@ function Chess3D({
       checkSoundRef.current?.pause();
       mateSoundRef.current?.pause();
       laughSoundRef.current?.pause();
+      swordSoundRef.current?.pause();
+      droneSoundRef.current?.pause();
+      missileLaunchSoundRef.current?.pause();
+      missileImpactSoundRef.current?.pause();
       clearLaughTimeout();
     };
   }, []);

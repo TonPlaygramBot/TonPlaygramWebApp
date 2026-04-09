@@ -591,11 +591,78 @@ input:focus {
 
 .bomb-explosion {
   animation: bomb-pop 1s forwards;
+  filter: drop-shadow(0 0 18px rgba(248, 113, 113, 0.95));
 }
 
 @keyframes bomb-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.95;
+  }
   to {
-    transform: scale(3);
+    transform: translate(-50%, -50%) scale(3);
+    opacity: 0;
+  }
+}
+
+.chess-capture-slice {
+  animation: chess-capture-slice-pop 0.62s ease-out forwards;
+  filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.9));
+}
+
+@keyframes chess-capture-slice-pop {
+  0% {
+    transform: translate(-50%, -50%) rotate(-20deg) scale(0.4);
+    opacity: 0;
+  }
+  35% {
+    transform: translate(-50%, -50%) rotate(8deg) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -90%) rotate(18deg) scale(1.6);
+    opacity: 0;
+  }
+}
+
+.chess-capture-drone {
+  animation: chess-capture-drone-fly 0.85s linear forwards;
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.95));
+}
+
+@keyframes chess-capture-drone-fly {
+  0% {
+    transform: translate(-120%, -160%) scale(0.45);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(60%, -80%) scale(0.95);
+    opacity: 0;
+  }
+}
+
+.chess-capture-missile {
+  animation: chess-capture-missile-hit 0.75s ease-in forwards;
+  filter: drop-shadow(0 0 18px rgba(251, 146, 60, 0.95));
+}
+
+@keyframes chess-capture-missile-hit {
+  0% {
+    transform: translate(120%, -120%) scale(0.5) rotate(-18deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  65% {
+    transform: translate(-30%, -20%) scale(1.08) rotate(12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.9) rotate(12deg);
     opacity: 0;
   }
 }
