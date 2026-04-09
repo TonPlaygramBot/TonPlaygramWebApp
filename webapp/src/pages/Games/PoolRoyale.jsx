@@ -1545,7 +1545,6 @@ const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
-const AI_LIVE_MAPPING_STOP_EPS = STOP_FINAL_EPS; // AI waits for stricter full-stop mapping before aiming.
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -7071,12 +7070,6 @@ const allStopped = (balls) =>
     const speed = b?.vel?.length?.() ?? 0;
     if (!Number.isFinite(speed)) return true;
     return speed < STOP_EPS;
-  });
-const allStoppedForAiLiveMapping = (balls) =>
-  balls.every((b) => {
-    const speed = b?.vel?.length?.() ?? 0;
-    if (!Number.isFinite(speed)) return true;
-    return speed < AI_LIVE_MAPPING_STOP_EPS;
   });
 
 function makeClothTexture(
@@ -28051,7 +28044,7 @@ const powerRef = useRef(hud.power);
           }
           const liveBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          if (!allStoppedForAiLiveMapping(liveBalls)) {
+          if (!allStopped(liveBalls)) {
             aiPlanRef.current = null;
             setAiPlanning(null);
             aiThinkingHandle = requestAnimationFrame(startAiThinking);
@@ -28090,7 +28083,7 @@ const powerRef = useRef(hud.power);
             const remaining = Math.max(0, deadline - now);
             const ballsList =
               ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            if (!allStoppedForAiLiveMapping(ballsList)) {
+            if (!allStopped(ballsList)) {
               aiPlanRef.current = null;
               updateAiPlanningState(null, { bestPot: null, bestSafety: null }, remaining / 1000);
               aiThinkingHandle = requestAnimationFrame(think);
@@ -28642,7 +28635,7 @@ const powerRef = useRef(hud.power);
           }
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          if (!allStoppedForAiLiveMapping(ballsList)) {
+          if (!allStopped(ballsList)) {
             aiRetryTimeoutRef.current = window.setTimeout(() => {
               aiRetryTimeoutRef.current = null;
               aiShoot.current();
@@ -28661,7 +28654,7 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (!allStoppedForAiLiveMapping(ballsList)) {
+          if (!allStopped(ballsList)) {
             aiRetryTimeoutRef.current = window.setTimeout(() => {
               aiRetryTimeoutRef.current = null;
               aiShoot.current();
@@ -28820,51 +28813,14 @@ const powerRef = useRef(hud.power);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
-                let finalAimDir = dir.clone();
-                const latestBalls =
-                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                if (!allStoppedForAiLiveMapping(latestBalls)) {
-                  aiPlanRef.current = null;
-                  setAiShotCueViewActive(false);
-                  setAiShotPreviewActive(false);
-                  aiShoot.current();
-                  return;
-                }
-                // Re-map right before striking so the AI uses current live table state,
-                // never an older precomputed prediction.
-                const latestOptions = evaluateShotOptions();
-                const latestPlan = normalizeAiPlanAim(
-                  latestOptions.bestPot ?? latestOptions.bestSafety ?? null
-                );
-                if (
-                  latestPlan?.aimDir &&
-                  typeof latestPlan.aimDir.lengthSq === 'function' &&
-                  latestPlan.aimDir.lengthSq() > 1e-6
-                ) {
-                  const remappedPlan = refineAiPotAimLine(latestPlan);
-                  aiPlanRef.current = remappedPlan;
-                  const remappedDir = remappedPlan.aimDir.clone().normalize();
-                  finalAimDir = remappedDir.clone();
-                  aimDirRef.current.copy(remappedDir);
-                  alignStandingCameraToAim(cue, remappedDir, { preserveOrbit: false });
-                  const remappedPower = remappedPlan?.type === 'break'
-                    ? 1
-                    : clampPower(remappedPlan.power, 0.6);
-                  powerRef.current = remappedPower;
-                  setHud((s) => ({ ...s, power: remappedPower }));
-                  const remappedSpin = remappedPlan.spin ?? { x: 0, y: 0 };
-                  spinRequestRef.current = remappedSpin;
-                  spinRef.current = remappedSpin;
-                  applySpinConstraints(remappedDir, true);
-                }
                 // Start from the same suggested line flow as user aim-assist,
                 // then finish on the AI-adjusted final pot line.
                 if (previewAimDir.lengthSq() > 1e-6) {
                   aimDirRef.current.copy(previewAimDir);
                   alignStandingCameraToAim(cue, previewAimDir, { preserveOrbit: false });
                 }
-                aimDirRef.current.copy(finalAimDir);
-                alignStandingCameraToAim(cue, finalAimDir, { preserveOrbit: false });
+                aimDirRef.current.copy(dir);
+                alignStandingCameraToAim(cue, dir, { preserveOrbit: false });
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
                 updateCamera();
                 fire();
