@@ -27955,12 +27955,26 @@ const powerRef = useRef(hud.power);
             plan.aimDir = null;
             return plan;
           }
-          const aimDir = plan.aimDir.clone();
+          let aimDir = plan.aimDir.clone();
           if (aimDir.lengthSq() < 1e-6) return plan;
           aimDir.normalize();
           plan.aimDir = aimDir;
           if (plan.type !== 'pot' || plan.viaCushion || !plan.targetBall?.active) {
             return plan;
+          }
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const pocketVector = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+            if (pocketVector.lengthSq() > 1e-6) {
+              const ghost = plan.targetBall.pos
+                .clone()
+                .sub(pocketVector.normalize().multiplyScalar(BALL_R * 2));
+              const ghostDir = ghost.sub(cueBall.pos);
+              if (ghostDir.lengthSq() > 1e-6) {
+                plan.aimDir = ghostDir.normalize();
+                aimDir = plan.aimDir.clone();
+                plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
+              }
+            }
           }
           const contact = calcTarget(cueBall, aimDir, activeBalls);
           const hitBall = contact?.targetBall ?? null;
