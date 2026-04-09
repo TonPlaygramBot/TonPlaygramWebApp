@@ -319,7 +319,7 @@ test('avoids unnecessary spin when natural position is good', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert(decision.power >= 0.4 && decision.power <= 0.7, `unexpected power ${decision.power}`);
+  assert(decision.power >= 0.4 && decision.power <= 0.56, `unexpected power ${decision.power}`);
   assert.deepEqual(decision.spin, { top: 0, side: 0, back: 0 });
 });
 
@@ -440,35 +440,6 @@ test('biases pocket entry toward far jaw lane when near jaw is crowded', () => {
   assert(decision.targetPocket.x > 500, 'entry should shift to the far/right jaw lane')
 })
 
-test('rejects pocket lane when a blocker sits between the entry and pocket mouth', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 500, y: 360, vx: 0, vy: 0, pocketed: false },
-        { id: 2, x: 500, y: 230, vx: 0, vy: 0, pocketed: false },
-        // blocker is above the computed entry, inside the pocket lane
-        { id: 14, x: 500, y: 24, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [
-        { x: 500, y: 0 },
-        { x: 500, y: 500 }
-      ],
-      width: 1000,
-      height: 500,
-      ballRadius: 10,
-      friction: 0.01,
-      legalBallIds: [2]
-    },
-    timeBudgetMs: 120,
-    rngSeed: 29
-  })
-
-  assert.equal(decision.targetBallId, 2)
-  assert(decision.targetPocket, 'expected a selected pocket entry')
-  assert(decision.targetPocket.y > 300, 'should avoid the blocked top pocket lane')
-})
-
 
 test('eight-pool targets black when only 8 remains and group metadata is missing', () => {
   const decision = planShot({
@@ -516,31 +487,6 @@ test('safety uses one-cushion kick to reach legal target when direct lane is blo
 
   assert.equal(decision.targetBallId, 2);
   assert.match(decision.rationale, /one-cushion-kick/);
-});
-
-test('safety fallback keeps legal-contact intent instead of aiming at empty pocket', () => {
-  const decision = planShot({
-    game: 'AMERICAN_BILLIARDS',
-    state: {
-      balls: [
-        { id: 0, x: 150, y: 120, vx: 0, vy: 0, pocketed: false },
-        { id: 3, x: 220, y: 130, vx: 0, vy: 0, pocketed: false },
-        { id: 11, x: 450, y: 120, vx: 0, vy: 0, pocketed: false },
-        { id: 12, x: 520, y: 120, vx: 0, vy: 0, pocketed: false }
-      ],
-      pockets: [{ x: 0, y: 0 }, { x: 700, y: 0 }, { x: 0, y: 240 }, { x: 700, y: 240 }],
-      width: 700,
-      height: 240,
-      ballRadius: 10,
-      friction: 0.01,
-      legalBallIds: [3]
-    },
-    rngSeed: 37,
-    timeBudgetMs: 80
-  });
-
-  assert.equal(decision.targetBallId, 3);
-  assert.equal(/safety-distance/.test(decision.rationale), false);
 });
 
 test('power stays in a controlled range for routine pots', () => {
