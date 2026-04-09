@@ -988,10 +988,6 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
-const SWORD_SLASH_SOUND_URL = '/assets/sounds/punch-03-352040.mp3';
-const DRONE_FLY_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
-const MISSILE_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
-const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
@@ -7328,14 +7324,58 @@ function Chess3D({
     mateSoundRef.current.volume = baseVolume;
     laughSoundRef.current = new Audio(LAUGH_SOUND_URL);
     laughSoundRef.current.volume = baseVolume;
-    swordSoundRef.current = new Audio(SWORD_SLASH_SOUND_URL);
-    swordSoundRef.current.volume = baseVolume;
-    droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
-    droneSoundRef.current.volume = baseVolume;
-    missileLaunchSoundRef.current = new Audio(MISSILE_FIRE_SOUND_URL);
-    missileLaunchSoundRef.current.volume = baseVolume;
-    missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
-    missileImpactSoundRef.current.volume = baseVolume;
+    swordSoundRef.current = null;
+    droneSoundRef.current = null;
+    missileLaunchSoundRef.current = null;
+    missileImpactSoundRef.current = null;
+    let synthCtx = null;
+
+    const ensureSynthContext = () => {
+      if (typeof window === 'undefined') return null;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      if (!synthCtx) synthCtx = new Ctx();
+      if (synthCtx.state === 'suspended') synthCtx.resume().catch(() => {});
+      return synthCtx;
+    };
+
+    const playProceduralSfx = (type) => {
+      if (!settingsRef.current.soundEnabled || isGameMuted()) return;
+      const ctx = ensureSynthContext();
+      if (!ctx) return;
+      const now = ctx.currentTime + 0.005;
+      const gainNode = ctx.createGain();
+      const master = clamp(getGameVolume() * 0.8, 0, 1);
+      gainNode.gain.setValueAtTime(master, now);
+      gainNode.connect(ctx.destination);
+
+      const tone = (freqStart, freqEnd, duration, wave = 'sawtooth', volume = 0.18) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = wave;
+        osc.frequency.setValueAtTime(freqStart, now);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(30, freqEnd), now + duration);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(volume, now + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(g);
+        g.connect(gainNode);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      };
+
+      if (type === 'drone') {
+        tone(220, 160, 0.28, 'triangle', 0.12);
+      } else if (type === 'jet') {
+        tone(680, 210, 0.3, 'sawtooth', 0.2);
+      } else if (type === 'launch') {
+        tone(180, 900, 0.14, 'square', 0.16);
+      } else if (type === 'impact') {
+        tone(900, 90, 0.24, 'sawtooth', 0.2);
+      } else if (type === 'sword') {
+        tone(1200, 340, 0.09, 'triangle', 0.12);
+      }
+    };
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -7938,11 +7978,9 @@ function Chess3D({
       const x = rect.left + ((v.x + 1) / 2) * rect.width;
       const y = rect.top + ((-v.y + 1) / 2) * rect.height;
       const el = document.createElement('div');
-      el.textContent = '💨';
       el.className = 'bomb-explosion';
       el.style.position = 'fixed';
       el.style.transform = 'translate(-50%, -50%) scale(1)';
-      el.style.fontSize = '64px';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '200';
       el.style.left = `${x}px`;
@@ -7954,7 +7992,7 @@ function Chess3D({
     const createScreenEffect = ({
       pos,
       className,
-      text,
+      contentType = 'drone',
       fontSize = 56,
       durationMs = 900
     }) => {
@@ -7964,27 +8002,37 @@ function Chess3D({
       const x = rect.left + ((v.x + 1) / 2) * rect.width;
       const y = rect.top + ((-v.y + 1) / 2) * rect.height;
       const el = document.createElement('div');
-      el.textContent = text;
       el.className = className;
       el.style.position = 'fixed';
       el.style.transform = 'translate(-50%, -50%)';
-      el.style.fontSize = `${fontSize}px`;
+      el.style.width = `${fontSize}px`;
+      el.style.height = `${Math.max(20, fontSize * 0.42)}px`;
       el.style.pointerEvents = 'none';
       el.style.zIndex = '201';
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+      if (contentType === 'drone') {
+        el.innerHTML = '<span class="chess-capture-model drone"><span class="body"></span><span class="wing"></span><span class="tail"></span><span class="prop"></span></span>';
+      } else if (contentType === 'jet') {
+        el.innerHTML = '<span class="chess-capture-model jet"><span class="body"></span><span class="wing"></span><span class="tail"></span><span class="cockpit"></span></span>';
+      } else if (contentType === 'bazooka') {
+        el.innerHTML = '<span class="chess-capture-model bazooka"><span class="tube"></span><span class="grip"></span><span class="tip"></span></span>';
+      } else if (contentType === 'missile') {
+        el.innerHTML = '<span class="chess-capture-model missile"><span class="body"></span><span class="tip"></span><span class="fins"></span></span>';
+      } else if (contentType === 'sword') {
+        el.innerHTML = '<span class="chess-capture-model sword"><span class="blade"></span><span class="guard"></span><span class="handle"></span></span>';
+      }
       document.body.appendChild(el);
       setTimeout(() => el.remove(), durationMs);
     };
 
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
       const pieceType = (movingType || '').toUpperCase();
-      const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
-      if (longRangeStrike) {
+      if (pieceType === 'B') {
         createScreenEffect({
           pos: fromPos,
           className: 'chess-capture-drone',
-          text: '🚁',
+          contentType: 'drone',
           fontSize: 52,
           durationMs: 850
         });
@@ -7992,30 +8040,99 @@ function Chess3D({
           createScreenEffect({
             pos: targetPos,
             className: 'chess-capture-missile',
-            text: '🚀',
+            contentType: 'missile',
             fontSize: 54,
             durationMs: 760
           });
         }, 180);
         setTimeout(() => createExplosion(targetPos), 350);
-        playAudio(droneSoundRef);
-        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
-        setTimeout(() => playAudio(missileImpactSoundRef), 360);
+        playProceduralSfx('drone');
+        setTimeout(() => playProceduralSfx('launch'), 140);
+        setTimeout(() => playProceduralSfx('impact'), 360);
         return { moveDelayMs: 520 };
       }
-      if (distance <= 1.5) {
+      if (pieceType === 'Q') {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-jet',
+          contentType: 'jet',
+          fontSize: 78,
+          durationMs: 920
+        });
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-missile',
+            contentType: 'missile',
+            fontSize: 62,
+            durationMs: 760
+          });
+        }, 250);
+        setTimeout(() => createExplosion(targetPos), 420);
+        playProceduralSfx('jet');
+        setTimeout(() => playProceduralSfx('launch'), 210);
+        setTimeout(() => playProceduralSfx('impact'), 430);
+        return { moveDelayMs: 560 };
+      }
+      if (pieceType === 'R' || pieceType === 'N') {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-bazooka',
+          contentType: 'bazooka',
+          fontSize: 68,
+          durationMs: 840
+        });
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-missile',
+            contentType: 'missile',
+            fontSize: 58,
+            durationMs: 760
+          });
+        }, 130);
+        setTimeout(() => createExplosion(targetPos), 330);
+        playProceduralSfx('launch');
+        setTimeout(() => playProceduralSfx('impact'), 340);
+        return { moveDelayMs: 500 };
+      }
+      if (pieceType === 'K' || pieceType === 'P' || distance <= 1.5) {
         createScreenEffect({
           pos: targetPos,
           className: 'chess-capture-slice',
-          text: '⚔️',
+          contentType: 'sword',
           fontSize: 64,
-          durationMs: 620
+          durationMs: 680
         });
-        playAudio(swordSoundRef);
-        return { moveDelayMs: 220 };
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-slice chess-capture-slice-second',
+            contentType: 'sword',
+            fontSize: 68,
+            durationMs: 620
+          });
+        }, 120);
+        playProceduralSfx('sword');
+        setTimeout(() => playProceduralSfx('sword'), 120);
+        setTimeout(() => playProceduralSfx('impact'), 200);
+        return { moveDelayMs: 280 };
+      }
+      if (distance >= 2) {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-bazooka',
+          contentType: 'bazooka',
+          fontSize: 64,
+          durationMs: 700
+        });
+        setTimeout(() => createExplosion(targetPos), 260);
+        playProceduralSfx('launch');
+        setTimeout(() => playProceduralSfx('impact'), 280);
+        return { moveDelayMs: 360 };
       }
       createExplosion(targetPos);
-      playAudio(missileImpactSoundRef);
+      playProceduralSfx('impact');
       return { moveDelayMs: 280 };
     };
 
@@ -9532,6 +9649,10 @@ function Chess3D({
       droneSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
+      if (synthCtx && typeof synthCtx.close === 'function') {
+        synthCtx.close().catch(() => {});
+        synthCtx = null;
+      }
       clearLaughTimeout();
     };
   }, []);
