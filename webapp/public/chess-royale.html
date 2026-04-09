@@ -41,6 +41,12 @@
   .primary{background:#22c55e;color:#041204;border:none;padding:10px 16px;border-radius:12px;font-weight:800;cursor:pointer;}
   .muted{background:#121d33;color:#fff;border:1px solid #233050;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
   .hidden{display:none;}
+  .decisionModal{position:fixed;inset:0;background:rgba(5,8,18,0.82);display:flex;align-items:center;justify-content:center;z-index:8;pointer-events:auto;}
+  .decisionModal.hidden{display:none;}
+  .decisionCard{background:#0b1220;border:1px solid #233050;border-radius:16px;padding:18px;max-width:420px;width:calc(100% - 32px);box-shadow:0 18px 38px rgba(0,0,0,0.45);}
+  .decisionCard h2{margin:0 0 6px;font-size:24px;}
+  .decisionCard p{margin:0 0 12px;color:#cbd5e1;font-size:14px;}
+  .decisionActions{display:flex;gap:10px;justify-content:flex-end;}
   #badge{position:fixed;right:12px;bottom:12px;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(12,180,75,.15);border:1px solid rgba(12,180,75,.35);color:#c7f7da;z-index:9;pointer-events:auto;}
   #badge.fail{background:rgba(200,20,20,.15);border-color:rgba(200,20,20,.45);color:#ffd8d8}
 </style>
@@ -73,6 +79,16 @@
     <div class="actions">
       <button class="muted" id="cancelLobby" type="button">Close</button>
       <button class="primary" id="startBtn" type="button">Start Match</button>
+    </div>
+  </div>
+</div>
+<div id="backModal" class="decisionModal hidden" role="dialog" aria-modal="true">
+  <div class="decisionCard">
+    <h2>Leave match?</h2>
+    <p>You pressed back. Continue battle or return to the lobby?</p>
+    <div class="decisionActions">
+      <button class="muted" id="continueMatchBtn" type="button">Continue</button>
+      <button class="primary" id="goLobbyBtn" type="button">Go Lobby</button>
     </div>
   </div>
 </div>
@@ -119,7 +135,10 @@ const zoomInput = document.getElementById('zoom');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomInBtn = document.getElementById('zoomIn');
 const badge = document.getElementById('badge');
-let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null;
+const backModal = document.getElementById('backModal');
+const continueMatchBtn = document.getElementById('continueMatchBtn');
+const goLobbyBtn = document.getElementById('goLobbyBtn');
+let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null; let gameOver=false; let isAnimating=false;
 
 function setAvatar(el,param){
   if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
@@ -176,6 +195,7 @@ function startMatch(){
   setAvatar(p1AvatarEl, playerFlag);
   setAvatar(p2AvatarEl, opponentFlag);
   lobby.classList.add('hidden');
+  history.pushState({ chessMatch:true }, '', location.href);
   resetGame();
   updateTurn();
   applyZoom();
@@ -187,9 +207,23 @@ onlineBtn.addEventListener('click', ()=> setMode('online'));
 aiBtn.addEventListener('click', ()=> setMode('ai'));
 startBtn.addEventListener('click', startMatch);
 cancelLobby.addEventListener('click', ()=> lobby.classList.add('hidden'));
+continueMatchBtn.addEventListener('click', ()=>{
+  backModal.classList.add('hidden');
+  history.pushState({ chessMatch:true }, '', location.href);
+});
+goLobbyBtn.addEventListener('click', ()=>{
+  backModal.classList.add('hidden');
+  lobby.classList.remove('hidden');
+  if(aiTimer){ clearTimeout(aiTimer); aiTimer=null; }
+});
+
+window.addEventListener('popstate', ()=>{
+  backModal.classList.remove('hidden');
+});
 
 hydrateDefaults();
 setMode('online');
+history.replaceState({ chessLobby:true }, '', location.href);
 
 // === Three.js + chess visuals ===
 let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null;
@@ -205,6 +239,10 @@ const PIECE_SPACING_SCALE=1.0;
 const BOARD_Y_OFFSET=0.04;
 const TABLE_SET_Y_ROTATION=Math.PI;
 const BOARD_PIECE_VERTICAL_LIFT=0.03;
+const SHORT_CAPTURE_DISTANCE=1.45;
+const BOMB_VOLUME=0.16; // reduced from previous loud mix
+const SLASH_VOLUME=0.14;
+const DRONE_VOLUME=0.13;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
 const files='abcdefgh';
@@ -357,22 +395,110 @@ function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dr
 function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02+BOARD_PIECE_VERTICAL_LIFT, z); }
 
 function tryMoveSelectedTo(targetSq){ const rcFrom=sqToRC(selectedSq); const rcTo=sqToRC(targetSq); const L=genLegal(state); let legal=null; for(let i=0;i<L.length;i++){ const m=L[i]; if(m.fr===rcFrom[0]&&m.fc===rcFrom[1]&&m.tr===rcTo[0]&&m.tc===rcTo[1]){ legal=m; break; } }
-  if(legal){ doMove(legal); selectedSq=null; if(aiMode && state.turn==='b'){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,260); } }
+  if(legal && !isAnimating && !gameOver){ doMove(legal); selectedSq=null; }
   else{ if(dragNode && dragFromSq){ const v=squareCenterVec3(dragFromSq); const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; v.y=baseY; animateMove(dragNode,v); } }
   dragNode=null; dragFromSq=null; dragging=false;
 }
 
-function animateMove(node,target){ const start=node.position.clone(); const t0=performance.now(), dur=220; function step(now){ const t=Math.min(1,(now-t0)/dur); node.position.lerpVectors(start,target,t); if(t<1) requestAnimationFrame(step);} requestAnimationFrame(step); }
+function animateMove(node,target,dur=220){ return new Promise(resolve=>{ const start=node.position.clone(); const t0=performance.now(); function step(now){ const t=Math.min(1,(now-t0)/dur); node.position.lerpVectors(start,target,t); if(t<1) requestAnimationFrame(step); else resolve(); } requestAnimationFrame(step); }); }
 function moveNodeInstant(from,to){ const n=piecesBySquare[from]; if(!n) return; const v=squareCenterVec3(to); const baseY=(typeof n.userData.baseY==='number')?n.userData.baseY:n.position.y; v.y=baseY; n.position.copy(v); piecesBySquare[to]=n; delete piecesBySquare[from]; }
 function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.parent.remove(n); delete piecesBySquare[sq]; }
 }
 
-function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
-  if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
+let audioCtx=null;
+function playTone(freq,duration,vol,type='sine'){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const osc=audioCtx.createOscillator(); const gain=audioCtx.createGain();
+    osc.type=type; osc.frequency.value=freq; gain.gain.value=0.0001;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const t=audioCtx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.001,vol), t+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t+duration);
+    osc.start(); osc.stop(t+duration+0.03);
+  }catch(_){}
+}
+function playBombSound(){ playTone(82,0.24,BOMB_VOLUME,'triangle'); playTone(45,0.3,BOMB_VOLUME*0.66,'sawtooth'); }
+function playSlashSound(){ playTone(640,0.08,SLASH_VOLUME,'square'); playTone(420,0.12,SLASH_VOLUME*0.9,'triangle'); }
+function playDroneSound(){ playTone(220,0.22,DRONE_VOLUME,'sawtooth'); playTone(330,0.16,DRONE_VOLUME*0.85,'triangle'); }
+
+function animateSlashAt(target){
+  return new Promise(resolve=>{
+    if(!scene||!THREE||!target) return resolve();
+    const mat=new THREE.MeshBasicMaterial({color:0x9be7ff, transparent:true, opacity:0.9});
+    const g=new THREE.BoxGeometry(0.05,0.05,1.1);
+    const slash=new THREE.Mesh(g,mat);
+    slash.position.copy(target.clone().add(new THREE.Vector3(-0.6,0.28,0)));
+    slash.rotation.y=Math.PI*0.2;
+    scene.add(slash);
+    const start=performance.now(); const dur=180; playSlashSound();
+    const tick=now=>{ const t=Math.min(1,(now-start)/dur); slash.position.x=target.x-0.6+1.2*t; slash.material.opacity=0.9*(1-t); if(t<1) requestAnimationFrame(tick); else { scene.remove(slash); slash.geometry.dispose(); slash.material.dispose(); resolve(); } };
+    requestAnimationFrame(tick);
+  });
+}
+function animateMissileStrike(from,to){
+  return new Promise(resolve=>{
+    if(!scene||!THREE||!from||!to) return resolve();
+    const drone=new THREE.Mesh(new THREE.SphereGeometry(0.12,12,12), new THREE.MeshStandardMaterial({color:0x7dd3fc, emissive:0x0ea5e9, emissiveIntensity:1.4}));
+    const missile=new THREE.Mesh(new THREE.SphereGeometry(0.08,10,10), new THREE.MeshBasicMaterial({color:0xf59e0b}));
+    const blast=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,12), new THREE.MeshBasicMaterial({color:0xffb703, transparent:true, opacity:0}));
+    drone.position.copy(from.clone().add(new THREE.Vector3(0,1.0,0)));
+    missile.position.copy(from.clone().add(new THREE.Vector3(0,0.45,0)));
+    blast.position.copy(to.clone().add(new THREE.Vector3(0,0.38,0)));
+    scene.add(drone); scene.add(missile); scene.add(blast); playDroneSound();
+    const t0=performance.now(), dur=340;
+    const tick=now=>{
+      const t=Math.min(1,(now-t0)/dur);
+      drone.position.lerpVectors(from.clone().add(new THREE.Vector3(0,1.0,0)), to.clone().add(new THREE.Vector3(0,1.0,0)), t);
+      missile.position.lerpVectors(from.clone().add(new THREE.Vector3(0,0.45,0)), to.clone().add(new THREE.Vector3(0,0.45,0)), t);
+      if(t>=1){
+        playBombSound();
+        const e0=performance.now(); const ed=220;
+        const boom=ev=>{
+          const et=Math.min(1,(ev-e0)/ed); blast.scale.setScalar(1+2.8*et); blast.material.opacity=0.95*(1-et);
+          if(et<1) requestAnimationFrame(boom);
+          else{
+            [drone,missile,blast].forEach(n=>{ scene.remove(n); n.geometry.dispose(); n.material.dispose(); });
+            resolve();
+          }
+        };
+        requestAnimationFrame(boom);
+      }else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function evaluateGameState(){
+  const nextMoves=genLegal(state);
+  if(nextMoves.length) return;
+  const side=state.turn;
+  const winner=side==='w' ? p2NameEl.textContent : p1NameEl.textContent;
+  if(isInCheck(state, side)){
+    badge.textContent=`Checkmate • ${winner} wins`;
+  }else{
+    badge.textContent='Stalemate • Draw';
+  }
+  gameOver=true;
+}
+
+async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; const fromVec=squareCenterVec3(from); const toVec=squareCenterVec3(to); const distance=Math.hypot(m.tr-m.fr,m.tc-m.fc); const isCapture=!!(aux.captured||m.enpassant);
+  const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
+  const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
+  if(isCapture){
+    if(distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec); }
+    else{ await animateSlashAt(toVec); }
+  }
+  if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
+  if(capturedNode && capturedNode.parent){ capturedNode.parent.remove(capturedNode); }
+  if(capturedSq){ delete piecesBySquare[capturedSq]; }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
   if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
   updateTurn();
+  evaluateGameState();
+  isAnimating=false;
+  if(aiMode && state.turn==='b' && !gameOver){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,340); }
 }
 
 function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; extraNodes.forEach(n=>{ if(n.parent) n.parent.remove(n); }); extraNodes=[];
@@ -380,6 +506,7 @@ function resetGame(){ state=makeStart(); if(!initialPositions) return; const {st
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
+  gameOver=false; isAnimating=false; badge.textContent='Ready';
 }
 
 function applyZoom(){ if(!camera||!controls||!baseCameraPos) return; const level=zoomLevel; camera.position.copy(baseCameraPos.clone().multiplyScalar(level)); controls.update(); }
@@ -388,7 +515,7 @@ zoomInput.addEventListener('input', e=>clampZoom(Number(e.target.value)/100));
 zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
 zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
 
-function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b') return; const moves=genLegal(state); if(!moves.length) return updateTurn(); const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove,260); }
+function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b' || gameOver || isAnimating) return; const moves=genLegal(state); if(!moves.length){ evaluateGameState(); return; } const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); }
 
 boot();
 
