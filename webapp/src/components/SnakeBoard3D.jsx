@@ -366,6 +366,9 @@ const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
 const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.34;
 const SNAKE_NECK_LIFT_RATIO = 0.42;
 const SNAKE_TAIL_LIFT_RATIO = 0.36;
+const CAPTURE_MISSILE_FLIGHT_MS = 760;
+const CAPTURE_EXPLOSION_MS = 680;
+const CAPTURE_TOKEN_ADVANCE_MS = 420;
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;
@@ -3843,6 +3846,134 @@ function sampleSubCurve(curve, t0, t1, samples = 20) {
   return new THREE.CatmullRomCurve3(pts);
 }
 
+function quadraticBezier(a, b, c, t) {
+  const ab = new THREE.Vector3().copy(a).lerp(b, t);
+  const bc = new THREE.Vector3().copy(b).lerp(c, t);
+  return ab.lerp(bc, t);
+}
+
+function createCaptureMissileRig() {
+  const root = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
+  const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
+  const finMat = new THREE.MeshStandardMaterial({ color: '#7f868d', roughness: 0.58, metalness: 0.12 });
+  const smokeMat = new THREE.MeshStandardMaterial({
+    color: '#90989d',
+    roughness: 1,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.2
+  });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1, 16), bodyMat);
+  body.rotation.z = Math.PI / 2;
+  body.castShadow = true;
+  root.add(body);
+
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+  nose.position.set(0.6, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
+  root.add(nose);
+
+  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.24), finMat);
+  finA.position.set(-0.25, 0, 0);
+  finA.castShadow = true;
+  root.add(finA);
+  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.02), finMat);
+  finB.position.set(-0.25, 0, 0);
+  finB.castShadow = true;
+  root.add(finB);
+
+  const trail = [];
+  for (let i = 0; i < 4; i += 1) {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.08 + i * 0.02, 16, 16), smokeMat.clone());
+    puff.position.set(-0.55 - i * 0.14, 0, 0);
+    puff.castShadow = true;
+    trail.push(puff);
+    root.add(puff);
+  }
+  root.visible = false;
+  return { root, trail };
+}
+
+function createCaptureExplosionRig() {
+  const root = new THREE.Group();
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 16, 16),
+    new THREE.MeshStandardMaterial({ color: '#ffe59a', roughness: 0.08, metalness: 0, transparent: true, opacity: 1 })
+  );
+  flash.position.set(0, 0.25, 0);
+  flash.castShadow = true;
+  root.add(flash);
+
+  const fire = [];
+  for (let i = 0; i < 4; i += 1) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 + i * 0.05, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
+        roughness: 0.2,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.95 - i * 0.15
+      })
+    );
+    mesh.position.set(0, 0.22 + i * 0.06, 0);
+    mesh.castShadow = true;
+    fire.push(mesh);
+    root.add(mesh);
+  }
+
+  const smoke = [];
+  for (let i = 0; i < 6; i += 1) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 + i * 0.035, 16, 16),
+      new THREE.MeshStandardMaterial({ color: '#646b72', roughness: 1, metalness: 0, transparent: true, opacity: 0.42 - i * 0.04 })
+    );
+    mesh.position.set(0, 0.18 + i * 0.08, 0);
+    mesh.castShadow = true;
+    smoke.push(mesh);
+    root.add(mesh);
+  }
+  root.visible = false;
+  return { root, flash, fire, smoke };
+}
+
+function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
+  if (!rig || elapsedSinceImpact < 0 || elapsedSinceImpact > 2.6) {
+    if (rig?.root) rig.root.visible = false;
+    return;
+  }
+  rig.root.visible = true;
+  const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
+  const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
+  const fireGrow = 1 + elapsedSinceImpact * 4.5;
+  const smokeGrow = 1 + elapsedSinceImpact * 2.3;
+  rig.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+  rig.flash.material.opacity = fireLife;
+  rig.fire.forEach((mesh, i) => {
+    const angle = elapsedSinceImpact * 5 + i * 1.35;
+    mesh.position.set(
+      Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
+      0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
+      Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+    );
+    mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
+    mesh.material.opacity = fireLife * (0.95 - i * 0.12);
+  });
+  rig.smoke.forEach((mesh, i) => {
+    const angle = i * 1.1 + elapsedSinceImpact * 1.8;
+    mesh.position.set(
+      Math.cos(angle) * (0.14 + i * 0.08),
+      0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
+      Math.sin(angle) * (0.14 + i * 0.08)
+    );
+    mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
+    mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+  });
+}
+
 export default function SnakeBoard3D({
   players = [],
   highlight,
@@ -3861,6 +3992,8 @@ export default function SnakeBoard3D({
   slide,
   onSlideComplete,
   diceEvent,
+  captureEvent,
+  onCaptureAnimationComplete,
   onSeatPositionsChange,
   onDiceAnchorChange,
   appearance = {},
@@ -3896,6 +4029,7 @@ export default function SnakeBoard3D({
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
   const frameAccumulatorRef = useRef(0);
+  const captureFxIdRef = useRef(null);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
@@ -4115,6 +4249,11 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? [],
       startCameraState: arena.startCameraState ?? null
     };
+    const captureMissile = createCaptureMissileRig();
+    const captureExplosion = createCaptureExplosionRig();
+    scene.add(captureMissile.root);
+    scene.add(captureExplosion.root);
+    boardRef.current.captureFx = { missile: captureMissile, explosion: captureExplosion };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
     const getCameraConstraints = () => {
       if (cameraViewModeRef.current === '2d') {
@@ -4863,6 +5002,91 @@ export default function SnakeBoard3D({
       };
     }
   }, [diceEvent, cameraViewMode]);
+
+  useEffect(() => {
+    if (!captureEvent || !boardRef.current) return;
+    if (captureFxIdRef.current === captureEvent.id) return;
+    captureFxIdRef.current = captureEvent.id;
+    const board = boardRef.current;
+    const missile = board.captureFx?.missile;
+    const explosion = board.captureFx?.explosion;
+    if (!missile || !explosion) {
+      onCaptureAnimationComplete?.(captureEvent.id);
+      return;
+    }
+    const attacker =
+      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex) ||
+      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === captureEvent.attackerIndex);
+    if (!attacker) {
+      onCaptureAnimationComplete?.(captureEvent.id);
+      return;
+    }
+    const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
+    const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
+    startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
+    const launch = startPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+    const control = launch.clone().lerp(impact, 0.48);
+    control.y += TOKEN_HEIGHT * 6.8;
+
+    attacker.position.copy(startPos);
+    attacker.userData.isSliding = true;
+    missile.root.visible = true;
+    explosion.root.visible = false;
+    const bbox = new THREE.Box3().setFromObject(attacker);
+    const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
+    missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+
+    const startTime = performance.now();
+    const flightDuration = CAPTURE_MISSILE_FLIGHT_MS;
+    const impactDuration = CAPTURE_EXPLOSION_MS;
+    const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
+    animationsRef.current.push({
+      update: (now) => {
+        const elapsed = now - startTime;
+        if (elapsed <= flightDuration) {
+          const u = easeInOut(clamp01(elapsed / flightDuration));
+          const nextU = clamp01(u + 0.03);
+          const pos = quadraticBezier(launch, control, impact, u);
+          const next = quadraticBezier(launch, control, impact, nextU);
+          const dir = next.clone().sub(pos).normalize();
+          missile.root.visible = true;
+          missile.root.position.copy(pos);
+          missile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          missile.trail.forEach((puff, i) => {
+            puff.position.set(-0.38 - i * 0.12, Math.sin(now * 0.01 * 8 + i) * 0.015, 0);
+            const s = 0.8 + i * 0.16 + ((now * 0.0018 + i * 0.2) % 1) * 0.5;
+            puff.scale.setScalar(s);
+            puff.material.opacity = 0.24 - i * 0.035;
+          });
+          updateCaptureExplosionRig(explosion, -1);
+          return false;
+        }
+        missile.root.visible = false;
+        const impactElapsed = elapsed - flightDuration;
+        if (impactElapsed <= impactDuration) {
+          explosion.root.position.copy(impact);
+          updateCaptureExplosionRig(explosion, impactElapsed / 1000);
+          return false;
+        }
+        updateCaptureExplosionRig(explosion, -1);
+        const advanceElapsed = impactElapsed - impactDuration;
+        const t = clamp01(advanceElapsed / advanceDuration);
+        const lift = TOKEN_HEIGHT * 1.2;
+        const arc = Math.sin(t * Math.PI) * lift;
+        const nextPos = startPos.clone().lerp(targetPos, easeInOut(t));
+        nextPos.y += arc;
+        attacker.position.copy(nextPos);
+        if (t >= 1) {
+          attacker.userData.isSliding = false;
+          attacker.position.copy(targetPos);
+          onCaptureAnimationComplete?.(captureEvent.id);
+          return true;
+        }
+        return false;
+      }
+    });
+  }, [captureEvent, onCaptureAnimationComplete]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
