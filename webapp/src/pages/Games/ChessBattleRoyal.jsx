@@ -231,7 +231,6 @@ const STOOL_SCALE = 1.5 * 1.05;
 const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
-const FORWARD = new THREE.Vector3(1, 0, 0);
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
 const LAYOUT_SCALE_FACTOR = 0.7225;
@@ -249,14 +248,6 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
-const CAPTURE_DRONE_LIFT_TIME = 0.22;
-const CAPTURE_DRONE_CRUISE_TIME = 0.32;
-const CAPTURE_DRONE_DIVE_TIME = 0.2;
-const CAPTURE_DRONE_LOOP_TIME =
-  CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_DRONE_MODEL_LENGTH = 4.6;
-const CAPTURE_DRONE_TARGET_LENGTH_TILES = 0.85;
-const CAPTURE_EXPLOSION_TARGET_TILES = 0.28;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
@@ -7941,251 +7932,91 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    const easeCapture = (t) => t * t * (3 - 2 * t);
-    const tileSize = BOARD.tile;
-    const captureDroneScale =
-      (tileSize * CAPTURE_DRONE_TARGET_LENGTH_TILES) / CAPTURE_DRONE_MODEL_LENGTH;
-    const captureDroneLiftHeight = PIECE_Y * 1.75;
-    const captureDroneCruiseHeight = PIECE_Y * 2;
-    const activeCaptureEffects = [];
-    const droneFlightPos = new THREE.Vector3();
-    const droneFlightNext = new THREE.Vector3();
-    const liftEndPos = new THREE.Vector3();
-    const cruiseEndPos = new THREE.Vector3();
-    const droneDirection = new THREE.Vector3();
-    const droneAxis = new THREE.Vector3();
-    const droneQuat = new THREE.Quaternion();
-    const droneBankQuat = new THREE.Quaternion();
-    const captureTravel = new THREE.Vector3();
-    const captureRight = new THREE.Vector3();
-    const worldUp = new THREE.Vector3(0, 1, 0);
+    const createExplosion = (pos) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '200';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    };
 
-    const createPolygonMesh = (points, depth, color, roughness = 0.65, metalness = 0.24) => {
-      const shape = new THREE.Shape();
-      shape.moveTo(points[0][0], points[0][1]);
-      for (let i = 1; i < points.length; i += 1) {
-        shape.lineTo(points[i][0], points[i][1]);
+    const createScreenEffect = ({
+      pos,
+      className,
+      text,
+      fontSize = 56,
+      durationMs = 900
+    }) => {
+      if (!pos) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = text;
+      el.className = className;
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%)';
+      el.style.fontSize = `${fontSize}px`;
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '201';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), durationMs);
+    };
+
+    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
+      const pieceType = (movingType || '').toUpperCase();
+      const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
+      if (longRangeStrike) {
+        createScreenEffect({
+          pos: fromPos,
+          className: 'chess-capture-drone',
+          text: '🚁',
+          fontSize: 52,
+          durationMs: 850
+        });
+        setTimeout(() => {
+          createScreenEffect({
+            pos: targetPos,
+            className: 'chess-capture-missile',
+            text: '🚀',
+            fontSize: 54,
+            durationMs: 760
+          });
+        }, 180);
+        setTimeout(() => createExplosion(targetPos), 350);
+        playAudio(droneSoundRef);
+        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
+        setTimeout(() => playAudio(missileImpactSoundRef), 360);
+        return { moveDelayMs: 520 };
       }
-      shape.closePath();
-      const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
-      geometry.translate(0, 0, -depth / 2);
-      geometry.rotateX(Math.PI / 2);
-      const mesh = new THREE.Mesh(
-        geometry,
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      return mesh;
-    };
-
-    const addBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size[0], size[1], size[2]),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const addCylinder = (
-      group,
-      radiusTop,
-      radiusBottom,
-      height,
-      position,
-      rotation,
-      color,
-      radialSegments = 18,
-      roughness = 0.62,
-      metalness = 0.28
-    ) => {
-      const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const addSphere = (
-      group,
-      radius,
-      position,
-      color,
-      roughness = 0.45,
-      metalness = 0.25,
-      transparent = false,
-      opacity = 1
-    ) => {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 16, 16),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const createTriangleDrone = () => {
-      const root = new THREE.Group();
-      addCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
-
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.18, 0.72, 20),
-        new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
-      );
-      nose.position.set(1.7, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      addCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
-
-      const deltaWing = createPolygonMesh([[-1.2, -1.65], [1.0, 0], [-1.2, 1.65]], 0.08, '#aeb4ae', 0.82, 0.08);
-      deltaWing.position.set(-0.15, -0.06, 0);
-      root.add(deltaWing);
-
-      const spine = createPolygonMesh([[-0.55, -0.18], [0.9, 0], [-0.55, 0.18]], 0.06, '#7d858a', 0.55, 0.22);
-      spine.position.set(0.15, 0.03, 0);
-      root.add(spine);
-
-      const finLeft = createPolygonMesh([[-0.28, 0], [0.22, 0], [-0.04, 0.55]], 0.04, '#838b90', 0.55, 0.24);
-      finLeft.rotation.z = Math.PI / 2;
-      finLeft.position.set(-0.4, 0.35, -0.25);
-      root.add(finLeft);
-      const finRight = finLeft.clone();
-      finRight.position.z = 0.25;
-      root.add(finRight);
-
-      addSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
-      const propeller = new THREE.Group();
-      propeller.position.set(-1.95, 0, 0);
-      addBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
-      const blade2 = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 1.0, 0.08),
-        new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
-      );
-      blade2.rotation.x = Math.PI / 2;
-      blade2.castShadow = true;
-      propeller.add(blade2);
-      addSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
-      root.add(propeller);
-
-      const exhaustClouds = [];
-      for (let i = 0; i < 4; i += 1) {
-        exhaustClouds.push(
-          addSphere(root, 0.08 + i * 0.015, [-2.15 - i * 0.24, 0, 0], '#8d979d', 1, 0, true, 0.21 - i * 0.03)
-        );
+      if (distance <= 1.5) {
+        createScreenEffect({
+          pos: targetPos,
+          className: 'chess-capture-slice',
+          text: '⚔️',
+          fontSize: 64,
+          durationMs: 620
+        });
+        playAudio(swordSoundRef);
+        return { moveDelayMs: 220 };
       }
-      return { root, propeller, exhaustClouds };
-    };
-
-    const createExplosionRig = () => {
-      const root = new THREE.Group();
-      const flash = addSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
-      const fire = [];
-      const smoke = [];
-      for (let i = 0; i < 4; i += 1) {
-        fire.push(addSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
-      }
-      for (let i = 0; i < 6; i += 1) {
-        smoke.push(addSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
-      }
-      root.visible = false;
-      root.scale.setScalar(tileSize * CAPTURE_EXPLOSION_TARGET_TILES);
-      return { root, flash, fire, smoke };
-    };
-
-    const getDroneFlight = (effect, elapsed) => {
-      const t = Math.min(elapsed, CAPTURE_DRONE_LOOP_TIME);
-      const { start, target } = effect;
-      if (t < CAPTURE_DRONE_LIFT_TIME) {
-        const u = easeCapture(t / CAPTURE_DRONE_LIFT_TIME);
-        droneFlightPos.copy(start).lerp(liftEndPos, u);
-        droneFlightPos.z += Math.sin(u * Math.PI * 3) * 0.12 * captureDroneScale;
-        droneFlightNext.copy(start).lerp(liftEndPos, Math.min(1, u + 0.04));
-        return 'lift';
-      }
-      if (t < CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME) {
-        const u = easeCapture((t - CAPTURE_DRONE_LIFT_TIME) / CAPTURE_DRONE_CRUISE_TIME);
-        droneFlightPos.copy(liftEndPos).lerp(cruiseEndPos, u);
-        droneFlightPos.y += Math.sin(u * Math.PI * 2) * 0.1 * captureDroneScale;
-        droneFlightPos.z += Math.sin(u * Math.PI * 2.4) * 0.16 * captureDroneScale;
-        droneFlightNext.copy(liftEndPos).lerp(cruiseEndPos, Math.min(1, u + 0.03));
-        return 'cruise';
-      }
-      const u = easeCapture((t - CAPTURE_DRONE_LIFT_TIME - CAPTURE_DRONE_CRUISE_TIME) / CAPTURE_DRONE_DIVE_TIME);
-      droneFlightPos.copy(cruiseEndPos).lerp(target, u);
-      droneFlightNext.copy(cruiseEndPos).lerp(target, Math.min(1, u + 0.05));
-      return 'dive';
-    };
-
-    const updateExplosion = (rig, elapsedSinceImpact) => {
-      if (elapsedSinceImpact < 0 || elapsedSinceImpact > 0.95) {
-        rig.root.visible = false;
-        return;
-      }
-      rig.root.visible = true;
-      const fireLife = clamp(1 - elapsedSinceImpact / 0.36, 0, 1);
-      const smokeLife = clamp(1 - elapsedSinceImpact / 0.95, 0, 1);
-      const fireGrow = 1 + elapsedSinceImpact * 4.5;
-      const smokeGrow = 1 + elapsedSinceImpact * 2.3;
-      rig.flash.scale.setScalar(1.35 + elapsedSinceImpact * 5.4);
-      rig.flash.material.opacity = fireLife;
-      rig.fire.forEach((mesh, i) => {
-        const angle = elapsedSinceImpact * 8 + i * 1.35;
-        mesh.position.set(
-          Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
-          0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
-          Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
-        );
-        mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
-        mesh.material.opacity = fireLife * (0.95 - i * 0.12);
-      });
-      rig.smoke.forEach((mesh, i) => {
-        const angle = i * 1.1 + elapsedSinceImpact * 2.2;
-        mesh.position.set(
-          Math.cos(angle) * (0.14 + i * 0.08),
-          0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
-          Math.sin(angle) * (0.14 + i * 0.08)
-        );
-        mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
-        mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
-      });
-    };
-
-    const playCaptureAnimation = ({ fromPos, targetPos, targetMesh, captureDestination }) => {
-      const startPos = fromPos.clone().setY(currentPieceYOffset + 0.24);
-      const impactPos = targetPos.clone().setY(currentPieceYOffset + 0.08);
-      const { root: drone, propeller, exhaustClouds } = createTriangleDrone();
-      drone.scale.setScalar(captureDroneScale);
-      scene.add(drone);
-      const explosion = createExplosionRig();
-      explosion.root.position.copy(impactPos);
-      scene.add(explosion.root);
-      activeCaptureEffects.push({
-        drone,
-        propeller,
-        exhaustClouds,
-        explosion,
-        start: startPos,
-        target: impactPos,
-        targetMesh,
-        captureDestination: captureDestination.clone(),
-        startAt: performance.now() / 1000,
-        hit: false
-      });
-      playAudio(droneSoundRef);
-      return { moveDelayMs: Math.round(CAPTURE_DRONE_LOOP_TIME * 1000) };
+      createExplosion(targetPos);
+      playAudio(missileImpactSoundRef);
+      return { moveDelayMs: 280 };
     };
 
     // Board base + rim
@@ -9139,12 +8970,18 @@ function Chess3D({
         const capZ = capturingWhite
           ? half + BOARD.rim + 1 + row * captureRowSpacing
           : -half - BOARD.rim - 1 - row * captureRowSpacing;
-        const captureDestination = new THREE.Vector3(capX, captureY, capZ);
+        cancelPieceAnimation(targetMesh);
+        targetMesh.position.y = captureY;
+        animatePieceTo(
+          targetMesh,
+          new THREE.Vector3(capX, captureY, capZ),
+          0.35
+        );
         const captureFx = playCaptureAnimation({
           fromPos: fromWorldPos,
           targetPos: worldPos,
-          targetMesh,
-          captureDestination
+          movingType: movingPiece?.t,
+          distance: Math.hypot(rr - sel.r, cc - sel.c)
         });
         moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
         pieceMeshes[rr][cc] = null;
@@ -9607,78 +9444,6 @@ function Chess3D({
                 console.warn('Chess Battle Royal: animation callback failed', error);
               }
             }
-          }
-        }
-      }
-
-      if (activeCaptureEffects.length) {
-        for (let i = activeCaptureEffects.length - 1; i >= 0; i -= 1) {
-          const effect = activeCaptureEffects[i];
-          const effectElapsed = now * 0.001 - effect.startAt;
-          captureTravel.copy(effect.target).sub(effect.start);
-          const pathLength = Math.max(captureTravel.length(), 0.001);
-          captureTravel.divideScalar(pathLength);
-          captureRight.copy(captureTravel).cross(worldUp).normalize();
-          const liftDistance = Math.max(tileSize * 1.2, pathLength * 0.35);
-          const cruiseDistance = Math.max(tileSize * 0.9, pathLength * 0.78);
-          liftEndPos
-            .copy(effect.start)
-            .addScaledVector(captureTravel, Math.min(pathLength * 0.35, liftDistance))
-            .addScaledVector(captureRight, tileSize * 0.2)
-            .setY(effect.start.y + captureDroneLiftHeight);
-          cruiseEndPos
-            .copy(effect.start)
-            .addScaledVector(captureTravel, Math.min(pathLength * 0.78, cruiseDistance))
-            .addScaledVector(captureRight, tileSize * 0.08)
-            .setY(effect.start.y + captureDroneCruiseHeight);
-
-          const phase = getDroneFlight(effect, effectElapsed);
-          droneDirection.copy(droneFlightNext).sub(droneFlightPos).normalize();
-          droneQuat.setFromUnitVectors(FORWARD, droneDirection);
-          effect.drone.quaternion.copy(droneQuat);
-          let bank = 0;
-          if (phase === 'lift') bank = -0.12;
-          else if (phase === 'cruise') bank = Math.sin(now * 0.0024) * 0.06;
-          else bank = 0.03;
-          droneAxis.copy(droneDirection).normalize();
-          droneBankQuat.setFromAxisAngle(droneAxis, bank);
-          effect.drone.quaternion.multiply(droneBankQuat);
-          effect.drone.position.copy(droneFlightPos);
-          effect.propeller.rotation.x = now * 0.036;
-
-          effect.exhaustClouds.forEach((puff, puffIndex) => {
-            const puffTime = now * 0.001;
-            puff.position.set(
-              -2.1 - puffIndex * 0.22 - ((puffTime * 1.4 + puffIndex * 0.18) % 1) * 0.2,
-              Math.sin(puffTime * 3 + puffIndex) * 0.03,
-              0
-            );
-            const puffScale = 0.8 + puffIndex * 0.18 + ((puffTime * 1.2 + puffIndex * 0.15) % 1) * 0.55;
-            puff.scale.setScalar(puffScale);
-            puff.material.opacity = phase === 'dive' ? 0.08 : 0.2 - puffIndex * 0.03;
-          });
-
-          if (!effect.hit && effectElapsed >= CAPTURE_DRONE_LOOP_TIME) {
-            effect.hit = true;
-            effect.explosion.root.position.copy(effect.target);
-            if (bombSoundRef.current) {
-              bombSoundRef.current.currentTime = 0;
-              playAudio(bombSoundRef);
-            } else {
-              playAudio(missileImpactSoundRef);
-            }
-            if (effect.targetMesh) {
-              cancelPieceAnimation(effect.targetMesh);
-              effect.targetMesh.position.y = currentPieceYOffset;
-              animatePieceTo(effect.targetMesh, effect.captureDestination, 0.34);
-            }
-          }
-          updateExplosion(effect.explosion, effectElapsed - CAPTURE_DRONE_LOOP_TIME);
-
-          if (effectElapsed > CAPTURE_DRONE_LOOP_TIME + 0.95) {
-            scene.remove(effect.drone);
-            scene.remove(effect.explosion.root);
-            activeCaptureEffects.splice(i, 1);
           }
         }
       }
