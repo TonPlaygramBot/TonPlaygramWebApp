@@ -988,9 +988,9 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
+const SWORD_SLASH_SOUND_URL = '/assets/sounds/punch-03-352040.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
-const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
-const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
+const MISSILE_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
@@ -7328,16 +7328,14 @@ function Chess3D({
     mateSoundRef.current.volume = baseVolume;
     laughSoundRef.current = new Audio(LAUGH_SOUND_URL);
     laughSoundRef.current.volume = baseVolume;
-    swordSoundRef.current = new Audio('/assets/sounds/punch-03-352040.mp3');
+    swordSoundRef.current = new Audio(SWORD_SLASH_SOUND_URL);
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
-    missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
+    missileLaunchSoundRef.current = new Audio(MISSILE_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
-    const jetFlySound = new Audio(JET_FLY_SOUND_URL);
-    jetFlySound.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -7934,26 +7932,17 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    const activeCaptureFx = new Set();
-    const projectToScreen = (worldPos) => {
-      if (!worldPos) return null;
-      const rect = renderer.domElement.getBoundingClientRect();
-      const v = worldPos.clone().project(camera);
-      return {
-        x: rect.left + ((v.x + 1) / 2) * rect.width,
-        y: rect.top + ((-v.y + 1) / 2) * rect.height
-      };
-    };
-
     const createExplosion = (pos) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const v = pos.clone().project(camera);
       const x = rect.left + ((v.x + 1) / 2) * rect.width;
       const y = rect.top + ((-v.y + 1) / 2) * rect.height;
       const el = document.createElement('div');
+      el.textContent = '💨';
       el.className = 'bomb-explosion';
       el.style.position = 'fixed';
       el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '200';
       el.style.left = `${x}px`;
@@ -7962,257 +7951,70 @@ function Chess3D({
       setTimeout(() => el.remove(), 1000);
     };
 
-    const animateEffect = ({
-      fromPos,
-      toPos,
+    const createScreenEffect = ({
+      pos,
       className,
-      contentType = 'drone',
-      widthPx = 56,
-      heightPx = Math.max(20, widthPx * 0.42),
-      durationMs = 900,
-      style = 'linear'
+      text,
+      fontSize = 56,
+      durationMs = 900
     }) => {
-      const start = projectToScreen(fromPos);
-      const end = projectToScreen(toPos || fromPos);
-      if (!start || !end) return;
+      if (!pos) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
       const el = document.createElement('div');
+      el.textContent = text;
       el.className = className;
       el.style.position = 'fixed';
       el.style.transform = 'translate(-50%, -50%)';
-      el.style.width = `${widthPx}px`;
-      el.style.height = `${heightPx}px`;
+      el.style.fontSize = `${fontSize}px`;
       el.style.pointerEvents = 'none';
       el.style.zIndex = '201';
-      el.style.left = `${start.x}px`;
-      el.style.top = `${start.y}px`;
-      el.style.animation = 'none';
-      if (contentType === 'drone') {
-        el.innerHTML = '<span class="chess-capture-model drone"><span class="body"></span><span class="wing"></span><span class="tail"></span><span class="prop"></span></span>';
-      } else if (contentType === 'jet') {
-        el.innerHTML = '<span class="chess-capture-model jet"><span class="body"></span><span class="wing"></span><span class="tail"></span><span class="cockpit"></span></span>';
-      } else if (contentType === 'bazooka') {
-        el.innerHTML = '<span class="chess-capture-model bazooka"><span class="tube"></span><span class="grip"></span><span class="tip"></span></span>';
-      } else if (contentType === 'missile') {
-        el.innerHTML = '<span class="chess-capture-model missile"><span class="body"></span><span class="tip"></span><span class="fins"></span></span>';
-      } else if (contentType === 'sword') {
-        el.innerHTML = '<span class="chess-capture-model sword"><span class="blade"></span><span class="guard"></span><span class="handle"></span></span>';
-      }
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
       document.body.appendChild(el);
-      const fx = { raf: 0, dead: false, remove: () => {
-        if (fx.dead) return;
-        fx.dead = true;
-        cancelAnimationFrame(fx.raf);
-        el.remove();
-        activeCaptureFx.delete(fx);
-      } };
-      activeCaptureFx.add(fx);
-
-      const startAt = performance.now();
-      const droneLiftRatio = 2 / 6.5;
-      const droneCruiseRatio = 2.8 / 6.5;
-      const setPosition = (x, y, angle = 0, opacity = 1, scale = 1) => {
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
-        el.style.opacity = `${opacity}`;
-        el.style.transform = `translate(-50%, -50%) rotate(${angle}rad) scale(${scale})`;
-      };
-
-      const run = (now) => {
-        if (fx.dead) return;
-        const t = clamp01((now - startAt) / durationMs);
-        if (style === 'drone') {
-          const liftAnchor = { x: start.x + (end.x - start.x) * 0.2, y: start.y - 120 };
-          const cruiseAnchor = { x: start.x + (end.x - start.x) * 0.66, y: end.y - 145 };
-          let p1 = start;
-          let p2 = liftAnchor;
-          let localT = 0;
-          if (t <= droneLiftRatio) {
-            localT = ease(clamp01(t / droneLiftRatio));
-            p1 = start;
-            p2 = liftAnchor;
-          } else if (t <= droneLiftRatio + droneCruiseRatio) {
-            localT = ease(clamp01((t - droneLiftRatio) / droneCruiseRatio));
-            p1 = liftAnchor;
-            p2 = cruiseAnchor;
-          } else {
-            localT = ease(
-              clamp01((t - droneLiftRatio - droneCruiseRatio) / (1 - droneLiftRatio - droneCruiseRatio))
-            );
-            p1 = cruiseAnchor;
-            p2 = end;
-          }
-          const x = p1.x + (p2.x - p1.x) * localT;
-          const y =
-            p1.y + (p2.y - p1.y) * localT + Math.sin((t * Math.PI * 4) % (Math.PI * 2)) * 6;
-          const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-          setPosition(x, y, angle, 1 - t * 0.12, 0.78 + t * 0.26);
-        } else if (style === 'jet') {
-          const launch = { x: start.x, y: start.y - 55 };
-          const flyTo = { x: end.x + 20, y: end.y - 120 };
-          const u = ease(t);
-          const x = launch.x + (flyTo.x - launch.x) * u;
-          const y = launch.y + (flyTo.y - launch.y) * u + Math.sin(u * Math.PI * 1.6) * 12;
-          setPosition(x, y, Math.atan2(flyTo.y - launch.y, flyTo.x - launch.x), 1 - t * 0.08, 0.9 + t * 0.18);
-        } else if (style === 'projectile') {
-          const control = { x: start.x + (end.x - start.x) * 0.5, y: Math.min(start.y, end.y) - 90 };
-          const u = ease(t);
-          const x = (1 - u) * (1 - u) * start.x + 2 * (1 - u) * u * control.x + u * u * end.x;
-          const y = (1 - u) * (1 - u) * start.y + 2 * (1 - u) * u * control.y + u * u * end.y;
-          setPosition(x, y, Math.atan2(end.y - control.y, end.x - control.x), 1, 0.86 + t * 0.2);
-        } else if (style === 'aim') {
-          const angle = Math.atan2(end.y - start.y, end.x - start.x);
-          setPosition(start.x, start.y, angle, 1 - t * 0.4, 0.92 + t * 0.08);
-        } else {
-          const u = ease(t);
-          const x = start.x + (end.x - start.x) * u;
-          const y = start.y + (end.y - start.y) * u;
-          setPosition(x, y, 0, 1 - t, 1);
-        }
-        if (t >= 1) {
-          fx.remove();
-          return;
-        }
-        fx.raf = requestAnimationFrame(run);
-      };
-      fx.raf = requestAnimationFrame(run);
-      return fx;
+      setTimeout(() => el.remove(), durationMs);
     };
 
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
       const pieceType = (movingType || '').toUpperCase();
-      if (pieceType === 'B') {
-        animateEffect({
-          fromPos,
-          toPos: targetPos,
+      const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
+      if (longRangeStrike) {
+        createScreenEffect({
+          pos: fromPos,
           className: 'chess-capture-drone',
-          contentType: 'drone',
-          widthPx: 52,
-          durationMs: 860,
-          style: 'drone'
-        });
-        playAudio(droneSoundRef, { maxDurationMs: 740 });
-        setTimeout(() => {
-          animateEffect({
-            fromPos,
-            toPos: targetPos,
-            className: 'chess-capture-missile',
-            contentType: 'missile',
-            widthPx: 54,
-            durationMs: 360,
-            style: 'projectile'
-          });
-          playAudio(missileLaunchSoundRef);
-        }, 460);
-        setTimeout(() => {
-          createExplosion(targetPos);
-          playAudio(bombSoundRef, { maxDurationMs: 520 });
-          playAudio(missileImpactSoundRef);
-        }, 820);
-        return { moveDelayMs: 860 };
-      }
-      if (pieceType === 'Q') {
-        animateEffect({
-          fromPos,
-          toPos: targetPos,
-          className: 'chess-capture-jet',
-          contentType: 'jet',
-          widthPx: 78,
-          durationMs: 920,
-          style: 'jet'
-        });
-        playAudio({ current: jetFlySound }, { maxDurationMs: 780 });
-        setTimeout(() => {
-          animateEffect({
-            fromPos,
-            toPos: targetPos,
-            className: 'chess-capture-missile',
-            contentType: 'missile',
-            widthPx: 62,
-            durationMs: 380,
-            style: 'projectile'
-          });
-          playAudio(missileLaunchSoundRef);
-        }, 300);
-        setTimeout(() => {
-          createExplosion(targetPos);
-          playAudio(bombSoundRef, { maxDurationMs: 520 });
-          playAudio(missileImpactSoundRef);
-        }, 760);
-        return { moveDelayMs: 840 };
-      }
-      if (pieceType === 'R' || pieceType === 'N') {
-        animateEffect({
-          fromPos,
-          toPos: targetPos,
-          className: 'chess-capture-bazooka',
-          contentType: 'bazooka',
-          widthPx: 68,
-          durationMs: 300,
-          style: 'aim'
+          text: '🚁',
+          fontSize: 52,
+          durationMs: 850
         });
         setTimeout(() => {
-          animateEffect({
-            fromPos,
-            toPos: targetPos,
+          createScreenEffect({
+            pos: targetPos,
             className: 'chess-capture-missile',
-            contentType: 'missile',
-            widthPx: 58,
-            durationMs: 340,
-            style: 'projectile'
+            text: '🚀',
+            fontSize: 54,
+            durationMs: 760
           });
-          playAudio(missileLaunchSoundRef);
         }, 180);
-        setTimeout(() => {
-          createExplosion(targetPos);
-          playAudio(bombSoundRef, { maxDurationMs: 520 });
-          playAudio(missileImpactSoundRef);
-        }, 560);
-        return { moveDelayMs: 620 };
+        setTimeout(() => createExplosion(targetPos), 350);
+        playAudio(droneSoundRef);
+        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
+        setTimeout(() => playAudio(missileImpactSoundRef), 360);
+        return { moveDelayMs: 520 };
       }
-      if (pieceType === 'K' || pieceType === 'P' || distance <= 1.5) {
-        animateEffect({
-          fromPos: targetPos,
-          toPos: targetPos,
+      if (distance <= 1.5) {
+        createScreenEffect({
+          pos: targetPos,
           className: 'chess-capture-slice',
-          contentType: 'sword',
-          widthPx: 64,
-          durationMs: 220
+          text: '⚔️',
+          fontSize: 64,
+          durationMs: 620
         });
-        setTimeout(() => {
-          animateEffect({
-            fromPos: targetPos,
-            toPos: targetPos,
-            className: 'chess-capture-slice chess-capture-slice-second',
-            contentType: 'sword',
-            widthPx: 68,
-            durationMs: 220
-          });
-        }, 120);
         playAudio(swordSoundRef);
-        setTimeout(() => playAudio(swordSoundRef), 120);
-        setTimeout(() => playAudio(missileImpactSoundRef), 200);
-        return { moveDelayMs: 280 };
-      }
-      if (distance >= 2) {
-        animateEffect({
-          fromPos,
-          toPos: targetPos,
-          className: 'chess-capture-missile',
-          contentType: 'missile',
-          widthPx: 54,
-          durationMs: 340,
-          style: 'projectile'
-        });
-        playAudio(missileLaunchSoundRef);
-        setTimeout(() => {
-          createExplosion(targetPos);
-          playAudio(bombSoundRef, { maxDurationMs: 520 });
-          playAudio(missileImpactSoundRef);
-        }, 340);
-        return { moveDelayMs: 360 };
+        return { moveDelayMs: 220 };
       }
       createExplosion(targetPos);
-      playAudio(bombSoundRef, { maxDurationMs: 420 });
       playAudio(missileImpactSoundRef);
       return { moveDelayMs: 280 };
     };
@@ -9728,11 +9530,8 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
-      jetFlySound?.pause?.();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
-      activeCaptureFx.forEach((fx) => fx?.remove?.());
-      activeCaptureFx.clear();
       clearLaughTimeout();
     };
   }, []);
