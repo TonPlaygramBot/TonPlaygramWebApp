@@ -44,6 +44,7 @@ const LOOKAHEAD_DEPTH = 6
 const LOOKAHEAD_CANDIDATES = 14
 const MONTE_CARLO_BASE_SAMPLES = 128
 const POWER_SCALE = 0.8
+const DEFAULT_REST_SPEED_EPSILON = 0.03
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -503,6 +504,15 @@ function normaliseAimRequest (req) {
       cueBallId
     }
   }
+}
+
+function ballSpeed (ball) {
+  return Math.hypot(Number(ball?.vx) || 0, Number(ball?.vy) || 0)
+}
+
+function ballsAreFullyStopped (state, restSpeedEpsilon = DEFAULT_REST_SPEED_EPSILON) {
+  const balls = Array.isArray(state?.balls) ? state.balls : []
+  return balls.every(ball => ball?.pocketed || ballSpeed(ball) <= restSpeedEpsilon)
 }
 
 
@@ -1009,6 +1019,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
+  const liveMappingOnly = options.liveMappingOnly !== false
   const mcSamples = Number.isFinite(options.mcSamples)
     ? Math.max(24, Math.round(options.mcSamples))
     : 20
@@ -1020,22 +1031,26 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (strict && scratchAfterImpact) {
     return null
   }
-  const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
   let nextScore = 0
   let hasNext = false
-  if (nextTargets.length > 0) {
-    hasNext = true
-    let bestShape = 0
-    for (const next of nextTargets.slice(0, 4)) {
-      const cueDistanceScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
-      let nextPocketAlign = 0
-      for (const nextPocket of req.state.pockets) {
-        nextPocketAlign = Math.max(nextPocketAlign, pocketAlignment(nextPocket, next, req.state.width, req.state.height))
+  if (!liveMappingOnly) {
+    const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
+    if (nextTargets.length > 0) {
+      hasNext = true
+      let bestShape = 0
+      for (const next of nextTargets.slice(0, 4)) {
+        const cueDistanceScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
+        let nextPocketAlign = 0
+        for (const nextPocket of req.state.pockets) {
+          nextPocketAlign = Math.max(nextPocketAlign, pocketAlignment(nextPocket, next, req.state.width, req.state.height))
+        }
+        const shape = 0.56 * cueDistanceScore + 0.44 * nextPocketAlign
+        if (shape > bestShape) bestShape = shape
       }
-      const shape = 0.56 * cueDistanceScore + 0.44 * nextPocketAlign
-      if (shape > bestShape) bestShape = shape
+      nextScore = bestShape
     }
-    nextScore = bestShape
+  } else {
+    hasNext = true
   }
   const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
@@ -1200,13 +1215,28 @@ function isBetterShotCandidate (candidate, currentBest) {
  */
 export function planShot (req) {
   req = normaliseAimRequest(req)
+  const restSpeedEpsilon = Number.isFinite(req?.state?.restSpeedEpsilon)
+    ? Math.max(0, req.state.restSpeedEpsilon)
+    : DEFAULT_REST_SPEED_EPSILON
+  if (!ballsAreFullyStopped(req.state, restSpeedEpsilon)) {
+    return {
+      angleRad: 0,
+      power: 0,
+      spin: { top: 0, side: 0, back: 0 },
+      quality: 0,
+      rationale: 'awaiting-live-rest-state'
+    }
+  }
+  const liveMappingOnly = req?.liveMappingOnly !== false
   const r = req.state.ballRadius
   const cueBallId = resolveCueBallId(req.state)
   const start = Date.now()
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
   const thinkingBudget = Number.isFinite(req.timeBudgetMs) ? Math.max(120, req.timeBudgetMs) : 700
   const budgetScale = Math.min(2.4, Math.max(0.7, thinkingBudget / 700))
-  const lookaheadDepth = Math.max(4, Math.min(8, Math.round(LOOKAHEAD_DEPTH * budgetScale)))
+  const lookaheadDepth = liveMappingOnly
+    ? 0
+    : Math.max(4, Math.min(8, Math.round(LOOKAHEAD_DEPTH * budgetScale)))
   const mcSamples = Math.max(48, Math.min(220, Math.round(MONTE_CARLO_BASE_SAMPLES * budgetScale)))
   const rng = Number.isFinite(req.rngSeed) ? createRng(req.rngSeed) : Math.random
   let best = null
@@ -1215,7 +1245,9 @@ export function planShot (req) {
 
   const powers = req.state?.breakInProgress
     ? [1 * POWER_SCALE]
-    : [0.5 * POWER_SCALE, 0.66 * POWER_SCALE, 0.82 * POWER_SCALE, 0.94 * POWER_SCALE]
+    : liveMappingOnly
+      ? [0.5 * POWER_SCALE, 0.66 * POWER_SCALE]
+      : [0.5 * POWER_SCALE, 0.66 * POWER_SCALE, 0.82 * POWER_SCALE, 0.94 * POWER_SCALE]
   const defaultSpins = [
     { top: 0, side: 0, back: 0 },
     { top: 0.3, side: 0, back: 0 },
@@ -1302,7 +1334,7 @@ export function planShot (req) {
           defaultSpins[0],
           balls,
           strict,
-          { lookaheadDepth, mcSamples, rng }
+          { lookaheadDepth, mcSamples, rng, skipLookahead: liveMappingOnly, liveMappingOnly }
         )
         if (baseCand) {
           hasViableShot = true
@@ -1316,7 +1348,7 @@ export function planShot (req) {
           }
         }
 
-        const spins = buildSpinCandidates(cuePos, target, pocket, req)
+        const spins = liveMappingOnly ? defaultSpins : buildSpinCandidates(cuePos, target, pocket, req)
         for (const power of powers) {
           for (const spin of spins.concat(defaultSpins)) {
             if (power === powers[0] && spin === spins[0]) continue
@@ -1332,7 +1364,7 @@ export function planShot (req) {
               spin,
               balls,
               strict,
-              { lookaheadDepth, mcSamples, rng }
+              { lookaheadDepth, mcSamples, rng, skipLookahead: liveMappingOnly, liveMappingOnly }
             )
             if (cand) {
               hasViableShot = true
@@ -1356,10 +1388,12 @@ export function planShot (req) {
     if (neutralSpin && best.power > 0.5 * POWER_SCALE && best.quality >= 0.45) {
       best.power = 0.5 * POWER_SCALE
     }
-    const suggestion = findSuggestedTarget(req, best.targetBallId)
-    if (suggestion) {
-      best.suggestedTargetBallId = suggestion.suggestedTargetBallId
-      best.suggestedAimPoint = suggestion.suggestedAimPoint
+    if (!liveMappingOnly) {
+      const suggestion = findSuggestedTarget(req, best.targetBallId)
+      if (suggestion) {
+        best.suggestedTargetBallId = suggestion.suggestedTargetBallId
+        best.suggestedAimPoint = suggestion.suggestedAimPoint
+      }
     }
     if (best.quality >= 0.1) return best
     if (hasViableShot) return best

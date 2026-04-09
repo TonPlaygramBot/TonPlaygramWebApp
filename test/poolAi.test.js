@@ -593,3 +593,57 @@ test('keeps shot planning deterministic when rngSeed is omitted', () => {
   assert.equal(second.power, first.power)
   assert.deepEqual(second.spin, first.spin)
 })
+
+test('waits for live mapping when balls are still moving', () => {
+  const decision = planShot({
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 240, vx: 0.12, vy: 0.01, pocketed: false },
+        { id: 2, x: 360, y: 200, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 100,
+    rngSeed: 5
+  })
+
+  assert.equal(decision.power, 0)
+  assert.match(decision.rationale, /awaiting-live-rest-state/)
+})
+
+test('defaults to live mapping only and can opt into lookahead explicitly', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 140, y: 250, vx: 0, vy: 0, pocketed: false },
+        { id: 1, x: 380, y: 230, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 620, y: 250, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01
+    },
+    timeBudgetMs: 100,
+    rngSeed: 11
+  }
+
+  const liveOnly = planShot(req)
+  const withLookahead = planShot({ ...req, liveMappingOnly: false })
+
+  assert.equal(typeof liveOnly.targetBallId, 'number')
+  assert.equal(typeof withLookahead.targetBallId, 'number')
+})
