@@ -7932,95 +7932,334 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    const createExplosion = (pos) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const v = pos.clone().project(camera);
-      const x = rect.left + ((v.x + 1) / 2) * rect.width;
-      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
-      const el = document.createElement('div');
-      el.textContent = '💨';
-      el.className = 'bomb-explosion';
-      el.style.position = 'fixed';
-      el.style.transform = 'translate(-50%, -50%) scale(1)';
-      el.style.fontSize = '64px';
-      el.style.pointerEvents = 'none';
-      el.style.zIndex = '200';
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 1000);
+    const tile = BOARD.tile;
+    const droneEase = (t) => t * t * (3 - 2 * t);
+    const DRONE_LIFT_TIME = 2.0;
+    const DRONE_CRUISE_TIME = 2.8;
+    const DRONE_DIVE_TIME = 1.7;
+    const DRONE_STRIKE_TIME = DRONE_LIFT_TIME + DRONE_CRUISE_TIME + DRONE_DIVE_TIME;
+
+    const createDronePolygonMesh = (points, depth, color, roughness = 0.65, metalness = 0.24) => {
+      const shape = new THREE.Shape();
+      shape.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i += 1) {
+        shape.lineTo(points[i][0], points[i][1]);
+      }
+      shape.closePath();
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth,
+        bevelEnabled: false,
+        curveSegments: 1
+      });
+      geometry.translate(0, 0, -depth / 2);
+      geometry.rotateX(Math.PI / 2);
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
     };
 
-    const createScreenEffect = ({
-      pos,
-      className,
-      text,
-      fontSize = 56,
-      durationMs = 900
-    }) => {
-      if (!pos) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      const v = pos.clone().project(camera);
-      const x = rect.left + ((v.x + 1) / 2) * rect.width;
-      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
-      const el = document.createElement('div');
-      el.textContent = text;
-      el.className = className;
-      el.style.position = 'fixed';
-      el.style.transform = 'translate(-50%, -50%)';
-      el.style.fontSize = `${fontSize}px`;
-      el.style.pointerEvents = 'none';
-      el.style.zIndex = '201';
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), durationMs);
+    const addDroneBox = (
+      group,
+      size,
+      position,
+      color,
+      roughness = 0.7,
+      metalness = 0.2
+    ) => {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(size[0], size[1], size[2]),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
+      );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return mesh;
     };
 
-    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
+    const addDroneCylinder = (
+      group,
+      radiusTop,
+      radiusBottom,
+      height,
+      position,
+      rotation,
+      color,
+      radialSegments = 18,
+      roughness = 0.62,
+      metalness = 0.28
+    ) => {
+      const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
+      );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+
+    const addDroneSphere = (
+      group,
+      radius,
+      position,
+      color,
+      roughness = 0.45,
+      metalness = 0.25,
+      transparent = false,
+      opacity = 1
+    ) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 16, 16),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
+      );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+
+    const createTriangleDrone = () => {
+      const root = new THREE.Group();
+      addDroneCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 0.72, 20),
+        new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
+      );
+      nose.position.set(1.7, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      nose.castShadow = true;
+      root.add(nose);
+      addDroneCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+      const deltaWing = createDronePolygonMesh(
+        [[-1.2, -1.65], [1.0, 0], [-1.2, 1.65]],
+        0.08,
+        '#aeb4ae',
+        0.82,
+        0.08
+      );
+      deltaWing.position.set(-0.15, -0.06, 0);
+      root.add(deltaWing);
+      const spine = createDronePolygonMesh(
+        [[-0.55, -0.18], [0.9, 0], [-0.55, 0.18]],
+        0.06,
+        '#7d858a',
+        0.55,
+        0.22
+      );
+      spine.position.set(0.15, 0.03, 0);
+      root.add(spine);
+      const finLeft = createDronePolygonMesh(
+        [[-0.28, 0], [0.22, 0], [-0.04, 0.55]],
+        0.04,
+        '#838b90',
+        0.55,
+        0.24
+      );
+      finLeft.rotation.z = Math.PI / 2;
+      finLeft.position.set(-0.4, 0.35, -0.25);
+      root.add(finLeft);
+      const finRight = finLeft.clone();
+      finRight.position.z = 0.25;
+      root.add(finRight);
+      addDroneSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
+      const propeller = new THREE.Group();
+      propeller.position.set(-1.95, 0, 0);
+      addDroneBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
+      const blade2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 1.0, 0.08),
+        new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
+      );
+      blade2.rotation.x = Math.PI / 2;
+      blade2.castShadow = true;
+      propeller.add(blade2);
+      addDroneSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
+      root.add(propeller);
+      const exhaustClouds = [];
+      for (let i = 0; i < 4; i += 1) {
+        const puff = addDroneSphere(
+          root,
+          0.08 + i * 0.015,
+          [-2.15 - i * 0.24, 0, 0],
+          '#8d979d',
+          1,
+          0,
+          true,
+          0.21 - i * 0.03
+        );
+        exhaustClouds.push(puff);
+      }
+      return { root, propeller, exhaustClouds };
+    };
+
+    const createDroneExplosion = () => {
+      const root = new THREE.Group();
+      const flash = addDroneSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
+      const fire = [];
+      const smoke = [];
+      for (let i = 0; i < 4; i += 1) {
+        fire.push(addDroneSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
+      }
+      for (let i = 0; i < 6; i += 1) {
+        smoke.push(addDroneSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
+      }
+      root.visible = false;
+      return { root, flash, fire, smoke };
+    };
+
+    const droneForward = new THREE.Vector3(1, 0, 0);
+    const droneDir = new THREE.Vector3();
+    const droneQuat = new THREE.Quaternion();
+    const droneBankQuat = new THREE.Quaternion();
+    const droneAxis = new THREE.Vector3();
+    const { root: captureDrone, propeller: captureDronePropeller, exhaustClouds: captureDroneExhaust } = createTriangleDrone();
+    const captureDroneScale = (tile * 2) / 3.4;
+    captureDrone.scale.setScalar(captureDroneScale);
+    captureDrone.visible = false;
+    scene.add(captureDrone);
+    const captureDroneShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(tile * 0.48, 32),
+      new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.18 })
+    );
+    captureDroneShadow.rotation.x = -Math.PI / 2;
+    captureDroneShadow.visible = false;
+    scene.add(captureDroneShadow);
+    const captureExplosion = createDroneExplosion();
+    captureExplosion.root.scale.setScalar(tile);
+    scene.add(captureExplosion.root);
+    const captureDroneState = {
+      active: false,
+      impacted: false,
+      startTimeMs: 0,
+      impactTimeMs: 0,
+      from: new THREE.Vector3(),
+      target: new THREE.Vector3(),
+      liftEnd: new THREE.Vector3(),
+      cruiseEnd: new THREE.Vector3(),
+      onImpact: null
+    };
+
+    const updateExplosionRig = (rig, elapsedSinceImpact) => {
+      if (elapsedSinceImpact < 0 || elapsedSinceImpact > 2.6) {
+        rig.root.visible = false;
+        return;
+      }
+      rig.root.visible = true;
+      const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
+      const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
+      const fireGrow = 1 + elapsedSinceImpact * 4.5;
+      const smokeGrow = 1 + elapsedSinceImpact * 2.3;
+      rig.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+      rig.flash.material.opacity = fireLife;
+      rig.fire.forEach((mesh, i) => {
+        const angle = elapsedSinceImpact * 5 + i * 1.35;
+        mesh.position.set(
+          Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
+          0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
+          Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+        );
+        mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
+        mesh.material.opacity = fireLife * (0.95 - i * 0.12);
+      });
+      rig.smoke.forEach((mesh, i) => {
+        const angle = i * 1.1 + elapsedSinceImpact * 1.8;
+        mesh.position.set(
+          Math.cos(angle) * (0.14 + i * 0.08),
+          0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
+          Math.sin(angle) * (0.14 + i * 0.08)
+        );
+        mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
+        mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+      });
+    };
+
+    const getCaptureDroneFlight = (elapsed) => {
+      const pos = new THREE.Vector3();
+      const next = new THREE.Vector3();
+      let phase = 'lift';
+      if (elapsed < DRONE_LIFT_TIME) {
+        const u = droneEase(elapsed / DRONE_LIFT_TIME);
+        pos.copy(captureDroneState.from).lerp(captureDroneState.liftEnd, u);
+        pos.z += Math.sin(u * Math.PI * 3) * (tile * 0.045);
+        next.copy(captureDroneState.from).lerp(captureDroneState.liftEnd, Math.min(1, u + 0.04));
+      } else if (elapsed < DRONE_LIFT_TIME + DRONE_CRUISE_TIME) {
+        phase = 'cruise';
+        const u = droneEase((elapsed - DRONE_LIFT_TIME) / DRONE_CRUISE_TIME);
+        pos.copy(captureDroneState.liftEnd).lerp(captureDroneState.cruiseEnd, u);
+        pos.y += Math.sin(u * Math.PI * 2) * (tile * 0.032);
+        pos.z += Math.sin(u * Math.PI * 2.4) * (tile * 0.05);
+        next.copy(captureDroneState.liftEnd).lerp(captureDroneState.cruiseEnd, Math.min(1, u + 0.03));
+      } else {
+        phase = 'dive';
+        const u = droneEase((elapsed - DRONE_LIFT_TIME - DRONE_CRUISE_TIME) / DRONE_DIVE_TIME);
+        pos.copy(captureDroneState.cruiseEnd).lerp(captureDroneState.target, u);
+        next.copy(captureDroneState.cruiseEnd).lerp(captureDroneState.target, Math.min(1, u + 0.05));
+      }
+      return { pos, next, phase };
+    };
+
+    const startCaptureDroneStrike = ({ fromPos, targetPos, onImpact }) => {
+      const path = new THREE.Vector3().copy(targetPos).sub(fromPos);
+      const travel = Math.max(path.length(), tile * 1.2);
+      const dir = path.clone().normalize();
+      const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+      captureDroneState.from.copy(fromPos).add(new THREE.Vector3(0, tile * 0.11, 0));
+      captureDroneState.target.copy(targetPos).setY(currentPieceYOffset + tile * 0.1);
+      captureDroneState.liftEnd
+        .copy(captureDroneState.from)
+        .addScaledVector(dir, Math.min(tile * 0.6, travel * 0.2))
+        .addScaledVector(side, tile * 0.12)
+        .add(new THREE.Vector3(0, tile * 0.85, 0));
+      captureDroneState.cruiseEnd
+        .copy(captureDroneState.from)
+        .lerp(captureDroneState.target, 0.7)
+        .add(new THREE.Vector3(0, tile, 0));
+      captureDroneState.startTimeMs = performance.now();
+      captureDroneState.impactTimeMs = captureDroneState.startTimeMs + DRONE_STRIKE_TIME * 1000;
+      captureDroneState.impacted = false;
+      captureDroneState.active = true;
+      captureDroneState.onImpact = onImpact;
+      captureDrone.visible = true;
+      captureDroneShadow.visible = true;
+      captureExplosion.root.position.copy(captureDroneState.target);
+      updateExplosionRig(captureExplosion, -1);
+      playAudio(droneSoundRef);
+      setTimeout(() => playAudio(missileImpactSoundRef), DRONE_STRIKE_TIME * 1000);
+    };
+
+    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, onImpact }) => {
       const pieceType = (movingType || '').toUpperCase();
       const longRangeStrike = ['B', 'R', 'Q'].includes(pieceType) && distance >= 2;
       if (longRangeStrike) {
-        createScreenEffect({
-          pos: fromPos,
-          className: 'chess-capture-drone',
-          text: '🚁',
-          fontSize: 52,
-          durationMs: 850
-        });
-        setTimeout(() => {
-          createScreenEffect({
-            pos: targetPos,
-            className: 'chess-capture-missile',
-            text: '🚀',
-            fontSize: 54,
-            durationMs: 760
-          });
-        }, 180);
-        setTimeout(() => createExplosion(targetPos), 350);
-        playAudio(droneSoundRef);
-        setTimeout(() => playAudio(missileLaunchSoundRef), 140);
-        setTimeout(() => playAudio(missileImpactSoundRef), 360);
-        return { moveDelayMs: 520 };
+        startCaptureDroneStrike({ fromPos, targetPos, onImpact });
+        return { moveDelayMs: DRONE_STRIKE_TIME * 1000 + 120 };
       }
       if (distance <= 1.5) {
-        createScreenEffect({
-          pos: targetPos,
-          className: 'chess-capture-slice',
-          text: '⚔️',
-          fontSize: 64,
-          durationMs: 620
-        });
+        const quickExplosionPos = targetPos.clone().setY(currentPieceYOffset + tile * 0.1);
+        captureExplosion.root.position.copy(quickExplosionPos);
+        updateExplosionRig(captureExplosion, 0);
+        setTimeout(() => updateExplosionRig(captureExplosion, 3), 620);
         playAudio(swordSoundRef);
+        onImpact?.();
         return { moveDelayMs: 220 };
       }
-      createExplosion(targetPos);
+      const explosionPos = targetPos.clone().setY(currentPieceYOffset + tile * 0.1);
+      captureExplosion.root.position.copy(explosionPos);
+      updateExplosionRig(captureExplosion, 0);
+      setTimeout(() => updateExplosionRig(captureExplosion, 3), 720);
       playAudio(missileImpactSoundRef);
+      onImpact?.();
       return { moveDelayMs: 280 };
     };
 
     // Board base + rim
-    const tile = BOARD.tile;
     const N = 8;
     const half = (N * tile) / 2;
     let currentBoardModel = null;
@@ -8970,18 +9209,18 @@ function Chess3D({
         const capZ = capturingWhite
           ? half + BOARD.rim + 1 + row * captureRowSpacing
           : -half - BOARD.rim - 1 - row * captureRowSpacing;
-        cancelPieceAnimation(targetMesh);
-        targetMesh.position.y = captureY;
-        animatePieceTo(
-          targetMesh,
-          new THREE.Vector3(capX, captureY, capZ),
-          0.35
-        );
+        const capturedTargetPos = new THREE.Vector3(capX, captureY, capZ);
+        const moveCapturedPieceOut = () => {
+          cancelPieceAnimation(targetMesh);
+          targetMesh.position.y = captureY;
+          animatePieceTo(targetMesh, capturedTargetPos, 0.35);
+        };
         const captureFx = playCaptureAnimation({
           fromPos: fromWorldPos,
           targetPos: worldPos,
           movingType: movingPiece?.t,
-          distance: Math.hypot(rr - sel.r, cc - sel.c)
+          distance: Math.hypot(rr - sel.r, cc - sel.c),
+          onImpact: moveCapturedPieceOut
         });
         moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
         pieceMeshes[rr][cc] = null;
@@ -9446,6 +9685,53 @@ function Chess3D({
             }
           }
         }
+      }
+
+      if (captureDroneState.active) {
+        const elapsedDrone = (now - captureDroneState.startTimeMs) / 1000;
+        const droneFlight = getCaptureDroneFlight(Math.min(elapsedDrone, DRONE_STRIKE_TIME));
+        droneDir.copy(droneFlight.next).sub(droneFlight.pos).normalize();
+        droneQuat.setFromUnitVectors(droneForward, droneDir);
+        captureDrone.quaternion.copy(droneQuat);
+        let droneBank = 0;
+        if (droneFlight.phase === 'lift') droneBank = -0.12;
+        if (droneFlight.phase === 'cruise') droneBank = Math.sin(elapsedDrone * 2.4) * 0.06;
+        if (droneFlight.phase === 'dive') droneBank = 0.03;
+        droneAxis.copy(droneDir).normalize();
+        droneBankQuat.setFromAxisAngle(droneAxis, droneBank);
+        captureDrone.quaternion.multiply(droneBankQuat);
+        captureDrone.position.copy(droneFlight.pos);
+        captureDronePropeller.rotation.x = elapsedDrone * 36;
+        captureDroneShadow.position.set(droneFlight.pos.x, 0.03, droneFlight.pos.z);
+        const droneShadowSize = 0.85 + droneFlight.pos.y * 0.2;
+        captureDroneShadow.scale.setScalar(droneShadowSize);
+        captureDroneShadow.material.opacity = clamp(0.24 - droneFlight.pos.y * 0.03, 0.05, 0.24);
+        captureDroneExhaust.forEach((puff, i) => {
+          puff.position.set(-2.1 - i * 0.22 - ((elapsedDrone * 1.4 + i * 0.18) % 1) * 0.2, Math.sin(elapsedDrone * 3 + i) * 0.03, 0);
+          const s = 0.8 + i * 0.18 + ((elapsedDrone * 1.2 + i * 0.15) % 1) * 0.55;
+          puff.scale.setScalar(s);
+          puff.material.opacity = droneFlight.phase === 'dive' ? 0.08 : 0.2 - i * 0.03;
+        });
+        if (!captureDroneState.impacted && now >= captureDroneState.impactTimeMs) {
+          captureDroneState.impacted = true;
+          captureExplosion.root.position.copy(captureDroneState.target);
+          updateExplosionRig(captureExplosion, 0);
+          if (typeof captureDroneState.onImpact === 'function') {
+            captureDroneState.onImpact();
+          }
+        }
+        if (captureDroneState.impacted) {
+          updateExplosionRig(captureExplosion, (now - captureDroneState.impactTimeMs) / 1000);
+        }
+        if (elapsedDrone >= DRONE_STRIKE_TIME + 2.6) {
+          captureDroneState.active = false;
+          captureDrone.visible = false;
+          captureDroneShadow.visible = false;
+          updateExplosionRig(captureExplosion, -1);
+        }
+      } else {
+        captureDrone.visible = false;
+        captureDroneShadow.visible = false;
       }
 
       controls?.update();
