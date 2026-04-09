@@ -2587,6 +2587,11 @@ const FORWARD_AXIS = new THREE.Vector3(1, 0, 0);
 const WORLD_UP_AXIS = new THREE.Vector3(0, 1, 0);
 const MISSILE_FLIGHT_SECONDS = 0.72;
 const EXPLOSION_HOLD_SECONDS = 0.68;
+const MISSILE_TO_QUEEN_SIZE_RATIO = 0.62;
+const MISSILE_TO_ATTACKER_SIZE_RATIO = 0.7;
+const MISSILE_MIN_RADIUS = 0.016;
+const MISSILE_MIN_LENGTH = 0.065;
+const EXPLOSION_TILE_RADIUS = LUDO_TILE * 0.48;
 
 const TOKEN_SELECTION_SCALE = 1.08;
 
@@ -2670,7 +2675,7 @@ function createStrikeMissile({ bodyColor = '#bfc5ca', bodyLength = 1.02, bodyRad
 function createStrikeExplosion() {
   const root = new THREE.Group();
   const flash = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 16, 16),
+    new THREE.SphereGeometry(EXPLOSION_TILE_RADIUS * 0.34, 16, 16),
     new THREE.MeshStandardMaterial({
       color: '#ffe59a',
       roughness: 0.08,
@@ -2679,7 +2684,7 @@ function createStrikeExplosion() {
       opacity: 1
     })
   );
-  flash.position.set(0, 0.25, 0);
+  flash.position.set(0, EXPLOSION_TILE_RADIUS * 0.28, 0);
   flash.castShadow = true;
   flash.receiveShadow = true;
   root.add(flash);
@@ -2688,7 +2693,7 @@ function createStrikeExplosion() {
   const smoke = [];
   for (let i = 0; i < 4; i += 1) {
     const fireMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18 + i * 0.05, 16, 16),
+      new THREE.SphereGeometry(EXPLOSION_TILE_RADIUS * (0.34 + i * 0.08), 16, 16),
       new THREE.MeshStandardMaterial({
         color: i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
         roughness: 0.2,
@@ -2697,7 +2702,7 @@ function createStrikeExplosion() {
         opacity: 0.95 - i * 0.15
       })
     );
-    fireMesh.position.set(0, 0.22 + i * 0.06, 0);
+    fireMesh.position.set(0, EXPLOSION_TILE_RADIUS * (0.24 + i * 0.11), 0);
     fireMesh.castShadow = true;
     fireMesh.receiveShadow = true;
     root.add(fireMesh);
@@ -2705,7 +2710,7 @@ function createStrikeExplosion() {
   }
   for (let i = 0; i < 6; i += 1) {
     const smokeMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18 + i * 0.035, 16, 16),
+      new THREE.SphereGeometry(EXPLOSION_TILE_RADIUS * (0.32 + i * 0.06), 16, 16),
       new THREE.MeshStandardMaterial({
         color: '#646b72',
         roughness: 1,
@@ -2714,7 +2719,7 @@ function createStrikeExplosion() {
         opacity: 0.42 - i * 0.04
       })
     );
-    smokeMesh.position.set(0, 0.18 + i * 0.08, 0);
+    smokeMesh.position.set(0, EXPLOSION_TILE_RADIUS * (0.2 + i * 0.14), 0);
     smokeMesh.castShadow = true;
     smokeMesh.receiveShadow = true;
     root.add(smokeMesh);
@@ -2733,16 +2738,16 @@ function updateStrikeExplosionRig(rig, elapsedSinceImpact) {
   rig.root.visible = true;
   const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
   const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
-  const fireGrow = 1 + elapsedSinceImpact * 4.5;
-  const smokeGrow = 1 + elapsedSinceImpact * 2.3;
-  rig.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+  const fireGrow = 1 + elapsedSinceImpact * 2.25;
+  const smokeGrow = 1 + elapsedSinceImpact * 1.45;
+  rig.flash.scale.setScalar(1 + elapsedSinceImpact * 2.5);
   rig.flash.material.opacity = fireLife;
   rig.fire.forEach((mesh, i) => {
     const angle = elapsedSinceImpact * 5 + i * 1.35;
     mesh.position.set(
-      Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
-      0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
-      Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+      Math.cos(angle) * EXPLOSION_TILE_RADIUS * (0.26 + elapsedSinceImpact * 0.95),
+      EXPLOSION_TILE_RADIUS * (0.16 + elapsedSinceImpact * 1.25 + i * 0.1),
+      Math.sin(angle) * EXPLOSION_TILE_RADIUS * (0.24 + elapsedSinceImpact * 0.85)
     );
     mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
     mesh.material.opacity = fireLife * (0.95 - i * 0.12);
@@ -2750,9 +2755,9 @@ function updateStrikeExplosionRig(rig, elapsedSinceImpact) {
   rig.smoke.forEach((mesh, i) => {
     const angle = i * 1.1 + elapsedSinceImpact * 1.8;
     mesh.position.set(
-      Math.cos(angle) * (0.14 + i * 0.08),
-      0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
-      Math.sin(angle) * (0.14 + i * 0.08)
+      Math.cos(angle) * EXPLOSION_TILE_RADIUS * (0.35 + i * 0.16),
+      EXPLOSION_TILE_RADIUS * (0.3 + elapsedSinceImpact * (1.15 + i * 0.18)),
+      Math.sin(angle) * EXPLOSION_TILE_RADIUS * (0.35 + i * 0.16)
     );
     mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
     mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
@@ -5790,12 +5795,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
 
-    const kingToken = state.tokens[player].find((token) => token?.userData?.tokenType === 'k');
-    const kingSize = getObjectBoundsSize(kingToken ?? attacker) ?? new THREE.Vector3(0.58, 1.02, 0.58);
-    const kingWidth = Math.max(kingSize.x, kingSize.z, 0.24);
-    const missileHeight = Math.max(kingSize.y, 0.85);
-    const missileRadius = Math.max((kingWidth * 0.5) / 2, 0.04);
-    const missileLength = Math.max(missileHeight, 0.72);
+    const queenToken = state.tokens[player].find((token) => token?.userData?.tokenType === 'q');
+    const attackerSize = getObjectBoundsSize(attacker) ?? new THREE.Vector3(0.13, 0.2, 0.13);
+    const queenSize = getObjectBoundsSize(queenToken ?? attacker) ?? attackerSize.clone();
+    const attackerWidth = Math.max(attackerSize.x, attackerSize.z, 0.08);
+    const queenWidth = Math.max(queenSize.x, queenSize.z, attackerWidth);
+    const widthLimitByQueen = queenWidth * MISSILE_TO_QUEEN_SIZE_RATIO;
+    const missileRadius = Math.max(
+      Math.min(attackerWidth * MISSILE_TO_ATTACKER_SIZE_RATIO * 0.5, widthLimitByQueen * 0.5),
+      MISSILE_MIN_RADIUS
+    );
+    const attackerHeight = Math.max(attackerSize.y, 0.1);
+    const queenHeight = Math.max(queenSize.y, attackerHeight);
+    const lengthLimitByQueen = queenHeight * MISSILE_TO_QUEEN_SIZE_RATIO;
+    const missileLength = Math.max(
+      Math.min(attackerHeight * MISSILE_TO_ATTACKER_SIZE_RATIO, lengthLimitByQueen),
+      MISSILE_MIN_LENGTH
+    );
+    const missileHeight = Math.max(attackerHeight, queenHeight * 0.8);
     strike.missile.root.scale.set(
       missileLength / 1.02,
       missileRadius / 0.07,
@@ -5803,11 +5820,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     );
 
     const launch = attacker.getWorldPosition(new THREE.Vector3());
-    launch.y += missileHeight * 0.35;
+    launch.y += attackerHeight * 0.52;
     const target = getWorldForProgress(player, targetProgress, tokenIndex);
-    target.y += TOKEN_STEP_JUMP_HEIGHT * 0.7;
-    const control1 = launch.clone().add(new THREE.Vector3(0, missileHeight * 0.7, 0));
-    const control2 = target.clone().add(new THREE.Vector3(0, missileHeight * 0.95, 0));
+    target.y += attackerHeight * 0.25;
+    const horizontal = target.clone().sub(launch);
+    horizontal.y = 0;
+    const horizontalDistance = Math.max(horizontal.length(), LUDO_TILE * 1.2);
+    if (horizontal.lengthSq() > 1e-6) {
+      horizontal.normalize();
+    } else {
+      horizontal.set(1, 0, 0);
+    }
+    const archLift = Math.max(attackerHeight * 1.2, LUDO_TILE * 1.6);
+    const control1 = launch
+      .clone()
+      .add(horizontal.clone().multiplyScalar(horizontalDistance * 0.36))
+      .add(new THREE.Vector3(0, archLift * 0.55, 0));
+    const control2 = target
+      .clone()
+      .add(horizontal.clone().multiplyScalar(-horizontalDistance * 0.22))
+      .add(new THREE.Vector3(0, archLift, 0));
     strike.explosion.root.position.copy(target);
     updateStrikeExplosionRig(strike.explosion, -1);
 
