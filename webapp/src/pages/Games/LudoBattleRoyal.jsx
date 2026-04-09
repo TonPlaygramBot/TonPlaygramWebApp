@@ -2583,8 +2583,181 @@ function ease(t) {
 }
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const FORWARD_AXIS = new THREE.Vector3(1, 0, 0);
+const WORLD_UP_AXIS = new THREE.Vector3(0, 1, 0);
+const MISSILE_FLIGHT_SECONDS = 0.72;
+const EXPLOSION_HOLD_SECONDS = 0.68;
 
 const TOKEN_SELECTION_SCALE = 1.08;
+
+function cubicBezier(a, b, c, d, t) {
+  const ab = new THREE.Vector3().copy(a).lerp(b, t);
+  const bc = new THREE.Vector3().copy(b).lerp(c, t);
+  const cd = new THREE.Vector3().copy(c).lerp(d, t);
+  const abbc = ab.lerp(bc, t);
+  const bccd = bc.lerp(cd, t);
+  return abbc.lerp(bccd, t);
+}
+
+function getObjectBoundsSize(object3d) {
+  if (!object3d?.isObject3D) return null;
+  const box = new THREE.Box3().setFromObject(object3d);
+  if (box.isEmpty()) return null;
+  return box.getSize(new THREE.Vector3());
+}
+
+function createStrikeMissile({ bodyColor = '#bfc5ca', bodyLength = 1.02, bodyRadius = 0.07 } = {}) {
+  const root = new THREE.Group();
+  const radialSegments = 16;
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(bodyRadius, bodyRadius * 1.15, bodyLength, radialSegments),
+    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.42, metalness: 0.12 })
+  );
+  body.rotation.z = Math.PI / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  root.add(body);
+
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(bodyRadius * 1.15, bodyLength * 0.24, radialSegments),
+    new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+  );
+  nose.position.set(bodyLength * 0.62, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
+  root.add(nose);
+
+  const finMat = new THREE.MeshStandardMaterial({ color: '#7d858b', roughness: 0.58, metalness: 0.12 });
+  const finA = new THREE.Mesh(
+    new THREE.BoxGeometry(bodyLength * 0.14, bodyRadius * 0.28, bodyRadius * 4),
+    finMat
+  );
+  finA.position.set(-bodyLength * 0.15, 0, 0);
+  finA.castShadow = true;
+  finA.receiveShadow = true;
+  root.add(finA);
+  const finB = new THREE.Mesh(
+    new THREE.BoxGeometry(bodyLength * 0.14, bodyRadius * 4, bodyRadius * 0.28),
+    finMat
+  );
+  finB.position.set(-bodyLength * 0.15, 0, 0);
+  finB.castShadow = true;
+  finB.receiveShadow = true;
+  root.add(finB);
+
+  const trail = [];
+  for (let i = 0; i < 5; i += 1) {
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(bodyRadius * (1.35 + i * 0.35), 14, 14),
+      new THREE.MeshStandardMaterial({
+        color: i < 2 ? '#f6af4b' : '#8f989d',
+        roughness: i < 2 ? 0.2 : 1,
+        metalness: 0,
+        transparent: true,
+        opacity: i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+      })
+    );
+    puff.position.set(-bodyLength * (0.7 + i * 0.16), 0, 0);
+    puff.castShadow = true;
+    puff.receiveShadow = true;
+    root.add(puff);
+    trail.push(puff);
+  }
+  root.visible = false;
+  return { root, trail };
+}
+
+function createStrikeExplosion() {
+  const root = new THREE.Group();
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: '#ffe59a',
+      roughness: 0.08,
+      metalness: 0,
+      transparent: true,
+      opacity: 1
+    })
+  );
+  flash.position.set(0, 0.25, 0);
+  flash.castShadow = true;
+  flash.receiveShadow = true;
+  root.add(flash);
+
+  const fire = [];
+  const smoke = [];
+  for (let i = 0; i < 4; i += 1) {
+    const fireMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 + i * 0.05, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
+        roughness: 0.2,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.95 - i * 0.15
+      })
+    );
+    fireMesh.position.set(0, 0.22 + i * 0.06, 0);
+    fireMesh.castShadow = true;
+    fireMesh.receiveShadow = true;
+    root.add(fireMesh);
+    fire.push(fireMesh);
+  }
+  for (let i = 0; i < 6; i += 1) {
+    const smokeMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 + i * 0.035, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: '#646b72',
+        roughness: 1,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.42 - i * 0.04
+      })
+    );
+    smokeMesh.position.set(0, 0.18 + i * 0.08, 0);
+    smokeMesh.castShadow = true;
+    smokeMesh.receiveShadow = true;
+    root.add(smokeMesh);
+    smoke.push(smokeMesh);
+  }
+  root.visible = false;
+  return { root, flash, fire, smoke };
+}
+
+function updateStrikeExplosionRig(rig, elapsedSinceImpact) {
+  if (!rig) return;
+  if (elapsedSinceImpact < 0 || elapsedSinceImpact > 2.6) {
+    rig.root.visible = false;
+    return;
+  }
+  rig.root.visible = true;
+  const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
+  const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
+  const fireGrow = 1 + elapsedSinceImpact * 4.5;
+  const smokeGrow = 1 + elapsedSinceImpact * 2.3;
+  rig.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+  rig.flash.material.opacity = fireLife;
+  rig.fire.forEach((mesh, i) => {
+    const angle = elapsedSinceImpact * 5 + i * 1.35;
+    mesh.position.set(
+      Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
+      0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
+      Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+    );
+    mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
+    mesh.material.opacity = fireLife * (0.95 - i * 0.12);
+  });
+  rig.smoke.forEach((mesh, i) => {
+    const angle = i * 1.1 + elapsedSinceImpact * 1.8;
+    mesh.position.set(
+      Math.cos(angle) * (0.14 + i * 0.08),
+      0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
+      Math.sin(angle) * (0.14 + i * 0.08)
+    );
+    mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
+    mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+  });
+}
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -2679,6 +2852,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
+  const strikeEffectRef = useRef({ missile: null, explosion: null });
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
@@ -4588,8 +4762,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         Math.sin(cameraSeatAngle) * cameraRadius
       );
 
-      const arenaGroup = new THREE.Group();
-      scene.add(arenaGroup);
+    const arenaGroup = new THREE.Group();
+    scene.add(arenaGroup);
+    const strikeMissile = createStrikeMissile();
+    const strikeExplosion = createStrikeExplosion();
+    scene.add(strikeMissile.root);
+    scene.add(strikeExplosion.root);
+    strikeEffectRef.current = { missile: strikeMissile, explosion: strikeExplosion };
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
@@ -4964,67 +5143,114 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (state?.animation?.active) {
         const anim = state.animation;
-        const seg = anim.segments?.[anim.segment];
-        if (anim.highlightIndex !== anim.segment) {
-          updateAnimationHighlight(anim, anim.segment);
-          if (anim.segment > 0) {
-            playTokenStepSound();
-          }
-        }
-        if (!seg) {
-          const done = anim.onComplete;
-          if (anim.token) {
-            setCameraFocus({
-              target: anim.token.position.clone(),
-              follow: false,
-              ttl: 1.4,
-              priority: 2,
-              offset: CAMERA_TARGET_LIFT + 0.02,
-              force: true
-            });
-          }
-          clearAnimationHighlights(anim);
-          state.animation = null;
-          if (typeof done === 'function') done();
-          updateTokenStacks();
-        } else {
+        if (anim.type === 'captureStrike') {
           anim.elapsed += delta;
-          const duration = Math.max(seg.duration, 1e-4);
-          const t = Math.min(1, anim.elapsed / duration);
-          const jumpT =
-            t <= TOKEN_STEP_JUMP_PHASE
-              ? 0
-              : (t - TOKEN_STEP_JUMP_PHASE) / Math.max(1e-4, 1 - TOKEN_STEP_JUMP_PHASE);
-          animTemp.copy(seg.from).lerp(seg.to, jumpT);
-          const jumpLift = Math.sin(jumpT * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
-          animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, jumpT) + jumpLift;
-          anim.token.position.copy(animTemp);
-          animDir.copy(seg.to).sub(seg.from);
-          animDir.y = 0;
-          if (animDir.lengthSq() > 1e-6) {
-            animDir.normalize();
-            animLook.copy(anim.token.position).add(animDir);
-            anim.token.lookAt(animLook);
-          }
-          if (t >= 0.999) {
-            anim.segment += 1;
-            anim.elapsed = 0;
-            if (anim.segment >= anim.segments.length) {
-              const done = anim.onComplete;
-              if (anim.token) {
-                setCameraFocus({
-                  target: anim.token.position.clone(),
-                  follow: false,
-                  ttl: 1.5,
-                  priority: 2,
-                  offset: CAMERA_TARGET_LIFT + 0.02,
-                  force: true
-                });
+          const strike = anim.strike;
+          if (!strike?.missile || !strike?.explosion) {
+            state.animation = null;
+            if (typeof anim.onComplete === 'function') anim.onComplete();
+          } else {
+            const missile = strike.missile;
+            const explosion = strike.explosion;
+            if (anim.elapsed <= MISSILE_FLIGHT_SECONDS) {
+              const u = clamp(anim.elapsed / MISSILE_FLIGHT_SECONDS, 0, 1);
+              const eased = ease(u);
+              const nextU = clamp(eased + 0.02, 0, 1);
+              const pos = cubicBezier(anim.launch, anim.control1, anim.control2, anim.target, eased);
+              const next = cubicBezier(anim.launch, anim.control1, anim.control2, anim.target, nextU);
+              const dir = next.clone().sub(pos).normalize();
+              missile.root.visible = true;
+              missile.root.position.copy(pos);
+              missile.root.quaternion.setFromUnitVectors(FORWARD_AXIS, dir.lengthSq() > 1e-6 ? dir : WORLD_UP_AXIS);
+              missile.trail.forEach((puff, i) => {
+                puff.position.set(-0.55 - i * 0.16, Math.sin(anim.elapsed * 12 + i) * 0.02, 0);
+                const s = 0.85 + i * 0.16 + ((anim.elapsed * 2 + i * 0.2) % 1) * 0.6;
+                puff.scale.setScalar(s);
+              });
+              updateStrikeExplosionRig(explosion, -1);
+            } else {
+              missile.root.visible = false;
+              if (!anim.soundPlayed) {
+                anim.soundPlayed = true;
+                applyCaptureVictims(anim.victims);
               }
-              clearAnimationHighlights(anim);
-              state.animation = null;
-              if (typeof done === 'function') done();
-              updateTokenStacks();
+              if (anim.explosionElapsed < 0) {
+                anim.explosionElapsed = 0;
+              } else {
+                anim.explosionElapsed += delta;
+              }
+              updateStrikeExplosionRig(explosion, anim.explosionElapsed);
+              if (anim.explosionElapsed >= EXPLOSION_HOLD_SECONDS) {
+                updateStrikeExplosionRig(explosion, -1);
+                state.animation = null;
+                if (typeof anim.onComplete === 'function') anim.onComplete();
+              }
+            }
+          }
+          // keep rendering frame updates while strike/explosion animation is active
+        } else {
+          const seg = anim.segments?.[anim.segment];
+          if (anim.highlightIndex !== anim.segment) {
+            updateAnimationHighlight(anim, anim.segment);
+            if (anim.segment > 0) {
+              playTokenStepSound();
+            }
+          }
+          if (!seg) {
+            const done = anim.onComplete;
+            if (anim.token) {
+              setCameraFocus({
+                target: anim.token.position.clone(),
+                follow: false,
+                ttl: 1.4,
+                priority: 2,
+                offset: CAMERA_TARGET_LIFT + 0.02,
+                force: true
+              });
+            }
+            clearAnimationHighlights(anim);
+            state.animation = null;
+            if (typeof done === 'function') done();
+            updateTokenStacks();
+          } else {
+            anim.elapsed += delta;
+            const duration = Math.max(seg.duration, 1e-4);
+            const t = Math.min(1, anim.elapsed / duration);
+            const jumpT =
+              t <= TOKEN_STEP_JUMP_PHASE
+                ? 0
+                : (t - TOKEN_STEP_JUMP_PHASE) / Math.max(1e-4, 1 - TOKEN_STEP_JUMP_PHASE);
+            animTemp.copy(seg.from).lerp(seg.to, jumpT);
+            const jumpLift = Math.sin(jumpT * Math.PI) * TOKEN_STEP_JUMP_HEIGHT;
+            animTemp.y = THREE.MathUtils.lerp(seg.from.y, seg.to.y, jumpT) + jumpLift;
+            anim.token.position.copy(animTemp);
+            animDir.copy(seg.to).sub(seg.from);
+            animDir.y = 0;
+            if (animDir.lengthSq() > 1e-6) {
+              animDir.normalize();
+              animLook.copy(anim.token.position).add(animDir);
+              anim.token.lookAt(animLook);
+            }
+            if (t >= 0.999) {
+              anim.segment += 1;
+              anim.elapsed = 0;
+              if (anim.segment >= anim.segments.length) {
+                const done = anim.onComplete;
+                if (anim.token) {
+                  setCameraFocus({
+                    target: anim.token.position.clone(),
+                    follow: false,
+                    ttl: 1.5,
+                    priority: 2,
+                    offset: CAMERA_TARGET_LIFT + 0.02,
+                    force: true
+                  });
+                }
+                clearAnimationHighlights(anim);
+                state.animation = null;
+                if (typeof done === 'function') done();
+                updateTokenStacks();
+              }
             }
           }
         }
@@ -5158,6 +5384,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       textureLoaderRef.current = null;
       maxAnisotropyRef.current = 1;
       fallbackTextureRef.current = null;
+      strikeEffectRef.current = { missile: null, explosion: null };
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -5554,6 +5781,55 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     playTokenStepSound();
   };
 
+  const scheduleCaptureStrike = (player, tokenIndex, targetProgress, victims, onComplete) => {
+    const state = stateRef.current;
+    const strike = strikeEffectRef.current;
+    const attacker = state?.tokens?.[player]?.[tokenIndex];
+    if (!state || !attacker || !strike?.missile || !strike?.explosion || !victims?.length) {
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
+
+    const kingToken = state.tokens[player].find((token) => token?.userData?.tokenType === 'k');
+    const kingSize = getObjectBoundsSize(kingToken ?? attacker) ?? new THREE.Vector3(0.58, 1.02, 0.58);
+    const kingWidth = Math.max(kingSize.x, kingSize.z, 0.24);
+    const missileHeight = Math.max(kingSize.y, 0.85);
+    const missileRadius = Math.max((kingWidth * 0.5) / 2, 0.04);
+    const missileLength = Math.max(missileHeight, 0.72);
+    strike.missile.root.scale.set(
+      missileLength / 1.02,
+      missileRadius / 0.07,
+      missileRadius / 0.07
+    );
+
+    const launch = attacker.getWorldPosition(new THREE.Vector3());
+    launch.y += missileHeight * 0.35;
+    const target = getWorldForProgress(player, targetProgress, tokenIndex);
+    target.y += TOKEN_STEP_JUMP_HEIGHT * 0.7;
+    const control1 = launch.clone().add(new THREE.Vector3(0, missileHeight * 0.7, 0));
+    const control2 = target.clone().add(new THREE.Vector3(0, missileHeight * 0.95, 0));
+    strike.explosion.root.position.copy(target);
+    updateStrikeExplosionRig(strike.explosion, -1);
+
+    state.animation = {
+      active: true,
+      type: 'captureStrike',
+      token: attacker,
+      player,
+      tokenIndex,
+      elapsed: 0,
+      launch,
+      target,
+      control1,
+      control2,
+      victims,
+      strike,
+      soundPlayed: false,
+      explosionElapsed: -1,
+      onComplete
+    };
+  };
+
   const getTrackIndexForProgress = (player, progress) => {
     if (progress < 0 || progress >= RING_STEPS) return null;
     return (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
@@ -5790,31 +6066,52 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   };
 
-  const handleCaptures = (player, tokenIndex) => {
+  const getCaptureVictims = (player, targetProgress) => {
     const state = stateRef.current;
-    if (!state) return { count: 0, opponents: [] };
-    const prog = state.progress[player][tokenIndex];
-    if (prog < 0 || prog >= RING_STEPS) return { count: 0, opponents: [] };
-    const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
-    if (SAFE_TRACK_INDEXES.has(landingIdx)) return { count: 0, opponents: [] };
-    const opponents = [];
+    if (!state) return [];
+    if (targetProgress < 0 || targetProgress >= RING_STEPS) return [];
+    const landingIdx = (PLAYER_START_INDEX[player] + targetProgress) % RING_STEPS;
+    if (SAFE_TRACK_INDEXES.has(landingIdx)) return [];
+    const victims = [];
     for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
         if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS) continue;
         const idx = (PLAYER_START_INDEX[p] + state.progress[p][t]) % RING_STEPS;
         if (idx === landingIdx) {
-          state.progress[p][t] = -1;
-          const token = state.tokens[p][t];
-          const pos = state.startPads[p][t].clone();
-          pos.y = getTokenRailHeight(p);
-          token.position.copy(pos);
-          token.rotation.set(0, 0, 0);
-          playCapture();
-          opponents.push(resolvePlayerLabel(p));
+          victims.push({
+            player: p,
+            tokenIndex: t,
+            token: state.tokens[p][t],
+            label: resolvePlayerLabel(p)
+          });
         }
       }
     }
+    return victims;
+  };
+
+  const applyCaptureVictims = (victims) => {
+    const state = stateRef.current;
+    if (!state || !Array.isArray(victims) || victims.length === 0) {
+      return { count: 0, opponents: [] };
+    }
+    const opponents = [];
+    victims.forEach((victim) => {
+      const p = victim.player;
+      const t = victim.tokenIndex;
+      if (!Number.isInteger(p) || !Number.isInteger(t)) return;
+      state.progress[p][t] = -1;
+      const token = victim.token ?? state.tokens?.[p]?.[t];
+      const pos = state.startPads[p][t].clone();
+      pos.y = getTokenRailHeight(p);
+      if (token?.isObject3D) {
+        token.position.copy(pos);
+        token.rotation.set(0, 0, 0);
+      }
+      opponents.push(victim.label ?? resolvePlayerLabel(p));
+    });
+    playCapture();
     return { count: opponents.length, opponents };
   };
 
@@ -5868,12 +6165,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
-    const applyResult = () => {
-      state.progress[player][tokenIndex] = target;
-      const finalPos = getWorldForProgress(player, target, tokenIndex);
-      state.tokens[player][tokenIndex].position.copy(finalPos);
-      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
-      const captures = handleCaptures(player, tokenIndex);
+    const landingVictims = getCaptureVictims(player, target);
+    const applyResult = (captures) => {
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
       const tokensHome = resolveTokensHomeCount(state, player);
@@ -5918,10 +6211,37 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
+    const finalizeMove = () => {
+      state.progress[player][tokenIndex] = target;
+      const finalPos = getWorldForProgress(player, target, tokenIndex);
+      state.tokens[player][tokenIndex].position.copy(finalPos);
+      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
+      const captures = applyCaptureVictims(landingVictims);
+      applyResult(captures);
+    };
+
     if (entering || target !== current) {
-      scheduleMove(player, tokenIndex, target, applyResult);
+      if (landingVictims.length > 0 && target > current) {
+        const preTarget = Math.max(current, target - 1);
+        const runStrike = () => {
+          scheduleCaptureStrike(player, tokenIndex, target, landingVictims, () => {
+            if (preTarget < target) {
+              scheduleMove(player, tokenIndex, target, finalizeMove);
+            } else {
+              finalizeMove();
+            }
+          });
+        };
+        if (preTarget > current) {
+          scheduleMove(player, tokenIndex, preTarget, runStrike);
+        } else {
+          runStrike();
+        }
+      } else {
+        scheduleMove(player, tokenIndex, target, finalizeMove);
+      }
     } else {
-      applyResult();
+      finalizeMove();
     }
   };
 
