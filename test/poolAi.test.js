@@ -562,3 +562,34 @@ test('maps legalTargetSuggestion position to nearest live ball for consistent ta
 
   assert.equal(decision.targetBallId, 10)
 })
+
+test('keeps shot planning deterministic when rngSeed is omitted', () => {
+  const req = {
+    game: 'AMERICAN_BILLIARDS',
+    state: {
+      balls: [
+        { id: 0, x: 120, y: 240, vx: 0, vy: 0, pocketed: false },
+        { id: 2, x: 360, y: 200, vx: 0, vy: 0, pocketed: false },
+        { id: 9, x: 680, y: 260, vx: 0, vy: 0, pocketed: false }
+      ],
+      pockets: [
+        { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 1000, y: 0 },
+        { x: 0, y: 500 }, { x: 500, y: 500 }, { x: 1000, y: 500 }
+      ],
+      width: 1000,
+      height: 500,
+      ballRadius: 10,
+      friction: 0.01,
+      legalBallIds: [2]
+    },
+    timeBudgetMs: 100
+  }
+
+  const first = planShot(req)
+  const second = planShot(req)
+
+  assert.equal(second.targetBallId, first.targetBallId)
+  assert.equal(second.angleRad, first.angleRad)
+  assert.equal(second.power, first.power)
+  assert.deepEqual(second.spin, first.spin)
+})
