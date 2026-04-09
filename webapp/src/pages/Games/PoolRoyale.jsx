@@ -27906,6 +27906,27 @@ const powerRef = useRef(hud.power);
             return evaluateShotOptionsBaseline();
           }
         };
+        const selectConsistentAiPlan = (options) => {
+          const bestPot = options?.bestPot ?? null;
+          const bestSafety = options?.bestSafety ?? null;
+          if (bestPot) {
+            const hasLegalFirstContact = isFirstContactLegal(bestPot);
+            const laneClearance = measureLaneClearance(bestPot);
+            const potChance = Number.isFinite(bestPot.potChance)
+              ? bestPot.potChance
+              : bestPot.quality ?? 0;
+            const isAttackablePot =
+              hasLegalFirstContact &&
+              !detectScratchRisk(bestPot) &&
+              !isAimLaneBlocked(bestPot) &&
+              laneClearance >= 0.58 &&
+              potChance >= 0.22;
+            if (isAttackablePot) {
+              return bestPot;
+            }
+          }
+          return bestPot ?? bestSafety ?? null;
+        };
         const normalizeAiPlanAim = (plan) => {
           if (!plan || !cue?.active) return plan;
           const cueBall = cue;
@@ -28081,7 +28102,7 @@ const powerRef = useRef(hud.power);
               return;
             }
             const options = evaluateShotOptions();
-            const plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
+            const plan = normalizeAiPlanAim(selectConsistentAiPlan(options));
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -28657,7 +28678,7 @@ const powerRef = useRef(hud.power);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
+            let plan = normalizeAiPlanAim(selectConsistentAiPlan(options));
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
