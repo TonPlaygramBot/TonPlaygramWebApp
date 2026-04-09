@@ -1408,6 +1408,9 @@ export default function SnakeAndLadder() {
   const [slideAnimation, setSlideAnimation] = useState(null);
   const diceRollIdRef = useRef(0);
   const [diceBoardEvent, setDiceBoardEvent] = useState(null);
+  const captureFxStateRef = useRef(null);
+  const captureFxIdRef = useRef(0);
+  const [captureEvent, setCaptureEvent] = useState(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [diceAnchor, setDiceAnchor] = useState(null);
 
@@ -1451,6 +1454,42 @@ export default function SnakeAndLadder() {
 
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
+  }, []);
+
+  const startCaptureAnimation = useCallback(
+    ({ attackerIndex, fromCell, targetCell, victimIndices = [], onComplete }) => {
+      if (!victimIndices.length || targetCell <= 0) {
+        if (typeof onComplete === 'function') onComplete();
+        return false;
+      }
+      if (captureFxStateRef.current) {
+        if (typeof onComplete === 'function') onComplete();
+        return false;
+      }
+      captureFxIdRef.current += 1;
+      const payload = {
+        id: captureFxIdRef.current,
+        attackerIndex,
+        fromCell,
+        targetCell,
+        victimIndices,
+        onComplete
+      };
+      captureFxStateRef.current = payload;
+      setCaptureEvent(payload);
+      return true;
+    },
+    []
+  );
+
+  const handleCaptureAnimationComplete = useCallback((id) => {
+    setCaptureEvent((current) => {
+      if (!current || current.id !== id) return current;
+      const finalize = current.onComplete;
+      captureFxStateRef.current = null;
+      if (typeof finalize === 'function') finalize();
+      return null;
+    });
   }, []);
 
 
@@ -1686,7 +1725,8 @@ export default function SnakeAndLadder() {
     enqueueCommentaryLines(endLines, { priority: true });
   }, [enqueueCommentaryLines, gameOver]);
 
-  const capturePieces = (cell, mover) => {
+  const capturePieces = (cell, mover, options = {}) => {
+    const { attackerFrom = cell } = options;
     const victims = [];
     if (mover !== 0 && pos === cell) victims.push(0);
     aiPositions.forEach((p, i) => {
@@ -1694,31 +1734,39 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      if (!muted) {
-        bombSoundRef.current.currentTime = 0;
-        bombSoundRef.current.play().catch(() => {});
-      }
-      if (cell <= 4 && !muted) {
-        setTimeout(() => {
-          hahaSoundRef.current.currentTime = 0;
-          hahaSoundRef.current.play().catch(() => {});
+      setBurning((b) => [...new Set([...b, ...victims])]);
+      const settleCapture = () => {
+        if (!muted) {
+          bombSoundRef.current.currentTime = 0;
+          bombSoundRef.current.play().catch(() => {});
+        }
+        if (cell <= 4 && !muted) {
           setTimeout(() => {
-            hahaSoundRef.current.pause();
-          }, 6000);
-        }, 1000);
-      }
-      victims.forEach((idx) => {
-        setBurning((b) => [...b, idx]);
-        setTimeout(() => {
-          setBurning((b) => b.filter((v) => v !== idx));
+            hahaSoundRef.current.currentTime = 0;
+            hahaSoundRef.current.play().catch(() => {});
+            setTimeout(() => {
+              hahaSoundRef.current.pause();
+            }, 6000);
+          }, 300);
+        }
+        victims.forEach((idx) => {
           if (idx === 0) setPos(0);
           else setAiPositions((arr) => {
             const copy = [...arr];
             copy[idx - 1] = 0;
             return copy;
           });
-        }, 1000);
+        });
+        setBurning((b) => b.filter((v) => !victims.includes(v)));
+      };
+      const started = startCaptureAnimation({
+        attackerIndex: mover,
+        fromCell: attackerFrom,
+        targetCell: cell,
+        victimIndices: victims,
+        onComplete: settleCapture
       });
+      if (!started) settleCapture();
     }
     return victims;
   };
@@ -2643,7 +2691,7 @@ export default function SnakeAndLadder() {
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
-        const victims = capturePieces(finalPos, 0);
+        const victims = capturePieces(finalPos, 0, { attackerFrom: current });
         if (victims.length) {
           const victimLabel = getPlayerName(victims[0]);
           enqueueSnakeCommentaryEvent('capture', { player: playerLabel, victim: victimLabel });
@@ -2866,7 +2914,7 @@ export default function SnakeAndLadder() {
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type, color: playerColors[index] });
       setTrail([]);
-      const victims = capturePieces(finalPos, index);
+      const victims = capturePieces(finalPos, index, { attackerFrom: current });
       if (victims.length) {
         const victimLabel = getPlayerName(victims[0]);
         enqueueSnakeCommentaryEvent('capture', { player: playerLabel, victim: victimLabel });
@@ -3407,6 +3455,8 @@ export default function SnakeAndLadder() {
           slide={slideAnimation}
           onSlideComplete={handleSlideComplete}
           diceEvent={diceBoardEvent}
+          captureEvent={captureEvent}
+          onCaptureAnimationComplete={handleCaptureAnimationComplete}
           onSeatPositionsChange={setSeatAnchors}
           onDiceAnchorChange={setDiceAnchor}
           appearance={resolvedAppearance}
