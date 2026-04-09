@@ -146,3 +146,21 @@ test('avoids clustered targets', () => {
   const plan = selectShot(state, {});
   assert.equal(plan.actionType, 'safety');
 });
+
+test('waits for balls to stop before planning a shot', () => {
+  const state = {
+    balls: [
+      { id: 0, colour: 'cue', x: 100, y: 200, vx: 0.1, vy: 0 },
+      { id: 1, colour: 'blue', x: 220, y: 200 }
+    ],
+    pockets: makePockets(),
+    width: 1000,
+    height: 500,
+    ballRadius: 10,
+    ballOn: 'blue',
+    isOpenTable: false,
+    shotsRemaining: 1
+  };
+  const plan = selectShot(state, {});
+  assert.equal(plan, null);
+});
