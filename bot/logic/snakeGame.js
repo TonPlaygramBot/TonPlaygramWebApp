@@ -106,7 +106,7 @@ export class SnakeGame {
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
-    } else if (doubleSix) {
+    } else if (rolledSix) {
       extraTurn = true;
     }
 

@@ -30,7 +30,7 @@ test('applySnakesAndLadders resolves moves', () => {
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
 
-test('start requires 6 and rolling 6 does not grant extra turn', () => {
+test('start requires 6 and rolling 6 grants extra turn', () => {
   const io = new DummyIO();
   const room = new GameRoom('r', io, 2, {
     snakes: DEFAULT_SNAKES,
@@ -49,11 +49,14 @@ test('start requires 6 and rolling 6 does not grant extra turn', () => {
 
   room.rollDice(s2, [6, 2]);
   assert.equal(room.players[1].position, 1);
+  assert.equal(room.currentTurn, 1);
+
+  room.rollDice(s2, [1, 2]);
   assert.equal(room.currentTurn, 0);
 
   room.rollDice(s1, [6, 1]);
   assert.equal(room.players[0].position, 1);
-  assert.equal(room.currentTurn, 1);
+  assert.equal(room.currentTurn, 0);
 });
 
 test('rolling multiple sixes grants extra turns but preserves order', () => {
@@ -227,4 +230,3 @@ test('dice cells are shared across players', () => {
     room.turnTimer = null;
   }
 });
-
