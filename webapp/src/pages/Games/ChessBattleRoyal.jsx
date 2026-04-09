@@ -235,7 +235,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.1; // Keep pieces a touch larger for mobile readability.
+const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.25; // Make chess pieces 25% bigger than current.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.035;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -248,8 +248,6 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
-const BOMB_VOLUME_MULTIPLIER = 0.72;
-const LONG_RANGE_CAPTURE_MIN_DISTANCE = 3;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
@@ -5562,38 +5560,6 @@ function anyLegal(board, whiteTurn) {
   return generateMoves(board, whiteTurn, { limit: 1 }).length > 0;
 }
 
-function determineWinnerFromBoardState(board, sideToMoveIsWhite) {
-  const whiteKing = findKing(board, true);
-  const blackKing = findKing(board, false);
-  if (!whiteKing && blackKing) {
-    return { winner: 'Black', status: 'Checkmate — Black wins', checkmate: true, hasMove: false, inCheck: true };
-  }
-  if (!blackKing && whiteKing) {
-    return { winner: 'White', status: 'Checkmate — White wins', checkmate: true, hasMove: false, inCheck: true };
-  }
-  const king = findKing(board, sideToMoveIsWhite);
-  const inCheck = king ? isSquareAttacked(board, king[0], king[1], !sideToMoveIsWhite) : true;
-  const hasMove = anyLegal(board, sideToMoveIsWhite);
-  if (!hasMove && inCheck) {
-    const winner = sideToMoveIsWhite ? 'Black' : 'White';
-    return { winner, status: `Checkmate — ${winner} wins`, checkmate: true, hasMove, inCheck };
-  }
-  if (!hasMove) {
-    return { winner: null, status: 'Stalemate', checkmate: false, hasMove, inCheck };
-  }
-  if (inCheck) {
-    const checkedSide = sideToMoveIsWhite ? 'White' : 'Black';
-    return { winner: null, status: `${checkedSide} in check`, checkmate: false, hasMove, inCheck };
-  }
-  return {
-    winner: null,
-    status: sideToMoveIsWhite ? 'White to move' : 'Black to move',
-    checkmate: false,
-    hasMove,
-    inCheck
-  };
-}
-
 // --------- Advanced evaluation & AI for black ---------
 const PIECE_VALUE = { P: 100, N: 320, B: 330, R: 500, Q: 950, K: 0 };
 const MG_PIECE_VALUE = { P: 82, N: 337, B: 365, R: 477, Q: 1025, K: 0 };
@@ -6025,7 +5991,6 @@ function bestAIMove(board, aiPlaysWhite, depth = 4) {
 
 const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-const resolveBombVolume = (baseVolume) => clamp01(baseVolume, 0) * BOMB_VOLUME_MULTIPLIER;
 
 // ======================= Main Component =======================
 function Chess3D({
@@ -6947,7 +6912,7 @@ function Chess3D({
     settingsRef.current.soundEnabled = effectiveSoundEnabled;
     const volume = getGameVolume();
     if (bombSoundRef.current) {
-      bombSoundRef.current.volume = effectiveSoundEnabled ? resolveBombVolume(volume) : 0;
+      bombSoundRef.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
         try {
           bombSoundRef.current.pause();
@@ -7010,7 +6975,7 @@ function Chess3D({
     const handleVolumeChange = () => {
       const volume = getGameVolume();
       if (bombSoundRef.current) {
-        bombSoundRef.current.volume = settingsRef.current.soundEnabled ? resolveBombVolume(volume) : 0;
+        bombSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (timerSoundRef.current) {
         timerSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
@@ -7330,7 +7295,7 @@ function Chess3D({
     const disposers = [];
     const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
     bombSoundRef.current = new Audio(bombSound);
-    bombSoundRef.current.volume = resolveBombVolume(baseVolume);
+    bombSoundRef.current.volume = baseVolume;
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = baseVolume;
     moveSoundRef.current = new Audio(MOVE_SOUND_URL);
@@ -7954,68 +7919,6 @@ function Chess3D({
       el.style.top = `${y}px`;
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 1000);
-    };
-
-    const createSlashEffect = (fromPos, toPos) => {
-      const slash = new THREE.Mesh(
-        new THREE.BoxGeometry(tile * 0.1, tile * 0.05, tile * 0.8),
-        new THREE.MeshBasicMaterial({
-          color: 0xfff1a8,
-          transparent: true,
-          opacity: 0.95,
-          depthWrite: false
-        })
-      );
-      const mid = fromPos.clone().lerp(toPos, 0.6);
-      slash.position.copy(mid);
-      slash.position.y = Math.max(fromPos.y, toPos.y) + tile * 0.2;
-      const dir = toPos.clone().sub(fromPos);
-      slash.lookAt(mid.clone().add(dir));
-      boardGroup.add(slash);
-      setTimeout(() => {
-        try {
-          boardGroup.remove(slash);
-          slash.geometry?.dispose?.();
-          slash.material?.dispose?.();
-        } catch {}
-      }, 220);
-    };
-
-    const createMissileStrike = (fromPos, toPos, onImpact) => {
-      const missile = new THREE.Mesh(
-        new THREE.SphereGeometry(tile * 0.11, 14, 14),
-        new THREE.MeshBasicMaterial({
-          color: 0xff7f50,
-          transparent: true,
-          opacity: 0.95,
-          depthWrite: false
-        })
-      );
-      missile.position.copy(fromPos).add(new THREE.Vector3(0, tile * 0.42, 0));
-      boardGroup.add(missile);
-      const start = performance.now();
-      const duration = 300;
-      const startPos = missile.position.clone();
-      const targetPos = toPos.clone().add(new THREE.Vector3(0, tile * 0.28, 0));
-      const arcHeight = tile * 0.8;
-      const step = (now) => {
-        const t = clamp01((now - start) / duration, 1);
-        const curve = 4 * t * (1 - t);
-        missile.position.copy(startPos).lerp(targetPos, t);
-        missile.position.y += curve * arcHeight;
-        if (t < 1) {
-          requestAnimationFrame(step);
-          return;
-        }
-        onImpact?.();
-        try {
-          boardGroup.remove(missile);
-          missile.geometry?.dispose?.();
-          missile.material?.dispose?.();
-        } catch {}
-      };
-      requestAnimationFrame(step);
-      return duration;
     };
 
     // Board base + rim
@@ -8949,12 +8852,6 @@ function Chess3D({
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
       const toSquare = resolveChessSquare(rr, cc);
-      const fromPosition = piecePosition(sel.r, sel.c, currentPieceYOffset);
-      const toPosition = piecePosition(rr, cc, currentPieceYOffset);
-      const travelDistance = Math.max(Math.abs(rr - sel.r), Math.abs(cc - sel.c));
-      const isLongRangeCapture = Boolean(capturedPiece && travelDistance >= LONG_RANGE_CAPTURE_MIN_DISTANCE);
-      const isShortRangeBladeCapture = Boolean(capturedPiece && !isLongRangeCapture);
-      let captureVisualDelayMs = 0;
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
@@ -8973,27 +8870,16 @@ function Chess3D({
           ? half + BOARD.rim + 1 + row * captureRowSpacing
           : -half - BOARD.rim - 1 - row * captureRowSpacing;
         cancelPieceAnimation(targetMesh);
-        const sendCapturedPieceToGraveyard = () => {
-          targetMesh.position.y = captureY;
-          animatePieceTo(
-            targetMesh,
-            new THREE.Vector3(capX, captureY, capZ),
-            0.35
-          );
-          createExplosion(worldPos);
-          if (bombSoundRef.current && settingsRef.current.soundEnabled) {
-            bombSoundRef.current.currentTime = 0;
-            bombSoundRef.current.play().catch(() => {});
-          }
-        };
-        if (isLongRangeCapture) {
-          captureVisualDelayMs = Math.max(captureVisualDelayMs, createMissileStrike(fromPosition, toPosition, sendCapturedPieceToGraveyard) ?? 320);
-        } else if (isShortRangeBladeCapture) {
-          captureVisualDelayMs = Math.max(captureVisualDelayMs, 150);
-          createSlashEffect(fromPosition, toPosition);
-          setTimeout(sendCapturedPieceToGraveyard, 120);
-        } else {
-          sendCapturedPieceToGraveyard();
+        targetMesh.position.y = captureY;
+        animatePieceTo(
+          targetMesh,
+          new THREE.Vector3(capX, captureY, capZ),
+          0.35
+        );
+        createExplosion(worldPos);
+        if (bombSoundRef.current && settingsRef.current.soundEnabled) {
+          bombSoundRef.current.currentTime = 0;
+          bombSoundRef.current.play().catch(() => {});
         }
         pieceMeshes[rr][cc] = null;
       }
@@ -9035,12 +8921,7 @@ function Chess3D({
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      const movePieceToTarget = () => animatePieceTo(m, targetPosition, 0.32);
-      if (captureVisualDelayMs > 0) {
-        setTimeout(movePieceToTarget, captureVisualDelayMs);
-      } else {
-        movePieceToTarget();
-      }
+      animatePieceTo(m, targetPosition, 0.32);
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
@@ -9050,12 +8931,7 @@ function Chess3D({
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
         const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-        const moveRookForCastle = () => animatePieceTo(rookMesh, rookTarget, 0.32);
-        if (captureVisualDelayMs > 0) {
-          setTimeout(moveRookForCastle, captureVisualDelayMs);
-        } else {
-          moveRookForCastle();
-        }
+        animatePieceTo(rookMesh, rookTarget, 0.32);
       }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
@@ -9106,14 +8982,23 @@ function Chess3D({
 
       // turn switch & status
       const nextWhite = !uiRef.current.turnWhite;
-      const gameState = determineWinnerFromBoardState(board, nextWhite);
-      const { inCheck, hasMove } = gameState;
-      let status = gameState.status;
-      let winner = gameState.winner;
-      if (gameState.checkmate) {
-        playMateSound();
-        playLaughSound();
+      const king = findKing(board, nextWhite);
+      const inCheck =
+        king && isSquareAttacked(board, king[0], king[1], !nextWhite);
+      const hasMove = anyLegal(board, nextWhite);
+      let status = nextWhite ? 'White to move' : 'Black to move';
+      let winner = null;
+      if (!hasMove) {
+        if (inCheck) {
+          winner = nextWhite ? 'Black' : 'White';
+          status = `Checkmate — ${winner} wins`;
+          playMateSound();
+          playLaughSound();
+        } else {
+          status = 'Stalemate';
+        }
       } else if (inCheck) {
+        status = (nextWhite ? 'White' : 'Black') + ' in check';
         playCheckSound();
         playLaughSound();
       }
@@ -10213,21 +10098,9 @@ function Chess3D({
 }
 
 export default function ChessBattleRoyal() {
+  useTelegramBackButton();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { search, pathname } = location;
-  const [showExitPrompt, setShowExitPrompt] = useState(false);
-  const backNavigationGuardRef = useRef(false);
-  const goToLobby = useCallback(() => {
-    backNavigationGuardRef.current = true;
-    navigate('/games/chessbattleroyal/lobby', { replace: true });
-  }, [navigate]);
-
-  const handleBackAttempt = useCallback(() => {
-    setShowExitPrompt(true);
-  }, []);
-
-  useTelegramBackButton(handleBackAttempt);
+  const { search } = useLocation();
   const params = new URLSearchParams(search);
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
   let username =
@@ -10283,21 +10156,6 @@ export default function ChessBattleRoyal() {
     };
   }, [initialAccountId, initialTableId, mode, navigate]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handlePopState = () => {
-      if (backNavigationGuardRef.current) return;
-      if (window.location.pathname !== pathname) return;
-      window.history.pushState({ chessExitGuard: true }, '', window.location.href);
-      setShowExitPrompt(true);
-    };
-    window.history.pushState({ chessExitGuard: true }, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [pathname]);
-
   if (mode === 'online' && !initialTableId && redirecting) {
     return (
       <div className="p-4 text-center text-sm text-subtext">
@@ -10306,43 +10164,15 @@ export default function ChessBattleRoyal() {
     );
   }
   return (
-    <>
-      <Chess3D
-        avatar={avatar}
-        username={username}
-        initialFlag={initialFlag}
-        initialAiFlag={initialAiFlag}
-        accountId={accountId}
-        initialTableId={initialTableId}
-        initialSide={initialSide}
-        initialOpponent={initialOpponent}
-      />
-      {showExitPrompt ? (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur">
-            <h3 className="text-base font-semibold">Leave match?</h3>
-            <p className="mt-2 text-sm text-white/75">
-              Go back to the Chess Battle Royal lobby, or keep playing this match.
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setShowExitPrompt(false)}
-                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
-              >
-                Continue
-              </button>
-              <button
-                type="button"
-                onClick={goToLobby}
-                className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-              >
-                Back to Lobby
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+    <Chess3D
+      avatar={avatar}
+      username={username}
+      initialFlag={initialFlag}
+      initialAiFlag={initialAiFlag}
+      accountId={accountId}
+      initialTableId={initialTableId}
+      initialSide={initialSide}
+      initialOpponent={initialOpponent}
+    />
   );
 }
