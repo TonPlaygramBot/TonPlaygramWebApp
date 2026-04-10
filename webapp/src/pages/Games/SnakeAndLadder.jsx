@@ -182,9 +182,9 @@ const SNAKE_SFX = Object.freeze({
 const FINAL_TILE = BOARD_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
-const AI_ROLL_DELAY_MS = 3400;
-const AI_EXTRA_ROLL_DELAY_MS = 2600;
-const TURN_ADVANCE_AFTER_DICE_MS = 3000;
+const AI_ROLL_DELAY_MS = 1400;
+const AI_EXTRA_ROLL_DELAY_MS = 900;
+const TURN_ADVANCE_AFTER_DICE_MS = 2000;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -2993,6 +2993,7 @@ export default function SnakeAndLadder() {
         setTimeout(() => setRewardDice(0), 1000);
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       } else if (rolledSix) {
+        setTurnMessage(`${getPlayerName(index)} rolled 6! Bonus roll`);
         extraTurn = true;
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       }
