@@ -1,31 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 
-const PYRAMID_ROW_LENGTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15];
-const BOARD_SIZE = 100;
-
-function buildPyramidRows() {
+function buildRows(boardSize) {
   const rows = [];
-  let value = 1;
+  const columns = 10;
+  const totalRows = Math.ceil(boardSize / columns);
 
-  for (let row = PYRAMID_ROW_LENGTHS.length - 1; row >= 0; row -= 1) {
-    const rowSize = PYRAMID_ROW_LENGTHS[row];
+  for (let row = totalRows - 1; row >= 0; row -= 1) {
+    const start = row * columns + 1;
+    const end = Math.min(start + columns - 1, boardSize);
     const values = [];
 
-    for (let col = 0; col < rowSize; col += 1) {
-      if (value <= BOARD_SIZE) values.push(value);
-      value += 1;
+    for (let tile = start; tile <= end; tile += 1) {
+      values.push(tile);
     }
 
-    if (row % 2 === 1) values.reverse();
-    rows.unshift(values);
+    if ((totalRows - row) % 2 === 0) values.reverse();
+    rows.push(values);
   }
 
   return rows;
 }
 
-function getCellAccent(value) {
-  if (value === BOARD_SIZE) return '#17b26a';
+function getCellAccent(value, boardSize) {
+  if (value === boardSize) return '#17b26a';
   if (value <= 10) return '#3b82f6';
   if (value % 10 === 0) return '#f59e0b';
   return '#7c3aed';
@@ -39,7 +37,8 @@ export default function ReactClient({
   const [state, setState] = useState(null);
   const [socket] = useState(() => io(serverUrl));
 
-  const rows = useMemo(() => buildPyramidRows(), []);
+  const boardSize = state?.boardSize || 50;
+  const rows = useMemo(() => buildRows(boardSize), [boardSize]);
   const playersByTile = useMemo(() => {
     if (!state) return {};
 
@@ -122,7 +121,7 @@ export default function ReactClient({
               gap: 6,
               gridTemplateColumns: `repeat(${row.length}, minmax(18px, 1fr))`,
               marginBottom: 6,
-              width: `${(row.length / PYRAMID_ROW_LENGTHS[PYRAMID_ROW_LENGTHS.length - 1]) * 100}%`,
+              width: '100%',
               marginInline: 'auto'
             }}
           >
@@ -138,10 +137,10 @@ export default function ReactClient({
                     position: 'relative',
                     minHeight: 42,
                     borderRadius: 10,
-                    border: `1px solid ${getCellAccent(tile)}99`,
+                    border: `1px solid ${getCellAccent(tile, boardSize)}99`,
                     background:
                       'linear-gradient(180deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))',
-                    boxShadow: `inset 0 0 0 1px ${getCellAccent(tile)}33`
+                    boxShadow: `inset 0 0 0 1px ${getCellAccent(tile, boardSize)}33`
                   }}
                 >
                   <span
