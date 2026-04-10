@@ -566,8 +566,8 @@ export function createMurlanStyleTable({
   const baseLift = 0.02 * scaleFactor;
   const minBaseHeight = 0.2 * scaleFactor;
   const maxBaseHeight = Math.max(minBaseHeight, tableY + baseLift);
-  // Keep table-top height unchanged while extending the pedestal downward a bit more so the base reaches the ground cleanly.
-  baseHeight = maxBaseHeight * 1.24;
+  // Keep table-top height unchanged while extending the pedestal further downward so the base reaches the ground cleanly.
+  baseHeight = maxBaseHeight * 1.36;
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({
