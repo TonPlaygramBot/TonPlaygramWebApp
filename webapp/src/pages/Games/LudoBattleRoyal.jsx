@@ -514,9 +514,9 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.06 * MODEL_SCALE;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.14 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -626,7 +626,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.08;
+const TABLE_LEG_EXTENSION_FACTOR = 1.14;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -3779,7 +3779,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       updateTokenSurfaceOffset(arena.tableThemeId);
 
       if (boardGroup) {
-        boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
+        boardGroup.position.set(0, tableInfo.surfaceY + 0.0006, 0);
         applyBoardGroupScale(boardGroup, tableInfo);
         tableInfo.group.add(boardGroup);
       }
@@ -4560,7 +4560,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const arenaState = arenaRef.current;
       if (!arenaState?.tableInfo?.group) return;
       const nextBoardGroup = new THREE.Group();
-      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + 0.004, 0);
+      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + 0.0006, 0);
       applyBoardGroupScale(nextBoardGroup, arenaState.tableInfo);
       nextBoardGroup.rotation.y = BOARD_ROTATION_Y;
       arenaState.tableInfo.group.add(nextBoardGroup);
@@ -4860,7 +4860,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     updateTokenSurfaceOffset(tableInfo.themeId || tableTheme?.id || 'murlan-default');
 
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
+    boardGroup.position.set(0, tableInfo.surfaceY + 0.0006, 0);
     applyBoardGroupScale(boardGroup, tableInfo);
     boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
