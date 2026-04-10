@@ -1,6 +1,6 @@
 import GameResult from "./models/GameResult.js";
-export const FINAL_TILE = 101;
-export const DEFAULT_SNAKES = { 99: 80 };
+export const FINAL_TILE = 50;
+export const DEFAULT_SNAKES = { 49: 32 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
@@ -298,7 +298,12 @@ export class GameRoom {
       if (!result) return;
 
       const total = result.dice.reduce((a, b) => a + b, 0);
-      this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
+      this.io.to(this.id).emit('diceRolled', {
+        playerId: player.playerId,
+        value: total,
+        dice: result.dice,
+        extraTurn: !!result.extraTurn
+      });
       const from = prevPositions[playerIndex];
       const to = result.path.length ? result.path[result.path.length - 1] : from;
 

@@ -2209,10 +2209,14 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value }) => {
+    const onRolled = ({ value, playerId, extraTurn }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
+      if (playerId === myAccountId) {
+        setPendingExtraRoll(Boolean(extraTurn));
+        if (extraTurn) setRollCooldown(0);
+      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -4043,10 +4047,6 @@ export default function SnakeAndLadder() {
                   values: vals,
                   seatIndex: currentTurn
                 });
-                const rolledSix = Array.isArray(vals)
-                  ? vals.some((v) => Number(v) === 6)
-                  : Number(vals) === 6;
-                setPendingExtraRoll(rolledSix);
               }}
             />
           ) : null}
