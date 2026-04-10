@@ -121,7 +121,7 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 900;
+const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 320;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
@@ -178,16 +178,11 @@ const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
-const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 360;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 1200;
 const DICE_CAMERA_LOOK_OUT_DURATION = 420;
-const BOARD_AUTO_ROTATE_IN_DURATION = 520;
-const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
-const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
-
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
 const TILE_BOTTOM_COLOR = new THREE.Color(0x3d2514);
@@ -265,13 +260,13 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.32;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.06,
+  backOffset: 0.98,
   forwardOffset: 0,
-  heightOffset: 2.54,
+  heightOffset: 2.66,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -1612,62 +1607,6 @@ function shouldFollowTileChange(_fromIndex, toIndex) {
   return to >= CAMERA_FOLLOW_MIN_TILE;
 }
 
-function normalizeAngle(value) {
-  let angle = value;
-  while (angle <= -Math.PI) angle += Math.PI * 2;
-  while (angle > Math.PI) angle -= Math.PI * 2;
-  return angle;
-}
-
-function createBoardRotationAnimation(board, toRotationY, { onComplete } = {}) {
-  const rotationRoot = board?.rotationRoot;
-  if (!rotationRoot || !Number.isFinite(toRotationY)) return null;
-  const fromRotation = rotationRoot.rotation.y;
-  const targetRotation = fromRotation + normalizeAngle(toRotationY - fromRotation);
-  const start = performance.now();
-  const total = BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION + BOARD_AUTO_ROTATE_OUT_DURATION;
-
-  return {
-    type: 'boardAutoRotate',
-    update: (now) => {
-      const elapsed = now - start;
-      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION) {
-        const t = easeInOut(Math.min(Math.max(elapsed / BOARD_AUTO_ROTATE_IN_DURATION, 0), 1));
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(fromRotation, targetRotation, t);
-        return false;
-      }
-      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION) {
-        rotationRoot.rotation.y = targetRotation;
-        return false;
-      }
-      if (elapsed <= total) {
-        const t = BOARD_AUTO_ROTATE_OUT_DURATION > 0
-          ? easeInOut(Math.min(Math.max((elapsed - BOARD_AUTO_ROTATE_IN_DURATION - BOARD_AUTO_ROTATE_HOLD_DURATION) / BOARD_AUTO_ROTATE_OUT_DURATION, 0), 1))
-          : 1;
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(targetRotation, fromRotation, t);
-        return false;
-      }
-      rotationRoot.rotation.y = fromRotation;
-      if (typeof onComplete === 'function') onComplete();
-      return true;
-    }
-  };
-}
-
-function computeBoardFacingRotation(board, camera, tileIndex) {
-  if (!board || !camera || tileIndex == null) return null;
-  const tile = board.indexToPosition.get(tileIndex) || board.serpentineIndexToXZ(tileIndex);
-  const boardLookTarget = board.boardLookTarget;
-  if (!tile || !boardLookTarget) return null;
-  const localDir = tile.clone().setY(0);
-  if (localDir.lengthSq() < 1e-6) return null;
-  const cameraDir = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (cameraDir.lengthSq() < 1e-6) return null;
-  const tileAngle = Math.atan2(localDir.x, localDir.z);
-  const cameraAngle = Math.atan2(cameraDir.x, cameraDir.z);
-  return normalizeAngle(cameraAngle - tileAngle);
-}
-
 function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (!board || !camera) return null;
   if (LOCK_BOTTOM_SEAT_CAMERA) return null;
@@ -1747,22 +1686,9 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!boardLookTarget) return null;
   const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
   if (!toPos) return null;
-  const fromPos = (board.indexToPosition.get(fromIndex) || board.serpentineIndexToXZ(fromIndex))?.clone();
-  const pathDir = fromPos
-    ? toPos.clone().sub(fromPos).setY(0)
-    : toPos.clone().sub(boardLookTarget).setY(0);
-  if (pathDir.lengthSq() < 1e-6) {
-    pathDir.copy(toPos.clone().sub(boardLookTarget).setY(0));
-  }
-  if (pathDir.lengthSq() < 1e-6) return null;
-  pathDir.normalize();
-
-  const behindDirection = pathDir.clone().multiplyScalar(-1);
-  const followDistance = TILE_SIZE * CAMERA_FOLLOW_BACK_TILES;
-  const target = toPos.clone();
-  target.y += TILE_SIZE * 0.18;
-  const position = target.clone().addScaledVector(behindDirection, followDistance);
-  position.y = Math.max(camera.position.y, boardLookTarget.y + CAMERA_EXTRA_LIFT);
+  const target = boardLookTarget.clone().lerp(toPos, CAMERA_BROADCAST_TARGET_BLEND);
+  target.y = boardLookTarget.y;
+  const position = camera.position.clone();
   return { position, target };
 }
 
@@ -3854,42 +3780,61 @@ function quadraticBezier(a, b, c, t) {
 
 function createCaptureMissileRig() {
   const root = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
-  const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
-  const finMat = new THREE.MeshStandardMaterial({ color: '#7f868d', roughness: 0.58, metalness: 0.12 });
-  const smokeMat = new THREE.MeshStandardMaterial({
-    color: '#90989d',
-    roughness: 1,
-    metalness: 0,
-    transparent: true,
-    opacity: 0.2
-  });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#bfc5ca', roughness: 0.42, metalness: 0.12 });
+  const noseMat = new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 });
+  const finMatA = new THREE.MeshStandardMaterial({ color: '#7d858b', roughness: 0.58, metalness: 0.12 });
+  const finMatB = new THREE.MeshStandardMaterial({ color: '#727a80', roughness: 0.58, metalness: 0.12 });
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1, 16), bodyMat);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 1.02, 16), bodyMat);
   body.rotation.z = Math.PI / 2;
   body.castShadow = true;
+  body.receiveShadow = true;
   root.add(body);
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
-  nose.position.set(0.6, 0, 0);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 16), noseMat);
+  nose.position.set(0.63, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
+  nose.receiveShadow = true;
   root.add(nose);
 
-  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.24), finMat);
-  finA.position.set(-0.25, 0, 0);
+  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.28), finMatA);
+  finA.position.set(-0.15, 0, 0);
   finA.castShadow = true;
+  finA.receiveShadow = true;
   root.add(finA);
-  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.02), finMat);
-  finB.position.set(-0.25, 0, 0);
+  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.02), finMatA);
+  finB.position.set(-0.15, 0, 0);
   finB.castShadow = true;
+  finB.receiveShadow = true;
   root.add(finB);
+  const finC = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.18), finMatB);
+  finC.position.set(-0.36, 0, 0);
+  finC.castShadow = true;
+  finC.receiveShadow = true;
+  root.add(finC);
+  const finD = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 0.02), finMatB);
+  finD.position.set(-0.36, 0, 0);
+  finD.castShadow = true;
+  finD.receiveShadow = true;
+  root.add(finD);
 
   const trail = [];
-  for (let i = 0; i < 4; i += 1) {
-    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.08 + i * 0.02, 16, 16), smokeMat.clone());
-    puff.position.set(-0.55 - i * 0.14, 0, 0);
+  for (let i = 0; i < 5; i += 1) {
+    const isFire = i < 2;
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1 + i * 0.025, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: isFire ? '#f6af4b' : '#8f989d',
+        roughness: isFire ? 0.2 : 1,
+        metalness: 0,
+        transparent: true,
+        opacity: isFire ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+      })
+    );
+    puff.position.set(-0.7 - i * 0.16, 0, 0);
     puff.castShadow = true;
+    puff.receiveShadow = true;
     trail.push(puff);
     root.add(puff);
   }
@@ -4707,13 +4652,9 @@ export default function SnakeBoard3D({
     if (cameraViewMode !== '2d' && movement && shouldFollowTileChange(movement.from, movement.to)) {
       const camera = cameraRef.current;
       const controls = board.controls;
-      const facingRotation = computeBoardFacingRotation(board, camera, movement.to);
-      if (camera && controls && Number.isFinite(facingRotation)) {
+      if (camera && controls) {
         removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
         removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-        removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
-        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
         const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
         if (followState) {
           const followAnimation = createCameraTransitionAnimation(camera, controls, {
@@ -4795,14 +4736,8 @@ export default function SnakeBoard3D({
     const camera = cameraRef.current;
     const controls = board.controls;
     if (cameraViewMode !== '2d' && camera && controls && shouldFollowTileChange(slide.from, slide.to)) {
-      const facingRotation = computeBoardFacingRotation(board, camera, slide.to);
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
-      if (Number.isFinite(facingRotation)) {
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
-        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
-      }
       const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
       if (followState) {
         const followAnimation = createCameraTransitionAnimation(camera, controls, {
@@ -5035,7 +4970,10 @@ export default function SnakeBoard3D({
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
-    missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    const tokenWidth = Math.max(TOKEN_RADIUS * 2, bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z);
+    const missileLengthScale = (tokenHeight / 1.02) * 1.04;
+    const missileThicknessScale = ((tokenWidth * 0.46) / 0.16) * 0.36;
+    missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
     const startTime = performance.now();
     const flightDuration = CAPTURE_MISSILE_FLIGHT_MS;
