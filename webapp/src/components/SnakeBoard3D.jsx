@@ -259,14 +259,14 @@ const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = 0.18;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.29;
+const CAMERA_EXTRA_LIFT = 0.12;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.32;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.9,
+  backOffset: 0.98,
   forwardOffset: 0,
-  heightOffset: 2.74,
+  heightOffset: 2.66,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -275,7 +275,7 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 1.2,
   targetLift: 0.08 * MODEL_SCALE
 });
-const LOCK_BOTTOM_SEAT_CAMERA = false;
+const LOCK_BOTTOM_SEAT_CAMERA = true;
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -1628,14 +1628,13 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const target = boardLookTarget
     .clone()
     .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * CAMERA_BROADCAST_TARGET_BLEND);
-  target.y = boardLookTarget.y - TILE_SIZE * 0.05;
+  target.y = boardLookTarget.y;
 
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
-  if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA * 1.6;
-  if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA * 1.6;
-  if (seatIndex === 2) target.z -= CAMERA_SIDE_LOOK_EXTRA * 0.72;
+  if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA;
+  if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA;
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
     boardToCamera.normalize();
@@ -1663,15 +1662,6 @@ function computeDiceCameraFocusState(board, camera) {
 
   const target = diceCenter.clone();
   target.y += DICE_SIZE * 0.45;
-  if (Number.isInteger(board?.activeTurnSeatIndex) && Array.isArray(board.seatAnchors)) {
-    const activeAnchor = board.seatAnchors[board.activeTurnSeatIndex];
-    if (activeAnchor) {
-      const seatWorld = new THREE.Vector3();
-      activeAnchor.getWorldPosition(seatWorld);
-      target.lerp(seatWorld, 0.3);
-      target.y = diceCenter.y + DICE_SIZE * 0.45;
-    }
-  }
   const position = camera.position.clone();
   return { position, target };
 }
@@ -3372,10 +3362,12 @@ function updateTokens(
 
     let emissiveHex = 0x000000;
     let emissiveIntensity = 0.2;
-    const isFlameActive = burning.includes(index) || index === rollingIndex;
-    if (isFlameActive) {
+    if (burning.includes(index)) {
       emissiveHex = 0x7f1d1d;
       emissiveIntensity = 0.65;
+    } else if (index === rollingIndex) {
+      emissiveHex = 0x0ea5e9;
+      emissiveIntensity = 0.45;
     } else if (index === currentTurn) {
       emissiveHex = 0x1d4ed8;
       emissiveIntensity = 0.4;
@@ -4777,7 +4769,6 @@ export default function SnakeBoard3D({
   useEffect(() => {
     const board = boardRef.current;
     if (!board || !Number.isInteger(currentTurn) || currentTurn < 0) return;
-    board.activeTurnSeatIndex = currentTurn;
     if (diceStateRef.current?.currentId != null) return;
     const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
     if (seatCount <= 0) return;
