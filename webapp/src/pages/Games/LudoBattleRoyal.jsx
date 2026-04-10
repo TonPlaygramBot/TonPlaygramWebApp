@@ -490,8 +490,8 @@ let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
-// ~30% smaller in world space while preserving the exact relative layout.
-const LUDO_ARENA_SHRINK_FACTOR = 0.6;
+// another ~15% smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.51;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -513,13 +513,13 @@ const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
-const CHAIR_VERTICAL_DROP = 0.03 * MODEL_SCALE;
-const TABLE_VERTICAL_DROP = 0.23 * MODEL_SCALE;
+const CHAIR_VERTICAL_DROP = 0.06 * MODEL_SCALE;
+const TABLE_VERTICAL_DROP = 0.29 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_VERTICAL_DROP;
-const CHAIR_OUTWARD_OFFSET = 0.08 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -591,18 +591,20 @@ const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
+const CAMERA_ZOOM_MIN_FACTOR = 0.8;
+const CAMERA_ZOOM_MAX_FACTOR = 1.35;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.62 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.76 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  backOffset: 0.48 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.9 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.58 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.46 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.02 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.62 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  targetLift: 0.048 * MODEL_SCALE
+  backOffset: 0.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  targetLift: 0.044 * MODEL_SCALE
 });
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -1881,7 +1883,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3279,17 +3281,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = false;
+      controls.enableZoom = true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
       controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
-      const lockedRadius =
+      const baseRadius =
         saved?.position && saved?.target
           ? saved.position.distanceTo(saved.target)
           : camera.position.distanceTo(controls.target);
-      controls.minDistance = lockedRadius;
-      controls.maxDistance = lockedRadius;
+      controls.minDistance = baseRadius * CAMERA_ZOOM_MIN_FACTOR;
+      controls.maxDistance = baseRadius * CAMERA_ZOOM_MAX_FACTOR;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
@@ -4888,12 +4890,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = false;
+    controls.enableZoom = true;
     controls.enableRotate = true;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-    controls.minDistance = initialCameraRadius;
-    controls.maxDistance = initialCameraRadius;
+    controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
+    controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
