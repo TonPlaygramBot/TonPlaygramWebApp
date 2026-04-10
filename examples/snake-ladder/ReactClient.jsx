@@ -63,8 +63,6 @@ export default function ReactClient({
   if (!state) return <div style={{ color: '#fff' }}>Loading...</div>;
 
   const current = state.players[state.currentPlayer]?.id;
-  const isMyTurn = socket.id === current && !state.winner;
-  const rolledSix = state.diceRoll === 6 && socket.id === current;
 
   return (
     <div
@@ -93,14 +91,9 @@ export default function ReactClient({
         </h3>
         <p style={{ margin: '4px 0' }}>Current Player: {current}</p>
         <p style={{ margin: '4px 0 12px' }}>Last Dice Roll: {state.diceRoll}</p>
-        {rolledSix && (
-          <p style={{ margin: '4px 0 12px', color: '#86efac', fontWeight: 700 }}>
-            You rolled a 6 — tap the dice to roll again.
-          </p>
-        )}
         <button
           onClick={rollDice}
-          disabled={!isMyTurn}
+          disabled={socket.id !== current || state.winner}
           style={{
             border: 'none',
             borderRadius: 999,
@@ -108,35 +101,12 @@ export default function ReactClient({
             fontWeight: 700,
             background: 'linear-gradient(90deg, #22c55e, #14b8a6)',
             color: '#082f49',
-            cursor: !isMyTurn ? 'not-allowed' : 'pointer',
-            opacity: !isMyTurn ? 0.45 : 1
+            cursor:
+              socket.id !== current || state.winner ? 'not-allowed' : 'pointer',
+            opacity: socket.id !== current || state.winner ? 0.45 : 1
           }}
         >
           Roll Dice
-        </button>
-        <button
-          onClick={rollDice}
-          disabled={!isMyTurn}
-          aria-label="Roll Dice"
-          style={{
-            marginLeft: 10,
-            width: 42,
-            height: 42,
-            borderRadius: '50%',
-            border: '1px solid rgba(148,163,184,0.4)',
-            background: isMyTurn
-              ? 'linear-gradient(180deg, #f8fafc, #cbd5e1)'
-              : 'linear-gradient(180deg, #94a3b8, #64748b)',
-            color: '#0f172a',
-            fontSize: 22,
-            lineHeight: 1,
-            cursor: !isMyTurn ? 'not-allowed' : 'pointer',
-            opacity: !isMyTurn ? 0.5 : 1,
-            verticalAlign: 'middle'
-          }}
-          title="Tap dice to roll"
-        >
-          🎲
         </button>
         {state.winner && (
           <p style={{ margin: '12px 0 0' }}>Winner: {state.winner}</p>
