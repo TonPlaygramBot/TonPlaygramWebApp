@@ -7951,38 +7951,61 @@ function Chess3D({
     const activeCaptureFx = [];
     const captureDir = new THREE.Vector3();
 
-    const addFxBox = (group, size, position, color) => {
+    const addFxBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(size[0], size[1], size[2]),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.24 })
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
       );
       mesh.position.set(position[0], position[1], position[2]);
       mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       return mesh;
     };
-    const addFxCylinder = (group, rt, rb, h, position, rotation, color, radialSegments = 16) => {
+    const addFxCylinder = (
+      group,
+      rt,
+      rb,
+      h,
+      position,
+      rotation,
+      color,
+      radialSegments = 18,
+      roughness = 0.62,
+      metalness = 0.28
+    ) => {
       const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(rt, rb, h, radialSegments),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.56, metalness: 0.28 })
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
       );
       mesh.position.set(position[0], position[1], position[2]);
       mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
       mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       return mesh;
     };
-    const addFxSphere = (group, radius, position, color, opacity = 1) => {
+    const addFxSphere = (
+      group,
+      radius,
+      position,
+      color,
+      roughness = 0.45,
+      metalness = 0.25,
+      transparent = false,
+      opacity = 1
+    ) => {
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 12, 12),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.15, transparent: opacity < 1, opacity })
+        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
       );
       mesh.position.set(position[0], position[1], position[2]);
       mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       return mesh;
     };
-    const createFxPolygon = (points, depth, color) => {
+    const createFxPolygon = (points, depth, color, roughness = 0.65, metalness = 0.24) => {
       const shape = new THREE.Shape();
       shape.moveTo(points[0][0], points[0][1]);
       for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
@@ -7992,9 +8015,10 @@ function Chess3D({
       geometry.rotateX(Math.PI / 2);
       const mesh = new THREE.Mesh(
         geometry,
-        new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.18 })
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
       );
       mesh.castShadow = true;
+      mesh.receiveShadow = true;
       return mesh;
     };
     const createFxDrone = () => {
@@ -8010,13 +8034,13 @@ function Chess3D({
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
       // wing + spine
-      const wing = createFxPolygon([[-1.2, -1.65], [1.0, 0], [-1.2, 1.65]], 0.08, '#aeb4ae');
+      const wing = createFxPolygon([[-1.2, -1.65], [1.0, 0], [-1.2, 1.65]], 0.08, '#aeb4ae', 0.82, 0.08);
       wing.position.set(-0.15, -0.06, 0);
       root.add(wing);
-      const spine = createFxPolygon([[-0.55, -0.18], [0.9, 0], [-0.55, 0.18]], 0.06, '#7d858a');
+      const spine = createFxPolygon([[-0.55, -0.18], [0.9, 0], [-0.55, 0.18]], 0.06, '#7d858a', 0.55, 0.22);
       spine.position.set(0.15, 0.03, 0);
       root.add(spine);
-      const finL = createFxPolygon([[-0.28, 0], [0.22, 0], [-0.04, 0.55]], 0.04, '#838b90');
+      const finL = createFxPolygon([[-0.28, 0], [0.22, 0], [-0.04, 0.55]], 0.04, '#838b90', 0.55, 0.24);
       finL.rotation.z = Math.PI / 2;
       finL.position.set(-0.4, 0.35, -0.25);
       root.add(finL);
@@ -8029,14 +8053,15 @@ function Chess3D({
       addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20');
       const blade2 = addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20');
       blade2.rotation.x = Math.PI / 2;
-      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 1);
+      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
       root.add(propeller);
+      addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
       // exhaust puffs
       const exhaustClouds = [
-        addFxSphere(root, 0.08, [-2.15, 0, 0], '#8d979d', 0.21),
-        addFxSphere(root, 0.095, [-2.39, 0, 0], '#8d979d', 0.18),
-        addFxSphere(root, 0.11, [-2.63, 0, 0], '#8d979d', 0.15),
-        addFxSphere(root, 0.125, [-2.87, 0, 0], '#8d979d', 0.12)
+        addFxSphere(root, 0.08, [-2.15, 0, 0], '#8d979d', 1, 0, true, 0.21),
+        addFxSphere(root, 0.095, [-2.39, 0, 0], '#8d979d', 1, 0, true, 0.18),
+        addFxSphere(root, 0.11, [-2.63, 0, 0], '#8d979d', 1, 0, true, 0.15),
+        addFxSphere(root, 0.125, [-2.87, 0, 0], '#8d979d', 1, 0, true, 0.12)
       ];
       return { root, propeller, exhaustClouds };
     };
@@ -8050,20 +8075,24 @@ function Chess3D({
       nose.position.set(2.15, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      const cockpit = addFxSphere(root, 0.22, [0.75, 0.18, 0], '#2d3945', 1);
+      const cockpit = addFxSphere(root, 0.22, [0.75, 0.18, 0], '#2d3945', 0.18, 0.3);
       cockpit.scale.set(1.2, 0.65, 0.7);
-      const wing = createFxPolygon([[-1.6, -2.05], [0.85, 0], [-0.1, 2.05]], 0.09, '#9fa7ae');
+      const wing = createFxPolygon([[-1.6, -2.05], [0.85, 0], [-0.1, 2.05]], 0.09, '#9fa7ae', 0.68, 0.16);
       wing.position.set(-0.15, -0.04, 0);
       root.add(wing);
-      const tailWing = createFxPolygon([[-0.85, -0.85], [0.35, 0], [-0.2, 0.85]], 0.07, '#959ea5');
+      const tailWing = createFxPolygon([[-0.85, -0.85], [0.35, 0], [-0.2, 0.85]], 0.07, '#959ea5', 0.65, 0.18);
       tailWing.position.set(-1.45, 0.02, 0);
       root.add(tailWing);
-      const fin = createFxPolygon([[-0.45, 0], [0.18, 0], [-0.08, 0.82]], 0.05, '#8e979f');
+      const fin = createFxPolygon([[-0.45, 0], [0.18, 0], [-0.08, 0.82]], 0.05, '#8e979f', 0.6, 0.18);
       fin.rotation.z = Math.PI / 2;
       fin.position.set(-1.1, 0.55, 0);
       root.add(fin);
+      const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
+      const engineRight = engineLeft.clone();
+      engineRight.position.z = 0.2;
+      root.add(engineRight);
       const leftStore = new THREE.Group();
-      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12);
+      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
       const leftStoreNose = new THREE.Mesh(
         new THREE.ConeGeometry(0.05, 0.14, 12),
         new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
@@ -8081,20 +8110,21 @@ function Chess3D({
     const createFxLauncher = () => {
       const root = new THREE.Group();
       // base + mast
-      addFxCylinder(root, 0.25, 0.32, 0.16, [0, 0.08, 0], [0, 0, 0], '#4d5358');
-      addFxCylinder(root, 0.06, 0.08, 0.55, [0, 0.32, 0], [0, 0, 0], '#5d666c', 12);
-      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, -0.2], [0.62, 0, 0.24], '#5a6268', 10);
-      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, 0.2], [-0.62, 0, 0.24], '#5a6268', 10);
-      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.35, 0.35, 0], [0, 0, 1.0], '#5a6268', 10);
+      addFxCylinder(root, 0.25, 0.32, 0.16, [0, 0.08, 0], [0, 0, 0], '#4d5358', 18, 0.9, 0.12);
+      addFxCylinder(root, 0.06, 0.08, 0.55, [0, 0.32, 0], [0, 0, 0], '#5d666c', 12, 0.8, 0.18);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, -0.2], [0.62, 0, 0.24], '#5a6268', 10, 0.82, 0.16);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, 0.2], [-0.62, 0, 0.24], '#5a6268', 10, 0.82, 0.16);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.35, 0.35, 0], [0, 0, 1.0], '#5a6268', 10, 0.82, 0.16);
       const tubeRig = new THREE.Group();
       tubeRig.position.set(0.02, 0.46, 0);
       root.add(tubeRig);
       // tube + muzzle
-      addFxCylinder(tubeRig, 0.12, 0.14, 1.55, [0, 0, 0], [0, 0, Math.PI / 2], '#7e868c', 18);
-      addFxCylinder(tubeRig, 0.09, 0.09, 0.38, [0.86, 0, 0], [0, 0, Math.PI / 2], '#929aa0', 14);
-      addFxBox(tubeRig, [0.28, 0.12, 0.18], [-0.18, 0.18, 0], '#6d757b');
-      addFxBox(tubeRig, [0.16, 0.18, 0.06], [-0.05, -0.16, 0], '#596066');
-      addFxBox(tubeRig, [0.08, 0.16, 0.08], [0.18, 0.18, 0], '#2b3135');
+      addFxCylinder(tubeRig, 0.12, 0.14, 1.55, [0, 0, 0], [0, 0, Math.PI / 2], '#7e868c', 18, 0.55, 0.28);
+      addFxCylinder(tubeRig, 0.09, 0.09, 0.38, [0.86, 0, 0], [0, 0, Math.PI / 2], '#929aa0', 14, 0.45, 0.18);
+      addFxBox(tubeRig, [0.28, 0.12, 0.18], [-0.18, 0.18, 0], '#6d757b', 0.65, 0.2);
+      addFxBox(tubeRig, [0.16, 0.18, 0.06], [-0.05, -0.16, 0], '#596066', 0.7, 0.16);
+      const sight = addFxBox(tubeRig, [0.08, 0.16, 0.08], [0.18, 0.18, 0], '#2b3135', 0.45, 0.15);
+      sight.castShadow = true;
       return { root, tubeRig, muzzleLocal: new THREE.Vector3(0.98, 0, 0) };
     };
     const createFxMissile = () => {
@@ -8102,32 +8132,32 @@ function Chess3D({
       addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#c9ced3', 14);
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.055, 0.18, 14),
-        new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.3, metalness: 0.15 })
+        new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 })
       );
       nose.position.set(0.45, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d');
-      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d');
+      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
       const trail = [
-        addFxSphere(root, 0.08, [-0.5, 0, 0], '#90989d', 0.22),
-        addFxSphere(root, 0.1, [-0.64, 0, 0], '#90989d', 0.18),
-        addFxSphere(root, 0.12, [-0.78, 0, 0], '#90989d', 0.14),
-        addFxSphere(root, 0.14, [-0.92, 0, 0], '#90989d', 0.1)
+        addFxSphere(root, 0.08, [-0.5, 0, 0], '#90989d', 1, 0, true, 0.22),
+        addFxSphere(root, 0.1, [-0.64, 0, 0], '#90989d', 1, 0, true, 0.18),
+        addFxSphere(root, 0.12, [-0.78, 0, 0], '#90989d', 1, 0, true, 0.14),
+        addFxSphere(root, 0.14, [-0.92, 0, 0], '#90989d', 1, 0, true, 0.1)
       ];
       return { root, trail };
     };
     const createFxExplosion = (position) => {
       const root = new THREE.Group();
       root.position.copy(position);
-      const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 1);
+      const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
       const fire = [];
       const smoke = [];
       for (let i = 0; i < 4; i += 1) {
-        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.95 - i * 0.15));
+        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
       }
       for (let i = 0; i < 6; i += 1) {
-        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 0.42 - i * 0.04));
+        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
       }
       return { root, flash, fire, smoke };
     };
@@ -8153,7 +8183,7 @@ function Chess3D({
     };
 
     const FX_SCALE_UNIT = BOARD.tile;
-    const FX_HALF_SCALE = 0.5;
+    const FX_HALF_SCALE = 0.25;
     const DRONE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.95 * FX_HALF_SCALE;
     const JET_CAPTURE_SCALE = FX_SCALE_UNIT * FX_HALF_SCALE;
     const BAZOOKA_CAPTURE_SCALE = FX_SCALE_UNIT * 0.9 * FX_HALF_SCALE;
@@ -8163,7 +8193,7 @@ function Chess3D({
       const root = new THREE.Group();
       const handle = addFxCylinder(root, 0.07, 0.08, 0.44, [0, 0.28, 0], [0, 0, 0], '#4b3221', 12);
       handle.castShadow = true;
-      const pommel = addFxSphere(root, 0.085, [0, 0.05, 0], '#3a2518', 1);
+      const pommel = addFxSphere(root, 0.085, [0, 0.05, 0], '#3a2518', 0.45, 0.25, false, 1);
       pommel.castShadow = true;
       const guard = addFxBox(root, [0.5, 0.06, 0.12], [0, 0.5, 0], '#bbbfc5');
       guard.castShadow = true;
