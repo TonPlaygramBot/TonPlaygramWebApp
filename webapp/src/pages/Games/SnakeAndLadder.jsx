@@ -182,9 +182,9 @@ const SNAKE_SFX = Object.freeze({
 const FINAL_TILE = BOARD_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
-const AI_ROLL_DELAY_MS = 1600;
-const AI_EXTRA_ROLL_DELAY_MS = 1200;
-const TURN_ADVANCE_AFTER_DICE_MS = 2000;
+const AI_ROLL_DELAY_MS = 3400;
+const AI_EXTRA_ROLL_DELAY_MS = 2600;
+const TURN_ADVANCE_AFTER_DICE_MS = 3000;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -4083,20 +4083,13 @@ export default function SnakeAndLadder() {
             </div>
           )}
           {canRoll && (
-            <div className="pointer-events-auto flex flex-col items-center gap-2">
-              {pendingExtraRoll && (
-                <div className="rounded-full border border-amber-300/70 bg-black/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200">
-                  🎲 Extra roll
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={handleRollButtonClick}
-                className="px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
-              >
-                ROLL
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleRollButtonClick}
+              className="pointer-events-auto px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
+            >
+              ROLL
+            </button>
           )}
         </div>
       )}
