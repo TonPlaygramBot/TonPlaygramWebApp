@@ -566,7 +566,7 @@ export function createMurlanStyleTable({
   const baseLift = 0.03 * scaleFactor;
   const minBaseHeight = 0.2 * scaleFactor;
   const maxBaseHeight = Math.max(minBaseHeight, tableY + baseLift);
-  baseHeight = Math.min(Math.max(baseHeight, minBaseHeight), maxBaseHeight);
+  baseHeight = maxBaseHeight;
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({
