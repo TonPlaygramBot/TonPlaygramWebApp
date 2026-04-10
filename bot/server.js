@@ -2441,14 +2441,21 @@ io.on('connection', (socket) => {
       if (!player) return;
       const dice = Math.floor(Math.random() * 6) + 1;
       player.position += dice;
+      const extraTurn = dice === 6;
       io.to(tableId).emit('diceRolled', {
+        playerId: accountId,
+        value: dice,
         accountId,
         dice,
-        newPosition: player.position
+        newPosition: player.position,
+        extraTurn
       });
-      const idx = table.players.findIndex((p) => p.id === accountId);
-      const nextIndex = (idx + 1) % table.players.length;
-      table.currentTurn = table.players[nextIndex].id;
+
+      if (!extraTurn) {
+        const idx = table.players.findIndex((p) => p.id === accountId);
+        const nextIndex = (idx + 1) % table.players.length;
+        table.currentTurn = table.players[nextIndex].id;
+      }
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
       return;
     }
