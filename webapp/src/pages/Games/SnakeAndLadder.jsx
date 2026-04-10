@@ -3195,7 +3195,7 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
-  const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
+  const hasLocalExtraRoll = pendingExtraRoll;
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = hasLocalExtraRoll || rollCooldown === 0;
@@ -4004,7 +4004,7 @@ export default function SnakeAndLadder() {
             clickable={
               !aiRollingIndex &&
               !playerAutoRolling &&
-              rollCooldown === 0 &&
+              (pendingExtraRoll || rollCooldown === 0) &&
               currentTurn === 0 &&
               !moving
             }
