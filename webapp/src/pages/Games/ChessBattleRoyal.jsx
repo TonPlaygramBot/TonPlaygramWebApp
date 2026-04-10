@@ -85,147 +85,8 @@ const clamp01 = (value, fallback = 0) => {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(1, Math.max(0, value));
 };
-const easeSmooth = (value) => {
-  const t = clamp01(value);
-  return t * t * (3 - 2 * t);
-};
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
-const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
-
-function addFxBox(group, size, position, color, roughness = 0.62, metalness = 0.28) {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(size[0], size[1], size[2]),
-    new THREE.MeshStandardMaterial({ color, roughness, metalness })
-  );
-  mesh.position.set(position[0], position[1], position[2]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-
-function addFxCylinder(
-  group,
-  radiusTop,
-  radiusBottom,
-  height,
-  position,
-  rotation,
-  color,
-  radialSegments = 18,
-  roughness = 0.62,
-  metalness = 0.28
-) {
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments),
-    new THREE.MeshStandardMaterial({ color, roughness, metalness })
-  );
-  mesh.position.set(position[0], position[1], position[2]);
-  mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-
-function addFxSphere(
-  group,
-  radius,
-  position,
-  color,
-  roughness = 0.45,
-  metalness = 0.25,
-  transparent = false,
-  opacity = 1
-) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 16, 16),
-    new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
-  );
-  mesh.position.set(position[0], position[1], position[2]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-
-function createCaptureMissileFx() {
-  const root = new THREE.Group();
-  addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
-
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.1, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
-  );
-  nose.position.set(0.74, 0, 0);
-  nose.rotation.z = -Math.PI / 2;
-  nose.castShadow = true;
-  root.add(nose);
-
-  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
-  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
-
-  const trail = [];
-  for (let i = 0; i < 5; i += 1) {
-    trail.push(
-      addFxSphere(
-        root,
-        0.12 + i * 0.03,
-        [-0.84 - i * 0.19, 0, 0],
-        i < 2 ? '#f6af4b' : '#8f989d',
-        i < 2 ? 0.2 : 1,
-        0,
-        true,
-        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-      )
-    );
-  }
-
-  root.visible = false;
-  return { root, trail };
-}
-
-function createCaptureExplosionFx() {
-  const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
-  const fire = [];
-  const smoke = [];
-  for (let i = 0; i < 4; i += 1) {
-    fire.push(
-      addFxSphere(
-        root,
-        0.24 + i * 0.065,
-        [0, 0.22 + i * 0.06, 0],
-        i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
-        0.2,
-        0,
-        true,
-        0.95 - i * 0.15
-      )
-    );
-  }
-  for (let i = 0; i < 6; i += 1) {
-    smoke.push(
-      addFxSphere(
-        root,
-        0.22 + i * 0.045,
-        [0, 0.18 + i * 0.08, 0],
-        '#646b72',
-        1,
-        0,
-        true,
-        0.42 - i * 0.04
-      )
-    );
-  }
-  root.scale.setScalar(0.46);
-  root.visible = false;
-  return { root, flash, fire, smoke };
-}
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -388,6 +249,7 @@ const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 const BOMB_VOLUME_MULTIPLIER = 0.72;
+const LONG_RANGE_CAPTURE_MIN_DISTANCE = 3;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
@@ -8075,230 +7937,86 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    let activeCaptureFx = null;
-    const clearActiveCaptureFx = () => {
-      if (!activeCaptureFx) return;
-      activeCaptureFx.missile?.root?.parent?.remove?.(activeCaptureFx.missile.root);
-      activeCaptureFx.explosion?.root?.parent?.remove?.(activeCaptureFx.explosion.root);
-      activeCaptureFx = null;
+    const createExplosion = (pos) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '200';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
     };
 
-    const getReferenceBishopSize = (attackerToken, fallbackToken = null) => {
-      const attackerColor = attackerToken?.userData?.__pieceColor === 'black' ? 'black' : 'white';
-      let bishopToken = fallbackToken || attackerToken;
-      for (let r = 0; r < pieceMeshes.length; r += 1) {
-        for (let c = 0; c < pieceMeshes[r].length; c += 1) {
-          const candidate = pieceMeshes[r][c];
-          if (!candidate) continue;
-          if ((candidate.userData?.t || '').toUpperCase() !== 'B') continue;
-          const candidateColor = candidate.userData?.__pieceColor === 'black' ? 'black' : 'white';
-          if (candidateColor !== attackerColor) continue;
-          bishopToken = candidate;
-          break;
-        }
-      }
-      const box = new THREE.Box3().setFromObject(bishopToken || fallbackToken || attackerToken);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const bishopHeight = Math.max(0.28, size.y || 0.28);
-      const bishopWidth = Math.max(0.14, Math.max(size.x, size.z) || 0.14);
-      return { bishopHeight, bishopWidth };
+    const createSlashEffect = (fromPos, toPos) => {
+      const slash = new THREE.Mesh(
+        new THREE.BoxGeometry(tile * 0.1, tile * 0.05, tile * 0.8),
+        new THREE.MeshBasicMaterial({
+          color: 0xfff1a8,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false
+        })
+      );
+      const mid = fromPos.clone().lerp(toPos, 0.6);
+      slash.position.copy(mid);
+      slash.position.y = Math.max(fromPos.y, toPos.y) + tile * 0.2;
+      const dir = toPos.clone().sub(fromPos);
+      slash.lookAt(mid.clone().add(dir));
+      boardGroup.add(slash);
+      setTimeout(() => {
+        try {
+          boardGroup.remove(slash);
+          slash.geometry?.dispose?.();
+          slash.material?.dispose?.();
+        } catch {}
+      }, 220);
     };
 
-    const getReferencePawnHeight = (attackerToken, fallbackToken = null) => {
-      const attackerColor = attackerToken?.userData?.__pieceColor === 'black' ? 'black' : 'white';
-      let pawnToken = fallbackToken || attackerToken;
-      for (let r = 0; r < pieceMeshes.length; r += 1) {
-        for (let c = 0; c < pieceMeshes[r].length; c += 1) {
-          const candidate = pieceMeshes[r][c];
-          if (!candidate) continue;
-          if ((candidate.userData?.t || '').toUpperCase() !== 'P') continue;
-          const candidateColor = candidate.userData?.__pieceColor === 'black' ? 'black' : 'white';
-          if (candidateColor !== attackerColor) continue;
-          pawnToken = candidate;
-          break;
-        }
-      }
-      const box = new THREE.Box3().setFromObject(pawnToken || fallbackToken || attackerToken);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      return Math.max(0.2, size.y || 0.2);
-    };
-
-    const resolveTokenAnchorPoint = (token, fallbackPosition = null, yOffset = 0) => {
-      const base =
-        token?.isObject3D
-          ? token.getWorldPosition(new THREE.Vector3())
-          : fallbackPosition?.isVector3
-          ? fallbackPosition.clone()
-          : null;
-      if (!base) return null;
-      base.y += yOffset;
-      return base;
-    };
-
-    const resolveLivePiecePosition = ({ token, fallbackPosition = null }) =>
-      resolveTokenAnchorPoint(token, fallbackPosition, 0) ??
-      (fallbackPosition?.isVector3 ? fallbackPosition.clone() : null);
-
-    const playCaptureMissileSequence = ({ attackerToken, targetToken, startPosition, targetPosition, onImpact }) =>
-      new Promise((resolve) => {
-        if (!boardGroup || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
-          onImpact?.();
-          resolve();
+    const createMissileStrike = (fromPos, toPos, onImpact) => {
+      const missile = new THREE.Mesh(
+        new THREE.SphereGeometry(tile * 0.11, 14, 14),
+        new THREE.MeshBasicMaterial({
+          color: 0xff7f50,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false
+        })
+      );
+      missile.position.copy(fromPos).add(new THREE.Vector3(0, tile * 0.42, 0));
+      boardGroup.add(missile);
+      const start = performance.now();
+      const duration = 300;
+      const startPos = missile.position.clone();
+      const targetPos = toPos.clone().add(new THREE.Vector3(0, tile * 0.28, 0));
+      const arcHeight = tile * 0.8;
+      const step = (now) => {
+        const t = clamp01((now - start) / duration, 1);
+        const curve = 4 * t * (1 - t);
+        missile.position.copy(startPos).lerp(targetPos, t);
+        missile.position.y += curve * arcHeight;
+        if (t < 1) {
+          requestAnimationFrame(step);
           return;
         }
-        clearActiveCaptureFx();
-        const missile = createCaptureMissileFx();
-        const explosion = createCaptureExplosionFx();
-        boardGroup.add(missile.root);
-        boardGroup.add(explosion.root);
-        activeCaptureFx = { missile, explosion };
-        const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerToken, targetToken);
-        const pawnHeight = getReferencePawnHeight(attackerToken, targetToken);
-        const missileLengthScale = (bishopHeight / 1.02) * 1.02;
-        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.31;
-        missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
-        const explosionScale = clamp((pawnHeight / 0.9) * 0.42, 0.32, 0.68);
-        explosion.root.scale.setScalar(explosionScale);
-
-        const tokenWorldPos =
-          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
-        const launchAnchor = tokenWorldPos
-          .clone()
-          .lerp(startPosition, 0.22)
-          .add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
-        const resolvedImpactPoint =
-          resolveLivePiecePosition({
-            token: targetToken,
-            fallbackPosition: targetPosition
-          });
-        const safeImpactPoint =
-          resolvedImpactPoint?.isVector3 === true ? resolvedImpactPoint : targetPosition?.clone?.() ?? launchAnchor.clone();
-        const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.06, 0));
-        const from = launchAnchor.clone();
-        const travelTime = 1850;
-        const explosionTime = 920;
-        const boardCenter = new THREE.Vector3(0, from.y, 0);
-        const boardRadius = half + BOARD.rim;
-        const started = performance.now();
-        let explosionTriggered = false;
-
-        const updateExplosionRig = (elapsedSinceImpact) => {
-          if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
-            explosion.root.visible = false;
-            return;
-          }
-          explosion.root.visible = true;
-          const fireLife = clamp(1 - elapsedSinceImpact / 0.82, 0, 1);
-          const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.72 + elapsedSinceImpact * 1.7;
-          const smokeGrow = 0.76 + elapsedSinceImpact * 1.05;
-          explosion.flash.scale.setScalar(0.44 + elapsedSinceImpact * 1.25);
-          explosion.flash.material.opacity = fireLife;
-          explosion.fire.forEach((mesh, i) => {
-            const angle = elapsedSinceImpact * 5 + i * 1.35;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.16),
-              0.09 + elapsedSinceImpact * 0.24 + i * 0.03,
-              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.14)
-            );
-            mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
-            mesh.material.opacity = fireLife * (0.95 - i * 0.12);
-          });
-          explosion.smoke.forEach((mesh, i) => {
-            const angle = i * 1.1 + elapsedSinceImpact * 1.8;
-            mesh.position.set(
-              Math.cos(angle) * (0.08 + i * 0.03),
-              0.14 + elapsedSinceImpact * (0.22 + i * 0.05),
-              Math.sin(angle) * (0.08 + i * 0.03)
-            );
-            mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
-            mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
-          });
-        };
-
-        const tick = () => {
-          const elapsed = performance.now() - started;
-          const liveFrom =
-            resolveLivePiecePosition({ token: attackerToken, fallbackPosition: from }) ?? from.clone();
-          const liveTarget =
-            resolveLivePiecePosition({ token: targetToken, fallbackPosition: impactAnchor }) ??
-            impactAnchor.clone();
-          const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
-          const dynamicTo = liveTarget.clone();
-          const dynamicStartAngle = Math.atan2(dynamicFrom.z, dynamicFrom.x);
-          const dynamicEndAngle = Math.atan2(dynamicTo.z, dynamicTo.x);
-          const dynamicDelta =
-            ((dynamicEndAngle - dynamicStartAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-          const dynamicOrbitAngle = dynamicStartAngle + Math.PI * 2 + dynamicDelta;
-          const dynamicStartRadius = Math.max(dynamicFrom.clone().setY(0).length(), boardRadius * 0.92);
-          const dynamicEndRadius = Math.max(dynamicTo.clone().setY(0).length(), boardRadius * 0.92);
-          if (elapsed < travelTime) {
-            const u = easeSmooth(elapsed / travelTime);
-            const nextU = clamp(u + 0.02, 0, 1);
-            const orbitAt = (v) => {
-              const t = clamp(v, 0, 1);
-              const orbitCurve = easeSmooth(t);
-              const angle = dynamicStartAngle + (dynamicOrbitAngle - dynamicStartAngle) * orbitCurve;
-              const radius = THREE.MathUtils.lerp(dynamicStartRadius, dynamicEndRadius, orbitCurve);
-              const cruiseY = dynamicFrom.y + bishopHeight * 2;
-              const descendStart = 0.78;
-              const descendT = clamp01((orbitCurve - descendStart) / (1 - descendStart));
-              const descendEase = descendT * descendT;
-              const orbitalLift = Math.sin(Math.PI * orbitCurve) * bishopHeight * 0.16;
-              const y = THREE.MathUtils.lerp(cruiseY + orbitalLift, dynamicTo.y, descendEase);
-              return new THREE.Vector3(
-                boardCenter.x + Math.cos(angle) * radius,
-                y,
-                boardCenter.z + Math.sin(angle) * radius
-              );
-            };
-            const pos = orbitAt(u);
-            const next = orbitAt(nextU);
-            const dir = next.clone().sub(pos).normalize();
-            const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
-            missile.root.visible = true;
-            missile.root.position.copy(pos);
-            missile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            missile.trail.forEach((puff, i) => {
-              puff.position.set(
-                -0.55 - i * 0.16,
-                Math.sin(elapsed * 0.02 + i) * 0.02,
-                Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
-              );
-              const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
-              puff.scale.setScalar(s);
-              puff.material.opacity =
-                i < 2
-                  ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
-                  : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
-            });
-            updateExplosionRig(-1);
-            requestAnimationFrame(tick);
-            return;
-          }
-          missile.root.visible = false;
-          const explosionElapsed = (elapsed - travelTime) / 1000;
-          explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.01, 0)));
-          updateExplosionRig(explosionElapsed);
-          if (!explosionTriggered) {
-            explosionTriggered = true;
-            onImpact?.();
-            if (bombSoundRef.current && settingsRef.current.soundEnabled) {
-              bombSoundRef.current.currentTime = 0;
-              bombSoundRef.current.play().catch(() => {});
-            }
-          }
-          if (elapsed < travelTime + explosionTime) {
-            requestAnimationFrame(tick);
-            return;
-          }
-          clearActiveCaptureFx();
-          resolve();
-        };
-        requestAnimationFrame(tick);
-      });
+        onImpact?.();
+        try {
+          boardGroup.remove(missile);
+          missile.geometry?.dispose?.();
+          missile.material?.dispose?.();
+        } catch {}
+      };
+      requestAnimationFrame(step);
+      return duration;
+    };
 
     // Board base + rim
     const tile = BOARD.tile;
@@ -9233,10 +8951,15 @@ function Chess3D({
       const toSquare = resolveChessSquare(rr, cc);
       const fromPosition = piecePosition(sel.r, sel.c, currentPieceYOffset);
       const toPosition = piecePosition(rr, cc, currentPieceYOffset);
-      let captureSequencePromise = Promise.resolve();
+      const travelDistance = Math.max(Math.abs(rr - sel.r), Math.abs(cc - sel.c));
+      const isLongRangeCapture = Boolean(capturedPiece && travelDistance >= LONG_RANGE_CAPTURE_MIN_DISTANCE);
+      const isShortRangeBladeCapture = Boolean(capturedPiece && !isLongRangeCapture);
+      let captureVisualDelayMs = 0;
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
+        const worldPos = new THREE.Vector3();
+        targetMesh.getWorldPosition(worldPos);
         const capturingWhite = board[sel.r][sel.c].w;
         const zone = capturingWhite ? capturedByWhite : capturedByBlack;
         const idx = zone.push(targetMesh) - 1;
@@ -9257,14 +8980,21 @@ function Chess3D({
             new THREE.Vector3(capX, captureY, capZ),
             0.35
           );
+          createExplosion(worldPos);
+          if (bombSoundRef.current && settingsRef.current.soundEnabled) {
+            bombSoundRef.current.currentTime = 0;
+            bombSoundRef.current.play().catch(() => {});
+          }
         };
-        captureSequencePromise = playCaptureMissileSequence({
-          attackerToken: pieceMeshes[sel.r][sel.c],
-          targetToken: targetMesh,
-          startPosition: fromPosition,
-          targetPosition: toPosition,
-          onImpact: sendCapturedPieceToGraveyard
-        });
+        if (isLongRangeCapture) {
+          captureVisualDelayMs = Math.max(captureVisualDelayMs, createMissileStrike(fromPosition, toPosition, sendCapturedPieceToGraveyard) ?? 320);
+        } else if (isShortRangeBladeCapture) {
+          captureVisualDelayMs = Math.max(captureVisualDelayMs, 150);
+          createSlashEffect(fromPosition, toPosition);
+          setTimeout(sendCapturedPieceToGraveyard, 120);
+        } else {
+          sendCapturedPieceToGraveyard();
+        }
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -9306,7 +9036,11 @@ function Chess3D({
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
       const movePieceToTarget = () => animatePieceTo(m, targetPosition, 0.32);
-      captureSequencePromise.then(movePieceToTarget);
+      if (captureVisualDelayMs > 0) {
+        setTimeout(movePieceToTarget, captureVisualDelayMs);
+      } else {
+        movePieceToTarget();
+      }
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
@@ -9317,7 +9051,11 @@ function Chess3D({
         cancelPieceAnimation(rookMesh);
         const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
         const moveRookForCastle = () => animatePieceTo(rookMesh, rookTarget, 0.32);
-        captureSequencePromise.then(moveRookForCastle);
+        if (captureVisualDelayMs > 0) {
+          setTimeout(moveRookForCastle, captureVisualDelayMs);
+        } else {
+          moveRookForCastle();
+        }
       }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
@@ -9786,7 +9524,6 @@ function Chess3D({
         disposeChessChairMaterials(arenaState.chairMaterials);
         arenaState.tableInfo?.dispose?.();
       }
-      clearActiveCaptureFx();
       arenaRef.current = null;
       seatPositionsRef.current = [];
       setSeatAnchors([]);
