@@ -30,8 +30,8 @@ const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/exampl
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.3;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const CHAIR_SIZE_SCALE = 1.04;
+const TABLE_RADIUS = 3.06 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -46,7 +46,7 @@ const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.4;
+const AI_CHAIR_GAP = CARD_W * 0.65;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
@@ -104,7 +104,7 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06; // make board footprint visibly wider
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.9; // compact board footprint for tighter table fit
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -214,12 +214,12 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.86,
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.86
+  TILE_SIZE * 0.95,
+  TILE_SIZE * 0.73,
+  TILE_SIZE * 0.95,
+  TILE_SIZE * 0.73
 ]);
-const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.72;
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.9;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
   TOKEN_RADIUS * 0.02,
@@ -2690,7 +2690,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     woodOption: resolvedWoodOption,
     clothOption,
     baseOption,
-    includeBase: false,
+    includeBase: true,
     shapeOption,
     rotationY: 0
   });
@@ -2711,7 +2711,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     0
   );
   const attachBoard = (info, group) => {
-    boardGroup.position.set(0, info.surfaceY + 0.004, 0);
+    boardGroup.position.set(0, info.surfaceY + 0.001, 0);
     boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
     group.add(boardGroup);
   };
@@ -3129,7 +3129,7 @@ function buildSnakeBoard(
 
   const diceGroup = new THREE.Group();
   const baseLevelTop = levelPlacements[0].tileTopY;
-  const diceBaseY = baseLevelTop + DICE_SIZE * 0.5 + TILE_SIZE * 0.02;
+  const diceBaseY = baseLevelTop + DICE_SIZE * 0.5 - TILE_SIZE * 0.015;
   const diceAnchorZ =
     baseHalf +
     DICE_THROW_LANDING_MARGIN +
@@ -3500,7 +3500,7 @@ function updateTokens(
       const baseVector = basePos ? basePos.clone() : serpentineIndexToXZ(rawPosition).clone();
       baseVector.x += offsetX;
       baseVector.z += offsetZ;
-      baseVector.y += TOKEN_HEIGHT * 0.02;
+      baseVector.y += TOKEN_HEIGHT * 0.005;
       worldPos = baseVector;
     } else {
       const seatAnchor = Number.isFinite(seatIndex) ? seatAnchors?.[seatIndex] : null;
@@ -3546,7 +3546,7 @@ function updateTokens(
             .addScaledVector(lateral, railSpread);
           worldPos = railWorld.clone();
           boardRoot.worldToLocal(worldPos);
-          worldPos.y = TOKEN_HEIGHT * 0.62;
+          worldPos.y = TOKEN_HEIGHT * 0.52;
         }
       }
       if (!worldPos) {
