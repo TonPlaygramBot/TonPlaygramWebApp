@@ -2670,7 +2670,7 @@ export default function SnakeAndLadder() {
         const ladObj = ladders[predicted];
         predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
       }
-      const extraPred = diceCells[predicted] || rolledSix;
+      const extraPred = Boolean(diceCells[predicted]);
       const nextPlayer = extraPred ? currentTurn : getPreviousTurn(currentTurn);
 
       const steps = [];
@@ -2778,11 +2778,6 @@ export default function SnakeAndLadder() {
             yabbaSoundRef.current?.play().catch(() => {});
           }
           setTimeout(() => setRewardDice(0), 1000);
-          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-        } else if (rolledSix) {
-          setTurnMessage('Six! Roll again');
-          setBonusDice(0);
-          extraTurn = true;
           enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
         } else {
           setTurnMessage("Your turn");
@@ -2894,7 +2889,7 @@ export default function SnakeAndLadder() {
       const ladObj = ladders[predicted];
       predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
-    const extraPred = diceCells[predicted] || rolledSix;
+    const extraPred = Boolean(diceCells[predicted]);
     const nextPlayer = extraPred ? index : getPreviousTurn(index);
 
     const steps = [];
@@ -2991,10 +2986,6 @@ export default function SnakeAndLadder() {
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
-        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-      } else if (rolledSix) {
-        setTurnMessage(`${getPlayerName(index)} rolled 6! Bonus roll`);
-        extraTurn = true;
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       }
       const next = extraTurn ? index : getPreviousTurn(index);
@@ -4067,10 +4058,7 @@ export default function SnakeAndLadder() {
                   values: vals,
                   seatIndex: currentTurn
                 });
-                const rolledSix = Array.isArray(vals)
-                  ? vals.some((v) => Number(v) === 6)
-                  : Number(vals) === 6;
-                setPendingExtraRoll(rolledSix);
+                setPendingExtraRoll(false);
               }}
             />
           ) : null}
