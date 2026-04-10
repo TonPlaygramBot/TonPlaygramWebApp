@@ -75,7 +75,7 @@ export class Game {
     current.position = newPos;
     if (newPos === BOARD_SIZE) {
       this.winner = current.id;
-    } else if (value !== 6) {
+    } else {
       this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
     }
   }
