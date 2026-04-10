@@ -92,15 +92,20 @@ const CAPTURE_DRONE_LIFT_TIME = 2.0;
 const CAPTURE_DRONE_CRUISE_TIME = 2.8;
 const CAPTURE_DRONE_DIVE_TIME = 1.7;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 9.2;
-const CAPTURE_JET_MISSILE_DROP_1 = 2.25;
-const CAPTURE_JET_MISSILE_DROP_2 = 2.75;
+const CAPTURE_LUDO_MISSILE_TRAVEL_TIME = 1.85;
+const CAPTURE_LUDO_EXPLOSION_TIME = 0.92;
+const CAPTURE_JET_TOTAL = 2.77;
+const CAPTURE_JET_MISSILE_DROP_1 = 0.35;
+const CAPTURE_JET_MISSILE_DROP_2 = 0.65;
 const CAPTURE_JET_MISSILE_TRAVEL_1 = 1.45;
 const CAPTURE_JET_MISSILE_TRAVEL_2 = 1.65;
-const CAPTURE_GROUND_FIRE_TIME = 1.2;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
+const CAPTURE_GROUND_FIRE_TIME = 0;
+const CAPTURE_GROUND_TRAVEL_TIME = CAPTURE_LUDO_MISSILE_TRAVEL_TIME;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_MISSILE_SCALE = 0.31; // 50% smaller than previous 0.62 scale.
+const CAPTURE_DRONE_SCALE = 0.5;
+const CAPTURE_JET_SCALE = 0.29; // 50% smaller than previous 0.58 scale.
+const CAPTURE_MISSILE_SCALE = 0.155; // 50% smaller than previous 0.31 scale.
+const CAPTURE_EXPLOSION_SCALE = 0.43; // 50% smaller than previous 0.86 scale.
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8003,6 +8008,7 @@ function Chess3D({
     };
     const createFxDrone = () => {
       const root = new THREE.Group();
+      root.scale.setScalar(CAPTURE_DRONE_SCALE);
       addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
       addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
       const nose = new THREE.Mesh(
@@ -8135,7 +8141,7 @@ function Chess3D({
     const createFxExplosion = (position) => {
       const root = new THREE.Group();
       root.position.copy(position);
-      root.scale.setScalar(0.86);
+      root.scale.setScalar(CAPTURE_EXPLOSION_SCALE);
       const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 1);
       const fire = [];
       const smoke = [];
@@ -8152,7 +8158,7 @@ function Chess3D({
       captureFxGroup.add(explosion.root);
       playAudio(bombSoundRef, { maxDurationMs: 520 });
       playAudio(missileImpactSoundRef);
-      activeCaptureFx.push({ type: 'explosion', t: 0, duration: 0.8, explosion });
+      activeCaptureFx.push({ type: 'explosion', t: 0, duration: CAPTURE_LUDO_EXPLOSION_TIME, explosion });
     };
     const qBezier = (a, b, c, t) => {
       const ab = new THREE.Vector3().copy(a).lerp(b, t);
@@ -8172,7 +8178,7 @@ function Chess3D({
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
         const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(0.58);
+        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.4, 0));
         captureFxGroup.add(jetFx.root);
         const missileFx1 = createFxMissile();
@@ -8198,7 +8204,7 @@ function Chess3D({
       }
       if (pieceType === 'Q') {
         const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(0.58);
+        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.4, 0));
         captureFxGroup.add(jetFx.root);
         const missileFx1 = createFxMissile();
@@ -8251,8 +8257,15 @@ function Chess3D({
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         captureFxGroup.add(missileFx.root);
-        activeCaptureFx.push({ type: 'missile', t: 0, duration: 1.25, from: fromPos.clone(), to: targetPos.clone(), missileFx });
-        return { moveDelayMs: 1250 };
+        activeCaptureFx.push({
+          type: 'missile',
+          t: 0,
+          duration: CAPTURE_LUDO_MISSILE_TRAVEL_TIME,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          missileFx
+        });
+        return { moveDelayMs: CAPTURE_LUDO_MISSILE_TRAVEL_TIME * 1000 };
       }
       launchExplosion(targetPos.clone());
       return { moveDelayMs: 280 };
@@ -9790,8 +9803,8 @@ function Chess3D({
               }
             };
 
-            const target1 = fx.to.clone().add(new THREE.Vector3(-0.26, 0, 0.2));
-            const target2 = fx.to.clone().add(new THREE.Vector3(0.22, 0, -0.15));
+            const target1 = fx.to.clone();
+            const target2 = fx.to.clone();
             updateJetMissileFx(fx.missileFx1, CAPTURE_JET_MISSILE_DROP_1, CAPTURE_JET_MISSILE_TRAVEL_1, -1.15, target1);
             updateJetMissileFx(fx.missileFx2, CAPTURE_JET_MISSILE_DROP_2, CAPTURE_JET_MISSILE_TRAVEL_2, 1.15, target2, 0.04);
 
