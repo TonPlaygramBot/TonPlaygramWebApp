@@ -482,8 +482,15 @@ function createTriangleDroneModel(){
   blade2.rotation.x=Math.PI/2; blade2.castShadow=true; propeller.add(blade2);
   addSphere(propeller,0.07,[0,0,0],'#41484d',0.45,0.25);
   root.add(propeller);
-  root.scale.setScalar(0.5);
-  return { root, propeller };
+
+  const exhaustClouds=[];
+  for(let i=0;i<4;i+=1){
+    exhaustClouds.push(addSphere(root,0.08+i*0.015,[-2.15-i*0.24,0,0],'#8d979d',1,0,true,0.21-i*0.03));
+  }
+
+  // ~2 board tiles long (2.75 base fuselage * 0.72 ~= 1.98)
+  root.scale.setScalar(0.72);
+  return { root, propeller, exhaustClouds };
 }
 function createFighterJetModel(){
   const root=new THREE.Group();
@@ -494,7 +501,8 @@ function createFighterJetModel(){
   cockpit.scale.set(1.2,0.65,0.7); cockpit.position.set(0.75,0.18,0); cockpit.castShadow=true; root.add(cockpit);
   const wing=createPolygonMesh([[-1.6,-2.05],[0.85,0],[-0.1,2.05]],0.09,'#9fa7ae',0.68,0.16);
   wing.position.set(-0.15,-0.04,0); root.add(wing);
-  root.scale.setScalar(0.5);
+  // ~3 board tiles long (3.4 fuselage * 0.9 ~= 3.06)
+  root.scale.setScalar(0.9);
   return root;
 }
 function createBazookaModel(){
@@ -513,7 +521,8 @@ function createMissileModel(){
   nose.position.set(0.45,0,0); nose.rotation.z=-Math.PI/2; nose.castShadow=true; root.add(nose);
   addBox(root,[0.1,0.02,0.16],[-0.18,0,0],'#7f868d',0.58,0.12);
   addBox(root,[0.1,0.16,0.02],[-0.18,0,0],'#7f868d',0.58,0.12);
-  root.scale.setScalar(0.5);
+  // small projectile, visually around bishop-sized silhouette
+  root.scale.setScalar(0.28);
   return root;
 }
 function createExplosionModel(){
@@ -522,8 +531,48 @@ function createExplosionModel(){
   const fire=[]; const smoke=[];
   for(let i=0;i<4;i+=1) fire.push(addSphere(root,0.18+i*0.05,[0,0.22+i*0.06,0],i%2===0?'#ff9c2f':'#ff5b2d',0.2,0,true,0.95-i*0.15));
   for(let i=0;i<6;i+=1) smoke.push(addSphere(root,0.18+i*0.035,[0,0.18+i*0.08,0],'#646b72',1,0,true,0.42-i*0.04));
-  root.scale.setScalar(0.5);
+  root.scale.setScalar(0.14);
   return { root, flash, fire, smoke };
+}
+
+const DRONE_LIFT_TIME=0.6;
+const DRONE_CRUISE_TIME=1.0;
+const DRONE_DIVE_TIME=0.6;
+const DRONE_STRIKE_TOTAL=DRONE_LIFT_TIME+DRONE_CRUISE_TIME+DRONE_DIVE_TIME;
+const DRONE_FORWARD=new THREE.Vector3(1,0,0);
+function smoothStep(t){ return t*t*(3-2*t); }
+function getDroneStrikeFlight(from,to,elapsed){
+  const liftStart=from.clone().add(new THREE.Vector3(0,0.25,0));
+  const liftEnd=from.clone().add(new THREE.Vector3(0,1.75,0));
+  const dir=to.clone().sub(from).setY(0);
+  const dirLen=Math.max(0.001,dir.length());
+  const side=new THREE.Vector3(-dir.z/dirLen,0,dir.x/dirLen);
+  const cruiseEnd=to.clone().add(new THREE.Vector3(0,1.9,0)).add(side.multiplyScalar(0.28));
+  const diveEnd=to.clone().add(new THREE.Vector3(0,0.45,0));
+  const pos=new THREE.Vector3();
+  const next=new THREE.Vector3();
+  let phase='lift';
+
+  if(elapsed<DRONE_LIFT_TIME){
+    const u=smoothStep(elapsed/DRONE_LIFT_TIME);
+    pos.copy(liftStart).lerp(liftEnd,u);
+    pos.x+=Math.sin(u*Math.PI)*0.08;
+    next.copy(liftStart).lerp(liftEnd,Math.min(1,u+0.06));
+    phase='lift';
+  }else if(elapsed<DRONE_LIFT_TIME+DRONE_CRUISE_TIME){
+    const u=smoothStep((elapsed-DRONE_LIFT_TIME)/DRONE_CRUISE_TIME);
+    pos.copy(liftEnd).lerp(cruiseEnd,u);
+    pos.y+=Math.sin(u*Math.PI*2)*0.06;
+    pos.z+=Math.sin(u*Math.PI*2.6)*0.07;
+    next.copy(liftEnd).lerp(cruiseEnd,Math.min(1,u+0.04));
+    phase='cruise';
+  }else{
+    const u=smoothStep((elapsed-DRONE_LIFT_TIME-DRONE_CRUISE_TIME)/DRONE_DIVE_TIME);
+    pos.copy(cruiseEnd).lerp(diveEnd,u);
+    next.copy(cruiseEnd).lerp(diveEnd,Math.min(1,u+0.07));
+    phase='dive';
+  }
+  return {pos,next,phase};
 }
 
 function animateSlashAt(target){
@@ -543,40 +592,65 @@ function animateSlashAt(target){
 function animateMissileStrike(from,to){
   return new Promise(resolve=>{
     if(!scene||!THREE||!from||!to) return resolve();
-    const {root:drone, propeller}=createTriangleDroneModel();
+    const {root:drone, propeller, exhaustClouds}=createTriangleDroneModel();
     const jet=createFighterJetModel();
-    const bazooka=createBazookaModel();
     const missile=createMissileModel();
     const explosion=createExplosionModel();
-    drone.position.copy(from.clone().add(new THREE.Vector3(0,1.0,0)));
-    jet.position.copy(from.clone().add(new THREE.Vector3(-0.8,1.35,0.45)));
-    bazooka.position.copy(from.clone().add(new THREE.Vector3(-0.25,0.25,-0.22)));
-    bazooka.lookAt(to.clone().add(new THREE.Vector3(0,0.35,0)));
-    missile.position.copy(from.clone().add(new THREE.Vector3(0,0.45,0)));
-    explosion.root.position.copy(to.clone().add(new THREE.Vector3(0,0.38,0)));
+    const flightHeight=0.4;
+    const jetOffset=new THREE.Vector3(-1.1,0.25,0.75);
+    const missileHeight=0.12;
+    explosion.root.position.copy(to.clone().add(new THREE.Vector3(0,0.34,0)));
     explosion.root.visible=false;
-    scene.add(drone); scene.add(jet); scene.add(bazooka); scene.add(missile); scene.add(explosion.root); playDroneSound();
-    const t0=performance.now(), dur=340;
+    scene.add(drone); scene.add(jet); scene.add(missile); scene.add(explosion.root); playDroneSound();
+    const t0=performance.now(), dur=DRONE_STRIKE_TOTAL*1000;
+    const droneDir=new THREE.Vector3();
+    const droneQuat=new THREE.Quaternion();
+    const droneBankQuat=new THREE.Quaternion();
+    const droneAxis=new THREE.Vector3();
     const tick=now=>{
       const t=Math.min(1,(now-t0)/dur);
-      drone.position.lerpVectors(from.clone().add(new THREE.Vector3(0,1.0,0)), to.clone().add(new THREE.Vector3(0,1.0,0)), t);
-      jet.position.lerpVectors(from.clone().add(new THREE.Vector3(-0.8,1.35,0.45)), to.clone().add(new THREE.Vector3(-0.25,1.2,0.2)), t);
-      missile.position.lerpVectors(from.clone().add(new THREE.Vector3(0,0.45,0)), to.clone().add(new THREE.Vector3(0,0.45,0)), t);
+      const flight=getDroneStrikeFlight(from,to,t*DRONE_STRIKE_TOTAL);
+      droneDir.copy(flight.next).sub(flight.pos).normalize();
+      droneQuat.setFromUnitVectors(DRONE_FORWARD,droneDir);
+      drone.quaternion.copy(droneQuat);
+      let droneBank=0;
+      if(flight.phase==='lift') droneBank=-0.1;
+      if(flight.phase==='cruise') droneBank=Math.sin(now*0.012)*0.05;
+      if(flight.phase==='dive') droneBank=0.02;
+      droneAxis.copy(droneDir).normalize();
+      droneBankQuat.setFromAxisAngle(droneAxis,droneBank);
+      drone.quaternion.multiply(droneBankQuat);
+      drone.position.copy(flight.pos);
+      drone.position.y += flightHeight;
+      jet.position.copy(flight.pos.clone().add(jetOffset));
+      missile.position.lerpVectors(
+        from.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)),
+        to.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)),
+        t
+      );
       propeller.rotation.x=now*0.04;
+      jet.lookAt(to.clone().add(new THREE.Vector3(0,flightHeight,0)));
+      missile.lookAt(to.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)));
+      exhaustClouds.forEach((puff,i)=>{
+        puff.position.set(-2.1-i*0.22-((now*0.0014+i*0.18)%1)*0.2,Math.sin(now*0.003+i)*0.02,0);
+        const s=0.65+i*0.15+((now*0.0012+i*0.15)%1)*0.28;
+        puff.scale.setScalar(s);
+        puff.material.opacity=flight.phase==='dive'?0.05:0.16-i*0.02;
+      });
       if(t>=1){
         playBombSound();
         const e0=performance.now(); const ed=220;
         const boom=ev=>{
           const et=Math.min(1,(ev-e0)/ed);
           explosion.root.visible=true;
-          explosion.root.scale.setScalar(0.5 + 1.4*et);
-          explosion.flash.scale.setScalar(1.4 + et*4.2);
+          explosion.root.scale.setScalar(0.14 + 0.28*et);
+          explosion.flash.scale.setScalar(0.6 + et*1.2);
           explosion.flash.material.opacity=0.95*(1-et);
           explosion.fire.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.92-et-i*0.1); });
           explosion.smoke.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.42-et*0.3-i*0.03); });
           if(et<1) requestAnimationFrame(boom);
           else{
-            [drone,jet,bazooka,missile,explosion.root].forEach(n=>{ scene.remove(n); });
+            [drone,jet,missile,explosion.root].forEach(n=>{ scene.remove(n); });
             resolve();
           }
         };
@@ -601,15 +675,17 @@ function evaluateGameState(){
 }
 
 async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; const fromVec=squareCenterVec3(from); const toVec=squareCenterVec3(to); const distance=Math.hypot(m.tr-m.fr,m.tc-m.fc); const isCapture=!!(aux.captured||m.enpassant);
+  const movingPiece=state.board[m.tr][m.tc];
+  const isDronePiece=movingPiece && (movingPiece.toLowerCase()==='b' || movingPiece.toLowerCase()==='r');
   const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
   const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
   if(isCapture){
-    if(distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec); }
+    if(isDronePiece || distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec); }
     else{ await animateSlashAt(toVec); }
+    if(capturedNode && capturedNode.parent){ capturedNode.parent.remove(capturedNode); }
+    if(capturedSq){ delete piecesBySquare[capturedSq]; }
   }
   if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
-  if(capturedNode && capturedNode.parent){ capturedNode.parent.remove(capturedNode); }
-  if(capturedSq){ delete piecesBySquare[capturedSq]; }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
   if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
