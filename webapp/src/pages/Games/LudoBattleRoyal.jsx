@@ -5387,7 +5387,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     new Promise((resolve) => {
         const arena = arenaRef.current;
         const scene = arena?.scene;
-        const state = stateRef.current;
         if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
           resolve();
           return;
@@ -5404,40 +5403,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
-        const from = startPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.62, 0));
-        const to = targetPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.34, 0));
-        const boardCenter = (state?.paths?.length ? state.paths : [from, to]).reduce(
-          (acc, point) => {
-            acc.x += point.x;
-            acc.z += point.z;
-            return acc;
-          },
-          { x: 0, z: 0 }
-        );
-        const centerDivisor = Math.max(1, state?.paths?.length ?? 0);
-        const center = new THREE.Vector3(boardCenter.x / centerDivisor, from.y, boardCenter.z / centerDivisor);
-        const fromOffset = from.clone().sub(center).setY(0);
-        const toOffset = to.clone().sub(center).setY(0);
-        const defaultOffset = new THREE.Vector3(0.001, 0, 1);
-        if (fromOffset.lengthSq() < 1e-6) fromOffset.copy(defaultOffset);
-        if (toOffset.lengthSq() < 1e-6) toOffset.copy(defaultOffset);
-        const startAngle = Math.atan2(fromOffset.z, fromOffset.x);
-        const endAngle = Math.atan2(toOffset.z, toOffset.x);
-        let sweepAngle = endAngle - startAngle;
-        if (sweepAngle < 0) sweepAngle += Math.PI * 2;
-        sweepAngle += Math.PI * 2;
-        const startRadius = fromOffset.length();
-        const endRadius = toOffset.length();
-        const ringRadius =
-          state?.paths?.reduce((maxRadius, point) => {
-            const dx = point.x - center.x;
-            const dz = point.z - center.z;
-            return Math.max(maxRadius, Math.hypot(dx, dz));
-          }, Math.max(startRadius, endRadius)) ?? Math.max(startRadius, endRadius);
-        const orbitRadius = Math.max(ringRadius * 0.98, startRadius, endRadius);
-        const orbitHeight = Math.max(from.y, to.y) + bishopHeight * 0.24;
-        const travelTime = 1680;
+        const from = startPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.55, 0));
+        const to = targetPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.3, 0));
+        const travelTime = 720;
         const explosionTime = 920;
+        const control1 = new THREE.Vector3(
+          from.x + (to.x - from.x) * 0.35,
+          from.y + bishopHeight * 2.8,
+          from.z + (to.z - from.z) * 0.15
+        );
+        const control2 = new THREE.Vector3(
+          to.x - (to.x - from.x) * 0.12,
+          to.y + bishopHeight * 3.4,
+          to.z - (to.z - from.z) * 0.08
+        );
         const started = performance.now();
         let explosionTriggered = false;
 
@@ -5481,15 +5460,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
-            const computeOrbitPos = (t) => {
-              const angle = startAngle + sweepAngle * t;
-              const radialBlend = easeSmooth(t);
-              const radius = lerp(lerp(startRadius, orbitRadius, radialBlend), endRadius, radialBlend);
-              const y = lerp(from.y, to.y, radialBlend) + Math.sin(Math.PI * t) * (orbitHeight - Math.min(from.y, to.y));
-              return new THREE.Vector3(center.x + Math.cos(angle) * radius, y, center.z + Math.sin(angle) * radius);
-            };
-            const pos = computeOrbitPos(u);
-            const next = computeOrbitPos(nextU);
+            const pos = cubicBezier(from, control1, control2, to, u);
+            const next = cubicBezier(from, control1, control2, to, nextU);
             const dir = next.clone().sub(pos).normalize();
             const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
             missile.root.visible = true;
@@ -6222,16 +6194,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
     const applyResult = async () => {
-      const previousPos = getWorldForProgress(player, current, tokenIndex);
       state.progress[player][tokenIndex] = target;
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       const captureVictims = getCaptureVictims(player, tokenIndex);
       if (captureVictims.length) {
-        const currentAttackerPos = previousPos.clone();
-        state.tokens[player][tokenIndex].position.copy(currentAttackerPos);
-        state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
+        const currentAttackerPos = state.tokens[player][tokenIndex].position.clone();
         const firstVictim = captureVictims[0];
         const victimProgress = state.progress[firstVictim.player][firstVictim.token];
         const victimPos = getWorldForProgress(firstVictim.player, victimProgress, firstVictim.token);
@@ -6241,8 +6210,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           startPosition: currentAttackerPos,
           targetPosition: victimPos
         });
-        state.tokens[player][tokenIndex].position.copy(finalPos);
-        state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       }
       const captures = applyCaptureVictims(captureVictims);
       updateTokenStacks();
