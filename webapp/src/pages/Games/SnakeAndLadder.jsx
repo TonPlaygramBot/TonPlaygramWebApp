@@ -1163,7 +1163,7 @@ export default function SnakeAndLadder() {
   const [, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
-  const [pot, setPot] = useState(101);
+  const [pot, setPot] = useState(100);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
@@ -2227,7 +2227,7 @@ export default function SnakeAndLadder() {
           ? parsedSeatIndex
           : playersRef.current.findIndex((pl) => pl.id === playerId);
       const isMyRoll = turnSeat >= 0 ? playersRef.current[turnSeat]?.id === myAccountId : playerId === myAccountId;
-      if (isMyRoll) setPendingExtraRoll(false);
+      if (isMyRoll) setPendingExtraRoll(Number(value) === 6);
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -2751,7 +2751,7 @@ export default function SnakeAndLadder() {
             setDiceCount(1);
           }, 2000);
         }
-        let extraTurn = false;
+        let extraTurn = rolledSix;
         if (diceCells[finalPos]) {
           const bonus = diceCells[finalPos];
           setDiceCells((d) => {
@@ -2761,14 +2761,16 @@ export default function SnakeAndLadder() {
           });
           setBonusDice(bonus);
           setRewardDice(bonus);
-          setTurnMessage('Bonus roll');
-          extraTurn = true;
+          setTurnMessage('Bonus');
           if (!muted) {
             diceRewardSoundRef.current?.play().catch(() => {});
             yabbaSoundRef.current?.play().catch(() => {});
           }
           setTimeout(() => setRewardDice(0), 1000);
           enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+        } else if (rolledSix) {
+          setTurnMessage('Rolled 6 — roll again');
+          setBonusDice(0);
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -2956,7 +2958,7 @@ export default function SnakeAndLadder() {
         setMoving(false);
         return;
       }
-      let extraTurn = false;
+      let extraTurn = rolledSix;
       if (diceCells[finalPos]) {
         const bonus = diceCells[finalPos];
         setDiceCells((d) => {
@@ -2966,14 +2968,16 @@ export default function SnakeAndLadder() {
         });
         setBonusDice(bonus);
         setRewardDice(bonus);
-        setTurnMessage('Bonus roll');
-        extraTurn = true;
+        setTurnMessage('Bonus');
         if (!muted) {
           diceRewardSoundRef.current?.play().catch(() => {});
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+      }
+      if (rolledSix && !extraTurn) {
+        setTurnMessage(`${playerName(index)} rolled 6 — bonus turn`);
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
@@ -3221,8 +3225,13 @@ export default function SnakeAndLadder() {
 
   const handleRollButtonClick = useCallback(() => {
     if (!canRoll) return;
+    if (isMultiplayer) {
+      socket.emit('rollDice');
+      setPendingExtraRoll(false);
+      return;
+    }
     diceRollerDivRef.current?.click();
-  }, [canRoll]);
+  }, [canRoll, isMultiplayer]);
 
   const renderPreview = (key, option) => {
     switch (key) {
@@ -4011,7 +4020,7 @@ export default function SnakeAndLadder() {
             numDice={diceCount}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
-            muted={muted}
+            muted
             fixedSoundVolume={1}
           />
         </div>
@@ -4022,7 +4031,7 @@ export default function SnakeAndLadder() {
             <DiceRoller
               clickable
               showButton={false}
-              muted={muted}
+              muted
               fixedSoundVolume={1}
               emitRollEvent
               divRef={diceRollerDivRef}
@@ -4068,14 +4077,14 @@ export default function SnakeAndLadder() {
           )}
         </div>
       )}
-      {canRoll && diceAnchor ? (
+      {canRoll ? (
         <button
           type="button"
           onClick={handleRollButtonClick}
-          className="fixed z-30 pointer-events-auto rounded-full"
+          className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center"
           style={{
-            left: `${diceAnchor.x}%`,
-            top: `${diceAnchor.y}%`,
+            left: diceAnchor ? `${diceAnchor.x}%` : 'calc(100% - 4.4rem)',
+            top: diceAnchor ? `${diceAnchor.y}%` : 'calc(100% - 9.6rem)',
             width: '5.4rem',
             height: '5.4rem',
             transform: 'translate(-50%, -50%)',
@@ -4084,7 +4093,16 @@ export default function SnakeAndLadder() {
             boxShadow: '0 0 18px rgba(250,204,21,0.24)'
           }}
           aria-label="Roll dice"
-        />
+        >
+          <span
+            className="text-3xl"
+            role="img"
+            aria-hidden="true"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.55))' }}
+          >
+            🎲
+          </span>
+        </button>
       ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
@@ -4112,7 +4130,7 @@ export default function SnakeAndLadder() {
           <HintPopup
             open={showExactHelp}
             onClose={() => setShowExactHelp(false)}
-            message="You must roll the exact number to land on the pot."
+            message={`You must roll the exact number to land on tile ${FINAL_TILE}.`}
           />
         </div>
       )}
