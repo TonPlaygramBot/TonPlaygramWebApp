@@ -1633,13 +1633,6 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
-  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-  if (isTopOrBottomSeat) {
-    return {
-      position: camera.position.clone(),
-      target: boardLookTarget.clone()
-    };
-  }
   if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA;
   if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA;
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
@@ -1669,13 +1662,7 @@ function computeDiceCameraFocusState(board, camera) {
 
   const target = diceCenter.clone();
   target.y += DICE_SIZE * 0.45;
-  const currentDistance = camera.position.distanceTo(boardLookTarget);
-  const direction = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-
-  const position = target.clone().addScaledVector(direction, currentDistance);
-  position.y = camera.position.y;
+  const position = camera.position.clone();
   return { position, target };
 }
 
