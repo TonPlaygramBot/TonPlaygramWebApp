@@ -563,11 +563,11 @@ export function createMurlanStyleTable({
   const clothRise = 0.07 * scaleFactor;
   let baseHeight = 0.38 * scaleFactor;
   const tableY = tableHeight - clothRise;
-  const baseLift = 0.03 * scaleFactor;
+  const baseLift = 0.02 * scaleFactor;
   const minBaseHeight = 0.2 * scaleFactor;
   const maxBaseHeight = Math.max(minBaseHeight, tableY + baseLift);
   // Keep table-top height unchanged while extending the pedestal downward a bit more so the base reaches the ground cleanly.
-  baseHeight = maxBaseHeight * 1.14;
+  baseHeight = maxBaseHeight * 1.24;
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({
