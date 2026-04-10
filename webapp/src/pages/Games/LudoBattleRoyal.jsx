@@ -491,11 +491,11 @@ let proceduralTokenHeight = null;
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
 // slightly smaller in world space.
-const LUDO_ARENA_SHRINK_FACTOR = 0.88;
+const LUDO_ARENA_SHRINK_FACTOR = 0.86;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_RADIUS = 3.28 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -510,7 +510,7 @@ const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.62;
+const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -1458,7 +1458,7 @@ function fitTableModelToArena(model, tableThemeId = null) {
 
 function getTableWidthScale(tableThemeId) {
   if (!tableThemeId) return 1;
-  return tableThemeId === 'gothic_coffee_table' ? 1 : 1.06;
+  return tableThemeId === 'gothic_coffee_table' ? 0.98 : 1.02;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -1990,14 +1990,14 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.058;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.066;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.078,
-  0.072,
-  0.078,
-  0.072
+  0.086,
+  0.08,
+  0.086,
+  0.08
 ]);
-const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
+const TOKEN_RAIL_HEIGHT_LIFT = 0.0016;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.006;
 let tokenSurfaceOffset = 0;
 const TOKEN_MOVE_SPEED = 2.45;
