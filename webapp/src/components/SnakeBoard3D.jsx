@@ -369,6 +369,7 @@ const SNAKE_TAIL_LIFT_RATIO = 0.36;
 const CAPTURE_MISSILE_FLIGHT_MS = 760;
 const CAPTURE_EXPLOSION_MS = 680;
 const CAPTURE_TOKEN_ADVANCE_MS = 420;
+const CAPTURE_POST_EXPLOSION_HOLD_MS = 140;
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
   if (!point) return point;
@@ -3865,22 +3866,22 @@ function createCaptureMissileRig() {
     opacity: 0.2
   });
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1, 16), bodyMat);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 1.08, 16), bodyMat);
   body.rotation.z = Math.PI / 2;
   body.castShadow = true;
   root.add(body);
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
-  nose.position.set(0.6, 0, 0);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.26, 16), noseMat);
+  nose.position.set(0.65, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
 
-  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.24), finMat);
+  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.024, 0.28), finMat);
   finA.position.set(-0.25, 0, 0);
   finA.castShadow = true;
   root.add(finA);
-  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.02), finMat);
+  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.024), finMat);
   finB.position.set(-0.25, 0, 0);
   finB.castShadow = true;
   root.add(finB);
@@ -3900,17 +3901,17 @@ function createCaptureMissileRig() {
 function createCaptureExplosionRig() {
   const root = new THREE.Group();
   const flash = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 16, 16),
+    new THREE.SphereGeometry(0.12, 16, 16),
     new THREE.MeshStandardMaterial({ color: '#ffe59a', roughness: 0.08, metalness: 0, transparent: true, opacity: 1 })
   );
-  flash.position.set(0, 0.25, 0);
+  flash.position.set(0, 0.08, 0);
   flash.castShadow = true;
   root.add(flash);
 
   const fire = [];
   for (let i = 0; i < 4; i += 1) {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18 + i * 0.05, 16, 16),
+      new THREE.SphereGeometry(0.11 + i * 0.03, 16, 16),
       new THREE.MeshStandardMaterial({
         color: i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
         roughness: 0.2,
@@ -3919,7 +3920,7 @@ function createCaptureExplosionRig() {
         opacity: 0.95 - i * 0.15
       })
     );
-    mesh.position.set(0, 0.22 + i * 0.06, 0);
+    mesh.position.set(0, 0.08 + i * 0.04, 0);
     mesh.castShadow = true;
     fire.push(mesh);
     root.add(mesh);
@@ -3928,10 +3929,10 @@ function createCaptureExplosionRig() {
   const smoke = [];
   for (let i = 0; i < 6; i += 1) {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18 + i * 0.035, 16, 16),
+      new THREE.SphereGeometry(0.1 + i * 0.024, 16, 16),
       new THREE.MeshStandardMaterial({ color: '#646b72', roughness: 1, metalness: 0, transparent: true, opacity: 0.42 - i * 0.04 })
     );
-    mesh.position.set(0, 0.18 + i * 0.08, 0);
+    mesh.position.set(0, 0.07 + i * 0.045, 0);
     mesh.castShadow = true;
     smoke.push(mesh);
     root.add(mesh);
@@ -3948,16 +3949,16 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
   rig.root.visible = true;
   const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
   const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
-  const fireGrow = 1 + elapsedSinceImpact * 4.5;
-  const smokeGrow = 1 + elapsedSinceImpact * 2.3;
-  rig.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+  const fireGrow = 1 + elapsedSinceImpact * 2.2;
+  const smokeGrow = 1 + elapsedSinceImpact * 1.35;
+  rig.flash.scale.setScalar(1.1 + elapsedSinceImpact * 2.3);
   rig.flash.material.opacity = fireLife;
   rig.fire.forEach((mesh, i) => {
     const angle = elapsedSinceImpact * 5 + i * 1.35;
     mesh.position.set(
-      Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
-      0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
-      Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+      Math.cos(angle) * (0.06 + elapsedSinceImpact * 0.14),
+      0.05 + elapsedSinceImpact * 0.22 + i * 0.03,
+      Math.sin(angle) * (0.06 + elapsedSinceImpact * 0.12)
     );
     mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
     mesh.material.opacity = fireLife * (0.95 - i * 0.12);
@@ -3965,9 +3966,9 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
   rig.smoke.forEach((mesh, i) => {
     const angle = i * 1.1 + elapsedSinceImpact * 1.8;
     mesh.position.set(
-      Math.cos(angle) * (0.14 + i * 0.08),
-      0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
-      Math.sin(angle) * (0.14 + i * 0.08)
+      Math.cos(angle) * (0.08 + i * 0.035),
+      0.09 + elapsedSinceImpact * (0.2 + i * 0.05),
+      Math.sin(angle) * (0.08 + i * 0.035)
     );
     mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
     mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
@@ -5023,11 +5024,18 @@ export default function SnakeBoard3D({
     }
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
+    const victims = (captureEvent.victimIndices || [])
+      .map(
+        (index) =>
+          board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
+          board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index)
+      )
+      .filter(Boolean);
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const launch = startPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
-    const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+    const launch = startPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.45, 0));
+    const impact = targetPos.clone().add(new THREE.Vector3(0, BOARD_TILE_HEIGHT * 0.42, 0));
     const control = launch.clone().lerp(impact, 0.48);
-    control.y += TOKEN_HEIGHT * 6.8;
+    control.y += TOKEN_HEIGHT * 5.9;
 
     attacker.position.copy(startPos);
     attacker.userData.isSliding = true;
@@ -5035,12 +5043,14 @@ export default function SnakeBoard3D({
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
-    missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    missile.root.scale.set(tokenHeight * 1.14, tokenHeight * 0.43, tokenHeight * 0.43);
 
     const startTime = performance.now();
     const flightDuration = CAPTURE_MISSILE_FLIGHT_MS;
     const impactDuration = CAPTURE_EXPLOSION_MS;
+    const holdDuration = CAPTURE_POST_EXPLOSION_HOLD_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
+    let victimsDestroyed = false;
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
@@ -5067,10 +5077,25 @@ export default function SnakeBoard3D({
         if (impactElapsed <= impactDuration) {
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
+          const destroyProgress = clamp01(impactElapsed / Math.max(impactDuration * 0.72, 1));
+          victims.forEach((victim) => {
+            victim.scale.setScalar(1 - destroyProgress * 0.92);
+          });
           return false;
         }
+        if (!victimsDestroyed) {
+          victims.forEach((victim) => {
+            victim.visible = false;
+            victim.scale.setScalar(1);
+          });
+          victimsDestroyed = true;
+        }
         updateCaptureExplosionRig(explosion, -1);
-        const advanceElapsed = impactElapsed - impactDuration;
+        const advanceElapsed = impactElapsed - impactDuration - holdDuration;
+        if (advanceElapsed < 0) {
+          attacker.position.copy(startPos);
+          return false;
+        }
         const t = clamp01(advanceElapsed / advanceDuration);
         const lift = TOKEN_HEIGHT * 1.2;
         const arc = Math.sin(t * Math.PI) * lift;
@@ -5080,6 +5105,10 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           attacker.userData.isSliding = false;
           attacker.position.copy(targetPos);
+          victims.forEach((victim) => {
+            victim.visible = true;
+            victim.scale.setScalar(1);
+          });
           onCaptureAnimationComplete?.(captureEvent.id);
           return true;
         }
