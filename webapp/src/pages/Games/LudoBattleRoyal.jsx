@@ -228,7 +228,7 @@ function createCaptureExplosionFx() {
       )
     );
   }
-  root.scale.setScalar(0.5);
+  root.scale.setScalar(0.36);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -5383,7 +5383,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return { bishopHeight, bishopWidth };
   };
 
-  const playCaptureMissileSequence = ({ attackerToken, attackerPlayer, startPosition, targetPosition }) =>
+  const playCaptureMissileSequence = ({ attackerToken, attackerPlayer, startPosition, targetPosition, targetTilePosition }) =>
     new Promise((resolve) => {
         const arena = arenaRef.current;
         const scene = arena?.scene;
@@ -5399,8 +5399,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         captureFxRef.current = { missile: missile.root, explosion: explosion.root };
 
         const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
-        const missileLengthScale = (bishopHeight / 1.02) * 0.9;
-        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
+        const missileLengthScale = (bishopHeight / 1.02) * 1.04;
+        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.36;
         missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
         const tokenWorldPos = new THREE.Vector3();
@@ -5409,7 +5409,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           .clone()
           .lerp(startPosition, 0.22)
           .add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
-        const impactAnchor = targetPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.34, 0));
+        const impactTile = targetTilePosition?.isVector3 ? targetTilePosition.clone() : targetPosition.clone();
+        const impactAnchor = impactTile.clone().add(new THREE.Vector3(0, bishopHeight * 0.34, 0));
         const from = launchAnchor.clone();
         const to = impactAnchor.clone();
         const travelTime = 1850;
@@ -5448,26 +5449,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const fireGrow = 1 + elapsedSinceImpact * 4.5;
           const smokeGrow = 1 + elapsedSinceImpact * 2.3;
 
-          explosion.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+          explosion.flash.scale.setScalar(0.85 + elapsedSinceImpact * 3.6);
           explosion.flash.material.opacity = fireLife;
           explosion.fire.forEach((mesh, i) => {
             const angle = elapsedSinceImpact * 5 + i * 1.35;
             mesh.position.set(
-              Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
-              0.18 + elapsedSinceImpact * 0.55 + i * 0.05,
-              Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+              Math.cos(angle) * (0.06 + elapsedSinceImpact * 0.2),
+              0.1 + elapsedSinceImpact * 0.32 + i * 0.03,
+              Math.sin(angle) * (0.06 + elapsedSinceImpact * 0.17)
             );
-            mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
+            mesh.scale.setScalar(fireGrow * (0.45 + i * 0.14));
             mesh.material.opacity = fireLife * (0.95 - i * 0.12);
           });
           explosion.smoke.forEach((mesh, i) => {
             const angle = i * 1.1 + elapsedSinceImpact * 1.8;
             mesh.position.set(
-              Math.cos(angle) * (0.14 + i * 0.08),
-              0.25 + elapsedSinceImpact * (0.55 + i * 0.1),
-              Math.sin(angle) * (0.14 + i * 0.08)
+              Math.cos(angle) * (0.08 + i * 0.05),
+              0.16 + elapsedSinceImpact * (0.36 + i * 0.08),
+              Math.sin(angle) * (0.08 + i * 0.05)
             );
-            mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
+            mesh.scale.setScalar(smokeGrow * (0.52 + i * 0.12));
             mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
           });
         };
@@ -5504,7 +5505,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
           missile.root.visible = false;
           const explosionElapsed = (elapsed - travelTime) / 1000;
-          explosion.root.position.copy(targetPosition.clone().add(new THREE.Vector3(0, 0.01, 0)));
+          explosion.root.position.copy(impactTile.clone().add(new THREE.Vector3(0, 0.01, 0)));
           updateExplosionRig(explosionElapsed);
           if (!explosionTriggered) {
             explosionTriggered = true;
@@ -6210,25 +6211,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
-    const applyResult = async () => {
-      const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
-      state.progress[player][tokenIndex] = target;
-      const finalPos = getWorldForProgress(player, target, tokenIndex);
-      const captureVictims = getCaptureVictims(player, tokenIndex);
-      if (captureVictims.length) {
-        const firstVictim = captureVictims[0];
-        const victimProgress = state.progress[firstVictim.player][firstVictim.token];
-        const victimPos = getWorldForProgress(firstVictim.player, victimProgress, firstVictim.token);
-        await playCaptureMissileSequence({
-          attackerToken: state.tokens[player][tokenIndex],
-          attackerPlayer: player,
-          startPosition: attackerStartPos,
-          targetPosition: victimPos
-        });
-      }
-      state.tokens[player][tokenIndex].position.copy(finalPos);
-      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
-      const captures = applyCaptureVictims(captureVictims);
+    const finishMoveResolution = (captures) => {
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
       const tokensHome = resolveTokensHomeCount(state, player);
@@ -6273,10 +6256,47 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
+    const resolveAfterMovement = async () => {
+      state.progress[player][tokenIndex] = target;
+      const captureVictims = getCaptureVictims(player, tokenIndex);
+      const finalPos = getWorldForProgress(player, target, tokenIndex);
+      state.tokens[player][tokenIndex].position.copy(finalPos);
+      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
+      const captures = applyCaptureVictims(captureVictims);
+      finishMoveResolution(captures);
+    };
+    const resolveCaptureThenMove = async () => {
+      state.progress[player][tokenIndex] = target;
+      const captureVictims = getCaptureVictims(player, tokenIndex);
+      if (!captureVictims.length) {
+        state.progress[player][tokenIndex] = current;
+        scheduleMove(player, tokenIndex, target, resolveAfterMovement);
+        return;
+      }
+      const firstVictim = captureVictims[0];
+      const victimProgress = state.progress[firstVictim.player][firstVictim.token];
+      const victimPos = getWorldForProgress(firstVictim.player, victimProgress, firstVictim.token);
+      const targetTilePos = getWorldForProgress(player, target, tokenIndex);
+      state.progress[player][tokenIndex] = current;
+      await playCaptureMissileSequence({
+        attackerToken: state.tokens[player][tokenIndex],
+        attackerPlayer: player,
+        startPosition: state.tokens[player][tokenIndex].position.clone(),
+        targetPosition: victimPos,
+        targetTilePosition: targetTilePos
+      });
+      state.progress[player][tokenIndex] = target;
+      const captures = applyCaptureVictims(captureVictims);
+      scheduleMove(player, tokenIndex, target, () => {
+        state.progress[player][tokenIndex] = target;
+        state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
+        finishMoveResolution(captures);
+      });
+    };
     if (entering || target !== current) {
-      scheduleMove(player, tokenIndex, target, applyResult);
+      void resolveCaptureThenMove();
     } else {
-      void applyResult();
+      void resolveAfterMovement();
     }
   };
 
