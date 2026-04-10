@@ -41,12 +41,6 @@
   .primary{background:#22c55e;color:#041204;border:none;padding:10px 16px;border-radius:12px;font-weight:800;cursor:pointer;}
   .muted{background:#121d33;color:#fff;border:1px solid #233050;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
   .hidden{display:none;}
-  .decisionModal{position:fixed;inset:0;background:rgba(5,8,18,0.82);display:flex;align-items:center;justify-content:center;z-index:8;pointer-events:auto;}
-  .decisionModal.hidden{display:none;}
-  .decisionCard{background:#0b1220;border:1px solid #233050;border-radius:16px;padding:18px;max-width:420px;width:calc(100% - 32px);box-shadow:0 18px 38px rgba(0,0,0,0.45);}
-  .decisionCard h2{margin:0 0 6px;font-size:24px;}
-  .decisionCard p{margin:0 0 12px;color:#cbd5e1;font-size:14px;}
-  .decisionActions{display:flex;gap:10px;justify-content:flex-end;}
   #badge{position:fixed;right:12px;bottom:12px;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(12,180,75,.15);border:1px solid rgba(12,180,75,.35);color:#c7f7da;z-index:9;pointer-events:auto;}
   #badge.fail{background:rgba(200,20,20,.15);border-color:rgba(200,20,20,.45);color:#ffd8d8}
 </style>
@@ -79,16 +73,6 @@
     <div class="actions">
       <button class="muted" id="cancelLobby" type="button">Close</button>
       <button class="primary" id="startBtn" type="button">Start Match</button>
-    </div>
-  </div>
-</div>
-<div id="backModal" class="decisionModal hidden" role="dialog" aria-modal="true">
-  <div class="decisionCard">
-    <h2>Leave match?</h2>
-    <p>You pressed back. Continue battle or return to the lobby?</p>
-    <div class="decisionActions">
-      <button class="muted" id="continueMatchBtn" type="button">Continue</button>
-      <button class="primary" id="goLobbyBtn" type="button">Go Lobby</button>
     </div>
   </div>
 </div>
@@ -135,10 +119,7 @@ const zoomInput = document.getElementById('zoom');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomInBtn = document.getElementById('zoomIn');
 const badge = document.getElementById('badge');
-const backModal = document.getElementById('backModal');
-const continueMatchBtn = document.getElementById('continueMatchBtn');
-const goLobbyBtn = document.getElementById('goLobbyBtn');
-let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null; let gameOver=false; let isAnimating=false;
+let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null;
 
 function setAvatar(el,param){
   if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
@@ -195,7 +176,6 @@ function startMatch(){
   setAvatar(p1AvatarEl, playerFlag);
   setAvatar(p2AvatarEl, opponentFlag);
   lobby.classList.add('hidden');
-  history.pushState({ chessMatch:true }, '', location.href);
   resetGame();
   updateTurn();
   applyZoom();
@@ -207,23 +187,9 @@ onlineBtn.addEventListener('click', ()=> setMode('online'));
 aiBtn.addEventListener('click', ()=> setMode('ai'));
 startBtn.addEventListener('click', startMatch);
 cancelLobby.addEventListener('click', ()=> lobby.classList.add('hidden'));
-continueMatchBtn.addEventListener('click', ()=>{
-  backModal.classList.add('hidden');
-  history.pushState({ chessMatch:true }, '', location.href);
-});
-goLobbyBtn.addEventListener('click', ()=>{
-  backModal.classList.add('hidden');
-  lobby.classList.remove('hidden');
-  if(aiTimer){ clearTimeout(aiTimer); aiTimer=null; }
-});
-
-window.addEventListener('popstate', ()=>{
-  backModal.classList.remove('hidden');
-});
 
 hydrateDefaults();
 setMode('online');
-history.replaceState({ chessLobby:true }, '', location.href);
 
 // === Three.js + chess visuals ===
 let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null;
@@ -239,10 +205,6 @@ const PIECE_SPACING_SCALE=1.0;
 const BOARD_Y_OFFSET=0.04;
 const TABLE_SET_Y_ROTATION=Math.PI;
 const BOARD_PIECE_VERTICAL_LIFT=0.03;
-const SHORT_CAPTURE_DISTANCE=1.45;
-const BOMB_VOLUME=0.16; // reduced from previous loud mix
-const SLASH_VOLUME=0.14;
-const DRONE_VOLUME=0.13;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
 const files='abcdefgh';
@@ -395,382 +357,22 @@ function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dr
 function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02+BOARD_PIECE_VERTICAL_LIFT, z); }
 
 function tryMoveSelectedTo(targetSq){ const rcFrom=sqToRC(selectedSq); const rcTo=sqToRC(targetSq); const L=genLegal(state); let legal=null; for(let i=0;i<L.length;i++){ const m=L[i]; if(m.fr===rcFrom[0]&&m.fc===rcFrom[1]&&m.tr===rcTo[0]&&m.tc===rcTo[1]){ legal=m; break; } }
-  if(legal && !isAnimating && !gameOver){ doMove(legal); selectedSq=null; }
+  if(legal){ doMove(legal); selectedSq=null; if(aiMode && state.turn==='b'){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,260); } }
   else{ if(dragNode && dragFromSq){ const v=squareCenterVec3(dragFromSq); const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; v.y=baseY; animateMove(dragNode,v); } }
   dragNode=null; dragFromSq=null; dragging=false;
 }
 
-function animateMove(node,target,dur=220){ return new Promise(resolve=>{ const start=node.position.clone(); const t0=performance.now(); function step(now){ const t=Math.min(1,(now-t0)/dur); node.position.lerpVectors(start,target,t); if(t<1) requestAnimationFrame(step); else resolve(); } requestAnimationFrame(step); }); }
+function animateMove(node,target){ const start=node.position.clone(); const t0=performance.now(), dur=220; function step(now){ const t=Math.min(1,(now-t0)/dur); node.position.lerpVectors(start,target,t); if(t<1) requestAnimationFrame(step);} requestAnimationFrame(step); }
 function moveNodeInstant(from,to){ const n=piecesBySquare[from]; if(!n) return; const v=squareCenterVec3(to); const baseY=(typeof n.userData.baseY==='number')?n.userData.baseY:n.position.y; v.y=baseY; n.position.copy(v); piecesBySquare[to]=n; delete piecesBySquare[from]; }
 function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.parent.remove(n); delete piecesBySquare[sq]; }
 }
 
-let audioCtx=null;
-function playTone(freq,duration,vol,type='sine'){
-  try{
-    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const osc=audioCtx.createOscillator(); const gain=audioCtx.createGain();
-    osc.type=type; osc.frequency.value=freq; gain.gain.value=0.0001;
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    const t=audioCtx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.001,vol), t+0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t+duration);
-    osc.start(); osc.stop(t+duration+0.03);
-  }catch(_){}
-}
-function playBombSound(){ playTone(82,0.24,BOMB_VOLUME,'triangle'); playTone(45,0.3,BOMB_VOLUME*0.66,'sawtooth'); }
-function playSlashSound(){ playTone(640,0.08,SLASH_VOLUME,'square'); playTone(420,0.12,SLASH_VOLUME*0.9,'triangle'); }
-function playDroneSound(){ playTone(220,0.22,DRONE_VOLUME,'sawtooth'); playTone(330,0.16,DRONE_VOLUME*0.85,'triangle'); }
-
-function addBox(group,size,position,color,roughness=0.7,metalness=0.2){
-  const mesh=new THREE.Mesh(
-    new THREE.BoxGeometry(size[0],size[1],size[2]),
-    new THREE.MeshStandardMaterial({color,roughness,metalness})
-  );
-  mesh.position.set(position[0],position[1],position[2]);
-  mesh.castShadow=true; mesh.receiveShadow=true;
-  group.add(mesh);
-  return mesh;
-}
-function addCylinder(group,radiusTop,radiusBottom,height,position,rotation,color,radialSegments=18,roughness=0.62,metalness=0.28){
-  const mesh=new THREE.Mesh(
-    new THREE.CylinderGeometry(radiusTop,radiusBottom,height,radialSegments),
-    new THREE.MeshStandardMaterial({color,roughness,metalness})
-  );
-  mesh.position.set(position[0],position[1],position[2]);
-  mesh.rotation.set(rotation[0],rotation[1],rotation[2]);
-  mesh.castShadow=true; mesh.receiveShadow=true;
-  group.add(mesh);
-  return mesh;
-}
-function addSphere(group,radius,position,color,roughness=0.45,metalness=0.25,transparent=false,opacity=1){
-  const mesh=new THREE.Mesh(
-    new THREE.SphereGeometry(radius,16,16),
-    new THREE.MeshStandardMaterial({color,roughness,metalness,transparent,opacity})
-  );
-  mesh.position.set(position[0],position[1],position[2]);
-  mesh.castShadow=true; mesh.receiveShadow=true;
-  group.add(mesh);
-  return mesh;
-}
-function createPolygonMesh(points,depth,color,roughness=0.65,metalness=0.24){
-  const shape=new THREE.Shape();
-  shape.moveTo(points[0][0],points[0][1]);
-  for(let i=1;i<points.length;i+=1) shape.lineTo(points[i][0],points[i][1]);
-  shape.closePath();
-  const geometry=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:1});
-  geometry.translate(0,0,-depth/2);
-  geometry.rotateX(Math.PI/2);
-  const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness,metalness}));
-  mesh.castShadow=true; mesh.receiveShadow=true;
-  return mesh;
-}
-function createTriangleDroneModel(){
-  const root=new THREE.Group();
-  addCylinder(root,0.14,0.19,2.75,[0,0,0],[0,0,Math.PI/2],'#cfd3d6',20);
-  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.72,20),new THREE.MeshStandardMaterial({color:'#d9dde0',roughness:0.5,metalness:0.18}));
-  nose.position.set(1.7,0,0); nose.rotation.z=-Math.PI/2; nose.castShadow=true; root.add(nose);
-  addCylinder(root,0.18,0.14,0.48,[-1.58,0,0],[0,0,Math.PI/2],'#879095',14);
-  const deltaWing=createPolygonMesh([[-1.2,-1.65],[1.0,0],[-1.2,1.65]],0.08,'#aeb4ae',0.82,0.08);
-  deltaWing.position.set(-0.15,-0.06,0); root.add(deltaWing);
-  const spine=createPolygonMesh([[-0.55,-0.18],[0.9,0],[-0.55,0.18]],0.06,'#7d858a',0.55,0.22);
-  spine.position.set(0.15,0.03,0); root.add(spine);
-  addSphere(root,0.09,[1.05,0,0],'#1f2428',0.22,0.35);
-  const propeller=new THREE.Group(); propeller.position.set(-1.95,0,0);
-  addBox(propeller,[0.05,1.0,0.08],[0,0,0],'#191d20',0.6,0.12);
-  const blade2=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.0,0.08),new THREE.MeshStandardMaterial({color:'#191d20',roughness:0.6}));
-  blade2.rotation.x=Math.PI/2; blade2.castShadow=true; propeller.add(blade2);
-  addSphere(propeller,0.07,[0,0,0],'#41484d',0.45,0.25);
-  root.add(propeller);
-
-  const exhaustClouds=[];
-  for(let i=0;i<4;i+=1){
-    exhaustClouds.push(addSphere(root,0.08+i*0.015,[-2.15-i*0.24,0,0],'#8d979d',1,0,true,0.21-i*0.03));
-  }
-
-  // ~2 board tiles long (2.75 base fuselage * 0.72 ~= 1.98)
-  root.scale.setScalar(0.72);
-  return { root, propeller, exhaustClouds };
-}
-function createFighterJetModel(){
-  const root=new THREE.Group();
-  addCylinder(root,0.18,0.24,3.4,[0,0,0],[0,0,Math.PI/2],'#b8bec5',24);
-  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.19,0.9,24),new THREE.MeshStandardMaterial({color:'#d7dbe0',roughness:0.45,metalness:0.2}));
-  nose.position.set(2.15,0,0); nose.rotation.z=-Math.PI/2; nose.castShadow=true; root.add(nose);
-  const cockpit=new THREE.Mesh(new THREE.SphereGeometry(0.22,18,18),new THREE.MeshStandardMaterial({color:'#2d3945',roughness:0.18,metalness:0.3}));
-  cockpit.scale.set(1.2,0.65,0.7); cockpit.position.set(0.75,0.18,0); cockpit.castShadow=true; root.add(cockpit);
-  const wing=createPolygonMesh([[-1.6,-2.05],[0.85,0],[-0.1,2.05]],0.09,'#9fa7ae',0.68,0.16);
-  wing.position.set(-0.15,-0.04,0); root.add(wing);
-  // ~3 board tiles long (3.4 fuselage * 0.9 ~= 3.06)
-  root.scale.setScalar(0.9);
-  return root;
-}
-function createBazookaModel(){
-  const root=new THREE.Group();
-  addCylinder(root,0.12,0.14,1.55,[0,0,0],[0,0,Math.PI/2],'#7e868c',18,0.55,0.28);
-  addCylinder(root,0.09,0.09,0.38,[0.86,0,0],[0,0,Math.PI/2],'#929aa0',14,0.45,0.18);
-  addBox(root,[0.28,0.12,0.18],[-0.18,0.18,0],'#6d757b',0.65,0.2);
-  addBox(root,[0.16,0.18,0.06],[-0.05,-0.16,0],'#596066',0.7,0.16);
-  root.scale.setScalar(0.5);
-  return root;
-}
-function createMissileModel(){
-  const root=new THREE.Group();
-  addCylinder(root,0.05,0.06,0.72,[0,0,0],[0,0,Math.PI/2],'#c9ced3',14,0.42,0.12);
-  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.055,0.18,14),new THREE.MeshStandardMaterial({color:'#f0f2f4',roughness:0.32,metalness:0.16}));
-  nose.position.set(0.45,0,0); nose.rotation.z=-Math.PI/2; nose.castShadow=true; root.add(nose);
-  addBox(root,[0.1,0.02,0.16],[-0.18,0,0],'#7f868d',0.58,0.12);
-  addBox(root,[0.1,0.16,0.02],[-0.18,0,0],'#7f868d',0.58,0.12);
-  // small projectile, visually around bishop-sized silhouette
-  root.scale.setScalar(0.28);
-  return root;
-}
-function createExplosionModel(){
-  const root=new THREE.Group();
-  const flash=addSphere(root,0.18,[0,0.25,0],'#ffe59a',0.08,0,true,1);
-  const fire=[]; const smoke=[];
-  for(let i=0;i<4;i+=1) fire.push(addSphere(root,0.18+i*0.05,[0,0.22+i*0.06,0],i%2===0?'#ff9c2f':'#ff5b2d',0.2,0,true,0.95-i*0.15));
-  for(let i=0;i<6;i+=1) smoke.push(addSphere(root,0.18+i*0.035,[0,0.18+i*0.08,0],'#646b72',1,0,true,0.42-i*0.04));
-  root.scale.setScalar(0.14);
-  return { root, flash, fire, smoke };
-}
-
-const DRONE_LIFT_TIME=0.6;
-const DRONE_CRUISE_TIME=1.0;
-const DRONE_DIVE_TIME=0.6;
-const DRONE_STRIKE_TOTAL=DRONE_LIFT_TIME+DRONE_CRUISE_TIME+DRONE_DIVE_TIME;
-const DRONE_FORWARD=new THREE.Vector3(1,0,0);
-function smoothStep(t){ return t*t*(3-2*t); }
-function getNodeSize(node){
-  if(!node || !THREE) return { x: 0.4, y: 0.9, z: 0.4 };
-  const box=new THREE.Box3().setFromObject(node);
-  const size=new THREE.Vector3();
-  box.getSize(size);
-  return {
-    x: Math.max(0.05,size.x||0),
-    y: Math.max(0.05,size.y||0),
-    z: Math.max(0.05,size.z||0)
-  };
-}
-function getDroneStrikeFlight(from,to,elapsed){
-  const liftStart=from.clone().add(new THREE.Vector3(0,0.25,0));
-  const liftEnd=from.clone().add(new THREE.Vector3(0,1.75,0));
-  const dir=to.clone().sub(from).setY(0);
-  const dirLen=Math.max(0.001,dir.length());
-  const side=new THREE.Vector3(-dir.z/dirLen,0,dir.x/dirLen);
-  const cruiseEnd=to.clone().add(new THREE.Vector3(0,1.9,0)).add(side.multiplyScalar(0.28));
-  const diveEnd=to.clone().add(new THREE.Vector3(0,0.45,0));
-  const pos=new THREE.Vector3();
-  const next=new THREE.Vector3();
-  let phase='lift';
-
-  if(elapsed<DRONE_LIFT_TIME){
-    const u=smoothStep(elapsed/DRONE_LIFT_TIME);
-    pos.copy(liftStart).lerp(liftEnd,u);
-    pos.x+=Math.sin(u*Math.PI)*0.08;
-    next.copy(liftStart).lerp(liftEnd,Math.min(1,u+0.06));
-    phase='lift';
-  }else if(elapsed<DRONE_LIFT_TIME+DRONE_CRUISE_TIME){
-    const u=smoothStep((elapsed-DRONE_LIFT_TIME)/DRONE_CRUISE_TIME);
-    pos.copy(liftEnd).lerp(cruiseEnd,u);
-    pos.y+=Math.sin(u*Math.PI*2)*0.06;
-    pos.z+=Math.sin(u*Math.PI*2.6)*0.07;
-    next.copy(liftEnd).lerp(cruiseEnd,Math.min(1,u+0.04));
-    phase='cruise';
-  }else{
-    const u=smoothStep((elapsed-DRONE_LIFT_TIME-DRONE_CRUISE_TIME)/DRONE_DIVE_TIME);
-    pos.copy(cruiseEnd).lerp(diveEnd,u);
-    next.copy(cruiseEnd).lerp(diveEnd,Math.min(1,u+0.07));
-    phase='dive';
-  }
-  return {pos,next,phase};
-}
-
-function animateSlashAt(target){
-  return new Promise(resolve=>{
-    if(!scene||!THREE||!target) return resolve();
-    const mat=new THREE.MeshBasicMaterial({color:0x9be7ff, transparent:true, opacity:0.9});
-    const g=new THREE.BoxGeometry(0.05,0.05,1.1);
-    const slash=new THREE.Mesh(g,mat);
-    slash.position.copy(target.clone().add(new THREE.Vector3(-0.6,0.28,0)));
-    slash.rotation.y=Math.PI*0.2;
-    scene.add(slash);
-    const start=performance.now(); const dur=180; playSlashSound();
-    const tick=now=>{ const t=Math.min(1,(now-start)/dur); slash.position.x=target.x-0.6+1.2*t; slash.material.opacity=0.9*(1-t); if(t<1) requestAnimationFrame(tick); else { scene.remove(slash); slash.geometry.dispose(); slash.material.dispose(); resolve(); } };
-    requestAnimationFrame(tick);
-  });
-}
-function animateMissileStrike(from,to){
-  return new Promise(resolve=>{
-    if(!scene||!THREE||!from||!to) return resolve();
-    const {root:drone, propeller, exhaustClouds}=createTriangleDroneModel();
-    const jet=createFighterJetModel();
-    const missile=createMissileModel();
-    const explosion=createExplosionModel();
-    const flightHeight=0.4;
-    const jetOffset=new THREE.Vector3(-1.1,0.25,0.75);
-    const missileHeight=0.12;
-    explosion.root.position.copy(to.clone().add(new THREE.Vector3(0,0.34,0)));
-    explosion.root.visible=false;
-    scene.add(drone); scene.add(jet); scene.add(missile); scene.add(explosion.root); playDroneSound();
-    const t0=performance.now(), dur=DRONE_STRIKE_TOTAL*1000;
-    const droneDir=new THREE.Vector3();
-    const droneQuat=new THREE.Quaternion();
-    const droneBankQuat=new THREE.Quaternion();
-    const droneAxis=new THREE.Vector3();
-    const tick=now=>{
-      const t=Math.min(1,(now-t0)/dur);
-      const flight=getDroneStrikeFlight(from,to,t*DRONE_STRIKE_TOTAL);
-      droneDir.copy(flight.next).sub(flight.pos).normalize();
-      droneQuat.setFromUnitVectors(DRONE_FORWARD,droneDir);
-      drone.quaternion.copy(droneQuat);
-      let droneBank=0;
-      if(flight.phase==='lift') droneBank=-0.1;
-      if(flight.phase==='cruise') droneBank=Math.sin(now*0.012)*0.05;
-      if(flight.phase==='dive') droneBank=0.02;
-      droneAxis.copy(droneDir).normalize();
-      droneBankQuat.setFromAxisAngle(droneAxis,droneBank);
-      drone.quaternion.multiply(droneBankQuat);
-      drone.position.copy(flight.pos);
-      drone.position.y += flightHeight;
-      jet.position.copy(flight.pos.clone().add(jetOffset));
-      missile.position.lerpVectors(
-        from.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)),
-        to.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)),
-        t
-      );
-      propeller.rotation.x=now*0.04;
-      jet.lookAt(to.clone().add(new THREE.Vector3(0,flightHeight,0)));
-      missile.lookAt(to.clone().add(new THREE.Vector3(0,flightHeight+missileHeight,0)));
-      exhaustClouds.forEach((puff,i)=>{
-        puff.position.set(-2.1-i*0.22-((now*0.0014+i*0.18)%1)*0.2,Math.sin(now*0.003+i)*0.02,0);
-        const s=0.65+i*0.15+((now*0.0012+i*0.15)%1)*0.28;
-        puff.scale.setScalar(s);
-        puff.material.opacity=flight.phase==='dive'?0.05:0.16-i*0.02;
-      });
-      if(t>=1){
-        playBombSound();
-        const e0=performance.now(); const ed=220;
-        const boom=ev=>{
-          const et=Math.min(1,(ev-e0)/ed);
-          explosion.root.visible=true;
-          explosion.root.scale.setScalar(0.14 + 0.28*et);
-          explosion.flash.scale.setScalar(0.6 + et*1.2);
-          explosion.flash.material.opacity=0.95*(1-et);
-          explosion.fire.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.92-et-i*0.1); });
-          explosion.smoke.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.42-et*0.3-i*0.03); });
-          if(et<1) requestAnimationFrame(boom);
-          else{
-            [drone,jet,missile,explosion.root].forEach(n=>{ scene.remove(n); });
-            resolve();
-          }
-        };
-        requestAnimationFrame(boom);
-      }else requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-}
-
-function animateKnightMissileStrike(from,to,attackerNode){
-  return new Promise(resolve=>{
-    if(!scene||!THREE||!from||!to) return resolve();
-    const missile=createMissileModel();
-    const explosion=createExplosionModel();
-    const attackerSize=getNodeSize(attackerNode);
-    const missileLengthScale=Math.max(0.22,Math.min(0.55,attackerSize.y*0.62));
-    const missileThicknessScale=Math.max(0.08,Math.min(0.2,attackerSize.x*0.24));
-    missile.root.scale.set(missileLengthScale,missileThicknessScale,missileThicknessScale);
-
-    const travelDuration=680;
-    const explodeDuration=260;
-    const arcHeight=2.05;
-    const start=from.clone().add(new THREE.Vector3(0,0.36,0));
-    const end=to.clone().add(new THREE.Vector3(0,0.36,0));
-    const mid=from.clone().lerp(to,0.5).add(new THREE.Vector3(0,arcHeight,0));
-    const targetDir=end.clone().sub(start).normalize();
-    const side=new THREE.Vector3(-targetDir.z,0,targetDir.x).multiplyScalar(0.24);
-    mid.add(side);
-
-    const qBezier=(a,b,c,t)=>{
-      const ab=a.clone().lerp(b,t);
-      const bc=b.clone().lerp(c,t);
-      return ab.lerp(bc,t);
-    };
-
-    explosion.root.position.copy(to.clone().add(new THREE.Vector3(0,0.3,0)));
-    explosion.root.visible=false;
-    scene.add(missile.root);
-    scene.add(explosion.root);
-    playDroneSound();
-
-    const t0=performance.now();
-    const tick=now=>{
-      const u=Math.min(1,(now-t0)/travelDuration);
-      const pos=qBezier(start,mid,end,u);
-      const next=qBezier(start,mid,end,Math.min(1,u+0.03));
-      missile.root.position.copy(pos);
-      const dir=next.clone().sub(pos).normalize();
-      missile.root.quaternion.setFromUnitVectors(DRONE_FORWARD,dir);
-      if(u<1){
-        requestAnimationFrame(tick);
-        return;
-      }
-
-      playBombSound();
-      const e0=performance.now();
-      const boom=ev=>{
-        const et=Math.min(1,(ev-e0)/explodeDuration);
-        explosion.root.visible=true;
-        explosion.root.scale.setScalar(0.12 + 0.22*et);
-        explosion.flash.scale.setScalar(0.55 + 1.05*et);
-        explosion.flash.material.opacity=0.92*(1-et);
-        explosion.fire.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.78-et-i*0.1); });
-        explosion.smoke.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.36-et*0.28-i*0.03); });
-        if(et<1){ requestAnimationFrame(boom); return; }
-        [missile.root,explosion.root].forEach(n=>{ scene.remove(n); });
-        resolve();
-      };
-      requestAnimationFrame(boom);
-    };
-    requestAnimationFrame(tick);
-  });
-}
-
-function evaluateGameState(){
-  const nextMoves=genLegal(state);
-  if(nextMoves.length) return;
-  const side=state.turn;
-  const winner=side==='w' ? p2NameEl.textContent : p1NameEl.textContent;
-  if(isInCheck(state, side)){
-    badge.textContent=`Checkmate • ${winner} wins`;
-  }else{
-    badge.textContent='Stalemate • Draw';
-  }
-  gameOver=true;
-}
-
-async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; const fromVec=squareCenterVec3(from); const toVec=squareCenterVec3(to); const distance=Math.hypot(m.tr-m.fr,m.tc-m.fc); const isCapture=!!(aux.captured||m.enpassant);
-  const movingPiece=state.board[m.tr][m.tc];
-  const isDronePiece=movingPiece && (movingPiece.toLowerCase()==='b' || movingPiece.toLowerCase()==='r');
-  const isKnightPiece=movingPiece && movingPiece.toLowerCase()==='n';
-  const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
-  const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
-  if(isCapture){
-    if(isKnightPiece){ await animateKnightMissileStrike(fromVec,toVec,node); }
-    else if(isDronePiece || distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec); }
-    else{ await animateSlashAt(toVec); }
-    if(capturedNode && capturedNode.parent){ capturedNode.parent.remove(capturedNode); }
-    if(capturedSq){ delete piecesBySquare[capturedSq]; }
-  }
-  if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
+function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
+  if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
   if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scalePieceNode(nn); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02+BOARD_PIECE_VERTICAL_LIFT; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
   updateTurn();
-  evaluateGameState();
-  isAnimating=false;
-  if(aiMode && state.turn==='b' && !gameOver){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,340); }
 }
 
 function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; extraNodes.forEach(n=>{ if(n.parent) n.parent.remove(n); }); extraNodes=[];
@@ -778,7 +380,6 @@ function resetGame(){ state=makeStart(); if(!initialPositions) return; const {st
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
-  gameOver=false; isAnimating=false; badge.textContent='Ready';
 }
 
 function applyZoom(){ if(!camera||!controls||!baseCameraPos) return; const level=zoomLevel; camera.position.copy(baseCameraPos.clone().multiplyScalar(level)); controls.update(); }
@@ -787,7 +388,7 @@ zoomInput.addEventListener('input', e=>clampZoom(Number(e.target.value)/100));
 zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
 zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
 
-function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b' || gameOver || isAnimating) return; const moves=genLegal(state); if(!moves.length){ evaluateGameState(); return; } const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); }
+function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b') return; const moves=genLegal(state); if(!moves.length) return updateTurn(); const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove,260); }
 
 boot();
 
