@@ -1254,7 +1254,6 @@ export default function SnakeAndLadder() {
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
   const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
-  const [awaitingSixExtraRoll, setAwaitingSixExtraRoll] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
@@ -2200,10 +2199,7 @@ export default function SnakeAndLadder() {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
         }
-        if (!turnBelongsToMe) {
-          setPendingExtraRoll(false);
-          setAwaitingSixExtraRoll(false);
-        }
+        if (!turnBelongsToMe) setPendingExtraRoll(false);
       }
     };
     const onStarted = () => {
@@ -2213,21 +2209,10 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value, playerId, seatIndex }) => {
+    const onRolled = ({ value }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
-      const rolledValue = Number(value);
-      const turnSeat =
-        Number.isInteger(seatIndex)
-          ? seatIndex
-          : playersRef.current.findIndex((pl) => pl.id === playerId);
-      const isMyRoll = turnSeat >= 0 ? playersRef.current[turnSeat]?.id === myAccountId : playerId === myAccountId;
-      if (isMyRoll && rolledValue === 6) {
-        // Server-confirmed six: keep the roll CTA available for the bonus turn.
-        setPendingExtraRoll(true);
-        setAwaitingSixExtraRoll(true);
-      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -3210,7 +3195,7 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
-  const hasLocalExtraRoll = isMultiplayer && (pendingExtraRoll || awaitingSixExtraRoll);
+  const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = hasLocalExtraRoll || rollCooldown === 0;
@@ -4050,7 +4035,6 @@ export default function SnakeAndLadder() {
                   seatIndex: currentTurn
                 });
                 setPendingExtraRoll(false);
-                setAwaitingSixExtraRoll(false);
               }}
               onRollEnd={(vals) => {
                 startDiceBoardAnimation({
