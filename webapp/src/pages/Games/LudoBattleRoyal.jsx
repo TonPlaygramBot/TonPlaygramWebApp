@@ -159,29 +159,29 @@ function addFxSphere(
 
 function createCaptureMissileFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+  addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
 
   const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.08, 0.24, 16),
+    new THREE.ConeGeometry(0.1, 0.28, 16),
     new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
   );
-  nose.position.set(0.63, 0, 0);
+  nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
 
-  addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-  addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
+  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
 
   const trail = [];
   for (let i = 0; i < 5; i += 1) {
     trail.push(
       addFxSphere(
         root,
-        0.1 + i * 0.025,
-        [-0.7 - i * 0.16, 0, 0],
+        0.12 + i * 0.03,
+        [-0.84 - i * 0.19, 0, 0],
         i < 2 ? '#f6af4b' : '#8f989d',
         i < 2 ? 0.2 : 1,
         0,
@@ -197,14 +197,14 @@ function createCaptureMissileFx() {
 
 function createCaptureExplosionFx() {
   const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
+  const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
   const fire = [];
   const smoke = [];
   for (let i = 0; i < 4; i += 1) {
     fire.push(
       addFxSphere(
         root,
-        0.18 + i * 0.05,
+        0.24 + i * 0.065,
         [0, 0.22 + i * 0.06, 0],
         i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
         0.2,
@@ -218,7 +218,7 @@ function createCaptureExplosionFx() {
     smoke.push(
       addFxSphere(
         root,
-        0.18 + i * 0.035,
+        0.22 + i * 0.045,
         [0, 0.18 + i * 0.08, 0],
         '#646b72',
         1,
@@ -228,7 +228,7 @@ function createCaptureExplosionFx() {
       )
     );
   }
-  root.scale.setScalar(0.34);
+  root.scale.setScalar(0.46);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -527,8 +527,8 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(180)
 ];
 const AI_ROLL_DELAY_MS = 2000;
-const AI_EXTRA_TURN_DELAY_MS = 1100;
-const HUMAN_ROLL_DELAY_MS = 2000;
+const AI_EXTRA_TURN_DELAY_MS = 1600;
+const HUMAN_ROLL_DELAY_MS = 2600;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const ANIMATION_BASE_FPS = 60;
@@ -578,6 +578,9 @@ const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
+const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(42);
+const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 1.08 * ARENA_SCALE_RATIO,
   forwardOffset: 0.34 * ARENA_SCALE_RATIO,
@@ -1991,8 +1994,10 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.006;
 let tokenSurfaceOffset = 0;
-const TOKEN_MOVE_SPEED = 3.1;
-const TOKEN_STEP_DURATION_SECONDS = 0.24;
+const TOKEN_MOVE_SPEED = 2.45;
+const TOKEN_STEP_DURATION_SECONDS = 0.34;
+const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
+const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -2845,6 +2850,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
+  const missileLaunchSoundRef = useRef(null);
+  const missileImpactSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
   const diceRewardSoundRef = useRef(null);
@@ -4439,7 +4446,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -4454,6 +4461,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const vol = getGameVolume();
     moveSoundRef.current = null;
     captureSoundRef.current = new Audio(bombSound);
+    missileLaunchSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL);
+    missileImpactSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL);
     cheerSoundRef.current = new Audio(cheerSound);
     // Procedural dice SFX is generated with Web Audio (no binary asset).
     diceSoundRef.current = null;
@@ -4648,7 +4657,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+    [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.muted = !soundEnabled;
         ref.current.volume = level;
@@ -4682,7 +4691,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setupScene = async () => {
 
       const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = baseVolume;
         }
@@ -4858,8 +4867,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
     const initialAzimuth = controls.getAzimuthalAngle();
-    controls.minAzimuthAngle = initialAzimuth;
-    controls.maxAzimuthAngle = initialAzimuth;
+    controls.minAzimuthAngle = initialAzimuth - CAMERA_FREE_LOOK_AZIMUTH_RANGE;
+    controls.maxAzimuthAngle = initialAzimuth + CAMERA_FREE_LOOK_AZIMUTH_RANGE;
+    const initialPolar = controls.getPolarAngle();
+    controls.minPolarAngle = Math.max(CAM.phiMin, initialPolar - CAMERA_FREE_LOOK_POLAR_DELTA);
+    controls.maxPolarAngle = Math.min(CAM.phiMax, initialPolar + CAMERA_FREE_LOOK_POLAR_DELTA);
     controlsRef.current = controls;
     baseCameraRadiusRef.current = initialCameraRadius;
     syncSkyboxToCameraRef.current = () => {
@@ -5366,6 +5378,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current.play().catch(() => {});
   };
 
+  const playMissileLaunchSound = () => {
+    if (!settingsRef.current.soundEnabled || !missileLaunchSoundRef.current) return;
+    missileLaunchSoundRef.current.currentTime = 0;
+    missileLaunchSoundRef.current.play().catch(() => {});
+  };
+
+  const playMissileImpactSound = () => {
+    if (!settingsRef.current.soundEnabled || !missileImpactSoundRef.current) return;
+    missileImpactSoundRef.current.currentTime = 0;
+    missileImpactSoundRef.current.play().catch(() => {});
+  };
+
   const getReferenceBishopSize = (player, fallbackToken) => {
     const state = stateRef.current;
     const sourceTokens = state?.tokens?.[player] ?? [];
@@ -5429,6 +5453,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         scene.add(missile.root);
         scene.add(explosion.root);
         captureFxRef.current = { missile: missile.root, explosion: explosion.root };
+        playMissileLaunchSound();
 
         const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
         const missileLengthScale = (bishopHeight / 1.02) * 1.06;
@@ -5564,6 +5589,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           updateExplosionRig(explosionElapsed);
           if (!explosionTriggered) {
             explosionTriggered = true;
+            playMissileImpactSound();
             playExplosionBombSound();
             playCapture();
           }
@@ -5757,7 +5783,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const setCameraViewForTurn = useCallback((player, duration = 280) => {
     cancelCameraViewAnimation();
-    if (isCamera2d) return;
+    if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (player === 0) {
@@ -5790,7 +5816,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     (focus = {}) => {
       const state = stateRef.current;
       const controls = controlsRef.current;
-      if (!state || !controls || isCamera2d) return;
+      if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
       const { object, target, follow = false, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
