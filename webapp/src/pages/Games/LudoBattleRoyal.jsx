@@ -489,16 +489,15 @@ const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
-// Keep the exact layout, but scale down the whole arena (table + board + chairs + attached animations)
-// so it appears smaller on screen while preserving the relative placement.
-const LUDO_ARENA_SHRINK_FACTOR = 0.55;
+// Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
+// ~30% smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.6;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.18 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-// Chairs requested to be ~20% smaller than the current setup.
-const CHAIR_GLOBAL_SCALE = 0.512;
+const CHAIR_GLOBAL_SCALE = 0.64;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -627,8 +626,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-// Stretch the lower table section further downward so legs/base reach the floor more reliably.
-const TABLE_LEG_EXTENSION_FACTOR = 1.2;
+const TABLE_LEG_EXTENSION_FACTOR = 1.08;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -1987,10 +1985,9 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-// Lower token resting heights so pieces visually touch the board/table surface.
-const TOKEN_TRACK_SURFACE_OFFSET = -0.0045;
-const TOKEN_HOME_SURFACE_OFFSET = -0.0015;
-const TOKEN_GOAL_SURFACE_OFFSET = -0.0015;
+const TOKEN_TRACK_SURFACE_OFFSET = -0.001;
+const TOKEN_HOME_SURFACE_OFFSET = 0.002;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0018;
 const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
 const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
@@ -2011,8 +2008,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-// Push front rail tokens a bit farther outward from the table edge.
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.05;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.036;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -2070,8 +2066,7 @@ const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Lower dice so they sit closer to (and visually touch) the table surface.
-const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.022;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.029;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
