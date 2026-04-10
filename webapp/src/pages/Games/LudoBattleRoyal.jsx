@@ -495,7 +495,7 @@ const LUDO_ARENA_SHRINK_FACTOR = 0.6;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_RADIUS = 3.18 * MODEL_SCALE;
+const TABLE_RADIUS = 3.28 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
 const CHAIR_GLOBAL_SCALE = 0.64;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
@@ -514,7 +514,7 @@ const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_VERTICAL_DROP = 0.03 * MODEL_SCALE;
-const TABLE_VERTICAL_DROP = 0.085 * MODEL_SCALE;
+const TABLE_VERTICAL_DROP = 0.11 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
@@ -594,15 +594,15 @@ const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.94 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.52 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.24 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  backOffset: 0.8 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.62 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.1 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.76 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.18 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  targetLift: 0.075 * MODEL_SCALE
+  backOffset: 0.58 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.86 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.02 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  targetLift: 0.065 * MODEL_SCALE
 });
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -631,7 +631,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.28;
+const TABLE_LEG_EXTENSION_FACTOR = 1.45;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -1471,7 +1471,7 @@ function fitTableModelToArena(model, tableThemeId = null) {
 
 function getTableWidthScale(tableThemeId) {
   if (!tableThemeId) return 1;
-  return tableThemeId === 'gothic_coffee_table' ? 0.98 : 1.02;
+  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
