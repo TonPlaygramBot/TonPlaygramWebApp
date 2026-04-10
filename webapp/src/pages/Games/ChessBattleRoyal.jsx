@@ -8013,16 +8013,26 @@ function Chess3D({
       const spine = createFxPolygon([[-0.55, -0.18], [0.9, 0], [-0.55, 0.18]], 0.06, '#7d858a');
       spine.position.set(0.15, 0.03, 0);
       root.add(spine);
+      const finLeft = createFxPolygon([[-0.28, 0], [0.22, 0], [-0.04, 0.55]], 0.04, '#838b90');
+      finLeft.rotation.z = Math.PI / 2;
+      finLeft.position.set(-0.4, 0.35, -0.25);
+      root.add(finLeft);
+      const finRight = finLeft.clone();
+      finRight.position.z = 0.25;
+      root.add(finRight);
+      addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 1);
       const propeller = new THREE.Group();
       propeller.position.set(-1.95, 0, 0);
       addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20');
       const blade2 = addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20');
       blade2.rotation.x = Math.PI / 2;
+      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 1);
       root.add(propeller);
       const exhaustClouds = [
         addFxSphere(root, 0.08, [-2.15, 0, 0], '#8d979d', 0.21),
         addFxSphere(root, 0.095, [-2.39, 0, 0], '#8d979d', 0.18),
-        addFxSphere(root, 0.11, [-2.63, 0, 0], '#8d979d', 0.15)
+        addFxSphere(root, 0.11, [-2.63, 0, 0], '#8d979d', 0.15),
+        addFxSphere(root, 0.125, [-2.87, 0, 0], '#8d979d', 0.12)
       ];
       return { root, propeller, exhaustClouds };
     };
@@ -8048,7 +8058,21 @@ function Chess3D({
       fin.rotation.z = Math.PI / 2;
       fin.position.set(-1.1, 0.55, 0);
       root.add(fin);
-      return { root, cockpit };
+      const leftStore = new THREE.Group();
+      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12);
+      const leftStoreNose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.14, 12),
+        new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+      );
+      leftStoreNose.position.set(0.34, 0, 0);
+      leftStoreNose.rotation.z = -Math.PI / 2;
+      leftStore.add(leftStoreNose);
+      leftStore.position.set(0.25, -0.25, -1.15);
+      root.add(leftStore);
+      const rightStore = leftStore.clone();
+      rightStore.position.z = 1.15;
+      root.add(rightStore);
+      return { root, cockpit, leftStore, rightStore };
     };
     const createFxLauncher = () => {
       const root = new THREE.Group();
@@ -8078,9 +8102,33 @@ function Chess3D({
       ];
       return { root, trail };
     };
+    const createFxGroundMissile = () => {
+      const root = new THREE.Group();
+      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16);
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.24, 16),
+        new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+      );
+      nose.position.set(0.63, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      root.add(nose);
+      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b');
+      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b');
+      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80');
+      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80');
+      const trail = [
+        addFxSphere(root, 0.1, [-0.7, 0, 0], '#f6af4b', 0.82),
+        addFxSphere(root, 0.125, [-0.86, 0, 0], '#f6af4b', 0.62),
+        addFxSphere(root, 0.15, [-1.02, 0, 0], '#8f989d', 0.26),
+        addFxSphere(root, 0.175, [-1.18, 0, 0], '#8f989d', 0.2),
+        addFxSphere(root, 0.2, [-1.34, 0, 0], '#8f989d', 0.16)
+      ];
+      return { root, trail };
+    };
     const createFxExplosion = (position) => {
       const root = new THREE.Group();
       root.position.copy(position);
+      root.scale.setScalar(0.84);
       const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 1);
       const fire = [addFxSphere(root, 0.18, [0, 0.22, 0], '#ff9c2f', 0.95), addFxSphere(root, 0.23, [0, 0.3, 0], '#ff5b2d', 0.78)];
       const smoke = [addFxSphere(root, 0.2, [0, 0.18, 0], '#646b72', 0.34), addFxSphere(root, 0.24, [0, 0.28, 0], '#646b72', 0.25)];
@@ -8098,12 +8146,20 @@ function Chess3D({
       const bc = new THREE.Vector3().copy(b).lerp(c, t);
       return ab.lerp(bc, t);
     };
+    const cBezier = (a, b, c, d, t) => {
+      const ab = new THREE.Vector3().copy(a).lerp(b, t);
+      const bc = new THREE.Vector3().copy(b).lerp(c, t);
+      const cd = new THREE.Vector3().copy(c).lerp(d, t);
+      const abbc = ab.lerp(bc, t);
+      const bccd = bc.lerp(cd, t);
+      return abbc.lerp(bccd, t);
+    };
 
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, deltaR = 0, deltaC = 0 }) => {
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
         const droneFx = createFxDrone();
-        droneFx.root.scale.setScalar(0.54);
+        droneFx.root.scale.setScalar(0.5);
         droneFx.root.position.copy(fromPos);
         captureFxGroup.add(droneFx.root);
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
@@ -8112,8 +8168,8 @@ function Chess3D({
           t: 0,
           duration: CAPTURE_DRONE_TOTAL,
           from: fromPos.clone(),
-          lift: fromPos.clone().lerp(targetPos, 0.2).add(new THREE.Vector3(0, 2.1, 0.5)),
-          cruise: fromPos.clone().lerp(targetPos, 0.64).add(new THREE.Vector3(0, 2.3, 0.1)),
+          lift: fromPos.clone().lerp(targetPos, 0.18).add(new THREE.Vector3(0, 1.15, 0.3)),
+          cruise: fromPos.clone().lerp(targetPos, 0.64).add(new THREE.Vector3(0, 1.35, 0.12)),
           to: targetPos.clone(),
           droneFx
         });
@@ -8122,12 +8178,16 @@ function Chess3D({
       if (pieceType === 'Q') {
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(0.58);
-        jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.8, 0));
+        jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.6, 0));
         captureFxGroup.add(jetFx.root);
-        const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(0.62);
-        missileFx.root.visible = false;
-        captureFxGroup.add(missileFx.root);
+        const missileFxA = createFxMissile();
+        const missileFxB = createFxMissile();
+        missileFxA.root.scale.setScalar(0.62);
+        missileFxB.root.scale.setScalar(0.62);
+        missileFxA.root.visible = false;
+        missileFxB.root.visible = false;
+        captureFxGroup.add(missileFxA.root);
+        captureFxGroup.add(missileFxB.root);
         playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'jet',
@@ -8136,39 +8196,32 @@ function Chess3D({
           from: fromPos.clone(),
           to: targetPos.clone(),
           jetFx,
-          missileFx,
-          missileLaunched: false
+          missileFxA,
+          missileFxB,
+          missileALaunched: false,
+          missileBLaunched: false,
+          missileAImpacted: false,
+          missileBImpacted: false
         });
         return { moveDelayMs: CAPTURE_JET_TOTAL * 1000 };
       }
-      if (pieceType === 'N') {
-        const launcher = createFxLauncher();
-        launcher.root.scale.setScalar(0.52);
-        launcher.root.position.copy(fromPos).add(new THREE.Vector3(0, 0.22, 0));
-        captureFxGroup.add(launcher.root);
-        const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(0.62);
+      if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
+        playAudio(missileLaunchSoundRef);
+        const missileFx = createFxGroundMissile();
+        missileFx.root.scale.setScalar(0.58);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
-        playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
-          type: 'bazooka',
+          type: 'javelin',
           t: 0,
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
           deltaR,
           deltaC,
-          launcher,
           missileFx
         });
         return { moveDelayMs: CAPTURE_GROUND_TOTAL * 1000 };
-      }
-      if (pieceType === 'K' || pieceType === 'P' || distance <= 1.5) {
-        playAudio(swordSoundRef);
-        setTimeout(() => playAudio(swordSoundRef), 120);
-        setTimeout(() => playAudio(missileImpactSoundRef), 200);
-        return { moveDelayMs: 280 };
       }
       if (distance >= 2) {
         playAudio(missileLaunchSoundRef);
@@ -9621,22 +9674,24 @@ function Chess3D({
           if (fx.type === 'drone') {
             const liftRatio = CAPTURE_DRONE_LIFT_TIME / CAPTURE_DRONE_TOTAL;
             const cruiseRatio = CAPTURE_DRONE_CRUISE_TIME / CAPTURE_DRONE_TOTAL;
-            const center = new THREE.Vector3(0, fx.from.y + 2.3, 0);
+            const center = new THREE.Vector3().copy(fx.from).lerp(fx.to, 0.45);
+            center.y = fx.from.y + 1.3;
             let pos = fx.from.clone();
             let next = fx.from.clone();
             if (u <= liftRatio) {
               const tLocal = smoothEase(clamp01(u / liftRatio));
               pos = new THREE.Vector3().copy(fx.from).lerp(fx.lift, tLocal);
+              pos.z += Math.sin(tLocal * Math.PI * 3) * 0.08;
               next = new THREE.Vector3().copy(fx.from).lerp(fx.lift, clamp01(tLocal + 0.04));
             } else if (u <= liftRatio + cruiseRatio) {
               const orbitU = clamp01((u - liftRatio) / cruiseRatio);
               const startAngle = Math.atan2(fx.from.z - center.z, fx.from.x - center.x);
-              const angle = startAngle + orbitU * Math.PI * 2.1;
+              const angle = startAngle + orbitU * Math.PI * 1.55;
               const nextAngle = angle + 0.08;
-              const radius = 5.4;
+              const radius = Math.max(1.7, fx.from.distanceTo(fx.to) * 0.65);
               pos = new THREE.Vector3(
                 center.x + Math.cos(angle) * radius,
-                center.y + Math.sin(orbitU * Math.PI * 2) * 0.18,
+                center.y + Math.sin(orbitU * Math.PI * 2) * 0.11,
                 center.z + Math.sin(angle) * radius
               );
               next = new THREE.Vector3(
@@ -9653,7 +9708,7 @@ function Chess3D({
             fx.droneFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
             fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.droneFx.propeller.rotation.x += dt * 28;
+            fx.droneFx.propeller.rotation.x += dt * 36;
             fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-2.1 - idx * 0.22, Math.sin(fx.t * 5 + idx) * 0.03, 0);
             });
@@ -9663,71 +9718,116 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const center = new THREE.Vector3(0, fx.from.y + 3.8, 0);
-            const orbitU = clamp01(u / 0.78);
-            const angle = Math.atan2(fx.from.z, fx.from.x) + orbitU * Math.PI * 2;
-            const nextAngle = angle + 0.04;
-            const radius = 6.4;
-            const pos = new THREE.Vector3(center.x + Math.cos(angle) * radius, center.y + Math.sin(orbitU * Math.PI) * 0.3, center.z + Math.sin(angle) * radius);
-            const next = new THREE.Vector3(center.x + Math.cos(nextAngle) * radius, center.y, center.z + Math.sin(nextAngle) * radius);
+            const center = new THREE.Vector3().copy(fx.from).lerp(fx.to, 0.5);
+            center.y = fx.from.y + 2.7;
+            const radius = Math.max(2.4, fx.from.distanceTo(fx.to) * 0.72);
+            const pos = new THREE.Vector3();
+            const next = new THREE.Vector3();
+            if (u < 0.56) {
+              const ou = clamp01(u / 0.56);
+              const startAngle = Math.atan2(fx.from.z - center.z, fx.from.x - center.x);
+              const angle = startAngle + ou * Math.PI * 1.4;
+              const nextAngle = angle + 0.04;
+              pos.set(
+                center.x + Math.cos(angle) * radius,
+                center.y + Math.sin(ou * Math.PI) * 0.35,
+                center.z + Math.sin(angle) * radius
+              );
+              next.set(
+                center.x + Math.cos(nextAngle) * radius,
+                center.y,
+                center.z + Math.sin(nextAngle) * radius
+              );
+            } else if (u < 0.82) {
+              const ru = clamp01((u - 0.56) / 0.26);
+              const returnFrom = new THREE.Vector3(center.x - radius * 0.4, center.y, center.z + radius * 0.5);
+              const returnTo = fx.from.clone().add(new THREE.Vector3(0, 1.5, 0));
+              pos.copy(returnFrom).lerp(returnTo, smoothEase(ru));
+              next.copy(returnFrom).lerp(returnTo, clamp01(smoothEase(ru) + 0.03));
+            } else {
+              const eu = clamp01((u - 0.82) / 0.18);
+              const start = fx.from.clone().add(new THREE.Vector3(0, 1.5, 0));
+              const exit = start.clone().add(new THREE.Vector3(0, 0.8, -6.2));
+              pos.copy(start).lerp(exit, smoothEase(eu));
+              next.copy(start).lerp(exit, clamp01(smoothEase(eu) + 0.03));
+            }
             fx.jetFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            if (!fx.missileLaunched && u > 0.46) {
-              fx.missileLaunched = true;
+            if (!fx.missileALaunched && u > 0.3) {
+              fx.missileALaunched = true;
               playAudio(missileLaunchSoundRef);
-              fx.missileFx.root.visible = true;
+              fx.missileFxA.root.visible = true;
+              fx.jetFx.leftStore.visible = false;
             }
-            if (fx.missileLaunched) {
-              const mu = clamp01((u - 0.46) / 0.42);
-              const dropStart = pos.clone().add(new THREE.Vector3(0, -0.25, 0));
-              const control = new THREE.Vector3().copy(dropStart).lerp(fx.to, 0.45);
+            if (!fx.missileBLaunched && u > 0.4) {
+              fx.missileBLaunched = true;
+              playAudio(missileLaunchSoundRef);
+              fx.missileFxB.root.visible = true;
+              fx.jetFx.rightStore.visible = false;
+            }
+            if (fx.missileALaunched && !fx.missileAImpacted) {
+              const mu = clamp01((u - 0.3) / 0.34);
+              const impactTarget = fx.to.clone().add(new THREE.Vector3(-0.16, 0, 0.16));
+              const dropStart = pos.clone().add(new THREE.Vector3(0, -0.25, -0.1));
+              const control = new THREE.Vector3().copy(dropStart).lerp(impactTarget, 0.45);
               control.y += 1.7;
-              const missilePos = qBezier(dropStart, control, fx.to, mu);
-              const missileNext = qBezier(dropStart, control, fx.to, clamp01(mu + 0.03));
-              fx.missileFx.root.position.copy(missilePos);
+              const missilePos = qBezier(dropStart, control, impactTarget, mu);
+              const missileNext = qBezier(dropStart, control, impactTarget, clamp01(mu + 0.03));
+              fx.missileFxA.root.position.copy(missilePos);
               captureDir.copy(missileNext).sub(missilePos).normalize();
-              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              fx.missileFx.trail?.forEach((puff, idx) => {
+              fx.missileFxA.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFxA.trail?.forEach((puff, idx) => {
                 puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.02, 0);
               });
+              if (mu >= 1) {
+                fx.missileAImpacted = true;
+                fx.missileFxA.root.visible = false;
+                launchExplosion(impactTarget);
+              }
+            }
+            if (fx.missileBLaunched && !fx.missileBImpacted) {
+              const mu = clamp01((u - 0.4) / 0.36);
+              const impactTarget = fx.to.clone().add(new THREE.Vector3(0.16, 0, -0.16));
+              const dropStart = pos.clone().add(new THREE.Vector3(0, -0.25, 0.1));
+              const control = new THREE.Vector3().copy(dropStart).lerp(impactTarget, 0.45);
+              control.y += 1.7;
+              const missilePos = qBezier(dropStart, control, impactTarget, mu);
+              const missileNext = qBezier(dropStart, control, impactTarget, clamp01(mu + 0.03));
+              fx.missileFxB.root.position.copy(missilePos);
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              fx.missileFxB.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFxB.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.02, 0);
+              });
+              if (mu >= 1) {
+                fx.missileBImpacted = true;
+                fx.missileFxB.root.visible = false;
+                launchExplosion(impactTarget);
+              }
             }
             if (u >= 1) {
-              launchExplosion(fx.to);
               captureFxGroup.remove(fx.jetFx.root);
-              captureFxGroup.remove(fx.missileFx.root);
+              captureFxGroup.remove(fx.missileFxA.root);
+              captureFxGroup.remove(fx.missileFxB.root);
               activeCaptureFx.splice(i, 1);
             }
-          } else if (fx.type === 'bazooka') {
-            const aim = new THREE.Vector3().copy(fx.to).sub(fx.from).normalize();
-            fx.launcher.tubeRig.quaternion.setFromUnitVectors(FORWARD, aim);
+          } else if (fx.type === 'javelin') {
             const mu = clamp01((u - CAPTURE_GROUND_FIRE_TIME / CAPTURE_GROUND_TOTAL) / (CAPTURE_GROUND_TRAVEL_TIME / CAPTURE_GROUND_TOTAL));
             if (mu > 0) fx.missileFx.root.visible = true;
-            const launchPos = fx.from.clone().add(new THREE.Vector3(0, 0.62, 0));
-            const lCorner = launchPos.clone();
-            const worldDx = fx.to.x - launchPos.x;
-            const worldDz = fx.to.z - launchPos.z;
-            if (Math.abs(fx.deltaC) > Math.abs(fx.deltaR)) {
-              lCorner.x += worldDx * (2 / 3);
-            } else {
-              lCorner.z += worldDz * (2 / 3);
-            }
-            lCorner.y += 1.1;
-            const missilePos = mu < 0.5
-              ? new THREE.Vector3().copy(launchPos).lerp(lCorner, mu / 0.5)
-              : new THREE.Vector3().copy(lCorner).lerp(fx.to, (mu - 0.5) / 0.5);
-            const missileNext = mu < 0.5
-              ? new THREE.Vector3().copy(launchPos).lerp(lCorner, clamp01(mu / 0.5 + 0.06))
-              : new THREE.Vector3().copy(lCorner).lerp(fx.to, clamp01((mu - 0.5) / 0.5 + 0.06));
+            const launchPos = fx.from.clone().add(new THREE.Vector3(0, 0.7, 0));
+            const control1 = new THREE.Vector3(launchPos.x + (fx.to.x - launchPos.x) * 0.35, launchPos.y + 2.2, launchPos.z + (fx.to.z - launchPos.z) * 0.1);
+            const control2 = new THREE.Vector3(fx.to.x - (fx.to.x - launchPos.x) * 0.18, launchPos.y + 3.1, fx.to.z - (fx.to.z - launchPos.z) * 0.18);
+            const missilePos = cBezier(launchPos, control1, control2, fx.to, mu);
+            const missileNext = cBezier(launchPos, control1, control2, fx.to, clamp01(mu + 0.03));
             fx.missileFx.root.position.copy(missilePos);
             captureDir.copy(missileNext).sub(missilePos).normalize();
             fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             fx.missileFx.trail?.forEach((puff, idx) => {
-              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 9 + idx) * 0.015, 0);
+              puff.position.set(-0.7 - idx * 0.16, Math.sin(fx.t * 9 + idx) * 0.015, 0);
             });
             if (u >= 1) {
               launchExplosion(fx.to);
-              captureFxGroup.remove(fx.launcher.root);
               captureFxGroup.remove(fx.missileFx.root);
               activeCaptureFx.splice(i, 1);
             }
