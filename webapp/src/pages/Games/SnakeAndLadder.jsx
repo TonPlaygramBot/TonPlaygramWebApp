@@ -1254,6 +1254,7 @@ export default function SnakeAndLadder() {
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
   const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
+  const [awaitingSixExtraRoll, setAwaitingSixExtraRoll] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
@@ -2179,15 +2180,19 @@ export default function SnakeAndLadder() {
     };
     const onTurn = ({ playerId, seatIndex }) => {
       let idx = -1;
+      const parsedSeatIndex =
+        typeof seatIndex === 'string' ? Number.parseInt(seatIndex, 10) : seatIndex;
+      const parsedPlayerIndex =
+        typeof playerId === 'string' ? Number.parseInt(playerId, 10) : playerId;
 
-      if (Number.isInteger(seatIndex)) {
-        idx = seatIndex;
+      if (Number.isInteger(parsedSeatIndex)) {
+        idx = parsedSeatIndex;
       } else {
         idx = playersRef.current.findIndex((pl) => pl.id === playerId);
 
         // Some servers emit the active seat index instead of a playerId.
-        if (idx === -1 && Number.isInteger(playerId)) {
-          idx = playerId;
+        if (idx === -1 && Number.isInteger(parsedPlayerIndex)) {
+          idx = parsedPlayerIndex;
         }
       }
 
@@ -2198,8 +2203,12 @@ export default function SnakeAndLadder() {
         if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
+          setPlayerAutoRolling(false);
         }
-        if (!turnBelongsToMe) setPendingExtraRoll(false);
+        if (!turnBelongsToMe) {
+          setPendingExtraRoll(false);
+          setAwaitingSixExtraRoll(false);
+        }
       }
     };
     const onStarted = () => {
@@ -2209,10 +2218,23 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value }) => {
+    const onRolled = ({ value, playerId, seatIndex }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
+      const rolledValue = Number(value);
+      const parsedSeatIndex =
+        typeof seatIndex === 'string' ? Number.parseInt(seatIndex, 10) : seatIndex;
+      const turnSeat =
+        Number.isInteger(parsedSeatIndex)
+          ? parsedSeatIndex
+          : playersRef.current.findIndex((pl) => pl.id === playerId);
+      const isMyRoll = turnSeat >= 0 ? playersRef.current[turnSeat]?.id === myAccountId : playerId === myAccountId;
+      if (isMyRoll && rolledValue === 6) {
+        // Server-confirmed six: keep the roll CTA available for the bonus turn.
+        setPendingExtraRoll(true);
+        setAwaitingSixExtraRoll(true);
+      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -3195,18 +3217,17 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
-  const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
+  const hasLocalExtraRoll = isMultiplayer && (pendingExtraRoll || awaitingSixExtraRoll);
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = hasLocalExtraRoll || rollCooldown === 0;
   const canRoll =
     isMyTurnForRoll &&
     !moving &&
-    rollReady &&
     !gameOver &&
     !waitingForPlayers &&
-    !playerAutoRolling &&
     aiRollingIndex == null &&
+    (isMultiplayer || (rollReady && !playerAutoRolling)) &&
     !watchOnly;
   const hasTurnMessage =
     turnMessage !== null &&
@@ -4035,6 +4056,8 @@ export default function SnakeAndLadder() {
                   seatIndex: currentTurn
                 });
                 setPendingExtraRoll(false);
+                setAwaitingSixExtraRoll(false);
+                setPlayerAutoRolling(false);
               }}
               onRollEnd={(vals) => {
                 startDiceBoardAnimation({
