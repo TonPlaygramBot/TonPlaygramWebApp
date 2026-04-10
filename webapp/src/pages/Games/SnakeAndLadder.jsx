@@ -1254,7 +1254,6 @@ export default function SnakeAndLadder() {
   const [rollCooldown, setRollCooldown] = useState(0);
   const [moving, setMoving] = useState(false);
   const [pendingExtraRoll, setPendingExtraRoll] = useState(false);
-  const [awaitingSixExtraRoll, setAwaitingSixExtraRoll] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
   const [playersNeeded, setPlayersNeeded] = useState(0);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
@@ -2207,7 +2206,6 @@ export default function SnakeAndLadder() {
         }
         if (!turnBelongsToMe) {
           setPendingExtraRoll(false);
-          setAwaitingSixExtraRoll(false);
         }
       }
     };
@@ -2222,7 +2220,6 @@ export default function SnakeAndLadder() {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
-      const rolledValue = Number(value);
       const parsedSeatIndex =
         typeof seatIndex === 'string' ? Number.parseInt(seatIndex, 10) : seatIndex;
       const turnSeat =
@@ -2230,11 +2227,7 @@ export default function SnakeAndLadder() {
           ? parsedSeatIndex
           : playersRef.current.findIndex((pl) => pl.id === playerId);
       const isMyRoll = turnSeat >= 0 ? playersRef.current[turnSeat]?.id === myAccountId : playerId === myAccountId;
-      if (isMyRoll && rolledValue === 6) {
-        // Server-confirmed six: keep the roll CTA available for the bonus turn.
-        setPendingExtraRoll(true);
-        setAwaitingSixExtraRoll(true);
-      }
+      if (isMyRoll) setPendingExtraRoll(false);
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -2670,9 +2663,6 @@ export default function SnakeAndLadder() {
         const ladObj = ladders[predicted];
         predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
       }
-      const extraPred = diceCells[predicted] || rolledSix;
-      const nextPlayer = extraPred ? currentTurn : getPreviousTurn(currentTurn);
-
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -2779,11 +2769,6 @@ export default function SnakeAndLadder() {
           }
           setTimeout(() => setRewardDice(0), 1000);
           enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-        } else if (rolledSix) {
-          setTurnMessage('Six! Roll again');
-          setBonusDice(0);
-          extraTurn = true;
-          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -2793,7 +2778,7 @@ export default function SnakeAndLadder() {
         setMoving(false);
         if (!gameOver) {
           if (extraTurn) {
-            // Do not delay the local extra roll button after a six/bonus.
+            // Do not delay the local extra roll button after a bonus tile.
             const next = currentTurn;
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 1);
@@ -2894,9 +2879,6 @@ export default function SnakeAndLadder() {
       const ladObj = ladders[predicted];
       predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
-    const extraPred = diceCells[predicted] || rolledSix;
-    const nextPlayer = extraPred ? index : getPreviousTurn(index);
-
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -2991,10 +2973,6 @@ export default function SnakeAndLadder() {
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
-        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-      } else if (rolledSix) {
-        setTurnMessage(`${getPlayerName(index)} rolled 6! Bonus roll`);
-        extraTurn = true;
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       }
       const next = extraTurn ? index : getPreviousTurn(index);
@@ -3218,7 +3196,7 @@ export default function SnakeAndLadder() {
     ? mpPlayers.findIndex((p) => p.id === accountId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
-  const hasLocalExtraRoll = isMultiplayer && (pendingExtraRoll || awaitingSixExtraRoll);
+  const hasLocalExtraRoll = isMultiplayer && pendingExtraRoll;
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = hasLocalExtraRoll || rollCooldown === 0;
@@ -4057,7 +4035,6 @@ export default function SnakeAndLadder() {
                   seatIndex: currentTurn
                 });
                 setPendingExtraRoll(false);
-                setAwaitingSixExtraRoll(false);
                 setPlayerAutoRolling(false);
               }}
               onRollEnd={(vals) => {
@@ -4067,10 +4044,7 @@ export default function SnakeAndLadder() {
                   values: vals,
                   seatIndex: currentTurn
                 });
-                const rolledSix = Array.isArray(vals)
-                  ? vals.some((v) => Number(v) === 6)
-                  : Number(vals) === 6;
-                setPendingExtraRoll(rolledSix);
+                setPendingExtraRoll(false);
               }}
             />
           ) : null}
@@ -4129,7 +4103,7 @@ export default function SnakeAndLadder() {
             open={showInfo}
             onClose={() => setShowInfo(false)}
             title="Snake & Ladder"
-            info="Roll one die each turn. A 6 enters your token onto the board and also grants an extra roll. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
+            info="Roll one die each turn. A 6 enters your token onto the board. Ladders lift you up and snakes bring you down. You must land exactly on tile 50 to win."
           />
         </div>
       )}
