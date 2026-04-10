@@ -491,7 +491,7 @@ let proceduralTokenHeight = null;
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
 // slightly smaller in world space.
-const LUDO_ARENA_SHRINK_FACTOR = 0.94;
+const LUDO_ARENA_SHRINK_FACTOR = 0.92;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -510,7 +510,7 @@ const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.4;
+const AI_CHAIR_GAP = CARD_W * 0.52;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -1992,10 +1992,10 @@ const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
 const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.048;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.056,
-  0.052,
-  0.056,
-  0.052
+  0.068,
+  0.062,
+  0.068,
+  0.062
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0045;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.006;
