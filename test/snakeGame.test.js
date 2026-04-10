@@ -30,7 +30,7 @@ test('applySnakesAndLadders resolves moves', () => {
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
 
-test('start requires 6 and rolling 6 grants another turn', () => {
+test('start requires 6 and turn passes after a 6 roll', () => {
   const io = new DummyIO();
   const room = new GameRoom('r', io, 2, {
     snakes: DEFAULT_SNAKES,
@@ -43,28 +43,20 @@ test('start requires 6 and rolling 6 grants another turn', () => {
   room.addPlayer('p2', 'Player2', s2);
   room.startGame();
 
-  room.rollDice(s1, [2]);
+  room.rollDice(s1, [2, 4]);
   assert.equal(room.players[0].position, 0);
   assert.equal(room.currentTurn, 1);
 
-  room.rollDice(s2, [6]);
+  room.rollDice(s2, [6, 2]);
   assert.equal(room.players[1].position, 1);
-  assert.equal(room.currentTurn, 1);
-
-  room.rollDice(s2, [1]);
-  assert.equal(room.players[1].position, 2);
   assert.equal(room.currentTurn, 0);
 
-  room.rollDice(s1, [6]);
+  room.rollDice(s1, [6, 1]);
   assert.equal(room.players[0].position, 1);
-  assert.equal(room.currentTurn, 0);
-
-  room.rollDice(s1, [1]);
-  assert.equal(room.players[0].position, 2);
   assert.equal(room.currentTurn, 1);
 });
 
-test('rolling multiple sixes advances with repeated bonus turns', () => {
+test('rolling multiple sixes advances while respecting turn order', () => {
   const io = new DummyIO();
   const room = new GameRoom('r1', io, 1, {
     snakes: DEFAULT_SNAKES,
@@ -75,11 +67,10 @@ test('rolling multiple sixes advances with repeated bonus turns', () => {
   room.addPlayer('p1', 'Player', socket);
   room.startGame();
 
-  room.rollDice(socket, [6]); // start -> tile 1, extra turn
-  room.rollDice(socket, [6]); // tile 7, extra turn
-  room.rollDice(socket, [6]); // tile 13, extra turn
-  room.rollDice(socket, [1]); // tile 14
-  assert.equal(room.players[0].position, 14);
+  room.rollDice(socket, [6, 6]); // start -> tile 1
+  room.rollDice(socket, [6, 6]); // tile 13
+  room.rollDice(socket, [6, 6]); // tile 25
+  assert.equal(room.players[0].position, 25);
 });
 
 test('room starts when reaching custom capacity', async () => {
@@ -130,7 +121,7 @@ test('player wins when landing on the final tile', () => {
 
   room.players[0].position = FINAL_TILE - 3;
   room.players[0].isActive = true;
-  room.rollDice(socket, [3]);
+  room.rollDice(socket, [1, 2]);
 
   assert.equal(room.players[0].position, FINAL_TILE);
   assert.equal(room.status, 'finished');
@@ -149,10 +140,10 @@ test('rolling too quickly triggers anti-cheat', () => {
   room.addPlayer('p1', 'Cheater', socket);
   room.startGame();
 
-  room.rollDice(socket, [6]); // first roll activates token
+  room.rollDice(socket, [6, 2]); // first roll activates token
   const pos = room.players[0].position;
   room.rollCooldown = 1000;
-  room.rollDice(socket, [3]); // second roll immediately should be rejected
+  room.rollDice(socket, [3, 2]); // second roll immediately should be rejected
 
   assert.equal(room.players[0].position, pos);
   const err = emitted.find(e => e.event === 'error');
@@ -168,11 +159,11 @@ test('repeated cheating results in removal', () => {
   room.startGame();
 
   room.rollCooldown = 1000;
-  room.rollDice(socket, [6]); // valid roll
+  room.rollDice(socket, [6, 2]); // valid roll
   // Three rapid rolls to trigger warnings
-  room.rollDice(socket, [2]);
-  room.rollDice(socket, [2]);
-  room.rollDice(socket, [2]);
+  room.rollDice(socket, [2, 2]);
+  room.rollDice(socket, [2, 2]);
+  room.rollDice(socket, [2, 2]);
 
   const warnings = emitted.filter(e => e.event === 'cheatWarning');
   assert.ok(warnings.length >= 3, 'should emit cheat warnings');
@@ -198,7 +189,7 @@ test('landing on another player sends them to start', () => {
   room.players[1].position = 3;
   room.currentTurn = 0;
 
-  room.rollDice(s1, [2]); // land on player 2
+  room.rollDice(s1, [1, 1]); // land on player 2
 
   assert.equal(room.players[0].position, 3);
   assert.equal(room.players[1].position, 0);
@@ -235,28 +226,4 @@ test('dice cells are shared across players', () => {
     clearTimeout(room.turnTimer);
     room.turnTimer = null;
   }
-});
-
-test('dice cell reward does not grant an extra turn', () => {
-  const io = new DummyIO();
-  const room = new GameRoom('dice-no-extra', io, 2, {
-    snakes: {},
-    ladders: {},
-    diceCells: { 5: 2 }
-  });
-  room.rollCooldown = 0;
-  const s1 = { id: 's1', join: () => {}, emit: () => {} };
-  const s2 = { id: 's2', join: () => {}, emit: () => {} };
-  room.addPlayer('p1', 'A', s1);
-  room.addPlayer('p2', 'B', s2);
-  room.startGame();
-
-  room.players[0].position = 4;
-  room.players[0].isActive = true;
-  room.currentTurn = 0;
-
-  room.rollDice(s1, [1]);
-
-  assert.equal(room.players[0].position, 5);
-  assert.equal(room.currentTurn, 1);
 });

@@ -22,7 +22,7 @@ export class SnakeGame {
       id,
       name,
       position: 0,
-      diceCount: 1,
+      diceCount: 2,
       isActive: false,
     });
   }
@@ -40,7 +40,7 @@ export class SnakeGame {
     const player = this.players[this.currentTurn];
     if (!player) return null;
 
-    const diceToRoll = Math.max(1, player.diceCount || 1);
+    const diceToRoll = Math.max(1, player.diceCount || 2);
     const rand = () => Math.floor(Math.random() * 6) + 1;
     const provided = Array.isArray(diceValues)
       ? diceValues
@@ -57,7 +57,7 @@ export class SnakeGame {
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
     let target = player.position;
-    let extraTurn = rolledSix;
+    let extraTurn = false;
 
     if (player.position === 0) {
       if (rolledSix) {
@@ -82,7 +82,7 @@ export class SnakeGame {
     for (const p of this.players) {
       if (p !== player && p.position === player.position && p.position > 0) {
         p.position = 0;
-        p.diceCount = 1;
+        p.diceCount = 2;
         p.isActive = false;
       }
     }
@@ -94,6 +94,7 @@ export class SnakeGame {
       bonusCell = player.position;
       player.bonus = bonus;
       delete this.diceCells[player.position];
+      extraTurn = true;
     }
 
     if (player.position === FINAL_TILE) {
