@@ -89,7 +89,6 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
-import { createDiceRollAudio } from "../../utils/diceAudio.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -1163,7 +1162,7 @@ export default function SnakeAndLadder() {
   const [, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
-  const [pot, setPot] = useState(101);
+  const [pot, setPot] = useState(0);
   const [token, setToken] = useState("TPC");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
@@ -1783,20 +1782,12 @@ export default function SnakeAndLadder() {
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
-  const diceRollSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
   const turnEndRef = useRef(Date.now() + TURN_TIME * 1000);
   const aiRollTimeRef = useRef(null);
   const prevTimeLeftRef = useRef(TURN_TIME);
-
-  const playDiceRollSound = useCallback(() => {
-    if (muted || !diceRollSoundRef.current) return;
-    diceRollSoundRef.current.volume = 1;
-    diceRollSoundRef.current.currentTime = 0;
-    diceRollSoundRef.current.play().catch(() => {});
-  }, [muted]);
 
   const getPreviousTurn = useCallback(
     (turn) => {
@@ -1848,8 +1839,6 @@ export default function SnakeAndLadder() {
     cheerSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(SNAKE_SFX.timer);
     timerSoundRef.current.volume = vol;
-    diceRollSoundRef.current = createDiceRollAudio({ muted });
-    if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1863,7 +1852,6 @@ export default function SnakeAndLadder() {
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
-      diceRollSoundRef.current?.pause();
     };
   }, [accountId, muted]);
 
@@ -1881,7 +1869,6 @@ export default function SnakeAndLadder() {
       badLuckSoundRef,
       cheerSoundRef,
       timerSoundRef,
-      diceRollSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
     });
@@ -2187,7 +2174,7 @@ export default function SnakeAndLadder() {
       if (Number.isInteger(parsedSeatIndex)) {
         idx = parsedSeatIndex;
       } else {
-        idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+        idx = playersRef.current.findIndex((pl) => String(pl.id) === String(playerId));
 
         // Some servers emit the active seat index instead of a playerId.
         if (idx === -1 && Number.isInteger(parsedPlayerIndex)) {
@@ -2198,7 +2185,7 @@ export default function SnakeAndLadder() {
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 1);
-        const turnBelongsToMe = playersRef.current[idx]?.id === myAccountId;
+        const turnBelongsToMe = String(playersRef.current[idx]?.id) === String(myAccountId);
         if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
@@ -2219,14 +2206,15 @@ export default function SnakeAndLadder() {
     const onRolled = ({ value, playerId, seatIndex }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
-      playDiceRollSound();
       const parsedSeatIndex =
         typeof seatIndex === 'string' ? Number.parseInt(seatIndex, 10) : seatIndex;
       const turnSeat =
         Number.isInteger(parsedSeatIndex)
           ? parsedSeatIndex
-          : playersRef.current.findIndex((pl) => pl.id === playerId);
-      const isMyRoll = turnSeat >= 0 ? playersRef.current[turnSeat]?.id === myAccountId : playerId === myAccountId;
+          : playersRef.current.findIndex((pl) => String(pl.id) === String(playerId));
+      const isMyRoll = turnSeat >= 0
+        ? String(playersRef.current[turnSeat]?.id) === String(myAccountId)
+        : String(playerId) === String(myAccountId);
       if (isMyRoll) setPendingExtraRoll(false);
     };
     const onWon = ({ playerId }) => {
@@ -2588,7 +2576,6 @@ export default function SnakeAndLadder() {
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
-    playDiceRollSound();
     if (willCapture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
@@ -2751,7 +2738,7 @@ export default function SnakeAndLadder() {
             setDiceCount(1);
           }, 2000);
         }
-        let extraTurn = false;
+        let extraTurn = rolledSix;
         if (diceCells[finalPos]) {
           const bonus = diceCells[finalPos];
           setDiceCells((d) => {
@@ -2762,13 +2749,15 @@ export default function SnakeAndLadder() {
           setBonusDice(bonus);
           setRewardDice(bonus);
           setTurnMessage('Bonus roll');
-          extraTurn = true;
           if (!muted) {
             diceRewardSoundRef.current?.play().catch(() => {});
             yabbaSoundRef.current?.play().catch(() => {});
           }
           setTimeout(() => setRewardDice(0), 1000);
           enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+        } else if (rolledSix) {
+          setTurnMessage('Rolled 6 — roll again');
+          setBonusDice(0);
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -2835,7 +2824,6 @@ export default function SnakeAndLadder() {
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-    playDiceRollSound();
     if (capture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
@@ -2956,7 +2944,7 @@ export default function SnakeAndLadder() {
         setMoving(false);
         return;
       }
-      let extraTurn = false;
+      let extraTurn = rolledSix;
       if (diceCells[finalPos]) {
         const bonus = diceCells[finalPos];
         setDiceCells((d) => {
@@ -2967,13 +2955,15 @@ export default function SnakeAndLadder() {
         setBonusDice(bonus);
         setRewardDice(bonus);
         setTurnMessage('Bonus roll');
-        extraTurn = true;
         if (!muted) {
           diceRewardSoundRef.current?.play().catch(() => {});
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+      }
+      if (rolledSix && !diceCells[finalPos]) {
+        setTurnMessage(`${playerName(index)} rolled 6 — bonus turn`);
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
@@ -4072,7 +4062,7 @@ export default function SnakeAndLadder() {
         <button
           type="button"
           onClick={handleRollButtonClick}
-          className="fixed z-30 pointer-events-auto rounded-full"
+          className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center"
           style={{
             left: `${diceAnchor.x}%`,
             top: `${diceAnchor.y}%`,
@@ -4084,7 +4074,16 @@ export default function SnakeAndLadder() {
             boxShadow: '0 0 18px rgba(250,204,21,0.24)'
           }}
           aria-label="Roll dice"
-        />
+        >
+          <span
+            className="text-3xl"
+            role="img"
+            aria-hidden="true"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.55))' }}
+          >
+            🎲
+          </span>
+        </button>
       ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
