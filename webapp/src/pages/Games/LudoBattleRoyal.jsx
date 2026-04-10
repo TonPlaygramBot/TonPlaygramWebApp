@@ -889,7 +889,7 @@ function abgBbox(obj) {
 
 function measureProceduralTokenHeight() {
   if (proceduralTokenHeight) return proceduralTokenHeight;
-  proceduralTokenHeight = 0.09;
+  proceduralTokenHeight = 0.117;
   return proceduralTokenHeight;
 }
 
@@ -5564,10 +5564,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       diceRewardSoundRef.current.currentTime = 0;
       diceRewardSoundRef.current.play().catch(() => {});
     }
-    if (sixRollSoundRef.current) {
-      sixRollSoundRef.current.currentTime = 0;
-      sixRollSoundRef.current.play().catch(() => {});
-    }
     if (cheerSoundRef.current) {
       cheerSoundRef.current.currentTime = 0;
       cheerSoundRef.current.play().catch(() => {});
@@ -5730,7 +5726,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
         animateCameraPose(
           cameraTurnStateRef.current.baseTurnView.target,
-          cameraTurnStateRef.current.baseTurnView.position,
+          null,
           duration
         );
         return;
@@ -5744,7 +5740,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
-    animateCameraPose(nextView.target, nextView.position, duration);
+    animateCameraPose(nextView.target, null, duration);
   }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState]);
 
   const setCameraFocus = useCallback(
@@ -6346,14 +6342,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
-    setCameraFocus({
-      target: landingFocus,
-      follow: false,
-      ttl: 1.6 + DICE_RESULT_EXTRA_HOLD_MS / 1000,
-      priority: 3,
-      offset: CAMERA_TARGET_LIFT + 0.03,
-      force: true
-    });
     setUi((s) => ({
       ...s,
       dice: value,
@@ -6368,6 +6356,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     if (!options.length) {
+      const playerCycle = Math.max(1, activePlayerCount);
+      const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
+      setCameraFocus({
+        target: resolveTurnLookTarget(upcomingTurn, CAMERA_TARGET_LIFT),
+        follow: false,
+        ttl: 0.4,
+        priority: 3,
+        force: true
+      });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
@@ -6375,6 +6372,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
+    setCameraFocus({
+      target: landingFocus,
+      follow: false,
+      ttl: 1.6 + DICE_RESULT_EXTRA_HOLD_MS / 1000,
+      priority: 3,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     if (player === 0) {
       beginHumanSelection(value, options);
       return;
