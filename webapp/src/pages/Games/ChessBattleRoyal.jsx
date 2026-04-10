@@ -8158,8 +8158,6 @@ function Chess3D({
     const JET_CAPTURE_SCALE = FX_SCALE_UNIT * FX_HALF_SCALE;
     const BAZOOKA_CAPTURE_SCALE = FX_SCALE_UNIT * 0.9 * FX_HALF_SCALE;
     const MISSILE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.88 * FX_HALF_SCALE;
-    const HORSE_MISSILE_LENGTH_SCALE = DRONE_CAPTURE_SCALE * 0.62;
-    const HORSE_MISSILE_THICKNESS_SCALE = HORSE_MISSILE_LENGTH_SCALE * 0.56;
 
     const createFxSword = () => {
       const root = new THREE.Group();
@@ -8221,27 +8219,7 @@ function Chess3D({
         });
         return { moveDelayMs: Math.round(JET_LOOP_TIME * CAPTURE_TIME_SCALE * 1000) };
       }
-      if (pieceType === 'N') {
-        playAudio(missileLaunchSoundRef);
-        const missileFx = createFxMissile();
-        missileFx.root.scale.set(
-          HORSE_MISSILE_LENGTH_SCALE,
-          HORSE_MISSILE_THICKNESS_SCALE,
-          HORSE_MISSILE_THICKNESS_SCALE
-        );
-        missileFx.root.position.copy(fromPos).add(new THREE.Vector3(0, FX_SCALE_UNIT * 0.42, 0));
-        captureFxGroup.add(missileFx.root);
-        activeCaptureFx.push({
-          type: 'horseMissile',
-          t: 0,
-          duration: (GROUND_FIRE_TIME + GROUND_TRAVEL_TIME) * CAPTURE_TIME_SCALE,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          missileFx
-        });
-        return { moveDelayMs: Math.round((GROUND_FIRE_TIME + GROUND_TRAVEL_TIME) * CAPTURE_TIME_SCALE * 1000) };
-      }
-      if (pieceType === 'R') {
+      if (pieceType === 'N' || pieceType === 'R') {
         const launcher = createFxLauncher();
         launcher.root.scale.setScalar(BAZOOKA_CAPTURE_SCALE);
         launcher.root.position.copy(fromPos).add(new THREE.Vector3(0, 0.22, 0));
@@ -9820,26 +9798,6 @@ function Chess3D({
             if (u >= 1) {
               launchExplosion(fx.to);
               captureFxGroup.remove(fx.launcher.root);
-              captureFxGroup.remove(fx.missileFx.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'horseMissile') {
-            const launchPos = fx.from.clone().add(new THREE.Vector3(0, FX_SCALE_UNIT * 0.42, 0));
-            const distance = Math.max(FX_SCALE_UNIT * 0.8, launchPos.distanceTo(fx.to));
-            const control1 = launchPos.clone().lerp(fx.to, 0.24);
-            control1.y += FX_SCALE_UNIT * 1.2 + distance * 0.28;
-            const control2 = launchPos.clone().lerp(fx.to, 0.72);
-            control2.y += FX_SCALE_UNIT * 1.85 + distance * 0.38;
-            const missilePos = cubicBezier(launchPos, control1, control2, fx.to, u);
-            const missileNext = cubicBezier(launchPos, control1, control2, fx.to, clamp01(u + 0.02));
-            fx.missileFx.root.position.copy(missilePos);
-            captureDir.copy(missileNext).sub(missilePos).normalize();
-            fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.missileFx.trail?.forEach((puff, idx) => {
-              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 9 + idx) * 0.015, 0);
-            });
-            if (u >= 1) {
-              launchExplosion(fx.to);
               captureFxGroup.remove(fx.missileFx.root);
               activeCaptureFx.splice(i, 1);
             }
