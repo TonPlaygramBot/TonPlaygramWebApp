@@ -88,22 +88,22 @@ const clamp01 = (value, fallback = 0) => {
 const smoothEase = (t) => t * t * (3 - 2 * t);
 const FORWARD = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 1.85;
+const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.1;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 2.0;
-const CAPTURE_DRONE_CRUISE_TIME = 2.8;
-const CAPTURE_DRONE_DIVE_TIME = 1.7;
+const CAPTURE_DRONE_LIFT_TIME = 2.2;
+const CAPTURE_DRONE_CRUISE_TIME = 3.2;
+const CAPTURE_DRONE_DIVE_TIME = 2.0;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 9.2;
-const CAPTURE_JET_MISSILE_DROP_1 = 2.25;
-const CAPTURE_JET_MISSILE_DROP_2 = 2.75;
-const CAPTURE_JET_MISSILE_TRAVEL_1 = 1.45;
-const CAPTURE_JET_MISSILE_TRAVEL_2 = 1.65;
-const CAPTURE_GROUND_FIRE_TIME = 1.2;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
+const CAPTURE_JET_TOTAL = 10.4;
+const CAPTURE_JET_MISSILE_DROP_1 = 2.6;
+const CAPTURE_JET_MISSILE_DROP_2 = 3.25;
+const CAPTURE_JET_MISSILE_TRAVEL_1 = 1.75;
+const CAPTURE_JET_MISSILE_TRAVEL_2 = 1.95;
+const CAPTURE_GROUND_FIRE_TIME = 1.35;
+const CAPTURE_GROUND_TRAVEL_TIME = 2.8;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_JET_SCALE = 0.29; // 50% of previous 0.58.
+const CAPTURE_JET_SCALE = 0.24; // Smaller/lower visual profile.
 const CAPTURE_MISSILE_SCALE = 0.155; // 50% of previous 0.31.
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -1008,7 +1008,7 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
-const DRONE_FLY_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
+const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -8179,40 +8179,28 @@ function Chess3D({
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, deltaR = 0, deltaC = 0 }) => {
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
-        const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const jetStart = targetPos.clone().add(new THREE.Vector3(-12.5, 7.6, -4.1));
-        const jetEnd = targetPos.clone().add(new THREE.Vector3(12.8, 7.2, 3.3));
-        jetFx.root.position.copy(jetStart);
-        captureFxGroup.add(jetFx.root);
-        const missileFx1 = createFxMissile();
-        const missileFx2 = createFxMissile();
-        missileFx1.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        missileFx2.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        missileFx1.root.visible = false;
-        missileFx2.root.visible = false;
-        captureFxGroup.add(missileFx1.root);
-        captureFxGroup.add(missileFx2.root);
-        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
+        const droneFx = createFxDrone();
+        droneFx.root.scale.setScalar(0.44);
+        droneFx.root.position.copy(fromPos.clone().add(new THREE.Vector3(0, 0.35, 0)));
+        captureFxGroup.add(droneFx.root);
+        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
         activeCaptureFx.push({
-          type: 'jet',
+          type: 'drone',
           t: 0,
-          duration: CAPTURE_JET_TOTAL,
+          duration: CAPTURE_DRONE_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
-          jetStart,
-          jetEnd,
-          jetFx,
-          missileFx1,
-          missileFx2
+          droneFx
         });
-        return { moveDelayMs: CAPTURE_JET_TOTAL * 1000 };
+        return { moveDelayMs: CAPTURE_DRONE_TOTAL * 1000 };
       }
       if (pieceType === 'Q') {
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const jetStart = targetPos.clone().add(new THREE.Vector3(-12.5, 7.6, -4.1));
-        const jetEnd = targetPos.clone().add(new THREE.Vector3(12.8, 7.2, 3.3));
+        const jetStart = fromPos.clone().add(new THREE.Vector3(-8.5, 4.9, 3.6));
+        const jetControl1 = fromPos.clone().add(new THREE.Vector3(-2.8, 4.3, -8.6));
+        const jetControl2 = targetPos.clone().add(new THREE.Vector3(2.5, 4.1, 8.3));
+        const jetEnd = targetPos.clone().add(new THREE.Vector3(9.4, 4.5, -2.9));
         jetFx.root.position.copy(jetStart);
         captureFxGroup.add(jetFx.root);
         const missileFx1 = createFxMissile();
@@ -8231,6 +8219,8 @@ function Chess3D({
           from: fromPos.clone(),
           to: targetPos.clone(),
           jetStart,
+          jetControl1,
+          jetControl2,
           jetEnd,
           jetFx,
           missileFx1,
@@ -8250,7 +8240,7 @@ function Chess3D({
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
-          launcherPos: fromPos.clone().add(new THREE.Vector3(-4.6, 0.2, 3.25)),
+          launcherPos: fromPos.clone(),
           deltaR,
           deltaC,
           missileFx
@@ -9713,9 +9703,20 @@ function Chess3D({
           const u = clamp01(fx.t / fx.duration);
           if (fx.type === 'drone') {
             const phaseTime = fx.t % CAPTURE_DRONE_TOTAL;
-            const droneStart = fx.from.clone().add(new THREE.Vector3(-6.8, 0.28, 2.2));
-            const liftEnd = fx.to.clone().add(new THREE.Vector3(-6.3, 3.8, 1.5));
-            const cruiseEnd = fx.to.clone().add(new THREE.Vector3(1.6, 4.2, 0.2));
+            const travelDelta = fx.to.clone().sub(fx.from).setY(0);
+            const travelDir = travelDelta.lengthSq() > 0.0001 ? travelDelta.normalize() : new THREE.Vector3(1, 0, 0);
+            const sideDir = new THREE.Vector3().copy(travelDir).cross(WORLD_UP).normalize();
+            const droneStart = fx.from.clone().add(new THREE.Vector3(0, 0.35, 0));
+            const liftEnd = fx.from
+              .clone()
+              .addScaledVector(travelDir, 1.8)
+              .addScaledVector(sideDir, 3.1)
+              .add(new THREE.Vector3(0, 3.45, 0));
+            const cruiseEnd = fx.to
+              .clone()
+              .addScaledVector(travelDir, -1.4)
+              .addScaledVector(sideDir, -3.9)
+              .add(new THREE.Vector3(0, 3.95, 0));
             let pos = new THREE.Vector3();
             let next = new THREE.Vector3();
             if (phaseTime < CAPTURE_DRONE_LIFT_TIME) {
@@ -9731,8 +9732,9 @@ function Chess3D({
               next.copy(liftEnd).lerp(cruiseEnd, Math.min(1, tLocal + 0.03));
             } else {
               const tLocal = smoothEase((phaseTime - CAPTURE_DRONE_LIFT_TIME - CAPTURE_DRONE_CRUISE_TIME) / CAPTURE_DRONE_DIVE_TIME);
-              pos.copy(cruiseEnd).lerp(fx.to, tLocal);
-              next.copy(cruiseEnd).lerp(fx.to, Math.min(1, tLocal + 0.05));
+              const diveTarget = fx.to.clone().add(new THREE.Vector3(0, 0.08, 0));
+              pos.copy(cruiseEnd).lerp(diveTarget, tLocal);
+              next.copy(cruiseEnd).lerp(diveTarget, Math.min(1, tLocal + 0.05));
             }
             fx.droneFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
@@ -9749,12 +9751,10 @@ function Chess3D({
           } else if (fx.type === 'jet') {
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             const nextU = clamp01(jetU + 0.02);
-            const pos = new THREE.Vector3().copy(fx.jetStart).lerp(fx.jetEnd, jetU);
-            pos.y += Math.sin(jetU * Math.PI) * 0.45;
-            pos.z += Math.sin(jetU * Math.PI * 1.65) * 0.35;
-            const next = new THREE.Vector3().copy(fx.jetStart).lerp(fx.jetEnd, nextU);
-            next.y += Math.sin(nextU * Math.PI) * 0.45;
-            next.z += Math.sin(nextU * Math.PI * 1.65) * 0.35;
+            const pos = cBezier(fx.jetStart, fx.jetControl1, fx.jetControl2, fx.jetEnd, jetU);
+            pos.y += Math.sin(jetU * Math.PI) * 0.18;
+            const next = cBezier(fx.jetStart, fx.jetControl1, fx.jetControl2, fx.jetEnd, nextU);
+            next.y += Math.sin(nextU * Math.PI) * 0.18;
             fx.jetFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
@@ -9765,12 +9765,16 @@ function Chess3D({
                 return;
               }
               const dropState = Math.min(1, dropTime / CAPTURE_JET_TOTAL);
-              const jetDropPos = new THREE.Vector3().copy(fx.jetStart).lerp(fx.jetEnd, dropState);
-              jetDropPos.y += Math.sin(dropState * Math.PI) * 0.45;
-              jetDropPos.z += Math.sin(dropState * Math.PI * 1.65) * 0.35;
-              const jetDropNext = new THREE.Vector3().copy(fx.jetStart).lerp(fx.jetEnd, Math.min(1, dropState + 0.02));
-              jetDropNext.y += Math.sin(Math.min(1, dropState + 0.02) * Math.PI) * 0.45;
-              jetDropNext.z += Math.sin(Math.min(1, dropState + 0.02) * Math.PI * 1.65) * 0.35;
+              const jetDropPos = cBezier(fx.jetStart, fx.jetControl1, fx.jetControl2, fx.jetEnd, dropState);
+              jetDropPos.y += Math.sin(dropState * Math.PI) * 0.18;
+              const jetDropNext = cBezier(
+                fx.jetStart,
+                fx.jetControl1,
+                fx.jetControl2,
+                fx.jetEnd,
+                Math.min(1, dropState + 0.02)
+              );
+              jetDropNext.y += Math.sin(Math.min(1, dropState + 0.02) * Math.PI) * 0.18;
               const dropDir = jetDropNext.sub(jetDropPos).normalize();
               const dropRight = new THREE.Vector3().copy(dropDir).cross(WORLD_UP).normalize();
               const start = new THREE.Vector3().copy(jetDropPos).addScaledVector(dropRight, wingOffsetZ).add(new THREE.Vector3(0, -0.25, 0));
@@ -9810,15 +9814,26 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
-            const launchPos = fx.launcherPos.clone().add(new THREE.Vector3(0.98, 0.46, 0));
+            const launchPos = fx.launcherPos.clone().add(new THREE.Vector3(0, 0.46, 0));
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               fx.missileFx.root.visible = false;
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const missileTarget = fx.to.clone();
-              const control1 = new THREE.Vector3(launchPos.x + 1.5, launchPos.y + 2.6, launchPos.z - 0.1);
-              const control2 = new THREE.Vector3(missileTarget.x - 0.45, 5.6, missileTarget.z + 0.15);
+              const travelDelta = missileTarget.clone().sub(launchPos).setY(0);
+              const travelDir = travelDelta.lengthSq() > 0.0001 ? travelDelta.normalize() : new THREE.Vector3(1, 0, 0);
+              const sideDir = new THREE.Vector3().copy(travelDir).cross(WORLD_UP).normalize();
+              const control1 = launchPos
+                .clone()
+                .addScaledVector(travelDir, 1.2)
+                .addScaledVector(sideDir, 2.9)
+                .add(new THREE.Vector3(0, 2.5, 0));
+              const control2 = launchPos
+                .clone()
+                .addScaledVector(travelDir, 0.5)
+                .addScaledVector(sideDir, -3.6)
+                .add(new THREE.Vector3(0, 4.6, 0));
               const missilePos = cBezier(launchPos, control1, control2, missileTarget, mu);
               const missileNext = cBezier(launchPos, control1, control2, missileTarget, clamp01(mu + 0.02));
               fx.missileFx.root.visible = true;
