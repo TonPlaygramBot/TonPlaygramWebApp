@@ -26,11 +26,11 @@ test('applySnakesAndLadders resolves moves', () => {
   room.rollCooldown = 0;
   assert.equal(room.applySnakesAndLadders(3), 22); // ladder
   assert.equal(room.applySnakesAndLadders(27), 46); // ladder
-  assert.equal(room.applySnakesAndLadders(99), 80); // snake
+  assert.equal(room.applySnakesAndLadders(49), 30); // snake
   assert.equal(room.applySnakesAndLadders(8), 8); // none
 });
 
-test('start requires 6 and rolling 6 grants extra turn', () => {
+test('start requires 6 and turns advance after each roll', () => {
   const io = new DummyIO();
   const room = new GameRoom('r', io, 2, {
     snakes: DEFAULT_SNAKES,
@@ -49,17 +49,17 @@ test('start requires 6 and rolling 6 grants extra turn', () => {
 
   room.rollDice(s2, [6, 2]);
   assert.equal(room.players[1].position, 1);
-  assert.equal(room.currentTurn, 1);
-
-  room.rollDice(s2, [1, 2]);
   assert.equal(room.currentTurn, 0);
 
-  room.rollDice(s1, [6, 1]);
-  assert.equal(room.players[0].position, 1);
+  room.rollDice(s1, [1, 2]);
+  assert.equal(room.currentTurn, 1);
+
+  room.rollDice(s2, [6, 1]);
+  assert.equal(room.players[1].position, 8);
   assert.equal(room.currentTurn, 0);
 });
 
-test('rolling multiple sixes grants extra turns but preserves order', () => {
+test('single-player room still progresses without six bonus turns', () => {
   const io = new DummyIO();
   const room = new GameRoom('r1', io, 1, {
     snakes: DEFAULT_SNAKES,
@@ -72,8 +72,7 @@ test('rolling multiple sixes grants extra turns but preserves order', () => {
 
   room.rollDice(socket, [6, 6]);
   room.rollDice(socket, [6, 6]);
-  room.rollDice(socket, [6, 6]);
-  assert.equal(room.players[0].position, 25);
+  assert.equal(room.players[0].position, 13);
 });
 
 test('room starts when reaching custom capacity', async () => {
