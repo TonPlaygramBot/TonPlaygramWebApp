@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 
 const PYRAMID_ROW_LENGTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15];
-const BOARD_SIZE = 50;
+const BOARD_SIZE = 100;
 
 function buildPyramidRows() {
   const rows = [];
@@ -63,7 +63,6 @@ export default function ReactClient({
   if (!state) return <div style={{ color: '#fff' }}>Loading...</div>;
 
   const current = state.players[state.currentPlayer]?.id;
-  const winnerName = state.players.find((player) => player.id === state.winner)?.name || state.winner;
 
   return (
     <div
@@ -110,7 +109,7 @@ export default function ReactClient({
           Roll Dice
         </button>
         {state.winner && (
-          <p style={{ margin: '12px 0 0' }}>Winner: {winnerName}</p>
+          <p style={{ margin: '12px 0 0' }}>Winner: {state.winner}</p>
         )}
       </div>
 

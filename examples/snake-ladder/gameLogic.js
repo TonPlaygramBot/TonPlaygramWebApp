@@ -1,9 +1,16 @@
-export const BOARD_SIZE = 50;
+export const BOARD_SIZE = 100;
 
 export const DEFAULT_SNAKES = {
   16: 6,
   48: 26,
-  49: 11
+  49: 11,
+  56: 53,
+  62: 19,
+  64: 60,
+  87: 24,
+  93: 73,
+  95: 75,
+  98: 78
 };
 
 export const DEFAULT_LADDERS = {
@@ -11,8 +18,11 @@ export const DEFAULT_LADDERS = {
   4: 14,
   9: 31,
   21: 42,
-  28: 47,
-  36: 44
+  28: 84,
+  36: 44,
+  51: 67,
+  71: 91,
+  80: 100
 };
 
 export class Game {
@@ -57,29 +67,15 @@ export class Game {
     if (this.winner) return;
     const current = this.players[this.currentPlayer];
     if (!current || current.id !== playerId) return;
-
     const value = Math.floor(Math.random() * 6) + 1;
     this.diceRoll = value;
-
     let newPos = current.position + value;
     if (newPos > BOARD_SIZE) newPos = current.position;
-
-    if (newPos === BOARD_SIZE) {
-      current.position = BOARD_SIZE;
-      this.winner = current.id;
-      return;
-    }
-
     newPos = this.snakes[newPos] || this.ladders[newPos] || newPos;
     current.position = newPos;
-
     if (newPos === BOARD_SIZE) {
       this.winner = current.id;
-      return;
-    }
-
-    const getsExtraRoll = value === 6;
-    if (!getsExtraRoll) {
+    } else {
       this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
     }
   }
