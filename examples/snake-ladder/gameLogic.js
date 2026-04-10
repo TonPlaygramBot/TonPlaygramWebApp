@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 50;
+export const BOARD_SIZE = 100;
 
 export const DEFAULT_SNAKES = {
   16: 6,
@@ -75,10 +75,7 @@ export class Game {
     current.position = newPos;
     if (newPos === BOARD_SIZE) {
       this.winner = current.id;
-      return;
-    }
-
-    if (value !== 6) {
+    } else {
       this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
     }
   }
@@ -91,8 +88,7 @@ export class Game {
       diceRoll: this.diceRoll,
       snakes: this.snakes,
       ladders: this.ladders,
-      winner: this.winner,
-      boardSize: BOARD_SIZE
+      winner: this.winner
     };
   }
 }
