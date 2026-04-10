@@ -496,7 +496,7 @@ const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.18 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
 const CHAIR_GLOBAL_SCALE = 0.64;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -516,7 +516,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.14 * MODEL_SCALE;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -626,7 +626,7 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.14;
+const TABLE_LEG_EXTENSION_FACTOR = 1.18;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -1998,17 +1998,17 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.078;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.066;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.098,
-  0.092,
-  0.098,
-  0.092
+  0.086,
+  0.08,
+  0.086,
+  0.08
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.036;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.048;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -7243,7 +7243,7 @@ function getHomeStartPads(half, playerCount = DEFAULT_PLAYER_COUNT) {
   const count = clampPlayerCount(playerCount);
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
-  const inwardPull = TILE * 0.45;
+  const inwardPull = TILE * 0.34;
   const lateralSpread = TILE * 0.92;
   const depthSpread = TILE * 0.64;
   const layout = [
