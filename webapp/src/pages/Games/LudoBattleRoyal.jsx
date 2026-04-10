@@ -519,7 +519,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERT
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_VERTICAL_DROP;
-const CHAIR_OUTWARD_OFFSET = 0.14 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0.17 * MODEL_SCALE;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -1883,7 +1883,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -1893,8 +1893,10 @@ const CAM = {
   phiMin: LUDO_CAMERA_PHI_MIN,
   phiMax: LUDO_CAMERA_PHI_MAX
 };
-const CAMERA_2D_DISTANCE_FACTOR = 1;
-const CAMERA_3D_VERTICAL_DROP = 0.03 * MODEL_SCALE;
+const CAMERA_2D_DISTANCE_FACTOR = 1.08;
+const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
+const CAMERA_3D_VERTICAL_DROP = 0.02 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.02 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -2006,17 +2008,17 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.082;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.094;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.104,
-  0.098,
-  0.104,
-  0.098
+  0.116,
+  0.11,
+  0.116,
+  0.11
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.048;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.038;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -3265,7 +3267,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       cancelCameraViewAnimation();
       cameraTurnStateRef.current.activePriority = -Infinity;
       cameraTurnStateRef.current.followObject = null;
-      const topDownDistance = clamp(CAM.maxR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+      const max2dDistance = CAM.maxR * CAMERA_2D_MAX_DISTANCE_FACTOR;
+      const topDownDistance = clamp(CAM.maxR * CAMERA_2D_DISTANCE_FACTOR, CAM.minR, max2dDistance);
       camera.position.set(boardLookTarget.x, boardLookTarget.y + topDownDistance, boardLookTarget.z + 0.001);
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
@@ -3276,12 +3279,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
       controls.minDistance = CAM.minR;
-      controls.maxDistance = CAM.maxR;
+      controls.maxDistance = max2dDistance;
     } else {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
@@ -4401,13 +4404,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         seatDir.normalize();
 
         // Keep token resting rails aligned to the previous wooden rail footprint.
-        let restRadius = BOARD_RADIUS + 0.095;
+        let restRadius = BOARD_RADIUS + 0.075;
         if (chairGroup) {
           chairGroup.getWorldPosition(seatWorldPos);
           seatWorldPos.setY(0);
           const seatDistance = seatWorldPos.distanceTo(centerXZ);
           if (Number.isFinite(seatDistance) && seatDistance > 0.2) {
-            restRadius = Math.max(restRadius, seatDistance - 0.32);
+            restRadius = Math.max(restRadius, seatDistance - 0.34);
           }
         }
         if (table?.getInnerRadius) {
@@ -4418,7 +4421,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const rimOuter = Math.max(inner, outer);
             const rimMid = rimInner + (rimOuter - rimInner) * 0.3;
             restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
-            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.2);
+            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.18);
             if (Number.isFinite(rimOuter)) {
               restRadius = Math.min(restRadius, rimOuter - 0.12);
             }
@@ -4430,7 +4433,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             restRadius = Math.min(restRadius, outer - 0.14);
           }
         }
-        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.095);
+        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.075);
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
@@ -4884,13 +4887,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
     const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
     camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
+    camera.position.y += CAMERA_3D_HEIGHT_BOOST;
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.enableRotate = true;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
@@ -7256,7 +7260,7 @@ function getHomeStartPads(half, playerCount = DEFAULT_PLAYER_COUNT) {
   const count = clampPlayerCount(playerCount);
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
-  const inwardPull = TILE * 0.34;
+  const inwardPull = TILE * 0.4;
   const lateralSpread = TILE * 0.92;
   const depthSpread = TILE * 0.64;
   const layout = [
