@@ -519,8 +519,14 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERT
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_VERTICAL_DROP;
-const CHAIR_OUTWARD_OFFSET = 0.17 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0.21 * MODEL_SCALE;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
+const PLAYER_CHAIR_EXTRA_RADIUS = Object.freeze([
+  0.1 * MODEL_SCALE,
+  0.035 * MODEL_SCALE,
+  0.035 * MODEL_SCALE,
+  0.035 * MODEL_SCALE
+]);
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -603,7 +609,7 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.6 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
 
@@ -1883,7 +1889,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -1896,7 +1902,7 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0.02 * MODEL_SCALE;
-const CAMERA_3D_HEIGHT_BOOST = 0.02 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.03 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -2008,17 +2014,18 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.094;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.108;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.116,
-  0.11,
-  0.116,
-  0.11
+  0.128,
+  0.122,
+  0.128,
+  0.122
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.038;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.018;
+const DICE_RAIL_INWARD_OFFSET = 0.06;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -4434,6 +4441,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
         }
         restRadius = Math.max(restRadius, BOARD_RADIUS + 0.075);
+        restRadius = Math.max(restRadius - DICE_RAIL_INWARD_OFFSET, BOARD_RADIUS + 0.03);
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
@@ -4962,7 +4970,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / activePlayerCount) * Math.PI * 2;
       const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
+      const extraChairRadius = PLAYER_CHAIR_EXTRA_RADIUS[i] ?? 0;
+      const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS + extraChairRadius);
       seatPos.y = CHAIR_BASE_HEIGHT;
       const group = new THREE.Group();
       group.position.copy(seatPos);
