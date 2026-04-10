@@ -217,7 +217,7 @@ export class GameRoom {
     if (this.gameType === 'snake') {
       this.players.forEach((p) => {
         p.position = 0;
-        p.diceCount = 1;
+        p.diceCount = 2;
         p.isActive = false;
       });
     }
