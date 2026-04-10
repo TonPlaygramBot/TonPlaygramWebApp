@@ -100,6 +100,7 @@ const CAPTURE_JET_MISSILE_TRAVEL_2 = 1.65;
 const CAPTURE_GROUND_FIRE_TIME = 1.2;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+const CAPTURE_MISSILE_SCALE = 0.31; // 50% smaller than previous 0.62 scale.
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8170,22 +8171,30 @@ function Chess3D({
     const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, deltaR = 0, deltaC = 0 }) => {
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
-        const droneFx = createFxDrone();
-        droneFx.root.scale.setScalar(0.5);
-        droneFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 0.32, 0));
-        captureFxGroup.add(droneFx.root);
-        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
+        const jetFx = createFxJet();
+        jetFx.root.scale.setScalar(0.58);
+        jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.4, 0));
+        captureFxGroup.add(jetFx.root);
+        const missileFx1 = createFxMissile();
+        const missileFx2 = createFxMissile();
+        missileFx1.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+        missileFx2.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+        missileFx1.root.visible = false;
+        missileFx2.root.visible = false;
+        captureFxGroup.add(missileFx1.root);
+        captureFxGroup.add(missileFx2.root);
+        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
-          type: 'drone',
+          type: 'jet',
           t: 0,
-          duration: CAPTURE_DRONE_TOTAL,
+          duration: CAPTURE_JET_TOTAL,
           from: fromPos.clone(),
-          lift: fromPos.clone().lerp(targetPos, 0.2).add(new THREE.Vector3(0, 1.25, 0.35)),
-          cruise: fromPos.clone().lerp(targetPos, 0.64).add(new THREE.Vector3(0, 1.48, 0.1)),
           to: targetPos.clone(),
-          droneFx
+          jetFx,
+          missileFx1,
+          missileFx2
         });
-        return { moveDelayMs: CAPTURE_DRONE_TOTAL * 1000 };
+        return { moveDelayMs: CAPTURE_JET_TOTAL * 1000 };
       }
       if (pieceType === 'Q') {
         const jetFx = createFxJet();
@@ -8194,8 +8203,8 @@ function Chess3D({
         captureFxGroup.add(jetFx.root);
         const missileFx1 = createFxMissile();
         const missileFx2 = createFxMissile();
-        missileFx1.root.scale.setScalar(0.62);
-        missileFx2.root.scale.setScalar(0.62);
+        missileFx1.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+        missileFx2.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx1.root.visible = false;
         missileFx2.root.visible = false;
         captureFxGroup.add(missileFx1.root);
@@ -8215,7 +8224,7 @@ function Chess3D({
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
         const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(0.62);
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
@@ -8240,7 +8249,7 @@ function Chess3D({
       if (distance >= 2) {
         playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(0.62);
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         captureFxGroup.add(missileFx.root);
         activeCaptureFx.push({ type: 'missile', t: 0, duration: 1.25, from: fromPos.clone(), to: targetPos.clone(), missileFx });
         return { moveDelayMs: 1250 };
