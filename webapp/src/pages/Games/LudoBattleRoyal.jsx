@@ -489,7 +489,10 @@ const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
-const ARENA_SCALE = 0.72;
+// Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
+// slightly smaller in world space.
+const LUDO_ARENA_SHRINK_FACTOR = 0.94;
+const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -585,14 +588,14 @@ const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.08 * ARENA_SCALE_RATIO,
-  forwardOffset: 0.44 * ARENA_SCALE_RATIO,
-  heightOffset: 1.24 * ARENA_SCALE_RATIO
+  backOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.44 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.24 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.82 * ARENA_SCALE_RATIO,
-  forwardOffset: 0.7 * ARENA_SCALE_RATIO,
-  heightOffset: 1.18 * ARENA_SCALE_RATIO,
+  backOffset: 0.82 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.18 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.075 * MODEL_SCALE
 });
 
