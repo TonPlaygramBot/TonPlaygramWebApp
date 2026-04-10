@@ -1,6 +1,6 @@
 import GameResult from "./models/GameResult.js";
-export const FINAL_TILE = 101;
-export const DEFAULT_SNAKES = { 99: 80 };
+export const FINAL_TILE = 50;
+export const DEFAULT_SNAKES = { 49: 30 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
