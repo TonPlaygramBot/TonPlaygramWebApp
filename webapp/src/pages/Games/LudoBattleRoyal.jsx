@@ -84,6 +84,15 @@ function quadraticBezier(a, b, c, t) {
   return ab.lerp(bc, t);
 }
 
+function cubicBezier(a, b, c, d, t) {
+  const ab = new THREE.Vector3().copy(a).lerp(b, t);
+  const bc = new THREE.Vector3().copy(b).lerp(c, t);
+  const cd = new THREE.Vector3().copy(c).lerp(d, t);
+  const abbc = ab.lerp(bc, t);
+  const bccd = bc.lerp(cd, t);
+  return abbc.lerp(bccd, t);
+}
+
 function addFxBox(
   group,
   size,
@@ -150,26 +159,37 @@ function addFxSphere(
 
 function createCaptureMissileFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#c9ced3', 14, 0.42, 0.12);
+  addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
 
   const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.055, 0.18, 14),
-    new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.3, metalness: 0.15 })
+    new THREE.ConeGeometry(0.08, 0.24, 16),
+    new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
   );
-  nose.position.set(0.45, 0, 0);
+  nose.position.set(0.63, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
 
-  addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
-  addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+  addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
+  addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+  addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
 
-  const trail = [
-    addFxSphere(root, 0.08, [-0.5, 0, 0], '#90989d', 1, 0, true, 0.22),
-    addFxSphere(root, 0.1, [-0.64, 0, 0], '#90989d', 1, 0, true, 0.18),
-    addFxSphere(root, 0.12, [-0.78, 0, 0], '#90989d', 1, 0, true, 0.14),
-    addFxSphere(root, 0.14, [-0.92, 0, 0], '#90989d', 1, 0, true, 0.1)
-  ];
+  const trail = [];
+  for (let i = 0; i < 5; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.1 + i * 0.025,
+        [-0.7 - i * 0.16, 0, 0],
+        i < 2 ? '#f6af4b' : '#8f989d',
+        i < 2 ? 0.2 : 1,
+        0,
+        true,
+        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+      )
+    );
+  }
 
   root.visible = false;
   return { root, trail };
@@ -5350,17 +5370,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current.play().catch(() => {});
   };
 
-  const getReferenceKingSize = (player, fallbackToken) => {
+  const getReferenceBishopSize = (player, fallbackToken) => {
     const state = stateRef.current;
     const sourceTokens = state?.tokens?.[player] ?? [];
-    const kingToken =
-      sourceTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) || fallbackToken;
-    const box = new THREE.Box3().setFromObject(kingToken || fallbackToken);
+    const bishopToken =
+      sourceTokens.find((token) => /bishop/i.test(String(token?.userData?.tokenType ?? ''))) || fallbackToken;
+    const box = new THREE.Box3().setFromObject(bishopToken || fallbackToken);
     const size = new THREE.Vector3();
     box.getSize(size);
-    const kingHeight = Math.max(0.28, size.y || 0.28);
-    const kingWidth = Math.max(0.14, Math.max(size.x, size.z) || 0.14);
-    return { kingHeight, kingWidth };
+    const bishopHeight = Math.max(0.28, size.y || 0.28);
+    const bishopWidth = Math.max(0.14, Math.max(size.x, size.z) || 0.14);
+    return { bishopHeight, bishopWidth };
   };
 
   const playCaptureMissileSequence = ({ attackerToken, attackerPlayer, startPosition, targetPosition }) =>
@@ -5378,17 +5398,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         scene.add(explosion.root);
         captureFxRef.current = { missile: missile.root, explosion: explosion.root };
 
-        const { kingHeight, kingWidth } = getReferenceKingSize(attackerPlayer, attackerToken);
-        const missileScaleMultiplier = 0.5;
-        const missileLengthScale = (kingHeight / 1.02) * missileScaleMultiplier;
-        const missileThicknessScale = (((kingWidth * 0.5) / 0.16) * 0.98) * missileScaleMultiplier;
+        const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
+        const missileLengthScale = (bishopHeight / 1.02) * 0.9;
+        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
-        const from = startPosition.clone().add(new THREE.Vector3(0, kingHeight * 0.55, 0));
-        const to = targetPosition.clone().add(new THREE.Vector3(0, kingHeight * 0.32, 0));
-        const travelTime = 620;
+        const from = startPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.55, 0));
+        const to = targetPosition.clone().add(new THREE.Vector3(0, bishopHeight * 0.3, 0));
+        const travelTime = 720;
         const explosionTime = 920;
-        const control = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, kingHeight * 1.25, 0));
+        const control1 = new THREE.Vector3(
+          from.x + (to.x - from.x) * 0.35,
+          from.y + bishopHeight * 2.8,
+          from.z + (to.z - from.z) * 0.15
+        );
+        const control2 = new THREE.Vector3(
+          to.x - (to.x - from.x) * 0.12,
+          to.y + bishopHeight * 3.4,
+          to.z - (to.z - from.z) * 0.08
+        );
         const started = performance.now();
         let explosionTriggered = false;
 
@@ -5432,8 +5460,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
-            const pos = quadraticBezier(from, control, to, u);
-            const next = quadraticBezier(from, control, to, nextU);
+            const pos = cubicBezier(from, control1, control2, to, u);
+            const next = cubicBezier(from, control1, control2, to, nextU);
             const dir = next.clone().sub(pos).normalize();
             const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
             missile.root.visible = true;
@@ -5447,6 +5475,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               );
               const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
               puff.scale.setScalar(s);
+              puff.material.opacity =
+                i < 2
+                  ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
+                  : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
             });
             updateExplosionRig(-1);
             requestAnimationFrame(tick);
