@@ -7999,9 +7999,7 @@ function Chess3D({
     };
     const createFxDrone = () => {
       const root = new THREE.Group();
-      // fuselage
       addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
-      addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.18, 0.72, 20),
         new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
@@ -8009,7 +8007,7 @@ function Chess3D({
       nose.position.set(1.7, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      // wing + spine
+      addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
       const wing = createFxPolygon([[-1.2, -1.65], [1.0, 0], [-1.2, 1.65]], 0.08, '#aeb4ae');
       wing.position.set(-0.15, -0.06, 0);
       root.add(wing);
@@ -8023,7 +8021,7 @@ function Chess3D({
       const finR = finL.clone();
       finR.position.z = 0.25;
       root.add(finR);
-      // propeller
+      addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 1);
       const propeller = new THREE.Group();
       propeller.position.set(-1.95, 0, 0);
       addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20');
@@ -8031,13 +8029,10 @@ function Chess3D({
       blade2.rotation.x = Math.PI / 2;
       addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 1);
       root.add(propeller);
-      // exhaust puffs
-      const exhaustClouds = [
-        addFxSphere(root, 0.08, [-2.15, 0, 0], '#8d979d', 0.21),
-        addFxSphere(root, 0.095, [-2.39, 0, 0], '#8d979d', 0.18),
-        addFxSphere(root, 0.11, [-2.63, 0, 0], '#8d979d', 0.15),
-        addFxSphere(root, 0.125, [-2.87, 0, 0], '#8d979d', 0.12)
-      ];
+      const exhaustClouds = [];
+      for (let i = 0; i < 4; i += 1) {
+        exhaustClouds.push(addFxSphere(root, 0.08 + i * 0.015, [-2.15 - i * 0.24, 0, 0], '#8d979d', 0.21 - i * 0.03));
+      }
       return { root, propeller, exhaustClouds };
     };
     const createFxJet = () => {
@@ -8062,20 +8057,41 @@ function Chess3D({
       fin.rotation.z = Math.PI / 2;
       fin.position.set(-1.1, 0.55, 0);
       root.add(fin);
-      return { root, cockpit };
+      const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
+      const engineRight = engineLeft.clone();
+      engineRight.position.z = 0.2;
+      root.add(engineRight);
+      const leftStore = new THREE.Group();
+      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12);
+      const leftStoreNose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.14, 12),
+        new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+      );
+      leftStoreNose.position.set(0.34, 0, 0);
+      leftStoreNose.rotation.z = -Math.PI / 2;
+      leftStore.add(leftStoreNose);
+      leftStore.position.set(0.25, -0.25, -1.15);
+      root.add(leftStore);
+      const rightStore = leftStore.clone();
+      rightStore.position.z = 1.15;
+      root.add(rightStore);
+      return { root, cockpit, leftStore, rightStore };
     };
     const createFxLauncher = () => {
       const root = new THREE.Group();
-      // base + mast
       addFxCylinder(root, 0.25, 0.32, 0.16, [0, 0.08, 0], [0, 0, 0], '#4d5358');
       addFxCylinder(root, 0.06, 0.08, 0.55, [0, 0.32, 0], [0, 0, 0], '#5d666c', 12);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, -0.2], [0.62, 0, 0.24], '#5a6268', 10);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.18, 0.35, 0.2], [-0.62, 0, 0.24], '#5a6268', 10);
+      addFxCylinder(root, 0.03, 0.03, 0.9, [-0.35, 0.35, 0], [0, 0, 1.0], '#5a6268', 10);
       const tubeRig = new THREE.Group();
       tubeRig.position.set(0.02, 0.46, 0);
       root.add(tubeRig);
-      // tube + muzzle
       addFxCylinder(tubeRig, 0.12, 0.14, 1.55, [0, 0, 0], [0, 0, Math.PI / 2], '#7e868c', 18);
       addFxCylinder(tubeRig, 0.09, 0.09, 0.38, [0.86, 0, 0], [0, 0, Math.PI / 2], '#929aa0', 14);
-      addFxBox(tubeRig, [0.2, 0.08, 0.12], [0.7, 0.1, 0], '#6e757b');
+      addFxBox(tubeRig, [0.28, 0.12, 0.18], [-0.18, 0.18, 0], '#6d757b');
+      addFxBox(tubeRig, [0.16, 0.18, 0.06], [-0.05, -0.16, 0], '#596066');
+      addFxBox(tubeRig, [0.08, 0.16, 0.08], [0.18, 0.18, 0], '#2b3135');
       return { root, tubeRig, muzzleLocal: new THREE.Vector3(0.98, 0, 0) };
     };
     const createFxMissile = () => {
@@ -8102,16 +8118,14 @@ function Chess3D({
       const root = new THREE.Group();
       root.position.copy(position);
       const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 1);
-      const fire = [
-        addFxSphere(root, 0.18, [0, 0.22, 0], '#ff9c2f', 0.95),
-        addFxSphere(root, 0.23, [0, 0.3, 0], '#ff5b2d', 0.78),
-        addFxSphere(root, 0.28, [0, 0.38, 0], '#ff8128', 0.62)
-      ];
-      const smoke = [
-        addFxSphere(root, 0.2, [0, 0.18, 0], '#646b72', 0.34),
-        addFxSphere(root, 0.24, [0, 0.28, 0], '#646b72', 0.25),
-        addFxSphere(root, 0.28, [0, 0.38, 0], '#646b72', 0.18)
-      ];
+      const fire = [];
+      const smoke = [];
+      for (let i = 0; i < 4; i += 1) {
+        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.95 - i * 0.15));
+      }
+      for (let i = 0; i < 6; i += 1) {
+        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 0.42 - i * 0.04));
+      }
       return { root, flash, fire, smoke };
     };
     const launchExplosion = (position) => {
@@ -8119,19 +8133,27 @@ function Chess3D({
       captureFxGroup.add(explosion.root);
       playAudio(bombSoundRef, { maxDurationMs: 520 });
       playAudio(missileImpactSoundRef);
-      activeCaptureFx.push({ type: 'explosion', t: 0, duration: 0.8, explosion });
+      activeCaptureFx.push({ type: 'explosion', t: 0, duration: 2.6, explosion });
     };
     const qBezier = (a, b, c, t) => {
       const ab = new THREE.Vector3().copy(a).lerp(b, t);
       const bc = new THREE.Vector3().copy(b).lerp(c, t);
       return ab.lerp(bc, t);
     };
+    const cubicBezier = (a, b, c, d, t) => {
+      const ab = new THREE.Vector3().copy(a).lerp(b, t);
+      const bc = new THREE.Vector3().copy(b).lerp(c, t);
+      const cd = new THREE.Vector3().copy(c).lerp(d, t);
+      const abbc = ab.lerp(bc, t);
+      const bccd = bc.lerp(cd, t);
+      return abbc.lerp(bccd, t);
+    };
 
     const FX_SCALE_UNIT = BOARD.tile;
-    const DRONE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.95;
-    const JET_CAPTURE_SCALE = FX_SCALE_UNIT;
-    const BAZOOKA_CAPTURE_SCALE = FX_SCALE_UNIT * 0.9;
-    const MISSILE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.88;
+    const DRONE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.475;
+    const JET_CAPTURE_SCALE = FX_SCALE_UNIT * 0.5;
+    const BAZOOKA_CAPTURE_SCALE = FX_SCALE_UNIT * 0.45;
+    const MISSILE_CAPTURE_SCALE = FX_SCALE_UNIT * 0.44;
 
     const createFxSword = () => {
       const root = new THREE.Group();
@@ -9680,44 +9702,52 @@ function Chess3D({
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
           if (fx.type === 'drone') {
-            const revealRatio = 0.18;
-            const orbitRatio = 0.56;
-            const center = new THREE.Vector3(0, fx.from.y + 2.2, 0);
-            let pos = fx.from.clone();
-            let next = fx.from.clone();
-            if (u <= revealRatio) {
-              const tLocal = smoothEase(clamp01(u / revealRatio));
-              const revealAnchor = fx.from.clone().add(new THREE.Vector3(0, 1.8, 0.55));
-              pos = new THREE.Vector3().copy(fx.from).lerp(revealAnchor, tLocal);
-              next = new THREE.Vector3().copy(fx.from).lerp(revealAnchor, clamp01(tLocal + 0.04));
-            } else if (u <= revealRatio + orbitRatio) {
-              const orbitU = clamp01((u - revealRatio) / orbitRatio);
-              const startAngle = Math.atan2(fx.from.z - center.z, fx.from.x - center.x);
-              const angle = startAngle + orbitU * Math.PI * 2.1;
-              const nextAngle = angle + 0.08;
-              const radius = 5.4;
-              pos = new THREE.Vector3(
-                center.x + Math.cos(angle) * radius,
-                center.y + Math.sin(orbitU * Math.PI * 2) * 0.18,
-                center.z + Math.sin(angle) * radius
-              );
-              next = new THREE.Vector3(
-                center.x + Math.cos(nextAngle) * radius,
-                center.y,
-                center.z + Math.sin(nextAngle) * radius
-              );
+            const liftRatio = DRONE_LIFT_TIME / DRONE_LOOP_TIME;
+            const cruiseRatio = DRONE_CRUISE_TIME / DRONE_LOOP_TIME;
+            const diveRatio = DRONE_DIVE_TIME / DRONE_LOOP_TIME;
+            const droneStart = fx.from.clone().add(new THREE.Vector3(0, 0.28, 0));
+            const liftEnd = fx.from.clone().lerp(fx.to, 0.18).add(new THREE.Vector3(-0.45, 3.8, 0.35));
+            const cruiseEnd = fx.from.clone().lerp(fx.to, 0.62).add(new THREE.Vector3(0.35, 4.2, 0.08));
+            let pos = new THREE.Vector3();
+            let next = new THREE.Vector3();
+            let phase = 'lift';
+            if (u < liftRatio) {
+              const mu = smoothEase(u / Math.max(liftRatio, 1e-6));
+              pos.copy(droneStart).lerp(liftEnd, mu);
+              pos.z += Math.sin(mu * Math.PI * 3) * 0.12;
+              next.copy(droneStart).lerp(liftEnd, Math.min(1, mu + 0.04));
+              phase = 'lift';
+            } else if (u < liftRatio + cruiseRatio) {
+              const mu = smoothEase((u - liftRatio) / Math.max(cruiseRatio, 1e-6));
+              pos.copy(liftEnd).lerp(cruiseEnd, mu);
+              pos.y += Math.sin(mu * Math.PI * 2) * 0.1;
+              pos.z += Math.sin(mu * Math.PI * 2.4) * 0.16;
+              next.copy(liftEnd).lerp(cruiseEnd, Math.min(1, mu + 0.03));
+              phase = 'cruise';
             } else {
-              const tLocal = smoothEase(clamp01((u - revealRatio - orbitRatio) / (1 - revealRatio - orbitRatio)));
-              const diveStart = new THREE.Vector3().copy(center).add(new THREE.Vector3(3.2, 1.2, -2.8));
-              pos = new THREE.Vector3().copy(diveStart).lerp(fx.to, tLocal);
-              next = new THREE.Vector3().copy(diveStart).lerp(fx.to, clamp01(tLocal + 0.05));
+              const mu = smoothEase((u - liftRatio - cruiseRatio) / Math.max(diveRatio, 1e-6));
+              pos.copy(cruiseEnd).lerp(fx.to, mu);
+              next.copy(cruiseEnd).lerp(fx.to, Math.min(1, mu + 0.05));
+              phase = 'dive';
             }
             fx.droneFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
             fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.droneFx.propeller.rotation.x += dt * 28;
+            let droneBank = 0;
+            if (phase === 'lift') droneBank = -0.12;
+            if (phase === 'cruise') droneBank = Math.sin(fx.t * 2.4) * 0.06;
+            if (phase === 'dive') droneBank = 0.03;
+            fx.droneFx.root.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(captureDir, droneBank));
+            fx.droneFx.propeller.rotation.x += dt * 36;
             fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-2.1 - idx * 0.22, Math.sin(fx.t * 5 + idx) * 0.03, 0);
+              puff.position.set(
+                -2.1 - idx * 0.22 - ((fx.t * 1.4 + idx * 0.18) % 1) * 0.2,
+                Math.sin(fx.t * 3 + idx) * 0.03,
+                0
+              );
+              const scale = 0.8 + idx * 0.18 + ((fx.t * 1.2 + idx * 0.15) % 1) * 0.55;
+              puff.scale.setScalar(scale);
+              puff.material.opacity = phase === 'dive' ? 0.08 : 0.2 - idx * 0.03;
             });
             if (u >= 1) {
               launchExplosion(fx.to);
@@ -9725,33 +9755,41 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const center = new THREE.Vector3(0, fx.from.y + 3.8, 0);
-            const orbitU = clamp01(u / 0.82);
-            const angle = Math.atan2(fx.from.z, fx.from.x) + orbitU * Math.PI * 2;
-            const nextAngle = angle + 0.04;
-            const radius = 6.4;
-            const pos = new THREE.Vector3(center.x + Math.cos(angle) * radius, center.y + Math.sin(orbitU * Math.PI) * 0.3, center.z + Math.sin(angle) * radius);
-            const next = new THREE.Vector3(center.x + Math.cos(nextAngle) * radius, center.y, center.z + Math.sin(nextAngle) * radius);
+            const jetStart = fx.from.clone().add(new THREE.Vector3(-6.4, 7.6, -3.6));
+            const jetEnd = fx.to.clone().add(new THREE.Vector3(6.2, 7.2, 3.2));
+            const pos = new THREE.Vector3().copy(jetStart).lerp(jetEnd, u);
+            pos.y += Math.sin(u * Math.PI) * 0.45;
+            pos.z += Math.sin(u * Math.PI * 1.65) * 0.35;
+            const nextU = Math.min(1, u + 0.02);
+            const next = new THREE.Vector3().copy(jetStart).lerp(jetEnd, nextU);
+            next.y += Math.sin(nextU * Math.PI) * 0.45;
+            next.z += Math.sin(nextU * Math.PI * 1.65) * 0.35;
             fx.jetFx.root.position.copy(pos);
             captureDir.copy(next).sub(pos).normalize();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            if (!fx.missileLaunched && u > 0.48) {
+            fx.jetFx.root.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(captureDir, Math.sin(fx.t * 1.5) * 0.03));
+            if (fx.jetFx.leftStore) fx.jetFx.leftStore.visible = fx.t < MISSILE_DROP_1;
+            if (fx.jetFx.rightStore) fx.jetFx.rightStore.visible = fx.t < MISSILE_DROP_2;
+            if (!fx.missileLaunched && fx.t > MISSILE_DROP_1) {
               fx.missileLaunched = true;
               playAudio(missileLaunchSoundRef);
               fx.missileFx.root.visible = true;
             }
             if (fx.missileLaunched) {
-              const mu = clamp01((u - 0.48) / 0.44);
+              const mu = clamp01((fx.t - MISSILE_DROP_1) / MISSILE_TRAVEL_1);
               const dropStart = pos.clone().add(new THREE.Vector3(0, -0.25, 0));
               const control = new THREE.Vector3().copy(dropStart).lerp(fx.to, 0.45);
-              control.y += 1.7;
+              control.y = Math.max(dropStart.y, 3.7);
               const missilePos = qBezier(dropStart, control, fx.to, mu);
-              const missileNext = qBezier(dropStart, control, fx.to, clamp01(mu + 0.03));
+              const missileNext = qBezier(dropStart, control, fx.to, clamp01(mu + 0.025));
               fx.missileFx.root.position.copy(missilePos);
               captureDir.copy(missileNext).sub(missilePos).normalize();
               fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
               fx.missileFx.trail?.forEach((puff, idx) => {
-                puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.02, 0);
+                puff.position.set(-0.38 - idx * 0.12, Math.sin(fx.t * 8 + idx) * 0.015, 0);
+                const scale = 0.8 + idx * 0.16 + ((fx.t * 1.8 + idx * 0.2) % 1) * 0.5;
+                puff.scale.setScalar(scale);
+                puff.material.opacity = 0.24 - idx * 0.035;
               });
             }
             if (u >= 1) {
@@ -9762,30 +9800,23 @@ function Chess3D({
             }
           } else if (fx.type === 'bazooka') {
             const aim = new THREE.Vector3().copy(fx.to).sub(fx.from).normalize();
-            fx.launcher.tubeRig.quaternion.setFromUnitVectors(FORWARD, aim);
-            const mu = clamp01((u - 0.16) / 0.84);
+            fx.launcher.tubeRig.quaternion.setFromUnitVectors(FORWARD, aim.clone().add(new THREE.Vector3(0, 0.35, 0)).normalize());
+            fx.launcher.tubeRig.rotation.z = Math.sin(fx.t * 0.7) * 0.03;
+            const mu = clamp01((fx.t - GROUND_FIRE_TIME) / GROUND_TRAVEL_TIME);
             if (mu > 0) fx.missileFx.root.visible = true;
-            const launchPos = fx.from.clone().add(new THREE.Vector3(0, 0.62, 0));
-            const lCorner = launchPos.clone();
-            const worldDx = fx.to.x - launchPos.x;
-            const worldDz = fx.to.z - launchPos.z;
-            if (Math.abs(fx.deltaC) > Math.abs(fx.deltaR)) {
-              lCorner.x += worldDx * (2 / 3);
-            } else {
-              lCorner.z += worldDz * (2 / 3);
-            }
-            lCorner.y += 1.1;
-            const missilePos = mu < 0.5
-              ? new THREE.Vector3().copy(launchPos).lerp(lCorner, mu / 0.5)
-              : new THREE.Vector3().copy(lCorner).lerp(fx.to, (mu - 0.5) / 0.5);
-            const missileNext = mu < 0.5
-              ? new THREE.Vector3().copy(launchPos).lerp(lCorner, clamp01(mu / 0.5 + 0.06))
-              : new THREE.Vector3().copy(lCorner).lerp(fx.to, clamp01((mu - 0.5) / 0.5 + 0.06));
+            const launchPos = fx.from.clone().add(new THREE.Vector3(0.25, 0.62, 0));
+            const control1 = new THREE.Vector3(launchPos.x + 1.5, launchPos.y + 2.6, launchPos.z - 0.1);
+            const control2 = new THREE.Vector3(fx.to.x - 0.45, 5.6, fx.to.z + 0.15);
+            const missilePos = cubicBezier(launchPos, control1, control2, fx.to, mu);
+            const missileNext = cubicBezier(launchPos, control1, control2, fx.to, clamp01(mu + 0.02));
             fx.missileFx.root.position.copy(missilePos);
             captureDir.copy(missileNext).sub(missilePos).normalize();
             fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             fx.missileFx.trail?.forEach((puff, idx) => {
-              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 9 + idx) * 0.015, 0);
+              puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 10 + idx) * 0.02, 0);
+              const scale = 0.85 + idx * 0.16 + ((fx.t * 2 + idx * 0.18) % 1) * 0.6;
+              puff.scale.setScalar(scale);
+              puff.material.opacity = idx < 2 ? clamp(0.85 - mu * 0.45 - idx * 0.12, 0.2, 0.85) : clamp(0.24 - (idx - 2) * 0.04, 0.06, 0.24);
             });
             if (u >= 1) {
               launchExplosion(fx.to);
@@ -9844,16 +9875,32 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'explosion') {
-            const life = clamp01(1 - u);
-            fx.explosion.flash.scale.setScalar(0.65 + u * 1.1);
-            fx.explosion.flash.material.opacity = life;
+            const elapsedSinceImpact = fx.t;
+            const fireLife = clamp(1 - elapsedSinceImpact / 0.9, 0, 1);
+            const smokeLife = clamp(1 - elapsedSinceImpact / 2.6, 0, 1);
+            const fireGrow = 1 + elapsedSinceImpact * 4.5;
+            const smokeGrow = 1 + elapsedSinceImpact * 2.3;
+            fx.explosion.flash.scale.setScalar(1.4 + elapsedSinceImpact * 6);
+            fx.explosion.flash.material.opacity = fireLife;
             fx.explosion.fire.forEach((mesh, idx) => {
-              mesh.scale.setScalar(0.75 + u * (0.85 + idx * 0.25));
-              mesh.material.opacity = life * (0.9 - idx * 0.22);
+              const angle = elapsedSinceImpact * 5 + idx * 1.35;
+              mesh.position.set(
+                Math.cos(angle) * (0.1 + elapsedSinceImpact * 0.35),
+                0.18 + elapsedSinceImpact * 0.55 + idx * 0.05,
+                Math.sin(angle) * (0.1 + elapsedSinceImpact * 0.28)
+              );
+              mesh.scale.setScalar(fireGrow * (0.7 + idx * 0.18));
+              mesh.material.opacity = fireLife * (0.95 - idx * 0.12);
             });
             fx.explosion.smoke?.forEach((mesh, idx) => {
-              mesh.scale.setScalar(0.7 + u * (0.95 + idx * 0.25));
-              mesh.material.opacity = life * (0.35 - idx * 0.08);
+              const angle = idx * 1.1 + elapsedSinceImpact * 1.8;
+              mesh.position.set(
+                Math.cos(angle) * (0.14 + idx * 0.08),
+                0.25 + elapsedSinceImpact * (0.55 + idx * 0.1),
+                Math.sin(angle) * (0.14 + idx * 0.08)
+              );
+              mesh.scale.setScalar(smokeGrow * (0.75 + idx * 0.16));
+              mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
             });
             if (u >= 1) {
               captureFxGroup.remove(fx.explosion.root);
