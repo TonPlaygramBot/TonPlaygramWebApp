@@ -8109,25 +8109,25 @@ function Chess3D({
     };
     const createFxMissile = () => {
       const root = new THREE.Group();
-      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+      addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
       const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.24, 16),
+        new THREE.ConeGeometry(0.1, 0.28, 16),
         new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
       );
-      nose.position.set(0.63, 0, 0);
+      nose.position.set(0.74, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+      addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+      addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+      addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
+      addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
       const trail = [];
       for (let i = 0; i < 5; i += 1) {
         trail.push(
           addFxSphere(
             root,
-            0.1 + i * 0.025,
-            [-0.7 - i * 0.16, 0, 0],
+            0.12 + i * 0.03,
+            [-0.84 - i * 0.19, 0, 0],
             i < 2 ? '#f6af4b' : '#8f989d',
             i < 2 ? 0.2 : 1,
             0,
@@ -8136,6 +8136,7 @@ function Chess3D({
           )
         );
       }
+      root.visible = false;
       return { root, trail };
     };
     const createFxExplosion = (position) => {
@@ -8196,6 +8197,7 @@ function Chess3D({
       const { scale = 1, duration = 2.6, impactSoundMaxDurationMs } = options;
       const explosion = createFxExplosion(position);
       explosion.root.scale.setScalar(scale);
+      explosion.root.visible = false;
       captureFxGroup.add(explosion.root);
       playAudio(bombSoundRef, { maxDurationMs: 520 });
       playAudio(missileImpactSoundRef, impactSoundMaxDurationMs ? { maxDurationMs: impactSoundMaxDurationMs } : undefined);
@@ -8275,6 +8277,8 @@ function Chess3D({
           duration: missileTravelDuration + explosionDuration,
           from: launchAnchor,
           to: impactAnchor,
+          attackerMesh,
+          targetMesh,
           missileFx,
           bishopHeight,
           explosionTriggered: false,
@@ -9908,12 +9912,16 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'royaleMissile') {
-            const boardCenter = new THREE.Vector3(0, fx.from.y, 0);
+            const liveFrom = getLivePieceWorldPosition(fx.attackerMesh, fx.from);
+            const liveTarget = getLivePieceWorldPosition(fx.targetMesh, fx.to);
+            const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, fx.bishopHeight * 0.54, 0));
+            const dynamicTo = liveTarget.clone().add(new THREE.Vector3(0, 0.06, 0));
+            const boardCenter = new THREE.Vector3(0, dynamicFrom.y, 0);
             const boardRadius = (BOARD.N * BOARD.tile) / 2;
-            const startRadius = Math.max(fx.from.clone().setY(0).length(), boardRadius * 0.92);
-            const endRadius = Math.max(fx.to.clone().setY(0).length(), boardRadius * 0.92);
-            const startAngle = Math.atan2(fx.from.z, fx.from.x);
-            const endAngle = Math.atan2(fx.to.z, fx.to.x);
+            const startRadius = Math.max(dynamicFrom.clone().setY(0).length(), boardRadius * 0.92);
+            const endRadius = Math.max(dynamicTo.clone().setY(0).length(), boardRadius * 0.92);
+            const startAngle = Math.atan2(dynamicFrom.z, dynamicFrom.x);
+            const endAngle = Math.atan2(dynamicTo.z, dynamicTo.x);
             const finalDelta = ((endAngle - startAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
             const fullOrbitAngle = startAngle + Math.PI * 2 + finalDelta;
             if (fx.t <= fx.travelDuration) {
@@ -9926,7 +9934,7 @@ function Chess3D({
                 const orbitLift = fx.bishopHeight * (0.22 + Math.sin(Math.PI * orbitU) * 0.2);
                 return new THREE.Vector3(
                   boardCenter.x + Math.cos(angle) * radius,
-                  fx.from.y + orbitLift,
+                  dynamicFrom.y + orbitLift,
                   boardCenter.z + Math.sin(angle) * radius
                 );
               };
@@ -9936,11 +9944,12 @@ function Chess3D({
               fx.missileFx.root.position.copy(missilePos);
               captureDir.copy(missileNext).sub(missilePos).normalize();
               fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              const trailRight = captureDir.clone().cross(WORLD_UP).normalize();
               fx.missileFx.trail?.forEach((puff, idx) => {
                 puff.position.set(
                   -0.55 - idx * 0.16,
                   Math.sin(fx.t * 20 + idx) * 0.02,
-                  Math.sin(fx.t * 12 + idx * 0.4) * 0.01
+                  Math.sin(fx.t * 12 + idx * 0.4) * 0.01 + trailRight.z * 0.005
                 );
                 const s = 0.85 + idx * 0.16 + ((fx.t * 1.8 + idx * 0.18) % 1) * 0.6;
                 puff.scale.setScalar(s);
@@ -9953,7 +9962,11 @@ function Chess3D({
               fx.missileFx.root.visible = false;
               if (!fx.explosionTriggered) {
                 fx.explosionTriggered = true;
-                launchExplosion(fx.to, { scale: 0.46, duration: fx.explosionDuration, impactSoundMaxDurationMs: 320 });
+                launchExplosion(dynamicTo.clone().add(new THREE.Vector3(0, -0.05, 0)), {
+                  scale: 0.46,
+                  duration: fx.explosionDuration,
+                  impactSoundMaxDurationMs: 320
+                });
               }
             }
             if (u >= 1) {
