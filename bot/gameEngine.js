@@ -1,6 +1,6 @@
 import GameResult from "./models/GameResult.js";
-export const FINAL_TILE = 101;
-export const DEFAULT_SNAKES = { 99: 80 };
+export const FINAL_TILE = 50;
+export const DEFAULT_SNAKES = { 49: 30 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
@@ -217,7 +217,7 @@ export class GameRoom {
     if (this.gameType === 'snake') {
       this.players.forEach((p) => {
         p.position = 0;
-        p.diceCount = 2;
+        p.diceCount = 1;
         p.isActive = false;
       });
     }
@@ -333,7 +333,11 @@ export class GameRoom {
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );
-        this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+        this.io.to(this.id).emit('gameWon', {
+          playerId: player.playerId,
+          winnerName: player.name,
+          winningTile: FINAL_TILE,
+        });
         return;
       }
 
@@ -404,7 +408,11 @@ export class GameRoom {
         }).catch((err) =>
           console.error('Failed to store game result:', err.message)
         );
-        this.io.to(this.id).emit('gameWon', { playerId: winner.playerId });
+        this.io.to(this.id).emit('gameWon', {
+          playerId: winner.playerId,
+          winnerName: winner.name,
+          winningTile: this.gameType === 'snake' ? FINAL_TILE : undefined,
+        });
         return;
       }
     }

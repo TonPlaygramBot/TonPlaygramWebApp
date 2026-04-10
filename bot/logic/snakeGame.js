@@ -1,4 +1,4 @@
-export const FINAL_TILE = 101;
+export const FINAL_TILE = 50;
 
 export function applySnakesAndLadders(pos, snakes, ladders) {
   if (snakes[pos] != null) return Math.max(0, snakes[pos]);
@@ -22,7 +22,7 @@ export class SnakeGame {
       id,
       name,
       position: 0,
-      diceCount: 2,
+      diceCount: 1,
       isActive: false,
     });
   }
@@ -40,7 +40,7 @@ export class SnakeGame {
     const player = this.players[this.currentTurn];
     if (!player) return null;
 
-    const diceToRoll = Math.max(1, player.diceCount || 2);
+    const diceToRoll = Math.max(1, player.diceCount || 1);
     const rand = () => Math.floor(Math.random() * 6) + 1;
     const provided = Array.isArray(diceValues)
       ? diceValues
@@ -56,8 +56,6 @@ export class SnakeGame {
 
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
-    const doubleSix = dice.length >= 2 && dice[0] === 6 && dice[1] === 6;
-
     let target = player.position;
     let extraTurn = false;
 
@@ -65,15 +63,6 @@ export class SnakeGame {
       if (rolledSix) {
         player.isActive = true;
         target = 1;
-      }
-    } else if (player.position === 100) {
-      if (player.diceCount === 2) {
-        if (rolledSix) {
-          player.diceCount = 1;
-          extraTurn = true;
-        }
-      } else if (total === 1) {
-        target = FINAL_TILE;
       }
     } else if (player.position < FINAL_TILE) {
       if (player.position + total <= FINAL_TILE) {
@@ -93,7 +82,7 @@ export class SnakeGame {
     for (const p of this.players) {
       if (p !== player && p.position === player.position && p.position > 0) {
         p.position = 0;
-        p.diceCount = 2;
+        p.diceCount = 1;
         p.isActive = false;
       }
     }
@@ -105,8 +94,6 @@ export class SnakeGame {
       bonusCell = player.position;
       player.bonus = bonus;
       delete this.diceCells[player.position];
-      extraTurn = true;
-    } else if (rolledSix) {
       extraTurn = true;
     }
 
