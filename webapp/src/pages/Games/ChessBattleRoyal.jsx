@@ -7937,133 +7937,23 @@ function Chess3D({
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
 
-    const addFxBox = (group, size, position, color, roughness = 0.62, metalness = 0.28) => {
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size[0], size[1], size[2]),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const addFxCylinder = (
-      group,
-      radiusTop,
-      radiusBottom,
-      height,
-      position,
-      rotation,
-      color,
-      radialSegments = 18,
-      roughness = 0.62,
-      metalness = 0.28
-    ) => {
-      const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const addFxSphere = (
-      group,
-      radius,
-      position,
-      color,
-      roughness = 0.45,
-      metalness = 0.25,
-      transparent = false,
-      opacity = 1
-    ) => {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 16, 16),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-
-    const createCaptureMissileFx = () => {
-      const root = new THREE.Group();
-      addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.1, 0.28, 16),
-        new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
-      );
-      nose.position.set(0.74, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
-      const trail = [];
-      for (let i = 0; i < 5; i += 1) {
-        trail.push(
-          addFxSphere(
-            root,
-            0.12 + i * 0.03,
-            [-0.84 - i * 0.19, 0, 0],
-            i < 2 ? '#f6af4b' : '#8f989d',
-            i < 2 ? 0.2 : 1,
-            0,
-            true,
-            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-          )
-        );
-      }
-      root.visible = false;
-      return { root, trail };
-    };
-
-    const createCaptureExplosionFx = () => {
-      const root = new THREE.Group();
-      const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
-      const fire = [];
-      const smoke = [];
-      for (let i = 0; i < 4; i += 1) {
-        fire.push(
-          addFxSphere(
-            root,
-            0.24 + i * 0.065,
-            [0, 0.22 + i * 0.06, 0],
-            i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
-            0.2,
-            0,
-            true,
-            0.95 - i * 0.15
-          )
-        );
-      }
-      for (let i = 0; i < 6; i += 1) {
-        smoke.push(
-          addFxSphere(
-            root,
-            0.22 + i * 0.045,
-            [0, 0.18 + i * 0.08, 0],
-            '#646b72',
-            1,
-            0,
-            true,
-            0.42 - i * 0.04
-          )
-        );
-      }
-      root.scale.setScalar(0.46);
-      root.visible = false;
-      return { root, flash, fire, smoke };
+    const createExplosion = (pos) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const v = pos.clone().project(camera);
+      const x = rect.left + ((v.x + 1) / 2) * rect.width;
+      const y = rect.top + ((-v.y + 1) / 2) * rect.height;
+      const el = document.createElement('div');
+      el.textContent = '💨';
+      el.className = 'bomb-explosion';
+      el.style.position = 'fixed';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+      el.style.fontSize = '64px';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '200';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
     };
 
     const createSlashEffect = (fromPos, toPos) => {
@@ -8091,164 +7981,42 @@ function Chess3D({
       }, 220);
     };
 
-    const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
-    const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
-    const easeSmooth = (value) => {
-      const t = clamp01(value);
-      return t * t * (3 - 2 * t);
-    };
-    const resolveMeshWorldAnchor = (mesh, fallbackPosition = null, yOffset = 0) => {
-      const base = mesh?.isObject3D
-        ? mesh.getWorldPosition(new THREE.Vector3())
-        : fallbackPosition?.isVector3
-        ? fallbackPosition.clone()
-        : null;
-      if (!base) return null;
-      base.y += yOffset;
-      return base;
-    };
-    const resolveMissileScaleFromMesh = (mesh) => {
-      if (!mesh?.isObject3D) return { pieceHeight: tile * 0.98, pieceWidth: tile * 0.44 };
-      const box = new THREE.Box3().setFromObject(mesh);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      return {
-        pieceHeight: Math.max(0.28, size.y || 0.28),
-        pieceWidth: Math.max(0.14, Math.max(size.x, size.z) || 0.14)
-      };
-    };
-    const playCaptureMissileStrike = ({
-      attackerMesh,
-      targetMesh,
-      fromPos,
-      toPos,
-      onImpact
-    }) =>
-      new Promise((resolve) => {
-        if (!fromPos?.isVector3 || !toPos?.isVector3) {
-          resolve(0);
+    const createMissileStrike = (fromPos, toPos, onImpact) => {
+      const missile = new THREE.Mesh(
+        new THREE.SphereGeometry(tile * 0.11, 14, 14),
+        new THREE.MeshBasicMaterial({
+          color: 0xff7f50,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false
+        })
+      );
+      missile.position.copy(fromPos).add(new THREE.Vector3(0, tile * 0.42, 0));
+      boardGroup.add(missile);
+      const start = performance.now();
+      const duration = 300;
+      const startPos = missile.position.clone();
+      const targetPos = toPos.clone().add(new THREE.Vector3(0, tile * 0.28, 0));
+      const arcHeight = tile * 0.8;
+      const step = (now) => {
+        const t = clamp01((now - start) / duration, 1);
+        const curve = 4 * t * (1 - t);
+        missile.position.copy(startPos).lerp(targetPos, t);
+        missile.position.y += curve * arcHeight;
+        if (t < 1) {
+          requestAnimationFrame(step);
           return;
         }
-        const missile = createCaptureMissileFx();
-        const explosion = createCaptureExplosionFx();
-        boardGroup.add(missile.root);
-        boardGroup.add(explosion.root);
-        const { pieceHeight, pieceWidth } = resolveMissileScaleFromMesh(attackerMesh);
-        const missileLengthScale = (pieceHeight / 1.02) * 1.06;
-        const missileThicknessScale = ((pieceWidth * 0.46) / 0.16) * 0.36;
-        missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
-
-        const staticFrom = resolveMeshWorldAnchor(attackerMesh, fromPos, pieceHeight * 0.54) ?? fromPos.clone();
-        const staticTo = resolveMeshWorldAnchor(targetMesh, toPos, 0.06) ?? toPos.clone().add(new THREE.Vector3(0, 0.06, 0));
-        const boardRadius = half * 1.02;
-        const travelTime = 1850;
-        const explosionTime = 920;
-        const started = performance.now();
-        let impacted = false;
-        let impactDone = false;
-        const updateExplosionRig = (elapsedSinceImpact) => {
-          if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
-            explosion.root.visible = false;
-            return;
-          }
-          explosion.root.visible = true;
-          const fireLife = clamp(1 - elapsedSinceImpact / 0.82, 0, 1);
-          const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.72 + elapsedSinceImpact * 1.7;
-          const smokeGrow = 0.76 + elapsedSinceImpact * 1.05;
-          explosion.flash.scale.setScalar(0.44 + elapsedSinceImpact * 1.25);
-          explosion.flash.material.opacity = fireLife;
-          explosion.fire.forEach((mesh, i) => {
-            const angle = elapsedSinceImpact * 5 + i * 1.35;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.16),
-              0.09 + elapsedSinceImpact * 0.24 + i * 0.03,
-              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.14)
-            );
-            mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
-            mesh.material.opacity = fireLife * (0.95 - i * 0.12);
-          });
-          explosion.smoke.forEach((mesh, i) => {
-            const angle = i * 1.1 + elapsedSinceImpact * 1.8;
-            mesh.position.set(
-              Math.cos(angle) * (0.08 + i * 0.03),
-              0.14 + elapsedSinceImpact * (0.22 + i * 0.05),
-              Math.sin(angle) * (0.08 + i * 0.03)
-            );
-            mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
-            mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
-          });
-        };
-        const tick = () => {
-          const elapsed = performance.now() - started;
-          const liveFrom = resolveMeshWorldAnchor(attackerMesh, staticFrom, pieceHeight * 0.54) ?? staticFrom.clone();
-          const liveTo = resolveMeshWorldAnchor(targetMesh, staticTo, 0.06) ?? staticTo.clone();
-          const startAngle = Math.atan2(liveFrom.z, liveFrom.x);
-          const endAngle = Math.atan2(liveTo.z, liveTo.x);
-          const delta = ((endAngle - startAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-          const orbitAngle = startAngle + Math.PI * 2 + delta;
-          const startRadius = Math.max(liveFrom.clone().setY(0).length(), boardRadius * 0.92);
-          const endRadius = Math.max(liveTo.clone().setY(0).length(), boardRadius * 0.92);
-          if (elapsed < travelTime) {
-            const u = easeSmooth(elapsed / travelTime);
-            const nextU = clamp(u + 0.02, 0, 1);
-            const orbitAt = (v) => {
-              const t = clamp(v, 0, 1);
-              const orbitCurve = easeSmooth(t);
-              const angle = startAngle + (orbitAngle - startAngle) * orbitCurve;
-              const radius = THREE.MathUtils.lerp(startRadius, endRadius, orbitCurve);
-              const orbitLift = pieceHeight * (0.22 + Math.sin(Math.PI * orbitCurve) * 0.2);
-              return new THREE.Vector3(
-                Math.cos(angle) * radius,
-                liveFrom.y + orbitLift,
-                Math.sin(angle) * radius
-              );
-            };
-            const pos = orbitAt(u);
-            const next = orbitAt(nextU);
-            const dir = next.clone().sub(pos).normalize();
-            const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
-            missile.root.visible = true;
-            missile.root.position.copy(pos);
-            missile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            missile.trail.forEach((puff, i) => {
-              puff.position.set(
-                -0.55 - i * 0.16,
-                Math.sin(elapsed * 0.02 + i) * 0.02,
-                Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
-              );
-              const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
-              puff.scale.setScalar(s);
-            });
-            updateExplosionRig(-1);
-            requestAnimationFrame(tick);
-            return;
-          }
-          missile.root.visible = false;
-          const explosionElapsed = (elapsed - travelTime) / 1000;
-          explosion.root.position.copy(liveTo.clone().add(new THREE.Vector3(0, 0.01, 0)));
-          updateExplosionRig(explosionElapsed);
-          if (!impacted) {
-            impacted = true;
-            if (bombSoundRef.current && settingsRef.current.soundEnabled) {
-              bombSoundRef.current.currentTime = 0;
-              bombSoundRef.current.play().catch(() => {});
-            }
-          }
-          if (elapsed < travelTime + explosionTime) {
-            requestAnimationFrame(tick);
-            return;
-          }
-          if (!impactDone) {
-            impactDone = true;
-            onImpact?.();
-          }
-          if (missile.root.parent) missile.root.parent.remove(missile.root);
-          if (explosion.root.parent) explosion.root.parent.remove(explosion.root);
-          resolve(travelTime + explosionTime);
-        };
-        requestAnimationFrame(tick);
-      });
+        onImpact?.();
+        try {
+          boardGroup.remove(missile);
+          missile.geometry?.dispose?.();
+          missile.material?.dispose?.();
+        } catch {}
+      };
+      requestAnimationFrame(step);
+      return duration;
+    };
 
     // Board base + rim
     const tile = BOARD.tile;
@@ -9190,6 +8958,8 @@ function Chess3D({
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
+        const worldPos = new THREE.Vector3();
+        targetMesh.getWorldPosition(worldPos);
         const capturingWhite = board[sel.r][sel.c].w;
         const zone = capturingWhite ? capturedByWhite : capturedByBlack;
         const idx = zone.push(targetMesh) - 1;
@@ -9210,19 +8980,14 @@ function Chess3D({
             new THREE.Vector3(capX, captureY, capZ),
             0.35
           );
+          createExplosion(worldPos);
+          if (bombSoundRef.current && settingsRef.current.soundEnabled) {
+            bombSoundRef.current.currentTime = 0;
+            bombSoundRef.current.play().catch(() => {});
+          }
         };
         if (isLongRangeCapture) {
-          const missileDelayMs = 1850 + 920;
-          captureVisualDelayMs = Math.max(captureVisualDelayMs, missileDelayMs);
-          void playCaptureMissileStrike({
-            attackerMesh: pieceMeshes[sel.r]?.[sel.c],
-            targetMesh,
-            fromPos: fromPosition,
-            toPos: toPosition,
-            onImpact: sendCapturedPieceToGraveyard
-          }).catch(() => {
-            sendCapturedPieceToGraveyard();
-          });
+          captureVisualDelayMs = Math.max(captureVisualDelayMs, createMissileStrike(fromPosition, toPosition, sendCapturedPieceToGraveyard) ?? 320);
         } else if (isShortRangeBladeCapture) {
           captureVisualDelayMs = Math.max(captureVisualDelayMs, 150);
           createSlashEffect(fromPosition, toPosition);
