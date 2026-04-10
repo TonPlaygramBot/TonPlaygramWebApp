@@ -2747,6 +2747,7 @@ function ease(t) {
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
+const TOKEN_SIZE_MULTIPLIER = 1.4;
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -4457,7 +4458,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     // Procedural dice SFX is generated with Web Audio (no binary asset).
     diceSoundRef.current = null;
     diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
-    sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
+    sixRollSoundRef.current = null;
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
     giftBombSoundRef.current = new Audio(bombSound);
     applyVolume(vol);
@@ -5251,11 +5252,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
           controls.target.lerp(liftedTarget.target, 0.28);
-          const followOffset = cameraTurnStateRef.current.followOffset;
-          if (camera && followOffset?.isVector3) {
-            const desiredPosition = liftedTarget.target.clone().add(followOffset);
-            camera.position.lerp(desiredPosition, 0.22);
-          }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
       }
@@ -5564,10 +5560,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       diceRewardSoundRef.current.currentTime = 0;
       diceRewardSoundRef.current.play().catch(() => {});
     }
-    if (sixRollSoundRef.current) {
-      sixRollSoundRef.current.currentTime = 0;
-      sixRollSoundRef.current.play().catch(() => {});
-    }
     if (cheerSoundRef.current) {
       cheerSoundRef.current.currentTime = 0;
       cheerSoundRef.current.play().catch(() => {});
@@ -5600,20 +5592,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const controls = controlsRef.current;
     const camera = cameraRef.current;
     if (!controls || !camera || !toTarget) return;
+    void toPosition;
     if (!cameraTurnStateRef.current.currentTarget) {
       cameraTurnStateRef.current.currentTarget = controls.target.clone();
     }
     const fromTarget = cameraTurnStateRef.current.currentTarget.clone();
-    const fromPosition = camera.position.clone();
     const destination = toTarget.clone();
-    const destinationPosition = toPosition?.isVector3 ? toPosition.clone() : fromPosition.clone();
     if (cameraFocusFrameRef.current) {
       cancelAnimationFrame(cameraFocusFrameRef.current);
       cameraFocusFrameRef.current = 0;
     }
     if (resolvedDuration <= 0) {
       controls.target.copy(destination);
-      camera.position.copy(destinationPosition);
       cameraTurnStateRef.current.currentTarget.copy(destination);
       controls.update();
       return;
@@ -5624,7 +5614,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
       const eased = easeSmooth(t);
       controls.target.copy(fromTarget).lerp(destination, eased);
-      camera.position.copy(fromPosition).lerp(destinationPosition, eased);
       cameraTurnStateRef.current.currentTarget.copy(controls.target);
       controls.update();
       if (t < 1) {
@@ -6132,12 +6121,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   };
 
-  const getCaptureVictims = (player, tokenIndex) => {
+  const getCaptureVictims = (player, landingProgress) => {
     const state = stateRef.current;
     if (!state) return [];
-    const prog = state.progress[player][tokenIndex];
-    if (prog < 0 || prog >= RING_STEPS) return [];
-    const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
+    if (landingProgress < 0 || landingProgress >= RING_STEPS) return [];
+    const landingIdx = (PLAYER_START_INDEX[player] + landingProgress) % RING_STEPS;
     if (SAFE_TRACK_INDEXES.has(landingIdx)) return [];
     const victims = [];
     for (let p = 0; p < activePlayerCount; p++) {
@@ -6220,30 +6208,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
-    const captureVictims = getCaptureVictims(player, tokenIndex);
+    const captureVictims = getCaptureVictims(player, target);
     const hasCapture = captureVictims.length > 0;
-    const applyResult = async () => {
+    const finalizeMove = (captures) => {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
-      if (hasCapture) {
-        const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
-        const firstVictim = captureVictims[0];
-        const victimProgress = state.progress[firstVictim.player][firstVictim.token];
-        const victimPos = getWorldForProgress(firstVictim.player, victimProgress, firstVictim.token);
-        const victimTile = findTileForProgress(firstVictim.player, victimProgress);
-        const impactPos = victimTile?.position?.isVector3 ? victimTile.position.clone() : victimPos.clone();
-        impactPos.y += 0.01;
-        await playCaptureMissileSequence({
-          attackerToken: state.tokens[player][tokenIndex],
-          attackerPlayer: player,
-          startPosition: attackerStartPos,
-          targetPosition: victimPos,
-          impactPosition: impactPos
-        });
-      }
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
-      const captures = applyCaptureVictims(captureVictims);
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
       const tokensHome = resolveTokensHomeCount(state, player);
@@ -6288,8 +6259,39 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
+    const applyResult = async () => {
+      const captures = applyCaptureVictims(captureVictims);
+      finalizeMove(captures);
+    };
     if (hasCapture) {
-      void applyResult();
+      const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
+      const firstVictim = captureVictims[0];
+      const victimToken = state.tokens[firstVictim.player][firstVictim.token];
+      const victimPos =
+        victimToken?.position?.clone?.() ??
+        getWorldForProgress(firstVictim.player, state.progress[firstVictim.player][firstVictim.token], firstVictim.token);
+      const impactPos = victimPos.clone();
+      void playCaptureMissileSequence({
+        attackerToken: state.tokens[player][tokenIndex],
+        attackerPlayer: player,
+        startPosition: attackerStartPos,
+        targetPosition: victimPos,
+        impactPosition: impactPos
+      }).then(() => {
+        const captures = applyCaptureVictims(captureVictims);
+        if (entering || target !== current) {
+          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures));
+          return;
+        }
+        finalizeMove(captures);
+      }).catch(() => {
+        const captures = applyCaptureVictims(captureVictims);
+        if (entering || target !== current) {
+          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures));
+          return;
+        }
+        finalizeMove(captures);
+      });
     } else if (entering || target !== current) {
       scheduleMove(player, tokenIndex, target, applyResult);
     } else {
@@ -6368,11 +6370,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     if (!options.length) {
+      const playerCycle = Math.max(1, activePlayerCount);
+      const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
+      const upcomingDiceTarget = rollTargets?.[upcomingTurn]?.clone();
+      if (upcomingDiceTarget?.isVector3) {
+        setCameraFocus({
+          target: upcomingDiceTarget,
+          follow: false,
+          priority: 5,
+          ttl: 0.9,
+          offset: CAMERA_TARGET_LIFT + 0.04,
+          force: true
+        });
+      }
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
         advanceTurn(value === 6);
-      }, DICE_RESULT_EXTRA_HOLD_MS);
+      }, 550);
       return;
     }
     if (player === 0) {
@@ -7023,6 +7038,7 @@ async function buildLudoBoard(
           tintGltfToken(token, tokenTint);
         }
       }
+      token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
       const label = createTokenCountLabel();
       if (label) {
         token.add(label);
