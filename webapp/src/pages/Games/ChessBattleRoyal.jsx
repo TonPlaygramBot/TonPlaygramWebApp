@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -9,7 +15,10 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
-import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  applyRendererSRGB,
+  applySRGBColorSpace
+} from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -37,7 +46,11 @@ import {
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
-import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
+import {
+  TABLE_WOOD_OPTIONS,
+  TABLE_CLOTH_OPTIONS,
+  TABLE_BASE_OPTIONS
+} from '../../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
@@ -90,27 +103,32 @@ const FORWARD = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.1;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
-const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
+const LUDO_CAPTURE_TOTAL_TIME =
+  LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 2.2;
 const CAPTURE_DRONE_CRUISE_TIME = 3.2;
 const CAPTURE_DRONE_DIVE_TIME = 2.0;
-const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 10.4;
-const CAPTURE_JET_MISSILE_DROP_1 = 2.6;
-const CAPTURE_JET_MISSILE_DROP_2 = 3.25;
-const CAPTURE_JET_MISSILE_TRAVEL_1 = 1.75;
-const CAPTURE_JET_MISSILE_TRAVEL_2 = 1.95;
-const CAPTURE_GROUND_FIRE_TIME = 1.35;
-const CAPTURE_GROUND_TRAVEL_TIME = 4.85;
-const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_JAVELIN_CAPTURE_CLEAR_DELAY_MS = 260;
-const CAPTURE_DRONE_SCALE = 0.28;
-const CAPTURE_JET_SCALE = 0.36; // Slightly bigger than drone, while still close in size.
-const CAPTURE_DRONE_ALTITUDE = 2.15;
+const CAPTURE_DRONE_TOTAL =
+  CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
+const CAPTURE_JET_TOTAL = 11.6;
+const CAPTURE_JET_MISSILE_DROP_1 = 5.2;
+const CAPTURE_JET_MISSILE_DROP_2 = 999;
+const CAPTURE_JET_MISSILE_TRAVEL_1 = 2.2;
+const CAPTURE_JET_MISSILE_TRAVEL_2 = 0;
+const CAPTURE_GROUND_FIRE_TIME = 0.18;
+const CAPTURE_GROUND_TRAVEL_TIME = 5.2;
+const CAPTURE_GROUND_TOTAL =
+  CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+const CAPTURE_JAVELIN_CAPTURE_CLEAR_DELAY_MS = 0;
+const CAPTURE_DRONE_SCALE = 0.24;
+const CAPTURE_JET_SCALE = 0.31; // Slightly bigger than drone, while still close in size.
+const CAPTURE_DRONE_ALTITUDE = 1.88;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_MISSILE_SCALE = 0.155; // 50% of previous 0.31.
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH =
+  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH =
+  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -232,7 +250,9 @@ const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_UNITS_PER_METER = 1;
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
-  CHESS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+  CHESS_HDRI_OPTIONS.findIndex(
+    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
+  )
 );
 const DEFAULT_HDRI_VARIANT =
   CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0] ?? null;
@@ -246,8 +266,14 @@ const resolveHdriVariant = (value) => {
     );
   }
   const max = CHESS_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(value) ? clamp(Math.round(value), 0, max) : DEFAULT_HDRI_INDEX;
-  return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
+  const idx = Number.isFinite(value)
+    ? clamp(Math.round(value), 0, max)
+    : DEFAULT_HDRI_INDEX;
+  return (
+    CHESS_HDRI_OPTIONS[idx] ??
+    CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
+    CHESS_HDRI_OPTIONS[0]
+  );
 };
 
 const MODEL_SCALE = 0.55;
@@ -273,7 +299,8 @@ const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const TABLE_SIZE_FACTOR =
+  0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
@@ -291,7 +318,7 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
+const AI_CHAIR_GAP = 0.4 * MODEL_SCALE * CARD_SCALE * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
@@ -359,7 +386,8 @@ function getDisplayMetrics() {
   const fallbackHeight = window.screen?.height || 1080;
   const width = Math.max(window.innerWidth || 0, fallbackWidth);
   const height = Math.max(window.innerHeight || 0, fallbackHeight);
-  const dpr = typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1;
+  const dpr =
+    typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1;
 
   return {
     width: width || 1920,
@@ -369,7 +397,10 @@ function getDisplayMetrics() {
 }
 
 function detectRefreshRateHint() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return null;
   }
   const queries = [
@@ -426,7 +457,8 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 1.7,
     pixelRatioScale: 1,
     resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description:
+      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
@@ -457,8 +489,24 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [CHESS_BATTLE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
+      [CHESS_BATTLE_SPEAKERS.lead]: [
+        'en-US',
+        'English',
+        'male',
+        'David',
+        'Guy',
+        'Daniel',
+        'Alex'
+      ],
+      [CHESS_BATTLE_SPEAKERS.analyst]: [
+        'en-GB',
+        'English',
+        'female',
+        'Sonia',
+        'Hazel',
+        'Kate',
+        'Emma'
+      ]
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
@@ -471,8 +519,24 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Hindi commentary with lively pacing',
     language: 'hi',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-      [CHESS_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+      [CHESS_BATTLE_SPEAKERS.lead]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'male',
+        'Raj',
+        'Amit',
+        'Arjun'
+      ],
+      [CHESS_BATTLE_SPEAKERS.analyst]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'female',
+        'Asha',
+        'Priya',
+        'Neha'
+      ]
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
@@ -485,8 +549,26 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Russian commentary with steady cadence',
     language: 'ru',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
-      [CHESS_BATTLE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+      [CHESS_BATTLE_SPEAKERS.lead]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'male',
+        'Dmitri',
+        'Ivan',
+        'Sergey',
+        'Alexey'
+      ],
+      [CHESS_BATTLE_SPEAKERS.analyst]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'female',
+        'Anna',
+        'Svetlana',
+        'Irina',
+        'Olga'
+      ]
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
@@ -499,8 +581,24 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Spanish play-by-play with lively color',
     language: 'es',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
-      [CHESS_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+      [CHESS_BATTLE_SPEAKERS.lead]: [
+        'es-ES',
+        'es-MX',
+        'Spanish',
+        'male',
+        'Jorge',
+        'Carlos',
+        'Miguel'
+      ],
+      [CHESS_BATTLE_SPEAKERS.analyst]: [
+        'es-ES',
+        'es-MX',
+        'Spanish',
+        'female',
+        'Isabella',
+        'Lucia',
+        'Camila'
+      ]
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
@@ -513,8 +611,22 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'French broadcast pairing',
     language: 'fr',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-      [CHESS_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+      [CHESS_BATTLE_SPEAKERS.lead]: [
+        'fr-FR',
+        'French',
+        'male',
+        'Henri',
+        'Louis',
+        'Paul'
+      ],
+      [CHESS_BATTLE_SPEAKERS.analyst]: [
+        'fr-FR',
+        'French',
+        'female',
+        'Amelie',
+        'Marie',
+        'Charlotte'
+      ]
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
@@ -522,7 +634,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     }
   }
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID = CHESS_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
+const DEFAULT_COMMENTARY_PRESET_ID =
+  CHESS_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
 const PIECE_LABELS = Object.freeze({
   P: 'pawn',
   N: 'knight',
@@ -545,12 +658,16 @@ function resolveDefaultGraphicsId() {
 
 function selectPerformanceProfile(overrideOption = null) {
   const refreshHint = detectRefreshRateHint();
-  const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
-  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
+  const deviceMemory =
+    typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
+  const cores =
+    typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
   const coarsePointer = detectCoarsePointer();
   const connection =
     typeof navigator !== 'undefined'
-      ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
+      ? navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection
       : null;
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
@@ -564,9 +681,12 @@ function selectPerformanceProfile(overrideOption = null) {
     })();
   const saveDataMode = Boolean(connection?.saveData);
   const { width, height, dpr } = getDisplayMetrics();
-  const screenMegapixels = (Math.max(width, 1) * Math.max(height, 1) * Math.max(dpr, 1) ** 2) / 1_000_000;
+  const screenMegapixels =
+    (Math.max(width, 1) * Math.max(height, 1) * Math.max(dpr, 1) ** 2) /
+    1_000_000;
 
-  const lowEndMemory = typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
+  const lowEndMemory =
+    typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
   const lowEndCores = typeof cores === 'number' && cores > 0 && cores <= 4;
   const highEndMemory = typeof deviceMemory === 'number' && deviceMemory >= 8;
   const highEndCores = typeof cores === 'number' && cores >= 8;
@@ -574,10 +694,19 @@ function selectPerformanceProfile(overrideOption = null) {
   const lowEndDevice = coarsePointer || lowEndMemory || lowEndCores;
   const highEndDevice = !coarsePointer && (highEndMemory || highEndCores);
 
-  const renderBudgetMp = lowEndDevice || saveDataMode ? 2.8 : highEndDevice ? 6.0 : 4.2;
+  const renderBudgetMp =
+    lowEndDevice || saveDataMode ? 2.8 : highEndDevice ? 6.0 : 4.2;
 
-  let targetFps = clamp(refreshHint ?? DEFAULT_TARGET_FPS, MIN_TARGET_FPS, MAX_TARGET_FPS);
-  let resolutionScale = clamp(Math.sqrt(renderBudgetMp / Math.max(screenMegapixels, 0.1)), 0.72, 1.05);
+  let targetFps = clamp(
+    refreshHint ?? DEFAULT_TARGET_FPS,
+    MIN_TARGET_FPS,
+    MAX_TARGET_FPS
+  );
+  let resolutionScale = clamp(
+    Math.sqrt(renderBudgetMp / Math.max(screenMegapixels, 0.1)),
+    0.72,
+    1.05
+  );
   resolutionScale = Math.min(resolutionScale, 1);
   let pixelRatioScale = RENDER_PIXEL_RATIO_SCALE;
   let pixelRatioCap = Math.min(
@@ -586,10 +715,17 @@ function selectPerformanceProfile(overrideOption = null) {
   );
 
   if (screenMegapixels > renderBudgetMp * 1.1) {
-    const downscale = clamp(Math.sqrt(renderBudgetMp / screenMegapixels), 0.7, 1);
+    const downscale = clamp(
+      Math.sqrt(renderBudgetMp / screenMegapixels),
+      0.7,
+      1
+    );
     resolutionScale = Math.min(resolutionScale, downscale);
     pixelRatioScale = Math.min(pixelRatioScale, 0.95);
-    pixelRatioCap = Math.min(pixelRatioCap, lowEndDevice || saveDataMode ? 1.02 : 1.15);
+    pixelRatioCap = Math.min(
+      pixelRatioCap,
+      lowEndDevice || saveDataMode ? 1.02 : 1.15
+    );
   } else if (highEndDevice && screenMegapixels < renderBudgetMp * 0.5) {
     resolutionScale = Math.min(1, Math.max(resolutionScale, 0.98));
   }
@@ -620,10 +756,17 @@ function selectPerformanceProfile(overrideOption = null) {
   };
 
   if (overrideOption) {
-    profile.targetFps = clamp(overrideOption.fps ?? profile.targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS);
-    profile.resolutionScale = overrideOption.renderScale ?? profile.resolutionScale;
-    profile.pixelRatioCap = overrideOption.pixelRatioCap ?? profile.pixelRatioCap;
-    profile.pixelRatioScale = overrideOption.pixelRatioScale ?? profile.pixelRatioScale;
+    profile.targetFps = clamp(
+      overrideOption.fps ?? profile.targetFps,
+      MIN_TARGET_FPS,
+      MAX_TARGET_FPS
+    );
+    profile.resolutionScale =
+      overrideOption.renderScale ?? profile.resolutionScale;
+    profile.pixelRatioCap =
+      overrideOption.pixelRatioCap ?? profile.pixelRatioCap;
+    profile.pixelRatioScale =
+      overrideOption.pixelRatioScale ?? profile.pixelRatioScale;
   }
 
   return profile;
@@ -694,13 +837,18 @@ function buildPolyhavenModelUrls(assetId) {
 }
 
 function pickBestModelUrl(urls = []) {
-  const preferred = urls.filter((u) => u.endsWith('.glb') || u.endsWith('.gltf'));
+  const preferred = urls.filter(
+    (u) => u.endsWith('.glb') || u.endsWith('.gltf')
+  );
   return preferred[0] || urls[0] || null;
 }
 
 const PREFERRED_POLYHAVEN_TEXTURE_SIZES = Object.freeze(['4k', '2k', '1k']);
 
-function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_POLYHAVEN_TEXTURE_SIZES) {
+function pickBestTextureUrls(
+  apiJson,
+  preferredSizes = PREFERRED_POLYHAVEN_TEXTURE_SIZES
+) {
   if (!apiJson || typeof apiJson !== 'object') {
     return { diffuse: null, normal: null, roughness: null };
   }
@@ -713,7 +861,10 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_POLYHAVEN_TEXTU
     }
     if (typeof value === 'string') {
       const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+      if (
+        value.startsWith('http') &&
+        (lower.includes('.jpg') || lower.includes('.png'))
+      ) {
         urls.push(value);
       }
       return;
@@ -789,7 +940,8 @@ function disposeObjectResources(object) {
 }
 
 function fitTableModelToArena(model) {
-  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  if (!model)
+    return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
@@ -833,20 +985,31 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   const promise = (async () => {
     const modelCandidates = new Set(buildPolyhavenModelUrls(assetId));
     try {
-      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+      const filesJson = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+      ).then((r) => r.json());
       const allUrls = extractAllHttpUrls(filesJson);
       const apiModelUrl = pickBestModelUrl(allUrls);
       if (apiModelUrl) modelCandidates.add(apiModelUrl);
     } catch (error) {
-      console.warn('Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs', error);
+      console.warn(
+        'Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs',
+        error
+      );
     }
 
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
     for (const modelUrl of modelCandidates) {
       try {
-        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
-        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        const resolvedUrl = new URL(
+          modelUrl,
+          typeof window !== 'undefined' ? window.location?.href : modelUrl
+        ).href;
+        const resourcePath = resolvedUrl.substring(
+          0,
+          resolvedUrl.lastIndexOf('/') + 1
+        );
         loader.setResourcePath?.(resourcePath);
         loader.setPath?.('');
         // eslint-disable-next-line no-await-in-loop
@@ -858,7 +1021,9 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         lastError = error;
       }
     }
-    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+    throw (
+      lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
+    );
   })();
 
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
@@ -875,7 +1040,12 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+async function loadPolyhavenTextureSet(
+  assetId,
+  textureLoader,
+  maxAnisotropy = 1,
+  cache = null
+) {
   if (!assetId || !textureLoader) return null;
   const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
   if (cache?.has(key)) {
@@ -884,7 +1054,9 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
 
   const promise = (async () => {
     try {
-      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      const response = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+      );
       if (!response.ok) {
         return null;
       }
@@ -914,7 +1086,9 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
         urls.roughness ? loadTextureFromLoader(urls.roughness, false) : null
       ]);
 
-      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+      [diffuse, normal, roughness]
+        .filter(Boolean)
+        .forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
 
       return { diffuse, normal, roughness };
     } catch (error) {
@@ -929,7 +1103,12 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
   return promise;
 }
 
-function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+function applyTextureSetToModel(
+  model,
+  textureSet,
+  fallbackTexture,
+  maxAnisotropy = 1
+) {
   const normalizeTexture = (texture, isColor = false) => {
     if (!texture) return null;
     if (isColor) applySRGBColorSpace(texture);
@@ -974,7 +1153,12 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-async function createPolyhavenInstance(assetId, rotationY = 0, renderer = null, textureOptions = {}) {
+async function createPolyhavenInstance(
+  assetId,
+  rotationY = 0,
+  renderer = null,
+  textureOptions = {}
+) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
   prepareLoadedModel(model);
@@ -988,7 +1172,13 @@ async function createPolyhavenInstance(assetId, rotationY = 0, renderer = null, 
   if (textureLoader) {
     try {
       const textures =
-        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+        textureSet ??
+        (await loadPolyhavenTextureSet(
+          assetId,
+          textureLoader,
+          maxAnisotropy,
+          textureCache
+        ));
       if (textures || fallbackTexture) {
         applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
       }
@@ -1001,7 +1191,11 @@ async function createPolyhavenInstance(assetId, rotationY = 0, renderer = null, 
   if (rotationY) model.rotation.y += rotationY;
   return model;
 }
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  1.3162499970197679,
+  1.9173749900311232,
+  1.7001562547683715
+);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
@@ -1062,11 +1256,14 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   }
 ]);
 
-const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => config.name);
+const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map(
+  (config) => config.name
+);
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
-    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ?? {}),
+    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ??
+      {}),
     id: 'beautifulGameAuthenticBoard',
     label: 'Aurora Metal',
     light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
@@ -1171,16 +1368,27 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => {
     const preserveOriginal = Boolean(config.piece?.preserveOriginal);
     const pieceStyle = preserveOriginal
-      ? { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
+      ? {
+          ...BASE_PIECE_STYLE,
+          preserveOriginalMaterials: true,
+          keepTextures: true
+        }
       : {
           ...BASE_PIECE_STYLE,
           preserveOriginalMaterials: false,
           keepTextures: true,
-          white: { ...BASE_PIECE_STYLE.white, color: config.piece?.white ?? BASE_PIECE_STYLE.white.color },
-          black: { ...BASE_PIECE_STYLE.black, color: config.piece?.black ?? BASE_PIECE_STYLE.black.color },
+          white: {
+            ...BASE_PIECE_STYLE.white,
+            color: config.piece?.white ?? BASE_PIECE_STYLE.white.color
+          },
+          black: {
+            ...BASE_PIECE_STYLE.black,
+            color: config.piece?.black ?? BASE_PIECE_STYLE.black.color
+          },
           accent: config.piece?.accent ?? BASE_PIECE_STYLE.accent,
           goldAccent: config.piece?.goldAccent ?? BASE_PIECE_STYLE.goldAccent,
-          whiteAccent: config.piece?.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
+          whiteAccent:
+            config.piece?.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
           blackAccent: config.piece?.blackAccent ?? BASE_PIECE_STYLE.blackAccent
         };
     return {
@@ -1191,7 +1399,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
   })
 );
 
-const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
+const pieceStyleSignature = (style) =>
+  `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
 
 const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
 const BEAUTIFUL_GAME_SWAP_SET_ID = 'beautifulGameSwapRanks';
@@ -1289,7 +1498,10 @@ function colorSeed(hex = '#ffffff') {
   return Math.abs(hash % 97) + 1;
 }
 
-function buildVeinedMaterial(colorHex, { roughness, metalness, repeat = 2.5, normalScale = 0.34 } = {}) {
+function buildVeinedMaterial(
+  colorHex,
+  { roughness, metalness, repeat = 2.5, normalScale = 0.34 } = {}
+) {
   const texture = createGraniteTexture(colorHex, colorSeed(colorHex), repeat);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(colorHex),
@@ -1313,51 +1525,74 @@ function loadTexture(url, fallbackColor = '#888888') {
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
   const promise = new Promise((resolve) => {
-    loader.load(url, (texture) => {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      resolve(texture);
-    }, undefined, (error) => {
-      console.warn(`Chess Battle Royal: failed to load texture ${url}, using fallback`, error);
-      resolve(createFallbackTexture(fallbackColor));
-    });
+    loader.load(
+      url,
+      (texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        resolve(texture);
+      },
+      undefined,
+      (error) => {
+        console.warn(
+          `Chess Battle Royal: failed to load texture ${url}, using fallback`,
+          error
+        );
+        resolve(createFallbackTexture(fallbackColor));
+      }
+    );
   });
   TEXTURE_CACHE.set(url, promise);
   return promise;
 }
 
 const MAPLE_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
+  colorMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
+  roughnessMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
+  normalMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
   repeat: 2.2
 });
 
 const WALNUT_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
+  colorMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
+  roughnessMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
+  normalMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
   repeat: 2
 });
 
 const MARBLE_WHITE_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
+  colorMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
+  roughnessMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
+  normalMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
   repeat: 1.4
 });
 
 const MARBLE_BLACK_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
+  colorMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
+  roughnessMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
+  normalMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
   repeat: 1.3
 });
 
 const EBONY_POLISH_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
+  colorMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
+  roughnessMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
+  normalMap:
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
   repeat: 1.8
 });
 
@@ -1372,7 +1607,12 @@ const HERITAGE_WALNUT_STYLE = Object.freeze({
 const MARBLE_ONYX_STYLE = Object.freeze({
   id: 'marbleOnyx',
   label: 'Marble & Onyx Tournament',
-  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
+  white: {
+    color: '#f3f3f3',
+    roughness: 0.18,
+    metalness: 0.08,
+    clearcoat: 0.24
+  },
   black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
   accent: '#b1c4cf'
 });
@@ -1380,8 +1620,18 @@ const MARBLE_ONYX_STYLE = Object.freeze({
 const KENNEY_WOOD_STYLE = Object.freeze({
   id: 'kenneyWood',
   label: 'Kenney Woodcut',
-  white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
-  black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
+  white: {
+    color: '#f2e0c5',
+    roughness: 0.48,
+    metalness: 0.08,
+    clearcoat: 0.12
+  },
+  black: {
+    color: '#2c2016',
+    roughness: 0.56,
+    metalness: 0.12,
+    clearcoat: 0.12
+  },
   accent: '#d7b07a',
   blackAccent: '#b98a52'
 });
@@ -1425,13 +1675,14 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     id: STAUNTON_CLASSIC_STYLE.id,
     label: STAUNTON_CLASSIC_STYLE.label,
     style: STAUNTON_CLASSIC_STYLE,
-    loader: (targetBoardSize) => loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-      targetBoardSize,
-      styleId: STAUNTON_CLASSIC_STYLE.id,
-      pieceStyle: STAUNTON_CLASSIC_STYLE,
-      assetScale: STAUNTON_ASSET_SCALE,
-      fallbackBuilder: buildStauntonFallbackAssets
-    })
+    loader: (targetBoardSize) =>
+      loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+        targetBoardSize,
+        styleId: STAUNTON_CLASSIC_STYLE.id,
+        pieceStyle: STAUNTON_CLASSIC_STYLE,
+        assetScale: STAUNTON_ASSET_SCALE,
+        fallbackBuilder: buildStauntonFallbackAssets
+      })
   },
   {
     id: HERITAGE_WALNUT_STYLE.id,
@@ -1564,7 +1815,12 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
-  { id: 'marble', hex: 0xffffff, label: 'Marble', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble },
+  {
+    id: 'marble',
+    hex: 0xffffff,
+    label: 'Marble',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
+  },
   {
     id: 'darkForest',
     hex: 0xffffff,
@@ -1616,15 +1872,31 @@ const QUICK_SIDE_COLORS = [
 ];
 
 const QUICK_HEAD_PRESETS = [
-  { id: 'current', label: 'Current', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.current },
-  { id: 'headRuby', label: 'Ruby', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby },
+  {
+    id: 'current',
+    label: 'Current',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.current
+  },
+  {
+    id: 'headRuby',
+    label: 'Ruby',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby
+  },
   {
     id: 'headSapphire',
     label: 'Sapphire',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headSapphire
   },
-  { id: 'headChrome', label: 'Chrome', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome },
-  { id: 'headGold', label: 'Gold', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold }
+  {
+    id: 'headChrome',
+    label: 'Chrome',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome
+  },
+  {
+    id: 'headGold',
+    label: 'Gold',
+    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
+  }
 ];
 
 const QUICK_BOARD_THEMES = [
@@ -1691,21 +1963,28 @@ const CHESS_ROOM_HALF_SPAN = TABLE_RADIUS + CHAIR_CLEARANCE + SEAT_DEPTH;
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
-  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+  const resolutions =
+    Array.isArray(preferred) && preferred.length
+      ? preferred
+      : DEFAULT_HDRI_RESOLUTIONS;
   for (const res of resolutions) {
     const entry = json[res];
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  const fallback = Object.values(json).find(
+    (value) => value?.hdr || value?.exr
+  );
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-    ? config.preferredResolutions
-    : DEFAULT_HDRI_RESOLUTIONS;
+  const preferred =
+    Array.isArray(config?.preferredResolutions) &&
+    config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
   const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
   const fallbackUrl =
     config?.fallbackUrl ||
@@ -1714,13 +1993,18 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     for (const res of preferred) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    const manual = Object.values(config.assetUrls).find(
+      (value) => typeof value === 'string' && value.length
+    );
     if (manual) return manual;
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length)
+    return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    const response = await fetch(
+      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
+    );
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferred);
@@ -1794,7 +2078,10 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.shapeId] ??
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.themeId] ??
     0;
-  return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
+  return alignGroupToFloorY(
+    boardGroup,
+    surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset
+  );
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
@@ -1847,8 +2134,11 @@ const cameraPhiMax = clamp(
   Math.PI - 0.001
 );
 const CAMERA_DEFAULT_PHI = clamp(
-  THREE.MathUtils.lerp(cameraPhiMin, cameraPhiMax, ARENA_CAMERA_DEFAULTS.initialPhiLerp) +
-    CAMERA_INITIAL_PHI_EXTRA,
+  THREE.MathUtils.lerp(
+    cameraPhiMin,
+    cameraPhiMax,
+    ARENA_CAMERA_DEFAULTS.initialPhiLerp
+  ) + CAMERA_INITIAL_PHI_EXTRA,
   CAMERA_PULL_FORWARD_MIN,
   cameraPhiMax
 );
@@ -1890,11 +2180,13 @@ const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_BATTLE_TABLE_OPTIONS]);
 
 const TABLE_FINISH_OPTIONS = Object.freeze([...CHESS_TABLE_FINISH_OPTIONS]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
-const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
+const DEFAULT_WOOD_OPTION =
+  DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const DEFAULT_TABLE_SHAPE_OPTION =
-  TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') || TABLE_SHAPE_OPTIONS[0];
+  TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') ||
+  TABLE_SHAPE_OPTIONS[0];
 
 const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
@@ -1903,10 +2195,18 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
-  { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
+  {
+    key: 'environmentHdri',
+    label: 'HDR Environment',
+    options: CHESS_HDRI_OPTIONS
+  }
 ];
 
-const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
+const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set([
+  'hexagonTable',
+  'murlan-default',
+  'grandOval'
+]);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
   hexagonTable: -0.065,
@@ -1917,7 +2217,10 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
-    ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
+    ? Math.min(
+        Math.max(0, Math.round(value.pieceStyle)),
+        PIECE_STYLE_OPTIONS.length - 1
+      )
     : null;
   const entries = [
     ['tables', TABLE_THEME_OPTIONS.length],
@@ -1943,8 +2246,11 @@ function normalizeAppearance(value = {}) {
 function getEffectiveShapeConfigForTableTheme(tableTheme) {
   const fallback = DEFAULT_TABLE_SHAPE_OPTION ?? TABLE_SHAPE_OPTIONS[0];
   const requestedShapeId = tableTheme?.proceduralShapeId;
-  if (!requestedShapeId) return { option: fallback, rotationY: 0, forced: false };
-  const requested = TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) ?? fallback;
+  if (!requestedShapeId)
+    return { option: fallback, rotationY: 0, forced: false };
+  const requested =
+    TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) ??
+    fallback;
   return { option: requested ?? fallback, rotationY: 0, forced: false };
 }
 
@@ -1953,7 +2259,11 @@ const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const targetMax = Math.max(
+    TARGET_CHAIR_SIZE.x,
+    TARGET_CHAIR_SIZE.y,
+    TARGET_CHAIR_SIZE.z
+  );
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -2007,7 +2317,10 @@ function applyChairThemeMaterials(chairAssets, theme) {
   mats.chairId = theme.chairId ?? 'default';
   if (mats.seat?.color) {
     mats.seat.color.set(seatColor);
-    mats.seat.userData = { ...(mats.seat.userData || {}), chairId: mats.chairId };
+    mats.seat.userData = {
+      ...(mats.seat.userData || {}),
+      chairId: mats.chairId
+    };
     mats.seat.needsUpdate = true;
   }
   if (mats.leg?.color) {
@@ -2097,7 +2410,10 @@ function createProceduralChair(theme) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  const seatMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
+    seatMaterial
+  );
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
@@ -2107,12 +2423,20 @@ function createProceduralChair(theme) {
     new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
     seatMaterial
   );
-  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.position.set(
+    0,
+    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
+    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
+  );
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
 
-  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armGeometry = new THREE.BoxGeometry(
+    ARM_THICKNESS,
+    ARM_HEIGHT,
+    ARM_DEPTH
+  );
   const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
   const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
   const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
@@ -2128,7 +2452,12 @@ function createProceduralChair(theme) {
   chair.add(rightArm);
 
   const legMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    new THREE.CylinderGeometry(
+      0.16 * MODEL_SCALE * STOOL_SCALE,
+      0.2 * MODEL_SCALE * STOOL_SCALE,
+      BASE_COLUMN_HEIGHT,
+      18
+    ),
     legMaterial
   );
   legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -2137,10 +2466,16 @@ function createProceduralChair(theme) {
   chair.add(legMesh);
 
   const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    new THREE.CylinderGeometry(
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.32 * MODEL_SCALE * STOOL_SCALE,
+      0.08 * MODEL_SCALE,
+      24
+    ),
     legMaterial
   );
-  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.position.y =
+    legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
   foot.castShadow = true;
   foot.receiveShadow = true;
   chair.add(foot);
@@ -2151,7 +2486,7 @@ function createProceduralChair(theme) {
       seat: seatMaterial,
       leg: legMaterial,
       upholstery: [seatMaterial],
-    metal: [legMaterial]
+      metal: [legMaterial]
     }
   };
 }
@@ -2215,12 +2550,17 @@ async function buildTableFromTheme(theme, options = {}) {
 
   if (selectedTheme?.source === 'polyhaven' && selectedTheme?.assetId) {
     try {
-      const model = await createPolyhavenInstance(selectedTheme.assetId, 0, renderer, {
-        textureLoader,
-        maxAnisotropy,
-        textureCache,
-        fallbackTexture
-      });
+      const model = await createPolyhavenInstance(
+        selectedTheme.assetId,
+        0,
+        renderer,
+        {
+          textureLoader,
+          maxAnisotropy,
+          textureCache,
+          fallbackTexture
+        }
+      );
       const fitted = fitTableModelToArena(model);
       if (selectedTheme.rotationY || rotationY) {
         model.rotation.y += (selectedTheme.rotationY ?? 0) + (rotationY ?? 0);
@@ -2242,7 +2582,10 @@ async function buildTableFromTheme(theme, options = {}) {
         themeId: selectedTheme.id
       };
     } catch (error) {
-      console.warn('Chess Battle Royal: failed to load Poly Haven table', error);
+      console.warn(
+        'Chess Battle Royal: failed to load Poly Haven table',
+        error
+      );
     }
   }
 
@@ -2328,20 +2671,35 @@ function createSandTimer(accentColor = '#f4b400') {
   pillarD.position.set(-0.22, 0, -0.22);
   body.add(pillarA, pillarB, pillarC, pillarD);
 
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16), frameMat);
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16),
+    frameMat
+  );
   body.add(neck);
 
-  const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
+  const glassTop = new THREE.Mesh(
+    new THREE.ConeGeometry(0.21, 0.42, 26),
+    glassMat
+  );
   glassTop.position.y = 0.16;
   glassTop.rotation.x = Math.PI;
-  const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
+  const glassBottom = new THREE.Mesh(
+    new THREE.ConeGeometry(0.21, 0.42, 26),
+    glassMat
+  );
   glassBottom.position.y = -0.16;
   body.add(glassTop, glassBottom);
 
-  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 26), goldSand);
+  const sandTop = new THREE.Mesh(
+    new THREE.ConeGeometry(0.18, 0.26, 26),
+    goldSand
+  );
   sandTop.position.y = 0.11;
   sandTop.rotation.x = Math.PI;
-  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 26), silverSand);
+  const sandBottom = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 0.3, 26),
+    silverSand
+  );
   sandBottom.position.y = -0.16;
   const sandStream = new THREE.Mesh(
     new THREE.CylinderGeometry(0.012, 0.008, 0.24, 16),
@@ -2383,7 +2741,11 @@ function createSandTimer(accentColor = '#f4b400') {
     metalness: 0.08
   });
   const dropCount = 32;
-  const sandDrops = new THREE.InstancedMesh(sandDropsGeo, sandDropsMat, dropCount);
+  const sandDrops = new THREE.InstancedMesh(
+    sandDropsGeo,
+    sandDropsMat,
+    dropCount
+  );
   body.add(sandDrops);
   const dropStates = Array.from({ length: dropCount }, () => ({
     x: (Math.random() - 0.5) * 0.04,
@@ -2412,10 +2774,16 @@ function createSandTimer(accentColor = '#f4b400') {
     emissiveIntensity: 0.08,
     side: THREE.DoubleSide
   });
-  const timeFace = new THREE.Mesh(new THREE.CircleGeometry(0.26, 64), timeMaterial);
+  const timeFace = new THREE.Mesh(
+    new THREE.CircleGeometry(0.26, 64),
+    timeMaterial
+  );
   timeFace.rotation.x = -Math.PI / 2;
   timeFace.position.set(0, 0.42, 0);
-  const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.026, 16, 64), accentMat);
+  const timeBezel = new THREE.Mesh(
+    new THREE.TorusGeometry(0.26, 0.026, 16, 64),
+    accentMat
+  );
   timeBezel.rotation.x = -Math.PI / 2;
   timeBezel.position.set(0, 0.422, 0);
   body.add(timeFace, timeBezel);
@@ -2430,7 +2798,14 @@ function createSandTimer(accentColor = '#f4b400') {
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
-    const gradient = ctx.createRadialGradient(cx, cy, radius * 0.25, cx, cy, radius);
+    const gradient = ctx.createRadialGradient(
+      cx,
+      cy,
+      radius * 0.25,
+      cx,
+      cy,
+      radius
+    );
     gradient.addColorStop(0, 'rgba(12, 16, 26, 0.95)');
     gradient.addColorStop(0.7, 'rgba(12, 16, 26, 0.92)');
     gradient.addColorStop(1, 'rgba(8, 12, 20, 0.92)');
@@ -2517,7 +2892,11 @@ function createSandTimer(accentColor = '#f4b400') {
       sandTop.scale.set(1, Math.max(0.2, eased), 1);
       sandTop.position.y = 0.11 + (eased - 1) * 0.05;
       const bottomScale = Math.max(0.26, 1.12 - eased * 0.9);
-      sandBottom.scale.set(1 + (1 - eased) * 0.35, bottomScale, 1 + (1 - eased) * 0.35);
+      sandBottom.scale.set(
+        1 + (1 - eased) * 0.35,
+        bottomScale,
+        1 + (1 - eased) * 0.35
+      );
       sandBottom.position.y = -0.16 + (1 - eased) * 0.04;
       sandStream.visible = eased < 0.995;
       sandStream.scale.y = clamp01(1 - eased) * 1.1;
@@ -2537,7 +2916,12 @@ function createSandTimer(accentColor = '#f4b400') {
       applyTurnColor();
     },
     tick: (dt, elapsed) => {
-      body.position.x = THREE.MathUtils.damp(body.position.x, targetSlide, 6, dt);
+      body.position.x = THREE.MathUtils.damp(
+        body.position.x,
+        targetSlide,
+        6,
+        dt
+      );
       body.position.y = Math.sin(elapsed * 2.4) * 0.02;
       const lean = THREE.MathUtils.damp(body.rotation.z, targetLean, 7, dt);
       const wobble = Math.sin(elapsed * 8.2) * wobbleIntensity * 0.08;
@@ -2586,10 +2970,22 @@ function buildBoardTheme(option) {
     accent: source.accent ?? BASE_BOARD_THEME.accent,
     highlight: source.highlight ?? BASE_BOARD_THEME.highlight,
     capture: source.capture ?? BASE_BOARD_THEME.capture,
-    surfaceRoughness: clamp01(source.surfaceRoughness, BASE_BOARD_THEME.surfaceRoughness),
-    surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
-    frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
-    frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
+    surfaceRoughness: clamp01(
+      source.surfaceRoughness,
+      BASE_BOARD_THEME.surfaceRoughness
+    ),
+    surfaceMetalness: clamp01(
+      source.surfaceMetalness,
+      BASE_BOARD_THEME.surfaceMetalness
+    ),
+    frameRoughness: clamp01(
+      source.frameRoughness,
+      BASE_BOARD_THEME.frameRoughness
+    ),
+    frameMetalness: clamp01(
+      source.frameMetalness,
+      BASE_BOARD_THEME.frameMetalness
+    ),
     preserveOriginalMaterials: Boolean(
       source.preserveOriginalMaterials ?? source.preserveOriginal
     )
@@ -2625,7 +3021,10 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
-function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
+function applyBeautifulGameBoardTheme(
+  boardModel,
+  boardTheme = BEAUTIFUL_GAME_THEME
+) {
   if (!boardModel) return;
 
   snapshotBoardMaterials(boardModel);
@@ -2636,7 +3035,8 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
     return;
   }
 
-  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const luminance = (color) =>
+    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
   const toArray = (value) => (Array.isArray(value) ? value : [value]);
 
   const applyMaterial = (mesh, updater) => {
@@ -2654,10 +3054,13 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   const applyFrame = (mesh, color) =>
     applyMaterial(mesh, (mat) => {
       if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.frameRoughness)) mat.roughness = clamp01(theme.frameRoughness);
-      if (Number.isFinite(theme.frameMetalness)) mat.metalness = clamp01(theme.frameMetalness);
+      if (Number.isFinite(theme.frameRoughness))
+        mat.roughness = clamp01(theme.frameRoughness);
+      if (Number.isFinite(theme.frameMetalness))
+        mat.metalness = clamp01(theme.frameMetalness);
       if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
+      if ('clearcoatRoughness' in mat)
+        mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
       if ('reflectivity' in mat) mat.reflectivity = 0;
       if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
@@ -2665,10 +3068,13 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   const applySurface = (mesh, color) =>
     applyMaterial(mesh, (mat) => {
       if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.surfaceRoughness)) mat.roughness = clamp01(theme.surfaceRoughness);
-      if (Number.isFinite(theme.surfaceMetalness)) mat.metalness = clamp01(theme.surfaceMetalness);
+      if (Number.isFinite(theme.surfaceRoughness))
+        mat.roughness = clamp01(theme.surfaceRoughness);
+      if (Number.isFinite(theme.surfaceMetalness))
+        mat.metalness = clamp01(theme.surfaceMetalness);
       if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
+      if ('clearcoatRoughness' in mat)
+        mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
       if ('reflectivity' in mat) mat.reflectivity = 0;
       if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
@@ -2701,7 +3107,8 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
       return;
     }
 
-    const isTile = tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
+    const isTile =
+      tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
     const targetColor = isTile
       ? lightness >= 0.5
         ? theme.light
@@ -2713,7 +3120,10 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   });
 }
 
-function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZE) {
+function normalizeBoardModelToDisplaySize(
+  boardModel,
+  targetSize = RAW_BOARD_SIZE
+) {
   if (!boardModel) return { span: 0, top: 0 };
 
   const safeTarget = Math.max(targetSize || RAW_BOARD_SIZE, 0.001);
@@ -2730,7 +3140,8 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   const center = scaledBox.getCenter(new THREE.Vector3());
   boardModel.position.set(
     -center.x,
-    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET + BOARD_VISUAL_Y_OFFSET),
+    -scaledBox.min.y +
+      (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET + BOARD_VISUAL_Y_OFFSET),
     -center.z
   );
 
@@ -2747,46 +3158,64 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   return { span, top };
 }
 
-function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
+function mergePieceStylesByColor(
+  whiteStyle = DEFAULT_PIECE_STYLE,
+  blackStyle = DEFAULT_PIECE_STYLE
+) {
   const white = whiteStyle.white ?? DEFAULT_PIECE_STYLE.white;
   const black = blackStyle.black ?? DEFAULT_PIECE_STYLE.black;
-  const accent = whiteStyle.accent ?? blackStyle.accent ?? DEFAULT_PIECE_STYLE.accent;
+  const accent =
+    whiteStyle.accent ?? blackStyle.accent ?? DEFAULT_PIECE_STYLE.accent;
   return {
     white,
     black,
     accent,
     whiteAccent: whiteStyle.whiteAccent,
     blackAccent: blackStyle.blackAccent,
-    goldAccent: whiteStyle.goldAccent ?? blackStyle.goldAccent ?? DEFAULT_PIECE_STYLE.goldAccent,
+    goldAccent:
+      whiteStyle.goldAccent ??
+      blackStyle.goldAccent ??
+      DEFAULT_PIECE_STYLE.goldAccent,
     preserveOriginalMaterials: Boolean(
-      whiteStyle.preserveOriginalMaterials && blackStyle.preserveOriginalMaterials
+      whiteStyle.preserveOriginalMaterials &&
+      blackStyle.preserveOriginalMaterials
     ),
     keepTextures: Boolean(
       whiteStyle.keepTextures ||
-        blackStyle.keepTextures ||
-        whiteStyle.preserveOriginalMaterials ||
-        blackStyle.preserveOriginalMaterials
+      blackStyle.keepTextures ||
+      whiteStyle.preserveOriginalMaterials ||
+      blackStyle.preserveOriginalMaterials
     ),
     roughness: whiteStyle.roughness ?? blackStyle.roughness,
     metalness: whiteStyle.metalness ?? blackStyle.metalness,
     clearcoat: whiteStyle.clearcoat ?? blackStyle.clearcoat,
-    clearcoatRoughness: whiteStyle.clearcoatRoughness ?? blackStyle.clearcoatRoughness,
+    clearcoatRoughness:
+      whiteStyle.clearcoatRoughness ?? blackStyle.clearcoatRoughness,
     sheen: whiteStyle.sheen ?? blackStyle.sheen,
     sheenColor: whiteStyle.sheenColor ?? blackStyle.sheenColor,
-    specularIntensity: whiteStyle.specularIntensity ?? blackStyle.specularIntensity
+    specularIntensity:
+      whiteStyle.specularIntensity ?? blackStyle.specularIntensity
   };
 }
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const whitePieceOption =
-    PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
+    PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ??
+    DEFAULT_PIECE_STYLE;
   const blackPieceOption =
-    PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
-  const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+    PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ??
+    DEFAULT_PIECE_STYLE;
+  const pieceOption = mergePieceStylesByColor(
+    whitePieceOption,
+    blackPieceOption
+  );
+  const boardOption =
+    BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
-  const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
+  const headOption =
+    HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ??
+    HEAD_PRESET_OPTIONS[0].preset;
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -2794,7 +3223,9 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
-    pieceSetId: PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
+    pieceSetId:
+      PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ??
+      DEFAULT_PIECE_SET_ID
   };
 }
 
@@ -2811,9 +3242,11 @@ function createConfiguredGLTFLoader(renderer = null) {
   if (!sharedKTX2Loader) {
     sharedKTX2Loader = new KTX2Loader();
     sharedKTX2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    const supportRenderer = renderer || (typeof document !== 'undefined'
-      ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
-      : null);
+    const supportRenderer =
+      renderer ||
+      (typeof document !== 'undefined'
+        ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
+        : null);
     if (supportRenderer) {
       sharedKTX2Loader.detectSupport(supportRenderer);
       if (!renderer) supportRenderer.dispose();
@@ -2831,7 +3264,10 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
     try {
       const isLocal = url.startsWith('/') || url.startsWith('./');
       const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      const resourcePath = resolvedUrl.substring(
+        0,
+        resolvedUrl.lastIndexOf('/') + 1
+      );
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
@@ -2840,8 +3276,14 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
         loader.load(resolvedUrl, resolve, undefined, reject);
       });
       if (gltf?.scene) {
-        gltf.userData = { ...(gltf.userData || {}), beautifulGameSource: isLocal ? 'local' : 'remote' };
-        gltf.scene.userData = { ...(gltf.scene.userData || {}), beautifulGameSource: gltf.userData.beautifulGameSource };
+        gltf.userData = {
+          ...(gltf.userData || {}),
+          beautifulGameSource: isLocal ? 'local' : 'remote'
+        };
+        gltf.scene.userData = {
+          ...(gltf.scene.userData || {}),
+          beautifulGameSource: gltf.userData.beautifulGameSource
+        };
       }
       return gltf;
     } catch (error) {
@@ -2853,7 +3295,10 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
 }
 
 async function loadBeautifulGameTouchSet() {
-  return loadBeautifulGameSet([...BEAUTIFUL_GAME_TOUCH_URLS, ...BEAUTIFUL_GAME_URLS]);
+  return loadBeautifulGameSet([
+    ...BEAUTIFUL_GAME_TOUCH_URLS,
+    ...BEAUTIFUL_GAME_URLS
+  ]);
 }
 
 async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
@@ -2868,7 +3313,10 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
   for (const url of urls) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      const resourcePath = resolvedUrl.substring(
+        0,
+        resolvedUrl.lastIndexOf('/') + 1
+      );
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
@@ -2889,9 +3337,15 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
 
 async function resolveTextureSet(definition = {}) {
   const [map, roughnessMap, normalMap] = await Promise.all([
-    definition.colorMap ? loadTexture(definition.colorMap) : Promise.resolve(null),
-    definition.roughnessMap ? loadTexture(definition.roughnessMap) : Promise.resolve(null),
-    definition.normalMap ? loadTexture(definition.normalMap) : Promise.resolve(null)
+    definition.colorMap
+      ? loadTexture(definition.colorMap)
+      : Promise.resolve(null),
+    definition.roughnessMap
+      ? loadTexture(definition.roughnessMap)
+      : Promise.resolve(null),
+    definition.normalMap
+      ? loadTexture(definition.normalMap)
+      : Promise.resolve(null)
   ]);
   return {
     map,
@@ -2901,8 +3355,14 @@ async function resolveTextureSet(definition = {}) {
   };
 }
 
-function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
-  const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
+function applyTextureSetToMaterial(
+  baseMaterial,
+  textureSet,
+  { tint, roughness, metalness } = {}
+) {
+  const material = baseMaterial?.clone
+    ? baseMaterial.clone()
+    : new THREE.MeshPhysicalMaterial();
   if (textureSet.map) {
     material.map = textureSet.map;
     material.map.repeat.set(textureSet.repeat, textureSet.repeat);
@@ -2943,7 +3403,9 @@ async function applyTextureProfileToAssets(assets, profile) {
           applyTextureSetToMaterial(mat, textureSet, { tint: tintColor })
         );
       } else {
-        child.material = applyTextureSetToMaterial(child.material, textureSet, { tint: tintColor });
+        child.material = applyTextureSetToMaterial(child.material, textureSet, {
+          tint: tintColor
+        });
       }
       child.castShadow = true;
       child.receiveShadow = true;
@@ -2962,7 +3424,14 @@ async function applyTextureProfileToAssets(assets, profile) {
 
 function stripMaterialTextures(material) {
   if (!material) return;
-  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((key) => {
+  [
+    'map',
+    'normalMap',
+    'roughnessMap',
+    'metalnessMap',
+    'aoMap',
+    'emissiveMap'
+  ].forEach((key) => {
     if (material[key]) {
       material[key] = null;
     }
@@ -3062,8 +3531,15 @@ function applyLocalBeautifulGameMaterials(assets) {
         if (!child?.isMesh) return;
         const name = child.name?.toLowerCase?.() ?? '';
         const useAccent =
-          name.includes('collar') || name.includes('crown') || name.includes('cross') || name.includes('ring');
-        child.material = (useAccent ? makeAccentMaterial(accentColor) : makeGlassMaterial(baseColor)).clone();
+          name.includes('collar') ||
+          name.includes('crown') ||
+          name.includes('cross') ||
+          name.includes('ring');
+        child.material = (
+          useAccent
+            ? makeAccentMaterial(accentColor)
+            : makeGlassMaterial(baseColor)
+        ).clone();
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -3073,18 +3549,25 @@ function applyLocalBeautifulGameMaterials(assets) {
   applyPieces(
     piecePrototypes?.white,
     BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
+    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
+      BEAUTIFUL_GAME_PIECE_STYLE.accent ??
+      '#caa472'
   );
   applyPieces(
     piecePrototypes?.black,
     BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
+    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ??
+      BEAUTIFUL_GAME_PIECE_STYLE.accent ??
+      '#b58f4f'
   );
 
   return assets;
 }
 
-function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
+function harmonizeBeautifulGamePieces(
+  piecePrototypes,
+  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE
+) {
   if (!piecePrototypes) return;
   if (pieceStyle?.preserveOriginalMaterials) {
     ['white', 'black'].forEach((colorKey) => {
@@ -3101,27 +3584,38 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const accentLight =
+    pieceStyle.whiteAccent?.color ??
+    pieceStyle.accent ??
+    BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
   const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
-    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
-    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
-    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
-    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.roughness))
+      material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness))
+      material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat))
+      material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness))
+      material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
     if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
-    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
-    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
+    if (config.sheenColor)
+      material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity))
+      material.specularIntensity = clamp01(config.specularIntensity);
   };
 
   const applyColor = (piece, colorHex) => {
     if (!piece) return;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      const mats = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
@@ -3130,7 +3624,10 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         }
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
-        applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
+        applySurface(
+          applied,
+          colorHex === lightColor ? pieceStyle.white : pieceStyle.black
+        );
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -3144,7 +3641,9 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 
   ['white', 'black'].forEach((colorKey) => {
     const targetColor = colorKey === 'white' ? lightColor : darkColor;
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) =>
+      applyColor(piece, targetColor)
+    );
   });
 
   const accentize = (piece, colorKey) => {
@@ -3161,15 +3660,20 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         name.includes('band') ||
         name.includes('rim');
       if (!shouldAccent) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
-        mats.forEach((mat, idx) => {
-          if (!mat) return;
-          const applied = mat.clone ? mat.clone() : mat;
-          if (shouldStripTextures) {
-            stripMaterialTextures(applied);
-          }
-          const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
-          applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
+      const mats = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        if (shouldStripTextures) {
+          stripMaterialTextures(applied);
+        }
+        const accentColor =
+          goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+        applied.color = new THREE.Color(
+          accentColor || darkAccent || accentLight
+        );
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
@@ -3188,11 +3692,16 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) =>
+      accentize(piece, colorKey)
+    );
   });
 }
 
-function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
+function applyBeautifulGameStyleToMeshes(
+  meshes,
+  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE
+) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
   if (pieceStyle?.preserveOriginalMaterials) {
@@ -3208,20 +3717,29 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const accentLight =
+    pieceStyle.whiteAccent?.color ??
+    pieceStyle.accent ??
+    BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
   const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
-    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
-    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
-    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
-    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.roughness))
+      material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness))
+      material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat))
+      material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness))
+      material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
     if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
-    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
-    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
+    if (config.sheenColor)
+      material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity))
+      material.specularIntensity = clamp01(config.specularIntensity);
     if (config.emissive) {
       material.emissive = new THREE.Color(config.emissive);
       if (Number.isFinite(config.emissiveIntensity)) {
@@ -3234,7 +3752,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     const targetColor = colorKey === 'black' ? darkColor : lightColor;
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      const mats = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (shouldStripTextures) {
@@ -3245,7 +3765,10 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         } else {
           mat.color = new THREE.Color(targetColor);
         }
-        applySurface(mat, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
+        applySurface(
+          mat,
+          colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {}
+        );
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -3253,7 +3776,8 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   };
 
   const accentize = (mesh, colorKey) => {
-    const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+    const accentColor =
+      goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
@@ -3265,7 +3789,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         name.includes('band') ||
         name.includes('rim');
       if (!shouldAccent) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      const mats = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (shouldStripTextures) {
@@ -3290,7 +3816,8 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
 
   list.forEach((mesh) => {
     if (!mesh) return;
-    const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
+    const colorKey =
+      mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
     recolorMesh(mesh, colorKey);
     accentize(mesh, colorKey);
   });
@@ -3339,20 +3866,29 @@ function applyHeadPresetToMeshes(meshes, preset) {
   const baseMaterial = makeHeadMaterial(preset);
   if (!baseMaterial) return;
   list.forEach((mesh) => {
-    const type = (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '')
+    const type = (
+      mesh?.userData?.__pieceType ||
+      mesh?.userData?.t ||
+      mesh?.userData?.type ||
+      ''
+    )
       .toString()
       .toUpperCase();
     if (type !== 'P' && type !== 'B') return;
     const heads = collectHeadMeshes(mesh);
     heads.forEach((head) => {
-      const mats = Array.isArray(head.material) ? head.material : [head.material];
+      const mats = Array.isArray(head.material)
+        ? head.material
+        : [head.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (mat.color?.set) {
           mat.color.set(baseMaterial.color);
         }
-        if ('metalness' in mat) mat.metalness = clamp01(baseMaterial.metalness ?? 0);
-        if ('roughness' in mat) mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
+        if ('metalness' in mat)
+          mat.metalness = clamp01(baseMaterial.metalness ?? 0);
+        if ('roughness' in mat)
+          mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
         mat.transparent = baseMaterial.transparent;
         mat.transmission = clamp01(baseMaterial.transmission ?? 0);
         mat.ior = baseMaterial.ior ?? 1.5;
@@ -3371,7 +3907,9 @@ function applyHeadPresetToPrototypes(piecePrototypes, preset) {
   if (!piecePrototypes || !preset) return;
   const list = [];
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => list.push(proto));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) =>
+      list.push(proto)
+    );
   });
   applyHeadPresetToMeshes(list, preset);
 }
@@ -3390,7 +3928,9 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => markShadowed(proto, colorKey));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) =>
+      markShadowed(proto, colorKey)
+    );
   });
 }
 
@@ -3483,7 +4023,10 @@ function makeSmoothMaterial(color, options = {}) {
   });
 }
 
-function makePieceMaterialFromStyle(style = {}, { color, flatShading = false } = {}) {
+function makePieceMaterialFromStyle(
+  style = {},
+  { color, flatShading = false } = {}
+) {
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(color ?? style.color ?? '#ffffff'),
     roughness: clamp01(style.roughness ?? 0.35),
@@ -3535,7 +4078,9 @@ function detectColorFromMaterialNames(node) {
 
   node.traverse((child) => {
     if (detected || !child?.isMesh) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
     for (const mat of materials) {
       const matName = (mat?.name || '').toString();
       if (MATERIAL_W.test(matName)) {
@@ -3595,7 +4140,10 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
       new THREE.Vector2(collarRadius * 0.65, collarHeight * 0.7),
       new THREE.Vector2(collarRadius * 0.4, collarHeight)
     ]),
-    makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.22 })
+    makeSmoothMaterial(accentHex ?? colorHex, {
+      roughness: 0.24,
+      metalness: 0.22
+    })
   );
 
   if (type === 'P') {
@@ -3613,8 +4161,18 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     body.position.y = baseHeight;
     g.add(body);
     const crenel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.26 * scale, 0.28 * scale, 0.22 * scale, 32, 1, false),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.26 })
+      new THREE.CylinderGeometry(
+        0.26 * scale,
+        0.28 * scale,
+        0.22 * scale,
+        32,
+        1,
+        false
+      ),
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.24,
+        metalness: 0.26
+      })
     );
     crenel.position.y = baseHeight + bodyHeight * 0.72 + 0.1 * scale;
     g.add(crenel);
@@ -3624,11 +4182,36 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     g.add(body);
     const shape = new THREE.Shape();
     shape.moveTo(0, 0);
-    shape.quadraticCurveTo(0.05 * scale, 0.1 * scale, -0.02 * scale, 0.22 * scale);
-    shape.quadraticCurveTo(-0.08 * scale, 0.35 * scale, 0.05 * scale, 0.48 * scale);
-    shape.quadraticCurveTo(0.25 * scale, 0.72 * scale, 0.12 * scale, 0.9 * scale);
-    shape.quadraticCurveTo(0.02 * scale, 1.05 * scale, -0.06 * scale, 0.88 * scale);
-    shape.quadraticCurveTo(-0.18 * scale, 0.65 * scale, -0.12 * scale, 0.35 * scale);
+    shape.quadraticCurveTo(
+      0.05 * scale,
+      0.1 * scale,
+      -0.02 * scale,
+      0.22 * scale
+    );
+    shape.quadraticCurveTo(
+      -0.08 * scale,
+      0.35 * scale,
+      0.05 * scale,
+      0.48 * scale
+    );
+    shape.quadraticCurveTo(
+      0.25 * scale,
+      0.72 * scale,
+      0.12 * scale,
+      0.9 * scale
+    );
+    shape.quadraticCurveTo(
+      0.02 * scale,
+      1.05 * scale,
+      -0.06 * scale,
+      0.88 * scale
+    );
+    shape.quadraticCurveTo(
+      -0.18 * scale,
+      0.65 * scale,
+      -0.12 * scale,
+      0.35 * scale
+    );
     shape.quadraticCurveTo(-0.2 * scale, 0.1 * scale, 0, 0);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: 0.22 * scale,
@@ -3638,7 +4221,10 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
       bevelSegments: 4
     });
     geo.translate(-0.12 * scale, 0, -0.1 * scale);
-    const head = new THREE.Mesh(geo, makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 }));
+    const head = new THREE.Mesh(
+      geo,
+      makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 })
+    );
     head.rotation.y = Math.PI / 2;
     head.position.y = baseHeight + bodyHeight * 0.55;
     g.add(head);
@@ -3663,12 +4249,18 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     const crown = new THREE.Group();
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(crownRadius, 0.05 * scale, 12, 32),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.22, metalness: 0.24 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.22,
+        metalness: 0.24
+      })
     );
     ring.rotation.x = Math.PI / 2;
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(0.1 * scale, 24, 16),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.26 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.18,
+        metalness: 0.26
+      })
     );
     orb.position.y = 0.16 * scale;
     crown.add(ring, orb);
@@ -3683,22 +4275,34 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     const crown = new THREE.Group();
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(crownRadius * 1.05, 0.048 * scale, 12, 32),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.2, metalness: 0.26 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.2,
+        metalness: 0.26
+      })
     );
     ring.rotation.x = Math.PI / 2;
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(0.11 * scale, 24, 16),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.16, metalness: 0.28 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.16,
+        metalness: 0.28
+      })
     );
     orb.position.y = 0.18 * scale;
     const crossVert = new THREE.Mesh(
       new THREE.BoxGeometry(0.08 * scale, 0.36 * scale, 0.08 * scale),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.18,
+        metalness: 0.3
+      })
     );
     crossVert.position.y = 0.25 * scale;
     const crossHoriz = new THREE.Mesh(
       new THREE.BoxGeometry(0.32 * scale, 0.08 * scale, 0.08 * scale),
-      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+      makeSmoothMaterial(accentHex ?? colorHex, {
+        roughness: 0.18,
+        metalness: 0.3
+      })
     );
     crossHoriz.position.y = 0.35 * scale;
     crown.add(ring, orb, crossVert, crossHoriz);
@@ -3721,7 +4325,10 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   return g;
 }
 
-function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
+function buildBeautifulGameFallback(
+  targetBoardSize,
+  boardTheme = BEAUTIFUL_GAME_THEME
+) {
   const boardModel = new THREE.Group();
   boardModel.name = 'ABeautifulGameLocal';
   const tile = BOARD.tile;
@@ -3734,9 +4341,15 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
       targetBoardSize || N * tile + BOARD.rim * 2
     ),
     new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
-      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
-      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      color: new THREE.Color(
+        boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark
+      ),
+      roughness: clamp01(
+        boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness
+      ),
+      metalness: clamp01(
+        boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness
+      ),
       clearcoat: 0,
       reflectivity: 0
     })
@@ -3744,11 +4357,21 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   base.position.y = BOARD.baseH * 0.5;
   boardModel.add(base);
   const top = new THREE.Mesh(
-    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
+    new THREE.BoxGeometry(
+      N * tile + BOARD.rim * 1.2,
+      0.14,
+      N * tile + BOARD.rim * 1.2
+    ),
     new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
-      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
-      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      color: new THREE.Color(
+        boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight
+      ),
+      roughness: clamp01(
+        boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness
+      ),
+      metalness: clamp01(
+        boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness
+      ),
       clearcoat: 0,
       reflectivity: 0
     })
@@ -3763,14 +4386,25 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
       const isDark = (r + c) % 2 === 1;
       const mat = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
-        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
-        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        roughness: clamp01(
+          boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness
+        ),
+        metalness: clamp01(
+          boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness
+        ),
         clearcoat: 0,
         reflectivity: 0,
         specularIntensity: 0.18
       });
-      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
-      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
+      const tileMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(tile, 0.06, tile),
+        mat
+      );
+      tileMesh.position.set(
+        c * tile - half + tile / 2,
+        BOARD.baseH + 0.12,
+        r * tile - half + tile / 2
+      );
       tiles.add(tileMesh);
     }
   }
@@ -3779,29 +4413,103 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
   const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
   const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
-  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
-  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
-  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
-  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
-  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
-  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
-  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
-  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
-  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
-  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
-  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
-  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
-  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
-  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
+  const accentLight =
+    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
+    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
+    '#d4af78';
+  const accentDark =
+    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ??
+    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
+    accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece(
+    'P',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.white.R = buildBeautifulGamePiece(
+    'R',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.white.N = buildBeautifulGamePiece(
+    'N',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.white.B = buildBeautifulGamePiece(
+    'B',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.white.Q = buildBeautifulGamePiece(
+    'Q',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.white.K = buildBeautifulGamePiece(
+    'K',
+    authenticWhite,
+    accentLight,
+    scale
+  );
+  piecePrototypes.black.P = buildBeautifulGamePiece(
+    'P',
+    authenticBlack,
+    accentDark,
+    scale
+  );
+  piecePrototypes.black.R = buildBeautifulGamePiece(
+    'R',
+    authenticBlack,
+    accentDark,
+    scale
+  );
+  piecePrototypes.black.N = buildBeautifulGamePiece(
+    'N',
+    authenticBlack,
+    accentDark,
+    scale
+  );
+  piecePrototypes.black.B = buildBeautifulGamePiece(
+    'B',
+    authenticBlack,
+    accentDark,
+    scale
+  );
+  piecePrototypes.black.Q = buildBeautifulGamePiece(
+    'Q',
+    authenticBlack,
+    accentDark,
+    scale
+  );
+  piecePrototypes.black.K = buildBeautifulGamePiece(
+    'K',
+    authenticBlack,
+    accentDark,
+    scale
+  );
 
   Object.entries(piecePrototypes).forEach(([, byColor]) => {
     Object.entries(byColor).forEach(([type, proto]) => {
-      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      proto.userData = {
+        ...(proto.userData || {}),
+        __pieceStyleId: 'beautifulGame',
+        __pieceType: type
+      };
       proto.traverse((child) => {
         if (!child.isMesh) return;
         child.castShadow = true;
         child.receiveShadow = true;
-        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+        child.userData = {
+          ...(child.userData || {}),
+          __pieceStyleId: 'beautifulGame',
+          __pieceType: type
+        };
       });
     });
   });
@@ -3809,7 +4517,12 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
 
-  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
+  return {
+    boardModel,
+    piecePrototypes,
+    tileSize: tile,
+    pieceYOffset: boardTop + 0.02
+  };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
@@ -3838,12 +4551,22 @@ function sculptLathe(points = [], segments = 96) {
   return new THREE.LatheGeometry(points, segments);
 }
 
-function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_PIECE_SET_ID) {
+function buildSculptedPiece(
+  type,
+  materials = {},
+  scale = 1,
+  styleId = DEFAULT_PIECE_SET_ID
+) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
 
-  const addMesh = (geometry, material = baseMat, position = null, rotation = null) => {
+  const addMesh = (
+    geometry,
+    material = baseMat,
+    position = null,
+    rotation = null
+  ) => {
     const mesh = new THREE.Mesh(geometry, material);
     if (position) mesh.position.copy(position);
     if (rotation) mesh.rotation.set(rotation.x, rotation.y, rotation.z);
@@ -3866,7 +4589,11 @@ function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_P
       [0.0, 0.74]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(new THREE.SphereGeometry(0.26, 28, 24), accentMat, new THREE.Vector3(0, 1.02, 0));
+    addMesh(
+      new THREE.SphereGeometry(0.26, 28, 24),
+      accentMat,
+      new THREE.Vector3(0, 1.02, 0)
+    );
   } else if (type === 'R') {
     const profile = sculptProfile([
       [0, 0],
@@ -3882,8 +4609,16 @@ function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_P
       [0, 0.94]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(new THREE.CylinderGeometry(0.54, 0.54, 0.08, 28), accentMat, new THREE.Vector3(0, 1.02, 0));
-    addMesh(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 20, 1, true), accentMat, new THREE.Vector3(0, 1.1, 0));
+    addMesh(
+      new THREE.CylinderGeometry(0.54, 0.54, 0.08, 28),
+      accentMat,
+      new THREE.Vector3(0, 1.02, 0)
+    );
+    addMesh(
+      new THREE.CylinderGeometry(0.62, 0.62, 0.1, 20, 1, true),
+      accentMat,
+      new THREE.Vector3(0, 1.1, 0)
+    );
   } else if (type === 'N') {
     const profile = sculptProfile([
       [0, 0],
@@ -3944,7 +4679,11 @@ function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_P
       [0, 1.1]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(new THREE.SphereGeometry(0.22, 28, 22), accentMat, new THREE.Vector3(0, 1.28, 0));
+    addMesh(
+      new THREE.SphereGeometry(0.22, 28, 22),
+      accentMat,
+      new THREE.Vector3(0, 1.28, 0)
+    );
   } else if (type === 'Q') {
     const profile = sculptProfile([
       [0, 0],
@@ -3960,10 +4699,17 @@ function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_P
       [0, 1.26]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    const crown = addMesh(new THREE.TorusGeometry(0.34, 0.05, 12, 36), accentMat);
+    const crown = addMesh(
+      new THREE.TorusGeometry(0.34, 0.05, 12, 36),
+      accentMat
+    );
     crown.rotation.x = Math.PI / 2;
     crown.position.y = 1.34;
-    addMesh(new THREE.SphereGeometry(0.18, 24, 20), accentMat, new THREE.Vector3(0, 1.52, 0));
+    addMesh(
+      new THREE.SphereGeometry(0.18, 24, 20),
+      accentMat,
+      new THREE.Vector3(0, 1.52, 0)
+    );
   } else if (type === 'K') {
     const profile = sculptProfile([
       [0, 0],
@@ -3982,8 +4728,16 @@ function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_P
     const rim = addMesh(new THREE.TorusGeometry(0.36, 0.05, 12, 36), accentMat);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 1.44;
-    addMesh(new THREE.BoxGeometry(0.06, 0.32, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
-    addMesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
+    addMesh(
+      new THREE.BoxGeometry(0.06, 0.32, 0.06),
+      accentMat,
+      new THREE.Vector3(0, 1.66, 0)
+    );
+    addMesh(
+      new THREE.BoxGeometry(0.22, 0.06, 0.06),
+      accentMat,
+      new THREE.Vector3(0, 1.66, 0)
+    );
   }
 
   return finalizePrototype(g, scale, styleId);
@@ -3996,7 +4750,8 @@ function buildSculptedAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.6;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#60a5fa';
+  const accentLight =
+    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#60a5fa';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
@@ -4007,12 +4762,42 @@ function buildSculptedAssets(
       base: makePieceMaterialFromStyle(colorStyle),
       accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
     };
-    piecePrototypes[colorKey].P = buildSculptedPiece('P', materials, scale, styleId);
-    piecePrototypes[colorKey].R = buildSculptedPiece('R', materials, scale, styleId);
-    piecePrototypes[colorKey].N = buildSculptedPiece('N', materials, scale, styleId);
-    piecePrototypes[colorKey].B = buildSculptedPiece('B', materials, scale, styleId);
-    piecePrototypes[colorKey].Q = buildSculptedPiece('Q', materials, scale, styleId);
-    piecePrototypes[colorKey].K = buildSculptedPiece('K', materials, scale, styleId);
+    piecePrototypes[colorKey].P = buildSculptedPiece(
+      'P',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].R = buildSculptedPiece(
+      'R',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].N = buildSculptedPiece(
+      'N',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].B = buildSculptedPiece(
+      'B',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].Q = buildSculptedPiece(
+      'Q',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].K = buildSculptedPiece(
+      'K',
+      materials,
+      scale,
+      styleId
+    );
   };
 
   buildForColor('white', accentLight);
@@ -4021,7 +4806,12 @@ function buildSculptedAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'stauntonClassic') {
+function buildStauntonPiece(
+  type,
+  materials = {},
+  scale = 1,
+  styleId = 'stauntonClassic'
+) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -4062,7 +4852,10 @@ function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'staunton
 
   if (type === 'P') {
     g.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 28, 24), accentMat);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.24, 28, 24),
+      accentMat
+    );
     head.position.y = 1.72;
     g.add(head);
   } else if (type === 'R') {
@@ -4074,7 +4867,10 @@ function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'staunton
     crenel.position.y = 1.75;
     const grooves = new THREE.Group();
     for (let i = 0; i < 4; i += 1) {
-      const notch = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.26, 0.18), baseMat);
+      const notch = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.26, 0.18),
+        baseMat
+      );
       const angle = (i * Math.PI) / 2;
       notch.position.set(Math.cos(angle) * 0.28, 1.9, Math.sin(angle) * 0.28);
       grooves.add(notch);
@@ -4084,7 +4880,10 @@ function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'staunton
     const torso = body.clone();
     torso.scale.set(1.05, 0.9, 1.05);
     g.add(torso);
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.26, 24), baseMat);
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.28, 0.26, 24),
+      baseMat
+    );
     neck.position.y = 1.6;
     const headShape = new THREE.Shape();
     headShape.moveTo(0, 0);
@@ -4105,50 +4904,80 @@ function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'staunton
     );
     head.rotation.y = Math.PI / 2;
     head.position.set(-0.12, 1.68, -0.18);
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 12), accentMat);
+    const ear = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.16, 12),
+      accentMat
+    );
     ear.position.set(-0.02, 2.05, 0.0);
     g.add(torso, neck, head, ear);
   } else if (type === 'B') {
     const mid = body.clone();
     mid.scale.set(0.96, 1.08, 0.96);
     g.add(mid);
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 14, 32), accentMat);
+    const collar = new THREE.Mesh(
+      new THREE.TorusGeometry(0.4, 0.06, 14, 32),
+      accentMat
+    );
     collar.rotation.x = Math.PI / 2;
     collar.position.y = 1.58;
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 26, 22), baseMat);
     cap.position.y = 1.78;
-    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.12), accentMat);
+    const slit = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.38, 0.12),
+      accentMat
+    );
     slit.position.y = 1.9;
     g.add(mid, collar, cap, slit);
   } else if (type === 'Q') {
     const tall = body.clone();
     tall.scale.set(1.08, 1.2, 1.08);
     g.add(tall);
-    const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.06, 12, 28), accentMat);
+    const crownRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.46, 0.06, 12, 28),
+      accentMat
+    );
     crownRing.rotation.x = Math.PI / 2;
     crownRing.position.y = 1.9;
     const spikes = new THREE.Group();
     for (let i = 0; i < 6; i += 1) {
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 10), accentMat);
+      const spike = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.32, 10),
+        accentMat
+      );
       const angle = (i * Math.PI * 2) / 6;
       spike.position.set(Math.cos(angle) * 0.38, 2.06, Math.sin(angle) * 0.38);
       spikes.add(spike);
     }
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 14), accentMat);
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 18, 14),
+      accentMat
+    );
     orb.position.y = 2.25;
     g.add(tall, crownRing, spikes, orb);
   } else if (type === 'K') {
     const pillar = body.clone();
     pillar.scale.set(1.12, 1.25, 1.12);
     g.add(pillar);
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.06, 16, 32), accentMat);
+    const collar = new THREE.Mesh(
+      new THREE.TorusGeometry(0.48, 0.06, 16, 32),
+      accentMat
+    );
     collar.rotation.x = Math.PI / 2;
     collar.position.y = 1.9;
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), accentMat);
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 20, 16),
+      accentMat
+    );
     orb.position.y = 2.18;
-    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.08), accentMat);
+    const crossV = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.42, 0.08),
+      accentMat
+    );
     crossV.position.y = 2.42;
-    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.08), accentMat);
+    const crossH = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.08, 0.08),
+      accentMat
+    );
     crossH.position.y = 2.42;
     g.add(pillar, collar, orb, crossV, crossH);
   }
@@ -4163,7 +4992,8 @@ function buildStauntonFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.08;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d8b07a';
+  const accentLight =
+    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d8b07a';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
@@ -4174,12 +5004,42 @@ function buildStauntonFallbackAssets(
       base: makePieceMaterialFromStyle(colorStyle),
       accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
     };
-    piecePrototypes[colorKey].P = buildStauntonPiece('P', materials, scale, styleId);
-    piecePrototypes[colorKey].R = buildStauntonPiece('R', materials, scale, styleId);
-    piecePrototypes[colorKey].N = buildStauntonPiece('N', materials, scale, styleId);
-    piecePrototypes[colorKey].B = buildStauntonPiece('B', materials, scale, styleId);
-    piecePrototypes[colorKey].Q = buildStauntonPiece('Q', materials, scale, styleId);
-    piecePrototypes[colorKey].K = buildStauntonPiece('K', materials, scale, styleId);
+    piecePrototypes[colorKey].P = buildStauntonPiece(
+      'P',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].R = buildStauntonPiece(
+      'R',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].N = buildStauntonPiece(
+      'N',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].B = buildStauntonPiece(
+      'B',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].Q = buildStauntonPiece(
+      'Q',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].K = buildStauntonPiece(
+      'K',
+      materials,
+      scale,
+      styleId
+    );
   };
 
   buildForColor('white', accentLight);
@@ -4188,7 +5048,12 @@ function buildStauntonFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood') {
+function buildKenneyPiece(
+  type,
+  materials = {},
+  scale = 1,
+  styleId = 'kenneyWood'
+) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -4196,56 +5061,101 @@ function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood
   slab.position.y = 0.14;
   g.add(slab);
 
-  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 1.15, 14, 1), baseMat);
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42, 0.52, 1.15, 14, 1),
+    baseMat
+  );
   pillar.position.y = 0.86;
 
   if (type === 'P') {
     g.add(pillar);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), accentMat);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.32, 14, 10),
+      accentMat
+    );
     head.position.y = 1.52;
     g.add(head);
   } else if (type === 'R') {
     g.add(pillar);
-    const crown = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.36, 0.9), accentMat);
+    const crown = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.36, 0.9),
+      accentMat
+    );
     crown.position.y = 1.54;
     const teeth = new THREE.Group();
     for (let i = 0; i < 4; i += 1) {
-      const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), baseMat);
+      const tooth = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.18, 0.2),
+        baseMat
+      );
       const angle = (i * Math.PI) / 2;
       tooth.position.set(Math.cos(angle) * 0.32, 1.74, Math.sin(angle) * 0.32);
       teeth.add(tooth);
     }
     g.add(crown, teeth);
   } else if (type === 'N') {
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.38, 6, 12), baseMat);
+    const body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.36, 0.38, 6, 12),
+      baseMat
+    );
     body.position.set(0, 1.25, 0);
-    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.26, 0.66), accentMat);
+    const jaw = new THREE.Mesh(
+      new THREE.BoxGeometry(0.48, 0.26, 0.66),
+      accentMat
+    );
     jaw.position.set(-0.1, 1.62, 0.1);
     jaw.rotation.y = Math.PI / 8;
-    const mane = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.72, 0.22), baseMat);
+    const mane = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.72, 0.22),
+      baseMat
+    );
     mane.position.set(-0.28, 1.36, 0);
     g.add(pillar, body, jaw, mane);
   } else if (type === 'B') {
-    const taper = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.18, 16), baseMat);
+    const taper = new THREE.Mesh(
+      new THREE.ConeGeometry(0.52, 1.18, 16),
+      baseMat
+    );
     taper.position.y = 1.1;
-    const cut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.16), accentMat);
+    const cut = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.42, 0.16),
+      accentMat
+    );
     cut.position.y = 1.56;
     g.add(pillar, taper, cut);
   } else if (type === 'Q') {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 1.35, 18), baseMat);
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.58, 0.62, 1.35, 18),
+      baseMat
+    );
     body.position.y = 1.16;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.08, 10, 18), accentMat);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.46, 0.08, 10, 18),
+      accentMat
+    );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 1.72;
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), accentMat);
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 16, 12),
+      accentMat
+    );
     orb.position.y = 2.04;
     g.add(body, ring, orb);
   } else if (type === 'K') {
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.66, 1.45, 16), baseMat);
+    const tower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.62, 0.66, 1.45, 16),
+      baseMat
+    );
     tower.position.y = 1.22;
-    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.14), accentMat);
+    const crossV = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.62, 0.14),
+      accentMat
+    );
     crossV.position.y = 2.04;
-    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.14), accentMat);
+    const crossH = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.14, 0.14),
+      accentMat
+    );
     crossH.position.y = 2.04;
     g.add(tower, crossV, crossH);
   }
@@ -4260,7 +5170,8 @@ function buildKenneyFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.22;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d0a472';
+  const accentLight =
+    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d0a472';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
@@ -4268,14 +5179,47 @@ function buildKenneyFallbackAssets(
     const colorStyle = pieceStyle[colorKey] ?? {};
     const materials = {
       base: makePieceMaterialFromStyle(colorStyle, { flatShading: true }),
-      accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex, flatShading: true })
+      accent: makePieceMaterialFromStyle(colorStyle, {
+        color: accentHex,
+        flatShading: true
+      })
     };
-    piecePrototypes[colorKey].P = buildKenneyPiece('P', materials, scale, styleId);
-    piecePrototypes[colorKey].R = buildKenneyPiece('R', materials, scale, styleId);
-    piecePrototypes[colorKey].N = buildKenneyPiece('N', materials, scale, styleId);
-    piecePrototypes[colorKey].B = buildKenneyPiece('B', materials, scale, styleId);
-    piecePrototypes[colorKey].Q = buildKenneyPiece('Q', materials, scale, styleId);
-    piecePrototypes[colorKey].K = buildKenneyPiece('K', materials, scale, styleId);
+    piecePrototypes[colorKey].P = buildKenneyPiece(
+      'P',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].R = buildKenneyPiece(
+      'R',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].N = buildKenneyPiece(
+      'N',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].B = buildKenneyPiece(
+      'B',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].Q = buildKenneyPiece(
+      'Q',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].K = buildKenneyPiece(
+      'K',
+      materials,
+      scale,
+      styleId
+    );
   };
 
   buildForColor('white', accentLight);
@@ -4284,15 +5228,26 @@ function buildKenneyFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygonalGraphite') {
+function buildPolygonalPiece(
+  type,
+  materials = {},
+  scale = 1,
+  styleId = 'polygonalGraphite'
+) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.72, 0.32, 10), baseMat);
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.58, 0.72, 0.32, 10),
+    baseMat
+  );
   base.position.y = 0.16;
   g.add(base);
 
-  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 0.98, 9), baseMat);
+  const stalk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.38, 0.48, 0.98, 9),
+    baseMat
+  );
   stalk.position.y = 0.98;
 
   if (type === 'P') {
@@ -4302,37 +5257,64 @@ function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygon
     g.add(cap);
   } else if (type === 'R') {
     g.add(stalk);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 0.26, 8), accentMat);
+    const rim = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.58, 0.62, 0.26, 8),
+      accentMat
+    );
     rim.position.y = 1.44;
     g.add(rim);
   } else if (type === 'N') {
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.4, 6, 10), baseMat);
+    const body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.32, 0.4, 6, 10),
+      baseMat
+    );
     body.position.y = 1.22;
     body.rotation.z = -0.18;
-    const crest = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.44, 8), accentMat);
+    const crest = new THREE.Mesh(
+      new THREE.ConeGeometry(0.16, 0.44, 8),
+      accentMat
+    );
     crest.position.set(-0.06, 1.6, 0);
     g.add(stalk, body, crest);
   } else if (type === 'B') {
     const taper = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.2, 9), baseMat);
     taper.position.y = 1.08;
-    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.12), accentMat);
+    const slit = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.32, 0.12),
+      accentMat
+    );
     slit.position.y = 1.42;
     g.add(stalk, taper, slit);
   } else if (type === 'Q') {
-    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.66, 1.24, 10), baseMat);
+    const column = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.6, 0.66, 1.24, 10),
+      baseMat
+    );
     column.position.y = 1.08;
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.08, 8, 16), accentMat);
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(0.48, 0.08, 8, 16),
+      accentMat
+    );
     halo.rotation.x = Math.PI / 2;
     halo.position.y = 1.6;
     const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), accentMat);
     orb.position.y = 1.92;
     g.add(column, halo, orb);
   } else if (type === 'K') {
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.7, 1.32, 10), baseMat);
+    const tower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.64, 0.7, 1.32, 10),
+      baseMat
+    );
     tower.position.y = 1.12;
-    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 0.12), accentMat);
+    const crossV = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.46, 0.12),
+      accentMat
+    );
     crossV.position.y = 1.86;
-    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.12), accentMat);
+    const crossH = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.12, 0.12),
+      accentMat
+    );
     crossH.position.y = 1.86;
     g.add(tower, crossV, crossH);
   }
@@ -4347,25 +5329,62 @@ function buildPolygonalFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.18;
-  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#7ce3ff';
+  const accentLight =
+    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#7ce3ff';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
   const buildForColor = (colorKey, accentHex) => {
     const colorStyle = pieceStyle[colorKey] ?? {};
     const materials = {
-      base: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, { flatShading: true }),
-      accent: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, {
-        color: accentHex,
-        flatShading: true
-      })
+      base: makePieceMaterialFromStyle(
+        { ...colorStyle, flatShading: true },
+        { flatShading: true }
+      ),
+      accent: makePieceMaterialFromStyle(
+        { ...colorStyle, flatShading: true },
+        {
+          color: accentHex,
+          flatShading: true
+        }
+      )
     };
-    piecePrototypes[colorKey].P = buildPolygonalPiece('P', materials, scale, styleId);
-    piecePrototypes[colorKey].R = buildPolygonalPiece('R', materials, scale, styleId);
-    piecePrototypes[colorKey].N = buildPolygonalPiece('N', materials, scale, styleId);
-    piecePrototypes[colorKey].B = buildPolygonalPiece('B', materials, scale, styleId);
-    piecePrototypes[colorKey].Q = buildPolygonalPiece('Q', materials, scale, styleId);
-    piecePrototypes[colorKey].K = buildPolygonalPiece('K', materials, scale, styleId);
+    piecePrototypes[colorKey].P = buildPolygonalPiece(
+      'P',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].R = buildPolygonalPiece(
+      'R',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].N = buildPolygonalPiece(
+      'N',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].B = buildPolygonalPiece(
+      'B',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].Q = buildPolygonalPiece(
+      'Q',
+      materials,
+      scale,
+      styleId
+    );
+    piecePrototypes[colorKey].K = buildPolygonalPiece(
+      'K',
+      materials,
+      scale,
+      styleId
+    );
   };
 
   buildForColor('white', accentLight);
@@ -4383,14 +5402,29 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   visualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
   boardGroup.add(visualGroup);
 
-  const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
+  const light = new THREE.MeshStandardMaterial({
+    color: 0xc7b299,
+    metalness: 0.1,
+    roughness: 0.7
+  });
+  const dark = new THREE.MeshStandardMaterial({
+    color: 0x5e4529,
+    metalness: 0.2,
+    roughness: 0.6
+  });
   for (let r = 0; r < 8; r += 1) {
     for (let c = 0; c < 8; c += 1) {
       const isLight = (r + c) % 2 === 0;
-      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
+      const tileMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(tile, tile),
+        isLight ? light : dark
+      );
       tileMesh.rotation.x = -Math.PI / 2;
-      tileMesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
+      tileMesh.position.set(
+        -half + c * tile + tile / 2,
+        0.001,
+        -half + r * tile + tile / 2
+      );
       tileMesh.name = `tile_${r}_${c}`;
       tileMesh.userData = { r, c };
       tileMesh.receiveShadow = true;
@@ -4399,15 +5433,27 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   }
 
   const border = new THREE.Mesh(
-    new THREE.BoxGeometry(boardSize + tile * 0.2, tile * 0.08, boardSize + tile * 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
+    new THREE.BoxGeometry(
+      boardSize + tile * 0.2,
+      tile * 0.08,
+      boardSize + tile * 0.2
+    ),
+    new THREE.MeshStandardMaterial({
+      color: 0x3a2f1f,
+      metalness: 0.2,
+      roughness: 0.7
+    })
   );
   border.position.y = -tile * 0.04;
   border.name = 'frame';
   border.receiveShadow = true;
   visualGroup.add(border);
 
-  boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
+  boardGroup.userData = {
+    ...(boardGroup.userData || {}),
+    proceduralAssets: true,
+    styleId: 'proceduralBattle'
+  };
 
   return {
     boardModel: boardGroup,
@@ -4418,7 +5464,10 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   };
 }
 
-function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile * PIECE_FOOTPRINT_RATIO) {
+function normalizeBeautifulGamePiece(
+  object,
+  targetFootprint = BOARD.tile * PIECE_FOOTPRINT_RATIO
+) {
   const clone = cloneWithMaterials(object);
   clone.traverse((child) => {
     if (child?.isMesh) {
@@ -4433,7 +5482,10 @@ function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile * PIEC
   clone.scale.multiplyScalar(scale);
   const finalBox = new THREE.Box3().setFromObject(clone);
   clone.position.y -= finalBox.min.y;
-  clone.userData = { ...(clone.userData || {}), __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID };
+  clone.userData = {
+    ...(clone.userData || {}),
+    __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID
+  };
   return clone;
 }
 
@@ -4471,7 +5523,10 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
 
   const promoteToPieceRoot = (node, type) => {
     let current = node;
-    while (current?.parent && detectTypeFromPath(nodePath(current.parent)) === type) {
+    while (
+      current?.parent &&
+      detectTypeFromPath(nodePath(current.parent)) === type
+    ) {
       current = current.parent;
     }
     return current || node;
@@ -4507,15 +5562,33 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
 
   ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
     const bucket = buckets[type];
-    const whiteSource = bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
-    const blackSource = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || bucket.w[0]?.root;
-    if (whiteSource) prototypes.white[type] = normalizeBeautifulGamePiece(whiteSource, targetFootprint);
-    if (blackSource) prototypes.black[type] = normalizeBeautifulGamePiece(blackSource, targetFootprint);
+    const whiteSource =
+      bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
+    const blackSource =
+      bucket.b[0]?.root ||
+      bucket.any[bucket.any.length - 1]?.root ||
+      bucket.w[0]?.root;
+    if (whiteSource)
+      prototypes.white[type] = normalizeBeautifulGamePiece(
+        whiteSource,
+        targetFootprint
+      );
+    if (blackSource)
+      prototypes.black[type] = normalizeBeautifulGamePiece(
+        blackSource,
+        targetFootprint
+      );
     if (!prototypes.white[type] && prototypes.black[type]) {
-      prototypes.white[type] = normalizeBeautifulGamePiece(prototypes.black[type], targetFootprint);
+      prototypes.white[type] = normalizeBeautifulGamePiece(
+        prototypes.black[type],
+        targetFootprint
+      );
     }
     if (!prototypes.black[type] && prototypes.white[type]) {
-      prototypes.black[type] = normalizeBeautifulGamePiece(prototypes.white[type], targetFootprint);
+      prototypes.black[type] = normalizeBeautifulGamePiece(
+        prototypes.white[type],
+        targetFootprint
+      );
     }
   });
 
@@ -4524,7 +5597,10 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
     piecePrototypes: prototypes,
     tileSize,
     pieceYOffset: PIECE_PLACEMENT_Y_OFFSET,
-    userData: { styleId: BEAUTIFUL_GAME_SWAP_SET_ID, preserveOriginalMaterials: true }
+    userData: {
+      styleId: BEAUTIFUL_GAME_SWAP_SET_ID,
+      preserveOriginalMaterials: true
+    }
   };
 }
 
@@ -4537,7 +5613,12 @@ async function loadGltfResilient(url, loader) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const buffer = await response.arrayBuffer();
       return await new Promise((resolve, reject) => {
-        loader.parse(buffer, url.substring(0, url.lastIndexOf('/') + 1), resolve, reject);
+        loader.parse(
+          buffer,
+          url.substring(0, url.lastIndexOf('/') + 1),
+          resolve,
+          reject
+        );
       });
     } catch (fallbackError) {
       throw primaryError || fallbackError;
@@ -4574,19 +5655,28 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
     boardAssets = await resolveBeautifulGameBoardStrict(targetBoardSize);
   } catch (error) {
-    console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
+    console.warn(
+      'Chess Battle Royal: GLTF board failed, trying swap pieces',
+      error
+    );
   }
 
   try {
     const swapAssets = await loadBeautifulGamePiecesOnly(targetBoardSize);
     if (boardAssets) {
-      const { userData: boardUserData, tileSize, pieceYOffset, ...rest } = boardAssets;
+      const {
+        userData: boardUserData,
+        tileSize,
+        pieceYOffset,
+        ...rest
+      } = boardAssets;
       return {
         ...rest,
         boardModel: boardAssets.boardModel,
         tileSize: swapAssets?.tileSize ?? tileSize,
         pieceYOffset: pieceYOffset ?? swapAssets?.pieceYOffset,
-        piecePrototypes: swapAssets?.piecePrototypes ?? boardAssets.piecePrototypes,
+        piecePrototypes:
+          swapAssets?.piecePrototypes ?? boardAssets.piecePrototypes,
         userData: { ...(boardUserData || {}), ...(swapAssets?.userData || {}) }
       };
     }
@@ -4606,7 +5696,10 @@ async function resolveBeautifulGameTouchAssets(targetBoardSize) {
     Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ABeautifulGame touch load timed out')), timeoutMs)
+        setTimeout(
+          () => reject(new Error('ABeautifulGame touch load timed out')),
+          timeoutMs
+        )
       )
     ]);
 
@@ -4616,7 +5709,9 @@ async function resolveBeautifulGameTouchAssets(targetBoardSize) {
   }
 
   const source = gltf.scene.userData?.beautifulGameSource;
-  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, { source });
+  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, {
+    source
+  });
 }
 
 function cloneWithShadows(object) {
@@ -4635,7 +5730,9 @@ function cloneWithMaterials(object) {
   clone.traverse((child) => {
     if (!child.isMesh) return;
     if (Array.isArray(child.material)) {
-      child.material = child.material.map((mat) => (mat?.clone ? mat.clone() : mat));
+      child.material = child.material.map((mat) =>
+        mat?.clone ? mat.clone() : mat
+      );
     } else if (child.material?.clone) {
       child.material = child.material.clone();
     }
@@ -4677,7 +5774,9 @@ function applyMaterialSettingsWithSRGB(node) {
   if (!node?.isMesh) return;
   node.castShadow = true;
   node.receiveShadow = true;
-  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  const materials = Array.isArray(node.material)
+    ? node.material
+    : [node.material];
   materials.forEach((mat, index) => {
     if (!mat) return;
     const cloned = mat.clone ? mat.clone() : mat;
@@ -4876,14 +5975,20 @@ function extractChessSetAssets(scene, options = {}) {
     }
   });
 
-  return { boardModel, piecePrototypes, tileSize, pieceYOffset: preferredPieceYOffset };
+  return {
+    boardModel,
+    piecePrototypes,
+    tileSize,
+    pieceYOffset: preferredPieceYOffset
+  };
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
   const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
   const authenticStyle =
-    BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
-    BEAUTIFUL_GAME_PIECE_STYLE;
+    BEAUTIFUL_GAME_COLOR_VARIANTS.find(
+      (variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID
+    )?.style || BEAUTIFUL_GAME_PIECE_STYLE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
     pieceStyle: authenticStyle,
@@ -4929,7 +6034,10 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     if (!type) return;
     const color = detectPieceColor(node);
     if (!color) return;
-    const ascended = ascendWhile(node, (parent) => pieceTypeFromName(parent.name) === type);
+    const ascended = ascendWhile(
+      node,
+      (parent) => pieceTypeFromName(parent.name) === type
+    );
     const bucket = color === 'black' ? pool.black : pool.white;
     if (!bucket[type]) {
       bucket[type] = ascended;
@@ -4972,8 +6080,12 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
   const buildPrototype = (colorKey, type) => {
     const source = colorKey === 'black' ? pool.black[type] : pool.white[type];
     const opposite = colorKey === 'black' ? pool.white[type] : pool.black[type];
-    const anyFromColor = Object.values(colorKey === 'black' ? pool.black : pool.white).find(Boolean);
-    const anyFromOther = Object.values(colorKey === 'black' ? pool.white : pool.black).find(Boolean);
+    const anyFromColor = Object.values(
+      colorKey === 'black' ? pool.black : pool.white
+    ).find(Boolean);
+    const anyFromOther = Object.values(
+      colorKey === 'black' ? pool.white : pool.black
+    ).find(Boolean);
     const base = source || opposite || anyFromColor || anyFromOther;
     if (base) {
       const proto = cloneWithMaterials(base);
@@ -5069,18 +6181,28 @@ function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
   const whiteConfig = { ...(option.white || {}) };
   const blackConfig = { ...(option.black || {}) };
 
-  const whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
-  const blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
+  const whiteAccentColor =
+    option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
+  const blackAccentColor =
+    option.blackAccent?.color ?? option.accent ?? blackConfig.color;
 
   const whiteBase = createPhysicalPieceMaterial(whiteConfig, '#f5f5f7');
-  const whiteAccent = whiteAccentColor && whiteAccentColor !== whiteConfig.color
-    ? createPhysicalPieceMaterial({ ...whiteConfig, ...option.whiteAccent, color: whiteAccentColor }, whiteConfig.color)
-    : whiteBase;
+  const whiteAccent =
+    whiteAccentColor && whiteAccentColor !== whiteConfig.color
+      ? createPhysicalPieceMaterial(
+          { ...whiteConfig, ...option.whiteAccent, color: whiteAccentColor },
+          whiteConfig.color
+        )
+      : whiteBase;
 
   const blackBase = createPhysicalPieceMaterial(blackConfig, '#3c4044');
-  const blackAccent = blackAccentColor && blackAccentColor !== blackConfig.color
-    ? createPhysicalPieceMaterial({ ...blackConfig, ...option.blackAccent, color: blackAccentColor }, blackConfig.color)
-    : blackBase;
+  const blackAccent =
+    blackAccentColor && blackAccentColor !== blackConfig.color
+      ? createPhysicalPieceMaterial(
+          { ...blackConfig, ...option.blackAccent, color: blackAccentColor },
+          blackConfig.color
+        )
+      : blackBase;
 
   return {
     white: { base: whiteBase, accent: whiteAccent },
@@ -5107,15 +6229,33 @@ function ensureMaterial(input, defaults = {}) {
   return new THREE.MeshStandardMaterial({ color: input, roughness, metalness });
 }
 const box = (w, h, d, material, opts = {}) =>
-  new THREE.Mesh(new THREE.BoxGeometry(w, h, d), ensureMaterial(material, opts));
+  new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    ensureMaterial(material, opts)
+  );
 const cyl = (rt, rb, h, material, seg = 24, opts = {}) =>
-  new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), ensureMaterial(material, opts));
+  new THREE.Mesh(
+    new THREE.CylinderGeometry(rt, rb, h, seg),
+    ensureMaterial(material, opts)
+  );
 const sph = (r, material, seg = 20, opts = {}) =>
-  new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), ensureMaterial(material, { roughness: opts.roughness ?? 0.6, metalness: opts.metalness ?? 0.05 }));
+  new THREE.Mesh(
+    new THREE.SphereGeometry(r, seg, seg),
+    ensureMaterial(material, {
+      roughness: opts.roughness ?? 0.6,
+      metalness: opts.metalness ?? 0.05
+    })
+  );
 const cone = (r, h, material, seg = 24, opts = {}) =>
-  new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), ensureMaterial(material, opts));
+  new THREE.Mesh(
+    new THREE.ConeGeometry(r, h, seg),
+    ensureMaterial(material, opts)
+  );
 const torus = (r, tube, material, arc = Math.PI * 2, opts = {}) =>
-  new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 28, arc), ensureMaterial(material, opts));
+  new THREE.Mesh(
+    new THREE.TorusGeometry(r, tube, 12, 28, arc),
+    ensureMaterial(material, opts)
+  );
 
 function tagPieceMesh(mesh, role = 'base') {
   if (!mesh) return mesh;
@@ -5166,7 +6306,11 @@ function buildRook(materials = {}) {
   for (let i = 0; i < crenels; i++) {
     const chunk = tagPieceMesh(box(0.5, 0.55, 0.5, baseMat));
     const angle = i * ((Math.PI * 2) / crenels);
-    chunk.position.set(Math.cos(angle) * 0.8, PIECE_Y + 2.95, Math.sin(angle) * 0.8);
+    chunk.position.set(
+      Math.cos(angle) * 0.8,
+      PIECE_Y + 2.95,
+      Math.sin(angle) * 0.8
+    );
     crown.add(chunk);
   }
   g.add(crown);
@@ -5250,7 +6394,11 @@ function buildQueen(materials = {}) {
   for (let i = 0; i < spikes; i++) {
     const spike = tagPieceMesh(cone(0.16, 0.65, accentMat), 'accent');
     const angle = i * ((Math.PI * 2) / spikes);
-    spike.position.set(Math.cos(angle) * 0.95, PIECE_Y + 3.65, Math.sin(angle) * 0.95);
+    spike.position.set(
+      Math.cos(angle) * 0.95,
+      PIECE_Y + 3.65,
+      Math.sin(angle) * 0.95
+    );
     spike.rotation.x = -Math.PI / 2;
     crown.add(spike);
   }
@@ -5347,7 +6495,9 @@ function boardToFEN(board, whiteToMove = true) {
 }
 
 function cloneBoard(b) {
-  return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
+  return b.map((r) =>
+    r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null))
+  );
 }
 
 // Offsets
@@ -5494,7 +6644,13 @@ function applyMove(board, fromR, fromC, toR, toC) {
     piece.t = 'Q';
     promoted = true;
   }
-  return { captured, promoted, previousType, castle: castleSnapshot, pieceMovedFlag: previousMovedFlag };
+  return {
+    captured,
+    promoted,
+    previousType,
+    castle: castleSnapshot,
+    pieceMovedFlag: previousMovedFlag
+  };
 }
 
 function revertMove(board, fromR, fromC, toR, toC, snapshot) {
@@ -5530,9 +6686,15 @@ function getCastlingTargets(board, r, c, isWhiteTurn) {
   const results = [];
   const checkSide = (rookCol, emptyCols, transitCols, destCol) => {
     const rook = board[homeRow][rookCol];
-    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved) return;
+    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved)
+      return;
     if (emptyCols.some((col) => board[homeRow][col])) return;
-    if (transitCols.some((col) => isSquareAttacked(board, homeRow, col, !isWhiteTurn))) return;
+    if (
+      transitCols.some((col) =>
+        isSquareAttacked(board, homeRow, col, !isWhiteTurn)
+      )
+    )
+      return;
     results.push([homeRow, destCol]);
   };
 
@@ -5542,7 +6704,12 @@ function getCastlingTargets(board, r, c, isWhiteTurn) {
 }
 
 function generateMoves(board, whiteTurn, options = {}) {
-  const { fromR = null, fromC = null, onlyCaptures = false, limit = Infinity } = options;
+  const {
+    fromR = null,
+    fromC = null,
+    onlyCaptures = false,
+    limit = Infinity
+  } = options;
   const moves = [];
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
@@ -5581,7 +6748,10 @@ function generateMoves(board, whiteTurn, options = {}) {
 function legalMoves(board, r, c) {
   const piece = board[r][c];
   if (!piece) return [];
-  return generateMoves(board, piece.w, { fromR: r, fromC: c }).map((move) => [move.toR, move.toC]);
+  return generateMoves(board, piece.w, { fromR: r, fromC: c }).map((move) => [
+    move.toR,
+    move.toC
+  ]);
 }
 
 function anyLegal(board, whiteTurn) {
@@ -5593,139 +6763,92 @@ const PIECE_VALUE = { P: 100, N: 320, B: 330, R: 500, Q: 950, K: 0 };
 const MG_PIECE_VALUE = { P: 82, N: 337, B: 365, R: 477, Q: 1025, K: 0 };
 const EG_PIECE_VALUE = { P: 94, N: 281, B: 297, R: 512, Q: 936, K: 0 };
 const PIECE_PHASE = { P: 0, N: 1, B: 1, R: 2, Q: 4, K: 0 };
-const TOTAL_PHASE = PIECE_PHASE.N * 4 + PIECE_PHASE.B * 4 + PIECE_PHASE.R * 4 + PIECE_PHASE.Q * 2;
+const TOTAL_PHASE =
+  PIECE_PHASE.N * 4 + PIECE_PHASE.B * 4 + PIECE_PHASE.R * 4 + PIECE_PHASE.Q * 2;
 
 const PIECE_SQUARE_TABLES = Object.freeze({
   P: {
     opening: [
-      0, 0, 0, 0, 0, 0, 0, 0,
-      98, 134, 61, 95, 68, 126, 34, -11,
-      -6, 7, 26, 31, 65, 56, 25, -20,
-      -14, 13, 6, 21, 23, 12, 17, -23,
-      -27, -2, -5, 12, 17, 6, 10, -25,
-      -26, -4, -4, -10, 3, 3, 33, -12,
-      -35, -1, -20, -23, -15, 24, 38, -22,
-      0, 0, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 0, 0, 98, 134, 61, 95, 68, 126, 34, -11, -6, 7, 26, 31,
+      65, 56, 25, -20, -14, 13, 6, 21, 23, 12, 17, -23, -27, -2, -5, 12, 17, 6,
+      10, -25, -26, -4, -4, -10, 3, 3, 33, -12, -35, -1, -20, -23, -15, 24, 38,
+      -22, 0, 0, 0, 0, 0, 0, 0, 0
     ],
     endgame: [
-      0, 0, 0, 0, 0, 0, 0, 0,
-      178, 173, 158, 134, 147, 132, 165, 187,
-      94, 100, 85, 67, 56, 53, 82, 84,
-      32, 24, 13, 5, -2, 4, 17, 17,
-      13, 9, -3, -7, -7, -8, 3, -1,
-      4, 7, -6, 1, 0, -5, -1, -8,
-      13, 8, 8, 10, 13, 0, 2, -7,
-      0, 0, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 0, 0, 178, 173, 158, 134, 147, 132, 165, 187, 94, 100,
+      85, 67, 56, 53, 82, 84, 32, 24, 13, 5, -2, 4, 17, 17, 13, 9, -3, -7, -7,
+      -8, 3, -1, 4, 7, -6, 1, 0, -5, -1, -8, 13, 8, 8, 10, 13, 0, 2, -7, 0, 0,
+      0, 0, 0, 0, 0, 0
     ]
   },
   N: {
     opening: [
-      -167, -89, -34, -49, 61, -97, -15, -107,
-      -73, -41, 72, 36, 23, 62, 7, -17,
-      -47, 60, 37, 65, 84, 129, 73, 44,
-      -9, 17, 19, 53, 37, 69, 18, 22,
-      -13, 4, 16, 13, 28, 19, 21, -8,
-      -23, -9, 12, 10, 19, 17, 25, -16,
-      -29, -53, -12, -3, -1, 18, -14, -19,
-      -105, -21, -58, -33, -17, -28, -19, -23
+      -167, -89, -34, -49, 61, -97, -15, -107, -73, -41, 72, 36, 23, 62, 7, -17,
+      -47, 60, 37, 65, 84, 129, 73, 44, -9, 17, 19, 53, 37, 69, 18, 22, -13, 4,
+      16, 13, 28, 19, 21, -8, -23, -9, 12, 10, 19, 17, 25, -16, -29, -53, -12,
+      -3, -1, 18, -14, -19, -105, -21, -58, -33, -17, -28, -19, -23
     ],
     endgame: [
-      -58, -38, -13, -28, -31, -27, -63, -99,
-      -25, -8, -25, -2, -9, -25, -24, -52,
-      -24, -20, 10, 9, -1, -9, -19, -41,
-      -17, 3, 22, 22, 22, 11, 8, -18,
-      -18, -6, 16, 25, 16, 17, 4, -18,
-      -23, -3, -1, 15, 10, -3, -20, -22,
-      -42, -20, -10, -5, -2, -20, -23, -44,
-      -29, -51, -23, -15, -22, -18, -50, -64
+      -58, -38, -13, -28, -31, -27, -63, -99, -25, -8, -25, -2, -9, -25, -24,
+      -52, -24, -20, 10, 9, -1, -9, -19, -41, -17, 3, 22, 22, 22, 11, 8, -18,
+      -18, -6, 16, 25, 16, 17, 4, -18, -23, -3, -1, 15, 10, -3, -20, -22, -42,
+      -20, -10, -5, -2, -20, -23, -44, -29, -51, -23, -15, -22, -18, -50, -64
     ]
   },
   B: {
     opening: [
-      -29, 4, -82, -37, -25, -42, 7, -8,
-      -26, 16, -18, -13, 30, 59, 18, -47,
-      -16, 37, 43, 40, 35, 50, 37, -2,
-      -4, 5, 19, 50, 37, 37, 7, -2,
-      -6, 13, 13, 26, 34, 12, 10, 4,
-      0, 13, 14, 27, 25, 15, 10, 0,
-      14, 25, 24, 15, 8, 25, 20, 15,
-      -13, 0, -13, -17, -43, -7, -9, -21
+      -29, 4, -82, -37, -25, -42, 7, -8, -26, 16, -18, -13, 30, 59, 18, -47,
+      -16, 37, 43, 40, 35, 50, 37, -2, -4, 5, 19, 50, 37, 37, 7, -2, -6, 13, 13,
+      26, 34, 12, 10, 4, 0, 13, 14, 27, 25, 15, 10, 0, 14, 25, 24, 15, 8, 25,
+      20, 15, -13, 0, -13, -17, -43, -7, -9, -21
     ],
     endgame: [
-      -14, -21, -11, -8, -7, -9, -17, -24,
-      -8, -4, 7, -12, -3, -13, -4, -14,
-      2, -8, 0, -1, -2, 6, 0, 4,
-      -3, 9, 12, 9, 14, 10, 3, 2,
-      -6, 3, 13, 19, 7, 10, -3, -9,
-      -12, -3, 8, 10, 13, 3, -7, -15,
-      -14, -18, -7, -1, 4, -9, -15, -27,
+      -14, -21, -11, -8, -7, -9, -17, -24, -8, -4, 7, -12, -3, -13, -4, -14, 2,
+      -8, 0, -1, -2, 6, 0, 4, -3, 9, 12, 9, 14, 10, 3, 2, -6, 3, 13, 19, 7, 10,
+      -3, -9, -12, -3, 8, 10, 13, 3, -7, -15, -14, -18, -7, -1, 4, -9, -15, -27,
       -23, -9, -23, -5, -9, -16, -5, -17
     ]
   },
   R: {
     opening: [
-      32, 42, 32, 51, 63, 9, 31, 43,
-      27, 32, 58, 62, 80, 67, 26, 44,
-      -5, 19, 26, 36, 17, 45, 61, 16,
-      -24, -11, 7, 26, 24, 35, 38, -22,
-      -36, -26, -12, -1, 9, -7, 6, -23,
-      -45, -25, -16, -17, 3, 0, -5, -33,
-      -44, -16, -20, -9, -1, 11, -6, -71,
-      -19, -13, 1, 17, 16, 7, -37, -26
+      32, 42, 32, 51, 63, 9, 31, 43, 27, 32, 58, 62, 80, 67, 26, 44, -5, 19, 26,
+      36, 17, 45, 61, 16, -24, -11, 7, 26, 24, 35, 38, -22, -36, -26, -12, -1,
+      9, -7, 6, -23, -45, -25, -16, -17, 3, 0, -5, -33, -44, -16, -20, -9, -1,
+      11, -6, -71, -19, -13, 1, 17, 16, 7, -37, -26
     ],
     endgame: [
-      13, 10, 18, 15, 12, 12, 8, 5,
-      11, 13, 13, 11, -3, 3, 8, 3,
-      7, 7, 7, 5, 4, -3, -5, -3,
-      4, 3, 13, 1, 2, 1, -1, 2,
-      3, 5, 8, 4, -5, -6, -8, -11,
-      -4, 0, -5, -1, -7, -12, -8, -16,
-      -6, -6, 0, 2, -9, -9, -11, -3,
-      -9, 2, 3, -1, -5, -13, 4, -20
+      13, 10, 18, 15, 12, 12, 8, 5, 11, 13, 13, 11, -3, 3, 8, 3, 7, 7, 7, 5, 4,
+      -3, -5, -3, 4, 3, 13, 1, 2, 1, -1, 2, 3, 5, 8, 4, -5, -6, -8, -11, -4, 0,
+      -5, -1, -7, -12, -8, -16, -6, -6, 0, 2, -9, -9, -11, -3, -9, 2, 3, -1, -5,
+      -13, 4, -20
     ]
   },
   Q: {
     opening: [
-      -28, 0, 29, 12, 59, 44, 43, 45,
-      -24, -39, -5, 1, -16, 57, 28, 54,
-      -13, -17, 7, 8, 29, 56, 47, 57,
-      -27, -27, -16, -16, -1, 17, -2, 1,
-      -9, -26, -9, -10, -2, -4, 3, -3,
-      -14, 2, -11, -2, -5, 2, 14, 5,
-      -35, -8, 11, 2, 8, 15, -3, 1,
-      -1, -18, -9, 10, -15, -25, -31, -50
+      -28, 0, 29, 12, 59, 44, 43, 45, -24, -39, -5, 1, -16, 57, 28, 54, -13,
+      -17, 7, 8, 29, 56, 47, 57, -27, -27, -16, -16, -1, 17, -2, 1, -9, -26, -9,
+      -10, -2, -4, 3, -3, -14, 2, -11, -2, -5, 2, 14, 5, -35, -8, 11, 2, 8, 15,
+      -3, 1, -1, -18, -9, 10, -15, -25, -31, -50
     ],
     endgame: [
-      -9, 22, 22, 27, 27, 19, 10, 20,
-      -17, 20, 32, 41, 58, 25, 30, 0,
-      -20, 6, 9, 49, 47, 35, 19, 9,
-      3, 22, 24, 45, 57, 40, 57, 36,
-      -18, 28, 19, 47, 31, 34, 39, 23,
-      -16, -27, 15, 6, 9, 17, 10, 5,
-      -22, -23, -30, -16, -16, -23, -36, -32,
-      -33, -28, -22, -43, -5, -32, -20, -41
+      -9, 22, 22, 27, 27, 19, 10, 20, -17, 20, 32, 41, 58, 25, 30, 0, -20, 6, 9,
+      49, 47, 35, 19, 9, 3, 22, 24, 45, 57, 40, 57, 36, -18, 28, 19, 47, 31, 34,
+      39, 23, -16, -27, 15, 6, 9, 17, 10, 5, -22, -23, -30, -16, -16, -23, -36,
+      -32, -33, -28, -22, -43, -5, -32, -20, -41
     ]
   },
   K: {
     opening: [
-      -65, 23, 16, -15, -56, -34, 2, 13,
-      29, -1, -20, -7, -8, -4, -38, -29,
-      -9, 24, 2, -16, -20, 6, 22, -22,
-      -17, -20, -12, -27, -30, -25, -14, -36,
-      -49, -1, -27, -39, -46, -44, -33, -51,
-      -14, -14, -22, -46, -44, -30, -15, -27,
-      1, 7, -8, -64, -43, -16, 9, 8,
-      -15, 36, 12, -54, 8, -28, 24, 14
+      -65, 23, 16, -15, -56, -34, 2, 13, 29, -1, -20, -7, -8, -4, -38, -29, -9,
+      24, 2, -16, -20, 6, 22, -22, -17, -20, -12, -27, -30, -25, -14, -36, -49,
+      -1, -27, -39, -46, -44, -33, -51, -14, -14, -22, -46, -44, -30, -15, -27,
+      1, 7, -8, -64, -43, -16, 9, 8, -15, 36, 12, -54, 8, -28, 24, 14
     ],
     endgame: [
-      -74, -35, -18, -18, -11, 15, 4, -17,
-      -12, 17, 14, 17, 17, 38, 23, 11,
-      10, 17, 23, 15, 20, 45, 44, 13,
-      -8, 22, 24, 27, 26, 33, 26, 3,
-      -18, -4, 21, 24, 27, 23, 9, -11,
-      -19, -3, 11, 21, 23, 16, 7, -9,
-      -27, -11, 4, 13, 14, 4, -5, -17,
-      -53, -34, -21, -11, -28, -14, -24, -43
+      -74, -35, -18, -18, -11, 15, 4, -17, -12, 17, 14, 17, 17, 38, 23, 11, 10,
+      17, 23, 15, 20, 45, 44, 13, -8, 22, 24, 27, 26, 33, 26, 3, -18, -4, 21,
+      24, 27, 23, 9, -11, -19, -3, 11, 21, 23, 16, 7, -9, -27, -11, 4, 13, 14,
+      4, -5, -17, -53, -34, -21, -11, -28, -14, -24, -43
     ]
   }
 });
@@ -5749,7 +6872,10 @@ function boardToKey(board, whiteTurn) {
 function scoreMove(move) {
   let score = 0;
   if (move.captured) {
-    score += 1000 + (PIECE_VALUE[move.captured] ?? 0) * 10 - (PIECE_VALUE[move.piece] ?? 0);
+    score +=
+      1000 +
+      (PIECE_VALUE[move.captured] ?? 0) * 10 -
+      (PIECE_VALUE[move.piece] ?? 0);
   }
   if (move.promotion) score += 900;
   const tables = PIECE_SQUARE_TABLES[move.piece];
@@ -5792,7 +6918,13 @@ function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
   if (whiteTurn) {
     let value = alpha;
     for (const move of captures) {
-      const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+      const snapshot = applyMove(
+        board,
+        move.fromR,
+        move.fromC,
+        move.toR,
+        move.toC
+      );
       const score = quiescence(board, value, beta, false, depth + 1);
       revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
       if (score > value) value = score;
@@ -5802,7 +6934,13 @@ function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
   }
   let value = beta;
   for (const move of captures) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const snapshot = applyMove(
+      board,
+      move.fromR,
+      move.fromC,
+      move.toR,
+      move.toC
+    );
     const score = quiescence(board, alpha, value, true, depth + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (score < value) value = score;
@@ -5893,8 +7031,10 @@ function evaluate(board, whiteTurn) {
     blackPawnRows[file].sort((a, b) => a - b);
   }
 
-  const hasWhitePawnOnFile = (file) => file >= 0 && file < 8 && whitePawnFiles[file] > 0;
-  const hasBlackPawnOnFile = (file) => file >= 0 && file < 8 && blackPawnFiles[file] > 0;
+  const hasWhitePawnOnFile = (file) =>
+    file >= 0 && file < 8 && whitePawnFiles[file] > 0;
+  const hasBlackPawnOnFile = (file) =>
+    file >= 0 && file < 8 && blackPawnFiles[file] > 0;
 
   whitePawns.forEach(({ r, c }) => {
     if (!hasWhitePawnOnFile(c - 1) && !hasWhitePawnOnFile(c + 1)) {
@@ -5972,7 +7112,13 @@ function minimax(board, depth, whiteTurn, alpha, beta, ply = 0) {
   orderMoves(moves);
   let value = whiteTurn ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const snapshot = applyMove(
+      board,
+      move.fromR,
+      move.fromC,
+      move.toR,
+      move.toC
+    );
     const score = minimax(board, depth - 1, !whiteTurn, alpha, beta, ply + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
 
@@ -6006,8 +7152,21 @@ function bestAIMove(board, aiPlaysWhite, depth = 4) {
   let bestMove = null;
   let bestScore = aiPlaysWhite ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
-    const score = minimax(board, searchDepth - 1, !aiPlaysWhite, -Infinity, Infinity, 1);
+    const snapshot = applyMove(
+      board,
+      move.fromR,
+      move.fromC,
+      move.toR,
+      move.toC
+    );
+    const score = minimax(
+      board,
+      searchDepth - 1,
+      !aiPlaysWhite,
+      -Infinity,
+      Infinity,
+      1
+    );
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (aiPlaysWhite ? score > bestScore : score < bestScore) {
       bestScore = score;
@@ -6079,7 +7238,11 @@ function Chess3D({
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const initial2dViewRef = useRef(null);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
+  const settingsRef = useRef({
+    showHighlights: true,
+    soundEnabled: true,
+    moveMode: 'click'
+  });
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / DEFAULT_TARGET_FPS,
     renderResolutionScale: 1,
@@ -6126,7 +7289,9 @@ function Chess3D({
   const [playerFlag, setPlayerFlag] = useState(resolvedInitialFlag);
   const [aiFlag, setAiFlag] = useState(() => {
     const preferred =
-      initialAiFlag && FLAG_EMOJIS.includes(initialAiFlag) ? initialAiFlag : null;
+      initialAiFlag && FLAG_EMOJIS.includes(initialAiFlag)
+        ? initialAiFlag
+        : null;
     if (preferred) return preferred;
     if (typeof window !== 'undefined') {
       try {
@@ -6169,7 +7334,10 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
-  const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
+  const resolvedAccountId = useMemo(
+    () => chessBattleAccountId(accountId),
+    [accountId]
+  );
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const chessInventory = useMemo(
     () => getChessBattleInventory(resolvedAccountId),
@@ -6177,12 +7345,16 @@ function Chess3D({
   );
   useEffect(() => {
     const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+      if (
+        !event?.detail?.accountId ||
+        event.detail.accountId === resolvedAccountId
+      ) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
-    return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
+    return () =>
+      window.removeEventListener('chessBattleInventoryUpdate', handler);
   }, [resolvedAccountId]);
   const [p1QuickIdx, setP1QuickIdx] = useState(2);
   const [p2QuickIdx, setP2QuickIdx] = useState(3);
@@ -6199,8 +7371,13 @@ function Chess3D({
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_COMMENTARY_PRESET_ID;
     try {
-      const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && CHESS_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+      const stored = window.localStorage?.getItem(
+        COMMENTARY_PRESET_STORAGE_KEY
+      );
+      if (
+        stored &&
+        CHESS_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)
+      ) {
         return stored;
       }
     } catch {}
@@ -6216,7 +7393,9 @@ function Chess3D({
   });
   const [isMuted, setIsMuted] = useState(() => isGameMuted());
   const effectiveSoundEnabled = soundEnabled && !isMuted;
-  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
+  const [commentarySupported, setCommentarySupported] = useState(() =>
+    getSpeechSupport()
+  );
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -6235,7 +7414,8 @@ function Chess3D({
     if (typeof window === 'undefined') return fallback;
     try {
       const stored = window.localStorage?.getItem(GRAPHICS_STORAGE_KEY);
-      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored)) return stored;
+      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored))
+        return stored;
     } catch {}
     return fallback;
   });
@@ -6266,14 +7446,17 @@ function Chess3D({
   );
   const activeCommentaryPreset = useMemo(
     () =>
-      CHESS_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
-      CHESS_BATTLE_COMMENTARY_PRESETS[0],
+      CHESS_BATTLE_COMMENTARY_PRESETS.find(
+        (preset) => preset.id === commentaryPresetId
+      ) || CHESS_BATTLE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+    const unsubscribe = onSpeechSupportChange((supported) =>
+      setCommentarySupported(Boolean(supported))
+    );
     return () => {
       unsubscribe();
     };
@@ -6299,14 +7482,20 @@ function Chess3D({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+      window.localStorage?.setItem(
+        COMMENTARY_PRESET_STORAGE_KEY,
+        commentaryPresetId
+      );
     } catch {}
   }, [commentaryPresetId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+      window.localStorage?.setItem(
+        COMMENTARY_MUTE_STORAGE_KEY,
+        commentaryMuted ? '1' : '0'
+      );
     } catch {}
   }, [commentaryMuted]);
 
@@ -6322,17 +7511,24 @@ function Chess3D({
 
     const handleChessState = (payload = {}) => {
       if (!active) return;
-      if (payload.tableId && tableJoin.current && payload.tableId !== tableJoin.current)
+      if (
+        payload.tableId &&
+        tableJoin.current &&
+        payload.tableId !== tableJoin.current
+      )
         return;
       onlineRef.current.synced = true;
-      if (onlineRef.current.status !== 'started') onlineRef.current.status = 'in-progress';
+      if (onlineRef.current.status !== 'started')
+        onlineRef.current.status = 'in-progress';
       setOnlineStatus('in-game');
       onlineRef.current.applyRemoteMove?.(payload);
     };
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
+      const meIndex = players.findIndex(
+        (p) => String(p.id) === String(accountId)
+      );
       const opp = players.find((p) => String(p.id) !== String(accountId));
       if (opp) setOpponent(opp);
       const mySide =
@@ -6427,52 +7623,60 @@ function Chess3D({
     setMoveMode('click');
   }, [viewMode]);
 
-  const customizationSections = useMemo(
-    () => {
-      const selectedTableTheme = TABLE_THEME_OPTIONS[appearance.tables] ?? TABLE_THEME_OPTIONS[0];
-      const showTableMaterialOptions = SHAPE_CUSTOMIZATION_TABLE_IDS.has(selectedTableTheme?.id);
-      return CUSTOMIZATION_SECTIONS
-        .filter((section) => {
-          if (section.key === 'tableCloth' || section.key === 'tableFinish') {
-            return showTableMaterialOptions;
-          }
-          return true;
-        })
-        .map((section) => ({
-          ...section,
-          options: section.options
-            .map((option, idx) => ({ ...option, idx }))
-            .filter((option) => {
-              if (section.key === 'tables') return isChessOptionUnlocked(section.key, option.id, chessInventory);
-              if (section.key === 'tableCloth') return true;
-              return isChessOptionUnlocked(section.key, option.id, chessInventory);
-            })
-        }))
-        .filter((section) => section.options.length > 0);
-    },
-    [appearance.tables, chessInventory]
-  );
+  const customizationSections = useMemo(() => {
+    const selectedTableTheme =
+      TABLE_THEME_OPTIONS[appearance.tables] ?? TABLE_THEME_OPTIONS[0];
+    const showTableMaterialOptions = SHAPE_CUSTOMIZATION_TABLE_IDS.has(
+      selectedTableTheme?.id
+    );
+    return CUSTOMIZATION_SECTIONS.filter((section) => {
+      if (section.key === 'tableCloth' || section.key === 'tableFinish') {
+        return showTableMaterialOptions;
+      }
+      return true;
+    })
+      .map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter((option) => {
+            if (section.key === 'tables')
+              return isChessOptionUnlocked(
+                section.key,
+                option.id,
+                chessInventory
+              );
+            if (section.key === 'tableCloth') return true;
+            return isChessOptionUnlocked(
+              section.key,
+              option.id,
+              chessInventory
+            );
+          })
+      }))
+      .filter((section) => section.options.length > 0);
+  }, [appearance.tables, chessInventory]);
 
   const quickSideOptions = useMemo(
     () =>
-      QUICK_SIDE_COLORS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
-        isChessOptionUnlocked('sideColor', id, chessInventory)
+      QUICK_SIDE_COLORS.map((option, idx) => ({ ...option, idx })).filter(
+        ({ id }) => isChessOptionUnlocked('sideColor', id, chessInventory)
       ),
     [chessInventory]
   );
 
   const quickBoardOptions = useMemo(
     () =>
-      QUICK_BOARD_THEMES.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
-        isChessOptionUnlocked('boardTheme', id, chessInventory)
+      QUICK_BOARD_THEMES.map((option, idx) => ({ ...option, idx })).filter(
+        ({ id }) => isChessOptionUnlocked('boardTheme', id, chessInventory)
       ),
     [chessInventory]
   );
 
   const quickHeadOptions = useMemo(
     () =>
-      QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
-        isChessOptionUnlocked('headStyle', id, chessInventory)
+      QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(
+        ({ id }) => isChessOptionUnlocked('headStyle', id, chessInventory)
       ),
     [chessInventory]
   );
@@ -6484,10 +7688,17 @@ function Chess3D({
 
   useEffect(() => {
     setP1QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions));
-    setP2QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0));
+    setP2QuickIdx((prev) =>
+      clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0)
+    );
     setHeadQuickIdx((prev) => clampQuickSelection(prev, quickHeadOptions));
     setBoardQuickIdx((prev) => clampQuickSelection(prev, quickBoardOptions));
-  }, [clampQuickSelection, quickBoardOptions, quickHeadOptions, quickSideOptions]);
+  }, [
+    clampQuickSelection,
+    quickBoardOptions,
+    quickHeadOptions,
+    quickSideOptions
+  ]);
 
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
@@ -6506,7 +7717,8 @@ function Chess3D({
         const option = options[idx];
         const isUnlocked = (opt) => {
           if (!opt) return false;
-          if (key === 'tables') return isChessOptionUnlocked(key, opt.id, chessInventory);
+          if (key === 'tables')
+            return isChessOptionUnlocked(key, opt.id, chessInventory);
           if (key === 'tableCloth') return true;
           return isChessOptionUnlocked(key, opt.id, chessInventory);
         };
@@ -6554,14 +7766,20 @@ function Chess3D({
       );
     }
     if (key === 'tableFinish') {
-      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
-        ? option.swatches
-        : [option.swatches?.[0] || '#7c5e45', option.swatches?.[1] || '#3f2e23'];
+      const swatches =
+        Array.isArray(option.swatches) && option.swatches.length >= 2
+          ? option.swatches
+          : [
+              option.swatches?.[0] || '#7c5e45',
+              option.swatches?.[1] || '#3f2e23'
+            ];
       return (
         <div className={baseClass}>
           <div
             className="absolute inset-0"
-            style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
+            style={{
+              background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
+            }}
           />
           <div className={overlay} />
         </div>
@@ -6587,16 +7805,19 @@ function Chess3D({
         <div className={baseClass}>
           <div
             className="absolute inset-0"
-            style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
+            style={{
+              background: `linear-gradient(135deg, ${primary} 40%, ${accent})`
+            }}
           />
           <div className={overlay} />
         </div>
       );
     }
     if (key === 'environmentHdri') {
-      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
-        ? option.swatches
-        : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
+      const swatches =
+        Array.isArray(option.swatches) && option.swatches.length >= 2
+          ? option.swatches
+          : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
       return (
         <div className={baseClass}>
           {option.thumbnail ? (
@@ -6609,7 +7830,9 @@ function Chess3D({
           ) : (
             <div
               className="absolute inset-0"
-              style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
+              style={{
+                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
+              }}
             />
           )}
           <div className={overlay} />
@@ -6646,23 +7869,33 @@ function Chess3D({
   }, [seatAnchors]);
 
   useEffect(() => {
-    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
+    if (
+      !customizationSections.some(
+        (section) => section.key === activeCustomizationKey
+      )
+    ) {
       setActiveCustomizationKey(customizationSections[0]?.key ?? 'tables');
     }
   }, [activeCustomizationKey, customizationSections]);
 
   const activeCustomizationSection =
-    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
+    customizationSections.find(({ key }) => key === activeCustomizationKey) ??
+    customizationSections[0];
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
       const arena = arenaRef.current;
       if (!arena?.sandTimer) return;
       const surfaceY = arena.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
+      const radius =
+        (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
       const targetZ = (_turnWhiteValue ? 1 : -1) * radius;
       const targetRot = _turnWhiteValue ? Math.PI : 0;
-      arena.sandTimer.group.position.set(0, surfaceY + SAND_TIMER_SURFACE_OFFSET, targetZ);
+      arena.sandTimer.group.position.set(
+        0,
+        surfaceY + SAND_TIMER_SURFACE_OFFSET,
+        targetZ
+      );
       arena.sandTimer.group.rotation.y = targetRot;
     },
     []
@@ -6671,12 +7904,18 @@ function Chess3D({
   const players = useMemo(() => {
     const accentColor = paletteRef.current?.accent ?? '#4ce0c3';
     const effectivePlayerFlag =
-      playerFlag || resolvedInitialFlag || (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+      playerFlag ||
+      resolvedInitialFlag ||
+      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
     const playerName =
-      avatarToName(effectivePlayerFlag) || username || avatarToName(avatar) || 'Player';
+      avatarToName(effectivePlayerFlag) ||
+      username ||
+      avatarToName(avatar) ||
+      'Player';
     const playerPhoto = avatar || effectivePlayerFlag || '🙂';
 
-    const effectiveAiFlag = aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
+    const effectiveAiFlag =
+      aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
     const aiName = avatarToName(effectiveAiFlag) || 'AI Rival';
     const onlineRivalName = opponent?.name || 'Waiting for opponent…';
     const onlineRivalPhoto = opponent?.avatar || onlineRivalName || '⏳';
@@ -6698,7 +7937,16 @@ function Chess3D({
         isTurn: !ui.turnWhite
       }
     ];
-  }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  }, [
+    aiFlag,
+    appearance,
+    avatar,
+    opponent,
+    playerFlag,
+    resolvedInitialFlag,
+    ui.turnWhite,
+    username
+  ]);
   const giftPlayers = useMemo(
     () =>
       players.map((player) => ({
@@ -6718,11 +7966,16 @@ function Chess3D({
 
   const resolveChessSideName = useCallback((isWhite) => {
     const [whitePlayer, blackPlayer] = playersRef.current || [];
-    return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
+    return isWhite
+      ? whitePlayer?.name || 'White'
+      : blackPlayer?.name || 'Black';
   }, []);
 
   const resolveCommentarySpeaker = useCallback(() => {
-    const speakers = [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst];
+    const speakers = [
+      CHESS_BATTLE_SPEAKERS.lead,
+      CHESS_BATTLE_SPEAKERS.analyst
+    ];
     const idx = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = idx + 1;
     return speakers[idx % speakers.length] || CHESS_BATTLE_SPEAKERS.lead;
@@ -6749,7 +8002,10 @@ function Chess3D({
   }, []);
 
   const enqueueChessCommentary = useCallback(
-    (lines, { priority = false, preset = commentaryPresetRef.current } = {}) => {
+    (
+      lines,
+      { priority = false, preset = commentaryPresetRef.current } = {}
+    ) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
       if (!commentaryReadyRef.current) {
@@ -6757,8 +8013,16 @@ function Chess3D({
         return;
       }
       const now = performance.now();
-      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
-      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (
+        !priority &&
+        now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS
+      )
+        return;
+      if (
+        !priority &&
+        commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT
+      )
+        return;
       if (priority) {
         commentaryQueueRef.current.unshift({ lines, preset });
       } else {
@@ -6821,7 +8085,8 @@ function Chess3D({
 
   useEffect(() => {
     if (commentaryIntroPlayedRef.current) return;
-    if (!commentarySupported || commentaryMutedRef.current || isGameMuted()) return;
+    if (!commentarySupported || commentaryMutedRef.current || isGameMuted())
+      return;
     const [whitePlayer, blackPlayer] = players || [];
     if (!whitePlayer || !blackPlayer) return;
     commentaryIntroPlayedRef.current = true;
@@ -6832,7 +8097,12 @@ function Chess3D({
       arena: 'Chess Battle Royal arena'
     });
     enqueueChessCommentary(script, { priority: true });
-  }, [commentaryPresetId, commentarySupported, enqueueChessCommentary, players]);
+  }, [
+    commentaryPresetId,
+    commentarySupported,
+    enqueueChessCommentary,
+    players
+  ]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -6859,7 +8129,10 @@ function Chess3D({
     }
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+        window.localStorage?.setItem(
+          APPEARANCE_STORAGE_KEY,
+          JSON.stringify(appearance)
+        );
       } catch {}
     }
   }, [appearance]);
@@ -6927,7 +8200,8 @@ function Chess3D({
     const arena = arenaRef.current;
     if (!arena?.renderer || typeof window === 'undefined') return;
     const devicePixelRatio = window.devicePixelRatio || 1;
-    const scaledPixelRatio = devicePixelRatio * renderSettingsRef.current.pixelRatioScale;
+    const scaledPixelRatio =
+      devicePixelRatio * renderSettingsRef.current.pixelRatioScale;
     const pixelRatio = Math.max(
       MIN_RENDER_PIXEL_RATIO,
       Math.min(renderSettingsRef.current.pixelRatioCap, scaledPixelRatio)
@@ -6997,7 +8271,12 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [
+      swordSoundRef,
+      droneSoundRef,
+      missileLaunchSoundRef,
+      missileImpactSoundRef
+    ].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -7017,24 +8296,41 @@ function Chess3D({
     const handleVolumeChange = () => {
       const volume = getGameVolume();
       if (bombSoundRef.current) {
-        bombSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        bombSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
       if (timerSoundRef.current) {
-        timerSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        timerSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
       if (moveSoundRef.current) {
-        moveSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        moveSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
       if (checkSoundRef.current) {
-        checkSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        checkSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
       if (mateSoundRef.current) {
-        mateSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        mateSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
       if (laughSoundRef.current) {
-        laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+        laughSoundRef.current.volume = settingsRef.current.soundEnabled
+          ? volume
+          : 0;
       }
-      [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [
+        swordSoundRef,
+        droneSoundRef,
+        missileLaunchSoundRef,
+        missileImpactSoundRef
+      ].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -7047,17 +8343,27 @@ function Chess3D({
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+    if (apply)
+      apply(
+        'white',
+        QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex
+      );
   }, [p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+    if (apply)
+      apply(
+        'black',
+        QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex
+      );
   }, [p2QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applyPawnHeadPreset;
-    const presetId = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
+    const presetId =
+      QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ??
+      'current';
     if (apply) apply(presetId);
   }, [headQuickIdx]);
 
@@ -7092,24 +8398,35 @@ function Chess3D({
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-    const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
-    const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
+    const isBeautifulGameSet = (
+      arena.activePieceSetId ||
+      nextPieceSetId ||
+      ''
+    ).startsWith('beautifulGame');
+    const tableFinish =
+      TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
     const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
+    const clothOption =
+      TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
     const baseOption = DEFAULT_BASE_OPTION;
-    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
+    const chairOption =
+      CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const tableTheme =
+      TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
+    const { option: shapeOption, rotationY } =
+      getEffectiveShapeConfigForTableTheme(tableTheme);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+    const loadPieceSet = (size = RAW_BOARD_SIZE) =>
+      Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption || tableTheme) {
       const shapeChanged = shapeOption?.id !== arena.tableShapeId;
       const themeChanged = tableTheme?.id !== arena.tableThemeId;
-      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
+      const rotationChanged =
+        Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
 
       const rebuildTable = async () => {
         const { boardGroup } = arena;
@@ -7136,10 +8453,19 @@ function Chess3D({
           return;
         }
         if (nextTable?.materials) {
-          applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
+          applyTableMaterials(
+            nextTable.materials,
+            { woodOption, clothOption, baseOption },
+            arena.renderer
+          );
         }
-        const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
-        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, arenaFloorY);
+        const arenaFloorY = Number.isFinite(arena.environmentFloorY)
+          ? arena.environmentFloorY
+          : 0;
+        const tableFloorOffset = alignGroupToFloorY(
+          nextTable?.group,
+          arenaFloorY
+        );
         if (nextTable?.surfaceY != null) {
           nextTable.surfaceY += tableFloorOffset;
         }
@@ -7154,15 +8480,21 @@ function Chess3D({
         if (arena.boardLookTarget) {
           const targetY = boardGroup
             ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
-            : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
+            : (nextTable?.surfaceY ?? TABLE_HEIGHT) +
+              (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
+        (arena.chairs || []).forEach((chair) =>
+          alignGroupToFloorY(chair.group, arenaFloorY)
+        );
         const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
         const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
         const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
         const placementOffset = alignArenaContentsToRoom(
-          [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)],
+          [
+            nextTable?.group,
+            ...(arena.chairs || []).map((chair) => chair.group)
+          ],
           roomHalfWidth,
           roomHalfDepth
         );
@@ -7172,7 +8504,11 @@ function Chess3D({
           arena.boardLookTarget.x = placementOffset.x;
           arena.boardLookTarget.z = placementOffset.z;
         }
-        if (arena.camera && (Math.abs(placementDelta.x) > 1e-4 || Math.abs(placementDelta.z) > 1e-4)) {
+        if (
+          arena.camera &&
+          (Math.abs(placementDelta.x) > 1e-4 ||
+            Math.abs(placementDelta.z) > 1e-4)
+        ) {
           arena.camera.position.x += placementDelta.x;
           arena.camera.position.z += placementDelta.z;
         }
@@ -7181,22 +8517,36 @@ function Chess3D({
           cam.position.x += placementDelta.x;
           cam.position.z += placementDelta.z;
         });
-        const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
+        const arenaGroups = [
+          nextTable?.group,
+          ...(arena.chairs || []).map((chair) => chair.group)
+        ];
         groundArenaGroups(arenaGroups, arenaFloorY);
         const updatedFloorY = computeGroupFloorY(arenaGroups);
         environmentFloorRef.current = updatedFloorY;
         arena.environmentFloorY = updatedFloorY;
         updateEnvironmentRef.current?.(hdriVariantRef.current);
-        arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
-        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
+        arena.studioCameras?.forEach((cam) =>
+          cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3())
+        );
+        arena.controls?.target.copy(
+          arena.boardLookTarget ?? new THREE.Vector3()
+        );
         arena.controls?.update();
         fitRef.current?.();
       };
 
       if (themeChanged || shapeChanged || rotationChanged || !arena.tableInfo) {
         void rebuildTable();
-      } else if (arena.tableInfo?.materials && tableTheme?.source !== 'polyhaven') {
-        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
+      } else if (
+        arena.tableInfo?.materials &&
+        tableTheme?.source !== 'polyhaven'
+      ) {
+        applyTableMaterials(
+          arena.tableInfo.materials,
+          { woodOption, clothOption, baseOption },
+          arena.renderer
+        );
       }
     }
 
@@ -7209,7 +8559,8 @@ function Chess3D({
       }
     }
 
-    const shouldRefreshBoardPieces = !tableOrSeatAppearanceChanged || boardOrPieceAppearanceChanged;
+    const shouldRefreshBoardPieces =
+      !tableOrSeatAppearanceChanged || boardOrPieceAppearanceChanged;
     if (shouldRefreshBoardPieces && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
@@ -7232,7 +8583,11 @@ function Chess3D({
       loadPieceSet(RAW_BOARD_SIZE)
         .then((assets) => {
           if (!arenaRef.current) return;
-          arenaRef.current.applyPieceSetAssets?.(assets, nextPieceSetId, pieceStyleOption);
+          arenaRef.current.applyPieceSetAssets?.(
+            assets,
+            nextPieceSetId,
+            pieceStyleOption
+          );
         })
         .catch((error) => {
           console.warn('Chess Battle Royal: failed to swap piece set', error);
@@ -7240,16 +8595,28 @@ function Chess3D({
     }
     arena.lastAppliedAppearance = normalized;
 
-    if (arena.boardMaterials && (!arena.boardModel || arena.usingProceduralBoard)) {
-      const usingExternalBoard = Boolean(arena.boardModel && !arena.usingProceduralBoard);
-      const { base: baseMat, top: topMat, coord: coordMat, tiles } = arena.boardMaterials;
+    if (
+      arena.boardMaterials &&
+      (!arena.boardModel || arena.usingProceduralBoard)
+    ) {
+      const usingExternalBoard = Boolean(
+        arena.boardModel && !arena.usingProceduralBoard
+      );
+      const {
+        base: baseMat,
+        top: topMat,
+        coord: coordMat,
+        tiles
+      } = arena.boardMaterials;
       baseMat?.color?.set?.(boardTheme.frameDark);
       baseMat.roughness = boardTheme.frameRoughness;
       baseMat.metalness = boardTheme.frameMetalness;
       if ('clearcoat' in baseMat) baseMat.clearcoat = 0;
       if ('reflectivity' in baseMat) baseMat.reflectivity = 0;
       baseMat.transparent = usingExternalBoard;
-      baseMat.opacity = usingExternalBoard ? Math.min(baseMat.opacity ?? 0.02, 0.08) : 1;
+      baseMat.opacity = usingExternalBoard
+        ? Math.min(baseMat.opacity ?? 0.02, 0.08)
+        : 1;
       baseMat.depthWrite = !usingExternalBoard;
       topMat?.color?.set?.(boardTheme.frameLight);
       topMat.roughness = boardTheme.surfaceRoughness;
@@ -7257,18 +8624,25 @@ function Chess3D({
       if ('clearcoat' in topMat) topMat.clearcoat = 0;
       if ('reflectivity' in topMat) topMat.reflectivity = 0;
       topMat.transparent = usingExternalBoard;
-      topMat.opacity = usingExternalBoard ? Math.min(topMat.opacity ?? 0.02, 0.08) : 1;
+      topMat.opacity = usingExternalBoard
+        ? Math.min(topMat.opacity ?? 0.02, 0.08)
+        : 1;
       topMat.depthWrite = !usingExternalBoard;
       coordMat?.color?.set?.(palette.accent);
       tiles?.forEach((tileMesh) => {
         const isDark = (tileMesh.userData?.r + tileMesh.userData?.c) % 2 === 1;
-        tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
+        tileMesh.material.color.set(
+          isDark ? boardTheme.dark : boardTheme.light
+        );
         tileMesh.material.roughness = boardTheme.surfaceRoughness;
         tileMesh.material.metalness = boardTheme.surfaceMetalness;
         if ('clearcoat' in tileMesh.material) tileMesh.material.clearcoat = 0;
-        if ('reflectivity' in tileMesh.material) tileMesh.material.reflectivity = 0;
+        if ('reflectivity' in tileMesh.material)
+          tileMesh.material.reflectivity = 0;
         tileMesh.material.transparent = usingExternalBoard;
-        tileMesh.material.opacity = usingExternalBoard ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12) : 1;
+        tileMesh.material.opacity = usingExternalBoard
+          ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12)
+          : 1;
         tileMesh.material.depthWrite = !usingExternalBoard;
       });
     }
@@ -7287,13 +8661,20 @@ function Chess3D({
         arena.allPieceMeshes.forEach((group) => {
           const meshStyleId = group.userData?.__pieceStyleId;
           if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
-          const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
+          const colorKey =
+            group.userData?.__pieceColor === 'black' ? 'black' : 'white';
           const materialSet = nextPieceMaterials[colorKey];
           if (!materialSet) return;
           group.traverse((child) => {
             if (!child.isMesh) return;
-            const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
-            const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
+            const role =
+              child.userData?.__pieceMaterialRole === 'accent'
+                ? 'accent'
+                : 'base';
+            const mat =
+              role === 'accent' && materialSet.accent
+                ? materialSet.accent
+                : materialSet.base;
             if (mat) child.material = mat;
           });
         });
@@ -7379,38 +8760,59 @@ function Chess3D({
       const renderSettings = {
         targetFrameIntervalMs: 1000 / performanceProfile.targetFps,
         renderResolutionScale: performanceProfile.resolutionScale,
-        pixelRatioCap: performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
-        pixelRatioScale: performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+        pixelRatioCap:
+          performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+        pixelRatioScale:
+          performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
       };
       renderSettingsRef.current = renderSettings;
-      const { targetFrameIntervalMs, renderResolutionScale, pixelRatioCap, pixelRatioScale } = renderSettings;
+      const {
+        targetFrameIntervalMs,
+        renderResolutionScale,
+        pixelRatioCap,
+        pixelRatioScale
+      } = renderSettings;
 
       const normalizedAppearance = normalizeAppearance(appearanceRef.current);
       const palette = createChessPalette(normalizedAppearance);
       paletteRef.current = palette;
-      const environmentOption = resolveHdriVariant(normalizedAppearance.environmentHdri);
+      const environmentOption = resolveHdriVariant(
+        normalizedAppearance.environmentHdri
+      );
       hdriVariantRef.current = environmentOption;
       const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
-        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ??
+        PIECE_STYLE_OPTIONS[0];
       const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
       const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+      const loadPieceSet = (size = RAW_BOARD_SIZE) =>
+        Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
         resolvedInitialFlag ||
         (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
       const initialAiFlagValue =
-        aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
+        aiFlag ||
+        initialAiFlag ||
+        getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
       const tableFinish =
-        TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ?? DEFAULT_TABLE_FINISH;
+        TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ??
+        DEFAULT_TABLE_FINISH;
       const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? DEFAULT_CLOTH_OPTION;
+      const clothOption =
+        TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ??
+        DEFAULT_CLOTH_OPTION;
       const baseOption = DEFAULT_BASE_OPTION;
-      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-      const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
-      const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
+      const chairOption =
+        CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ??
+        CHAIR_COLOR_OPTIONS[0];
+      const tableTheme =
+        TABLE_THEME_OPTIONS[normalizedAppearance.tables] ??
+        TABLE_THEME_OPTIONS[0];
+      const { option: shapeOption, rotationY } =
+        getEffectiveShapeConfigForTableTheme(tableTheme);
       const pieceMaterials = createPieceMaterials(pieceStyleOption);
       disposers.push(() => {
         disposePieceMaterials(pieceMaterials);
@@ -7438,7 +8840,8 @@ function Chess3D({
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
       const playMateSound = () => playAudio(mateSoundRef);
-      const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 5000 });
+      const playLaughSound = () =>
+        playAudio(laughSoundRef, { maxDurationMs: 5000 });
       const chairTheme = mapChairOptionToTheme(chairOption);
       const chairBuild = await buildChessChairTemplate(chairTheme);
       if (cancelled) return;
@@ -7449,962 +8852,1376 @@ function Chess3D({
         disposeChessChairMaterials(chairMaterials);
       });
 
-    // ----- Build scene -----
-    renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance'
-    });
-    applyRendererSRGB(renderer);
-    renderer.useLegacyLights = false;
-    renderer.physicallyCorrectLights = true;
-    if (sharedKTX2Loader) {
-      try {
-        sharedKTX2Loader.detectSupport(renderer);
-      } catch (error) {
-        console.warn('Chess Battle Royal: KTX2 support detection failed', error);
-      }
-    }
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.85;
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
-    const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
-    renderer.setPixelRatio(pixelRatio);
-    renderer.shadowMap.enabled = false;
-    // Ensure the canvas covers the entire host element so the board is centered
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = '0';
-    renderer.domElement.style.left = '0';
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
-    renderer.domElement.style.zIndex = '0';
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.style.cursor = 'grab';
-    host.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setCrossOrigin?.('anonymous');
-    const textureCache = new Map();
-    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
-    const fallbackTexture = textureLoader.load(
-      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
-    );
-    applySRGBColorSpace(fallbackTexture);
-    fallbackTexture.wrapS = THREE.RepeatWrapping;
-    fallbackTexture.wrapT = THREE.RepeatWrapping;
-    fallbackTexture.repeat?.set?.(1.6, 1.6);
-    fallbackTexture.anisotropy = maxAnisotropy;
-    fallbackTexture.needsUpdate = true;
-    disposers.push(() => {
-      fallbackTexture?.dispose?.();
-      textureCache.clear?.();
-    });
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b0f16);
-    sceneRef.current = scene;
-    const arena = new THREE.Group();
-    scene.add(arena);
-    arena.textureLoader = textureLoader;
-    arena.textureCache = textureCache;
-    arena.maxAnisotropy = maxAnisotropy;
-    arena.fallbackTexture = fallbackTexture;
-
-    const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
-    const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
-    const roomWidth = roomHalfWidth * 2;
-    const roomDepth = roomHalfDepth * 2;
-    arena.roomHalfWidth = roomHalfWidth;
-    arena.roomHalfDepth = roomHalfDepth;
-
-    let syncSkyboxToCamera = () => {};
-
-    const applyHdriEnvironment = async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
-      const sceneInstance = sceneRef.current;
-      if (!renderer || !sceneInstance) return;
-      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
-      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-      if (!envResult) return;
-      const { envMap, skyboxMap } = envResult;
-      if (!envMap) return;
-      if (cancelled) {
-        envMap.dispose?.();
-        skyboxMap?.dispose?.();
-        return;
-      }
-      const prevDispose = disposeEnvironmentRef.current;
-      const prevTexture = envTextureRef.current;
-      const prevSkybox = envSkyboxRef.current;
-      const floorY = environmentFloorRef.current ?? 0;
-      const cameraHeight =
-        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
-        HDRI_UNITS_PER_METER;
-      const radiusMultiplier =
-        typeof activeVariant?.groundRadiusMultiplier === 'number'
-          ? activeVariant.groundRadiusMultiplier
-          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-      const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
-      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
-      const skyboxResolution = Math.max(
-        16,
-        Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
-      );
-      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
-      let skybox = null;
-      if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
+      // ----- Build scene -----
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance'
+      });
+      applyRendererSRGB(renderer);
+      renderer.useLegacyLights = false;
+      renderer.physicallyCorrectLights = true;
+      if (sharedKTX2Loader) {
         try {
-          skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
-          skybox.position.y = floorY + cameraHeight;
-          skybox.material.depthWrite = false;
-          sceneInstance.background = null;
-          sceneInstance.add(skybox);
-          envSkyboxRef.current = skybox;
-          envSkyboxTextureRef.current = skyboxMap;
-          baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
+          sharedKTX2Loader.detectSupport(renderer);
         } catch (error) {
-          console.warn('Failed to create grounded HDRI skybox', error);
-          skybox = null;
+          console.warn(
+            'Chess Battle Royal: KTX2 support detection failed',
+            error
+          );
         }
       }
-      sceneInstance.environment = envMap;
-      if (!skybox) {
-        sceneInstance.background = envMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.85;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
+      const pixelRatio = Math.max(
+        MIN_RENDER_PIXEL_RATIO,
+        Math.min(pixelRatioCap, scaledPixelRatio)
+      );
+      renderer.setPixelRatio(pixelRatio);
+      renderer.shadowMap.enabled = false;
+      // Ensure the canvas covers the entire host element so the board is centered
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.zIndex = '0';
+      renderer.domElement.style.touchAction = 'none';
+      renderer.domElement.style.cursor = 'grab';
+      host.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
+
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin?.('anonymous');
+      const textureCache = new Map();
+      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      const fallbackTexture = textureLoader.load(
+        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
+      );
+      applySRGBColorSpace(fallbackTexture);
+      fallbackTexture.wrapS = THREE.RepeatWrapping;
+      fallbackTexture.wrapT = THREE.RepeatWrapping;
+      fallbackTexture.repeat?.set?.(1.6, 1.6);
+      fallbackTexture.anisotropy = maxAnisotropy;
+      fallbackTexture.needsUpdate = true;
+      disposers.push(() => {
+        fallbackTexture?.dispose?.();
+        textureCache.clear?.();
+      });
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b0f16);
+      sceneRef.current = scene;
+      const arena = new THREE.Group();
+      scene.add(arena);
+      arena.textureLoader = textureLoader;
+      arena.textureCache = textureCache;
+      arena.maxAnisotropy = maxAnisotropy;
+      arena.fallbackTexture = fallbackTexture;
+
+      const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
+      const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
+      const roomWidth = roomHalfWidth * 2;
+      const roomDepth = roomHalfDepth * 2;
+      arena.roomHalfWidth = roomHalfWidth;
+      arena.roomHalfDepth = roomHalfDepth;
+
+      let syncSkyboxToCamera = () => {};
+
+      const applyHdriEnvironment = async (
+        variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT
+      ) => {
+        const sceneInstance = sceneRef.current;
+        if (!renderer || !sceneInstance) return;
+        const activeVariant =
+          variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+        const envResult = await loadPolyHavenHdriEnvironment(
+          renderer,
+          activeVariant
+        );
+        if (!envResult) return;
+        const { envMap, skyboxMap } = envResult;
+        if (!envMap) return;
+        if (cancelled) {
+          envMap.dispose?.();
+          skyboxMap?.dispose?.();
+          return;
+        }
+        const prevDispose = disposeEnvironmentRef.current;
+        const prevTexture = envTextureRef.current;
+        const prevSkybox = envSkyboxRef.current;
+        const floorY = environmentFloorRef.current ?? 0;
+        const cameraHeight =
+          Math.max(
+            activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+            MIN_HDRI_CAMERA_HEIGHT_M
+          ) * HDRI_UNITS_PER_METER;
+        const radiusMultiplier =
+          typeof activeVariant?.groundRadiusMultiplier === 'number'
+            ? activeVariant.groundRadiusMultiplier
+            : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
+        const groundRadius = Math.max(
+          sceneSpan * radiusMultiplier,
+          MIN_HDRI_RADIUS
+        );
+        const skyboxResolution = Math.max(
+          16,
+          Math.floor(
+            activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION
+          )
+        );
+        const skyboxRadius = Math.max(
+          groundRadius,
+          cameraHeight * 2.5,
+          MIN_HDRI_RADIUS
+        );
+        let skybox = null;
+        if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
+          try {
+            skybox = new GroundedSkybox(
+              skyboxMap,
+              cameraHeight,
+              skyboxRadius,
+              skyboxResolution
+            );
+            skybox.position.y = floorY + cameraHeight;
+            skybox.material.depthWrite = false;
+            sceneInstance.background = null;
+            sceneInstance.add(skybox);
+            envSkyboxRef.current = skybox;
+            envSkyboxTextureRef.current = skyboxMap;
+            baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
+          } catch (error) {
+            console.warn('Failed to create grounded HDRI skybox', error);
+            skybox = null;
+          }
+        }
+        sceneInstance.environment = envMap;
+        if (!skybox) {
+          sceneInstance.background = envMap;
+          envSkyboxRef.current = null;
+          envSkyboxTextureRef.current = null;
+          if (
+            'backgroundIntensity' in sceneInstance &&
+            typeof activeVariant?.backgroundIntensity === 'number'
+          ) {
+            sceneInstance.backgroundIntensity =
+              activeVariant.backgroundIntensity;
+          }
+        }
+        if (typeof activeVariant?.environmentIntensity === 'number') {
+          sceneInstance.environmentIntensity =
+            activeVariant.environmentIntensity;
+        }
+        renderer.toneMappingExposure =
+          activeVariant?.exposure ?? renderer.toneMappingExposure;
+        envTextureRef.current = envMap;
+        syncSkyboxToCamera();
+        disposeEnvironmentRef.current = () => {
+          if (sceneRef.current?.environment === envMap) {
+            sceneRef.current.environment = null;
+          }
+          if (!skybox && sceneRef.current?.background === envMap) {
+            sceneRef.current.background = null;
+          }
+          envMap.dispose?.();
+          if (skybox) {
+            skybox.parent?.remove(skybox);
+            skybox.geometry?.dispose?.();
+            skybox.material?.dispose?.();
+            if (envSkyboxRef.current === skybox) {
+              envSkyboxRef.current = null;
+            }
+          }
+          if (skyboxMap) {
+            skyboxMap.dispose?.();
+            if (envSkyboxTextureRef.current === skyboxMap) {
+              envSkyboxTextureRef.current = null;
+            }
+          }
+        };
+        if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
+          prevDispose();
+        }
+      };
+      updateEnvironmentRef.current = applyHdriEnvironment;
+      disposers.push(() => {
+        disposeEnvironmentRef.current?.();
+        envTextureRef.current = null;
         envSkyboxRef.current = null;
         envSkyboxTextureRef.current = null;
-        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
-          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
-        }
-      }
-      if (typeof activeVariant?.environmentIntensity === 'number') {
-        sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
-      }
-      renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
-      envTextureRef.current = envMap;
-      syncSkyboxToCamera();
-      disposeEnvironmentRef.current = () => {
-        if (sceneRef.current?.environment === envMap) {
-          sceneRef.current.environment = null;
-        }
-        if (!skybox && sceneRef.current?.background === envMap) {
-          sceneRef.current.background = null;
-        }
-        envMap.dispose?.();
-        if (skybox) {
-          skybox.parent?.remove(skybox);
-          skybox.geometry?.dispose?.();
-          skybox.material?.dispose?.();
-          if (envSkyboxRef.current === skybox) {
-            envSkyboxRef.current = null;
-          }
-        }
-        if (skyboxMap) {
-          skyboxMap.dispose?.();
-          if (envSkyboxTextureRef.current === skyboxMap) {
-            envSkyboxTextureRef.current = null;
-          }
-        }
-      };
-      if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
-        prevDispose();
-      }
-    };
-    updateEnvironmentRef.current = applyHdriEnvironment;
-    disposers.push(() => {
-      disposeEnvironmentRef.current?.();
-      envTextureRef.current = null;
-      envSkyboxRef.current = null;
-      envSkyboxTextureRef.current = null;
-    });
-
-    const tableInfo = await buildTableFromTheme(tableTheme, {
-      arena,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption,
-      shapeOption,
-      rotationY
-    });
-    if (tableInfo?.materials) {
-      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
-    }
-    const initialArenaFloorY = Number.isFinite(environmentFloorRef.current) ? environmentFloorRef.current : 0;
-    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, initialArenaFloorY);
-    if (tableInfo?.surfaceY != null) {
-      tableInfo.surfaceY += tableFloorOffset;
-    }
-    if (tableInfo?.dispose) {
-      disposers.push(() => {
-        try {
-          tableInfo.dispose();
-        } catch (error) {
-          console.warn('Failed to dispose chess table', error);
-        }
       });
-    }
-    arena.tableThemeId = tableTheme.id;
 
-    function makeChair(index) {
-      const g = new THREE.Group();
-      if (chairTemplate) {
-        const chairModel = chairTemplate.clone(true);
-        g.add(chairModel);
-      }
-
-      const avatarAnchor = new THREE.Object3D();
-      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
-      avatarAnchor.userData = { index };
-      g.add(avatarAnchor);
-
-      g.scale.setScalar(CHAIR_SCALE);
-      return {
-        group: g,
-        anchor: avatarAnchor
-      };
-    }
-
-    const chairDistance =
-      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
-
-    const chairs = [];
-    const chairA = makeChair(0);
-    chairA.group.position.set(
-      0,
-      CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
-    );
-    chairA.group.rotation.y = Math.PI;
-    arena.add(chairA.group);
-    alignGroupToFloorY(chairA.group, initialArenaFloorY);
-    chairs.push(chairA);
-    const chairB = makeChair(1);
-    chairB.group.position.set(0, CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET, -chairDistance);
-    arena.add(chairB.group);
-    alignGroupToFloorY(chairB.group, initialArenaFloorY);
-    chairs.push(chairB);
-
-    const tablePlacementOffset = alignArenaContentsToRoom(
-      [tableInfo?.group, chairA.group, chairB.group],
-      roomHalfWidth,
-      roomHalfDepth
-    );
-    arena.tablePlacementOffset = tablePlacementOffset.clone();
-
-    groundArenaGroups([tableInfo?.group, chairA.group, chairB.group], initialArenaFloorY);
-    const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
-    environmentFloorRef.current = environmentFloorY;
-    arena.environmentFloorY = environmentFloorY;
-    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
-
-    const sandTimer = null;
-
-    function makeStudioCamera() {
-      const cam = new THREE.Group();
-      const legLen = 1.2;
-      const legRad = 0.025;
-      const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
-      const legM = new THREE.MeshStandardMaterial({
-        color: 0x333333,
-        roughness: 0.5,
-        metalness: 0.3
+      const tableInfo = await buildTableFromTheme(tableTheme, {
+        arena,
+        renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption,
+        clothOption,
+        baseOption,
+        shapeOption,
+        rotationY
       });
-      const l1 = new THREE.Mesh(legG, legM);
-      l1.position.set(-0.28, legLen / 2, 0);
-      l1.rotation.z = THREE.MathUtils.degToRad(18);
-      const l2 = l1.clone();
-      l2.position.set(0.18, legLen / 2, 0.24);
-      const l3 = l1.clone();
-      l3.position.set(0.18, legLen / 2, -0.24);
-      cam.add(l1, l2, l3);
-      const head = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x2e2e2e,
-          roughness: 0.6,
-          metalness: 0.2
-        })
-      );
-      head.position.set(0, legLen + 0.04, 0);
-      cam.add(head);
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.34, 0.22, 0.22),
-        new THREE.MeshStandardMaterial({
-          color: 0x151515,
-          roughness: 0.5,
-          metalness: 0.4
-        })
-      );
-      body.position.set(0, legLen + 0.2, 0);
-      cam.add(body);
-      const lens = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x202020,
-          roughness: 0.4,
-          metalness: 0.5
-        })
-      );
-      lens.rotation.z = Math.PI / 2;
-      lens.position.set(0.22, legLen + 0.2, 0);
-      cam.add(lens);
-      const handle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
-        new THREE.MeshStandardMaterial({
-          color: 0x444444,
-          roughness: 0.6
-        })
-      );
-      handle.rotation.z = THREE.MathUtils.degToRad(30);
-      handle.position.set(-0.16, legLen + 0.16, -0.1);
-      cam.add(handle);
-      return cam;
-    }
-
-    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
-    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
-    const studioCamA = makeStudioCamera();
-    studioCamA.position.set(
-      -cameraRigOffsetX + tablePlacementOffset.x,
-      0,
-      -cameraRigOffsetZ + tablePlacementOffset.z
-    );
-    arena.add(studioCamA);
-    const studioCamB = makeStudioCamera();
-    studioCamB.position.set(
-      cameraRigOffsetX + tablePlacementOffset.x,
-      0,
-      cameraRigOffsetZ + tablePlacementOffset.z
-    );
-    arena.add(studioCamB);
-
-    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
-    const boardGroup = new THREE.Group();
-    boardGroup.scale.setScalar(BOARD_SCALE);
-    tableInfo.group.add(boardGroup);
-    alignBoardGroupToTableSurface(boardGroup, tableInfo);
-    const boardVisualGroup = new THREE.Group();
-    boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
-    boardGroup.add(boardVisualGroup);
-    const boardLookTarget = new THREE.Vector3(
-      tablePlacementOffset.x,
-      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
-      tablePlacementOffset.z
-    );
-    studioCamA.lookAt(boardLookTarget);
-    studioCamB.lookAt(boardLookTarget);
-
-    // Camera orbit via OrbitControls
-    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const isPortrait = host.clientHeight > host.clientWidth;
-    const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
-    const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
-    camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
-      tableSurfaceY + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
-    );
-    camera.lookAt(boardLookTarget);
-
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = true;
-    controls.screenSpacePanning = true;
-    controls.enableZoom = true;
-    controls.minDistance = CAMERA_3D_MIN_RADIUS;
-    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-    controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-    controls.maxPolarAngle = CAM.phiMax;
-    controls.rotateSpeed = 0.85;
-    controls.zoomSpeed = 0.7;
-    controls.panSpeed = 0.6;
-    controls.target.copy(boardLookTarget);
-    controls.update();
-    controlsRef.current = controls;
-    syncSkyboxToCamera = () => {
-      if (!camera || !boardLookTarget) return;
-      const skybox = envSkyboxRef.current;
-      if (!skybox) return;
-      const radius = camera.position.distanceTo(boardLookTarget);
-      const baseRadius = baseCameraRadiusRef.current || radius || 1;
-      const baseScale = baseSkyboxScaleRef.current || 1;
-      const scale = clamp(radius / baseRadius, 0.35, 3.5);
-      skybox.scale.setScalar(baseScale * scale);
-      lastCameraRadiusRef.current = radius;
-    };
-    controls.addEventListener('change', syncSkyboxToCamera);
-    disposers.push(() => controls?.removeEventListener('change', syncSkyboxToCamera));
-
-    stopCameraTween = () => {
-      if (cameraTweenRef.current) {
-        cancelAnimationFrame(cameraTweenRef.current);
-        cameraTweenRef.current = 0;
-      }
-    };
-
-    const applyCameraSpherical = (spherical) => {
-      const pos = new THREE.Vector3().setFromSpherical(spherical);
-      camera.position.copy(boardLookTarget).add(pos);
-      camera.lookAt(boardLookTarget);
-      controls.update();
-    };
-
-    const animateCameraTo = (targetSpherical, duration = 420) => {
-      stopCameraTween();
-      const start = performance.now();
-      const from = new THREE.Spherical().setFromVector3(
-        camera.position.clone().sub(boardLookTarget)
-      );
-      const tick = (now) => {
-        const t = clamp01((now - start) / duration);
-        const eased = t * t * (3 - 2 * t);
-        const current = new THREE.Spherical(
-          THREE.MathUtils.lerp(from.radius, targetSpherical.radius, eased),
-          THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
-          THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
+      if (tableInfo?.materials) {
+        applyTableMaterials(
+          tableInfo.materials,
+          { woodOption, clothOption, baseOption },
+          renderer
         );
-        applyCameraSpherical(current);
-        if (t < 1) {
-          cameraTweenRef.current = requestAnimationFrame(tick);
-        } else {
+      }
+      const initialArenaFloorY = Number.isFinite(environmentFloorRef.current)
+        ? environmentFloorRef.current
+        : 0;
+      const tableFloorOffset = alignGroupToFloorY(
+        tableInfo?.group,
+        initialArenaFloorY
+      );
+      if (tableInfo?.surfaceY != null) {
+        tableInfo.surfaceY += tableFloorOffset;
+      }
+      if (tableInfo?.dispose) {
+        disposers.push(() => {
+          try {
+            tableInfo.dispose();
+          } catch (error) {
+            console.warn('Failed to dispose chess table', error);
+          }
+        });
+      }
+      arena.tableThemeId = tableTheme.id;
+
+      function makeChair(index) {
+        const g = new THREE.Group();
+        if (chairTemplate) {
+          const chairModel = chairTemplate.clone(true);
+          g.add(chairModel);
+        }
+
+        const avatarAnchor = new THREE.Object3D();
+        avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+        avatarAnchor.userData = { index };
+        g.add(avatarAnchor);
+
+        g.scale.setScalar(CHAIR_SCALE);
+        return {
+          group: g,
+          anchor: avatarAnchor
+        };
+      }
+
+      const chairDistance =
+        (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
+
+      const chairs = [];
+      const chairA = makeChair(0);
+      chairA.group.position.set(
+        0,
+        CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
+        chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
+      );
+      chairA.group.rotation.y = Math.PI;
+      arena.add(chairA.group);
+      alignGroupToFloorY(chairA.group, initialArenaFloorY);
+      chairs.push(chairA);
+      const chairB = makeChair(1);
+      chairB.group.position.set(
+        0,
+        CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
+        -chairDistance
+      );
+      arena.add(chairB.group);
+      alignGroupToFloorY(chairB.group, initialArenaFloorY);
+      chairs.push(chairB);
+
+      const tablePlacementOffset = alignArenaContentsToRoom(
+        [tableInfo?.group, chairA.group, chairB.group],
+        roomHalfWidth,
+        roomHalfDepth
+      );
+      arena.tablePlacementOffset = tablePlacementOffset.clone();
+
+      groundArenaGroups(
+        [tableInfo?.group, chairA.group, chairB.group],
+        initialArenaFloorY
+      );
+      const environmentFloorY = computeGroupFloorY([
+        tableInfo?.group,
+        chairA.group,
+        chairB.group
+      ]);
+      environmentFloorRef.current = environmentFloorY;
+      arena.environmentFloorY = environmentFloorY;
+      void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
+
+      const sandTimer = null;
+
+      function makeStudioCamera() {
+        const cam = new THREE.Group();
+        const legLen = 1.2;
+        const legRad = 0.025;
+        const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
+        const legM = new THREE.MeshStandardMaterial({
+          color: 0x333333,
+          roughness: 0.5,
+          metalness: 0.3
+        });
+        const l1 = new THREE.Mesh(legG, legM);
+        l1.position.set(-0.28, legLen / 2, 0);
+        l1.rotation.z = THREE.MathUtils.degToRad(18);
+        const l2 = l1.clone();
+        l2.position.set(0.18, legLen / 2, 0.24);
+        const l3 = l1.clone();
+        l3.position.set(0.18, legLen / 2, -0.24);
+        cam.add(l1, l2, l3);
+        const head = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
+          new THREE.MeshStandardMaterial({
+            color: 0x2e2e2e,
+            roughness: 0.6,
+            metalness: 0.2
+          })
+        );
+        head.position.set(0, legLen + 0.04, 0);
+        cam.add(head);
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.34, 0.22, 0.22),
+          new THREE.MeshStandardMaterial({
+            color: 0x151515,
+            roughness: 0.5,
+            metalness: 0.4
+          })
+        );
+        body.position.set(0, legLen + 0.2, 0);
+        cam.add(body);
+        const lens = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
+          new THREE.MeshStandardMaterial({
+            color: 0x202020,
+            roughness: 0.4,
+            metalness: 0.5
+          })
+        );
+        lens.rotation.z = Math.PI / 2;
+        lens.position.set(0.22, legLen + 0.2, 0);
+        cam.add(lens);
+        const handle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
+          new THREE.MeshStandardMaterial({
+            color: 0x444444,
+            roughness: 0.6
+          })
+        );
+        handle.rotation.z = THREE.MathUtils.degToRad(30);
+        handle.position.set(-0.16, legLen + 0.16, -0.1);
+        cam.add(handle);
+        return cam;
+      }
+
+      const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
+      const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
+      const studioCamA = makeStudioCamera();
+      studioCamA.position.set(
+        -cameraRigOffsetX + tablePlacementOffset.x,
+        0,
+        -cameraRigOffsetZ + tablePlacementOffset.z
+      );
+      arena.add(studioCamA);
+      const studioCamB = makeStudioCamera();
+      studioCamB.position.set(
+        cameraRigOffsetX + tablePlacementOffset.x,
+        0,
+        cameraRigOffsetZ + tablePlacementOffset.z
+      );
+      arena.add(studioCamB);
+
+      const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
+      const boardGroup = new THREE.Group();
+      boardGroup.scale.setScalar(BOARD_SCALE);
+      tableInfo.group.add(boardGroup);
+      alignBoardGroupToTableSurface(boardGroup, tableInfo);
+      const boardVisualGroup = new THREE.Group();
+      boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+      boardGroup.add(boardVisualGroup);
+      const boardLookTarget = new THREE.Vector3(
+        tablePlacementOffset.x,
+        boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
+        tablePlacementOffset.z
+      );
+      studioCamA.lookAt(boardLookTarget);
+      studioCamB.lookAt(boardLookTarget);
+
+      // Camera orbit via OrbitControls
+      camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+      const isPortrait = host.clientHeight > host.clientWidth;
+      const cameraSeatAngle = Math.PI / 2;
+      const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+      const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
+      const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+      const cameraRadius =
+        chairDistance + cameraBackOffset - cameraForwardOffset;
+      camera.position.set(
+        Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
+        tableSurfaceY + cameraHeightOffset,
+        Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
+      );
+      camera.lookAt(boardLookTarget);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enablePan = true;
+      controls.screenSpacePanning = true;
+      controls.enableZoom = true;
+      controls.minDistance = CAMERA_3D_MIN_RADIUS;
+      controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+      controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+      controls.maxPolarAngle = CAM.phiMax;
+      controls.rotateSpeed = 0.85;
+      controls.zoomSpeed = 0.7;
+      controls.panSpeed = 0.6;
+      controls.target.copy(boardLookTarget);
+      controls.update();
+      controlsRef.current = controls;
+      syncSkyboxToCamera = () => {
+        if (!camera || !boardLookTarget) return;
+        const skybox = envSkyboxRef.current;
+        if (!skybox) return;
+        const radius = camera.position.distanceTo(boardLookTarget);
+        const baseRadius = baseCameraRadiusRef.current || radius || 1;
+        const baseScale = baseSkyboxScaleRef.current || 1;
+        const scale = clamp(radius / baseRadius, 0.35, 3.5);
+        skybox.scale.setScalar(baseScale * scale);
+        lastCameraRadiusRef.current = radius;
+      };
+      controls.addEventListener('change', syncSkyboxToCamera);
+      disposers.push(() =>
+        controls?.removeEventListener('change', syncSkyboxToCamera)
+      );
+
+      stopCameraTween = () => {
+        if (cameraTweenRef.current) {
+          cancelAnimationFrame(cameraTweenRef.current);
           cameraTweenRef.current = 0;
         }
       };
-      cameraTweenRef.current = requestAnimationFrame(tick);
-    };
 
-    const cameraMemory = { last3d: null };
+      const applyCameraSpherical = (spherical) => {
+        const pos = new THREE.Vector3().setFromSpherical(spherical);
+        camera.position.copy(boardLookTarget).add(pos);
+        camera.lookAt(boardLookTarget);
+        controls.update();
+      };
 
-    const setViewModeInternal = (mode) => {
-      if (!controls) return;
-      const current = new THREE.Spherical().setFromVector3(
-        camera.position.clone().sub(boardLookTarget)
-      );
-      const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
+      const animateCameraTo = (targetSpherical, duration = 420) => {
+        stopCameraTween();
+        const start = performance.now();
+        const from = new THREE.Spherical().setFromVector3(
+          camera.position.clone().sub(boardLookTarget)
+        );
+        const tick = (now) => {
+          const t = clamp01((now - start) / duration);
+          const eased = t * t * (3 - 2 * t);
+          const current = new THREE.Spherical(
+            THREE.MathUtils.lerp(from.radius, targetSpherical.radius, eased),
+            THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
+            THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
+          );
+          applyCameraSpherical(current);
+          if (t < 1) {
+            cameraTweenRef.current = requestAnimationFrame(tick);
+          } else {
+            cameraTweenRef.current = 0;
+          }
+        };
+        cameraTweenRef.current = requestAnimationFrame(tick);
+      };
 
-      const initialRadius = CAMERA_3D_MAX_RADIUS;
-      const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
+      const cameraMemory = { last3d: null };
 
-      if (mode === '2d') {
-        cameraMemory.last3d = current;
-        controls.target.copy(boardLookTarget);
-        controls.enabled = true;
-        controls.enableRotate = false;
-        controls.enablePan = false;
-        controls.enableZoom = true;
-        controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
-        controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
-        controls.minDistance = CAMERA_2D_MIN_RADIUS;
-        controls.maxDistance = CAMERA_2D_MAX_RADIUS;
-        const targetRadius = clamp(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
-        if (!initial2dViewRef.current) {
-          initial2dViewRef.current = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
+      const setViewModeInternal = (mode) => {
+        if (!controls) return;
+        const current = new THREE.Spherical().setFromVector3(
+          camera.position.clone().sub(boardLookTarget)
+        );
+        const theta = Number.isFinite(current.theta)
+          ? current.theta
+          : -Math.PI / 4;
+
+        const initialRadius = CAMERA_3D_MAX_RADIUS;
+        const default3d = new THREE.Spherical(
+          initialRadius,
+          CAMERA_DEFAULT_PHI,
+          theta
+        );
+
+        if (mode === '2d') {
+          cameraMemory.last3d = current;
+          controls.target.copy(boardLookTarget);
+          controls.enabled = true;
+          controls.enableRotate = false;
+          controls.enablePan = false;
+          controls.enableZoom = true;
+          controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
+          controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+          controls.minDistance = CAMERA_2D_MIN_RADIUS;
+          controls.maxDistance = CAMERA_2D_MAX_RADIUS;
+          const targetRadius = clamp(
+            CAMERA_TOPDOWN_MAX_RADIUS,
+            CAMERA_2D_MIN_RADIUS,
+            CAMERA_2D_MAX_RADIUS
+          );
+          if (!initial2dViewRef.current) {
+            initial2dViewRef.current = new THREE.Spherical(
+              targetRadius,
+              CAMERA_TOPDOWN_LOCK,
+              0
+            );
+          }
+          const target = initial2dViewRef.current;
+          animateCameraTo(target, 360);
+        } else {
+          controls.enabled = true;
+          controls.enableRotate = true;
+          controls.enablePan = true;
+          controls.enableZoom = true;
+          controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+          controls.maxPolarAngle = CAM.phiMax;
+          controls.minDistance = CAMERA_3D_MIN_RADIUS;
+          controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+          const restore = cameraMemory.last3d || default3d;
+          const target = new THREE.Spherical(
+            clamp(
+              CAMERA_3D_MAX_RADIUS,
+              CAMERA_3D_MIN_RADIUS,
+              CAMERA_3D_MAX_RADIUS
+            ),
+            clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+            Number.isFinite(restore.theta) ? restore.theta : default3d.theta
+          );
+          animateCameraTo(target, 420);
         }
-        const target = initial2dViewRef.current;
-        animateCameraTo(target, 360);
-      } else {
-        controls.enabled = true;
-        controls.enableRotate = true;
-        controls.enablePan = true;
-        controls.enableZoom = true;
-        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-        controls.maxPolarAngle = CAM.phiMax;
-        controls.minDistance = CAMERA_3D_MIN_RADIUS;
-        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-        const restore = cameraMemory.last3d || default3d;
-        const target = new THREE.Spherical(
-          clamp(CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
-          clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
-          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
+      };
+
+      cameraViewRef.current = { setMode: setViewModeInternal };
+      setViewModeInternal(viewModeRef.current);
+
+      const fit = () => {
+        const w = host.clientWidth;
+        const h = host.clientHeight;
+        const renderScale =
+          renderSettingsRef.current.renderResolutionScale ||
+          renderResolutionScale;
+        const renderW = Math.max(1, Math.round(w * renderScale));
+        const renderH = Math.max(1, Math.round(h * renderScale));
+        renderer.setSize(renderW, renderH, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        const minDistance =
+          viewModeRef.current === '2d'
+            ? CAMERA_2D_MIN_RADIUS
+            : CAMERA_3D_MIN_RADIUS;
+        const maxDistance =
+          viewModeRef.current === '2d'
+            ? CAMERA_2D_MAX_RADIUS
+            : CAMERA_3D_MAX_RADIUS;
+        if (viewModeRef.current === '2d') {
+          controls.target.copy(boardLookTarget);
+        }
+        const currentRadius = camera.position.distanceTo(boardLookTarget);
+        const radius = clamp(
+          currentRadius || CAMERA_SAFE_MAX_RADIUS,
+          minDistance,
+          maxDistance
         );
-        animateCameraTo(target, 420);
-      }
-    };
+        const dir = camera.position.clone().sub(boardLookTarget).normalize();
+        camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+        controls.update();
+      };
+      fitRef.current = fit;
+      fit();
+      baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+      baseSkyboxScaleRef.current =
+        envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
+      syncSkyboxToCamera();
 
-    cameraViewRef.current = { setMode: setViewModeInternal };
-    setViewModeInternal(viewModeRef.current);
+      const captureFxGroup = new THREE.Group();
+      scene.add(captureFxGroup);
+      const activeCaptureFx = [];
+      const captureDir = new THREE.Vector3();
 
-    const fit = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
-      const renderScale = renderSettingsRef.current.renderResolutionScale || renderResolutionScale;
-      const renderW = Math.max(1, Math.round(w * renderScale));
-      const renderH = Math.max(1, Math.round(h * renderScale));
-      renderer.setSize(renderW, renderH, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
-      const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
-      if (viewModeRef.current === '2d') {
-        controls.target.copy(boardLookTarget);
-      }
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
-      const dir = camera.position.clone().sub(boardLookTarget).normalize();
-      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-      controls.update();
-    };
-    fitRef.current = fit;
-    fit();
-    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
-    baseSkyboxScaleRef.current =
-      envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
-    syncSkyboxToCamera();
-
-    const captureFxGroup = new THREE.Group();
-    scene.add(captureFxGroup);
-    const activeCaptureFx = [];
-    const captureDir = new THREE.Vector3();
-
-    const addFxBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size[0], size[1], size[2]),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-    const addFxCylinder = (group, rt, rb, h, position, rotation, color, radialSegments = 16, roughness = 0.62, metalness = 0.28) => {
-      const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(rt, rb, h, radialSegments),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-      mesh.castShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-    const addFxSphere = (group, radius, position, color, roughness = 0.45, metalness = 0.25, transparent = false, opacity = 1) => {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 16, 16),
-        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
-      );
-      mesh.position.set(position[0], position[1], position[2]);
-      mesh.castShadow = true;
-      group.add(mesh);
-      return mesh;
-    };
-    const createFxPolygon = (points, depth, color, roughness = 0.62, metalness = 0.18) => {
-      const shape = new THREE.Shape();
-      shape.moveTo(points[0][0], points[0][1]);
-      for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
-      shape.closePath();
-      const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
-      geometry.translate(0, 0, -depth / 2);
-      geometry.rotateX(Math.PI / 2);
-      const mesh = new THREE.Mesh(
-        geometry,
-        new THREE.MeshStandardMaterial({ color, roughness, metalness })
-      );
-      mesh.castShadow = true;
-      return mesh;
-    };
-    const createFxDrone = () => {
-      const root = new THREE.Group();
-      root.scale.setScalar(0.5);
-      const wingBody = createFxPolygon([[-1.95, -1.7], [1.65, 0], [-1.95, 1.7]], 0.11, '#a8afb4', 0.78, 0.1);
-      wingBody.position.set(0.1, 0.02, 0);
-      root.add(wingBody);
-      const fuselage = addFxCylinder(root, 0.11, 0.13, 2.25, [0.02, 0.03, 0], [0, 0, Math.PI / 2], '#cdd1d5', 20);
-      fuselage.scale.set(1, 0.9, 0.9);
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.13, 0.56, 18),
-        new THREE.MeshStandardMaterial({ color: '#dfe2e6', roughness: 0.48, metalness: 0.18 })
-      );
-      nose.position.set(1.38, 0.02, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      const tailFin = createFxPolygon([[-0.45, 0], [0.22, 0], [-0.05, 0.92]], 0.05, '#7f878d', 0.58, 0.2);
-      tailFin.rotation.z = Math.PI / 2;
-      tailFin.position.set(-1.05, 0.52, 0);
-      root.add(tailFin);
-      const rudderLeft = createFxPolygon([[-0.25, 0], [0.18, 0], [-0.04, 0.45]], 0.04, '#838c92', 0.62, 0.2);
-      rudderLeft.rotation.z = Math.PI / 2;
-      rudderLeft.position.set(-1.45, 0.28, -0.22);
-      root.add(rudderLeft);
-      const rudderRight = rudderLeft.clone();
-      rudderRight.position.z = 0.22;
-      root.add(rudderRight);
-      addFxSphere(root, 0.08, [0.88, 0.05, 0], '#23292d', 0.22, 0.35);
-      const propeller = new THREE.Group();
-      propeller.position.set(-1.82, 0.01, 0);
-      addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
-      const blade2 = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 1.0, 0.08),
-        new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
-      );
-      blade2.rotation.x = Math.PI / 2;
-      blade2.castShadow = true;
-      propeller.add(blade2);
-      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
-      root.add(propeller);
-
-      const exhaustClouds = [];
-      for (let i = 0; i < 5; i += 1) {
-        exhaustClouds.push(addFxSphere(root, 0.08 + i * 0.015, [-2.1 - i * 0.2, 0, 0], '#8d979d', 1, 0, true, 0.24 - i * 0.03));
-      }
-      return { root, propeller, exhaustClouds };
-    };
-    const createFxJet = () => {
-      const root = new THREE.Group();
-      addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.17, 0.96, 24),
-        new THREE.MeshStandardMaterial({ color: '#d7dbe0', roughness: 0.45, metalness: 0.2 })
-      );
-      nose.position.set(2.0, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      const cockpit = addFxSphere(root, 0.2, [0.62, 0.15, 0], '#2d3945', 0.18, 0.3);
-      cockpit.scale.set(1.2, 0.58, 0.64);
-      const wing = createFxPolygon([[-1.52, -2.32], [0.75, 0], [-0.35, 2.32]], 0.1, '#9fa7ae', 0.68, 0.16);
-      wing.position.set(-0.2, -0.05, 0);
-      root.add(wing);
-      const tailWing = createFxPolygon([[-0.92, -1.1], [0.3, 0], [-0.35, 1.1]], 0.08, '#959ea5', 0.65, 0.18);
-      tailWing.position.set(-1.35, 0.04, 0);
-      root.add(tailWing);
-      const fin = createFxPolygon([[-0.52, 0], [0.22, 0], [-0.1, 0.95]], 0.05, '#8e979f', 0.6, 0.18);
-      fin.rotation.z = Math.PI / 2;
-      fin.position.set(-1.1, 0.55, 0);
-      root.add(fin);
-      const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
-      const engineRight = engineLeft.clone();
-      engineRight.position.z = 0.2;
-      root.add(engineRight);
-      const leftStore = new THREE.Group();
-      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
-      const leftStoreNose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.05, 0.14, 12),
-        new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
-      );
-      leftStoreNose.position.set(0.34, 0, 0);
-      leftStoreNose.rotation.z = -Math.PI / 2;
-      leftStore.add(leftStoreNose);
-      leftStore.position.set(0.25, -0.25, -1.15);
-      root.add(leftStore);
-      const rightStore = leftStore.clone();
-      rightStore.position.z = 1.15;
-      root.add(rightStore);
-      return { root, cockpit, leftStore, rightStore };
-    };
-    const createFxMissile = () => {
-      const root = new THREE.Group();
-      addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#c9ced3', 14, 0.42, 0.12);
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.18, 14),
-        new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.3, metalness: 0.15 })
-      );
-      nose.position.set(0.45, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      root.add(nose);
-      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
-      const trail = [];
-      for (let i = 0; i < 4; i += 1) {
-        trail.push(addFxSphere(root, 0.08 + i * 0.02, [-0.5 - i * 0.14, 0, 0], '#90989d', 1, 0, true, 0.22 - i * 0.03));
-      }
-      return { root, trail };
-    };
-    const createFxGroundMissile = () => {
-      const root = new THREE.Group();
-      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.24, 16),
-        new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
-      );
-      nose.position.set(0.63, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      const trail = [];
-      for (let i = 0; i < 5; i += 1) {
-        trail.push(
-          addFxSphere(
-            root,
-            0.1 + i * 0.025,
-            [-0.7 - i * 0.16, 0, 0],
-            i < 2 ? '#f6af4b' : '#8f989d',
-            i < 2 ? 0.2 : 1,
-            0,
-            true,
-            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-          )
+      const addFxBox = (
+        group,
+        size,
+        position,
+        color,
+        roughness = 0.7,
+        metalness = 0.2
+      ) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(size[0], size[1], size[2]),
+          new THREE.MeshStandardMaterial({ color, roughness, metalness })
         );
-      }
-      return { root, trail };
-    };
-    const createFxExplosion = (position) => {
-      const root = new THREE.Group();
-      root.position.copy(position);
-      root.scale.setScalar(0.43);
-      const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
-      const fire = [];
-      const smoke = [];
-      for (let i = 0; i < 4; i += 1) {
-        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
-      }
-      for (let i = 0; i < 6; i += 1) {
-        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
-      }
-      return { root, flash, fire, smoke };
-    };
-    const launchExplosion = (position) => {
-      const explosion = createFxExplosion(position);
-      captureFxGroup.add(explosion.root);
-      playAudio(bombSoundRef, { maxDurationMs: 520 });
-      playAudio(missileImpactSoundRef);
-      activeCaptureFx.push({ type: 'explosion', t: 0, duration: LUDO_CAPTURE_EXPLOSION_TIME, explosion });
-    };
-    const qBezier = (a, b, c, t) => {
-      const ab = new THREE.Vector3().copy(a).lerp(b, t);
-      const bc = new THREE.Vector3().copy(b).lerp(c, t);
-      return ab.lerp(bc, t);
-    };
-    const getCaptureOrbitPose = ({
-      from,
-      to,
-      progress,
-      launchHeight = 0.35,
-      orbitRadiusMul = 1.08,
-      minOrbitCycles = 1.2,
-      liftSplit = 0.22,
-      strikeSplit = 0.8
-    }) => {
-      const boardCenter = new THREE.Vector3(0, 0, 0);
-      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
-      const impactPos = to.clone();
-      const orbitRadius = half + tile * orbitRadiusMul;
-      const launchToCenter = new THREE.Vector3().copy(launchPos).sub(boardCenter);
-      const startRadius = Math.max(0.3, launchToCenter.length());
-      const startAngle = Math.atan2(launchPos.z, launchPos.x);
-      const targetAngle = Math.atan2(impactPos.z, impactPos.x);
-      let orbitDelta = targetAngle - startAngle;
-      while (orbitDelta < Math.PI * minOrbitCycles) orbitDelta += Math.PI * 2;
-      const liftEnd = launchPos.clone().add(new THREE.Vector3(0.55, CAPTURE_FLIGHT_ALTITUDE + 0.75, -0.3));
-      const orbitExit = new THREE.Vector3(
-        Math.cos(startAngle + orbitDelta) * orbitRadius,
-        CAPTURE_FLIGHT_ALTITUDE + 0.2,
-        Math.sin(startAngle + orbitDelta) * orbitRadius
-      );
-      const u = clamp01(progress);
-      let pos;
-      let next;
-      if (u < liftSplit) {
-        const liftU = smoothEase(u / liftSplit);
-        pos = new THREE.Vector3().copy(launchPos).lerp(liftEnd, liftU);
-        pos.y += Math.sin(liftU * Math.PI * 2.2) * 0.06;
-        next = new THREE.Vector3().copy(launchPos).lerp(liftEnd, clamp01(liftU + 0.04));
-      } else if (u < strikeSplit) {
-        const orbitU = smoothEase((u - liftSplit) / (strikeSplit - liftSplit));
-        const angleNow = startAngle + orbitDelta * orbitU;
-        const angleNext = startAngle + orbitDelta * clamp01(orbitU + 0.02);
-        const radiusNow = THREE.MathUtils.lerp(startRadius, orbitRadius, orbitU);
-        const radiusNext = THREE.MathUtils.lerp(startRadius, orbitRadius, clamp01(orbitU + 0.02));
-        pos = new THREE.Vector3(
-          Math.cos(angleNow) * radiusNow,
-          CAPTURE_FLIGHT_ALTITUDE + 0.16 + Math.sin(orbitU * Math.PI * 5.2) * 0.12,
-          Math.sin(angleNow) * radiusNow
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+      const addFxCylinder = (
+        group,
+        rt,
+        rb,
+        h,
+        position,
+        rotation,
+        color,
+        radialSegments = 16,
+        roughness = 0.62,
+        metalness = 0.28
+      ) => {
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(rt, rb, h, radialSegments),
+          new THREE.MeshStandardMaterial({ color, roughness, metalness })
         );
-        next = new THREE.Vector3(
-          Math.cos(angleNext) * radiusNext,
-          CAPTURE_FLIGHT_ALTITUDE + 0.16 + Math.sin(clamp01(orbitU + 0.03) * Math.PI * 5.2) * 0.12,
-          Math.sin(angleNext) * radiusNext
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+        mesh.castShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+      const addFxSphere = (
+        group,
+        radius,
+        position,
+        color,
+        roughness = 0.45,
+        metalness = 0.25,
+        transparent = false,
+        opacity = 1
+      ) => {
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(radius, 16, 16),
+          new THREE.MeshStandardMaterial({
+            color,
+            roughness,
+            metalness,
+            transparent,
+            opacity
+          })
         );
-      } else {
-        const strikeU = smoothEase((u - strikeSplit) / (1 - strikeSplit));
-        pos = new THREE.Vector3().copy(orbitExit).lerp(impactPos, strikeU);
-        next = new THREE.Vector3().copy(orbitExit).lerp(impactPos, clamp01(strikeU + 0.05));
-      }
-      return { pos, next };
-    };
-
-    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, deltaR = 0, deltaC = 0 }) => {
-      const pieceType = (movingType || '').toUpperCase();
-      if (pieceType === 'B' || pieceType === 'R') {
-        const droneFx = createFxDrone();
-        droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-        droneFx.root.position.copy(fromPos.clone().add(new THREE.Vector3(0, 0.35, 0)));
-        captureFxGroup.add(droneFx.root);
-        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
-        activeCaptureFx.push({
-          type: 'drone',
-          t: 0,
-          duration: CAPTURE_DRONE_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          droneFx
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+      const createFxPolygon = (
+        points,
+        depth,
+        color,
+        roughness = 0.62,
+        metalness = 0.18
+      ) => {
+        const shape = new THREE.Shape();
+        shape.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i += 1)
+          shape.lineTo(points[i][0], points[i][1]);
+        shape.closePath();
+        const geometry = new THREE.ExtrudeGeometry(shape, {
+          depth,
+          bevelEnabled: false,
+          curveSegments: 1
         });
-        return {
-          moveDelayMs: CAPTURE_DRONE_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_DRONE_TOTAL * 1000 + 70
-        };
-      }
-      if (pieceType === 'Q') {
-        const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const jetStart = fromPos.clone().add(new THREE.Vector3(0, 0.45, 0));
-        jetFx.root.position.copy(jetStart);
-        captureFxGroup.add(jetFx.root);
-        const missileFx1 = createFxMissile();
-        const missileFx2 = createFxMissile();
-        missileFx1.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        missileFx2.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        missileFx1.root.visible = false;
-        missileFx2.root.visible = false;
-        captureFxGroup.add(missileFx1.root);
-        captureFxGroup.add(missileFx2.root);
-        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
+        geometry.translate(0, 0, -depth / 2);
+        geometry.rotateX(Math.PI / 2);
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({ color, roughness, metalness })
+        );
+        mesh.castShadow = true;
+        return mesh;
+      };
+      const createFxDrone = () => {
+        const root = new THREE.Group();
+        root.scale.setScalar(0.5);
+        const wingBody = createFxPolygon(
+          [
+            [-1.95, -1.7],
+            [1.65, 0],
+            [-1.95, 1.7]
+          ],
+          0.11,
+          '#a8afb4',
+          0.78,
+          0.1
+        );
+        wingBody.position.set(0.1, 0.02, 0);
+        root.add(wingBody);
+        const fuselage = addFxCylinder(
+          root,
+          0.11,
+          0.13,
+          2.25,
+          [0.02, 0.03, 0],
+          [0, 0, Math.PI / 2],
+          '#cdd1d5',
+          20
+        );
+        fuselage.scale.set(1, 0.9, 0.9);
+        const nose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.13, 0.56, 18),
+          new THREE.MeshStandardMaterial({
+            color: '#dfe2e6',
+            roughness: 0.48,
+            metalness: 0.18
+          })
+        );
+        nose.position.set(1.38, 0.02, 0);
+        nose.rotation.z = -Math.PI / 2;
+        nose.castShadow = true;
+        root.add(nose);
+        const tailFin = createFxPolygon(
+          [
+            [-0.45, 0],
+            [0.22, 0],
+            [-0.05, 0.92]
+          ],
+          0.05,
+          '#7f878d',
+          0.58,
+          0.2
+        );
+        tailFin.rotation.z = Math.PI / 2;
+        tailFin.position.set(-1.05, 0.52, 0);
+        root.add(tailFin);
+        const rudderLeft = createFxPolygon(
+          [
+            [-0.25, 0],
+            [0.18, 0],
+            [-0.04, 0.45]
+          ],
+          0.04,
+          '#838c92',
+          0.62,
+          0.2
+        );
+        rudderLeft.rotation.z = Math.PI / 2;
+        rudderLeft.position.set(-1.45, 0.28, -0.22);
+        root.add(rudderLeft);
+        const rudderRight = rudderLeft.clone();
+        rudderRight.position.z = 0.22;
+        root.add(rudderRight);
+        addFxSphere(root, 0.08, [0.88, 0.05, 0], '#23292d', 0.22, 0.35);
+        const propeller = new THREE.Group();
+        propeller.position.set(-1.82, 0.01, 0);
+        addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
+        const blade2 = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 1.0, 0.08),
+          new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
+        );
+        blade2.rotation.x = Math.PI / 2;
+        blade2.castShadow = true;
+        propeller.add(blade2);
+        addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
+        root.add(propeller);
+
+        const exhaustClouds = [];
+        for (let i = 0; i < 5; i += 1) {
+          exhaustClouds.push(
+            addFxSphere(
+              root,
+              0.08 + i * 0.015,
+              [-2.1 - i * 0.2, 0, 0],
+              '#8d979d',
+              1,
+              0,
+              true,
+              0.24 - i * 0.03
+            )
+          );
+        }
+        return { root, propeller, exhaustClouds };
+      };
+      const createFxJet = () => {
+        const root = new THREE.Group();
+        addFxCylinder(
+          root,
+          0.16,
+          0.22,
+          3.1,
+          [0, 0, 0],
+          [0, 0, Math.PI / 2],
+          '#b8bec5',
+          24
+        );
+        const nose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.17, 0.96, 24),
+          new THREE.MeshStandardMaterial({
+            color: '#d7dbe0',
+            roughness: 0.45,
+            metalness: 0.2
+          })
+        );
+        nose.position.set(2.0, 0, 0);
+        nose.rotation.z = -Math.PI / 2;
+        nose.castShadow = true;
+        root.add(nose);
+        const cockpit = addFxSphere(
+          root,
+          0.2,
+          [0.62, 0.15, 0],
+          '#2d3945',
+          0.18,
+          0.3
+        );
+        cockpit.scale.set(1.2, 0.58, 0.64);
+        const wing = createFxPolygon(
+          [
+            [-1.52, -2.32],
+            [0.75, 0],
+            [-0.35, 2.32]
+          ],
+          0.1,
+          '#9fa7ae',
+          0.68,
+          0.16
+        );
+        wing.position.set(-0.2, -0.05, 0);
+        root.add(wing);
+        const tailWing = createFxPolygon(
+          [
+            [-0.92, -1.1],
+            [0.3, 0],
+            [-0.35, 1.1]
+          ],
+          0.08,
+          '#959ea5',
+          0.65,
+          0.18
+        );
+        tailWing.position.set(-1.35, 0.04, 0);
+        root.add(tailWing);
+        const fin = createFxPolygon(
+          [
+            [-0.52, 0],
+            [0.22, 0],
+            [-0.1, 0.95]
+          ],
+          0.05,
+          '#8e979f',
+          0.6,
+          0.18
+        );
+        fin.rotation.z = Math.PI / 2;
+        fin.position.set(-1.1, 0.55, 0);
+        root.add(fin);
+        const engineLeft = addFxCylinder(
+          root,
+          0.12,
+          0.1,
+          0.78,
+          [-1.95, -0.08, -0.2],
+          [0, 0, Math.PI / 2],
+          '#727b83',
+          16
+        );
+        const engineRight = engineLeft.clone();
+        engineRight.position.z = 0.2;
+        root.add(engineRight);
+        const leftStore = new THREE.Group();
+        addFxCylinder(
+          leftStore,
+          0.04,
+          0.05,
+          0.55,
+          [0, 0, 0],
+          [0, 0, Math.PI / 2],
+          '#d8dbdf',
+          12,
+          0.4,
+          0.18
+        );
+        const leftStoreNose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.05, 0.14, 12),
+          new THREE.MeshStandardMaterial({
+            color: '#eceef0',
+            roughness: 0.35,
+            metalness: 0.16
+          })
+        );
+        leftStoreNose.position.set(0.34, 0, 0);
+        leftStoreNose.rotation.z = -Math.PI / 2;
+        leftStore.add(leftStoreNose);
+        leftStore.position.set(0.25, -0.25, -1.15);
+        root.add(leftStore);
+        const rightStore = leftStore.clone();
+        rightStore.position.z = 1.15;
+        root.add(rightStore);
+        return { root, cockpit, leftStore, rightStore };
+      };
+      const createFxMissile = () => {
+        const root = new THREE.Group();
+        addFxCylinder(
+          root,
+          0.05,
+          0.06,
+          0.72,
+          [0, 0, 0],
+          [0, 0, Math.PI / 2],
+          '#c9ced3',
+          14,
+          0.42,
+          0.12
+        );
+        const nose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.055, 0.18, 14),
+          new THREE.MeshStandardMaterial({
+            color: '#f0f2f4',
+            roughness: 0.3,
+            metalness: 0.15
+          })
+        );
+        nose.position.set(0.45, 0, 0);
+        nose.rotation.z = -Math.PI / 2;
+        root.add(nose);
+        addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+        addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+        const trail = [];
+        for (let i = 0; i < 4; i += 1) {
+          trail.push(
+            addFxSphere(
+              root,
+              0.08 + i * 0.02,
+              [-0.5 - i * 0.14, 0, 0],
+              '#90989d',
+              1,
+              0,
+              true,
+              0.22 - i * 0.03
+            )
+          );
+        }
+        return { root, trail };
+      };
+      const createFxGroundMissile = () => {
+        const root = new THREE.Group();
+        addFxCylinder(
+          root,
+          0.07,
+          0.08,
+          1.02,
+          [0, 0, 0],
+          [0, 0, Math.PI / 2],
+          '#bfc5ca',
+          16,
+          0.42,
+          0.12
+        );
+        const nose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.08, 0.24, 16),
+          new THREE.MeshStandardMaterial({
+            color: '#eef1f4',
+            roughness: 0.28,
+            metalness: 0.12
+          })
+        );
+        nose.position.set(0.63, 0, 0);
+        nose.rotation.z = -Math.PI / 2;
+        root.add(nose);
+        addFxBox(
+          root,
+          [0.14, 0.02, 0.28],
+          [-0.15, 0, 0],
+          '#7d858b',
+          0.58,
+          0.12
+        );
+        addFxBox(
+          root,
+          [0.14, 0.28, 0.02],
+          [-0.15, 0, 0],
+          '#7d858b',
+          0.58,
+          0.12
+        );
+        addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+        addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+        const trail = [];
+        for (let i = 0; i < 5; i += 1) {
+          trail.push(
+            addFxSphere(
+              root,
+              0.1 + i * 0.025,
+              [-0.7 - i * 0.16, 0, 0],
+              i < 2 ? '#f6af4b' : '#8f989d',
+              i < 2 ? 0.2 : 1,
+              0,
+              true,
+              i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+            )
+          );
+        }
+        return { root, trail };
+      };
+      const createFxExplosion = (position) => {
+        const root = new THREE.Group();
+        root.position.copy(position);
+        root.scale.setScalar(0.36);
+        const flash = addFxSphere(
+          root,
+          0.18,
+          [0, 0.25, 0],
+          '#ffe59a',
+          0.08,
+          0,
+          true,
+          1
+        );
+        const fire = [];
+        const smoke = [];
+        for (let i = 0; i < 4; i += 1) {
+          fire.push(
+            addFxSphere(
+              root,
+              0.18 + i * 0.05,
+              [0, 0.22 + i * 0.06, 0],
+              i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
+              0.2,
+              0,
+              true,
+              0.95 - i * 0.15
+            )
+          );
+        }
+        for (let i = 0; i < 6; i += 1) {
+          smoke.push(
+            addFxSphere(
+              root,
+              0.18 + i * 0.035,
+              [0, 0.18 + i * 0.08, 0],
+              '#646b72',
+              1,
+              0,
+              true,
+              0.42 - i * 0.04
+            )
+          );
+        }
+        return { root, flash, fire, smoke };
+      };
+      const launchExplosion = (position) => {
+        const explosion = createFxExplosion(position);
+        captureFxGroup.add(explosion.root);
+        playAudio(bombSoundRef, { maxDurationMs: 520 });
+        playAudio(missileImpactSoundRef);
         activeCaptureFx.push({
-          type: 'jet',
+          type: 'explosion',
           t: 0,
-          duration: CAPTURE_JET_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          jetFx,
-          missileFx1,
-          missileFx2
+          duration: LUDO_CAPTURE_EXPLOSION_TIME,
+          explosion
         });
-        return {
-          moveDelayMs: CAPTURE_JET_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_JET_TOTAL * 1000 + 70
-        };
-      }
-      if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
-        const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        missileFx.root.visible = false;
-        captureFxGroup.add(missileFx.root);
-        playAudio(missileLaunchSoundRef);
-        activeCaptureFx.push({
-          type: 'javelin',
-          t: 0,
-          duration: CAPTURE_GROUND_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          launcherPos: fromPos.clone(),
-          deltaR,
-          deltaC,
-          missileFx
-        });
-        return {
-          moveDelayMs:
-            CAPTURE_GROUND_TOTAL * 1000 + CAPTURE_JAVELIN_CAPTURE_CLEAR_DELAY_MS,
-          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000 + 80
-        };
-      }
-      if (distance <= 1.5) {
-        playAudio(swordSoundRef);
-        setTimeout(() => playAudio(swordSoundRef), 120);
-        setTimeout(() => playAudio(missileImpactSoundRef), 200);
+      };
+      const qBezier = (a, b, c, t) => {
+        const ab = new THREE.Vector3().copy(a).lerp(b, t);
+        const bc = new THREE.Vector3().copy(b).lerp(c, t);
+        return ab.lerp(bc, t);
+      };
+      const getCaptureOrbitPose = ({
+        from,
+        to,
+        progress,
+        launchHeight = 0.35,
+        orbitRadiusMul = 1.08,
+        minOrbitCycles = 1.2,
+        liftSplit = 0.22,
+        strikeSplit = 0.8
+      }) => {
+        const boardCenter = new THREE.Vector3(0, 0, 0);
+        const launchPos = from
+          .clone()
+          .add(new THREE.Vector3(0, launchHeight, 0));
+        const impactPos = to.clone();
+        const orbitRadius = half + tile * orbitRadiusMul;
+        const launchToCenter = new THREE.Vector3()
+          .copy(launchPos)
+          .sub(boardCenter);
+        const startRadius = Math.max(0.3, launchToCenter.length());
+        const startAngle = Math.atan2(launchPos.z, launchPos.x);
+        const targetAngle = Math.atan2(impactPos.z, impactPos.x);
+        let orbitDelta = targetAngle - startAngle;
+        while (orbitDelta < Math.PI * minOrbitCycles) orbitDelta += Math.PI * 2;
+        const liftEnd = launchPos
+          .clone()
+          .add(new THREE.Vector3(0.55, CAPTURE_FLIGHT_ALTITUDE + 0.75, -0.3));
+        const orbitExit = new THREE.Vector3(
+          Math.cos(startAngle + orbitDelta) * orbitRadius,
+          CAPTURE_FLIGHT_ALTITUDE + 0.2,
+          Math.sin(startAngle + orbitDelta) * orbitRadius
+        );
+        const u = clamp01(progress);
+        let pos;
+        let next;
+        if (u < liftSplit) {
+          const liftU = smoothEase(u / liftSplit);
+          pos = new THREE.Vector3().copy(launchPos).lerp(liftEnd, liftU);
+          pos.y += Math.sin(liftU * Math.PI * 2.2) * 0.06;
+          next = new THREE.Vector3()
+            .copy(launchPos)
+            .lerp(liftEnd, clamp01(liftU + 0.04));
+        } else if (u < strikeSplit) {
+          const orbitU = smoothEase(
+            (u - liftSplit) / (strikeSplit - liftSplit)
+          );
+          const angleNow = startAngle + orbitDelta * orbitU;
+          const angleNext = startAngle + orbitDelta * clamp01(orbitU + 0.02);
+          const radiusNow = THREE.MathUtils.lerp(
+            startRadius,
+            orbitRadius,
+            orbitU
+          );
+          const radiusNext = THREE.MathUtils.lerp(
+            startRadius,
+            orbitRadius,
+            clamp01(orbitU + 0.02)
+          );
+          pos = new THREE.Vector3(
+            Math.cos(angleNow) * radiusNow,
+            CAPTURE_FLIGHT_ALTITUDE +
+              0.16 +
+              Math.sin(orbitU * Math.PI * 5.2) * 0.12,
+            Math.sin(angleNow) * radiusNow
+          );
+          next = new THREE.Vector3(
+            Math.cos(angleNext) * radiusNext,
+            CAPTURE_FLIGHT_ALTITUDE +
+              0.16 +
+              Math.sin(clamp01(orbitU + 0.03) * Math.PI * 5.2) * 0.12,
+            Math.sin(angleNext) * radiusNext
+          );
+        } else {
+          const strikeU = smoothEase((u - strikeSplit) / (1 - strikeSplit));
+          pos = new THREE.Vector3().copy(orbitExit).lerp(impactPos, strikeU);
+          next = new THREE.Vector3()
+            .copy(orbitExit)
+            .lerp(impactPos, clamp01(strikeU + 0.05));
+        }
+        return { pos, next };
+      };
+
+      const playCaptureAnimation = ({
+        fromPos,
+        targetPos,
+        movingType,
+        distance,
+        deltaR = 0,
+        deltaC = 0,
+        movingIsWhite = true
+      }) => {
+        const pieceType = (movingType || '').toUpperCase();
+        if (pieceType === 'B' || pieceType === 'R') {
+          const droneFx = createFxDrone();
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          droneFx.root.position.copy(
+            fromPos.clone().add(new THREE.Vector3(0, 0.35, 0))
+          );
+          captureFxGroup.add(droneFx.root);
+          playAudio(droneSoundRef, {
+            maxDurationMs: CAPTURE_DRONE_TOTAL * 1000
+          });
+          activeCaptureFx.push({
+            type: 'drone',
+            t: 0,
+            duration: CAPTURE_DRONE_TOTAL,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            droneFx
+          });
+          return {
+            moveDelayMs: CAPTURE_DRONE_TOTAL * 1000,
+            captureResolveDelayMs: CAPTURE_DRONE_TOTAL * 1000
+          };
+        }
+        if (pieceType === 'Q') {
+          const jetFx = createFxJet();
+          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+          const entrySide = movingIsWhite ? 1 : -1;
+          const jetStart = new THREE.Vector3(
+            entrySide * (half + BOARD.rim + 2.6),
+            0.52,
+            fromPos.z
+          );
+          jetFx.root.position.copy(jetStart);
+          captureFxGroup.add(jetFx.root);
+          const missileFx1 = createFxMissile();
+          const missileFx2 = createFxMissile();
+          missileFx1.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missileFx2.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missileFx1.root.visible = false;
+          missileFx2.root.visible = false;
+          captureFxGroup.add(missileFx1.root);
+          captureFxGroup.add(missileFx2.root);
+          playAudio(
+            { current: jetFlySound },
+            { maxDurationMs: CAPTURE_JET_TOTAL * 1000 }
+          );
+          activeCaptureFx.push({
+            type: 'jet',
+            t: 0,
+            duration: CAPTURE_JET_TOTAL,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            movingIsWhite,
+            jetFx,
+            missileFx1,
+            missileFx2
+          });
+          return {
+            moveDelayMs: CAPTURE_JET_TOTAL * 1000,
+            captureResolveDelayMs: CAPTURE_JET_TOTAL * 1000
+          };
+        }
+        if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
+          const missileFx = createFxGroundMissile();
+          missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missileFx.root.visible = false;
+          captureFxGroup.add(missileFx.root);
+          playAudio(missileLaunchSoundRef);
+          activeCaptureFx.push({
+            type: 'javelin',
+            t: 0,
+            duration: CAPTURE_GROUND_TOTAL,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            launcherPos: fromPos.clone(),
+            deltaR,
+            deltaC,
+            missileFx
+          });
+          return {
+            moveDelayMs:
+              CAPTURE_GROUND_TOTAL * 1000 +
+              CAPTURE_JAVELIN_CAPTURE_CLEAR_DELAY_MS,
+            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+          };
+        }
+        if (distance <= 1.5) {
+          playAudio(swordSoundRef);
+          setTimeout(() => playAudio(swordSoundRef), 120);
+          setTimeout(() => playAudio(missileImpactSoundRef), 200);
+          return { moveDelayMs: 280 };
+        }
+        if (distance >= 2) {
+          playAudio(missileLaunchSoundRef);
+          const missileFx = createFxMissile();
+          missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          captureFxGroup.add(missileFx.root);
+          activeCaptureFx.push({
+            type: 'missile',
+            t: 0,
+            duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            missileFx
+          });
+          return { moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 };
+        }
+        launchExplosion(targetPos.clone());
         return { moveDelayMs: 280 };
-      }
-      if (distance >= 2) {
-        playAudio(missileLaunchSoundRef);
-        const missileFx = createFxMissile();
-        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-        captureFxGroup.add(missileFx.root);
-        activeCaptureFx.push({ type: 'missile', t: 0, duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME, from: fromPos.clone(), to: targetPos.clone(), missileFx });
-        return { moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 };
-      }
-      launchExplosion(targetPos.clone());
-      return { moveDelayMs: 280 };
-    };
+      };
 
-    // Board base + rim
-    const tile = BOARD.tile;
-    const N = 8;
-    const half = (N * tile) / 2;
-    let currentBoardModel = null;
-    let currentPiecePrototypes = null;
-    let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
-    let currentTileSize = tile;
-    let currentPieceSetId = initialPieceSetId;
-    let currentBoardCleanup = null;
-    const base = new THREE.Mesh(
-      new THREE.BoxGeometry(N * tile + BOARD.rim * 2, BOARD.baseH, N * tile + BOARD.rim * 2),
-      buildVeinedMaterial(boardTheme.frameDark, {
-        roughness: boardTheme.frameRoughness,
-        metalness: boardTheme.frameMetalness,
-        repeat: 2.1,
-        normalScale: 0.28
-      })
-    );
-    base.position.set(0, BOARD.baseH / 2, 0);
-    boardVisualGroup.add(base);
-    const top = new THREE.Mesh(
-      new THREE.BoxGeometry(N * tile, 0.12, N * tile),
-      buildVeinedMaterial(boardTheme.frameLight, {
-        roughness: boardTheme.surfaceRoughness * 0.92,
-        metalness: boardTheme.surfaceMetalness,
-        repeat: 2.8,
-        normalScale: 0.26
-      })
-    );
-    top.position.set(0, BOARD.baseH + 0.06, 0);
-    boardVisualGroup.add(top);
-
-    const inlay = new THREE.Mesh(
-      new THREE.BoxGeometry(N * tile + BOARD.rim * 1.08, 0.02, N * tile + BOARD.rim * 1.08),
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(boardTheme.accent),
-        roughness: 0.22,
-        metalness: 0.74,
-        clearcoat: 0.32,
-        clearcoatRoughness: 0.18
-      })
-    );
-    inlay.position.set(0, BOARD.baseH + 0.11, 0);
-    boardVisualGroup.add(inlay);
-
-    // Tiles
-    const tiles = [];
-    const tileGroup = new THREE.Group();
-    boardVisualGroup.add(tileGroup);
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        const isDark = (r + c) % 2 === 1;
-        const m = buildVeinedMaterial(isDark ? boardTheme.dark : boardTheme.light, {
-          metalness: boardTheme.surfaceMetalness + 0.04,
-          roughness: boardTheme.surfaceRoughness * 0.94,
-          repeat: 3.4,
-          normalScale: 0.3
-        });
-        const g = new THREE.BoxGeometry(tile, 0.1, tile);
-        const mesh = new THREE.Mesh(g, m);
-        mesh.position.set(
-          c * tile - half + tile / 2,
-          BOARD.baseH + 0.12,
-          r * tile - half + tile / 2
-        );
-        mesh.userData = { r, c, type: 'tile' };
-        tileGroup.add(mesh);
-        tiles.push(mesh);
-      }
-    }
-
-    // Coordinates (optional minimal markers)
-    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
-    for (let i = 0; i < N; i++) {
-      const mSmall = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.08, 0.8),
-        coordMat
+      // Board base + rim
+      const tile = BOARD.tile;
+      const N = 8;
+      const half = (N * tile) / 2;
+      let currentBoardModel = null;
+      let currentPiecePrototypes = null;
+      let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
+      let currentTileSize = tile;
+      let currentPieceSetId = initialPieceSetId;
+      let currentBoardCleanup = null;
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          N * tile + BOARD.rim * 2,
+          BOARD.baseH,
+          N * tile + BOARD.rim * 2
+        ),
+        buildVeinedMaterial(boardTheme.frameDark, {
+          roughness: boardTheme.frameRoughness,
+          metalness: boardTheme.frameMetalness,
+          repeat: 2.1,
+          normalScale: 0.28
+        })
       );
-      mSmall.rotation.x = -Math.PI / 2;
+      base.position.set(0, BOARD.baseH / 2, 0);
+      boardVisualGroup.add(base);
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(N * tile, 0.12, N * tile),
+        buildVeinedMaterial(boardTheme.frameLight, {
+          roughness: boardTheme.surfaceRoughness * 0.92,
+          metalness: boardTheme.surfaceMetalness,
+          repeat: 2.8,
+          normalScale: 0.26
+        })
+      );
+      top.position.set(0, BOARD.baseH + 0.06, 0);
+      boardVisualGroup.add(top);
+
+      const inlay = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          N * tile + BOARD.rim * 1.08,
+          0.02,
+          N * tile + BOARD.rim * 1.08
+        ),
+        new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color(boardTheme.accent),
+          roughness: 0.22,
+          metalness: 0.74,
+          clearcoat: 0.32,
+          clearcoatRoughness: 0.18
+        })
+      );
+      inlay.position.set(0, BOARD.baseH + 0.11, 0);
+      boardVisualGroup.add(inlay);
+
+      // Tiles
+      const tiles = [];
+      const tileGroup = new THREE.Group();
+      boardVisualGroup.add(tileGroup);
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const isDark = (r + c) % 2 === 1;
+          const m = buildVeinedMaterial(
+            isDark ? boardTheme.dark : boardTheme.light,
+            {
+              metalness: boardTheme.surfaceMetalness + 0.04,
+              roughness: boardTheme.surfaceRoughness * 0.94,
+              repeat: 3.4,
+              normalScale: 0.3
+            }
+          );
+          const g = new THREE.BoxGeometry(tile, 0.1, tile);
+          const mesh = new THREE.Mesh(g, m);
+          mesh.position.set(
+            c * tile - half + tile / 2,
+            BOARD.baseH + 0.12,
+            r * tile - half + tile / 2
+          );
+          mesh.userData = { r, c, type: 'tile' };
+          tileGroup.add(mesh);
+          tiles.push(mesh);
+        }
+      }
+
+      // Coordinates (optional minimal markers)
+      const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
+      for (let i = 0; i < N; i++) {
+        const mSmall = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.08, 0.8),
+          coordMat
+        );
+        mSmall.rotation.x = -Math.PI / 2;
         mSmall.position.set(
           i * tile - half + tile / 2,
           BOARD.baseH + 0.13,
@@ -8416,7 +10233,7 @@ function Chess3D({
           coordMat
         );
         nSmall.rotation.x = -Math.PI / 2;
-      nSmall.position.set(
+        nSmall.position.set(
           -half - 0.6,
           BOARD.baseH + 0.13,
           i * tile - half + tile / 2
@@ -8424,485 +10241,552 @@ function Chess3D({
         boardVisualGroup.add(nSmall);
       }
 
-    let proceduralBoardVisible = false;
-    const setProceduralBoardVisible = () => {
-      proceduralBoardVisible = false;
-      base.visible = false;
-      top.visible = false;
-      inlay.visible = false;
-      coordMat.visible = false;
-      tileGroup.visible = true;
-      tiles.forEach((tileMesh) => {
-        tileMesh.visible = true;
-        if (tileMesh.material) {
-          tileMesh.material.transparent = true;
-          tileMesh.material.opacity = 0;
-          tileMesh.material.depthWrite = false;
+      let proceduralBoardVisible = false;
+      const setProceduralBoardVisible = () => {
+        proceduralBoardVisible = false;
+        base.visible = false;
+        top.visible = false;
+        inlay.visible = false;
+        coordMat.visible = false;
+        tileGroup.visible = true;
+        tiles.forEach((tileMesh) => {
+          tileMesh.visible = true;
+          if (tileMesh.material) {
+            tileMesh.material.transparent = true;
+            tileMesh.material.opacity = 0;
+            tileMesh.material.depthWrite = false;
+          }
+        });
+        arena.usingProceduralBoard = false;
+        if (arenaRef.current) {
+          arenaRef.current.usingProceduralBoard = false;
         }
-      });
-      arena.usingProceduralBoard = false;
-      if (arenaRef.current) {
-        arenaRef.current.usingProceduralBoard = false;
-      }
-    };
+      };
 
-    arena.setProceduralBoardVisible = setProceduralBoardVisible;
-    setProceduralBoardVisible();
+      arena.setProceduralBoardVisible = setProceduralBoardVisible;
+      setProceduralBoardVisible();
 
-    arena.boardMaterials = {
-      base: base.material,
-      top: top.material,
-      coord: coordMat,
-      tiles,
-      tileMaterials: tiles.map((tileMesh) => tileMesh.material)
-    };
+      arena.boardMaterials = {
+        base: base.material,
+        top: top.material,
+        coord: coordMat,
+        tiles,
+        tileMaterials: tiles.map((tileMesh) => tileMesh.material)
+      };
 
-    const isGoldLikeMaterial = (material) => {
-      const name = (material?.name || '').toLowerCase();
-      if (/gold|crown|ring|band/.test(name)) return true;
-      const { metalness, roughness } = material || {};
-      return typeof metalness === 'number' && typeof roughness === 'number' && metalness >= 0.6 && roughness <= 0.4;
-    };
+      const isGoldLikeMaterial = (material) => {
+        const name = (material?.name || '').toLowerCase();
+        if (/gold|crown|ring|band/.test(name)) return true;
+        const { metalness, roughness } = material || {};
+        return (
+          typeof metalness === 'number' &&
+          typeof roughness === 'number' &&
+          metalness >= 0.6 &&
+          roughness <= 0.4
+        );
+      };
 
-    const ensureIsolatedMaterial = (mesh) => {
-      if (!mesh?.isMesh) return;
-      const flag = mesh.userData?.__isolatedMat;
-      if (flag) return;
-      const src = mesh.material;
-      const clone = Array.isArray(src)
-        ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
-        : src?.clone
-          ? src.clone()
-          : src;
-      mesh.material = clone;
-      mesh.userData = { ...(mesh.userData || {}), __isolatedMat: true };
-    };
-
-    const collectMeshes = (root) => {
-      const out = [];
-      root?.traverse?.((node) => {
-        if (node?.isMesh) out.push(node);
-      });
-      return out;
-    };
-
-    const snapshotMaterialsByOrder = (root) =>
-      collectMeshes(root).map((mesh) => {
+      const ensureIsolatedMaterial = (mesh) => {
+        if (!mesh?.isMesh) return;
+        const flag = mesh.userData?.__isolatedMat;
+        if (flag) return;
         const src = mesh.material;
-        return Array.isArray(src)
+        const clone = Array.isArray(src)
           ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
           : src?.clone
             ? src.clone()
             : src;
-      });
+        mesh.material = clone;
+        mesh.userData = { ...(mesh.userData || {}), __isolatedMat: true };
+      };
 
-    const applyMaterialsByOrder = (root, snapshot) => {
-      const meshes = collectMeshes(root);
-      const limit = Math.min(meshes.length, snapshot.length);
-      for (let i = 0; i < limit; i += 1) {
-        const saved = snapshot[i];
-        meshes[i].material = Array.isArray(saved)
-          ? saved.map((mat) => (mat?.clone ? mat.clone() : mat))
-          : saved?.clone
-            ? saved.clone()
-            : saved;
-      }
-    };
-
-    const swapMaterialsBetweenMeshes = (meshA, meshB) => {
-      if (!meshA || !meshB) return;
-      const snapA = snapshotMaterialsByOrder(meshA);
-      const snapB = snapshotMaterialsByOrder(meshB);
-      applyMaterialsByOrder(meshA, snapB);
-      applyMaterialsByOrder(meshB, snapA);
-    };
-
-    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
-      const meshes = arenaRef.current?.allPieceMeshes || [];
-      const target = new THREE.Color(hex);
-      meshes.forEach((piece) => {
-        const isWhite = piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
-        const matches = sideKey === 'white' ? isWhite : !isWhite;
-        if (!matches) return;
-        piece.traverse((node) => {
-          if (!node?.isMesh) return;
-          ensureIsolatedMaterial(node);
-          const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((mat) => {
-            if (!mat || isGoldLikeMaterial(mat)) return;
-            mat?.color?.copy(target);
-            mat?.emissive?.set(0x000000);
-          });
+      const collectMeshes = (root) => {
+        const out = [];
+        root?.traverse?.((node) => {
+          if (node?.isMesh) out.push(node);
         });
-      });
-    };
+        return out;
+      };
 
-    const collectPawnHeadMeshes = (holder) => {
-      if (!holder) return [];
-      const box = new THREE.Box3().setFromObject(holder);
-      const size = box.getSize(new THREE.Vector3());
-      const height = size.y || 1;
-      const cutoff = box.max.y - height * 0.22;
-      const heads = [];
-      holder.traverse((node) => {
-        if (!node?.isMesh) return;
-        const bb = new THREE.Box3().setFromObject(node);
-        const sz = bb.getSize(new THREE.Vector3());
-        const nearTop = bb.max.y >= cutoff;
-        const shortEnough = sz.y <= height * 0.45;
-        const name = (node.name || '').toLowerCase();
-        const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
-        const gold = /(gold|ring|band)/.test(name);
-        if (((nearTop && shortEnough) || hinted) && !gold) heads.push(node);
-      });
-      return heads;
-    };
-
-    const applyPawnHeadPreset = (presetId = 'current') => {
-      const meshes = arenaRef.current?.allPieceMeshes || [];
-      const preset = HEAD_PRESET_OPTIONS.find((opt) => opt.id === presetId)?.preset;
-      const restore = !preset || presetId === 'current';
-      meshes.forEach((piece) => {
-        const isPawn = (piece?.userData?.t || '').toUpperCase() === 'P';
-        if (!isPawn) return;
-        const targets = collectPawnHeadMeshes(piece);
-        targets.forEach((node) => {
-          if (restore) {
-            const original = pawnHeadMaterialCacheRef.current.get(node.uuid);
-            if (original) {
-              node.material = Array.isArray(original)
-                ? original.map((mat) => (mat?.clone ? mat.clone() : mat))
-                : original?.clone
-                  ? original.clone()
-                  : original;
-            }
-            return;
-          }
-          if (!pawnHeadMaterialCacheRef.current.has(node.uuid)) {
-            const src = node.material;
-            pawnHeadMaterialCacheRef.current.set(
-              node.uuid,
-              Array.isArray(src)
-                ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
-                : src?.clone
-                  ? src.clone()
-                  : src
-            );
-          }
-          ensureIsolatedMaterial(node);
-          const headMat = new THREE.MeshPhysicalMaterial({
-            color: preset.color,
-            metalness: preset.metalness,
-            roughness: preset.roughness,
-            transmission: preset.transmission,
-            ior: preset.ior,
-            thickness: preset.thickness,
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.06,
-            transparent: preset.transmission > 0
-          });
-          node.material = Array.isArray(node.material)
-            ? node.material.map(() => headMat.clone())
-            : headMat;
-        });
-      });
-    };
-
-    const snapshotBoardMaterials = (root) => {
-      const cache = new Map();
-      root?.traverse?.((node) => {
-        if (!node?.isMesh) return;
-        const src = node.material;
-        cache.set(
-          node.uuid,
-          Array.isArray(src)
+      const snapshotMaterialsByOrder = (root) =>
+        collectMeshes(root).map((mesh) => {
+          const src = mesh.material;
+          return Array.isArray(src)
             ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
             : src?.clone
               ? src.clone()
-              : src
-        );
-      });
-      return cache;
-    };
+              : src;
+        });
 
-    const applyBoardThemePreset = (themeIndex = 0) => {
-      const theme = QUICK_BOARD_THEMES[(themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length];
-      const arenaState = arenaRef.current;
-      if (!arenaState) return;
-      const boardModel = arenaState.boardModel;
-      if (boardModel) {
-        if (!boardMaterialCacheRef.current.gltf.size) {
-          boardMaterialCacheRef.current.gltf = snapshotBoardMaterials(boardModel);
+      const applyMaterialsByOrder = (root, snapshot) => {
+        const meshes = collectMeshes(root);
+        const limit = Math.min(meshes.length, snapshot.length);
+        for (let i = 0; i < limit; i += 1) {
+          const saved = snapshot[i];
+          meshes[i].material = Array.isArray(saved)
+            ? saved.map((mat) => (mat?.clone ? mat.clone() : mat))
+            : saved?.clone
+              ? saved.clone()
+              : saved;
         }
-        boardModel.traverse((node) => {
+      };
+
+      const swapMaterialsBetweenMeshes = (meshA, meshB) => {
+        if (!meshA || !meshB) return;
+        const snapA = snapshotMaterialsByOrder(meshA);
+        const snapB = snapshotMaterialsByOrder(meshB);
+        applyMaterialsByOrder(meshA, snapB);
+        applyMaterialsByOrder(meshB, snapA);
+      };
+
+      const applySideColorHex = (
+        sideKey = 'white',
+        hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff
+      ) => {
+        const meshes = arenaRef.current?.allPieceMeshes || [];
+        const target = new THREE.Color(hex);
+        meshes.forEach((piece) => {
+          const isWhite =
+            piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
+          const matches = sideKey === 'white' ? isWhite : !isWhite;
+          if (!matches) return;
+          piece.traverse((node) => {
+            if (!node?.isMesh) return;
+            ensureIsolatedMaterial(node);
+            const materials = Array.isArray(node.material)
+              ? node.material
+              : [node.material];
+            materials.forEach((mat) => {
+              if (!mat || isGoldLikeMaterial(mat)) return;
+              mat?.color?.copy(target);
+              mat?.emissive?.set(0x000000);
+            });
+          });
+        });
+      };
+
+      const collectPawnHeadMeshes = (holder) => {
+        if (!holder) return [];
+        const box = new THREE.Box3().setFromObject(holder);
+        const size = box.getSize(new THREE.Vector3());
+        const height = size.y || 1;
+        const cutoff = box.max.y - height * 0.22;
+        const heads = [];
+        holder.traverse((node) => {
           if (!node?.isMesh) return;
-          const cache = boardMaterialCacheRef.current.gltf.get(node.uuid);
-          if (!cache) return;
-          const base = Array.isArray(cache) ? cache[0] : cache;
-          const mat = base?.clone ? base.clone() : base;
-          if (!mat) return;
-          if (theme.special === 'chrome') {
-            if (mat.metalness !== undefined) mat.metalness = 0.95;
-            if (mat.roughness !== undefined) mat.roughness = 0.15;
-            mat.color?.setHex(theme.light);
-          } else {
-            if (isGoldLikeMaterial(mat)) {
-              node.material = mat;
+          const bb = new THREE.Box3().setFromObject(node);
+          const sz = bb.getSize(new THREE.Vector3());
+          const nearTop = bb.max.y >= cutoff;
+          const shortEnough = sz.y <= height * 0.45;
+          const name = (node.name || '').toLowerCase();
+          const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
+          const gold = /(gold|ring|band)/.test(name);
+          if (((nearTop && shortEnough) || hinted) && !gold) heads.push(node);
+        });
+        return heads;
+      };
+
+      const applyPawnHeadPreset = (presetId = 'current') => {
+        const meshes = arenaRef.current?.allPieceMeshes || [];
+        const preset = HEAD_PRESET_OPTIONS.find(
+          (opt) => opt.id === presetId
+        )?.preset;
+        const restore = !preset || presetId === 'current';
+        meshes.forEach((piece) => {
+          const isPawn = (piece?.userData?.t || '').toUpperCase() === 'P';
+          if (!isPawn) return;
+          const targets = collectPawnHeadMeshes(piece);
+          targets.forEach((node) => {
+            if (restore) {
+              const original = pawnHeadMaterialCacheRef.current.get(node.uuid);
+              if (original) {
+                node.material = Array.isArray(original)
+                  ? original.map((mat) => (mat?.clone ? mat.clone() : mat))
+                  : original?.clone
+                    ? original.clone()
+                    : original;
+              }
               return;
             }
-            const color = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
-            const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-            const target = new THREE.Color(luminance >= 0.5 ? theme.light : theme.dark);
-            mat.color?.copy(target);
-          }
-          mat.emissive?.set(0x000000);
-          node.material = mat;
+            if (!pawnHeadMaterialCacheRef.current.has(node.uuid)) {
+              const src = node.material;
+              pawnHeadMaterialCacheRef.current.set(
+                node.uuid,
+                Array.isArray(src)
+                  ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+                  : src?.clone
+                    ? src.clone()
+                    : src
+              );
+            }
+            ensureIsolatedMaterial(node);
+            const headMat = new THREE.MeshPhysicalMaterial({
+              color: preset.color,
+              metalness: preset.metalness,
+              roughness: preset.roughness,
+              transmission: preset.transmission,
+              ior: preset.ior,
+              thickness: preset.thickness,
+              clearcoat: 0.5,
+              clearcoatRoughness: 0.06,
+              transparent: preset.transmission > 0
+            });
+            node.material = Array.isArray(node.material)
+              ? node.material.map(() => headMat.clone())
+              : headMat;
+          });
         });
-      } else if (arenaState.boardMaterials?.tiles?.length) {
-        const { tiles, base: baseMat, top: topMat, coord, tileMaterials } = arenaState.boardMaterials;
-        if (!boardMaterialCacheRef.current.procedural) {
-          boardMaterialCacheRef.current.procedural = {
-            base: baseMat?.clone ? baseMat.clone() : baseMat,
-            top: topMat?.clone ? topMat.clone() : topMat,
-            coord: coord?.clone ? coord.clone() : coord,
-            tileMaterials: tileMaterials?.map((mat) => (mat?.clone ? mat.clone() : mat))
-          };
-        }
-        tiles.forEach((tileMesh) => {
-          const { r = 0, c = 0 } = tileMesh.userData || {};
-          ensureIsolatedMaterial(tileMesh);
-          const isLight = (r + c) % 2 === 0;
-          const target = isLight ? theme.light : theme.dark;
-          const mat = Array.isArray(tileMesh.material) ? tileMesh.material[0] : tileMesh.material;
-          mat?.color?.setHex(target);
-          mat?.emissive?.set(0x000000);
-        });
-        if (topMat?.color) topMat.color.setHex(theme.light);
-        if (baseMat?.color) baseMat.color.setHex(theme.dark);
-        coord?.color?.setHex(theme.special === 'chrome' ? 0xffffff : theme.dark);
-      }
-    };
+      };
 
-    const applyHomeRankMaterialSwap = () => {
-      if (rankSwapAppliedRef.current) return;
-      for (let c = 0; c < 8; c += 1) {
-        const whiteBackRank = pieceMeshes[7][c];
-        const blackBackRank = pieceMeshes[0][c];
-        if (whiteBackRank && blackBackRank) {
-          swapMaterialsBetweenMeshes(whiteBackRank, blackBackRank);
-        }
-      }
-      rankSwapAppliedRef.current = true;
-    };
-
-    // Pieces — meshes + state
-    let board = parseFEN(START_FEN);
-    const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
-    const allPieceMeshes = [];
-
-    const syncBoardFromState = (payload = {}) => {
-      const { fen, turnWhite = true, lastMove } = payload;
-      if (!fen) return;
-      try {
-        board = parseFEN(fen.split(' ')[0]);
-        paintPiecesFromPrototypes(currentPiecePrototypes);
-        applyStatus(turnWhite, turnWhite ? 'White to move' : 'Black to move', null);
-        if (lastMove?.from && lastMove?.to) {
-          const { from, to } = lastMove;
-          lastMoveRef.current = {
-            from,
-            to,
-            pieceMesh: pieceMeshes?.[to.r]?.[to.c],
-            selectionColor: paletteRef.current?.capture,
-            highlightColor: paletteRef.current?.highlight
-          };
-          highlightSelection(from.r, from.c, paletteRef.current?.capture);
-          highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
-        }
-      } catch (error) {
-        console.warn('Chess Battle Royal: failed to sync remote board', error);
-      }
-    };
-    onlineRef.current.applyRemoteMove = syncBoardFromState;
-
-    const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
-      if (!prototypes) return;
-      const colorKey = (p) => (p.w ? 'white' : 'black');
-      const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
-      const yOffset = currentPieceYOffset;
-
-      allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
-        try {
-          boardGroup.remove(m);
-        } catch {}
-        disposeObject3D(m);
-      });
-      for (let r = 0; r < 8; r += 1) {
-        for (let c = 0; c < 8; c += 1) {
-          const p = board[r][c];
-          if (!p) {
-            pieceMeshes[r][c] = null;
-            continue;
-          }
-          const proto = build(p);
-          if (!proto) continue;
-          const clone = cloneWithShadows(proto);
-          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
-          clone.position.set(
-            c * tile - half + tile / 2,
-            yOffset,
-            r * tile - half + tile / 2
+      const snapshotBoardMaterials = (root) => {
+        const cache = new Map();
+        root?.traverse?.((node) => {
+          if (!node?.isMesh) return;
+          const src = node.material;
+          cache.set(
+            node.uuid,
+            Array.isArray(src)
+              ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+              : src?.clone
+                ? src.clone()
+                : src
           );
-          clone.userData = {
-            r,
-            c,
-            w: p.w,
-            t: p.t,
-            type: 'piece',
-            __pieceColor: colorKey(p),
-            __pieceStyleId: styleId
-          };
-          clone.traverse((child) => {
-            if (!child.isMesh) return;
-            child.userData = {
-              ...(child.userData || {}),
+        });
+        return cache;
+      };
+
+      const applyBoardThemePreset = (themeIndex = 0) => {
+        const theme =
+          QUICK_BOARD_THEMES[
+            (themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length
+          ];
+        const arenaState = arenaRef.current;
+        if (!arenaState) return;
+        const boardModel = arenaState.boardModel;
+        if (boardModel) {
+          if (!boardMaterialCacheRef.current.gltf.size) {
+            boardMaterialCacheRef.current.gltf =
+              snapshotBoardMaterials(boardModel);
+          }
+          boardModel.traverse((node) => {
+            if (!node?.isMesh) return;
+            const cache = boardMaterialCacheRef.current.gltf.get(node.uuid);
+            if (!cache) return;
+            const base = Array.isArray(cache) ? cache[0] : cache;
+            const mat = base?.clone ? base.clone() : base;
+            if (!mat) return;
+            if (theme.special === 'chrome') {
+              if (mat.metalness !== undefined) mat.metalness = 0.95;
+              if (mat.roughness !== undefined) mat.roughness = 0.15;
+              mat.color?.setHex(theme.light);
+            } else {
+              if (isGoldLikeMaterial(mat)) {
+                node.material = mat;
+                return;
+              }
+              const color = mat.color
+                ? mat.color.clone()
+                : new THREE.Color(1, 1, 1);
+              const luminance =
+                0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+              const target = new THREE.Color(
+                luminance >= 0.5 ? theme.light : theme.dark
+              );
+              mat.color?.copy(target);
+            }
+            mat.emissive?.set(0x000000);
+            node.material = mat;
+          });
+        } else if (arenaState.boardMaterials?.tiles?.length) {
+          const {
+            tiles,
+            base: baseMat,
+            top: topMat,
+            coord,
+            tileMaterials
+          } = arenaState.boardMaterials;
+          if (!boardMaterialCacheRef.current.procedural) {
+            boardMaterialCacheRef.current.procedural = {
+              base: baseMat?.clone ? baseMat.clone() : baseMat,
+              top: topMat?.clone ? topMat.clone() : topMat,
+              coord: coord?.clone ? coord.clone() : coord,
+              tileMaterials: tileMaterials?.map((mat) =>
+                mat?.clone ? mat.clone() : mat
+              )
+            };
+          }
+          tiles.forEach((tileMesh) => {
+            const { r = 0, c = 0 } = tileMesh.userData || {};
+            ensureIsolatedMaterial(tileMesh);
+            const isLight = (r + c) % 2 === 0;
+            const target = isLight ? theme.light : theme.dark;
+            const mat = Array.isArray(tileMesh.material)
+              ? tileMesh.material[0]
+              : tileMesh.material;
+            mat?.color?.setHex(target);
+            mat?.emissive?.set(0x000000);
+          });
+          if (topMat?.color) topMat.color.setHex(theme.light);
+          if (baseMat?.color) baseMat.color.setHex(theme.dark);
+          coord?.color?.setHex(
+            theme.special === 'chrome' ? 0xffffff : theme.dark
+          );
+        }
+      };
+
+      const applyHomeRankMaterialSwap = () => {
+        if (rankSwapAppliedRef.current) return;
+        for (let c = 0; c < 8; c += 1) {
+          const whiteBackRank = pieceMeshes[7][c];
+          const blackBackRank = pieceMeshes[0][c];
+          if (whiteBackRank && blackBackRank) {
+            swapMaterialsBetweenMeshes(whiteBackRank, blackBackRank);
+          }
+        }
+        rankSwapAppliedRef.current = true;
+      };
+
+      // Pieces — meshes + state
+      let board = parseFEN(START_FEN);
+      const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
+      const allPieceMeshes = [];
+
+      const syncBoardFromState = (payload = {}) => {
+        const { fen, turnWhite = true, lastMove } = payload;
+        if (!fen) return;
+        try {
+          board = parseFEN(fen.split(' ')[0]);
+          paintPiecesFromPrototypes(currentPiecePrototypes);
+          applyStatus(
+            turnWhite,
+            turnWhite ? 'White to move' : 'Black to move',
+            null
+          );
+          if (lastMove?.from && lastMove?.to) {
+            const { from, to } = lastMove;
+            lastMoveRef.current = {
+              from,
+              to,
+              pieceMesh: pieceMeshes?.[to.r]?.[to.c],
+              selectionColor: paletteRef.current?.capture,
+              highlightColor: paletteRef.current?.highlight
+            };
+            highlightSelection(from.r, from.c, paletteRef.current?.capture);
+            highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
+          }
+        } catch (error) {
+          console.warn(
+            'Chess Battle Royal: failed to sync remote board',
+            error
+          );
+        }
+      };
+      onlineRef.current.applyRemoteMove = syncBoardFromState;
+
+      const paintPiecesFromPrototypes = (
+        prototypes,
+        styleId = currentPieceSetId
+      ) => {
+        if (!prototypes) return;
+        const colorKey = (p) => (p.w ? 'white' : 'black');
+        const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
+        const yOffset = currentPieceYOffset;
+
+        allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
+          try {
+            boardGroup.remove(m);
+          } catch {}
+          disposeObject3D(m);
+        });
+        for (let r = 0; r < 8; r += 1) {
+          for (let c = 0; c < 8; c += 1) {
+            const p = board[r][c];
+            if (!p) {
+              pieceMeshes[r][c] = null;
+              continue;
+            }
+            const proto = build(p);
+            if (!proto) continue;
+            const clone = cloneWithShadows(proto);
+            clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
+            clone.position.set(
+              c * tile - half + tile / 2,
+              yOffset,
+              r * tile - half + tile / 2
+            );
+            clone.userData = {
+              r,
+              c,
+              w: p.w,
+              t: p.t,
+              type: 'piece',
               __pieceColor: colorKey(p),
               __pieceStyleId: styleId
             };
-          });
-          boardGroup.add(clone);
-          pieceMeshes[r][c] = clone;
-          allPieceMeshes.push(clone);
+            clone.traverse((child) => {
+              if (!child.isMesh) return;
+              child.userData = {
+                ...(child.userData || {}),
+                __pieceColor: colorKey(p),
+                __pieceStyleId: styleId
+              };
+            });
+            boardGroup.add(clone);
+            pieceMeshes[r][c] = clone;
+            allPieceMeshes.push(clone);
+          }
         }
-      }
-      applyHomeRankMaterialSwap();
-      if (arenaRef.current) {
-        arenaRef.current.allPieceMeshes = allPieceMeshes;
-        arenaRef.current.piecePrototypes = prototypes;
-        arenaRef.current.activePieceSetId = styleId;
-      }
-    };
+        applyHomeRankMaterialSwap();
+        if (arenaRef.current) {
+          arenaRef.current.allPieceMeshes = allPieceMeshes;
+          arenaRef.current.piecePrototypes = prototypes;
+          arenaRef.current.activePieceSetId = styleId;
+        }
+      };
 
-    const applyPieceSetAssets = (
-      assets,
-      setId = currentPieceSetId,
-      pieceStyleOption = paletteRef.current?.pieces
-    ) => {
-      const { boardModel, piecePrototypes } = assets || {};
-      const resolvedSetId = assets?.userData?.styleId || setId || currentPieceSetId;
-      currentPieceSetId = resolvedSetId;
-      currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
-        ? assets.pieceYOffset
-        : PIECE_PLACEMENT_Y_OFFSET;
-      currentTileSize = assets?.tileSize ?? tile;
-      const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
-      const preserveOriginalMaterials = Boolean(
-        pieceStyleOption?.preserveOriginalMaterials ||
+      const applyPieceSetAssets = (
+        assets,
+        setId = currentPieceSetId,
+        pieceStyleOption = paletteRef.current?.pieces
+      ) => {
+        const { boardModel, piecePrototypes } = assets || {};
+        const resolvedSetId =
+          assets?.userData?.styleId || setId || currentPieceSetId;
+        currentPieceSetId = resolvedSetId;
+        currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
+          ? assets.pieceYOffset
+          : PIECE_PLACEMENT_Y_OFFSET;
+        currentTileSize = assets?.tileSize ?? tile;
+        const headPreset =
+          paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
+        const preserveOriginalMaterials = Boolean(
+          pieceStyleOption?.preserveOriginalMaterials ||
           assets?.userData?.preserveOriginalMaterials ||
           PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
-      );
-      rankSwapAppliedRef.current = false;
-      pawnHeadMaterialCacheRef.current.clear();
-      boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
-      if (currentBoardCleanup) {
-        currentBoardCleanup();
-        currentBoardCleanup = null;
-      }
-      if (boardModel) {
-        boardModel.visible = true;
-        const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
-        const preferredYOffset = Math.max(
-          boardTop + PIECE_PLACEMENT_Y_OFFSET,
-          currentPieceYOffset
         );
-        currentPieceYOffset = preferredYOffset;
-        boardGroup.add(boardModel);
-        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
-        setProceduralBoardVisible(false);
-        currentBoardModel = boardModel;
-        currentBoardCleanup = () => {
-          try {
-            boardGroup.remove(boardModel);
-          } catch {}
-          disposeObject3D(boardModel);
-        };
-      } else {
-        setProceduralBoardVisible();
-        currentBoardModel = null;
-      }
-      alignBoardGroupToTableSurface(boardGroup, arenaRef.current?.tableInfo ?? tableInfo);
-      if (piecePrototypes) {
-        currentPiecePrototypes = piecePrototypes;
-        if (!preserveOriginalMaterials) {
-          if ((resolvedSetId || '').startsWith('beautifulGame')) {
-            harmonizeBeautifulGamePieces(
-              currentPiecePrototypes,
-              pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
-            );
+        rankSwapAppliedRef.current = false;
+        pawnHeadMaterialCacheRef.current.clear();
+        boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
+        if (currentBoardCleanup) {
+          currentBoardCleanup();
+          currentBoardCleanup = null;
+        }
+        if (boardModel) {
+          boardModel.visible = true;
+          const { top: boardTop } = normalizeBoardModelToDisplaySize(
+            boardModel,
+            RAW_BOARD_SIZE
+          );
+          const preferredYOffset = Math.max(
+            boardTop + PIECE_PLACEMENT_Y_OFFSET,
+            currentPieceYOffset
+          );
+          currentPieceYOffset = preferredYOffset;
+          boardGroup.add(boardModel);
+          applyBeautifulGameBoardTheme(
+            boardModel,
+            paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME
+          );
+          setProceduralBoardVisible(false);
+          currentBoardModel = boardModel;
+          currentBoardCleanup = () => {
+            try {
+              boardGroup.remove(boardModel);
+            } catch {}
+            disposeObject3D(boardModel);
+          };
+        } else {
+          setProceduralBoardVisible();
+          currentBoardModel = null;
+        }
+        alignBoardGroupToTableSurface(
+          boardGroup,
+          arenaRef.current?.tableInfo ?? tableInfo
+        );
+        if (piecePrototypes) {
+          currentPiecePrototypes = piecePrototypes;
+          if (!preserveOriginalMaterials) {
+            if ((resolvedSetId || '').startsWith('beautifulGame')) {
+              harmonizeBeautifulGamePieces(
+                currentPiecePrototypes,
+                pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+              );
+            }
+            applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
+            adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
           }
-          applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
-          adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
+          paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
+          if (!preserveOriginalMaterials) {
+            applyHeadPresetToMeshes(allPieceMeshes, headPreset);
+          }
         }
-        paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
-        if (!preserveOriginalMaterials) {
-          applyHeadPresetToMeshes(allPieceMeshes, headPreset);
+        applySideColorHex(
+          'white',
+          QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex
+        );
+        applySideColorHex(
+          'black',
+          QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex
+        );
+        const headTarget =
+          QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ??
+          'current';
+        applyPawnHeadPreset(headTarget);
+        applyBoardThemePreset(boardQuickIdx);
+        if (arenaRef.current) {
+          arenaRef.current.boardModel = currentBoardModel;
+          arenaRef.current.piecePrototypes = currentPiecePrototypes;
+          arenaRef.current.activePieceSetId = currentPieceSetId;
+          arenaRef.current.allPieceMeshes = allPieceMeshes;
+          arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
+          arenaRef.current.setProceduralBoardVisible =
+            setProceduralBoardVisible;
+          arenaRef.current.applySideColorHex = applySideColorHex;
+          arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
+          arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
         }
-      }
-      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-      const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
-      applyPawnHeadPreset(headTarget);
-      applyBoardThemePreset(boardQuickIdx);
-      if (arenaRef.current) {
-        arenaRef.current.boardModel = currentBoardModel;
-        arenaRef.current.piecePrototypes = currentPiecePrototypes;
-        arenaRef.current.activePieceSetId = currentPieceSetId;
-        arenaRef.current.allPieceMeshes = allPieceMeshes;
-        arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
-        arenaRef.current.setProceduralBoardVisible = setProceduralBoardVisible;
-        arenaRef.current.applySideColorHex = applySideColorHex;
-        arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
-        arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
-      }
 
-      if (typeof window !== 'undefined') {
-        window.__CHESS_DEBUG__ = {
-          renderer,
-          scene,
-          camera,
-          controls,
-          boardModel: currentBoardModel,
-          piecePrototypes: currentPiecePrototypes,
-          usingProceduralBoard: proceduralBoardVisible,
-          pieceCount: allPieceMeshes.length
-        };
-        if (import.meta?.env?.DEV) {
-          console.info('Chess Battle Royal: applied piece set', {
-            boardModel: Boolean(currentBoardModel),
-            piecePrototypes: Boolean(currentPiecePrototypes),
-            pieceCount: allPieceMeshes.length,
-            setId: currentPieceSetId
-          });
+        if (typeof window !== 'undefined') {
+          window.__CHESS_DEBUG__ = {
+            renderer,
+            scene,
+            camera,
+            controls,
+            boardModel: currentBoardModel,
+            piecePrototypes: currentPiecePrototypes,
+            usingProceduralBoard: proceduralBoardVisible,
+            pieceCount: allPieceMeshes.length
+          };
+          if (import.meta?.env?.DEV) {
+            console.info('Chess Battle Royal: applied piece set', {
+              boardModel: Boolean(currentBoardModel),
+              piecePrototypes: Boolean(currentPiecePrototypes),
+              pieceCount: allPieceMeshes.length,
+              setId: currentPieceSetId
+            });
+          }
         }
-      }
-    };
+      };
 
-    disposers.push(() => {
-      if (currentBoardCleanup) currentBoardCleanup();
-    });
-
-    pieceSetPromise
-      .then((assets) => {
-        if (cancelled) return;
-        applyPieceSetAssets(assets, initialPieceSetId, pieceStyleOption);
-      })
-      .catch((error) => {
-        console.error('Chess Battle Royal: failed to resolve chess set', error);
+      disposers.push(() => {
+        if (currentBoardCleanup) currentBoardCleanup();
       });
 
-    if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
-      window.__CHESS_DEBUG__ = { renderer, scene, camera, controls };
-    }
+      pieceSetPromise
+        .then((assets) => {
+          if (cancelled) return;
+          applyPieceSetAssets(assets, initialPieceSetId, pieceStyleOption);
+        })
+        .catch((error) => {
+          console.error(
+            'Chess Battle Royal: failed to resolve chess set',
+            error
+          );
+        });
+
+      if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
+        window.__CHESS_DEBUG__ = { renderer, scene, camera, controls };
+      }
 
       arenaRef.current = {
         renderer,
@@ -8955,1027 +10839,1231 @@ function Chess3D({
       arena.maxAnisotropy = maxAnisotropy;
       arena.fallbackTexture = fallbackTexture;
 
-    // Raycaster for picking
-    ray = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const setPointer = (e) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const cx =
-        e.clientX ??
-        e.touches?.[0]?.clientX ??
-        e.changedTouches?.[0]?.clientX ??
-        0;
-      const cy =
-        e.clientY ??
-        e.touches?.[0]?.clientY ??
-        e.changedTouches?.[0]?.clientY ??
-        0;
-      pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
-    };
+      // Raycaster for picking
+      ray = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const setPointer = (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const cx =
+          e.clientX ??
+          e.touches?.[0]?.clientX ??
+          e.changedTouches?.[0]?.clientX ??
+          0;
+        const cy =
+          e.clientY ??
+          e.touches?.[0]?.clientY ??
+          e.changedTouches?.[0]?.clientY ??
+          0;
+        pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
+      };
 
-    // Selection
-    let sel = null;
-    let legal = [];
-    let selectedMesh = null;
-    const activePieceAnimations = [];
+      // Selection
+      let sel = null;
+      let legal = [];
+      let selectedMesh = null;
+      const activePieceAnimations = [];
 
-    const resetSelectedMeshElevation = () => {
-      if (!selectedMesh) return;
-      const { r, c } = selectedMesh.userData || {};
-      const baseY = Number.isInteger(r) && Number.isInteger(c)
-        ? piecePosition(r, c, currentPieceYOffset).y
-        : currentPieceYOffset;
-      const activeAnim = activePieceAnimations.find((anim) => anim.mesh === selectedMesh);
-      if (activeAnim) {
-        activeAnim.target.y = baseY;
-      } else {
-        selectedMesh.position.y = baseY;
-      }
-      selectedMesh = null;
-    };
-
-    const liftSelectedMesh = (mesh) => {
-      if (!mesh) return;
-      cancelPieceAnimation(mesh);
-      const liftedY = currentPieceYOffset + PIECE_SELECTION_LIFT;
-      mesh.position.y = Math.max(mesh.position.y, liftedY);
-      selectedMesh = mesh;
-    };
-
-    const highlightSelection = (r, c, color) => {
-      const highlightColor = color ?? paletteRef.current?.capture ?? '#ef4444';
-      const highlightHeight = Math.max(0.08, tile * 0.03);
-      const mesh = pieceMeshes[r]?.[c];
-      const base = mesh?.position ?? piecePosition(r, c, currentPieceYOffset);
-      const h = new THREE.Mesh(
-        new THREE.CylinderGeometry(tile * 0.26, tile * 0.26, highlightHeight, 20),
-        new THREE.MeshStandardMaterial({
-          color: highlightColor,
-          transparent: true,
-          opacity: 0.7,
-          metalness: 0.2,
-          depthTest: false,
-          depthWrite: false
-        })
-      );
-      const baseY = Math.max(
-        base.y + highlightHeight * 0.5,
-        currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
-      );
-      h.position.copy(base).setY(baseY + highlightHeight * 0.5);
-      h.renderOrder = 6;
-      h.userData.__highlight = true;
-      boardGroup.add(h);
-    };
-
-    function startTimer(isWhite) {
-      clearInterval(timerRef.current);
-      try {
-        timerSoundRef.current?.pause();
-      } catch {}
-      if (isWhite) {
-        initialWhiteTimeRef.current = 60;
-        whiteTimeRef.current = 60;
-        setWhiteTime(60);
-        lastBeepRef.current.white = null;
-        timerRef.current = setInterval(() => {
-          setWhiteTime((t) => {
-            const next = Math.max(0, t - 1);
-            if (t <= 1) {
-              clearInterval(timerRef.current);
-              setUi((s) => ({ ...s, status: 'White ran out of time', winner: 'Black' }));
-              return 0;
-            }
-            maybePlayCountdownSound(next, true);
-            return next;
-          });
-        }, 1000);
-      } else {
-        initialBlackTimeRef.current = 5;
-        blackTimeRef.current = 5;
-        setBlackTime(5);
-        lastBeepRef.current.black = null;
-        timerRef.current = setInterval(() => {
-          setBlackTime((t) => {
-            const next = Math.max(0, t - 1);
-            if (t <= 1) {
-              clearInterval(timerRef.current);
-              setUi((s) => ({ ...s, status: 'Black ran out of time', winner: 'White' }));
-              return 0;
-            }
-            maybePlayCountdownSound(next, false);
-            return next;
-          });
-        }, 1000);
-      }
-    }
-
-    const shouldTriggerAiMove = (turnWhiteValue) =>
-      !onlineRef.current.enabled &&
-      ((aiPlaysWhite && turnWhiteValue) || (!aiPlaysWhite && !turnWhiteValue));
-
-    function applyStatus(nextWhite, status, winner) {
-      setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
-      if (winner) {
-        clearInterval(timerRef.current);
-        return;
-      }
-      startTimer(nextWhite);
-      if (shouldTriggerAiMove(nextWhite)) setTimeout(aiMove, 200);
-    }
-
-    const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
-      const activeTurn = uiRef.current?.turnWhite;
-      if (activeTurn !== isWhiteTurn) {
-        return;
-      }
-      const key = isWhiteTurn ? 'white' : 'black';
-      const last = lastBeepRef.current[key];
-      if (
-        timerSoundRef.current &&
-        settingsRef.current.soundEnabled &&
-        seconds > 0 &&
-        seconds <= 15 &&
-        seconds !== last
-      ) {
-        lastBeepRef.current[key] = seconds;
-        try {
-          timerSoundRef.current.currentTime = 0;
-          timerSoundRef.current.play().catch(() => {});
-        } catch {}
-      }
-      if (seconds > 15 && last != null) {
-        lastBeepRef.current[key] = null;
-        try {
-          timerSoundRef.current.pause();
-        } catch {}
-      }
-      if (seconds <= 0 && timerSoundRef.current) {
-        try {
-          timerSoundRef.current.pause();
-        } catch {}
-      }
-    };
-
-    function highlightMoves(list, color) {
-      if (!settingsRef.current.showHighlights) return;
-      const palette = paletteRef.current;
-      const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
-      const highlightHeight = Math.max(0.08, tile * 0.03);
-      list.forEach(([rr, cc]) => {
-        const mesh = tiles.find(
-          (t) => t.userData.r === rr && t.userData.c === cc
+      const resetSelectedMeshElevation = () => {
+        if (!selectedMesh) return;
+        const { r, c } = selectedMesh.userData || {};
+        const baseY =
+          Number.isInteger(r) && Number.isInteger(c)
+            ? piecePosition(r, c, currentPieceYOffset).y
+            : currentPieceYOffset;
+        const activeAnim = activePieceAnimations.find(
+          (anim) => anim.mesh === selectedMesh
         );
+        if (activeAnim) {
+          activeAnim.target.y = baseY;
+        } else {
+          selectedMesh.position.y = baseY;
+        }
+        selectedMesh = null;
+      };
+
+      const liftSelectedMesh = (mesh) => {
         if (!mesh) return;
+        cancelPieceAnimation(mesh);
+        const liftedY = currentPieceYOffset + PIECE_SELECTION_LIFT;
+        mesh.position.y = Math.max(mesh.position.y, liftedY);
+        selectedMesh = mesh;
+      };
+
+      const highlightSelection = (r, c, color) => {
+        const highlightColor =
+          color ?? paletteRef.current?.capture ?? '#ef4444';
+        const highlightHeight = Math.max(0.08, tile * 0.03);
+        const mesh = pieceMeshes[r]?.[c];
+        const base = mesh?.position ?? piecePosition(r, c, currentPieceYOffset);
         const h = new THREE.Mesh(
-          new THREE.CylinderGeometry(tile * 0.28, tile * 0.28, highlightHeight, 20),
+          new THREE.CylinderGeometry(
+            tile * 0.26,
+            tile * 0.26,
+            highlightHeight,
+            20
+          ),
           new THREE.MeshStandardMaterial({
             color: highlightColor,
             transparent: true,
-            opacity: 0.55,
+            opacity: 0.7,
             metalness: 0.2,
             depthTest: false,
             depthWrite: false
           })
         );
         const baseY = Math.max(
-          mesh.position.y + highlightHeight * 0.5,
-          currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
+          base.y + highlightHeight * 0.5,
+          currentPieceYOffset -
+            highlightHeight * 0.5 +
+            HIGHLIGHT_VERTICAL_OFFSET
         );
-        h.position.copy(mesh.position).setY(baseY + highlightHeight * 0.5);
-        h.renderOrder = 5;
+        h.position.copy(base).setY(baseY + highlightHeight * 0.5);
+        h.renderOrder = 6;
         h.userData.__highlight = true;
         boardGroup.add(h);
-      });
-    }
-    function clearHighlights() {
-      const toKill = [];
-      boardGroup.traverse((o) => {
-        if (o.userData && o.userData.__highlight) toKill.push(o);
-      });
-      toKill.forEach((o) => boardGroup.remove(o));
-    }
-    clearHighlightsRef.current = clearHighlights;
-
-    const isPlayerPiece = (piece) => {
-      if (!piece) return false;
-      if (onlineRef.current.enabled) {
-        const playerSide = onlineRef.current.side;
-        if (!playerSide) return false;
-        return playerSide === 'white' ? piece.w : !piece.w;
-      }
-      // Offline games only allow the human to control white; AI plays black
-      return piece.w;
-    };
-
-    const canInteractWithPiece = (piece) => {
-      if (!isPlayerPiece(piece)) return false;
-      if (!uiRef.current.turnWhite && piece.w) return false;
-      if (uiRef.current.turnWhite && !piece.w) return false;
-      if (onlineRef.current.enabled) {
-        if (!onlineRef.current.synced) return false;
-        if (
-          onlineRef.current.status !== 'started' &&
-          onlineRef.current.status !== 'in-progress'
-        )
-          return false;
-      }
-      return true;
-    };
-
-    function selectAt(r, c, options = {}) {
-      const { force = false, selectionColor } = options;
-      if (isReplayingRef.current) return;
-      const p = board[r][c];
-      if (!p) {
-        resetSelectedMeshElevation();
-        return ((sel = null), clearHighlights());
-      }
-      if (!force && !canInteractWithPiece(p)) return;
-
-      resetSelectedMeshElevation();
-      sel = { r, c, p };
-      liftSelectedMesh(pieceMeshes[r]?.[c]);
-      legal = legalMoves(board, r, c);
-      clearHighlights();
-      highlightSelection(r, c, selectionColor);
-      const palette = paletteRef.current;
-      const captureSquares = [];
-      const quietSquares = [];
-      legal.forEach(([rr, cc]) => {
-        const target = board[rr][cc];
-        if (target && target.w !== p.w) captureSquares.push([rr, cc]);
-        else quietSquares.push([rr, cc]);
-      });
-      highlightMoves(quietSquares, palette?.highlight);
-      if (captureSquares.length) highlightMoves(captureSquares, palette?.capture);
-    }
-
-    function moveSelTo(rr, cc, options = {}) {
-      const { byAi = false } = options;
-      const finalizeAiMove = () => {
-        if (byAi) aiMovingRef.current = false;
       };
-      if (isReplayingRef.current) {
-        finalizeAiMove();
-        return;
-      }
-      if (!sel) {
-        finalizeAiMove();
-        return;
-      }
-      if (!legal.some(([r, c]) => r === rr && c === cc)) {
-        finalizeAiMove();
-        return;
-      }
-      if (onlineRef.current.enabled) {
-        const myTurnIsWhite = onlineRef.current.side === 'white';
-        if (!onlineRef.current.synced) {
-          finalizeAiMove();
-          return;
-        }
-        if (
-          onlineRef.current.status !== 'started' &&
-          onlineRef.current.status !== 'in-progress'
-        ) {
-          finalizeAiMove();
-          return;
-        }
-        if (uiRef.current.turnWhite !== myTurnIsWhite) {
-          finalizeAiMove();
-          return;
-        }
-      } else if (!isPlayerPiece(sel.p) && !byAi) {
-        finalizeAiMove();
-        return;
-      }
-      const movingPiece = board[sel.r][sel.c];
-      const capturedPiece = board[rr][cc];
-      const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
-      const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
-      const fromSquare = resolveChessSquare(sel.r, sel.c);
-      const toSquare = resolveChessSquare(rr, cc);
-      const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
-      const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
-      let moveDelayMs = 0;
-      let captureResolveDelayMs = 0;
-      // capture mesh if any
-      const targetMesh = pieceMeshes[rr][cc];
-      if (targetMesh) {
-        const worldPos = new THREE.Vector3();
-        targetMesh.getWorldPosition(worldPos);
-        const captureFx = playCaptureAnimation({
-          fromPos: fromWorldPos,
-          targetPos: worldPos,
-          movingType: movingPiece?.t,
-          distance: Math.hypot(rr - sel.r, cc - sel.c),
-          deltaR: rr - sel.r,
-          deltaC: cc - sel.c
-        });
-        moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
-        captureResolveDelayMs = Math.max(0, captureFx?.captureResolveDelayMs ?? 0);
-        const moveCapturedPieceToZone = () => {
-          const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
-          const zone = capturingWhite ? capturedByWhite : capturedByBlack;
-          const idx = zone.push(targetMesh) - 1;
-          const row = Math.floor(idx / 8);
-          const col = idx % 8;
-          const captureSpacing = tile * 0.68;
-          const captureRowSpacing = tile * 0.9;
-          const captureY = currentPieceYOffset;
-          const capX = (col - 3.5) * captureSpacing;
-          const capZ = capturingWhite
-            ? half + BOARD.rim + 1 + row * captureRowSpacing
-            : -half - BOARD.rim - 1 - row * captureRowSpacing;
-          cancelPieceAnimation(targetMesh);
-          targetMesh.position.y = captureY;
-          animatePieceTo(
-            targetMesh,
-            new THREE.Vector3(capX, captureY, capZ),
-            0.35
-          );
-        };
-        if (captureResolveDelayMs > 0) {
-          setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
+
+      function startTimer(isWhite) {
+        clearInterval(timerRef.current);
+        try {
+          timerSoundRef.current?.pause();
+        } catch {}
+        if (isWhite) {
+          initialWhiteTimeRef.current = 60;
+          whiteTimeRef.current = 60;
+          setWhiteTime(60);
+          lastBeepRef.current.white = null;
+          timerRef.current = setInterval(() => {
+            setWhiteTime((t) => {
+              const next = Math.max(0, t - 1);
+              if (t <= 1) {
+                clearInterval(timerRef.current);
+                setUi((s) => ({
+                  ...s,
+                  status: 'White ran out of time',
+                  winner: 'Black'
+                }));
+                return 0;
+              }
+              maybePlayCountdownSound(next, true);
+              return next;
+            });
+          }, 1000);
         } else {
-          moveCapturedPieceToZone();
+          initialBlackTimeRef.current = 5;
+          blackTimeRef.current = 5;
+          setBlackTime(5);
+          lastBeepRef.current.black = null;
+          timerRef.current = setInterval(() => {
+            setBlackTime((t) => {
+              const next = Math.max(0, t - 1);
+              if (t <= 1) {
+                clearInterval(timerRef.current);
+                setUi((s) => ({
+                  ...s,
+                  status: 'Black ran out of time',
+                  winner: 'White'
+                }));
+                return 0;
+              }
+              maybePlayCountdownSound(next, false);
+              return next;
+            });
+          }, 1000);
         }
-        pieceMeshes[rr][cc] = null;
       }
-      // move board
-      const movedPiece = movingPiece;
-      if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
-      const movedFromPawn = movedPiece?.t === 'P';
-      const isCastlingMove =
-        movedPiece?.t === 'K' &&
-        sel.r === rr &&
-        Math.abs(cc - sel.c) === 2 &&
-        legal.some(([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2);
-      const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
-      const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
-      const rookPiece =
-        isCastlingMove && Number.isInteger(rookFromC) ? board[sel.r][rookFromC] : null;
-      if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
-      const rookMesh =
-        isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
-      board[rr][cc] = movedPiece;
-      board[sel.r][sel.c] = null;
-      if (isCastlingMove && rookPiece) {
-        board[rr][rookToC] = rookPiece;
-        board[sel.r][rookFromC] = null;
-        rookPiece.hasMoved = true;
+
+      const shouldTriggerAiMove = (turnWhiteValue) =>
+        !onlineRef.current.enabled &&
+        ((aiPlaysWhite && turnWhiteValue) ||
+          (!aiPlaysWhite && !turnWhiteValue));
+
+      function applyStatus(nextWhite, status, winner) {
+        setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
+        if (winner) {
+          clearInterval(timerRef.current);
+          return;
+        }
+        startTimer(nextWhite);
+        if (shouldTriggerAiMove(nextWhite)) setTimeout(aiMove, 200);
       }
-      if (movedPiece) movedPiece.hasMoved = true;
-      // promotion (auto to Queen)
-      const promoted = movedFromPawn && (rr === 0 || rr === 7);
-      if (promoted) {
-        board[rr][cc].t = 'Q';
-      }
-      // move mesh
-      let m = pieceMeshes[sel.r][sel.c];
-      pieceMeshes[sel.r][sel.c] = null;
-      const syncMovedPieceMesh = () => {
-        pieceMeshes[rr][cc] = m;
-        m.userData.r = rr;
-        m.userData.c = cc;
-        m.userData.t = board[rr][cc].t;
+
+      const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
+        const activeTurn = uiRef.current?.turnWhite;
+        if (activeTurn !== isWhiteTurn) {
+          return;
+        }
+        const key = isWhiteTurn ? 'white' : 'black';
+        const last = lastBeepRef.current[key];
+        if (
+          timerSoundRef.current &&
+          settingsRef.current.soundEnabled &&
+          seconds > 0 &&
+          seconds <= 15 &&
+          seconds !== last
+        ) {
+          lastBeepRef.current[key] = seconds;
+          try {
+            timerSoundRef.current.currentTime = 0;
+            timerSoundRef.current.play().catch(() => {});
+          } catch {}
+        }
+        if (seconds > 15 && last != null) {
+          lastBeepRef.current[key] = null;
+          try {
+            timerSoundRef.current.pause();
+          } catch {}
+        }
+        if (seconds <= 0 && timerSoundRef.current) {
+          try {
+            timerSoundRef.current.pause();
+          } catch {}
+        }
       };
-      syncMovedPieceMesh();
-      cancelPieceAnimation(m);
-      const targetPosition = toWorldPos;
-      if (moveDelayMs > 0) {
-        setTimeout(() => {
-          syncMovedPieceMesh();
-          cancelPieceAnimation(m);
+
+      function highlightMoves(list, color) {
+        if (!settingsRef.current.showHighlights) return;
+        const palette = paletteRef.current;
+        const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
+        const highlightHeight = Math.max(0.08, tile * 0.03);
+        list.forEach(([rr, cc]) => {
+          const mesh = tiles.find(
+            (t) => t.userData.r === rr && t.userData.c === cc
+          );
+          if (!mesh) return;
+          const h = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              tile * 0.28,
+              tile * 0.28,
+              highlightHeight,
+              20
+            ),
+            new THREE.MeshStandardMaterial({
+              color: highlightColor,
+              transparent: true,
+              opacity: 0.55,
+              metalness: 0.2,
+              depthTest: false,
+              depthWrite: false
+            })
+          );
+          const baseY = Math.max(
+            mesh.position.y + highlightHeight * 0.5,
+            currentPieceYOffset -
+              highlightHeight * 0.5 +
+              HIGHLIGHT_VERTICAL_OFFSET
+          );
+          h.position.copy(mesh.position).setY(baseY + highlightHeight * 0.5);
+          h.renderOrder = 5;
+          h.userData.__highlight = true;
+          boardGroup.add(h);
+        });
+      }
+      function clearHighlights() {
+        const toKill = [];
+        boardGroup.traverse((o) => {
+          if (o.userData && o.userData.__highlight) toKill.push(o);
+        });
+        toKill.forEach((o) => boardGroup.remove(o));
+      }
+      clearHighlightsRef.current = clearHighlights;
+
+      const isPlayerPiece = (piece) => {
+        if (!piece) return false;
+        if (onlineRef.current.enabled) {
+          const playerSide = onlineRef.current.side;
+          if (!playerSide) return false;
+          return playerSide === 'white' ? piece.w : !piece.w;
+        }
+        // Offline games only allow the human to control white; AI plays black
+        return piece.w;
+      };
+
+      const canInteractWithPiece = (piece) => {
+        if (!isPlayerPiece(piece)) return false;
+        if (!uiRef.current.turnWhite && piece.w) return false;
+        if (uiRef.current.turnWhite && !piece.w) return false;
+        if (onlineRef.current.enabled) {
+          if (!onlineRef.current.synced) return false;
+          if (
+            onlineRef.current.status !== 'started' &&
+            onlineRef.current.status !== 'in-progress'
+          )
+            return false;
+        }
+        return true;
+      };
+
+      function selectAt(r, c, options = {}) {
+        const { force = false, selectionColor } = options;
+        if (isReplayingRef.current) return;
+        const p = board[r][c];
+        if (!p) {
+          resetSelectedMeshElevation();
+          return ((sel = null), clearHighlights());
+        }
+        if (!force && !canInteractWithPiece(p)) return;
+
+        resetSelectedMeshElevation();
+        sel = { r, c, p };
+        liftSelectedMesh(pieceMeshes[r]?.[c]);
+        legal = legalMoves(board, r, c);
+        clearHighlights();
+        highlightSelection(r, c, selectionColor);
+        const palette = paletteRef.current;
+        const captureSquares = [];
+        const quietSquares = [];
+        legal.forEach(([rr, cc]) => {
+          const target = board[rr][cc];
+          if (target && target.w !== p.w) captureSquares.push([rr, cc]);
+          else quietSquares.push([rr, cc]);
+        });
+        highlightMoves(quietSquares, palette?.highlight);
+        if (captureSquares.length)
+          highlightMoves(captureSquares, palette?.capture);
+      }
+
+      function moveSelTo(rr, cc, options = {}) {
+        const { byAi = false } = options;
+        const finalizeAiMove = () => {
+          if (byAi) aiMovingRef.current = false;
+        };
+        if (isReplayingRef.current) {
+          finalizeAiMove();
+          return;
+        }
+        if (!sel) {
+          finalizeAiMove();
+          return;
+        }
+        if (!legal.some(([r, c]) => r === rr && c === cc)) {
+          finalizeAiMove();
+          return;
+        }
+        if (onlineRef.current.enabled) {
+          const myTurnIsWhite = onlineRef.current.side === 'white';
+          if (!onlineRef.current.synced) {
+            finalizeAiMove();
+            return;
+          }
+          if (
+            onlineRef.current.status !== 'started' &&
+            onlineRef.current.status !== 'in-progress'
+          ) {
+            finalizeAiMove();
+            return;
+          }
+          if (uiRef.current.turnWhite !== myTurnIsWhite) {
+            finalizeAiMove();
+            return;
+          }
+        } else if (!isPlayerPiece(sel.p) && !byAi) {
+          finalizeAiMove();
+          return;
+        }
+        const movingPiece = board[sel.r][sel.c];
+        const capturedPiece = board[rr][cc];
+        const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
+        const capturedPieceLabel = capturedPiece
+          ? PIECE_LABELS[capturedPiece.t] || 'piece'
+          : null;
+        const fromSquare = resolveChessSquare(sel.r, sel.c);
+        const toSquare = resolveChessSquare(rr, cc);
+        const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
+        const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
+        let moveDelayMs = 0;
+        let captureResolveDelayMs = 0;
+        // capture mesh if any
+        const targetMesh = pieceMeshes[rr][cc];
+        if (targetMesh) {
+          const worldPos = new THREE.Vector3();
+          targetMesh.getWorldPosition(worldPos);
+          const captureFx = playCaptureAnimation({
+            fromPos: fromWorldPos,
+            targetPos: worldPos,
+            movingType: movingPiece?.t,
+            movingIsWhite: !!movingPiece?.w,
+            distance: Math.hypot(rr - sel.r, cc - sel.c),
+            deltaR: rr - sel.r,
+            deltaC: cc - sel.c
+          });
+          moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
+          captureResolveDelayMs = Math.max(
+            0,
+            captureFx?.captureResolveDelayMs ?? 0
+          );
+          const moveCapturedPieceToZone = () => {
+            const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
+            const zone = capturingWhite ? capturedByWhite : capturedByBlack;
+            const idx = zone.push(targetMesh) - 1;
+            const row = Math.floor(idx / 8);
+            const col = idx % 8;
+            const captureSpacing = tile * 0.68;
+            const captureRowSpacing = tile * 0.9;
+            const captureY = currentPieceYOffset;
+            const capX = (col - 3.5) * captureSpacing;
+            const capZ = capturingWhite
+              ? half + BOARD.rim + 1 + row * captureRowSpacing
+              : -half - BOARD.rim - 1 - row * captureRowSpacing;
+            cancelPieceAnimation(targetMesh);
+            targetMesh.position.y = captureY;
+            animatePieceTo(
+              targetMesh,
+              new THREE.Vector3(capX, captureY, capZ),
+              0.35
+            );
+          };
+          if (captureResolveDelayMs > 0) {
+            setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
+          } else {
+            moveCapturedPieceToZone();
+          }
+          pieceMeshes[rr][cc] = null;
+        }
+        // move board
+        const movedPiece = movingPiece;
+        if (movedPiece && typeof movedPiece.hasMoved !== 'boolean')
+          movedPiece.hasMoved = false;
+        const movedFromPawn = movedPiece?.t === 'P';
+        const isCastlingMove =
+          movedPiece?.t === 'K' &&
+          sel.r === rr &&
+          Math.abs(cc - sel.c) === 2 &&
+          legal.some(
+            ([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2
+          );
+        const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
+        const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
+        const rookPiece =
+          isCastlingMove && Number.isInteger(rookFromC)
+            ? board[sel.r][rookFromC]
+            : null;
+        if (rookPiece && typeof rookPiece.hasMoved !== 'boolean')
+          rookPiece.hasMoved = false;
+        const rookMesh =
+          isCastlingMove && Number.isInteger(rookFromC)
+            ? pieceMeshes[sel.r][rookFromC]
+            : null;
+        board[rr][cc] = movedPiece;
+        board[sel.r][sel.c] = null;
+        if (isCastlingMove && rookPiece) {
+          board[rr][rookToC] = rookPiece;
+          board[sel.r][rookFromC] = null;
+          rookPiece.hasMoved = true;
+        }
+        if (movedPiece) movedPiece.hasMoved = true;
+        // promotion (auto to Queen)
+        const promoted = movedFromPawn && (rr === 0 || rr === 7);
+        if (promoted) {
+          board[rr][cc].t = 'Q';
+        }
+        // move mesh
+        let m = pieceMeshes[sel.r][sel.c];
+        pieceMeshes[sel.r][sel.c] = null;
+        const syncMovedPieceMesh = () => {
+          pieceMeshes[rr][cc] = m;
+          m.userData.r = rr;
+          m.userData.c = cc;
+          m.userData.t = board[rr][cc].t;
+        };
+        syncMovedPieceMesh();
+        cancelPieceAnimation(m);
+        const targetPosition = toWorldPos;
+        if (moveDelayMs > 0) {
+          setTimeout(() => {
+            syncMovedPieceMesh();
+            cancelPieceAnimation(m);
+            animatePieceTo(m, targetPosition, 0.32);
+            playMoveSound();
+          }, moveDelayMs);
+        } else {
           animatePieceTo(m, targetPosition, 0.32);
           playMoveSound();
-        }, moveDelayMs);
-      } else {
-        animatePieceTo(m, targetPosition, 0.32);
-        playMoveSound();
-      }
-      if (isCastlingMove && Number.isInteger(rookFromC)) {
-        pieceMeshes[sel.r][rookFromC] = null;
-      }
-      if (isCastlingMove && rookMesh) {
-        pieceMeshes[rr][rookToC] = rookMesh;
-        rookMesh.userData.r = rr;
-        rookMesh.userData.c = rookToC;
-        cancelPieceAnimation(rookMesh);
-        const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-        animatePieceTo(rookMesh, rookTarget, 0.32);
-      }
-      if (promoted && currentPiecePrototypes) {
-        const color = board[rr][cc].w ? 'white' : 'black';
-        const queenProto = currentPiecePrototypes[color]?.Q;
-        if (queenProto) {
-          const replacement = cloneWithShadows(queenProto);
-          replacement.position.copy(m.position);
-          replacement.userData = {
-            ...m.userData,
-            t: 'Q',
-            __pieceStyleId: currentPieceSetId
-          };
-          const activeAnim = activePieceAnimations.find((anim) => anim.mesh === m);
-          if (activeAnim) {
-            activeAnim.mesh = replacement;
-          }
-          replacement.traverse((child) => {
-            if (!child.isMesh) return;
-            child.userData = {
-              ...(child.userData || {}),
-              __pieceColor: color,
+        }
+        if (isCastlingMove && Number.isInteger(rookFromC)) {
+          pieceMeshes[sel.r][rookFromC] = null;
+        }
+        if (isCastlingMove && rookMesh) {
+          pieceMeshes[rr][rookToC] = rookMesh;
+          rookMesh.userData.r = rr;
+          rookMesh.userData.c = rookToC;
+          cancelPieceAnimation(rookMesh);
+          const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
+          animatePieceTo(rookMesh, rookTarget, 0.32);
+        }
+        if (promoted && currentPiecePrototypes) {
+          const color = board[rr][cc].w ? 'white' : 'black';
+          const queenProto = currentPiecePrototypes[color]?.Q;
+          if (queenProto) {
+            const replacement = cloneWithShadows(queenProto);
+            replacement.position.copy(m.position);
+            replacement.userData = {
+              ...m.userData,
+              t: 'Q',
               __pieceStyleId: currentPieceSetId
             };
-          });
-          pieceMeshes[rr][cc] = replacement;
-          const index = allPieceMeshes.indexOf(m);
-          if (index >= 0) allPieceMeshes[index] = replacement;
-          else allPieceMeshes.push(replacement);
-          boardGroup.add(replacement);
-          try {
-            boardGroup.remove(m);
-          } catch {}
-          disposeObject3D(m);
-          m = replacement;
-        }
-      }
-
-      lastMoveRef.current = {
-        from: { r: sel.r, c: sel.c },
-        to: { r: rr, c: cc },
-        pieceMesh: m,
-        selectionColor: paletteRef.current?.capture,
-        highlightColor: paletteRef.current?.highlight
-      };
-      setCanReplay(true);
-
-      // turn switch & status
-      const nextWhite = !uiRef.current.turnWhite;
-      const king = findKing(board, nextWhite);
-      const inCheck =
-        king && isSquareAttacked(board, king[0], king[1], !nextWhite);
-      const hasMove = anyLegal(board, nextWhite);
-      let status = nextWhite ? 'White to move' : 'Black to move';
-      let winner = null;
-      if (!hasMove) {
-        if (inCheck) {
-          winner = nextWhite ? 'Black' : 'White';
-          status = `Checkmate — ${winner} wins`;
-          playMateSound();
-          playLaughSound();
-        } else {
-          status = 'Stalemate';
-        }
-      } else if (inCheck) {
-        status = (nextWhite ? 'White' : 'Black') + ' in check';
-        playCheckSound();
-        playLaughSound();
-      }
-
-      applyStatus(nextWhite, status, winner);
-
-      const moverIsWhite = movedPiece?.w ?? true;
-      const playerName = resolveChessSideName(moverIsWhite);
-      const opponentName = resolveChessSideName(!moverIsWhite);
-      const winnerName =
-        winner === 'White'
-          ? resolveChessSideName(true)
-          : winner === 'Black'
-            ? resolveChessSideName(false)
-            : playerName;
-      moveCountRef.current += 1;
-      const pieceCount = board.flat().filter(Boolean).length;
-      const context = {
-        player: playerName,
-        opponent: opponentName,
-        piece: movingPieceLabel,
-        fromSquare,
-        toSquare,
-        capturedPiece: capturedPieceLabel,
-        castleSide: isCastlingMove ? (cc > sel.c ? 'king-side' : 'queen-side') : 'king-side',
-        winner: winnerName
-      };
-      let event = 'move';
-      if (!hasMove) {
-        event = inCheck ? 'checkmate' : 'stalemate';
-      } else if (inCheck) {
-        event = 'check';
-      } else if (promoted) {
-        event = 'promotion';
-      } else if (isCastlingMove) {
-        event = 'castle';
-      } else if (capturedPieceLabel) {
-        event = 'capture';
-      } else if (moveCountRef.current <= 4) {
-        event = 'opening';
-      } else if (pieceCount <= 10) {
-        event = 'endgame';
-      }
-      const priority = event === 'checkmate' || event === 'stalemate';
-      enqueueChessCommentaryEvent(event, context, { priority });
-      if (priority && !commentaryOutroPlayedRef.current) {
-        commentaryOutroPlayedRef.current = true;
-        enqueueChessCommentaryEvent('outro', context, { priority: true });
-      }
-
-      if (onlineRef.current.enabled && onlineRef.current.tableId) {
-        const movePayload = {
-          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
-          fen: boardToFEN(board, nextWhite),
-          turnWhite: nextWhite
-        };
-        onlineRef.current.emitMove?.({ tableId: onlineRef.current.tableId, move: movePayload });
-      }
-      sel = null;
-      resetSelectedMeshElevation();
-      clearHighlights();
-      finalizeAiMove();
-    }
-
-    const dragState = {
-      active: false,
-      mesh: null,
-      from: null
-    };
-
-    const piecePosition = (r, c, y = currentPieceYOffset) =>
-      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
-
-    const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
-      if (!mesh) return;
-      const anim = {
-        mesh,
-        start: mesh.position.clone(),
-        target: target.clone(),
-        duration: Math.max(0.05, duration),
-        elapsed: 0,
-        onComplete
-      };
-      activePieceAnimations.push(anim);
-    };
-
-    const cancelPieceAnimation = (mesh) => {
-      if (!mesh) return;
-      for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
-        if (activePieceAnimations[i].mesh === mesh) {
-          activePieceAnimations.splice(i, 1);
-        }
-      }
-    };
-
-    replayLastMoveRef.current = () => {
-      const last = lastMoveRef.current;
-      if (!last?.pieceMesh) return;
-      if (isReplayingRef.current) return;
-      const { from, to, pieceMesh, selectionColor, highlightColor } = last;
-      const fromPos = piecePosition(from.r, from.c, currentPieceYOffset);
-      const toPos = piecePosition(to.r, to.c, currentPieceYOffset);
-      cancelPieceAnimation(pieceMesh);
-      isReplayingRef.current = true;
-      clearHighlights();
-      highlightSelection(from.r, from.c, selectionColor);
-      highlightMoves([[to.r, to.c]], highlightColor);
-      pieceMesh.position.copy(fromPos);
-      animatePieceTo(pieceMesh, toPos, 0.45, () => {
-        pieceMesh.position.copy(toPos);
-        isReplayingRef.current = false;
-      });
-    };
-
-    const pickTileFromPointer = (event) => {
-      setPointer(event);
-      ray.setFromCamera(pointer, camera);
-      const hit = ray.intersectObjects(tiles, false)[0];
-      if (!hit) return null;
-      const { r, c } = hit.object.userData || {};
-      if (r == null || c == null) return null;
-      return { r, c };
-    };
-
-    const pickBoardObject = (event) => {
-      setPointer(event);
-      ray.setFromCamera(pointer, camera);
-      const intersects = ray.intersectObjects(boardGroup.children, true);
-      for (const i of intersects) {
-        let o = i.object;
-        while (o) {
-          if (o.userData && (o.userData.type === 'piece' || o.userData.type === 'tile')) {
-            return { object: o, point: i.point };
+            const activeAnim = activePieceAnimations.find(
+              (anim) => anim.mesh === m
+            );
+            if (activeAnim) {
+              activeAnim.mesh = replacement;
+            }
+            replacement.traverse((child) => {
+              if (!child.isMesh) return;
+              child.userData = {
+                ...(child.userData || {}),
+                __pieceColor: color,
+                __pieceStyleId: currentPieceSetId
+              };
+            });
+            pieceMeshes[rr][cc] = replacement;
+            const index = allPieceMeshes.indexOf(m);
+            if (index >= 0) allPieceMeshes[index] = replacement;
+            else allPieceMeshes.push(replacement);
+            boardGroup.add(replacement);
+            try {
+              boardGroup.remove(m);
+            } catch {}
+            disposeObject3D(m);
+            m = replacement;
           }
-          o = o.parent;
         }
-      }
-      return null;
-    };
 
-    const onPointerDown = (event) => {
-      if (isReplayingRef.current) return;
-      if (settingsRef.current.moveMode !== 'drag') return;
-      const hit = pickBoardObject(event);
-      if (!hit || hit.object.userData.type !== 'piece') return;
-      const { r, c } = hit.object.userData;
-      selectAt(r, c);
-      if (!sel) return;
-      dragState.active = true;
-      dragState.mesh = pieceMeshes[r][c];
-      dragState.from = { r, c };
-      if (dragState.mesh) {
-        cancelPieceAnimation(dragState.mesh);
-        dragState.mesh.position.y = Math.max(
-          dragState.mesh.position.y,
+        lastMoveRef.current = {
+          from: { r: sel.r, c: sel.c },
+          to: { r: rr, c: cc },
+          pieceMesh: m,
+          selectionColor: paletteRef.current?.capture,
+          highlightColor: paletteRef.current?.highlight
+        };
+        setCanReplay(true);
+
+        // turn switch & status
+        const nextWhite = !uiRef.current.turnWhite;
+        const king = findKing(board, nextWhite);
+        const inCheck =
+          king && isSquareAttacked(board, king[0], king[1], !nextWhite);
+        const hasMove = anyLegal(board, nextWhite);
+        let status = nextWhite ? 'White to move' : 'Black to move';
+        let winner = null;
+        if (!hasMove) {
+          if (inCheck) {
+            winner = nextWhite ? 'Black' : 'White';
+            status = `Checkmate — ${winner} wins`;
+            playMateSound();
+            playLaughSound();
+          } else {
+            status = 'Stalemate';
+          }
+        } else if (inCheck) {
+          status = (nextWhite ? 'White' : 'Black') + ' in check';
+          playCheckSound();
+          playLaughSound();
+        }
+
+        applyStatus(nextWhite, status, winner);
+
+        const moverIsWhite = movedPiece?.w ?? true;
+        const playerName = resolveChessSideName(moverIsWhite);
+        const opponentName = resolveChessSideName(!moverIsWhite);
+        const winnerName =
+          winner === 'White'
+            ? resolveChessSideName(true)
+            : winner === 'Black'
+              ? resolveChessSideName(false)
+              : playerName;
+        moveCountRef.current += 1;
+        const pieceCount = board.flat().filter(Boolean).length;
+        const context = {
+          player: playerName,
+          opponent: opponentName,
+          piece: movingPieceLabel,
+          fromSquare,
+          toSquare,
+          capturedPiece: capturedPieceLabel,
+          castleSide: isCastlingMove
+            ? cc > sel.c
+              ? 'king-side'
+              : 'queen-side'
+            : 'king-side',
+          winner: winnerName
+        };
+        let event = 'move';
+        if (!hasMove) {
+          event = inCheck ? 'checkmate' : 'stalemate';
+        } else if (inCheck) {
+          event = 'check';
+        } else if (promoted) {
+          event = 'promotion';
+        } else if (isCastlingMove) {
+          event = 'castle';
+        } else if (capturedPieceLabel) {
+          event = 'capture';
+        } else if (moveCountRef.current <= 4) {
+          event = 'opening';
+        } else if (pieceCount <= 10) {
+          event = 'endgame';
+        }
+        const priority = event === 'checkmate' || event === 'stalemate';
+        enqueueChessCommentaryEvent(event, context, { priority });
+        if (priority && !commentaryOutroPlayedRef.current) {
+          commentaryOutroPlayedRef.current = true;
+          enqueueChessCommentaryEvent('outro', context, { priority: true });
+        }
+
+        if (onlineRef.current.enabled && onlineRef.current.tableId) {
+          const movePayload = {
+            lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
+            fen: boardToFEN(board, nextWhite),
+            turnWhite: nextWhite
+          };
+          onlineRef.current.emitMove?.({
+            tableId: onlineRef.current.tableId,
+            move: movePayload
+          });
+        }
+        sel = null;
+        resetSelectedMeshElevation();
+        clearHighlights();
+        finalizeAiMove();
+      }
+
+      const dragState = {
+        active: false,
+        mesh: null,
+        from: null
+      };
+
+      const piecePosition = (r, c, y = currentPieceYOffset) =>
+        new THREE.Vector3(
+          c * tile - half + tile / 2,
+          y,
+          r * tile - half + tile / 2
+        );
+
+      const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
+        if (!mesh) return;
+        const anim = {
+          mesh,
+          start: mesh.position.clone(),
+          target: target.clone(),
+          duration: Math.max(0.05, duration),
+          elapsed: 0,
+          onComplete
+        };
+        activePieceAnimations.push(anim);
+      };
+
+      const cancelPieceAnimation = (mesh) => {
+        if (!mesh) return;
+        for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+          if (activePieceAnimations[i].mesh === mesh) {
+            activePieceAnimations.splice(i, 1);
+          }
+        }
+      };
+
+      replayLastMoveRef.current = () => {
+        const last = lastMoveRef.current;
+        if (!last?.pieceMesh) return;
+        if (isReplayingRef.current) return;
+        const { from, to, pieceMesh, selectionColor, highlightColor } = last;
+        const fromPos = piecePosition(from.r, from.c, currentPieceYOffset);
+        const toPos = piecePosition(to.r, to.c, currentPieceYOffset);
+        cancelPieceAnimation(pieceMesh);
+        isReplayingRef.current = true;
+        clearHighlights();
+        highlightSelection(from.r, from.c, selectionColor);
+        highlightMoves([[to.r, to.c]], highlightColor);
+        pieceMesh.position.copy(fromPos);
+        animatePieceTo(pieceMesh, toPos, 0.45, () => {
+          pieceMesh.position.copy(toPos);
+          isReplayingRef.current = false;
+        });
+      };
+
+      const pickTileFromPointer = (event) => {
+        setPointer(event);
+        ray.setFromCamera(pointer, camera);
+        const hit = ray.intersectObjects(tiles, false)[0];
+        if (!hit) return null;
+        const { r, c } = hit.object.userData || {};
+        if (r == null || c == null) return null;
+        return { r, c };
+      };
+
+      const pickBoardObject = (event) => {
+        setPointer(event);
+        ray.setFromCamera(pointer, camera);
+        const intersects = ray.intersectObjects(boardGroup.children, true);
+        for (const i of intersects) {
+          let o = i.object;
+          while (o) {
+            if (
+              o.userData &&
+              (o.userData.type === 'piece' || o.userData.type === 'tile')
+            ) {
+              return { object: o, point: i.point };
+            }
+            o = o.parent;
+          }
+        }
+        return null;
+      };
+
+      const onPointerDown = (event) => {
+        if (isReplayingRef.current) return;
+        if (settingsRef.current.moveMode !== 'drag') return;
+        const hit = pickBoardObject(event);
+        if (!hit || hit.object.userData.type !== 'piece') return;
+        const { r, c } = hit.object.userData;
+        selectAt(r, c);
+        if (!sel) return;
+        dragState.active = true;
+        dragState.mesh = pieceMeshes[r][c];
+        dragState.from = { r, c };
+        if (dragState.mesh) {
+          cancelPieceAnimation(dragState.mesh);
+          dragState.mesh.position.y = Math.max(
+            dragState.mesh.position.y,
+            currentPieceYOffset + 0.18
+          );
+        }
+        if (controls) controls.enabled = false;
+      };
+
+      const onPointerMove = (event) => {
+        if (isReplayingRef.current) return;
+        if (!dragState.active || !dragState.mesh) return;
+        const tileHit = pickTileFromPointer(event);
+        if (!tileHit) return;
+        const target = piecePosition(
+          tileHit.r,
+          tileHit.c,
           currentPieceYOffset + 0.18
         );
-      }
-      if (controls) controls.enabled = false;
-    };
+        dragState.mesh.position.lerp(target, 0.35);
+      };
 
-    const onPointerMove = (event) => {
-      if (isReplayingRef.current) return;
-      if (!dragState.active || !dragState.mesh) return;
-      const tileHit = pickTileFromPointer(event);
-      if (!tileHit) return;
-      const target = piecePosition(tileHit.r, tileHit.c, currentPieceYOffset + 0.18);
-      dragState.mesh.position.lerp(target, 0.35);
-    };
-
-    const onPointerUp = (event) => {
-      if (isReplayingRef.current) return;
-      if (!dragState.active) return;
-      const tileHit = pickTileFromPointer(event);
-      const mesh = dragState.mesh;
-      const from = dragState.from;
-      dragState.active = false;
-      dragState.mesh = null;
-      dragState.from = null;
-      if (controls) controls.enabled = true;
-      if (tileHit && sel && legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)) {
-        moveSelTo(tileHit.r, tileHit.c);
-        return;
-      }
-      if (mesh && from) {
-        cancelPieceAnimation(mesh);
-        mesh.position.copy(piecePosition(from.r, from.c));
-        selectAt(from.r, from.c);
-        return;
-      }
-      clearHighlights();
-      sel = null;
-    };
-
-    function aiMove() {
-      if (isReplayingRef.current) return;
-      const activeTurnWhite = uiRef.current?.turnWhite ?? true;
-      if (!shouldTriggerAiMove(activeTurnWhite)) return;
-      aiMovingRef.current = true;
-      const mv = bestAIMove(board, activeTurnWhite, 4);
-      if (!mv) {
-        aiMovingRef.current = false;
-        return;
-      }
-      selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
-      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
-    }
-
-    onClick = function onClick(e) {
-      if (isReplayingRef.current) return;
-      if (settingsRef.current.moveMode !== 'click') return;
-      setPointer(e);
-      ray.setFromCamera(pointer, camera);
-      const intersects = ray.intersectObjects(boardGroup.children, true);
-      let obj = null;
-      for (const i of intersects) {
-        let o = i.object;
-        while (o) {
-          if (
-            o.userData &&
-            (o.userData.type === 'piece' || o.userData.type === 'tile')
-          ) {
-            obj = o;
-            break;
-          }
-          o = o.parent;
-        }
-        if (obj) break;
-      }
-      if (!obj) return;
-      const ud = obj.userData;
-      const targetPiece = board[ud.r]?.[ud.c] || null;
-      if (
-        sel &&
-        ud.type === 'piece' &&
-        targetPiece &&
-        targetPiece.w !== board[sel.r][sel.c]?.w
-      ) {
-        moveSelTo(ud.r, ud.c);
-        return;
-      }
-      if (ud.type === 'piece') selectAt(ud.r, ud.c);
-      else if (ud.type === 'tile' && sel) {
-        moveSelTo(ud.r, ud.c);
-      }
-    };
-
-    renderer.domElement.addEventListener('click', onClick);
-    renderer.domElement.addEventListener('touchend', onClick);
-    renderer.domElement.addEventListener('pointerdown', onPointerDown);
-    renderer.domElement.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-
-    // Loop
-    let lastTime = performance.now();
-    let lastRender = lastTime;
-    const step = () => {
-      const now = performance.now();
-      const rawDt = Math.max(0, (now - lastTime) / 1000);
-      const dt = Math.min(0.1, rawDt);
-      const animDt = Math.min(0.5, rawDt);
-      lastTime = now;
-      const arenaState = arenaRef.current;
-      if (camera && boardLookTarget) {
-        const radius = camera.position.distanceTo(boardLookTarget);
+      const onPointerUp = (event) => {
+        if (isReplayingRef.current) return;
+        if (!dragState.active) return;
+        const tileHit = pickTileFromPointer(event);
+        const mesh = dragState.mesh;
+        const from = dragState.from;
+        dragState.active = false;
+        dragState.mesh = null;
+        dragState.from = null;
+        if (controls) controls.enabled = true;
         if (
-          lastCameraRadiusRef.current == null ||
-          Math.abs(radius - lastCameraRadiusRef.current) > 1e-4
+          tileHit &&
+          sel &&
+          legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)
         ) {
-          lastCameraRadiusRef.current = radius;
-          syncSkyboxToCamera();
+          moveSelTo(tileHit.r, tileHit.c);
+          return;
         }
-      }
-      if (arenaState?.seatAnchors?.length && camera) {
-        const positions = arenaState.seatAnchors.map((anchor, index) => {
-          anchor.getWorldPosition(seatWorld);
-          seatNdc.copy(seatWorld).project(camera);
-          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
-          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-          const depth = camera.position.distanceTo(seatWorld);
-          return { index, x, y, depth };
+        if (mesh && from) {
+          cancelPieceAnimation(mesh);
+          mesh.position.copy(piecePosition(from.r, from.c));
+          selectAt(from.r, from.c);
+          return;
+        }
+        clearHighlights();
+        sel = null;
+      };
+
+      function aiMove() {
+        if (isReplayingRef.current) return;
+        const activeTurnWhite = uiRef.current?.turnWhite ?? true;
+        if (!shouldTriggerAiMove(activeTurnWhite)) return;
+        aiMovingRef.current = true;
+        const mv = bestAIMove(board, activeTurnWhite, 4);
+        if (!mv) {
+          aiMovingRef.current = false;
+          return;
+        }
+        selectAt(mv.fromR, mv.fromC, {
+          force: true,
+          selectionColor: paletteRef.current?.capture
         });
-        let changed = positions.length !== seatPositionsRef.current.length;
-        if (!changed) {
-          for (let i = 0; i < positions.length; i += 1) {
-            const prev = seatPositionsRef.current[i];
-            const curr = positions[i];
+        setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
+      }
+
+      onClick = function onClick(e) {
+        if (isReplayingRef.current) return;
+        if (settingsRef.current.moveMode !== 'click') return;
+        setPointer(e);
+        ray.setFromCamera(pointer, camera);
+        const intersects = ray.intersectObjects(boardGroup.children, true);
+        let obj = null;
+        for (const i of intersects) {
+          let o = i.object;
+          while (o) {
             if (
-              !prev ||
-              Math.abs(prev.x - curr.x) > 0.2 ||
-              Math.abs(prev.y - curr.y) > 0.2 ||
-              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+              o.userData &&
+              (o.userData.type === 'piece' || o.userData.type === 'tile')
             ) {
-              changed = true;
+              obj = o;
               break;
             }
+            o = o.parent;
+          }
+          if (obj) break;
+        }
+        if (!obj) return;
+        const ud = obj.userData;
+        const targetPiece = board[ud.r]?.[ud.c] || null;
+        if (
+          sel &&
+          ud.type === 'piece' &&
+          targetPiece &&
+          targetPiece.w !== board[sel.r][sel.c]?.w
+        ) {
+          moveSelTo(ud.r, ud.c);
+          return;
+        }
+        if (ud.type === 'piece') selectAt(ud.r, ud.c);
+        else if (ud.type === 'tile' && sel) {
+          moveSelTo(ud.r, ud.c);
+        }
+      };
+
+      renderer.domElement.addEventListener('click', onClick);
+      renderer.domElement.addEventListener('touchend', onClick);
+      renderer.domElement.addEventListener('pointerdown', onPointerDown);
+      renderer.domElement.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+
+      // Loop
+      let lastTime = performance.now();
+      let lastRender = lastTime;
+      const step = () => {
+        const now = performance.now();
+        const rawDt = Math.max(0, (now - lastTime) / 1000);
+        const dt = Math.min(0.1, rawDt);
+        const animDt = Math.min(0.5, rawDt);
+        lastTime = now;
+        const arenaState = arenaRef.current;
+        if (camera && boardLookTarget) {
+          const radius = camera.position.distanceTo(boardLookTarget);
+          if (
+            lastCameraRadiusRef.current == null ||
+            Math.abs(radius - lastCameraRadiusRef.current) > 1e-4
+          ) {
+            lastCameraRadiusRef.current = radius;
+            syncSkyboxToCamera();
           }
         }
-        if (changed) {
-          seatPositionsRef.current = positions;
-          setSeatAnchors(positions);
+        if (arenaState?.seatAnchors?.length && camera) {
+          const positions = arenaState.seatAnchors.map((anchor, index) => {
+            anchor.getWorldPosition(seatWorld);
+            seatNdc.copy(seatWorld).project(camera);
+            const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+            const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+            const depth = camera.position.distanceTo(seatWorld);
+            return { index, x, y, depth };
+          });
+          let changed = positions.length !== seatPositionsRef.current.length;
+          if (!changed) {
+            for (let i = 0; i < positions.length; i += 1) {
+              const prev = seatPositionsRef.current[i];
+              const curr = positions[i];
+              if (
+                !prev ||
+                Math.abs(prev.x - curr.x) > 0.2 ||
+                Math.abs(prev.y - curr.y) > 0.2 ||
+                Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+              ) {
+                changed = true;
+                break;
+              }
+            }
+          }
+          if (changed) {
+            seatPositionsRef.current = positions;
+            setSeatAnchors(positions);
+          }
+        } else if (seatPositionsRef.current.length) {
+          seatPositionsRef.current = [];
+          setSeatAnchors([]);
         }
-      } else if (seatPositionsRef.current.length) {
-        seatPositionsRef.current = [];
-        setSeatAnchors([]);
-      }
 
-      if (arenaState?.sandTimer) {
-        const activeTotal = uiRef.current.turnWhite
-          ? initialWhiteTimeRef.current || 1
-          : initialBlackTimeRef.current || 1;
-        const activeLeft = uiRef.current.turnWhite ? whiteTimeRef.current : blackTimeRef.current;
-        const pct = clamp01(activeLeft / Math.max(1, activeTotal));
-        arenaState.sandTimer.setFill?.(pct);
-        arenaState.sandTimer.setTime?.(activeLeft);
-        arenaState.sandTimer.tick?.(dt, now * 0.001);
-      }
+        if (arenaState?.sandTimer) {
+          const activeTotal = uiRef.current.turnWhite
+            ? initialWhiteTimeRef.current || 1
+            : initialBlackTimeRef.current || 1;
+          const activeLeft = uiRef.current.turnWhite
+            ? whiteTimeRef.current
+            : blackTimeRef.current;
+          const pct = clamp01(activeLeft / Math.max(1, activeTotal));
+          arenaState.sandTimer.setFill?.(pct);
+          arenaState.sandTimer.setTime?.(activeLeft);
+          arenaState.sandTimer.tick?.(dt, now * 0.001);
+        }
 
-      if (activePieceAnimations.length) {
-        for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
-          const anim = activePieceAnimations[i];
-          anim.elapsed += animDt;
-          const t = clamp01(anim.elapsed / anim.duration);
-          const eased = 1 - (1 - t) * (1 - t);
-          anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
-          if (t >= 1) {
-            anim.mesh.position.copy(anim.target);
-            activePieceAnimations.splice(i, 1);
-            if (typeof anim.onComplete === 'function') {
-              try {
-                anim.onComplete();
-              } catch (error) {
-                console.warn('Chess Battle Royal: animation callback failed', error);
+        if (activePieceAnimations.length) {
+          for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+            const anim = activePieceAnimations[i];
+            anim.elapsed += animDt;
+            const t = clamp01(anim.elapsed / anim.duration);
+            const eased = 1 - (1 - t) * (1 - t);
+            anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
+            if (t >= 1) {
+              anim.mesh.position.copy(anim.target);
+              activePieceAnimations.splice(i, 1);
+              if (typeof anim.onComplete === 'function') {
+                try {
+                  anim.onComplete();
+                } catch (error) {
+                  console.warn(
+                    'Chess Battle Royal: animation callback failed',
+                    error
+                  );
+                }
               }
             }
           }
         }
-      }
 
-      if (activeCaptureFx.length) {
-        for (let i = activeCaptureFx.length - 1; i >= 0; i -= 1) {
-          const fx = activeCaptureFx[i];
-          fx.t += dt;
-          const u = clamp01(fx.t / fx.duration);
-          if (fx.type === 'drone') {
-            const { pos, next } = getCaptureOrbitPose({
-              from: fx.from,
-              to: fx.to.clone().add(new THREE.Vector3(0, 0.08, 0)),
-              progress: u,
-              launchHeight: 0.35,
-              orbitRadiusMul: 1.02,
-              minOrbitCycles: 1.2,
-              liftSplit: 0.23,
-              strikeSplit: 0.82
-            });
-            fx.droneFx.root.position.copy(pos);
-            captureDir.copy(next).sub(pos).normalize();
-            fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.droneFx.propeller.rotation.x += dt * 36;
-            fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-1.95 - idx * 0.18 - ((fx.t * 1.45 + idx * 0.18) % 1) * 0.22, Math.sin(fx.t * 3 + idx) * 0.03, 0);
-            });
-            if (u >= 1) {
-              launchExplosion(fx.to);
-              captureFxGroup.remove(fx.droneFx.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'jet') {
-            const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
-            const nextU = clamp01(jetU + 0.02);
-            const sampleJetPath = (progress) =>
-              getCaptureOrbitPose({
+        if (activeCaptureFx.length) {
+          for (let i = activeCaptureFx.length - 1; i >= 0; i -= 1) {
+            const fx = activeCaptureFx[i];
+            fx.t += dt;
+            const u = clamp01(fx.t / fx.duration);
+            if (fx.type === 'drone') {
+              const { pos, next } = getCaptureOrbitPose({
                 from: fx.from,
-                to: fx.to.clone().add(new THREE.Vector3(0, 0.12, 0)),
-                progress,
-                launchHeight: 0.45,
-                orbitRadiusMul: 1.02,
-                minOrbitCycles: 1.12,
-                liftSplit: 0.21,
-                strikeSplit: 0.84
+                to: fx.to.clone().add(new THREE.Vector3(0, 0.08, 0)),
+                progress: u,
+                launchHeight: 0.2,
+                orbitRadiusMul: 0.96,
+                minOrbitCycles: 1.28,
+                liftSplit: 0.19,
+                strikeSplit: 0.72
               });
-            const { pos, next } = sampleJetPath(jetU);
-            fx.jetFx.root.position.copy(pos);
-            captureDir.copy(next).sub(pos).normalize();
-            fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-
-            const updateJetMissileFx = (missileFx, dropTime, travelTime, wingOffsetZ, impactTarget, explosionDelay = 0) => {
-              if (fx.t < dropTime) {
-                missileFx.root.visible = false;
-                return;
+              fx.droneFx.root.position.copy(pos);
+              captureDir.copy(next).sub(pos).normalize();
+              fx.droneFx.root.quaternion.setFromUnitVectors(
+                FORWARD,
+                captureDir
+              );
+              fx.droneFx.propeller.rotation.x += dt * 36;
+              fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
+                puff.position.set(
+                  -1.95 - idx * 0.18 - ((fx.t * 1.45 + idx * 0.18) % 1) * 0.22,
+                  Math.sin(fx.t * 3 + idx) * 0.03,
+                  0
+                );
+              });
+              if (u >= 1) {
+                launchExplosion(fx.to);
+                captureFxGroup.remove(fx.droneFx.root);
+                activeCaptureFx.splice(i, 1);
               }
-              const dropState = Math.min(1, dropTime / CAPTURE_JET_TOTAL);
-              const { pos: jetDropPos, next: jetDropNext } = sampleJetPath(dropState);
-              const dropDir = jetDropNext.sub(jetDropPos).normalize();
-              const dropRight = new THREE.Vector3().copy(dropDir).cross(WORLD_UP).normalize();
-              const start = new THREE.Vector3().copy(jetDropPos).addScaledVector(dropRight, wingOffsetZ).add(new THREE.Vector3(0, -0.25, 0));
-              if (fx.t <= dropTime + travelTime) {
-                if (Math.abs(fx.t - dropTime) < dt * 1.15) playAudio(missileLaunchSoundRef);
-                const mu = smoothEase(clamp01((fx.t - dropTime) / travelTime));
-                const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
-                  from: start,
-                  to: impactTarget,
-                  progress: mu,
-                  launchHeight: 0.05,
-                  orbitRadiusMul: 0.96,
-                  minOrbitCycles: 1.05,
-                  liftSplit: 0.24,
-                  strikeSplit: 0.82
-                });
-                missileFx.root.visible = true;
-                missileFx.root.position.copy(missilePos);
+            } else if (fx.type === 'jet') {
+              const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
+              const sampleJetPath = (progress) => {
+                const entrySide = fx.movingIsWhite ? 1 : -1;
+                const start = new THREE.Vector3(
+                  entrySide * (half + BOARD.rim + 2.6),
+                  CAPTURE_FLIGHT_ALTITUDE - 0.3,
+                  fx.from.z
+                );
+                const orbitStart = new THREE.Vector3(
+                  entrySide * (half + tile * 0.78),
+                  CAPTURE_FLIGHT_ALTITUDE - 0.12,
+                  fx.from.z
+                );
+                const orbitEnd = new THREE.Vector3(
+                  -entrySide * (half + tile * 0.72),
+                  CAPTURE_FLIGHT_ALTITUDE - 0.1,
+                  fx.to.z
+                );
+                const exit = new THREE.Vector3(
+                  entrySide * (half + BOARD.rim + 3.1),
+                  CAPTURE_FLIGHT_ALTITUDE - 0.35,
+                  fx.to.z
+                );
+                if (progress < 0.18) {
+                  const iu = smoothEase(progress / 0.18);
+                  const pos = new THREE.Vector3()
+                    .copy(start)
+                    .lerp(orbitStart, iu);
+                  const next = new THREE.Vector3()
+                    .copy(start)
+                    .lerp(orbitStart, clamp01(iu + 0.04));
+                  return { pos, next };
+                }
+                if (progress < 0.82) {
+                  const ou = smoothEase((progress - 0.18) / 0.64);
+                  const angleBase = fx.movingIsWhite
+                    ? Math.PI * 0.82
+                    : -Math.PI * 0.82;
+                  const angle = angleBase - Math.PI * 1.55 * ou;
+                  const orbitRadius = half + tile * 0.82;
+                  const pos = new THREE.Vector3(
+                    Math.cos(angle) * orbitRadius,
+                    CAPTURE_FLIGHT_ALTITUDE -
+                      0.16 +
+                      Math.sin(ou * Math.PI * 4.2) * 0.08,
+                    THREE.MathUtils.lerp(orbitStart.z, orbitEnd.z, ou)
+                  );
+                  const nextOu = clamp01(ou + 0.025);
+                  const nextAngle = angleBase - Math.PI * 1.55 * nextOu;
+                  const next = new THREE.Vector3(
+                    Math.cos(nextAngle) * orbitRadius,
+                    CAPTURE_FLIGHT_ALTITUDE -
+                      0.16 +
+                      Math.sin(nextOu * Math.PI * 4.2) * 0.08,
+                    THREE.MathUtils.lerp(orbitStart.z, orbitEnd.z, nextOu)
+                  );
+                  return { pos, next };
+                }
+                const eu = smoothEase((progress - 0.82) / 0.18);
+                const pos = new THREE.Vector3().copy(orbitEnd).lerp(exit, eu);
+                const next = new THREE.Vector3()
+                  .copy(orbitEnd)
+                  .lerp(exit, clamp01(eu + 0.04));
+                return { pos, next };
+              };
+              const { pos, next } = sampleJetPath(jetU);
+              fx.jetFx.root.position.copy(pos);
+              captureDir.copy(next).sub(pos).normalize();
+              fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+
+              const updateJetMissileFx = (
+                missileFx,
+                dropTime,
+                travelTime,
+                wingOffsetZ,
+                impactTarget,
+                explosionDelay = 0
+              ) => {
+                if (fx.t < dropTime) {
+                  missileFx.root.visible = false;
+                  return;
+                }
+                const dropState = Math.min(1, dropTime / CAPTURE_JET_TOTAL);
+                const { pos: jetDropPos, next: jetDropNext } =
+                  sampleJetPath(dropState);
+                const dropDir = jetDropNext.sub(jetDropPos).normalize();
+                const dropRight = new THREE.Vector3()
+                  .copy(dropDir)
+                  .cross(WORLD_UP)
+                  .normalize();
+                const start = new THREE.Vector3()
+                  .copy(jetDropPos)
+                  .addScaledVector(dropRight, wingOffsetZ)
+                  .add(new THREE.Vector3(0, -0.25, 0));
+                if (fx.t <= dropTime + travelTime) {
+                  if (Math.abs(fx.t - dropTime) < dt * 1.15)
+                    playAudio(missileLaunchSoundRef);
+                  const mu = smoothEase(
+                    clamp01((fx.t - dropTime) / travelTime)
+                  );
+                  const { pos: missilePos, next: missileNext } =
+                    getCaptureOrbitPose({
+                      from: start,
+                      to: impactTarget,
+                      progress: mu,
+                      launchHeight: 0.05,
+                      orbitRadiusMul: 0.96,
+                      minOrbitCycles: 1.05,
+                      liftSplit: 0.24,
+                      strikeSplit: 0.82
+                    });
+                  missileFx.root.visible = true;
+                  missileFx.root.position.copy(missilePos);
+                  captureDir.copy(missileNext).sub(missilePos).normalize();
+                  missileFx.root.quaternion.setFromUnitVectors(
+                    FORWARD,
+                    captureDir
+                  );
+                  missileFx.trail?.forEach((puff, idx) => {
+                    puff.position.set(
+                      -0.38 - idx * 0.12,
+                      Math.sin(fx.t * 8 + idx) * 0.015,
+                      0
+                    );
+                    const s =
+                      0.8 + idx * 0.16 + ((fx.t * 1.8 + idx * 0.2) % 1) * 0.5;
+                    puff.scale.setScalar(s);
+                  });
+                  return;
+                }
+                missileFx.root.visible = false;
+                if (
+                  fx.t >= dropTime + travelTime + explosionDelay &&
+                  fx.t < dropTime + travelTime + explosionDelay + dt * 1.6
+                ) {
+                  launchExplosion(impactTarget);
+                }
+              };
+
+              const target1 = fx.to.clone();
+              const target2 = fx.to.clone();
+              updateJetMissileFx(
+                fx.missileFx1,
+                CAPTURE_JET_MISSILE_DROP_1,
+                CAPTURE_JET_MISSILE_TRAVEL_1,
+                -1.15,
+                target1
+              );
+              updateJetMissileFx(
+                fx.missileFx2,
+                CAPTURE_JET_MISSILE_DROP_2,
+                CAPTURE_JET_MISSILE_TRAVEL_2,
+                1.15,
+                target2,
+                0.04
+              );
+
+              if (u >= 1) {
+                captureFxGroup.remove(fx.jetFx.root);
+                captureFxGroup.remove(fx.missileFx1.root);
+                captureFxGroup.remove(fx.missileFx2.root);
+                activeCaptureFx.splice(i, 1);
+              }
+            } else if (fx.type === 'javelin') {
+              const launchPos = fx.launcherPos
+                .clone()
+                .add(new THREE.Vector3(0, 0.2, 0));
+              const impactTime =
+                CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+              if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+                fx.missileFx.root.visible = true;
+                fx.missileFx.root.position.copy(launchPos);
+              } else if (fx.t < impactTime) {
+                const mu = smoothEase(
+                  (fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME
+                );
+                const { pos: missilePos, next: missileNext } =
+                  getCaptureOrbitPose({
+                    from: launchPos,
+                    to: fx.to,
+                    progress: mu,
+                    launchHeight: 0,
+                    orbitRadiusMul: 0.98,
+                    minOrbitCycles: 1.22,
+                    liftSplit: 0.2,
+                    strikeSplit: 0.74
+                  });
+
+                fx.missileFx.root.visible = true;
+                fx.missileFx.root.position.copy(missilePos);
                 captureDir.copy(missileNext).sub(missilePos).normalize();
-                missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-                missileFx.trail?.forEach((puff, idx) => {
-                  puff.position.set(-0.38 - idx * 0.12, Math.sin(fx.t * 8 + idx) * 0.015, 0);
-                  const s = 0.8 + idx * 0.16 + ((fx.t * 1.8 + idx * 0.2) % 1) * 0.5;
+                fx.missileFx.root.quaternion.setFromUnitVectors(
+                  FORWARD,
+                  captureDir
+                );
+                fx.missileFx.trail?.forEach((puff, idx) => {
+                  puff.position.set(
+                    -0.55 - idx * 0.16,
+                    Math.sin(fx.t * 8.2 + idx) * 0.02,
+                    0
+                  );
+                  const s =
+                    0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
                   puff.scale.setScalar(s);
                 });
-                return;
+              } else {
+                fx.missileFx.root.visible = false;
               }
-              missileFx.root.visible = false;
-              if (fx.t >= dropTime + travelTime + explosionDelay && fx.t < dropTime + travelTime + explosionDelay + dt * 1.6) {
-                launchExplosion(impactTarget);
+              if (fx.t >= impactTime) {
+                launchExplosion(fx.to);
+                captureFxGroup.remove(fx.missileFx.root);
+                activeCaptureFx.splice(i, 1);
               }
-            };
-
-            const target1 = fx.to.clone();
-            const target2 = fx.to.clone();
-            updateJetMissileFx(fx.missileFx1, CAPTURE_JET_MISSILE_DROP_1, CAPTURE_JET_MISSILE_TRAVEL_1, -1.15, target1);
-            updateJetMissileFx(fx.missileFx2, CAPTURE_JET_MISSILE_DROP_2, CAPTURE_JET_MISSILE_TRAVEL_2, 1.15, target2, 0.04);
-
-            if (u >= 1) {
-              captureFxGroup.remove(fx.jetFx.root);
-              captureFxGroup.remove(fx.missileFx1.root);
-              captureFxGroup.remove(fx.missileFx2.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'javelin') {
-            const launchPos = fx.launcherPos.clone().add(new THREE.Vector3(0, 0.42, 0));
-            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
-              fx.missileFx.root.visible = false;
-            } else if (fx.t < impactTime) {
-              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
-                from: launchPos,
-                to: fx.to,
-                progress: mu,
-                launchHeight: 0,
-                orbitRadiusMul: 1.08,
-                minOrbitCycles: 1.45,
-                liftSplit: 0.22,
-                strikeSplit: 0.8
-              });
-
-              fx.missileFx.root.visible = true;
+            } else if (fx.type === 'missile') {
+              const control = fx.from.clone().lerp(fx.to, 0.5);
+              control.y += 1.2;
+              const missilePos = qBezier(fx.from, control, fx.to, u);
+              const missileNext = qBezier(
+                fx.from,
+                control,
+                fx.to,
+                clamp01(u + 0.03)
+              );
               fx.missileFx.root.position.copy(missilePos);
               captureDir.copy(missileNext).sub(missilePos).normalize();
-              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFx.root.quaternion.setFromUnitVectors(
+                FORWARD,
+                captureDir
+              );
               fx.missileFx.trail?.forEach((puff, idx) => {
-                puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
-                const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
-                puff.scale.setScalar(s);
+                puff.position.set(
+                  -0.5 - idx * 0.14,
+                  Math.sin(fx.t * 10 + idx) * 0.015,
+                  0
+                );
               });
-            } else {
-              fx.missileFx.root.visible = false;
-            }
-            if (fx.t >= impactTime) {
-              launchExplosion(fx.to);
-              captureFxGroup.remove(fx.missileFx.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'missile') {
-            const control = fx.from.clone().lerp(fx.to, 0.5);
-            control.y += 1.2;
-            const missilePos = qBezier(fx.from, control, fx.to, u);
-            const missileNext = qBezier(fx.from, control, fx.to, clamp01(u + 0.03));
-            fx.missileFx.root.position.copy(missilePos);
-            captureDir.copy(missileNext).sub(missilePos).normalize();
-            fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.missileFx.trail?.forEach((puff, idx) => {
-              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.015, 0);
-            });
-            if (u >= 1) {
-              launchExplosion(fx.to);
-              captureFxGroup.remove(fx.missileFx.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'explosion') {
-            const lifeSec = fx.t;
-            const fireLife = clamp01(1 - lifeSec / 0.9);
-            const smokeLife = clamp01(1 - lifeSec / 2.6);
-            const fireGrow = 1 + lifeSec * 4.5;
-            const smokeGrow = 1 + lifeSec * 2.3;
-            fx.explosion.flash.scale.setScalar(1.4 + lifeSec * 6);
-            fx.explosion.flash.material.opacity = fireLife;
-            fx.explosion.fire.forEach((mesh, idx) => {
-              const angle = lifeSec * 5 + idx * 1.35;
-              mesh.position.set(
-                Math.cos(angle) * (0.1 + lifeSec * 0.35),
-                0.18 + lifeSec * 0.55 + idx * 0.05,
-                Math.sin(angle) * (0.1 + lifeSec * 0.28)
-              );
-              mesh.scale.setScalar(fireGrow * (0.7 + idx * 0.18));
-              mesh.material.opacity = fireLife * (0.95 - idx * 0.12);
-            });
-            fx.explosion.smoke?.forEach((mesh, idx) => {
-              const angle = idx * 1.1 + lifeSec * 1.8;
-              mesh.position.set(
-                Math.cos(angle) * (0.14 + idx * 0.08),
-                0.25 + lifeSec * (0.55 + idx * 0.1),
-                Math.sin(angle) * (0.14 + idx * 0.08)
-              );
-              mesh.scale.setScalar(smokeGrow * (0.75 + idx * 0.16));
-              mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
-            });
-            if (fx.t >= 2.6) {
-              captureFxGroup.remove(fx.explosion.root);
-              activeCaptureFx.splice(i, 1);
+              if (u >= 1) {
+                launchExplosion(fx.to);
+                captureFxGroup.remove(fx.missileFx.root);
+                activeCaptureFx.splice(i, 1);
+              }
+            } else if (fx.type === 'explosion') {
+              const lifeSec = fx.t;
+              const fireLife = clamp01(1 - lifeSec / 0.9);
+              const smokeLife = clamp01(1 - lifeSec / 2.6);
+              const fireGrow = 1 + lifeSec * 4.5;
+              const smokeGrow = 1 + lifeSec * 2.3;
+              fx.explosion.flash.scale.setScalar(1.4 + lifeSec * 6);
+              fx.explosion.flash.material.opacity = fireLife;
+              fx.explosion.fire.forEach((mesh, idx) => {
+                const angle = lifeSec * 5 + idx * 1.35;
+                mesh.position.set(
+                  Math.cos(angle) * (0.1 + lifeSec * 0.35),
+                  0.18 + lifeSec * 0.55 + idx * 0.05,
+                  Math.sin(angle) * (0.1 + lifeSec * 0.28)
+                );
+                mesh.scale.setScalar(fireGrow * (0.7 + idx * 0.18));
+                mesh.material.opacity = fireLife * (0.95 - idx * 0.12);
+              });
+              fx.explosion.smoke?.forEach((mesh, idx) => {
+                const angle = idx * 1.1 + lifeSec * 1.8;
+                mesh.position.set(
+                  Math.cos(angle) * (0.14 + idx * 0.08),
+                  0.25 + lifeSec * (0.55 + idx * 0.1),
+                  Math.sin(angle) * (0.14 + idx * 0.08)
+                );
+                mesh.scale.setScalar(smokeGrow * (0.75 + idx * 0.16));
+                mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
+              });
+              if (fx.t >= 2.6) {
+                captureFxGroup.remove(fx.explosion.root);
+                activeCaptureFx.splice(i, 1);
+              }
             }
           }
         }
+
+        controls?.update();
+        const targetInterval =
+          renderSettingsRef.current.targetFrameIntervalMs ||
+          targetFrameIntervalMs;
+        if (now - lastRender >= targetInterval) {
+          renderer.render(scene, camera);
+          lastRender = now;
+        }
+        rafRef.current = requestAnimationFrame(step);
+      };
+      step();
+
+      // Resize
+      onResize = () => {
+        fit();
+      };
+      window.addEventListener('resize', onResize);
+
+      // Start timer for the human player
+      startTimer(true);
+      if (shouldTriggerAiMove(true)) {
+        setTimeout(aiMove, 220);
       }
-
-      controls?.update();
-      const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
-      if (now - lastRender >= targetInterval) {
-        renderer.render(scene, camera);
-        lastRender = now;
-      }
-      rafRef.current = requestAnimationFrame(step);
     };
-    step();
-
-    // Resize
-    onResize = () => {
-      fit();
-    };
-    window.addEventListener('resize', onResize);
-
-    // Start timer for the human player
-    startTimer(true);
-    if (shouldTriggerAiMove(true)) {
-      setTimeout(aiMove, 220);
-    }
-  };
 
     setup().catch((error) => {
       console.error('Chess Battle Royal: scene setup failed', error);
@@ -10051,18 +12139,23 @@ function Chess3D({
   const chatGiftPanelClass =
     'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
   const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
-  const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
+  const chatGiftTitleClass =
+    'text-sm font-semibold tracking-[0.04em] text-white';
   const chatGiftCloseButtonClass =
     'flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 hover:bg-white/20';
   const chatGiftOptionClass =
     'text-[11px] font-semibold border border-white/15 rounded-[10px] px-2 py-1 bg-[#0f172a]/60 text-white/85';
-  const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
+  const chatGiftOptionActiveClass =
+    'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
   const chatGiftActionButtonClass =
     'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
   const playerPhotoUrl = avatar || '/assets/icons/profile.svg';
 
   return (
-    <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
+    <div
+      ref={wrapRef}
+      className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none"
+    >
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
@@ -10072,19 +12165,25 @@ function Chess3D({
             aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            <span className="text-base leading-none" aria-hidden="true">☰</span>
+            <span className="text-base leading-none" aria-hidden="true">
+              ☰
+            </span>
             <span className="leading-none">Menu</span>
           </button>
           {onlineStatus !== 'offline' && (
             <div className="pointer-events-none rounded border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/90 shadow-lg backdrop-blur">
-              <div className="font-semibold uppercase tracking-wide text-[10px]">Online Match</div>
+              <div className="font-semibold uppercase tracking-wide text-[10px]">
+                Online Match
+              </div>
               <div className="text-emerald-50/80">
                 {onlineStatus === 'in-game'
                   ? `Synced${opponent ? ` vs ${avatarToName(opponent.avatar) || opponent.name || opponent.id}` : ''}`
                   : `Status: ${onlineStatus}`}
               </div>
               {tableId && (
-                <div className="text-[10px] text-emerald-50/70">Table {tableId.slice(0, 8)}</div>
+                <div className="text-[10px] text-emerald-50/70">
+                  Table {tableId.slice(0, 8)}
+                </div>
               )}
             </div>
           )}
@@ -10108,7 +12207,9 @@ function Chess3D({
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
               className={`icon-only-button flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 focus:outline-none ${
-                canReplay ? 'hover:text-white' : 'cursor-not-allowed text-white/40'
+                canReplay
+                  ? 'hover:text-white'
+                  : 'cursor-not-allowed text-white/40'
               }`}
             >
               <svg
@@ -10130,7 +12231,9 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              onClick={() =>
+                setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))
+              }
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
               {viewMode === '3d' ? '2D' : '3D'}
@@ -10138,21 +12241,34 @@ function Chess3D({
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
-                    <p className="mt-1 text-[0.7rem] text-white/70">
-                      Personalize the chairs and table finish.
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
+                    Chess Settings
+                  </p>
+                  <p className="mt-1 text-[0.7rem] text-white/70">
+                    Personalize the chairs and table finish.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setConfigOpen(false)}
                   className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   aria-label="Close settings"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m6 6 12 12M18 6 6 18"
+                    />
                   </svg>
                 </button>
               </div>
@@ -10172,14 +12288,20 @@ function Chess3D({
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
                     checked={showHighlights}
-                    onChange={(event) => setShowHighlights(event.target.checked)}
+                    onChange={(event) =>
+                      setShowHighlights(event.target.checked)
+                    }
                   />
                 </label>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
+                        Personalize Arena
+                      </p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">
+                        Table cloth, chairs, and table details.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -10216,18 +12338,18 @@ function Chess3D({
                         </p>
                         <div className="grid grid-cols-2 gap-2">
                           {activeCustomizationSection.options.map((option) => {
-                            const selected = appearance[activeCustomizationSection.key] === option.idx;
+                            const selected =
+                              appearance[activeCustomizationSection.key] ===
+                              option.idx;
                             return (
                               <button
                                 key={option.id}
                                 type="button"
                                 onClick={() =>
-                                  setAppearance((prev) =>
-                                    ({
-                                      ...prev,
-                                      [activeCustomizationSection.key]: option.idx
-                                    })
-                                  )
+                                  setAppearance((prev) => ({
+                                    ...prev,
+                                    [activeCustomizationSection.key]: option.idx
+                                  }))
                                 }
                                 aria-pressed={selected}
                                 className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
@@ -10236,7 +12358,10 @@ function Chess3D({
                                     : 'border-white/10 bg-white/5 hover:border-white/20'
                                 }`}
                               >
-                                {renderCustomizationPreview(activeCustomizationSection.key, option)}
+                                {renderCustomizationPreview(
+                                  activeCustomizationSection.key,
+                                  option
+                                )}
                                 <span className="mt-1 text-center text-[0.6rem] font-semibold text-gray-100">
                                   {option.label}
                                 </span>
@@ -10249,7 +12374,9 @@ function Chess3D({
                   </div>
                 </div>
                 <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Quick look swaps</p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
+                    Quick look swaps
+                  </p>
                   <div className="space-y-2">
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
@@ -10278,11 +12405,15 @@ function Chess3D({
                               ) : (
                                 <span
                                   className="h-full w-full"
-                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                                  style={{
+                                    backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}`
+                                  }}
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">{color.label}</span>
+                            <span className="text-center leading-tight">
+                              {color.label}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -10314,11 +12445,15 @@ function Chess3D({
                               ) : (
                                 <span
                                   className="h-full w-full"
-                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                                  style={{
+                                    backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}`
+                                  }}
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">{color.label}</span>
+                            <span className="text-center leading-tight">
+                              {color.label}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -10349,7 +12484,9 @@ function Chess3D({
                                 <span className="h-full w-full bg-white/20" />
                               )}
                             </span>
-                            <span className="text-center leading-tight">{preset.label}</span>
+                            <span className="text-center leading-tight">
+                              {preset.label}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -10389,7 +12526,9 @@ function Chess3D({
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">{theme.name}</span>
+                            <span className="text-center leading-tight">
+                              {theme.name}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -10398,8 +12537,12 @@ function Chess3D({
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
-                    <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
+                      Graphics
+                    </p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">
+                      Match the Murlan Royale quality presets.
+                    </p>
                   </div>
                   <div className="mt-2 grid gap-2">
                     {GRAPHICS_OPTIONS.map((option) => {
@@ -10421,7 +12564,9 @@ function Chess3D({
                               {option.label}
                             </span>
                             <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                              {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                              {option.resolution
+                                ? `${option.resolution} • ${option.fps} FPS`
+                                : `${option.fps} FPS`}
                             </span>
                           </span>
                           {option.description ? (
@@ -10435,7 +12580,9 @@ function Chess3D({
                   </div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
+                    Commentary
+                  </p>
                   <div className="mt-2 grid gap-2">
                     {CHESS_BATTLE_COMMENTARY_PRESETS.map((preset) => {
                       const active = preset.id === commentaryPresetId;
@@ -10453,7 +12600,9 @@ function Chess3D({
                           } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
+                              {preset.label}
+                            </span>
                             {active && (
                               <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
                                 Active
@@ -10527,7 +12676,8 @@ function Chess3D({
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
-            const anchor = viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
+            const anchor =
+              viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
@@ -10545,7 +12695,9 @@ function Chess3D({
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            const avatarSize = anchor
+              ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2)
+              : 1;
             return (
               <div
                 key={`chess-seat-${player.index}`}
@@ -10579,7 +12731,11 @@ function Chess3D({
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
           <span>{bubble.text}</span>
-          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+          <img
+            src={bubble.photoUrl}
+            alt="avatar"
+            className="w-5 h-5 rounded-full"
+          />
         </div>
       ))}
       <div className="pointer-events-auto">
@@ -10617,7 +12773,10 @@ function Chess3D({
               audio.play().catch(() => {});
             }
             setTimeout(
-              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              () =>
+                setChatBubbles((bubbles) =>
+                  bubbles.filter((bubble) => bubble.id !== id)
+                ),
               3000
             );
           }}
@@ -10648,7 +12807,9 @@ function Chess3D({
           sendButtonClassName={chatGiftActionButtonClass}
           noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
           onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const start = document.querySelector(
+              `[data-player-index="${from}"]`
+            );
             const end = document.querySelector(`[data-player-index="${to}"]`);
             if (!start || !end) return;
             const s = start.getBoundingClientRect();
@@ -10656,7 +12817,10 @@ function Chess3D({
             const cx = window.innerWidth / 2;
             const cy = window.innerHeight / 2;
             let icon;
-            if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+            if (
+              typeof gift.icon === 'string' &&
+              gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+            ) {
               icon = document.createElement('img');
               icon.src = gift.icon;
               icon.className = 'w-5 h-5';
@@ -10707,11 +12871,18 @@ function Chess3D({
             }
             const animation = icon.animate(
               [
-                { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                {
+                  transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
+                },
+                {
+                  transform: `translate(${cx}px, ${cy}px) scale(3)`,
+                  offset: 0.5
+                },
+                {
+                  transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
+                }
               ],
-              { duration: 3500, easing: 'linear' },
+              { duration: 3500, easing: 'linear' }
             );
             animation.onfinish = () => icon.remove();
           }}
@@ -10741,17 +12912,18 @@ export default function ChessBattleRoyal() {
   const flagParam = params.get('flag') || params.get('playerFlag');
   const initialFlag =
     flagParam && FLAG_EMOJIS.includes(flagParam) ? flagParam : '';
-  const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
+  const aiFlagParam =
+    params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
   const initialSide =
     params.get('side') === 'black'
       ? 'black'
       : params.get('side') === 'white'
-      ? 'white'
-      : preferredSideParam === 'black'
-      ? 'black'
-      : 'white';
+        ? 'white'
+        : preferredSideParam === 'black'
+          ? 'black'
+          : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =
