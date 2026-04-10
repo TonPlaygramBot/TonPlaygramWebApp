@@ -5379,10 +5379,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return { bishopHeight, bishopWidth };
   };
 
+  const resolveTokenAnchorPoint = useCallback((token, fallbackPosition = null, yOffset = 0) => {
+    const base =
+      token?.isObject3D
+        ? token.getWorldPosition(new THREE.Vector3())
+        : fallbackPosition?.isVector3
+        ? fallbackPosition.clone()
+        : null;
+    if (!base) return null;
+    base.y += yOffset;
+    return base;
+  }, []);
+
+  const resolveLiveTokenPosition = useCallback(
+    ({ token, player, tokenIndex, fallbackPosition = null }) => {
+      const direct = resolveTokenAnchorPoint(token, fallbackPosition, 0);
+      if (direct?.isVector3) return direct;
+      const state = stateRef.current;
+      const progress = state?.progress?.[player]?.[tokenIndex];
+      if (!Number.isFinite(progress)) {
+        return fallbackPosition?.isVector3 ? fallbackPosition.clone() : null;
+      }
+      return getWorldForProgress(player, progress, tokenIndex);
+    },
+    [resolveTokenAnchorPoint]
+  );
+
   const playCaptureMissileSequence = ({
     attackerToken,
     attackerPlayer,
+    attackerTokenIndex,
     startPosition,
+    targetToken,
+    targetPlayer,
+    targetTokenIndex,
     targetPosition,
     impactPosition
   }) =>
@@ -5405,43 +5435,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.36;
         missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
-        const tokenWorldPos = new THREE.Vector3();
-        attackerToken.getWorldPosition(tokenWorldPos);
+        const tokenWorldPos =
+          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
         const launchAnchor = tokenWorldPos
           .clone()
           .lerp(startPosition, 0.22)
           .add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
-        const resolvedImpactPoint =
-          impactPosition?.isVector3 === true
-            ? impactPosition.clone()
-            : targetPosition.clone();
-        const impactAnchor = resolvedImpactPoint.clone().add(new THREE.Vector3(0, 0.06, 0));
+        const resolvedImpactPoint = resolveLiveTokenPosition({
+          token: targetToken,
+          player: targetPlayer,
+          tokenIndex: targetTokenIndex,
+          fallbackPosition: impactPosition?.isVector3 === true ? impactPosition : targetPosition
+        });
+        const safeImpactPoint =
+          resolvedImpactPoint?.isVector3 === true
+            ? resolvedImpactPoint
+            : targetPosition?.clone?.() ?? launchAnchor.clone();
+        const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.06, 0));
         const from = launchAnchor.clone();
-        const to = impactAnchor.clone();
         const travelTime = 1850;
         const explosionTime = 920;
         const boardCenter = new THREE.Vector3(0, from.y, 0);
-        const startRadius = Math.max(from.clone().setY(0).length(), BOARD_RADIUS * 0.92);
-        const endRadius = Math.max(to.clone().setY(0).length(), BOARD_RADIUS * 0.92);
-        const startAngle = Math.atan2(from.z, from.x);
-        const endAngle = Math.atan2(to.z, to.x);
-        const finalDelta = ((endAngle - startAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        const fullOrbitAngle = startAngle + Math.PI * 2 + finalDelta;
         const started = performance.now();
         let explosionTriggered = false;
-
-        const orbitPointAt = (u) => {
-          const t = clamp(u, 0, 1);
-          const orbitCurve = easeSmooth(t);
-          const angle = startAngle + (fullOrbitAngle - startAngle) * orbitCurve;
-          const radius = THREE.MathUtils.lerp(startRadius, endRadius, orbitCurve);
-          const orbitLift = bishopHeight * (0.22 + Math.sin(Math.PI * orbitCurve) * 0.2);
-          return new THREE.Vector3(
-            boardCenter.x + Math.cos(angle) * radius,
-            from.y + orbitLift,
-            boardCenter.z + Math.sin(angle) * radius
-          );
-        };
 
         const updateExplosionRig = (elapsedSinceImpact) => {
           if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
@@ -5480,11 +5496,45 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
         const tick = () => {
           const elapsed = performance.now() - started;
+          const liveFrom =
+            resolveLiveTokenPosition({
+              token: attackerToken,
+              player: attackerPlayer,
+              tokenIndex: attackerTokenIndex,
+              fallbackPosition: from
+            }) ?? from.clone();
+          const liveTarget =
+            resolveLiveTokenPosition({
+              token: targetToken,
+              player: targetPlayer,
+              tokenIndex: targetTokenIndex,
+              fallbackPosition: safeImpactPoint
+            }) ?? safeImpactPoint.clone();
+          const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
+          const dynamicTo = liveTarget.clone().add(new THREE.Vector3(0, 0.06, 0));
+          const dynamicStartAngle = Math.atan2(dynamicFrom.z, dynamicFrom.x);
+          const dynamicEndAngle = Math.atan2(dynamicTo.z, dynamicTo.x);
+          const dynamicDelta = ((dynamicEndAngle - dynamicStartAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+          const dynamicOrbitAngle = dynamicStartAngle + Math.PI * 2 + dynamicDelta;
+          const dynamicStartRadius = Math.max(dynamicFrom.clone().setY(0).length(), BOARD_RADIUS * 0.92);
+          const dynamicEndRadius = Math.max(dynamicTo.clone().setY(0).length(), BOARD_RADIUS * 0.92);
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
-            const pos = orbitPointAt(u);
-            const next = orbitPointAt(nextU);
+            const orbitAt = (v) => {
+              const t = clamp(v, 0, 1);
+              const orbitCurve = easeSmooth(t);
+              const angle = dynamicStartAngle + (dynamicOrbitAngle - dynamicStartAngle) * orbitCurve;
+              const radius = THREE.MathUtils.lerp(dynamicStartRadius, dynamicEndRadius, orbitCurve);
+              const orbitLift = bishopHeight * (0.22 + Math.sin(Math.PI * orbitCurve) * 0.2);
+              return new THREE.Vector3(
+                boardCenter.x + Math.cos(angle) * radius,
+                dynamicFrom.y + orbitLift,
+                boardCenter.z + Math.sin(angle) * radius
+              );
+            };
+            const pos = orbitAt(u);
+            const next = orbitAt(nextU);
             const dir = next.clone().sub(pos).normalize();
             const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
             missile.root.visible = true;
@@ -5510,7 +5560,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
           missile.root.visible = false;
           const explosionElapsed = (elapsed - travelTime) / 1000;
-          explosion.root.position.copy(resolvedImpactPoint.clone().add(new THREE.Vector3(0, 0.01, 0)));
+          explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.01, 0)));
           updateExplosionRig(explosionElapsed);
           if (!explosionTriggered) {
             explosionTriggered = true;
@@ -5817,9 +5867,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return state.goalSlots[player][tokenIndex].clone().add(TOKEN_GOAL_LIFT.clone());
   };
 
-  const scheduleMove = (player, tokenIndex, targetProgress, onComplete) => {
+  const hasAnyTokenOnBoard = useCallback((player) => {
+    const state = stateRef.current;
+    if (!state?.progress?.[player]) return false;
+    return state.progress[player].some((progress) => Number.isFinite(progress) && progress >= 0 && progress < GOAL_PROGRESS);
+  }, []);
+
+  const scheduleMove = (player, tokenIndex, targetProgress, onComplete, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
+    const { skipCameraFollow = false } = options;
     const fromProgress = state.progress[player][tokenIndex];
     const path = [];
     if (fromProgress < 0) {
@@ -5847,7 +5904,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       highlightTiles.push(tile ?? null);
     }
     if (!segments.length) {
-      if (token) {
+      if (token && !skipCameraFollow) {
         setCameraFocus({
           target: token.position.clone(),
           follow: false,
@@ -5861,7 +5918,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (typeof onComplete === 'function') onComplete();
       return;
     }
-      if (token) {
+      if (token && !skipCameraFollow) {
         setCameraFocus({
           object: token,
           follow: true,
@@ -6201,7 +6258,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return false;
   };
 
-  const moveToken = (player, tokenIndex, roll) => {
+  const moveToken = (player, tokenIndex, roll, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
     const current = state.progress[player][tokenIndex];
@@ -6263,6 +6320,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const captures = applyCaptureVictims(captureVictims);
       finalizeMove(captures);
     };
+    const { skipCameraFollow = false } = options;
     if (hasCapture) {
       const attackerStartPos = state.tokens[player][tokenIndex].position.clone();
       const firstVictim = captureVictims[0];
@@ -6274,26 +6332,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       void playCaptureMissileSequence({
         attackerToken: state.tokens[player][tokenIndex],
         attackerPlayer: player,
+        attackerTokenIndex: tokenIndex,
         startPosition: attackerStartPos,
+        targetToken: victimToken,
+        targetPlayer: firstVictim.player,
+        targetTokenIndex: firstVictim.token,
         targetPosition: victimPos,
         impactPosition: impactPos
       }).then(() => {
         const captures = applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures));
+          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures), { skipCameraFollow });
           return;
         }
         finalizeMove(captures);
       }).catch(() => {
         const captures = applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures));
+          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures), { skipCameraFollow });
           return;
         }
         finalizeMove(captures);
       });
     } else if (entering || target !== current) {
-      scheduleMove(player, tokenIndex, target, applyResult);
+      scheduleMove(player, tokenIndex, target, applyResult, { skipCameraFollow });
     } else {
       void applyResult();
     }
@@ -6369,6 +6431,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
+    const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
@@ -6403,7 +6466,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    moveToken(player, choice.token, value);
+    moveToken(player, choice.token, value, { skipCameraFollow: !hasBoardTokenBeforeRoll });
   };
 
   rollDiceRef.current = rollDice;
