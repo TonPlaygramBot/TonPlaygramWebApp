@@ -2751,7 +2751,7 @@ export default function SnakeAndLadder() {
             setDiceCount(1);
           }, 2000);
         }
-        let extraTurn = false;
+        let extraTurn = rolledSix;
         if (diceCells[finalPos]) {
           const bonus = diceCells[finalPos];
           setDiceCells((d) => {
@@ -2769,6 +2769,9 @@ export default function SnakeAndLadder() {
           }
           setTimeout(() => setRewardDice(0), 1000);
           enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+        } else if (rolledSix) {
+          setTurnMessage('Rolled 6 — roll again');
+          setBonusDice(0);
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -2956,7 +2959,7 @@ export default function SnakeAndLadder() {
         setMoving(false);
         return;
       }
-      let extraTurn = false;
+      let extraTurn = rolledSix;
       if (diceCells[finalPos]) {
         const bonus = diceCells[finalPos];
         setDiceCells((d) => {
@@ -2974,6 +2977,9 @@ export default function SnakeAndLadder() {
         }
         setTimeout(() => setRewardDice(0), 1000);
         enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+      }
+      if (rolledSix && !extraTurn) {
+        setTurnMessage(`${playerName(index)} rolled 6 — bonus turn`);
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
@@ -4072,7 +4078,7 @@ export default function SnakeAndLadder() {
         <button
           type="button"
           onClick={handleRollButtonClick}
-          className="fixed z-30 pointer-events-auto rounded-full"
+          className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center"
           style={{
             left: `${diceAnchor.x}%`,
             top: `${diceAnchor.y}%`,
@@ -4084,7 +4090,16 @@ export default function SnakeAndLadder() {
             boxShadow: '0 0 18px rgba(250,204,21,0.24)'
           }}
           aria-label="Roll dice"
-        />
+        >
+          <span
+            className="text-3xl"
+            role="img"
+            aria-hidden="true"
+            style={{ filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.55))' }}
+          >
+            🎲
+          </span>
+        </button>
       ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
