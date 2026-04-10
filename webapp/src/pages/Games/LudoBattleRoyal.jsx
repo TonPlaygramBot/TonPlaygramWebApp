@@ -197,21 +197,20 @@ function createCaptureMissileFx() {
 
 function createCaptureExplosionFx() {
   const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.18, [0, 0.22, 0], '#fff2a8', 0.05, 0, true, 1);
+  const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
   const fire = [];
   const smoke = [];
-  const firePalette = ['#ff9f1c', '#ff4d6d', '#7c3aed', '#00d4ff'];
   for (let i = 0; i < 4; i += 1) {
     fire.push(
       addFxSphere(
         root,
-        0.17 + i * 0.05,
-        [0, 0.2 + i * 0.045, 0],
-        firePalette[i % firePalette.length],
+        0.24 + i * 0.065,
+        [0, 0.22 + i * 0.06, 0],
+        i % 2 === 0 ? '#ff9c2f' : '#ff5b2d',
         0.2,
         0,
         true,
-        0.92 - i * 0.16
+        0.95 - i * 0.15
       )
     );
   }
@@ -219,17 +218,17 @@ function createCaptureExplosionFx() {
     smoke.push(
       addFxSphere(
         root,
-        0.16 + i * 0.035,
-        [0, 0.16 + i * 0.065, 0],
+        0.22 + i * 0.045,
+        [0, 0.18 + i * 0.08, 0],
         '#646b72',
         1,
         0,
         true,
-        0.34 - i * 0.035
+        0.42 - i * 0.04
       )
     );
   }
-  root.scale.setScalar(0.38);
+  root.scale.setScalar(0.46);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -579,7 +578,7 @@ const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(42);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -1862,7 +1861,7 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.9;
-const CAMERA_EXTRA_ZOOM_OUT = 1.26;
+const CAMERA_EXTRA_ZOOM_OUT = 1.1;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.96;
 const CAM = {
   fov: CAMERA_FOV,
@@ -4859,11 +4858,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-    controls.minDistance = Math.max(CAM.minR, initialCameraRadius * 0.88);
-    controls.maxDistance = Math.max(initialCameraRadius * 1.16, CAM.maxR);
+    controls.minDistance = initialCameraRadius;
+    controls.maxDistance = initialCameraRadius;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
@@ -5493,29 +5492,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           explosion.root.visible = true;
           const fireLife = clamp(1 - elapsedSinceImpact / 0.82, 0, 1);
           const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.56 + elapsedSinceImpact * 1.2;
-          const smokeGrow = 0.64 + elapsedSinceImpact * 0.78;
+          const fireGrow = 0.72 + elapsedSinceImpact * 1.7;
+          const smokeGrow = 0.76 + elapsedSinceImpact * 1.05;
 
-          explosion.flash.scale.setScalar(0.34 + elapsedSinceImpact * 0.9);
+          explosion.flash.scale.setScalar(0.44 + elapsedSinceImpact * 1.25);
           explosion.flash.material.opacity = fireLife;
           explosion.fire.forEach((mesh, i) => {
             const angle = elapsedSinceImpact * 5 + i * 1.35;
             mesh.position.set(
-              Math.cos(angle) * (0.04 + elapsedSinceImpact * 0.11),
-              0.08 + elapsedSinceImpact * 0.19 + i * 0.024,
-              Math.sin(angle) * (0.04 + elapsedSinceImpact * 0.1)
+              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.16),
+              0.09 + elapsedSinceImpact * 0.24 + i * 0.03,
+              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.14)
             );
-            mesh.scale.setScalar(fireGrow * (0.66 + i * 0.14));
+            mesh.scale.setScalar(fireGrow * (0.7 + i * 0.18));
             mesh.material.opacity = fireLife * (0.95 - i * 0.12);
           });
           explosion.smoke.forEach((mesh, i) => {
             const angle = i * 1.1 + elapsedSinceImpact * 1.8;
             mesh.position.set(
-              Math.cos(angle) * (0.06 + i * 0.024),
-              0.12 + elapsedSinceImpact * (0.16 + i * 0.036),
-              Math.sin(angle) * (0.06 + i * 0.024)
+              Math.cos(angle) * (0.08 + i * 0.03),
+              0.14 + elapsedSinceImpact * (0.22 + i * 0.05),
+              Math.sin(angle) * (0.08 + i * 0.03)
             );
-            mesh.scale.setScalar(smokeGrow * (0.66 + i * 0.12));
+            mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
             mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
           });
         };
