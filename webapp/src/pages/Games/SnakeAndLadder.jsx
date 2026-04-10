@@ -2209,10 +2209,15 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = ({ value }) => {
+    const onRolled = ({ value, playerId }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
+      const rollerId = playerId ?? playersRef.current[currentTurn]?.id;
+      if (rollerId === myAccountId && Number(value) === 6) {
+        setPendingExtraRoll(true);
+        setRollCooldown(0);
+      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -3198,7 +3203,9 @@ export default function SnakeAndLadder() {
   const hasLocalExtraRoll = pendingExtraRoll;
   const isMyTurnForRoll =
     myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
-  const rollReady = hasLocalExtraRoll || rollCooldown === 0;
+  const rollReady = isMultiplayer
+    ? true
+    : hasLocalExtraRoll || rollCooldown === 0;
   const canRoll =
     isMyTurnForRoll &&
     !moving &&
@@ -4063,6 +4070,7 @@ export default function SnakeAndLadder() {
             <button
               type="button"
               onClick={handleRollButtonClick}
+              onTouchStart={handleRollButtonClick}
               className="pointer-events-auto px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
             >
               ROLL
@@ -4074,6 +4082,7 @@ export default function SnakeAndLadder() {
         <button
           type="button"
           onClick={handleRollButtonClick}
+          onTouchStart={handleRollButtonClick}
           className="fixed z-30 pointer-events-auto rounded-full"
           style={{
             left: `${diceAnchor.x}%`,
