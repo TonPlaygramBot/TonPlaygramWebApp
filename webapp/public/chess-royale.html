@@ -475,10 +475,6 @@ function createTriangleDroneModel(){
   deltaWing.position.set(-0.15,-0.06,0); root.add(deltaWing);
   const spine=createPolygonMesh([[-0.55,-0.18],[0.9,0],[-0.55,0.18]],0.06,'#7d858a',0.55,0.22);
   spine.position.set(0.15,0.03,0); root.add(spine);
-  const finLeft=createPolygonMesh([[-0.28,0],[0.22,0],[-0.04,0.55]],0.04,'#838b90',0.55,0.24);
-  finLeft.rotation.z=Math.PI/2; finLeft.position.set(-0.4,0.35,-0.25); root.add(finLeft);
-  const finRight=finLeft.clone();
-  finRight.position.z=0.25; root.add(finRight);
   addSphere(root,0.09,[1.05,0,0],'#1f2428',0.22,0.35);
   const propeller=new THREE.Group(); propeller.position.set(-1.95,0,0);
   addBox(propeller,[0.05,1.0,0.08],[0,0,0],'#191d20',0.6,0.12);
@@ -486,7 +482,7 @@ function createTriangleDroneModel(){
   blade2.rotation.x=Math.PI/2; blade2.castShadow=true; propeller.add(blade2);
   addSphere(propeller,0.07,[0,0,0],'#41484d',0.45,0.25);
   root.add(propeller);
-  root.scale.setScalar(0.25);
+  root.scale.setScalar(0.5);
   return { root, propeller };
 }
 function createFighterJetModel(){
@@ -510,18 +506,13 @@ function createBazookaModel(){
   root.scale.setScalar(0.5);
   return root;
 }
-function createMissileModel(variant='drone'){
+function createMissileModel(){
   const root=new THREE.Group();
-  const bodyRadiusTop=variant==='javelin'?0.035:0.05;
-  const bodyRadiusBottom=variant==='javelin'?0.045:0.06;
-  addCylinder(root,bodyRadiusTop,bodyRadiusBottom,0.72,[0,0,0],[0,0,Math.PI/2],'#c9ced3',14,0.42,0.12);
-  const noseRadius=variant==='javelin'?0.045:0.055;
-  const nose=new THREE.Mesh(new THREE.ConeGeometry(noseRadius,0.18,14),new THREE.MeshStandardMaterial({color:'#f0f2f4',roughness:0.32,metalness:0.16}));
+  addCylinder(root,0.05,0.06,0.72,[0,0,0],[0,0,Math.PI/2],'#c9ced3',14,0.42,0.12);
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.055,0.18,14),new THREE.MeshStandardMaterial({color:'#f0f2f4',roughness:0.32,metalness:0.16}));
   nose.position.set(0.45,0,0); nose.rotation.z=-Math.PI/2; nose.castShadow=true; root.add(nose);
-  const finWidth=variant==='javelin'?0.08:0.1;
-  const finDepth=variant==='javelin'?0.12:0.16;
-  addBox(root,[finWidth,0.02,finDepth],[-0.18,0,0],'#7f868d',0.58,0.12);
-  addBox(root,[finWidth,finDepth,0.02],[-0.18,0,0],'#7f868d',0.58,0.12);
+  addBox(root,[0.1,0.02,0.16],[-0.18,0,0],'#7f868d',0.58,0.12);
+  addBox(root,[0.1,0.16,0.02],[-0.18,0,0],'#7f868d',0.58,0.12);
   root.scale.setScalar(0.5);
   return root;
 }
@@ -549,110 +540,28 @@ function animateSlashAt(target){
     requestAnimationFrame(tick);
   });
 }
-function animateSmallExplosion(explosion){
-  return new Promise(resolve=>{
-    const e0=performance.now();
-    const ed=260;
-    const boom=ev=>{
-      const et=Math.min(1,(ev-e0)/ed);
-      explosion.root.visible=true;
-      explosion.root.scale.setScalar(0.28 + 0.42*et);
-      explosion.flash.scale.setScalar(0.95 + et*2.25);
-      explosion.flash.material.opacity=0.85*(1-et);
-      explosion.fire.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.78-et-i*0.12); });
-      explosion.smoke.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.32-et*0.26-i*0.04); });
-      if(et<1) requestAnimationFrame(boom);
-      else resolve();
-    };
-    requestAnimationFrame(boom);
-  });
-}
-function animateKnightMissileStrike(from,to){
-  return new Promise(resolve=>{
-    if(!scene||!THREE||!from||!to) return resolve();
-    const missile=createMissileModel('javelin');
-    const explosion=createExplosionModel();
-    const boardCenter=new THREE.Vector3(0,0.45,0);
-    const start=from.clone().add(new THREE.Vector3(0,0.45,0));
-    const impact=to.clone().add(new THREE.Vector3(0,0.38,0));
-    const startPolar=Math.atan2(start.z-boardCenter.z,start.x-boardCenter.x);
-    const startRadius=Math.max(2.8,Math.hypot(start.x-boardCenter.x,start.z-boardCenter.z));
-    const targetRadius=Math.max(2.4,Math.hypot(impact.x-boardCenter.x,impact.z-boardCenter.z));
-    missile.position.copy(start);
-    explosion.root.position.copy(impact);
-    explosion.root.visible=false;
-    scene.add(missile); scene.add(explosion.root); playDroneSound();
-    const t0=performance.now();
-    const dur=620;
-    const orbitCut=0.72;
-    const orbitEnd=new THREE.Vector3();
-    const bezierControl=new THREE.Vector3();
-    const tick=now=>{
-      const t=Math.min(1,(now-t0)/dur);
-      const tn=Math.min(1,t+0.015);
-      const samplePos=(ratio,out)=>{
-        if(ratio<=orbitCut){
-          const u=ratio/orbitCut;
-          const angle=startPolar+u*Math.PI*2;
-          const radius=startRadius*(1-u)+targetRadius*u;
-          out.set(boardCenter.x+Math.cos(angle)*radius,0.56+Math.sin(u*Math.PI)*0.34,boardCenter.z+Math.sin(angle)*radius);
-        }else{
-          if(orbitEnd.lengthSq()===0){
-            const angle=startPolar+Math.PI*2;
-            orbitEnd.set(boardCenter.x+Math.cos(angle)*targetRadius,0.56,boardCenter.z+Math.sin(angle)*targetRadius);
-            bezierControl.copy(orbitEnd).lerp(impact,0.52);
-            bezierControl.y=1.15;
-          }
-          const u=(ratio-orbitCut)/(1-orbitCut);
-          const a=orbitEnd.clone().lerp(bezierControl,u);
-          const b=bezierControl.clone().lerp(impact,u);
-          out.copy(a.lerp(b,u));
-        }
-      };
-      const pos=new THREE.Vector3(), nxt=new THREE.Vector3();
-      samplePos(t,pos); samplePos(tn,nxt);
-      missile.position.copy(pos);
-      const dir=nxt.clone().sub(pos).normalize();
-      missile.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),dir);
-      if(t<1) requestAnimationFrame(tick);
-      else{
-        playBombSound();
-        animateSmallExplosion(explosion).then(()=>{
-          scene.remove(missile); scene.remove(explosion.root);
-          resolve();
-        });
-      }
-    };
-    requestAnimationFrame(tick);
-  });
-}
-function animateDroneMissileStrike(from,to){
+function animateMissileStrike(from,to){
   return new Promise(resolve=>{
     if(!scene||!THREE||!from||!to) return resolve();
     const {root:drone, propeller}=createTriangleDroneModel();
+    const jet=createFighterJetModel();
+    const bazooka=createBazookaModel();
     const missile=createMissileModel();
     const explosion=createExplosionModel();
-    const launchPos=from.clone().add(new THREE.Vector3(0,0.9,0));
-    drone.position.copy(launchPos);
-    missile.position.copy(launchPos.clone().add(new THREE.Vector3(0.25,0,0)));
+    drone.position.copy(from.clone().add(new THREE.Vector3(0,1.0,0)));
+    jet.position.copy(from.clone().add(new THREE.Vector3(-0.8,1.35,0.45)));
+    bazooka.position.copy(from.clone().add(new THREE.Vector3(-0.25,0.25,-0.22)));
+    bazooka.lookAt(to.clone().add(new THREE.Vector3(0,0.35,0)));
+    missile.position.copy(from.clone().add(new THREE.Vector3(0,0.45,0)));
     explosion.root.position.copy(to.clone().add(new THREE.Vector3(0,0.38,0)));
     explosion.root.visible=false;
-    scene.add(drone); scene.add(missile); scene.add(explosion.root); playDroneSound();
-    const t0=performance.now(), dur=450;
-    const control=launchPos.clone().lerp(explosion.root.position,0.45); control.y=1.55;
+    scene.add(drone); scene.add(jet); scene.add(bazooka); scene.add(missile); scene.add(explosion.root); playDroneSound();
+    const t0=performance.now(), dur=340;
     const tick=now=>{
       const t=Math.min(1,(now-t0)/dur);
-      const tLead=Math.min(1,t+0.03);
-      const curve=(tt)=>{
-        const a=launchPos.clone().lerp(control,tt);
-        const b=control.clone().lerp(explosion.root.position,tt);
-        return a.lerp(b,tt);
-      };
-      const pos=curve(t);
-      const nxt=curve(tLead);
-      missile.position.copy(pos);
-      const dir=nxt.clone().sub(pos).normalize();
-      missile.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),dir);
+      drone.position.lerpVectors(from.clone().add(new THREE.Vector3(0,1.0,0)), to.clone().add(new THREE.Vector3(0,1.0,0)), t);
+      jet.position.lerpVectors(from.clone().add(new THREE.Vector3(-0.8,1.35,0.45)), to.clone().add(new THREE.Vector3(-0.25,1.2,0.2)), t);
+      missile.position.lerpVectors(from.clone().add(new THREE.Vector3(0,0.45,0)), to.clone().add(new THREE.Vector3(0,0.45,0)), t);
       propeller.rotation.x=now*0.04;
       if(t>=1){
         playBombSound();
@@ -660,14 +569,14 @@ function animateDroneMissileStrike(from,to){
         const boom=ev=>{
           const et=Math.min(1,(ev-e0)/ed);
           explosion.root.visible=true;
-          explosion.root.scale.setScalar(0.3 + 0.9*et);
+          explosion.root.scale.setScalar(0.5 + 1.4*et);
           explosion.flash.scale.setScalar(1.4 + et*4.2);
           explosion.flash.material.opacity=0.95*(1-et);
           explosion.fire.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.92-et-i*0.1); });
           explosion.smoke.forEach((mesh,i)=>{ mesh.material.opacity=Math.max(0,0.42-et*0.3-i*0.03); });
           if(et<1) requestAnimationFrame(boom);
           else{
-            [drone,missile,explosion.root].forEach(n=>{ scene.remove(n); });
+            [drone,jet,bazooka,missile,explosion.root].forEach(n=>{ scene.remove(n); });
             resolve();
           }
         };
@@ -676,11 +585,6 @@ function animateDroneMissileStrike(from,to){
     };
     requestAnimationFrame(tick);
   });
-}
-function animateMissileStrike(from,to,attackerType){
-  if(attackerType==='n') return animateKnightMissileStrike(from,to);
-  if(attackerType==='b' || attackerType==='r') return animateDroneMissileStrike(from,to);
-  return animateSlashAt(to);
 }
 
 function evaluateGameState(){
@@ -696,11 +600,11 @@ function evaluateGameState(){
   gameOver=true;
 }
 
-async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; const attackerPiece=state.board[m.fr][m.fc]; const attackerType=attackerPiece?attackerPiece.toLowerCase():null; const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; const fromVec=squareCenterVec3(from); const toVec=squareCenterVec3(to); const distance=Math.hypot(m.tr-m.fr,m.tc-m.fc); const isCapture=!!(aux.captured||m.enpassant);
+async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; const fromVec=squareCenterVec3(from); const toVec=squareCenterVec3(to); const distance=Math.hypot(m.tr-m.fr,m.tc-m.fc); const isCapture=!!(aux.captured||m.enpassant);
   const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
   const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
   if(isCapture){
-    if(distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec,attackerType); }
+    if(distance>SHORT_CAPTURE_DISTANCE){ await animateMissileStrike(fromVec,toVec); }
     else{ await animateSlashAt(toVec); }
   }
   if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
