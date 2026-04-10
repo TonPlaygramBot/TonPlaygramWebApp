@@ -1,4 +1,4 @@
-export const FINAL_TILE = 101;
+export const FINAL_TILE = 50;
 
 export function applySnakesAndLadders(pos, snakes, ladders) {
   if (snakes[pos] != null) return Math.max(0, snakes[pos]);
@@ -66,7 +66,7 @@ export class SnakeGame {
         player.isActive = true;
         target = 1;
       }
-    } else if (player.position === 100) {
+    } else if (player.position === FINAL_TILE - 1) {
       if (player.diceCount === 2) {
         if (rolledSix) {
           player.diceCount = 1;
@@ -105,8 +105,6 @@ export class SnakeGame {
       bonusCell = player.position;
       player.bonus = bonus;
       delete this.diceCells[player.position];
-      extraTurn = true;
-    } else if (rolledSix) {
       extraTurn = true;
     }
 
