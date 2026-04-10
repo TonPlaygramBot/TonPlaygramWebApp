@@ -889,7 +889,7 @@ function abgBbox(obj) {
 
 function measureProceduralTokenHeight() {
   if (proceduralTokenHeight) return proceduralTokenHeight;
-  proceduralTokenHeight = 0.09;
+  proceduralTokenHeight = 0.117;
   return proceduralTokenHeight;
 }
 
@@ -4457,7 +4457,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     // Procedural dice SFX is generated with Web Audio (no binary asset).
     diceSoundRef.current = null;
     diceRewardSoundRef.current = new Audio('/assets/sounds/successful.mp3');
-    sixRollSoundRef.current = new Audio('/assets/sounds/yabba-dabba-doo.mp3');
+    sixRollSoundRef.current = null;
     hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
     giftBombSoundRef.current = new Audio(bombSound);
     applyVolume(vol);
@@ -5564,10 +5564,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       diceRewardSoundRef.current.currentTime = 0;
       diceRewardSoundRef.current.play().catch(() => {});
     }
-    if (sixRollSoundRef.current) {
-      sixRollSoundRef.current.currentTime = 0;
-      sixRollSoundRef.current.play().catch(() => {});
-    }
     if (cheerSoundRef.current) {
       cheerSoundRef.current.currentTime = 0;
       cheerSoundRef.current.play().catch(() => {});
@@ -5728,11 +5724,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           position: initialBottomView.position.clone(),
           target: initialBottomView.target.clone()
         };
-        animateCameraPose(
-          cameraTurnStateRef.current.baseTurnView.target,
-          cameraTurnStateRef.current.baseTurnView.position,
-          duration
-        );
+        animateCameraPose(cameraTurnStateRef.current.baseTurnView.target, null, duration);
         return;
       }
       if (camera && controls) {
@@ -5744,8 +5736,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
-    animateCameraPose(nextView.target, nextView.position, duration);
+    animateCameraPose(nextView.target, null, duration);
   }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState]);
+
+  const playerHasTokenOnBoard = useCallback((player) => {
+    const state = stateRef.current;
+    if (!state?.progress?.[player]) return false;
+    return state.progress[player].some((progress) => progress >= 0 && progress < GOAL_PROGRESS);
+  }, []);
+
+  const resolvePreviewTurnForCamera = useCallback((turn) => {
+    const playerCycle = Math.max(1, activePlayerCount);
+    return (turn + playerCycle - 1) % playerCycle;
+  }, [activePlayerCount]);
 
   const setCameraFocus = useCallback(
     (focus = {}) => {
@@ -6079,7 +6082,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
-      setCameraViewForTurn(nextTurn);
+      const cameraTurn = playerHasTokenOnBoard(nextTurn) ? nextTurn : resolvePreviewTurnForCamera(nextTurn);
+      setCameraViewForTurn(cameraTurn);
       const diceObject = diceRef.current;
       if (diceObject?.isObject3D) {
         setCameraFocus({
@@ -6091,7 +6095,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           force: true
         });
       } else {
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
+        setCameraFocus({ target: resolveTurnLookTarget(cameraTurn), priority: 1, force: true });
       }
       updated = true;
       const status =
