@@ -4062,8 +4062,19 @@ export default function SnakeAndLadder() {
       {!watchOnly && (
         <div className="fixed bottom-10 inset-x-0 flex flex-col items-center z-30 pointer-events-none space-y-3">
           {displayedTurnMessage && (
-            <div className="px-4 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-white text-sm font-semibold backdrop-blur">
-              {displayedTurnMessage}
+            <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-white text-sm font-semibold backdrop-blur">
+              <span>{displayedTurnMessage}</span>
+              {canRoll ? (
+                <button
+                  type="button"
+                  onClick={handleRollButtonClick}
+                  onTouchStart={handleRollButtonClick}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(255,215,0,0.5)] bg-[rgba(255,215,0,0.14)] text-base leading-none text-[#f7e7a4] shadow-[0_0_10px_rgba(250,204,21,0.28)]"
+                  aria-label="Roll dice"
+                >
+                  🎲
+                </button>
+              ) : null}
             </div>
           )}
           {canRoll && (
@@ -4083,7 +4094,7 @@ export default function SnakeAndLadder() {
           type="button"
           onClick={handleRollButtonClick}
           onTouchStart={handleRollButtonClick}
-          className="fixed z-30 pointer-events-auto rounded-full"
+          className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center text-2xl text-[#f7e7a4]"
           style={{
             left: `${diceAnchor.x}%`,
             top: `${diceAnchor.y}%`,
@@ -4095,7 +4106,9 @@ export default function SnakeAndLadder() {
             boxShadow: '0 0 18px rgba(250,204,21,0.24)'
           }}
           aria-label="Roll dice"
-        />
+        >
+          🎲
+        </button>
       ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
