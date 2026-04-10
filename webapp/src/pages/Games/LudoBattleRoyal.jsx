@@ -514,7 +514,7 @@ const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_VERTICAL_DROP = 0.03 * MODEL_SCALE;
-const TABLE_VERTICAL_DROP = 0.17 * MODEL_SCALE;
+const TABLE_VERTICAL_DROP = 0.23 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
@@ -1879,9 +1879,9 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
-const CAMERA_EXTRA_ZOOM_IN = 0.9;
+const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.78;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -2004,12 +2004,12 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.066;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.082;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.086,
-  0.08,
-  0.086,
-  0.08
+  0.104,
+  0.098,
+  0.104,
+  0.098
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
@@ -4399,7 +4399,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         seatDir.normalize();
 
         // Keep token resting rails aligned to the previous wooden rail footprint.
-        let restRadius = BOARD_RADIUS + 0.135;
+        let restRadius = BOARD_RADIUS + 0.095;
         if (chairGroup) {
           chairGroup.getWorldPosition(seatWorldPos);
           seatWorldPos.setY(0);
@@ -4414,9 +4414,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const outer = table.getOuterRadius?.(seatDir) ?? inner;
             const rimInner = Math.min(inner, outer);
             const rimOuter = Math.max(inner, outer);
-            const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
+            const rimMid = rimInner + (rimOuter - rimInner) * 0.3;
             restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
-            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.24);
+            restRadius = Math.max(restRadius, BOARD_RADIUS + 0.2);
             if (Number.isFinite(rimOuter)) {
               restRadius = Math.min(restRadius, rimOuter - 0.12);
             }
@@ -4428,7 +4428,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             restRadius = Math.min(restRadius, outer - 0.14);
           }
         }
-        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.135);
+        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.095);
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
