@@ -507,16 +507,19 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_COLUMN_HEIGHT = 0.46 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const CHAIR_VERTICAL_DROP = 0.045 * MODEL_SCALE;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
-const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE;
+const TABLE_EXTRA_DROP = 0.078 * MODEL_SCALE;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_EXTRA_DROP;
+const CHAIR_OUTWARD_PUSH = 0.14 * MODEL_SCALE;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_PUSH;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -594,8 +597,8 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 1.24 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.82 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.76 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 0.76 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   heightOffset: 1.18 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.075 * MODEL_SCALE
 });
@@ -626,7 +629,8 @@ const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.18;
+const TABLE_LEG_EXTENSION_FACTOR = 1.28;
+const TABLE_BASE_EXTENSION_MULTIPLIER = 1.38;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -3769,7 +3773,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           woodOption,
           clothOption,
           baseOption,
-          includeBase: true
+          includeBase: true,
+          baseExtensionMultiplier: TABLE_BASE_EXTENSION_MULTIPLIER
         });
         applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
         tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };

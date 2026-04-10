@@ -551,7 +551,8 @@ export function createMurlanStyleTable({
   baseOption = DEFAULT_TABLE_BASE_OPTION,
   includeBase = true,
   shapeOption = TABLE_SHAPE_OPTIONS[0],
-  rotationY = 0
+  rotationY = 0,
+  baseExtensionMultiplier = 1.24
 } = {}) {
   if (!arena) throw new Error('createMurlanStyleTable requires an arena group.');
 
@@ -567,7 +568,7 @@ export function createMurlanStyleTable({
   const minBaseHeight = 0.2 * scaleFactor;
   const maxBaseHeight = Math.max(minBaseHeight, tableY + baseLift);
   // Keep table-top height unchanged while extending the pedestal downward a bit more so the base reaches the ground cleanly.
-  baseHeight = maxBaseHeight * 1.24;
+  baseHeight = maxBaseHeight * Math.max(1, baseExtensionMultiplier || 1.24);
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({
