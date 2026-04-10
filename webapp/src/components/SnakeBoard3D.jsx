@@ -1633,21 +1633,8 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
-  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-  if (isTopOrBottomSeat) {
-    return {
-      position: camera.position.clone(),
-      target: boardLookTarget.clone()
-    };
-  }
   if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA;
   if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA;
-  const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (boardToCamera.lengthSq() > 1e-6) {
-    boardToCamera.normalize();
-    if (direction.dot(boardToCamera) >= 0.82) return null;
-  }
-
   // Keep the camera exactly where the player left it (including manual zoom distance)
   // and only rotate the look target for turn-focus cues.
   const position = camera.position.clone();
@@ -1669,13 +1656,8 @@ function computeDiceCameraFocusState(board, camera) {
 
   const target = diceCenter.clone();
   target.y += DICE_SIZE * 0.45;
-  const currentDistance = camera.position.distanceTo(boardLookTarget);
-  const direction = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-
-  const position = target.clone().addScaledVector(direction, currentDistance);
-  position.y = camera.position.y;
+  // Keep fixed camera distance/zoom: only adjust look target to the dice result.
+  const position = camera.position.clone();
   return { position, target };
 }
 
