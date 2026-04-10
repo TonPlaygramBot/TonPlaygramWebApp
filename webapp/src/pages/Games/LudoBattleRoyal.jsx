@@ -490,8 +490,8 @@ let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
-// slightly smaller in world space.
-const LUDO_ARENA_SHRINK_FACTOR = 0.84;
+// ~30% smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.7;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
