@@ -1887,6 +1887,7 @@ const CAM = {
   phiMax: LUDO_CAMERA_PHI_MAX
 };
 const CAMERA_2D_DISTANCE_FACTOR = 1;
+const CAMERA_3D_VERTICAL_DROP = 0.03 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -3273,13 +3274,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = saved?.enableZoom ?? true;
+      controls.enableZoom = false;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
       controls.maxAzimuthAngle = saved?.maxAzimuthAngle ?? Infinity;
-      controls.minDistance = saved?.minDistance ?? CAM.minR;
-      controls.maxDistance = saved?.maxDistance ?? CAM.maxR;
+      const lockedRadius =
+        saved?.position && saved?.target
+          ? saved.position.distanceTo(saved.target)
+          : camera.position.distanceTo(controls.target);
+      controls.minDistance = lockedRadius;
+      controls.maxDistance = lockedRadius;
       if (saved?.position && saved?.target) {
         camera.position.copy(saved.position);
         controls.target.copy(saved.target);
@@ -3669,16 +3674,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
 
-    arena.arenaGroup.position.y += yShift;
-    if (arena.boardLookTarget) arena.boardLookTarget.y += yShift;
-    if (arena.defaultLookTarget) arena.defaultLookTarget.y += yShift;
+    const finalShift = yShift - CAMERA_3D_VERTICAL_DROP;
+    arena.arenaGroup.position.y += finalShift;
+    if (arena.boardLookTarget) arena.boardLookTarget.y += finalShift;
+    if (arena.defaultLookTarget) arena.defaultLookTarget.y += finalShift;
     if (preserveView) {
       const camera = cameraRef.current;
       if (camera) {
-        camera.position.y += yShift;
+        camera.position.y += finalShift;
       }
       if (arena.controls?.target) {
-        arena.controls.target.y += yShift;
+        arena.controls.target.y += finalShift;
         arena.controls.update();
       }
     }
@@ -4877,12 +4883,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.enableRotate = true;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
-    controls.minDistance = Math.max(CAM.minR, initialCameraRadius * 0.88);
-    controls.maxDistance = Math.max(initialCameraRadius * 1.16, CAM.maxR);
+    controls.minDistance = initialCameraRadius;
+    controls.maxDistance = initialCameraRadius;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
