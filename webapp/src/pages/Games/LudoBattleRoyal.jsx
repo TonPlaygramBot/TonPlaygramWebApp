@@ -491,11 +491,11 @@ let proceduralTokenHeight = null;
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
 // slightly smaller in world space.
-const LUDO_ARENA_SHRINK_FACTOR = 0.86;
+const LUDO_ARENA_SHRINK_FACTOR = 0.84;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_RADIUS = 3.28 * MODEL_SCALE;
+const TABLE_RADIUS = 3.18 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -515,7 +515,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.06 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1990,14 +1990,14 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.066;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.078;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.086,
-  0.08,
-  0.086,
-  0.08
+  0.098,
+  0.092,
+  0.098,
+  0.092
 ]);
-const TOKEN_RAIL_HEIGHT_LIFT = 0.0016;
+const TOKEN_RAIL_HEIGHT_LIFT = 0.0002;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.006;
 let tokenSurfaceOffset = 0;
 const TOKEN_MOVE_SPEED = 2.45;
