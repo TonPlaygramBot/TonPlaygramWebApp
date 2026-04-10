@@ -8109,37 +8109,22 @@ function Chess3D({
     };
     const createFxMissile = () => {
       const root = new THREE.Group();
-      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+      addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#c9ced3', 14);
       const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.24, 16),
-        new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+        new THREE.ConeGeometry(0.055, 0.18, 14),
+        new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 })
       );
-      nose.position.set(0.63, 0, 0);
+      nose.position.set(0.45, 0, 0);
       nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
       root.add(nose);
-
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-
-      const trail = [];
-      for (let i = 0; i < 5; i += 1) {
-        trail.push(
-          addFxSphere(
-            root,
-            0.1 + i * 0.025,
-            [-0.7 - i * 0.16, 0, 0],
-            i < 2 ? '#f6af4b' : '#8f989d',
-            i < 2 ? 0.2 : 1,
-            0,
-            true,
-            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-          )
-        );
-      }
-      root.visible = false;
+      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+      const trail = [
+        addFxSphere(root, 0.08, [-0.5, 0, 0], '#90989d', 1, 0, true, 0.22),
+        addFxSphere(root, 0.1, [-0.64, 0, 0], '#90989d', 1, 0, true, 0.18),
+        addFxSphere(root, 0.12, [-0.78, 0, 0], '#90989d', 1, 0, true, 0.14),
+        addFxSphere(root, 0.14, [-0.92, 0, 0], '#90989d', 1, 0, true, 0.1)
+      ];
       return { root, trail };
     };
     const createFxExplosion = (position) => {
@@ -8154,7 +8139,6 @@ function Chess3D({
       for (let i = 0; i < 6; i += 1) {
         smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
       }
-      root.scale.setScalar(0.34);
       return { root, flash, fire, smoke };
     };
     const launchExplosion = (position, options = {}) => {
@@ -8205,51 +8189,74 @@ function Chess3D({
       return { root };
     };
 
-    const getReferenceBishopSize = (isWhite, fallbackMesh) => {
-      const bishopMesh = (() => {
-        for (let r = 0; r < 8; r += 1) {
-          for (let c = 0; c < 8; c += 1) {
-            const piece = board[r][c];
-            if (!piece || piece.w !== isWhite || piece.t !== 'B') continue;
-            if (pieceMeshes[r]?.[c]) return pieceMeshes[r][c];
-          }
-        }
-        return fallbackMesh;
-      })();
-      const box = new THREE.Box3().setFromObject(bishopMesh || fallbackMesh);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const bishopHeight = Math.max(0.28, size.y || 0.28);
-      const bishopWidth = Math.max(0.14, Math.max(size.x, size.z) || 0.14);
-      return { bishopHeight, bishopWidth };
-    };
-
-    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, movingMesh, movingIsWhite }) => {
+    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance }) => {
       const pieceType = (movingType || '').toUpperCase();
-      if (pieceType === 'B' || pieceType === 'R' || pieceType === 'Q' || pieceType === 'N' || distance >= 2) {
-        const { bishopHeight, bishopWidth } = getReferenceBishopSize(movingIsWhite, movingMesh);
+      if (pieceType === 'B' || pieceType === 'R') {
+        const droneFx = createFxDrone();
+        droneFx.root.scale.setScalar(DRONE_CAPTURE_SCALE);
+        droneFx.root.position.copy(fromPos);
+        captureFxGroup.add(droneFx.root);
         const missileFx = createFxMissile();
-        const missileLengthScale = (bishopHeight / 1.02) * 1.06;
-        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.36;
-        missileFx.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
+        missileFx.root.scale.setScalar(MISSILE_CAPTURE_SCALE);
+        missileFx.root.visible = false;
+        captureFxGroup.add(missileFx.root);
+        playAudio(droneSoundRef, { maxDurationMs: 1100 });
+        activeCaptureFx.push({
+          type: 'drone',
+          t: 0,
+          duration: DRONE_LOOP_TIME * CAPTURE_TIME_SCALE,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          droneFx,
+          missileFx,
+          missileLaunched: false,
+          missileDropTime: DRONE_LOOP_TIME * 0.62
+        });
+        return { moveDelayMs: Math.round(DRONE_LOOP_TIME * CAPTURE_TIME_SCALE * 1000) };
+      }
+      if (pieceType === 'Q') {
+        const jetFx = createFxJet();
+        jetFx.root.scale.setScalar(JET_CAPTURE_SCALE);
+        jetFx.root.position.copy(fromPos).add(new THREE.Vector3(0, 1.8, 0));
+        captureFxGroup.add(jetFx.root);
+        const missileFx = createFxMissile();
+        missileFx.root.scale.setScalar(MISSILE_CAPTURE_SCALE);
+        missileFx.root.visible = false;
+        captureFxGroup.add(missileFx.root);
+        playAudio({ current: jetFlySound }, { maxDurationMs: 1500 });
+        activeCaptureFx.push({
+          type: 'jet',
+          t: 0,
+          duration: JET_LOOP_TIME * CAPTURE_TIME_SCALE,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          jetFx,
+          missileFx,
+          missileLaunched: false,
+          missileDropTime: JET_LOOP_TIME * 0.52
+        });
+        return { moveDelayMs: Math.round(JET_LOOP_TIME * CAPTURE_TIME_SCALE * 1000) };
+      }
+      if (pieceType === 'N') {
+        const missileFx = createFxMissile();
+        missileFx.root.scale.set(MISSILE_CAPTURE_SCALE * 0.94, MISSILE_CAPTURE_SCALE * 0.22, MISSILE_CAPTURE_SCALE * 0.22);
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
-        const travelDuration = 1.85 * CAPTURE_TIME_SCALE;
-        const explosionDuration = 0.92 * CAPTURE_TIME_SCALE;
-        const totalDuration = travelDuration + explosionDuration;
+        const knightTravelDuration = 1.85;
+        const knightExplosionDuration = 0.92;
+        const knightCaptureDuration = knightTravelDuration + knightExplosionDuration;
         activeCaptureFx.push({
-          type: 'orbitMissile',
+          type: 'javelin',
           t: 0,
-          duration: totalDuration,
-          from: fromPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0)),
-          to: targetPos.clone().add(new THREE.Vector3(0, 0.06, 0)),
+          duration: knightCaptureDuration * CAPTURE_TIME_SCALE,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
           missileFx,
-          bishopHeight,
           explosionTriggered: false,
-          travelDuration,
-          explosionDuration
+          travelDuration: knightTravelDuration * CAPTURE_TIME_SCALE,
+          explosionDuration: knightExplosionDuration * CAPTURE_TIME_SCALE
         });
-        return { moveDelayMs: Math.round(totalDuration * 1000) };
+        return { moveDelayMs: Math.round(knightCaptureDuration * CAPTURE_TIME_SCALE * 1000) };
       }
       if (pieceType === 'K' || pieceType === 'P') {
         const swordFx = createFxSword();
@@ -8266,6 +8273,14 @@ function Chess3D({
           swordFx
         });
         return { moveDelayMs: 900 };
+      }
+      if (distance >= 2) {
+        playAudio(missileLaunchSoundRef);
+        const missileFx = createFxMissile();
+        missileFx.root.scale.setScalar(0.56);
+        captureFxGroup.add(missileFx.root);
+        activeCaptureFx.push({ type: 'missile', t: 0, duration: MISSILE_TRAVEL_1 * CAPTURE_TIME_SCALE, from: fromPos.clone(), to: targetPos.clone(), missileFx });
+        return { moveDelayMs: Math.round(MISSILE_TRAVEL_1 * CAPTURE_TIME_SCALE * 1000) };
       }
       launchExplosion(targetPos.clone());
       return { moveDelayMs: 280 };
@@ -9222,24 +9237,20 @@ function Chess3D({
         const capZ = capturingWhite
           ? half + BOARD.rim + 1 + row * captureRowSpacing
           : -half - BOARD.rim - 1 - row * captureRowSpacing;
+        cancelPieceAnimation(targetMesh);
+        targetMesh.position.y = captureY;
+        animatePieceTo(
+          targetMesh,
+          new THREE.Vector3(capX, captureY, capZ),
+          0.35
+        );
         const captureFx = playCaptureAnimation({
           fromPos: fromWorldPos,
           targetPos: worldPos,
           movingType: movingPiece?.t,
-          distance: Math.hypot(rr - sel.r, cc - sel.c),
-          movingMesh: pieceMeshes[sel.r][sel.c],
-          movingIsWhite: Boolean(movingPiece?.w)
+          distance: Math.hypot(rr - sel.r, cc - sel.c)
         });
         moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
-        const clearCapturedTarget = () => {
-          cancelPieceAnimation(targetMesh);
-          targetMesh.position.set(capX, captureY, capZ);
-        };
-        if (moveDelayMs > 0) {
-          setTimeout(clearCapturedTarget, moveDelayMs);
-        } else {
-          clearCapturedTarget();
-        }
         pieceMeshes[rr][cc] = null;
       }
       // move board
@@ -9709,7 +9720,102 @@ function Chess3D({
           const fx = activeCaptureFx[i];
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
-          if (fx.type === 'bazooka') {
+          if (fx.type === 'drone') {
+            const elapsedScaled = fx.t / CAPTURE_TIME_SCALE;
+            let pos = new THREE.Vector3();
+            let next = new THREE.Vector3();
+            const diveStart = fx.to.clone().add(new THREE.Vector3(-1.2, 3.8, 1.8));
+            if (elapsedScaled < DRONE_LIFT_TIME) {
+              const tLocal = smoothEase(elapsedScaled / DRONE_LIFT_TIME);
+              const liftEnd = fx.from.clone().add(new THREE.Vector3(0.6, 3.1, -0.8));
+              pos.copy(fx.from).lerp(liftEnd, tLocal);
+              pos.z += Math.sin(tLocal * Math.PI * 3) * 0.12;
+              next.copy(fx.from).lerp(liftEnd, Math.min(1, tLocal + 0.04));
+            } else if (elapsedScaled < DRONE_LIFT_TIME + DRONE_CRUISE_TIME) {
+              const tLocal = smoothEase((elapsedScaled - DRONE_LIFT_TIME) / DRONE_CRUISE_TIME);
+              const liftEnd = fx.from.clone().add(new THREE.Vector3(0.6, 3.1, -0.8));
+              const cruiseEnd = diveStart;
+              pos.copy(liftEnd).lerp(cruiseEnd, tLocal);
+              pos.y += Math.sin(tLocal * Math.PI * 2) * 0.1;
+              pos.z += Math.sin(tLocal * Math.PI * 2.4) * 0.16;
+              next.copy(liftEnd).lerp(cruiseEnd, Math.min(1, tLocal + 0.03));
+            } else {
+              const tLocal = smoothEase((elapsedScaled - DRONE_LIFT_TIME - DRONE_CRUISE_TIME) / DRONE_DIVE_TIME);
+              pos.copy(diveStart).lerp(fx.to, tLocal);
+              next.copy(diveStart).lerp(fx.to, Math.min(1, tLocal + 0.05));
+            }
+            fx.droneFx.root.position.copy(pos);
+            captureDir.copy(next).sub(pos).normalize();
+            fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            fx.droneFx.propeller.rotation.x += dt * 36;
+            fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
+              puff.position.set(-2.1 - idx * 0.22 - ((fx.t * 1.4 + idx * 0.18) % 1) * 0.2, Math.sin(fx.t * 3 + idx) * 0.03, 0);
+            });
+            if (!fx.missileLaunched && elapsedScaled > DRONE_LIFT_TIME + DRONE_CRUISE_TIME * 0.82) {
+              fx.missileLaunched = true;
+              fx.missileFx.root.visible = true;
+              playAudio(missileLaunchSoundRef);
+            }
+            if (fx.missileLaunched) {
+              const diveProgress = clamp01(
+                (elapsedScaled - fx.missileDropTime) / Math.max(0.01, DRONE_DIVE_TIME * 0.95)
+              );
+              const dropStart = pos.clone().add(new THREE.Vector3(0, -0.08, 0));
+              const control = new THREE.Vector3().copy(dropStart).lerp(fx.to, 0.44);
+              control.y = Math.max(control.y, fx.to.y + 1.15);
+              const missilePos = qBezier(dropStart, control, fx.to, diveProgress);
+              const missileNext = qBezier(dropStart, control, fx.to, clamp01(diveProgress + 0.03));
+              fx.missileFx.root.position.copy(missilePos);
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFx.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 8 + idx) * 0.016, 0);
+              });
+            }
+            if (u >= 1) {
+              launchExplosion(fx.to);
+              captureFxGroup.remove(fx.droneFx.root);
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'jet') {
+            const pos = new THREE.Vector3().copy(fx.from).lerp(fx.to.clone().add(new THREE.Vector3(4.4, 0.1, 2.8)), u);
+            pos.y += Math.sin(u * Math.PI) * 0.45;
+            pos.z += Math.sin(u * Math.PI * 1.65) * 0.35;
+            const nextU = Math.min(1, u + 0.02);
+            const next = new THREE.Vector3().copy(fx.from).lerp(fx.to.clone().add(new THREE.Vector3(4.4, 0.1, 2.8)), nextU);
+            next.y += Math.sin(nextU * Math.PI) * 0.45;
+            next.z += Math.sin(nextU * Math.PI * 1.65) * 0.35;
+            fx.jetFx.root.position.copy(pos);
+            captureDir.copy(next).sub(pos).normalize();
+            fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            if (!fx.missileLaunched && fx.t > fx.missileDropTime) {
+              fx.missileLaunched = true;
+              playAudio(missileLaunchSoundRef);
+              fx.missileFx.root.visible = true;
+              fx.jetFx.leftStore.visible = false;
+            }
+            if (fx.missileLaunched) {
+              const mu = clamp01((fx.t - fx.missileDropTime) / Math.max(0.01, fx.duration - fx.missileDropTime));
+              const dropStart = pos.clone().add(new THREE.Vector3(0, -0.25, 0));
+              const control = new THREE.Vector3().copy(dropStart).lerp(fx.to, 0.45);
+              control.y = Math.max(control.y, fx.to.y + 2.9);
+              const missilePos = qBezier(dropStart, control, fx.to, mu);
+              const missileNext = qBezier(dropStart, control, fx.to, clamp01(mu + 0.03));
+              fx.missileFx.root.position.copy(missilePos);
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFx.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.02, 0);
+              });
+            }
+            if (u >= 1) {
+              launchExplosion(fx.to);
+              captureFxGroup.remove(fx.jetFx.root);
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'bazooka') {
             const aim = new THREE.Vector3().copy(fx.to).sub(fx.from).normalize();
             fx.launcher.tubeRig.quaternion.setFromUnitVectors(FORWARD, aim);
             const mu = clamp01((u - (GROUND_FIRE_TIME / (GROUND_FIRE_TIME + GROUND_TRAVEL_TIME))) / (GROUND_TRAVEL_TIME / (GROUND_FIRE_TIME + GROUND_TRAVEL_TIME)));
@@ -9765,7 +9871,23 @@ function Chess3D({
               captureFxGroup.remove(fx.swordFx.root);
               activeCaptureFx.splice(i, 1);
             }
-          } else if (fx.type === 'orbitMissile') {
+          } else if (fx.type === 'missile') {
+            const control = fx.from.clone().lerp(fx.to, 0.5);
+            control.y += 1.2;
+            const missilePos = qBezier(fx.from, control, fx.to, u);
+            const missileNext = qBezier(fx.from, control, fx.to, clamp01(u + 0.03));
+            fx.missileFx.root.position.copy(missilePos);
+            captureDir.copy(missileNext).sub(missilePos).normalize();
+            fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            fx.missileFx.trail?.forEach((puff, idx) => {
+              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.015, 0);
+            });
+            if (u >= 1) {
+              launchExplosion(fx.to);
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'javelin') {
             const boardCenter = new THREE.Vector3(0, fx.from.y, 0);
             const boardRadius = (BOARD.N * BOARD.tile) / 2;
             const startRadius = Math.max(fx.from.clone().setY(0).length(), boardRadius * 0.92);
@@ -9781,7 +9903,7 @@ function Chess3D({
               const orbitPointAt = (orbitU) => {
                 const angle = startAngle + (fullOrbitAngle - startAngle) * orbitU;
                 const radius = THREE.MathUtils.lerp(startRadius, endRadius, orbitU);
-                const orbitLift = fx.bishopHeight * (0.22 + Math.sin(Math.PI * orbitU) * 0.2);
+                const orbitLift = FX_SCALE_UNIT * (0.42 + Math.sin(Math.PI * orbitU) * 0.35);
                 return new THREE.Vector3(
                   boardCenter.x + Math.cos(angle) * radius,
                   fx.from.y + orbitLift,
@@ -9795,21 +9917,13 @@ function Chess3D({
               captureDir.copy(missileNext).sub(missilePos).normalize();
               fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
               fx.missileFx.trail?.forEach((puff, idx) => {
-                puff.position.set(
-                  -0.55 - idx * 0.16,
-                  Math.sin(fx.t * 20 + idx) * 0.02,
-                  Math.sin(fx.t * 12 + idx * 0.4) * 0.01
-                );
+                puff.position.set(-0.52 - idx * 0.14, Math.sin(fx.t * 8 + idx) * 0.014, 0);
               });
             } else {
               fx.missileFx.root.visible = false;
               if (!fx.explosionTriggered) {
                 fx.explosionTriggered = true;
-                launchExplosion(fx.to.clone().add(new THREE.Vector3(0, -0.05, 0)), {
-                  scale: 1.18,
-                  duration: fx.explosionDuration,
-                  impactSoundMaxDurationMs: 320
-                });
+                launchExplosion(fx.to, { scale: 0.38, duration: fx.explosionDuration, impactSoundMaxDurationMs: 320 });
               }
             }
             if (u >= 1) {
