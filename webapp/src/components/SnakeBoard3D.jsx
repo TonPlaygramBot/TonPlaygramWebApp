@@ -266,13 +266,12 @@ const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
-const CHAIR_BOTTOM_TRIM_SCALE_Y = 0.88;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.22,
+  backOffset: 1.06,
   forwardOffset: 0,
-  heightOffset: 2.74,
+  heightOffset: 2.54,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -1182,16 +1181,6 @@ function fitChairModelToFootprint(model) {
   model.position.add(offset);
 }
 
-function trimChairFromBottom(model, trimScaleY = CHAIR_BOTTOM_TRIM_SCALE_Y) {
-  if (!model || !Number.isFinite(trimScaleY) || trimScaleY <= 0 || trimScaleY >= 1) return;
-  const before = new THREE.Box3().setFromObject(model);
-  if (!Number.isFinite(before.max.y)) return;
-  model.scale.y *= trimScaleY;
-  const after = new THREE.Box3().setFromObject(model);
-  if (!Number.isFinite(after.max.y)) return;
-  model.position.y += before.max.y - after.max.y;
-}
-
 function extractChairMaterials(model) {
   const upholstery = new Set();
   const metal = new Set();
@@ -1456,7 +1445,6 @@ function createProceduralChair(theme) {
   foot.receiveShadow = true;
   chair.add(foot);
 
-  trimChairFromBottom(chair);
   return {
     chairTemplate: chair,
     materials: {
@@ -1477,14 +1465,12 @@ async function loadChairTemplate(theme, renderer = null) {
       if (!theme?.preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: mats }, theme);
       }
-      trimChairFromBottom(polyhaven);
       return { chairTemplate: polyhaven, materials: mats };
     }
     const gltfChair = await loadGltfChair(renderer);
     if (!theme?.preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
-    trimChairFromBottom(gltfChair.chairTemplate);
     return gltfChair;
   } catch (error) {
     console.error('Falling back to procedural chair', error);
@@ -2644,11 +2630,19 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   scene.background = toThreeColor(arenaTheme.background, '#030712');
 
   let environmentCleanup = null;
-  const hdriZoomState = { texture: null };
+  const hdriZoomState = { texture: null, baseDistance: null };
   const updateHdriZoom = (camera, target) => {
     if (!hdriZoomState.texture || !camera || !target) return;
-    hdriZoomState.texture.repeat.set(1, 1);
-    hdriZoomState.texture.offset.set(0, 0);
+    const distance = camera.position.distanceTo(target);
+    if (!hdriZoomState.baseDistance) {
+      hdriZoomState.baseDistance = distance;
+    }
+    const base = hdriZoomState.baseDistance || distance;
+    const ratio = clamp(distance / base, 0.7, 1.4);
+    const zoom = 1 / ratio;
+    hdriZoomState.texture.repeat.set(zoom, zoom);
+    hdriZoomState.texture.offset.set((1 - zoom) / 2, (1 - zoom) / 2);
+    hdriZoomState.texture.needsUpdate = true;
   };
   if (environmentHdri) {
     loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
@@ -2656,19 +2650,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       scene.environment = result.envMap;
       scene.background = result.backgroundTexture || result.envMap;
       hdriZoomState.texture = result.backgroundTexture || null;
-      const rotationY = Number.isFinite(environmentHdri.rotationY) ? environmentHdri.rotationY : 0;
-      if ('backgroundRotation' in scene) {
-        scene.backgroundRotation = new THREE.Euler(0, rotationY, 0);
-      }
-      if ('environmentRotation' in scene) {
-        scene.environmentRotation = new THREE.Euler(0, rotationY, 0);
-      }
+      hdriZoomState.baseDistance = null;
       environmentCleanup = () => {
         scene.environment = null;
         scene.background = toThreeColor(arenaTheme.background, '#030712');
         result.envMap?.dispose?.();
         result.backgroundTexture?.dispose?.();
         hdriZoomState.texture = null;
+        hdriZoomState.baseDistance = null;
       };
     });
   }
@@ -4350,7 +4339,6 @@ export default function SnakeBoard3D({
       if (cameraViewModeRef.current === '2d') {
         return;
       }
-      if (LOCK_BOTTOM_SEAT_CAMERA) return;
 
       const look = headLookRef.current;
       look.yaw = clamp(
@@ -4400,7 +4388,6 @@ export default function SnakeBoard3D({
       pinchState.mode = null;
     };
     const onWheel = (event) => {
-      if (LOCK_BOTTOM_SEAT_CAMERA) return;
       const isTopDown = cameraViewModeRef.current === '2d';
       event.preventDefault();
       const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR : CAMERA_3D_ZOOM_WHEEL_FACTOR;
@@ -4409,7 +4396,6 @@ export default function SnakeBoard3D({
       applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
     };
     const tryApplyPinchZoom = () => {
-      if (LOCK_BOTTOM_SEAT_CAMERA) return;
       if (pinchState.pointers.size < 2) {
         pinchState.distance = null;
         pinchState.mode = null;
@@ -4607,26 +4593,22 @@ export default function SnakeBoard3D({
           }
         }
         if (cameraViewModeRef.current !== '2d') {
+          const look = headLookRef.current;
           const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
-          if (LOCK_BOTTOM_SEAT_CAMERA) {
-            if (baseTarget) camera.lookAt(baseTarget);
-          } else {
-            const look = headLookRef.current;
-            if (baseTarget) {
-              const forward = baseTarget.clone().sub(camera.position);
-              const focusDistance = forward.length();
-              if (focusDistance > 1e-6) {
-                forward.normalize();
-                const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
-                if (right.lengthSq() > 1e-6) {
-                  right.normalize();
-                  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-                  const lookTarget = baseTarget
-                    .clone()
-                    .addScaledVector(right, look.yaw * focusDistance * 0.52)
-                    .addScaledVector(up, look.pitch * focusDistance * 0.4);
-                  camera.lookAt(lookTarget);
-                }
+          if (baseTarget) {
+            const forward = baseTarget.clone().sub(camera.position);
+            const focusDistance = forward.length();
+            if (focusDistance > 1e-6) {
+              forward.normalize();
+              const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
+              if (right.lengthSq() > 1e-6) {
+                right.normalize();
+                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+                const lookTarget = baseTarget
+                  .clone()
+                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
+                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
+                camera.lookAt(lookTarget);
               }
             }
           }
