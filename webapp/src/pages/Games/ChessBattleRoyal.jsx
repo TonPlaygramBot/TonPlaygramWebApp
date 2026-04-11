@@ -96,10 +96,8 @@ const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL;
-const CAPTURE_JET_MISSILE_DROP = 2.2;
-const CAPTURE_JET_MISSILE_TRAVEL = 2.4;
-const CAPTURE_JET_MISSILE_SALVO_GAP = 0.34;
-const CAPTURE_JET_MISSILE_COUNT = 2;
+const CAPTURE_JET_MISSILE_DROP = 1.9;
+const CAPTURE_JET_MISSILE_TRAVEL = 1.4;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
@@ -107,7 +105,7 @@ const CAPTURE_DRONE_SCALE = 0.0625;
 const CAPTURE_JET_SCALE = 0.05;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.9;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.74;
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_EXPLOSION_SCALE = 0.196;
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
@@ -8401,39 +8399,30 @@ function Chess3D({
       if (pieceType === 'Q') {
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+        const topSeat = fromPos.z < 0;
         const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
         const entryClamp = half - tile * 0.22;
-        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.06;
-        const edgeTilt = targetPos.clone().sub(fromPos);
-        const entryAxis = new THREE.Vector3(fromPos.x, 0, fromPos.z);
-        if (entryAxis.lengthSq() < 0.0001) {
-          entryAxis.set(edgeTilt.x || 0, 0, edgeTilt.z || 1);
-        }
-        if (entryAxis.lengthSq() < 0.0001) {
-          entryAxis.set(0, 0, 1);
-        }
-        entryAxis.normalize();
-        const edgeLaneX = entryAxis.x * borderOffset;
-        const edgeLaneZ = entryAxis.z * borderOffset;
+        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.08;
+        const edgeLane = topSeat ? -borderOffset : borderOffset;
         const jetStart = new THREE.Vector3(
-          THREE.MathUtils.clamp(edgeLaneX, -entryClamp, entryClamp),
+          THREE.MathUtils.clamp(fromPos.x, -entryClamp, entryClamp),
           CAPTURE_JET_ALTITUDE,
-          THREE.MathUtils.clamp(edgeLaneZ, -entryClamp, entryClamp)
+          edgeLane
         );
         const jetApproach = new THREE.Vector3(
-          THREE.MathUtils.clamp(THREE.MathUtils.lerp(jetStart.x, fromPos.x, 0.56), -entryClamp, entryClamp),
+          THREE.MathUtils.clamp(fromPos.x, -entryClamp, entryClamp),
           attackAltitude,
-          THREE.MathUtils.clamp(THREE.MathUtils.lerp(jetStart.z, fromPos.z, 0.56), -entryClamp, entryClamp)
+          THREE.MathUtils.lerp(edgeLane, fromPos.z, 0.34)
         );
         const jetAttack = new THREE.Vector3(
           THREE.MathUtils.clamp(targetPos.x, -entryClamp, entryClamp),
-          attackAltitude - 0.03,
-          THREE.MathUtils.clamp(targetPos.z, -entryClamp, entryClamp)
+          attackAltitude - 0.04,
+          THREE.MathUtils.lerp(edgeLane, targetPos.z, 0.4)
         );
         const jetExit = new THREE.Vector3(
-          THREE.MathUtils.clamp(-edgeLaneX, -entryClamp, entryClamp),
-          CAPTURE_JET_ALTITUDE - 0.06,
-          THREE.MathUtils.clamp(-edgeLaneZ, -entryClamp, entryClamp)
+          THREE.MathUtils.clamp(targetPos.x, -entryClamp, entryClamp),
+          CAPTURE_JET_ALTITUDE - 0.08,
+          edgeLane
         );
         jetFx.root.position.copy(jetStart);
         captureFxGroup.add(jetFx.root);
@@ -8451,17 +8440,13 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          sideAxis: entryAxis.clone(),
+          topSeat,
           jetFx,
           missileFx
         });
         return {
           moveDelayMs: CAPTURE_JET_TOTAL * 1000,
-          captureResolveDelayMs:
-            (CAPTURE_JET_MISSILE_DROP +
-              CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_JET_MISSILE_COUNT +
-              CAPTURE_JET_MISSILE_SALVO_GAP * (CAPTURE_JET_MISSILE_COUNT - 1)) *
-            1000
+          captureResolveDelayMs: (CAPTURE_JET_MISSILE_DROP + CAPTURE_JET_MISSILE_TRAVEL) * 1000
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
@@ -10074,19 +10059,18 @@ function Chess3D({
             } else if (jetU < orbitSplit) {
               const orbitU = smoothEase((jetU - enterSplit) / (orbitSplit - enterSplit));
               const uControl = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.4);
-              uControl.y = CAPTURE_JET_ALTITUDE - 0.22;
-              uControl.x += -fx.sideAxis.z * 0.34;
-              uControl.z += fx.sideAxis.x * 0.34;
+              uControl.y = CAPTURE_JET_ALTITUDE - 0.3;
+              uControl.z += fx.topSeat ? 0.28 : -0.28;
               jetPos = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, orbitU);
               jetNext = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, clamp01(orbitU + 0.04));
             } else if (jetU < exitSplit) {
               const mu = smoothEase((jetU - orbitSplit) / (exitSplit - orbitSplit));
-              jetPos = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)), mu);
-              jetNext = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)), clamp01(mu + 0.06));
+              jetPos = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)), mu);
+              jetNext = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)), clamp01(mu + 0.06));
             } else {
               const mu = smoothEase((jetU - exitSplit) / (1 - exitSplit));
-              jetPos = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)).lerp(fx.exitPos, mu);
-              jetNext = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)).lerp(fx.exitPos, clamp01(mu + 0.06));
+              jetPos = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)).lerp(fx.exitPos, mu);
+              jetNext = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)).lerp(fx.exitPos, clamp01(mu + 0.06));
             }
             fx.jetFx.root.position.copy(jetPos);
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -10097,46 +10081,29 @@ function Chess3D({
               puff.scale.setScalar(s);
             });
 
-            const missileFlightWindow =
-              CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_JET_MISSILE_COUNT +
-              CAPTURE_JET_MISSILE_SALVO_GAP * (CAPTURE_JET_MISSILE_COUNT - 1);
             if (fx.t < CAPTURE_JET_MISSILE_DROP) {
               fx.missileFx.root.visible = false;
-            } else if (fx.t <= CAPTURE_JET_MISSILE_DROP + missileFlightWindow) {
-              const elapsed = fx.t - CAPTURE_JET_MISSILE_DROP;
-              const salvoSpan = CAPTURE_JET_MISSILE_TRAVEL + CAPTURE_JET_MISSILE_SALVO_GAP;
-              const salvoIndex = Math.min(
-                CAPTURE_JET_MISSILE_COUNT - 1,
-                Math.floor(elapsed / salvoSpan)
-              );
-              const salvoStart = salvoIndex * salvoSpan;
-              const inSalvoFlight = elapsed - salvoStart <= CAPTURE_JET_MISSILE_TRAVEL;
-              if (fx.lastMissileSalvo !== salvoIndex && inSalvoFlight) {
-                fx.lastMissileSalvo = salvoIndex;
-                playAudio(missileLaunchSoundRef);
-              }
+            } else if (fx.t <= CAPTURE_JET_MISSILE_DROP + CAPTURE_JET_MISSILE_TRAVEL) {
+              if (Math.abs(fx.t - CAPTURE_JET_MISSILE_DROP) < dt * 1.2) playAudio(missileLaunchSoundRef);
               const mu = smoothEase(
-                clamp01((elapsed - salvoStart) / CAPTURE_JET_MISSILE_TRAVEL)
+                clamp01((fx.t - CAPTURE_JET_MISSILE_DROP) / CAPTURE_JET_MISSILE_TRAVEL)
               );
-              const launchPos = fx.jetFx.root.position.clone().add(new THREE.Vector3(0, -0.03, 0));
+              const boardShotAnchor = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.6);
+              const launchPos = boardShotAnchor.clone().add(new THREE.Vector3(0, 0.02, 0));
               const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
                 from: launchPos,
                 to: fx.to.clone(),
                 progress: mu,
                 launchHeight: 0.02,
-                orbitRadiusMul: 0.64,
+                orbitRadiusMul: 0.7,
                 minOrbitCycles: 0.22,
                 liftSplit: 0.15,
                 strikeSplit: 0.74
               });
-              if (inSalvoFlight) {
-                fx.missileFx.root.visible = true;
-                fx.missileFx.root.position.copy(missilePos);
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              } else {
-                fx.missileFx.root.visible = false;
-              }
+              fx.missileFx.root.visible = true;
+              fx.missileFx.root.position.copy(missilePos);
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             } else {
               fx.missileFx.root.visible = false;
               if (!fx.hasExploded) {
