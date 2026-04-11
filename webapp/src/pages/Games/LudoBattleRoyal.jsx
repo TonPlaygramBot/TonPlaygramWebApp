@@ -760,7 +760,7 @@ const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 0.8;
@@ -773,14 +773,14 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.68 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.46 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.46 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.48 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  targetLift: 0.092 * MODEL_SCALE
+  backOffset: 0.4 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 1.58 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.24 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  targetLift: 0.082 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.14 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.34 * MODEL_SCALE;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 1.02 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.04 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.22 * MODEL_SCALE;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.72 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -5823,7 +5823,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
         const missileLengthScale = (bishopHeight / 1.02) * 0.92;
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
-        primaryFx.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
+        const animationScaleFactor =
+          selectedCaptureAnimationId === 'fighterJetAttack'
+            ? 0.3
+            : selectedCaptureAnimationId === 'droneAttack'
+            ? 0.21
+            : 1;
+        primaryFx.root.scale.set(
+          missileLengthScale * animationScaleFactor,
+          missileThicknessScale * animationScaleFactor,
+          missileThicknessScale * animationScaleFactor
+        );
         if (jetMissiles.length) {
           const jetMissileScale = missileThicknessScale * 0.85;
           jetMissiles.forEach((entry) => {
