@@ -116,11 +116,6 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'fighterJetAttack',
     label: 'Fighter Jet Attack',
     description: 'Fast fighter jet strike adapted from Chess Battle Royal scale.'
-  },
-  {
-    id: 'helicopterAttack',
-    label: 'Helicopter Strike',
-    description: 'Attack helicopter run that launches twin missiles on a jet-style path.'
   }
 ]);
 
