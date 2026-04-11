@@ -1238,6 +1238,7 @@ export default function SnakeAndLadder() {
   const [playerColors, setPlayerColors] = useState([]);
   const [, setRollColor] = useState('#fff');
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
+  const [turnOwnerId, setTurnOwnerId] = useState(null);
   const [ranking, setRanking] = useState([]);
   const [turnOrder, setTurnOrder] = useState([]);
   const [initialRolls, setInitialRolls] = useState([]);
@@ -2177,34 +2178,57 @@ export default function SnakeAndLadder() {
         if (playerId === myAccountId) setPos(0);
       }, 1000);
     };
-    const onTurn = ({ playerId, seatIndex }) => {
-      let idx = -1;
+    const resolveTurnIndex = ({ playerId, seatIndex, currentTurn: currentTurnPayload }) => {
+      const players = playersRef.current;
+      const totalPlayers = players.length;
+      if (totalPlayers <= 0) return -1;
 
-      if (Number.isInteger(seatIndex)) {
-        idx = seatIndex;
-      } else {
-        idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+      const idxById = players.findIndex((pl) => pl.id === playerId);
+      const normalizeIndex = (candidate) => {
+        if (!Number.isInteger(candidate)) return -1;
+        if (candidate >= 0 && candidate < totalPlayers) return candidate;
+        if (candidate > 0 && candidate - 1 < totalPlayers) return candidate - 1;
+        return -1;
+      };
 
-        // Some servers emit the active seat index instead of a playerId.
-        if (idx === -1 && Number.isInteger(playerId)) {
-          idx = playerId;
-        }
+      if (idxById >= 0) {
+        const seatNormalized = normalizeIndex(seatIndex);
+        if (seatNormalized === idxById) return idxById;
+        const currentTurnNormalized = normalizeIndex(currentTurnPayload);
+        if (currentTurnNormalized === idxById) return idxById;
       }
 
-      if (idx >= 0) {
-        setCurrentTurn(idx);
-        setDiceCount(playerDiceCounts[idx] ?? 1);
-        const turnBelongsToMe = playersRef.current[idx]?.id === myAccountId;
-        if (turnBelongsToMe) {
-          // Keep roll CTA visible for immediate extra turns.
-          setRollCooldown(0);
-        }
-        if (!turnBelongsToMe) setPendingExtraRoll(false);
+      const seatIndexResolved = normalizeIndex(seatIndex);
+      if (seatIndexResolved >= 0) return seatIndexResolved;
+
+      const currentTurnResolved = normalizeIndex(currentTurnPayload);
+      if (currentTurnResolved >= 0) return currentTurnResolved;
+
+      if (idxById >= 0) return idxById;
+      return normalizeIndex(playerId);
+    };
+
+    const onTurn = ({ playerId, seatIndex, currentTurn: currentTurnPayload }) => {
+      const idx = resolveTurnIndex({ playerId, seatIndex, currentTurn: currentTurnPayload });
+      if (idx < 0) return;
+
+      setCurrentTurn(idx);
+      const resolvedTurnOwnerId = playersRef.current[idx]?.id ?? playerId ?? null;
+      setTurnOwnerId(resolvedTurnOwnerId);
+      setDiceCount(playerDiceCounts[idx] ?? 1);
+      const turnBelongsToMe = resolvedTurnOwnerId === myAccountId;
+      if (turnBelongsToMe) {
+        // Keep roll CTA visible for immediate extra turns and avoid stale lock states.
+        setRollCooldown(0);
+        setMoving(false);
+      } else {
+        setPendingExtraRoll(false);
       }
     };
     const onStarted = () => {
       setSetupPhase(false);
       setWaitingForPlayers(false);
+      setTurnOwnerId(null);
       if (myAccountId) {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
@@ -2214,9 +2238,13 @@ export default function SnakeAndLadder() {
       setTimeout(() => setRollResult(null), 2000);
       playDiceRollSound();
       const rollerId = playerId ?? playersRef.current[currentTurn]?.id;
-      if (rollerId === myAccountId && Number(value) === 6) {
+      const rolledSix = Array.isArray(value)
+        ? value.some((v) => Number(v) === 6)
+        : Number(value) === 6;
+      if (rollerId === myAccountId && rolledSix) {
         setPendingExtraRoll(true);
         setRollCooldown(0);
+        setTurnOwnerId(myAccountId);
       }
     };
     const onWon = ({ playerId }) => {
@@ -2313,7 +2341,7 @@ export default function SnakeAndLadder() {
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
     socket.on('turnUpdate', ({ currentTurn, playerId, seatIndex }) =>
-      onTurn({ playerId, seatIndex: Number.isInteger(currentTurn) ? currentTurn : seatIndex })
+      onTurn({ currentTurn, playerId, seatIndex })
     );
     socket.on('lobbyUpdate', ({ players: list, maxPlayers }) => {
       handleCapacity(maxPlayers);
@@ -3201,8 +3229,10 @@ export default function SnakeAndLadder() {
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const hasLocalExtraRoll = pendingExtraRoll;
+  const multiplayerTurnBelongsToMe =
+    myPlayerIndex !== null && (turnOwnerId === accountId || currentTurn === myPlayerIndex);
   const isMyTurnForRoll =
-    myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
+    myPlayerIndex !== null && (isMultiplayer ? multiplayerTurnBelongsToMe || hasLocalExtraRoll : currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = isMultiplayer
     ? true
     : hasLocalExtraRoll || rollCooldown === 0;
