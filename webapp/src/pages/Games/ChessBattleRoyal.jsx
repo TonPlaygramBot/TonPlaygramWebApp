@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
@@ -98,6 +99,9 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 0.96; // slightly shorter jet sequence while keeping in-flight pacing natural
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 0.94 * CAPTURE_JET_SPEED_FACTOR;
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.28;
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
+const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // hold release until jet is above the board line
 const CAPTURE_JET_TRIMMED_START_RATIO = 0.7; // trim opening and bring jet into frame faster
@@ -106,6 +110,7 @@ const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
 const CAPTURE_JET_SCALE = 0.0695;
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.0;
@@ -116,6 +121,23 @@ const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = -0.18;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const CAPTURE_MODEL_URLS = Object.freeze({
+  drone: [
+    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
+    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
+    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
+  ],
+  helicopter: [
+    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb',
+    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
+    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/helicopter.glb'
+  ],
+  fighter: [
+    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb',
+    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/f15.glb',
+    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/f15.glb'
+  ]
+});
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -2827,6 +2849,35 @@ function createConfiguredGLTFLoader(renderer = null) {
 
   loader.setKTX2Loader(sharedKTX2Loader);
   return loader;
+}
+
+function normalizeModel(object, targetSize) {
+  const box = new THREE.Box3().setFromObject(object);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  object.scale.multiplyScalar(targetSize / maxDim);
+  const normalized = new THREE.Box3().setFromObject(object);
+  const center = new THREE.Vector3();
+  normalized.getCenter(center);
+  object.position.x -= center.x;
+  object.position.z -= center.z;
+  object.position.y -= normalized.min.y;
+}
+
+function prepareCaptureModel(root) {
+  root.traverse((child) => {
+    if (!child?.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => {
+      if (material && 'envMapIntensity' in material) {
+        material.envMapIntensity = 1.1;
+        material.needsUpdate = true;
+      }
+    });
+  });
 }
 
 async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
@@ -7968,6 +8019,56 @@ function Chess3D({
     scene.add(captureFxGroup);
     const activeCaptureFx = [];
     const captureDir = new THREE.Vector3();
+    const captureUnitTemplates = {
+      drone: null,
+      helicopter: null,
+      fighter: null
+    };
+    const captureUnitLoads = {};
+
+    const loadCaptureUnitTemplate = async (key, targetSize) => {
+      if (captureUnitTemplates[key]) return captureUnitTemplates[key];
+      if (captureUnitLoads[key]) return captureUnitLoads[key];
+      const urls = CAPTURE_MODEL_URLS[key] || [];
+      const loader = createConfiguredGLTFLoader(renderer);
+      const task = (async () => {
+        for (const url of urls) {
+          try {
+            const resolvedUrl = new URL(url, window.location.href).href;
+            const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+            loader.setResourcePath(resourcePath);
+            loader.setPath('');
+            // eslint-disable-next-line no-await-in-loop
+            const gltf = await new Promise((resolve, reject) => {
+              loader.load(resolvedUrl, resolve, undefined, reject);
+            });
+            const model = (gltf.scene || gltf.scenes?.[0])?.clone?.(true);
+            if (!model) continue;
+            prepareCaptureModel(model);
+            normalizeModel(model, targetSize);
+            captureUnitTemplates[key] = model;
+            return model;
+          } catch (error) {
+            // Try fallback URL.
+          }
+        }
+        return null;
+      })();
+      captureUnitLoads[key] = task;
+      return task;
+    };
+
+    const cloneCaptureUnitTemplate = (key) => {
+      const template = captureUnitTemplates[key];
+      if (!template) return null;
+      const clone = cloneSkinned(template);
+      prepareCaptureModel(clone);
+      return clone;
+    };
+
+    void loadCaptureUnitTemplate('drone', 3.7);
+    void loadCaptureUnitTemplate('helicopter', 5.2);
+    void loadCaptureUnitTemplate('fighter', 5.8);
 
     const addFxBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
       const mesh = new THREE.Mesh(
@@ -8016,6 +8117,17 @@ function Chess3D({
       return mesh;
     };
     const createFxDrone = () => {
+      const model = cloneCaptureUnitTemplate('drone');
+      if (model) {
+        const root = new THREE.Group();
+        root.add(model);
+        const propeller =
+          model.getObjectByName('propeller') ||
+          model.getObjectByName('Propeller') ||
+          model.getObjectByName('Rotor') ||
+          model;
+        return { root, propeller, exhaustClouds: [] };
+      }
       const root = new THREE.Group();
       root.scale.setScalar(0.3);
       addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
@@ -8085,7 +8197,52 @@ function Chess3D({
       }
       return { root, propeller, exhaustClouds };
     };
+    const createFxHelicopter = () => {
+      const model = cloneCaptureUnitTemplate('helicopter');
+      if (model) {
+        const root = new THREE.Group();
+        root.add(model);
+        const rotor =
+          model.getObjectByName('MainRotor') ||
+          model.getObjectByName('Rotor') ||
+          model.getObjectByName('rotor') ||
+          model;
+        return { root, rotor, exhaustClouds: [] };
+      }
+      const root = new THREE.Group();
+      addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
+      const cockpit = addFxSphere(root, 0.26, [0.75, 0.08, 0], '#304351', 0.24, 0.35);
+      cockpit.scale.set(1.35, 0.72, 0.9);
+      addFxBox(root, [1.4, 0.07, 0.2], [-0.12, 0.05, 0], '#8c959d', 0.58, 0.2);
+      addFxBox(root, [0.62, 0.12, 0.12], [-1.18, 0.08, 0], '#8b949b', 0.58, 0.18);
+      addFxCylinder(root, 0.05, 0.05, 0.68, [-1.65, 0.11, 0], [0, 0, Math.PI / 2], '#7a848d', 14);
+      addFxBox(root, [0.95, 0.03, 0.03], [0.05, -0.34, -0.2], '#616a72', 0.7, 0.1);
+      addFxBox(root, [0.95, 0.03, 0.03], [0.05, -0.34, 0.2], '#616a72', 0.7, 0.1);
+      const rotor = new THREE.Group();
+      rotor.position.set(0.02, 0.34, 0);
+      addFxBox(rotor, [0.1, 0.05, 0.1], [0, 0, 0], '#3a434a', 0.5, 0.22);
+      addFxBox(rotor, [0.08, 0.02, 1.35], [0, 0, 0], '#1f252a', 0.55, 0.08);
+      addFxBox(rotor, [1.35, 0.02, 0.08], [0, 0, 0], '#1f252a', 0.55, 0.08);
+      root.add(rotor);
+      const exhaustClouds = [];
+      for (let i = 0; i < 6; i += 1) {
+        exhaustClouds.push(
+          addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
+        );
+      }
+      return { root, rotor, exhaustClouds };
+    };
     const createFxJet = () => {
+      const model = cloneCaptureUnitTemplate('fighter');
+      if (model) {
+        const root = new THREE.Group();
+        root.add(model);
+        const cockpit =
+          model.getObjectByName('cockpit') ||
+          model.getObjectByName('Cockpit') ||
+          model;
+        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds: [] };
+      }
       const root = new THREE.Group();
       addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
       const nose = new THREE.Mesh(
@@ -8362,7 +8519,7 @@ function Chess3D({
       deltaC = 0
     }) => {
       const pieceType = (movingType || '').toUpperCase();
-      if (pieceType === 'B' || pieceType === 'R') {
+      if (pieceType === 'R') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const droneFx = createFxDrone();
         droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
@@ -8384,6 +8541,66 @@ function Chess3D({
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
           captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        };
+      }
+      if (pieceType === 'B') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
+        const helicopterFx = createFxHelicopter();
+        helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
+        const attackFromRightSide = fromPos.x >= 0;
+        const borderOffset = half + tile * CAPTURE_JET_EDGE_PATH_FACTOR;
+        const entryClamp = half - tile * 0.12;
+        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.1;
+        const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
+        const heliStart = new THREE.Vector3(
+          sideLane,
+          CAPTURE_JET_ALTITUDE,
+          THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
+        );
+        const heliApproach = new THREE.Vector3(
+          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.84),
+          attackAltitude,
+          THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
+        );
+        const heliAttack = new THREE.Vector3(
+          THREE.MathUtils.lerp(sideLane, targetPos.x, 0.86),
+          attackAltitude - 0.05,
+          THREE.MathUtils.clamp(targetPos.z, -entryClamp, entryClamp)
+        );
+        const heliExit = new THREE.Vector3(
+          attackFromRightSide ? -borderOffset : borderOffset,
+          CAPTURE_JET_ALTITUDE - 0.04,
+          THREE.MathUtils.clamp(targetPos.z, -entryClamp, entryClamp)
+        );
+        helicopterFx.root.position.copy(heliStart);
+        captureFxGroup.add(helicopterFx.root);
+        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
+        missileFx.forEach((missile) => {
+          missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missile.root.visible = false;
+          captureFxGroup.add(missile.root);
+        });
+        activeCaptureFx.push({
+          type: 'helicopter',
+          t: 0,
+          duration: CAPTURE_HELICOPTER_TOTAL,
+          from: heliStart.clone(),
+          to: targetPos.clone(),
+          orbitEntryPos: heliApproach,
+          orbitExitPos: heliAttack,
+          exitPos: heliExit,
+          missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          attackFromRightSide,
+          helicopterFx,
+          missileFx
+        });
+        const helicopterImpactDelayMs =
+          (CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO +
+            CAPTURE_HELICOPTER_MISSILE_TRAVEL) *
+          1000;
+        return {
+          moveDelayMs: helicopterImpactDelayMs,
+          captureResolveDelayMs: helicopterImpactDelayMs
         };
       }
       if (pieceType === 'Q') {
@@ -10139,6 +10356,97 @@ function Chess3D({
             if (u >= 1) {
               captureFxGroup.remove(fx.jetFx.root);
               jetMissiles.forEach((missile) => {
+                captureFxGroup.remove(missile.root);
+              });
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'helicopter') {
+            const enterSplit = 0.22;
+            const orbitSplit = 0.74;
+            const exitSplit = 0.9;
+            const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
+            const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
+            let heliPos = null;
+            let heliNext = null;
+            if (heliU < enterSplit) {
+              const mu = smoothEase(heliU / enterSplit);
+              heliPos = fx.from.clone().lerp(fx.orbitEntryPos, mu);
+              heliNext = fx.from.clone().lerp(fx.orbitEntryPos, clamp01(mu + 0.04));
+            } else if (heliU < orbitSplit) {
+              const orbitU = smoothEase((heliU - enterSplit) / (orbitSplit - enterSplit));
+              const uControl = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.4);
+              uControl.y = CAPTURE_JET_ALTITUDE - 0.22;
+              uControl.x += fx.attackFromRightSide ? -0.26 : 0.26;
+              heliPos = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, orbitU);
+              heliNext = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, clamp01(orbitU + 0.03));
+            } else if (heliU < exitSplit) {
+              const mu = smoothEase((heliU - orbitSplit) / (exitSplit - orbitSplit));
+              heliPos = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.11, 0)), mu);
+              heliNext = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.11, 0)), clamp01(mu + 0.04));
+            } else {
+              const mu = smoothEase((heliU - exitSplit) / (1 - exitSplit));
+              heliPos = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.11, 0)).lerp(fx.exitPos, mu);
+              heliNext = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.11, 0)).lerp(fx.exitPos, clamp01(mu + 0.04));
+            }
+            fx.helicopterFx.root.position.copy(heliPos);
+            captureDir.copy(heliNext).sub(heliPos).normalize();
+            const heliForward = captureDir.clone();
+            fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            fx.helicopterFx.rotor?.rotateY(dt * 24);
+            fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
+              puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
+            });
+
+            const missileReleaseTime = fx.missileReleaseTime ?? CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO;
+            const releaseAtBoardCenter = Math.abs(heliPos.x - fx.to.x) <= tile * 0.15;
+            const releaseAtBoardLane = Math.abs(heliPos.z - fx.to.z) <= tile * 0.22;
+            const releaseReady = heliU >= 0.5 && releaseAtBoardCenter && releaseAtBoardLane;
+            if (!Number.isFinite(fx.actualMissileReleaseTime) && fx.t >= missileReleaseTime && releaseReady) {
+              fx.actualMissileReleaseTime = fx.t;
+              playAudio(missileLaunchSoundRef);
+            }
+            const actualMissileReleaseTime = Number.isFinite(fx.actualMissileReleaseTime)
+              ? fx.actualMissileReleaseTime
+              : null;
+            const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
+            if (!Number.isFinite(actualMissileReleaseTime)) {
+              heliMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
+            } else if (fx.t <= actualMissileReleaseTime + CAPTURE_HELICOPTER_MISSILE_TRAVEL) {
+              const mu = smoothEase(
+                clamp01((fx.t - actualMissileReleaseTime) / CAPTURE_HELICOPTER_MISSILE_TRAVEL)
+              );
+              const launchPos = heliPos.clone().addScaledVector(heliForward, 0.08).add(new THREE.Vector3(0, -0.03, 0));
+              const missileTarget = fx.to.clone().addScaledVector(heliForward, 0.04);
+              const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
+                from: launchPos,
+                to: missileTarget,
+                progress: mu,
+                launchHeight: 0.02,
+                orbitRadiusMul: 0.9,
+                minOrbitCycles: 0.22,
+                liftSplit: 0.15,
+                strikeSplit: 0.82
+              });
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              heliMissiles.forEach((missile, idx) => {
+                missile.root.visible = true;
+                missile.root.position.copy(missilePos).addScaledVector(heliForward, idx * 0.05);
+                missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              });
+            } else {
+              heliMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
+              if (!fx.hasExploded) {
+                fx.hasExploded = true;
+                launchExplosion(fx.to);
+              }
+            }
+            if (u >= 1) {
+              captureFxGroup.remove(fx.helicopterFx.root);
+              heliMissiles.forEach((missile) => {
                 captureFxGroup.remove(missile.root);
               });
               activeCaptureFx.splice(i, 1);
