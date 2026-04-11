@@ -510,8 +510,8 @@ const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.4;
-const CHAIR_VERTICAL_DROP = 0;
-const TABLE_VERTICAL_DROP = 0;
+const CHAIR_VERTICAL_DROP = 0.055 * MODEL_SCALE;
+const TABLE_VERTICAL_DROP = 0.035 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
@@ -597,18 +597,18 @@ const CAMERA_ZOOM_MAX_FACTOR = 1.35;
 const LUDO_CAMERA_PHI_MIN = ARENA_CAMERA_DEFAULTS.phiMin;
 const LUDO_CAMERA_PHI_MAX = ARENA_CAMERA_DEFAULTS.phiMax;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.68,
+  backOffset: 0.88,
   forwardOffset: 0,
-  heightOffset: 1.2
+  heightOffset: 1.38
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.06,
+  backOffset: 1.28,
   forwardOffset: 0,
-  heightOffset: 2.54,
+  heightOffset: 2.82,
   targetLift: 0.055 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0;
-const CAMERA_EXTRA_LIFT = 0.12;
+const CAMERA_EXTRA_PULLBACK = 0.16;
+const CAMERA_EXTRA_LIFT = 0.2;
 const CAMERA_SEATED_INWARD_OFFSET = 0;
 const CAMERA_SEATED_EYE_HEIGHT = 0;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
@@ -1890,7 +1890,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 1;
 const CAMERA_EXTRA_ZOOM_OUT = 1;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.42;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -1903,8 +1903,9 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
-const CAMERA_3D_HEIGHT_BOOST = 0;
+const CAMERA_3D_HEIGHT_BOOST = 0.04;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0;
+const SKYBOX_FLOOR_LEVEL_OFFSET = 0.02;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -3574,7 +3575,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (envResult.skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
         try {
           skybox = new GroundedSkybox(envResult.skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
-          skybox.position.set(boardLookTarget.x, floorY + cameraHeight, boardLookTarget.z);
+          skybox.position.set(
+            boardLookTarget.x,
+            floorY + cameraHeight + SKYBOX_FLOOR_LEVEL_OFFSET,
+            boardLookTarget.z
+          );
           skybox.rotation.y = environmentRotationY;
           skybox.material.depthWrite = false;
           skybox.userData.cameraHeight = cameraHeight;
@@ -3675,7 +3680,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         skybox.position.x = boardLookTarget.x;
         skybox.position.z = boardLookTarget.z;
       }
-      skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
+      skybox.position.y =
+        environmentFloorRef.current + skybox.userData.cameraHeight + SKYBOX_FLOOR_LEVEL_OFFSET;
       if (Number.isFinite(skybox.userData?.rotationY)) {
         skybox.rotation.y = skybox.userData.rotationY;
       }
@@ -3730,7 +3736,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     environmentFloorRef.current = 0;
     const skybox = envSkyboxRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
-      skybox.position.y = skybox.userData.cameraHeight;
+      skybox.position.y = skybox.userData.cameraHeight + SKYBOX_FLOOR_LEVEL_OFFSET;
     }
   }, []);
 
@@ -4925,7 +4931,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enableRotate = false;
+    controls.screenSpacePanning = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
+    controls.touches.ONE = THREE.TOUCH.NONE;
+    controls.touches.TWO = THREE.TOUCH.NONE;
+    controls.touches.THREE = THREE.TOUCH.NONE;
+    controls.mouseButtons.LEFT = THREE.MOUSE.NONE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.NONE;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.NONE;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
     controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
@@ -4958,7 +4971,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lastCameraRadiusRef.current = radius;
       const floorY = environmentFloorRef.current ?? 0;
       if (Number.isFinite(skybox.userData?.cameraHeight)) {
-        skybox.position.y = floorY + skybox.userData.cameraHeight;
+        skybox.position.y = floorY + skybox.userData.cameraHeight + SKYBOX_FLOOR_LEVEL_OFFSET;
       }
       skybox.position.x = boardLookTarget.x;
       skybox.position.z = boardLookTarget.z;
