@@ -96,10 +96,10 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 0.96; // slightly shorter jet sequence while keeping in-flight pacing natural
+const CAPTURE_JET_SPEED_FACTOR = 1.08; // slightly slower pass for better board readability
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 0.94 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.28;
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.44;
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -109,16 +109,16 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
-const CAPTURE_JET_SCALE = 0.0695;
+const CAPTURE_JET_SCALE = 0.078;
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.0;
 const CAPTURE_MISSILE_SCALE = 0.0595;
-const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.16;
+const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.24;
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const CAPTURE_JET_EDGE_PATH_FACTOR = -0.18;
+const CAPTURE_JET_EDGE_PATH_FACTOR = -0.24;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const CAPTURE_MODEL_URLS = Object.freeze({
@@ -2872,6 +2872,8 @@ function prepareCaptureModel(root) {
     child.receiveShadow = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
+      if (material?.map) applySRGBColorSpace(material.map);
+      if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
       if (material && 'envMapIntensity' in material) {
         material.envMapIntensity = 1.1;
         material.needsUpdate = true;
@@ -2879,6 +2881,27 @@ function prepareCaptureModel(root) {
     });
   });
 }
+
+const findCaptureModelNodeByHints = (root, hints = []) => {
+  if (!root || !Array.isArray(hints) || !hints.length) return null;
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean);
+  let bestNode = null;
+  let bestScore = -1;
+  root.traverse((node) => {
+    if (!node || node === root) return;
+    const name = String(node.name || '').toLowerCase();
+    if (!name) return;
+    let score = 0;
+    normalizedHints.forEach((hint) => {
+      if (name.includes(hint)) score += hint.length;
+    });
+    if (score > bestScore) {
+      bestNode = node;
+      bestScore = score;
+    }
+  });
+  return bestNode;
+};
 
 async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
   const loader = createConfiguredGLTFLoader();
@@ -8101,6 +8124,30 @@ function Chess3D({
       group.add(mesh);
       return mesh;
     };
+    const createExhaustClouds = ({
+      root,
+      count = 6,
+      startX = -1.7,
+      stepX = 0.22,
+      fireCount = 2
+    }) => {
+      const exhaustClouds = [];
+      for (let i = 0; i < count; i += 1) {
+        exhaustClouds.push(
+          addFxSphere(
+            root,
+            0.11 + i * 0.03,
+            [startX - i * stepX, 0, 0],
+            i < fireCount ? '#f6af4b' : '#8f989d',
+            i < fireCount ? 0.2 : 1,
+            0,
+            true,
+            i < fireCount ? 0.8 - i * 0.15 : 0.26 - (i - fireCount) * 0.04
+          )
+        );
+      }
+      return exhaustClouds;
+    };
     const createFxPolygon = (points, depth, color, roughness = 0.62, metalness = 0.18) => {
       const shape = new THREE.Shape();
       shape.moveTo(points[0][0], points[0][1]);
@@ -8202,12 +8249,18 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
-        const rotor =
-          model.getObjectByName('MainRotor') ||
-          model.getObjectByName('Rotor') ||
-          model.getObjectByName('rotor') ||
-          model;
-        return { root, rotor, exhaustClouds: [] };
+        const topRotor =
+          findCaptureModelNodeByHints(model, ['mainrotor']) ||
+          findCaptureModelNodeByHints(model, ['top', 'rotor']) ||
+          findCaptureModelNodeByHints(model, ['rotor']) ||
+          null;
+        const tailRotor =
+          findCaptureModelNodeByHints(model, ['tailrotor']) ||
+          findCaptureModelNodeByHints(model, ['rear', 'rotor']) ||
+          findCaptureModelNodeByHints(model, ['back', 'rotor']) ||
+          null;
+        const exhaustClouds = createExhaustClouds({ root, count: 6, startX: -1.15, stepX: 0.18, fireCount: 1 });
+        return { root, topRotor, tailRotor, exhaustClouds };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -8224,13 +8277,13 @@ function Chess3D({
       addFxBox(rotor, [0.08, 0.02, 1.35], [0, 0, 0], '#1f252a', 0.55, 0.08);
       addFxBox(rotor, [1.35, 0.02, 0.08], [0, 0, 0], '#1f252a', 0.55, 0.08);
       root.add(rotor);
-      const exhaustClouds = [];
-      for (let i = 0; i < 6; i += 1) {
-        exhaustClouds.push(
-          addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
-        );
-      }
-      return { root, rotor, exhaustClouds };
+      const tailRotor = new THREE.Group();
+      tailRotor.position.set(-1.66, 0.11, 0);
+      addFxBox(tailRotor, [0.04, 0.32, 0.02], [0, 0, 0], '#252c31', 0.6, 0.08);
+      addFxBox(tailRotor, [0.04, 0.02, 0.32], [0, 0, 0], '#252c31', 0.6, 0.08);
+      root.add(tailRotor);
+      const exhaustClouds = createExhaustClouds({ root, count: 6, startX: -1.05, stepX: 0.18, fireCount: 0 });
+      return { root, topRotor: rotor, tailRotor, exhaustClouds };
     };
     const createFxJet = () => {
       const model = cloneCaptureUnitTemplate('fighter');
@@ -8241,7 +8294,8 @@ function Chess3D({
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
           model;
-        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds: [] };
+        const exhaustClouds = createExhaustClouds({ root, count: 8, startX: -1.85, stepX: 0.24, fireCount: 3 });
+        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
@@ -8283,21 +8337,7 @@ function Chess3D({
       const rightStore = leftStore.clone();
       rightStore.position.z = 1.15;
       root.add(rightStore);
-      const exhaustClouds = [];
-      for (let i = 0; i < 8; i += 1) {
-        exhaustClouds.push(
-          addFxSphere(
-            root,
-            0.12 + i * 0.035,
-            [-1.95 - i * 0.26, 0, 0],
-            i < 3 ? '#f7a94b' : '#8b949b',
-            i < 3 ? 0.22 : 1,
-            0,
-            true,
-            i < 3 ? 0.85 - i * 0.16 : 0.28 - (i - 3) * 0.03
-          )
-        );
-      }
+      const exhaustClouds = createExhaustClouds({ root, count: 8, startX: -1.95, stepX: 0.26, fireCount: 3 });
       return { root, cockpit, leftStore, rightStore, exhaustClouds };
     };
     const createFxMissile = () => {
@@ -10392,7 +10432,8 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.helicopterFx.rotor?.rotateY(dt * 24);
+            fx.helicopterFx.topRotor?.rotateY(dt * 24);
+            fx.helicopterFx.tailRotor?.rotateX(dt * 30);
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
@@ -10460,9 +10501,9 @@ function Chess3D({
               fx.missileFx.root.position.copy(launchPos);
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.36, 0));
+              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.46, 0));
               const diagonalEnd = launchPos.clone().lerp(targetTop, 0.62);
-              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.16;
+              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.24;
               let missilePos;
               let missileNext;
               if (mu < 0.58) {
