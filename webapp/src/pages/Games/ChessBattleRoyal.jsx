@@ -92,14 +92,14 @@ const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 0.144;
-const CAPTURE_DRONE_CRUISE_TIME = 2.088;
-const CAPTURE_DRONE_DIVE_TIME = 1.104;
+const CAPTURE_DRONE_CRUISE_TIME = 2.62;
+const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 4.8;
-const CAPTURE_JET_MISSILE_DROP = 1.1;
-const CAPTURE_JET_MISSILE_TRAVEL = 2.0;
+const CAPTURE_JET_TOTAL = 6.2;
+const CAPTURE_JET_MISSILE_DROP = 1.45;
+const CAPTURE_JET_MISSILE_TRAVEL = 2.6;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
-const CAPTURE_GROUND_TRAVEL_TIME = 3.24;
+const CAPTURE_GROUND_TRAVEL_TIME = 3.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0735;
 const CAPTURE_JET_SCALE = 0.0588;
@@ -8252,6 +8252,14 @@ function Chess3D({
       const bc = new THREE.Vector3().copy(b).lerp(c, t);
       return ab.lerp(bc, t);
     };
+    const getLiveLaunchPosition = (fallback, movingMesh = null, lift = 0.08) => {
+      const launchPos = fallback.clone();
+      if (movingMesh?.parent) {
+        movingMesh.getWorldPosition(launchPos);
+      }
+      launchPos.y += lift;
+      return launchPos;
+    };
     const getCaptureOrbitPose = ({
       from,
       to,
@@ -8262,22 +8270,19 @@ function Chess3D({
       liftSplit = 0.18,
       strikeSplit = 0.76
     }) => {
-      const boardCenter = new THREE.Vector3(0, 0, 0);
       const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const impactPos = to.clone();
-      const orbitRadius = half + tile * orbitRadiusMul;
-      const launchToCenter = new THREE.Vector3().copy(launchPos).sub(boardCenter);
-      const startRadius = Math.max(0.3, launchToCenter.length());
-      const startAngle = Math.atan2(launchPos.z, launchPos.x);
-      const targetAngle = Math.atan2(impactPos.z, impactPos.x);
-      let orbitDelta = targetAngle - startAngle;
-      while (orbitDelta < Math.PI * minOrbitCycles) orbitDelta += Math.PI * 2;
+      const travel = impactPos.clone().sub(launchPos);
+      const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+      const travelLen = Math.max(0.001, planarTravel.length());
+      planarTravel.normalize();
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+      const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.32, tile * 0.38, tile * 1.12);
       const liftEnd = launchPos.clone().add(new THREE.Vector3(0.26, CAPTURE_FLIGHT_ALTITUDE * 0.66, -0.12));
-      const orbitExit = new THREE.Vector3(
-        Math.cos(startAngle + orbitDelta) * orbitRadius,
-        CAPTURE_FLIGHT_ALTITUDE * 0.6,
-        Math.sin(startAngle + orbitDelta) * orbitRadius
-      );
+      const orbitExit = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * (0.62 + minOrbitCycles * 0.16))
+        .addScaledVector(sideVec, orbitRadius);
       const u = clamp01(progress);
       let pos;
       let next;
@@ -8288,20 +8293,18 @@ function Chess3D({
         next = new THREE.Vector3().copy(launchPos).lerp(liftEnd, clamp01(liftU + 0.04));
       } else if (u < strikeSplit) {
         const orbitU = smoothEase((u - liftSplit) / (strikeSplit - liftSplit));
-        const angleNow = startAngle + orbitDelta * orbitU;
-        const angleNext = startAngle + orbitDelta * clamp01(orbitU + 0.02);
-        const radiusNow = THREE.MathUtils.lerp(startRadius, orbitRadius, orbitU);
-        const radiusNext = THREE.MathUtils.lerp(startRadius, orbitRadius, clamp01(orbitU + 0.02));
-        pos = new THREE.Vector3(
-          Math.cos(angleNow) * radiusNow,
-          CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(orbitU * Math.PI * 2) * 0.04,
-          Math.sin(angleNow) * radiusNow
+        const forwardNow = THREE.MathUtils.lerp(travelLen * 0.06, travelLen * 0.62, orbitU);
+        const forwardNext = THREE.MathUtils.lerp(
+          travelLen * 0.06,
+          travelLen * 0.62,
+          clamp01(orbitU + 0.03)
         );
-        next = new THREE.Vector3(
-          Math.cos(angleNext) * radiusNext,
-          CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(clamp01(orbitU + 0.03) * Math.PI * 2) * 0.04,
-          Math.sin(angleNext) * radiusNext
-        );
+        const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
+        const sideNext = Math.sin(clamp01(orbitU + 0.03) * Math.PI) * orbitRadius;
+        pos = launchPos.clone().addScaledVector(planarTravel, forwardNow).addScaledVector(sideVec, sideNow);
+        next = launchPos.clone().addScaledVector(planarTravel, forwardNext).addScaledVector(sideVec, sideNext);
+        pos.y = CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(orbitU * Math.PI * 2) * 0.04;
+        next.y = CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(clamp01(orbitU + 0.03) * Math.PI * 2) * 0.04;
       } else {
         const strikeU = smoothEase((u - strikeSplit) / (1 - strikeSplit));
         pos = new THREE.Vector3().copy(orbitExit).lerp(impactPos, strikeU);
@@ -8319,37 +8322,38 @@ function Chess3D({
       minOrbitCycles = 0.25,
       orbitSplit = 0.74
     }) => {
-      const boardCenter = new THREE.Vector3(0, 0, 0);
       const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const impactPos = to.clone();
-      const orbitRadius = half + tile * orbitRadiusMul;
-      const startAngle = Math.atan2(launchPos.z, launchPos.x);
-      const targetAngle = Math.atan2(impactPos.z, impactPos.x);
-      let orbitDelta = targetAngle - startAngle;
-      while (orbitDelta < Math.PI * minOrbitCycles) orbitDelta += Math.PI * 2;
-      const orbitExit = new THREE.Vector3(
-        Math.cos(startAngle + orbitDelta) * orbitRadius,
-        orbitHeight,
-        Math.sin(startAngle + orbitDelta) * orbitRadius
-      );
+      const travel = impactPos.clone().sub(launchPos);
+      const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+      const travelLen = Math.max(0.001, planarTravel.length());
+      planarTravel.normalize();
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+      const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.26, tile * 0.28, tile * 0.95);
+      const orbitExit = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * (0.6 + minOrbitCycles * 0.1))
+        .addScaledVector(sideVec, orbitRadius);
       const u = clamp01(progress);
       if (u < orbitSplit) {
         const orbitU = smoothEase(u / orbitSplit);
-        const angleNow = startAngle + orbitDelta * orbitU;
-        const angleNext = startAngle + orbitDelta * clamp01(orbitU + 0.02);
-        const radiusNow = THREE.MathUtils.lerp(Math.max(0.3, launchPos.length()), orbitRadius, orbitU);
-        const radiusNext = THREE.MathUtils.lerp(Math.max(0.3, launchPos.length()), orbitRadius, clamp01(orbitU + 0.02));
-        const pos = new THREE.Vector3(
-          Math.cos(angleNow) * radiusNow,
-            THREE.MathUtils.lerp(launchPos.y, orbitHeight, orbitU) + Math.sin(orbitU * Math.PI * 2) * 0.03,
-            Math.sin(angleNow) * radiusNow
-          ).add(boardCenter);
-        const next = new THREE.Vector3(
-          Math.cos(angleNext) * radiusNext,
+        const forwardNow = THREE.MathUtils.lerp(travelLen * 0.04, travelLen * 0.6, orbitU);
+        const forwardNext = THREE.MathUtils.lerp(
+          travelLen * 0.04,
+          travelLen * 0.6,
+          clamp01(orbitU + 0.02)
+        );
+        const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
+        const sideNext = Math.sin(clamp01(orbitU + 0.02) * Math.PI) * orbitRadius;
+        const pos = launchPos.clone().addScaledVector(planarTravel, forwardNow).addScaledVector(sideVec, sideNow);
+        const next = launchPos
+          .clone()
+          .addScaledVector(planarTravel, forwardNext)
+          .addScaledVector(sideVec, sideNext);
+        pos.y = THREE.MathUtils.lerp(launchPos.y, orbitHeight, orbitU) + Math.sin(orbitU * Math.PI * 2) * 0.03;
+        next.y =
           THREE.MathUtils.lerp(launchPos.y, orbitHeight, clamp01(orbitU + 0.02)) +
-            Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.03,
-          Math.sin(angleNext) * radiusNext
-        ).add(boardCenter);
+          Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.03;
         return { pos, next };
       }
       const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
@@ -8383,6 +8387,7 @@ function Chess3D({
           from: fromPos.clone(),
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
           droneFx
         });
         return {
@@ -8446,6 +8451,7 @@ function Chess3D({
           from: fromPos.clone(),
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
           deltaR,
           deltaC,
           missileFx
@@ -9230,7 +9236,10 @@ function Chess3D({
         return;
       }
       startTimer(nextWhite);
-      if (shouldTriggerAiMove(nextWhite)) setTimeout(aiMove, 200);
+      if (shouldTriggerAiMove(nextWhite)) {
+        const delay = Math.max(200, getMoveLockRemainingMs() + 30);
+        setTimeout(aiMove, delay);
+      }
     }
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
@@ -9318,6 +9327,7 @@ function Chess3D({
     };
 
     const canInteractWithPiece = (piece) => {
+      if (isMoveInteractionLocked()) return false;
       if (!isPlayerPiece(piece)) return false;
       if (!uiRef.current.turnWhite && piece.w) return false;
       if (uiRef.current.turnWhite && !piece.w) return false;
@@ -9335,6 +9345,7 @@ function Chess3D({
     function selectAt(r, c, options = {}) {
       const { force = false, selectionColor } = options;
       if (isReplayingRef.current) return;
+      if (!force && isMoveInteractionLocked()) return;
       const p = board[r][c];
       if (!p) {
         resetSelectedMeshElevation();
@@ -9366,6 +9377,10 @@ function Chess3D({
         if (byAi) aiMovingRef.current = false;
       };
       if (isReplayingRef.current) {
+        finalizeAiMove();
+        return;
+      }
+      if (!byAi && isMoveInteractionLocked()) {
         finalizeAiMove();
         return;
       }
@@ -9510,6 +9525,8 @@ function Chess3D({
         animatePieceTo(m, targetPosition, 0.32);
         playMoveSound();
       }
+      highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
+      lockMoveInteraction(Math.max(420, moveDelayMs + 360));
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
@@ -9654,6 +9671,38 @@ function Chess3D({
       mesh: null,
       from: null
     };
+    let moveLockUntilMs = 0;
+    const moveHighlight = new THREE.Mesh(
+      new THREE.TorusGeometry(tile * 0.22, Math.max(0.05, tile * 0.02), 12, 42),
+      new THREE.MeshStandardMaterial({
+        color: paletteRef.current?.capture ?? '#ef4444',
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: 0.18,
+        transparent: true,
+        opacity: 0.82,
+        depthTest: false,
+        depthWrite: false
+      })
+    );
+    moveHighlight.rotation.x = Math.PI / 2;
+    moveHighlight.visible = false;
+    moveHighlight.renderOrder = 7;
+    boardGroup.add(moveHighlight);
+    let moveHighlightMesh = null;
+    let moveHighlightEndMs = 0;
+    const getMoveLockRemainingMs = () => Math.max(0, moveLockUntilMs - performance.now());
+    const isMoveInteractionLocked = () => getMoveLockRemainingMs() > 0;
+    const lockMoveInteraction = (durationMs) => {
+      const nowMs = performance.now();
+      moveLockUntilMs = Math.max(moveLockUntilMs, nowMs + Math.max(0, durationMs));
+    };
+    const highlightMovingMesh = (mesh, durationMs = 800) => {
+      if (!mesh) return;
+      moveHighlightMesh = mesh;
+      moveHighlight.material.color.set(paletteRef.current?.capture ?? '#ef4444');
+      moveHighlight.visible = true;
+      moveHighlightEndMs = performance.now() + Math.max(260, durationMs);
+    };
 
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
@@ -9727,6 +9776,7 @@ function Chess3D({
 
     const onPointerDown = (event) => {
       if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
       if (settingsRef.current.moveMode !== 'drag') return;
       const hit = pickBoardObject(event);
       if (!hit || hit.object.userData.type !== 'piece') return;
@@ -9748,6 +9798,7 @@ function Chess3D({
 
     const onPointerMove = (event) => {
       if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
       if (!dragState.active || !dragState.mesh) return;
       const tileHit = pickTileFromPointer(event);
       if (!tileHit) return;
@@ -9757,6 +9808,7 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
       if (!dragState.active) return;
       const tileHit = pickTileFromPointer(event);
       const mesh = dragState.mesh;
@@ -9781,6 +9833,10 @@ function Chess3D({
 
     function aiMove() {
       if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) {
+        setTimeout(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
+        return;
+      }
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
       if (!shouldTriggerAiMove(activeTurnWhite)) return;
       aiMovingRef.current = true;
@@ -9795,6 +9851,7 @@ function Chess3D({
 
     onClick = function onClick(e) {
       if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
       if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
@@ -9931,7 +9988,8 @@ function Chess3D({
           const u = clamp01(fx.t / fx.duration);
           if (fx.type === 'drone') {
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-            const launchPos = fx.launchPos.clone();
+            const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            fx.launchPos.copy(launchPos);
             let pose = null;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
@@ -10040,7 +10098,8 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
-            const launchPos = fx.launchPos.clone();
+            const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            fx.launchPos.copy(launchPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               fx.missileFx.root.visible = true;
@@ -10125,6 +10184,19 @@ function Chess3D({
             }
           }
         }
+      }
+
+      if (moveHighlightMesh?.parent && performance.now() <= moveHighlightEndMs) {
+        const pulse = 0.72 + Math.sin(now * 0.012) * 0.2;
+        moveHighlight.material.opacity = pulse;
+        moveHighlight.position.copy(moveHighlightMesh.position);
+        moveHighlight.position.y = Math.max(
+          currentPieceYOffset + HIGHLIGHT_VERTICAL_OFFSET * 0.7,
+          moveHighlightMesh.position.y - PIECE_SELECTION_LIFT * 0.15
+        );
+        moveHighlight.visible = true;
+      } else {
+        moveHighlight.visible = false;
       }
 
       controls?.update();
