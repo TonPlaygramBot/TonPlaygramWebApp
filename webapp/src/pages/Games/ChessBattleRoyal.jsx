@@ -95,13 +95,12 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.5; // fighter jet now flies 50% slower
+const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * 1.5; // jet missile now travels 50% slower
+const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_JET_TOTAL = CAPTURE_GROUND_TOTAL * 0.94; // queen jet stays close to drone speed, just a bit faster
-const CAPTURE_JET_MISSILE_TRAVEL = CAPTURE_GROUND_TRAVEL_TIME * 0.96; // slower missile pass, close to drone strike pacing
-const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.52;
-const CAPTURE_JET_ENTER_SPLIT = 0.1;
 const CAPTURE_DRONE_SCALE = 0.0625;
 const CAPTURE_JET_SCALE = 0.05;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
@@ -109,7 +108,7 @@ const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.86;
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_EXPLOSION_SCALE = 0.176; // slightly smaller capture explosion
-const CAPTURE_EDGE_PATH_FACTOR = 0.18; // keep jet entry closer to the board so it appears earlier on-screen
+const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8431,6 +8430,7 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
+        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -10021,6 +10021,8 @@ function Chess3D({
                 const dropU = smoothEase((mu - 0.68) / 0.32);
                 const pos = diagonalEnd.clone().lerp(fx.to, dropU);
                 const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
+                next.x = pos.x;
+                next.z = pos.z;
                 pose = { pos, next };
               }
             }
@@ -10045,7 +10047,7 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const enterSplit = CAPTURE_JET_ENTER_SPLIT;
+            const enterSplit = 0.22;
             const orbitSplit = 0.74;
             const exitSplit = 0.9;
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
