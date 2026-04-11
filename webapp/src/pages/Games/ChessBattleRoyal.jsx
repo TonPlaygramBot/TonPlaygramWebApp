@@ -95,10 +95,11 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 2.6; // shorter jet pass so it clears the board faster
+const CAPTURE_JET_SPEED_FACTOR = 2.8; // keep jet pass slightly longer so the fly-by reads better
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
+const CAPTURE_JET_SOUND_START_OFFSET = 0.34; // skip the leading silent chunk in the jet audio clip
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
@@ -8399,6 +8400,7 @@ function Chess3D({
           attackAltitude,
           THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
         );
+        jetStart.copy(jetApproach);
         const jetAttack = new THREE.Vector3(
           THREE.MathUtils.lerp(sideLane, targetPos.x, 0.72),
           attackAltitude - 0.06,
@@ -8429,6 +8431,12 @@ function Chess3D({
           jetFx,
           missileFx
         });
+        if (settingsRef.current.soundEnabled) {
+          try {
+            jetFlySound.currentTime = CAPTURE_JET_SOUND_START_OFFSET;
+            jetFlySound.play()?.catch(() => {});
+          } catch {}
+        }
         return {
           moveDelayMs: CAPTURE_JET_TOTAL * 1000,
           captureResolveDelayMs: (CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO + CAPTURE_JET_MISSILE_TRAVEL) * 1000
@@ -10031,7 +10039,7 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const enterSplit = 0.22;
+            const enterSplit = 0.06;
             const orbitSplit = 0.74;
             const exitSplit = 0.9;
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
