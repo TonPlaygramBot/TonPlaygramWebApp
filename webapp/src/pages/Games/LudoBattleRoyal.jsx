@@ -77,6 +77,74 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
+const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
+
+function getCaptureVehicleTexture(kind = 'generic') {
+  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, fallback);
+    return fallback;
+  }
+  const palettes = {
+    drone: ['#4f5a47', '#6f7b61', '#2e362b', '#879574'],
+    fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    helicopter: ['#4a554a', '#697865', '#2a3129', '#7f8d7c'],
+    generic: ['#55606a', '#74818b', '#313940', '#99a6af']
+  };
+  const tone = palettes[kind] ?? palettes.generic;
+  ctx.fillStyle = tone[0];
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i += 1) {
+    const w = 24 + ((i * 11) % 70);
+    const h = 10 + ((i * 7) % 36);
+    const x = (i * 37) % 256;
+    const y = (i * 53) % 256;
+    ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
+    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= 256; y += 32) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.4, 2.4);
+  texture.anisotropy = 4;
+  CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, texture);
+  return texture;
+}
+
+function createCaptureVehicleMaterial(kind, options = {}) {
+  return new THREE.MeshStandardMaterial({
+    map: getCaptureVehicleTexture(kind),
+    ...options
+  });
+}
+
+function applyCaptureTextureToOpaqueMeshes(root, kind) {
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mat = obj.material;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
+    obj.material = createCaptureVehicleMaterial(kind, {
+      color: mat.color ?? '#ffffff',
+      roughness: typeof mat.roughness === 'number' ? mat.roughness : 0.58,
+      metalness: typeof mat.metalness === 'number' ? mat.metalness : 0.2
+    });
+  });
+}
 
 function easeSmooth(t) {
   const n = clamp(t, 0, 1);
@@ -219,39 +287,55 @@ function createCaptureMissileFx() {
 function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.scale.setScalar(0.3);
-  addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.18, 0.72, 20),
-    new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
+    createCaptureVehicleMaterial('drone', { color: '#c3cbd1', roughness: 0.5, metalness: 0.2 })
   );
-  nose.position.set(1.7, 0, 0);
+  body.rotation.set(0, 0, Math.PI / 2);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  root.add(body);
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.17, 0.68, 22),
+    createCaptureVehicleMaterial('drone', { color: '#d8dce0', roughness: 0.48, metalness: 0.2 })
+  );
+  nose.position.set(1.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+  const tail = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.17, 0.13, 0.58, 16),
+    createCaptureVehicleMaterial('drone', { color: '#778188', roughness: 0.56, metalness: 0.22 })
+  );
+  tail.position.set(-1.62, 0, 0);
+  tail.rotation.set(0, 0, Math.PI / 2);
+  tail.castShadow = true;
+  tail.receiveShadow = true;
+  root.add(tail);
   const deltaWing = createFxPolygon(
     [
-      [-1.2, -1.65],
-      [1.0, 0],
-      [-1.2, 1.65]
+      [-1.25, -1.95],
+      [1.05, 0],
+      [-1.3, 1.95]
     ],
     0.08,
-    '#aeb4ae',
-    0.82,
-    0.08
+    '#a8b0b7',
+    0.74,
+    0.12
   );
-  deltaWing.position.set(-0.15, -0.06, 0);
+  deltaWing.position.set(-0.14, -0.06, 0);
   root.add(deltaWing);
+  addFxBox(root, [0.65, 0.08, 0.24], [-0.12, 0.2, 0], '#889198', 0.58, 0.2);
   const spine = createFxPolygon(
     [
-      [-0.55, -0.18],
-      [0.9, 0],
-      [-0.55, 0.18]
+      [-0.52, -0.16],
+      [0.92, 0],
+      [-0.52, 0.16]
     ],
     0.06,
-    '#7d858a',
+    '#798289',
     0.55,
-    0.22
+    0.24
   );
   spine.position.set(0.15, 0.03, 0);
   root.add(spine);
@@ -272,6 +356,8 @@ function createCaptureDroneFx() {
   const finRight = finLeft.clone();
   finRight.position.z = 0.25;
   root.add(finRight);
+  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, -0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
+  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, 0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
   addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
   const propeller = new THREE.Group();
   propeller.position.set(-1.95, 0, 0);
@@ -300,36 +386,50 @@ function createCaptureDroneFx() {
       )
     );
   }
+  applyCaptureTextureToOpaqueMeshes(root, 'drone');
   root.visible = false;
   return { root, propeller, trail };
 }
 
 function createCaptureJetFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.17, 0.96, 24),
-    new THREE.MeshStandardMaterial({ color: '#d7dbe0', roughness: 0.45, metalness: 0.2 })
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.21, 3.18, 28),
+    createCaptureVehicleMaterial('fighter', { color: '#bcc3c9', roughness: 0.46, metalness: 0.25 })
   );
-  nose.position.set(2.0, 0, 0);
+  body.rotation.set(0, 0, Math.PI / 2);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  root.add(body);
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 1.02, 24),
+    createCaptureVehicleMaterial('fighter', { color: '#d9dde2', roughness: 0.42, metalness: 0.2 })
+  );
+  nose.position.set(2.04, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.2, [0.62, 0.15, 0], '#2d3945', 0.18, 0.3);
-  cockpit.scale.set(1.2, 0.58, 0.64);
-  const wing = createFxPolygon([[-1.52, -2.32], [0.75, 0], [-0.35, 2.32]], 0.1, '#9fa7ae', 0.68, 0.16);
-  wing.position.set(-0.2, -0.05, 0);
+  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#273745', 0.16, 0.34);
+  cockpit.scale.set(1.25, 0.56, 0.62);
+  const wing = createFxPolygon([[-1.6, -2.55], [0.8, 0], [-0.4, 2.55]], 0.1, '#9ba4ac', 0.66, 0.18);
+  wing.position.set(-0.18, -0.04, 0);
   root.add(wing);
-  const tailWing = createFxPolygon([[-0.92, -1.1], [0.3, 0], [-0.35, 1.1]], 0.08, '#959ea5', 0.65, 0.18);
-  tailWing.position.set(-1.35, 0.04, 0);
+  const canardLeft = createFxPolygon([[-0.42, -0.52], [0.2, 0], [-0.18, 0.52]], 0.05, '#8f99a2', 0.63, 0.2);
+  canardLeft.position.set(0.58, 0.01, -0.42);
+  root.add(canardLeft);
+  const canardRight = canardLeft.clone();
+  canardRight.position.z = 0.42;
+  root.add(canardRight);
+  const tailWing = createFxPolygon([[-0.95, -1.18], [0.33, 0], [-0.38, 1.18]], 0.08, '#929ca4', 0.64, 0.2);
+  tailWing.position.set(-1.36, 0.06, 0);
   root.add(tailWing);
-  const fin = createFxPolygon([[-0.52, 0], [0.22, 0], [-0.1, 0.95]], 0.05, '#8e979f', 0.6, 0.18);
+  const fin = createFxPolygon([[-0.54, 0], [0.24, 0], [-0.1, 1.02]], 0.05, '#8b959d', 0.58, 0.2);
   fin.rotation.z = Math.PI / 2;
-  fin.position.set(-1.1, 0.55, 0);
+  fin.position.set(-1.12, 0.58, 0);
   root.add(fin);
-  const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
+  const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.84, [-1.98, -0.08, -0.22], [0, 0, Math.PI / 2], '#6f7881', 18);
   const engineRight = engineLeft.clone();
-  engineRight.position.z = 0.2;
+  engineRight.position.z = 0.22;
   root.add(engineRight);
   const leftStore = new THREE.Group();
   addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
@@ -360,8 +460,88 @@ function createCaptureJetFx() {
       )
     );
   }
+  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
   root.visible = false;
   return { root, trail };
+}
+
+function createCaptureHelicopterFx() {
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.22, 2.56, 24),
+    createCaptureVehicleMaterial('helicopter', { color: '#86909a', roughness: 0.56, metalness: 0.26 })
+  );
+  body.rotation.set(0, 0, Math.PI / 2);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  root.add(body);
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.2, 0.88, 22),
+    createCaptureVehicleMaterial('helicopter', { color: '#99a3ad', roughness: 0.5, metalness: 0.2 })
+  );
+  nose.position.set(1.7, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
+  root.add(nose);
+  const cockpit = addFxSphere(root, 0.26, [0.72, 0.18, 0], '#22303d', 0.18, 0.28);
+  cockpit.scale.set(1.2, 0.68, 0.72);
+  addFxCylinder(root, 0.08, 0.1, 1.25, [-1.7, 0.1, 0], [0, 0, Math.PI / 2], '#6f7881', 16, 0.56, 0.24);
+  addFxBox(root, [1.0, 0.08, 0.1], [0.2, -0.28, 0], '#4f5963', 0.6, 0.2);
+  addFxBox(root, [1.1, 0.08, 0.1], [-0.15, -0.28, -0.5], '#4f5963', 0.6, 0.2);
+  addFxBox(root, [1.1, 0.08, 0.1], [-0.15, -0.28, 0.5], '#4f5963', 0.6, 0.2);
+  const rotor = new THREE.Group();
+  rotor.position.set(-0.1, 0.47, 0);
+  addFxBox(rotor, [0.08, 0.08, 0.08], [0, 0, 0], '#1b1f24', 0.52, 0.2);
+  addFxBox(rotor, [0.14, 0.02, 1.9], [0, 0, 0], '#12161a', 0.44, 0.12);
+  const rotorCross = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9, 0.02, 0.14),
+    new THREE.MeshStandardMaterial({ color: '#12161a', roughness: 0.44, metalness: 0.12 })
+  );
+  rotorCross.castShadow = true;
+  rotor.add(rotorCross);
+  root.add(rotor);
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(-2.18, 0.12, 0);
+  addFxBox(tailRotor, [0.04, 0.4, 0.08], [0, 0, 0], '#15191d', 0.52, 0.14);
+  const tailRotorCross = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.08, 0.4),
+    new THREE.MeshStandardMaterial({ color: '#15191d', roughness: 0.52, metalness: 0.14 })
+  );
+  tailRotorCross.castShadow = true;
+  tailRotor.add(tailRotorCross);
+  root.add(tailRotor);
+  const missileLeft = new THREE.Group();
+  addFxCylinder(missileLeft, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
+  const missileNose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.05, 0.14, 12),
+    new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+  );
+  missileNose.position.set(0.34, 0, 0);
+  missileNose.rotation.z = -Math.PI / 2;
+  missileLeft.add(missileNose);
+  missileLeft.position.set(0.22, -0.18, -0.62);
+  root.add(missileLeft);
+  const missileRight = missileLeft.clone();
+  missileRight.position.z = 0.62;
+  root.add(missileRight);
+  const trail = [];
+  for (let i = 0; i < 6; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.11 + i * 0.03,
+        [-1.76 - i * 0.2, 0, 0],
+        i < 2 ? '#f7a94b' : '#8b949b',
+        i < 2 ? 0.22 : 1,
+        0,
+        true,
+        i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+      )
+    );
+  }
+  applyCaptureTextureToOpaqueMeshes(root, 'helicopter');
+  root.visible = false;
+  return { root, rotor, tailRotor, trail };
 }
 
 function createCaptureExplosionFx() {
@@ -5924,11 +6104,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const primaryFx =
           resolvedCaptureAnimationId === 'droneAttack'
             ? createCaptureDroneFx()
+            : resolvedCaptureAnimationId === 'helicopterAttack'
+            ? createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? createCaptureJetFx()
             : createCaptureMissileFx();
         const jetMissiles =
-          resolvedCaptureAnimationId === 'fighterJetAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
             ? [createCaptureMissileFx(), createCaptureMissileFx()]
             : [];
         const explosion = createCaptureExplosionFx();
@@ -5950,9 +6132,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         const animationScaleFactor =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 0.36
+            ? 0.4
+            : selectedCaptureAnimationId === 'helicopterAttack'
+            ? 0.31
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 0.21
+            ? 0.24
             : 1;
         primaryFx.root.scale.set(
           missileLengthScale * animationScaleFactor,
@@ -5983,12 +6167,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const from = launchAnchor.clone();
         const baseTravelTime =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 1460
+            ? 1680
+            : selectedCaptureAnimationId === 'helicopterAttack'
+            ? 2360
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 1960
+            ? 2080
             : 1780;
         const travelTime =
-          selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'droneAttack'
+          selectedCaptureAnimationId === 'fighterJetAttack' ||
+          selectedCaptureAnimationId === 'droneAttack' ||
+          selectedCaptureAnimationId === 'helicopterAttack'
             ? baseTravelTime * 1.2
             : baseTravelTime;
         const explosionTime = 920;
@@ -6068,6 +6256,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const apexHeight =
             selectedCaptureAnimationId === 'fighterJetAttack'
               ? liveTarget.y + topStrikeLift.y * 0.88
+              : selectedCaptureAnimationId === 'helicopterAttack'
+              ? liveTarget.y + topStrikeLift.y * 0.82
               : liveTarget.y + topStrikeLift.y;
           const apex = new THREE.Vector3(
             arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
@@ -6077,6 +6267,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const phaseSplit =
             selectedCaptureAnimationId === 'fighterJetAttack'
               ? 0.78
+              : selectedCaptureAnimationId === 'helicopterAttack'
+              ? 0.8
               : selectedCaptureAnimationId === 'droneAttack'
               ? 1
               : 0.84;
@@ -6121,6 +6313,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (primaryFx.propeller) {
               primaryFx.propeller.rotation.y += 0.9;
             }
+            if (primaryFx.rotor) {
+              primaryFx.rotor.rotation.y += 0.5;
+            }
+            if (primaryFx.tailRotor) {
+              primaryFx.tailRotor.rotation.x += 0.9;
+            }
             primaryFx.trail.forEach((puff, i) => {
               puff.position.set(
                 -0.55 - i * 0.16,
@@ -6134,7 +6332,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
                   : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
             });
-            if (selectedCaptureAnimationId === 'fighterJetAttack' && jetMissiles.length) {
+            if (
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
+              jetMissiles.length
+            ) {
               const releaseStart = travelTime * 0.56;
               const releaseEnd = travelTime * 0.96;
               const missileTravel = Math.max(280, releaseEnd - releaseStart - 100);
@@ -6177,7 +6378,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 });
               });
             }
-            if (selectedCaptureAnimationId === 'fighterJetAttack' && u > 0.88) {
+            if (
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
+              u > 0.88
+            ) {
               const retreatDir = pos.clone().sub(dynamicTo).setY(0).normalize();
               primaryFx.root.position.addScaledVector(retreatDir, (u - 0.88) * 1.5);
             }
