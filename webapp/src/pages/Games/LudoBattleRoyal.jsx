@@ -755,7 +755,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.3 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
@@ -788,6 +788,11 @@ const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
+const CAMERA_TOUCH_PULL_FORWARD_FACTOR = 0.0032;
+const CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO = 0.32;
+const CAMERA_TOUCH_PULL_BACK_MAX_RATIO = 0.4;
+const CAMERA_TOUCH_LIFT_FACTOR = 0.0016;
+const CAMERA_TOUCH_LIFT_MAX = 0.065 * MODEL_SCALE;
 const HDRI_GROUND_ALIGNMENT_OFFSET = -0.085 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
@@ -2997,6 +3002,14 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
+const TOKEN_TYPE_SIZE_MULTIPLIER = Object.freeze({
+  pawn: 0.94,
+  knight: 0.94,
+  rook: 0.94,
+  bishop: 1.08,
+  queen: 1.08,
+  king: 1.08
+});
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -5498,16 +5511,38 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
       lookState.lastY = clientY;
+      const isTouchDrag = event.pointerType === 'touch';
       lookState.yaw = clamp(
         lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
         -CAMERA_LOOK_YAW_LIMIT,
         CAMERA_LOOK_YAW_LIMIT
       );
-      lookState.pitch = clamp(
-        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-        CAMERA_LOOK_MIN_PITCH,
-        CAMERA_LOOK_PITCH_LIMIT
-      );
+      if (isTouchDrag && camera && controls && Math.abs(deltaY) > 0.001) {
+        const toTarget = controls.target.clone().sub(camera.position);
+        const distance = toTarget.length();
+        if (distance > 1e-6) {
+          const dir = toTarget.normalize();
+          const intendedShift = deltaY * CAMERA_TOUCH_PULL_FORWARD_FACTOR * Math.max(distance, 1);
+          const maxForwardShift = Math.max(0, distance * CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO);
+          const maxBackShift = Math.max(0, distance * CAMERA_TOUCH_PULL_BACK_MAX_RATIO);
+          const clampedShift = clamp(intendedShift, -maxBackShift, maxForwardShift);
+          if (Math.abs(clampedShift) > 1e-5) {
+            camera.position.addScaledVector(dir, clampedShift);
+          }
+          const liftDelta = clamp(
+            deltaY * CAMERA_TOUCH_LIFT_FACTOR * MODEL_SCALE,
+            -CAMERA_TOUCH_LIFT_MAX,
+            CAMERA_TOUCH_LIFT_MAX
+          );
+          camera.position.y += liftDelta;
+        }
+      } else if (!isTouchDrag) {
+        lookState.pitch = clamp(
+          lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+          CAMERA_LOOK_MIN_PITCH,
+          CAMERA_LOOK_PITCH_LIMIT
+        );
+      }
       applyCameraLookOffset();
       controls?.update();
     };
@@ -7713,6 +7748,11 @@ async function buildLudoBoard(
         }
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
+      const typeKey = String(type || '').toLowerCase();
+      const typeScale =
+        TOKEN_TYPE_SIZE_MULTIPLIER[typeKey] ??
+        (typeKey === 'castle' ? TOKEN_TYPE_SIZE_MULTIPLIER.rook : 1);
+      token.scale.multiplyScalar(typeScale);
       const label = createTokenCountLabel();
       if (label) {
         token.add(label);
