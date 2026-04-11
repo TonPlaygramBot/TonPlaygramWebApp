@@ -95,21 +95,22 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 2.3; // shorten jet pass while preserving perceived travel speed
+const CAPTURE_JET_SPEED_FACTOR = 2.05; // keep the same path but make the pass a bit shorter
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.2 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
-const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.34; // release once the jet is clearly above the board
-const CAPTURE_JET_TRIMMED_START_RATIO = CAPTURE_JET_MISSILE_RELEASE_RATIO; // skip initial silent segment and start near the missile cue
+const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.08; // trim the silent lead-in so launch SFX starts almost immediately
+const CAPTURE_JET_TRIMMED_START_RATIO = CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO; // start from the audible action segment
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.058;
+const CAPTURE_DRONE_SCALE = 0.066;
 const CAPTURE_JET_SCALE = 0.0695;
-const CAPTURE_DRONE_ALTITUDE = 1.36;
+const CAPTURE_DRONE_ALTITUDE = 1.44;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.0;
 const CAPTURE_MISSILE_SCALE = 0.0595;
+const CAPTURE_JAVELIN_SCALE_MULT = 1.16;
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = 0.02;
@@ -8266,7 +8267,11 @@ function Chess3D({
       planarTravel.normalize();
       const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
       const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.32, tile * 0.38, tile * 1.12);
-      const liftEnd = launchPos.clone().add(new THREE.Vector3(0.26, CAPTURE_FLIGHT_ALTITUDE * 0.66, -0.12));
+      const liftEnd = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * 0.18)
+        .addScaledVector(sideVec, orbitRadius * 0.16)
+        .add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.66, 0));
       const orbitExit = launchPos
         .clone()
         .addScaledVector(planarTravel, travelLen * (0.62 + minOrbitCycles * 0.16))
@@ -8443,7 +8448,7 @@ function Chess3D({
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
         const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * CAPTURE_JAVELIN_SCALE_MULT);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
         const launchBase = fromPos.clone();
@@ -9999,17 +10004,20 @@ function Chess3D({
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.32, 0));
-              const diagonalEnd = launchPos.clone().lerp(targetTop, 0.74);
-              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.1;
-              if (mu < 0.68) {
-                const diagU = smoothEase(mu / 0.68);
+              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.36, 0));
+              const diagonalEnd = launchPos.clone().lerp(targetTop, 0.72);
+              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.16;
+              if (mu < 0.72) {
+                const diagU = smoothEase(mu / 0.72);
                 const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
                 const pos = qBezier(launchPos, control, diagonalEnd, diagU);
                 const next = qBezier(launchPos, control, diagonalEnd, clamp01(diagU + 0.03));
+                const wobble = Math.sin(diagU * Math.PI * 4.2) * tile * 0.06;
+                pos.x += wobble;
+                next.x += Math.sin((diagU + 0.03) * Math.PI * 4.2) * tile * 0.06;
                 pose = { pos, next };
               } else {
-                const dropU = smoothEase((mu - 0.68) / 0.32);
+                const dropU = smoothEase((mu - 0.72) / 0.28);
                 const pos = diagonalEnd.clone().lerp(fx.to, dropU);
                 const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
                 next.x = pos.x;
@@ -10138,20 +10146,41 @@ function Chess3D({
               fx.missileFx.root.position.copy(launchPos);
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.3, 0));
-              const diagonalEnd = launchPos.clone().lerp(targetTop, 0.66);
-              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.09;
+              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.38, 0));
+              const travel = targetTop.clone().sub(launchPos);
+              const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+              const planarLen = Math.max(0.001, planarTravel.length());
+              planarTravel.normalize();
+              const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+              const apex = launchPos
+                .clone()
+                .addScaledVector(planarTravel, planarLen * 0.18)
+                .add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.28, 0));
+              const hover = launchPos
+                .clone()
+                .lerp(targetTop, 0.64)
+                .add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.12, 0));
               let missilePos;
               let missileNext;
-              if (mu < 0.62) {
-                const diagU = smoothEase(mu / 0.62);
-                const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
-                missilePos = qBezier(launchPos, control, diagonalEnd, diagU);
-                missileNext = qBezier(launchPos, control, diagonalEnd, clamp01(diagU + 0.03));
+              if (mu < 0.34) {
+                const riseU = smoothEase(mu / 0.34);
+                missilePos = launchPos.clone().lerp(apex, riseU);
+                missileNext = launchPos.clone().lerp(apex, clamp01(riseU + 0.04));
+              } else if (mu < 0.72) {
+                const glideU = smoothEase((mu - 0.34) / 0.38);
+                missilePos = apex.clone().lerp(hover, glideU);
+                missileNext = apex.clone().lerp(hover, clamp01(glideU + 0.04));
+                const sway = Math.sin(glideU * Math.PI * 1.4) * tile * 0.1;
+                const swayNext = Math.sin(clamp01(glideU + 0.04) * Math.PI * 1.4) * tile * 0.1;
+                missilePos.addScaledVector(sideVec, sway);
+                missileNext.addScaledVector(sideVec, swayNext);
               } else {
-                const dropU = smoothEase((mu - 0.62) / 0.38);
-                missilePos = diagonalEnd.clone().lerp(fx.to, dropU);
-                missileNext = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
+                const dropU = smoothEase((mu - 0.72) / 0.28);
+                const strikeEntry = hover.clone();
+                strikeEntry.x = targetTop.x;
+                strikeEntry.z = targetTop.z;
+                missilePos = strikeEntry.clone().lerp(fx.to, dropU);
+                missileNext = strikeEntry.clone().lerp(fx.to, clamp01(dropU + 0.04));
                 missileNext.x = missilePos.x;
                 missileNext.z = missilePos.z;
               }
