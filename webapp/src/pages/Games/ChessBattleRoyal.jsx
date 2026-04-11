@@ -95,7 +95,7 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 3.4; // 50% slower jet flight than previous pacing
+const CAPTURE_JET_SPEED_FACTOR = 2.8; // shorten jet time on screen for snappier queen captures
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -103,12 +103,12 @@ const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.0625;
+const CAPTURE_JET_SCALE = 0.0695;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.86;
 const CAPTURE_MISSILE_SCALE = 0.0595;
-const CAPTURE_EXPLOSION_SCALE = 0.176; // slightly smaller capture explosion
+const CAPTURE_EXPLOSION_SCALE = 0.162; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = 0.08;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -8050,23 +8050,6 @@ function Chess3D({
       );
       spine.position.set(0.15, 0.03, 0);
       root.add(spine);
-      const finLeft = createFxPolygon(
-        [
-          [-0.28, 0],
-          [0.22, 0],
-          [-0.04, 0.55]
-        ],
-        0.04,
-        '#838b90',
-        0.55,
-        0.24
-      );
-      finLeft.rotation.z = Math.PI / 2;
-      finLeft.position.set(-0.4, 0.35, -0.25);
-      root.add(finLeft);
-      const finRight = finLeft.clone();
-      finRight.position.z = 0.25;
-      root.add(finRight);
       addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
       const propeller = new THREE.Group();
       propeller.position.set(-1.95, 0, 0);
@@ -8140,17 +8123,17 @@ function Chess3D({
       rightStore.position.z = 1.15;
       root.add(rightStore);
       const exhaustClouds = [];
-      for (let i = 0; i < 6; i += 1) {
+      for (let i = 0; i < 8; i += 1) {
         exhaustClouds.push(
           addFxSphere(
             root,
-            0.11 + i * 0.03,
-            [-1.95 - i * 0.2, 0, 0],
-            i < 2 ? '#f7a94b' : '#8b949b',
+            0.11 + i * 0.035,
+            [-1.92 - i * 0.22, 0, 0],
+            i < 3 ? '#f7a94b' : '#8b949b',
             i < 2 ? 0.22 : 1,
             0,
             true,
-            i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+            i < 3 ? 0.94 - i * 0.2 : 0.32 - (i - 3) * 0.045
           )
         );
       }
@@ -8432,7 +8415,6 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
-        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -10079,8 +10061,10 @@ function Chess3D({
             captureDir.copy(jetNext).sub(jetPos).normalize();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             fx.jetFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-1.6 - idx * 0.16, Math.sin(fx.t * 9 + idx * 0.45) * 0.03, 0);
-              const s = 0.82 + idx * 0.12 + ((fx.t * 1.8 + idx * 0.13) % 1) * 0.4;
+              const zWave = Math.sin(fx.t * 8 + idx * 0.5) * 0.045;
+              const yWave = Math.sin(fx.t * 10 + idx * 0.72) * 0.04;
+              puff.position.set(-1.72 - idx * 0.2, yWave, zWave);
+              const s = 0.9 + idx * 0.12 + ((fx.t * 2 + idx * 0.16) % 1) * 0.52;
               puff.scale.setScalar(s);
             });
 
