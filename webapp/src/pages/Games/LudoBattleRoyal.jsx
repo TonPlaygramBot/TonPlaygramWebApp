@@ -162,6 +162,22 @@ function addFxSphere(
   return mesh;
 }
 
+function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.18) {
+  const shape = new THREE.Shape();
+  shape.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
+  geometry.translate(0, 0, -depth / 2);
+  geometry.rotateX(Math.PI / 2);
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color, roughness, metalness })
+  );
+  mesh.castShadow = true;
+  return mesh;
+}
+
 function createCaptureMissileFx() {
   const root = new THREE.Group();
   addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
@@ -202,13 +218,87 @@ function createCaptureMissileFx() {
 
 function createCaptureDroneFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.09, 0.1, 1.1, [0, 0, 0], [0, 0, Math.PI / 2], '#9aa4ad', 16, 0.4, 0.2);
-  addFxBox(root, [0.16, 0.03, 0.78], [0, 0, 0], '#67717a', 0.62, 0.2);
-  addFxBox(root, [0.22, 0.03, 0.2], [-0.44, 0, 0], '#6d7881', 0.6, 0.22);
-  const propeller = addFxCylinder(root, 0.21, 0.21, 0.02, [0.08, 0.12, 0], [Math.PI / 2, 0, 0], '#d4dbe2', 20, 0.2, 0.5);
+  root.scale.setScalar(0.3);
+  addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.18, 0.72, 20),
+    new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
+  );
+  nose.position.set(1.7, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
+  root.add(nose);
+  addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+  const deltaWing = createFxPolygon(
+    [
+      [-1.2, -1.65],
+      [1.0, 0],
+      [-1.2, 1.65]
+    ],
+    0.08,
+    '#aeb4ae',
+    0.82,
+    0.08
+  );
+  deltaWing.position.set(-0.15, -0.06, 0);
+  root.add(deltaWing);
+  const spine = createFxPolygon(
+    [
+      [-0.55, -0.18],
+      [0.9, 0],
+      [-0.55, 0.18]
+    ],
+    0.06,
+    '#7d858a',
+    0.55,
+    0.22
+  );
+  spine.position.set(0.15, 0.03, 0);
+  root.add(spine);
+  const finLeft = createFxPolygon(
+    [
+      [-0.28, 0],
+      [0.22, 0],
+      [-0.04, 0.55]
+    ],
+    0.04,
+    '#838b90',
+    0.55,
+    0.24
+  );
+  finLeft.rotation.z = Math.PI / 2;
+  finLeft.position.set(-0.4, 0.35, -0.25);
+  root.add(finLeft);
+  const finRight = finLeft.clone();
+  finRight.position.z = 0.25;
+  root.add(finRight);
+  addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
+  const propeller = new THREE.Group();
+  propeller.position.set(-1.95, 0, 0);
+  addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
+  const blade2 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 1.0, 0.08),
+    new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
+  );
+  blade2.rotation.x = Math.PI / 2;
+  blade2.castShadow = true;
+  propeller.add(blade2);
+  addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
+  root.add(propeller);
   const trail = [];
-  for (let i = 0; i < 4; i += 1) {
-    trail.push(addFxSphere(root, 0.1 + i * 0.03, [-0.7 - i * 0.15, 0, 0], '#8f989d', 1, 0, true, 0.26 - i * 0.04));
+  for (let i = 0; i < 5; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.12 + i * 0.03,
+        [-0.84 - i * 0.19, 0, 0],
+        i < 2 ? '#f6af4b' : '#8f989d',
+        i < 2 ? 0.2 : 1,
+        0,
+        true,
+        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+      )
+    );
   }
   root.visible = false;
   return { root, propeller, trail };
@@ -216,19 +306,59 @@ function createCaptureDroneFx() {
 
 function createCaptureJetFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.08, 0.11, 1.28, [0, 0, 0], [0, 0, Math.PI / 2], '#b6c0c9', 18, 0.34, 0.28);
+  addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
   const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.09, 0.34, 16),
-    new THREE.MeshStandardMaterial({ color: '#eef2f6', roughness: 0.22, metalness: 0.2 })
+    new THREE.ConeGeometry(0.17, 0.96, 24),
+    new THREE.MeshStandardMaterial({ color: '#d7dbe0', roughness: 0.45, metalness: 0.2 })
   );
-  nose.position.set(0.8, 0, 0);
+  nose.position.set(2.0, 0, 0);
   nose.rotation.z = -Math.PI / 2;
+  nose.castShadow = true;
   root.add(nose);
-  addFxBox(root, [0.32, 0.02, 0.42], [-0.04, 0, 0], '#6b7680', 0.58, 0.24);
-  addFxBox(root, [0.2, 0.02, 0.18], [-0.44, 0.08, 0], '#59636d', 0.58, 0.24);
+  const cockpit = addFxSphere(root, 0.2, [0.62, 0.15, 0], '#2d3945', 0.18, 0.3);
+  cockpit.scale.set(1.2, 0.58, 0.64);
+  const wing = createFxPolygon([[-1.52, -2.32], [0.75, 0], [-0.35, 2.32]], 0.1, '#9fa7ae', 0.68, 0.16);
+  wing.position.set(-0.2, -0.05, 0);
+  root.add(wing);
+  const tailWing = createFxPolygon([[-0.92, -1.1], [0.3, 0], [-0.35, 1.1]], 0.08, '#959ea5', 0.65, 0.18);
+  tailWing.position.set(-1.35, 0.04, 0);
+  root.add(tailWing);
+  const fin = createFxPolygon([[-0.52, 0], [0.22, 0], [-0.1, 0.95]], 0.05, '#8e979f', 0.6, 0.18);
+  fin.rotation.z = Math.PI / 2;
+  fin.position.set(-1.1, 0.55, 0);
+  root.add(fin);
+  const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
+  const engineRight = engineLeft.clone();
+  engineRight.position.z = 0.2;
+  root.add(engineRight);
+  const leftStore = new THREE.Group();
+  addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
+  const leftStoreNose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.05, 0.14, 12),
+    new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+  );
+  leftStoreNose.position.set(0.34, 0, 0);
+  leftStoreNose.rotation.z = -Math.PI / 2;
+  leftStore.add(leftStoreNose);
+  leftStore.position.set(0.25, -0.25, -1.15);
+  root.add(leftStore);
+  const rightStore = leftStore.clone();
+  rightStore.position.z = 1.15;
+  root.add(rightStore);
   const trail = [];
-  for (let i = 0; i < 4; i += 1) {
-    trail.push(addFxSphere(root, 0.11 + i * 0.03, [-0.88 - i * 0.16, 0, 0], i < 2 ? '#f6af4b' : '#8f989d', i < 2 ? 0.2 : 1, 0, true, i < 2 ? 0.74 - i * 0.12 : 0.22 - (i - 2) * 0.05));
+  for (let i = 0; i < 6; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.11 + i * 0.03,
+        [-1.95 - i * 0.2, 0, 0],
+        i < 2 ? '#f7a94b' : '#8b949b',
+        i < 2 ? 0.22 : 1,
+        0,
+        true,
+        i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+      )
+    );
   }
   root.visible = false;
   return { root, trail };
@@ -268,7 +398,7 @@ function createCaptureExplosionFx() {
       )
     );
   }
-  root.scale.setScalar(0.32);
+  root.scale.setScalar(0.27);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -638,19 +768,19 @@ const CAMERA_ZOOM_MAX_FACTOR = 1.6;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.66 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 0.98 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.8 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  heightOffset: 0.68 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.52 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 1.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.96 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.11 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.52 * MODEL_SCALE;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 1.52 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.2 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.44 * MODEL_SCALE;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 1.34 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -5501,6 +5631,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       maxAnisotropyRef.current = 1;
       fallbackTextureRef.current = null;
       if (captureFxRef.current) {
+        if (Array.isArray(captureFxRef.current.missiles)) {
+          captureFxRef.current.missiles.forEach((entry) => {
+            entry?.parent?.remove?.(entry);
+          });
+        }
         captureFxRef.current.missile?.parent?.remove?.(captureFxRef.current.missile);
         captureFxRef.current.explosion?.parent?.remove?.(captureFxRef.current.explosion);
         captureFxRef.current = null;
@@ -5615,22 +5750,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation]?.id
           ?? CAPTURE_ANIMATION_OPTIONS[0]?.id
           ?? 'missileJavelin';
-        const missile =
+        const primaryFx =
           selectedCaptureAnimationId === 'droneAttack'
             ? createCaptureDroneFx()
             : selectedCaptureAnimationId === 'fighterJetAttack'
             ? createCaptureJetFx()
             : createCaptureMissileFx();
+        const jetMissiles =
+          selectedCaptureAnimationId === 'fighterJetAttack'
+            ? [createCaptureMissileFx(), createCaptureMissileFx()]
+            : [];
         const explosion = createCaptureExplosionFx();
-        scene.add(missile.root);
+        scene.add(primaryFx.root);
+        jetMissiles.forEach((jetMissile) => {
+          jetMissile.root.visible = false;
+          scene.add(jetMissile.root);
+        });
         scene.add(explosion.root);
-        captureFxRef.current = { missile: missile.root, explosion: explosion.root };
+        captureFxRef.current = {
+          missile: primaryFx.root,
+          missiles: [primaryFx.root, ...jetMissiles.map((entry) => entry.root)],
+          explosion: explosion.root
+        };
         playMissileLaunchSound();
 
         const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
         const missileLengthScale = (bishopHeight / 1.02) * 0.92;
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
-        missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
+        primaryFx.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
+        if (jetMissiles.length) {
+          const jetMissileScale = missileThicknessScale * 0.85;
+          jetMissiles.forEach((entry) => {
+            entry.root.scale.set(jetMissileScale, jetMissileScale, jetMissileScale);
+          });
+        }
 
         const tokenWorldPos =
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
@@ -5764,13 +5917,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const next = pathAt(nextU);
             const dir = next.clone().sub(pos).normalize();
             const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
-            missile.root.visible = true;
-            missile.root.position.copy(pos);
-            missile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            if (missile.propeller) {
-              missile.propeller.rotation.y += 0.9;
+            primaryFx.root.visible = true;
+            primaryFx.root.position.copy(pos);
+            primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
+            if (primaryFx.propeller) {
+              primaryFx.propeller.rotation.y += 0.9;
             }
-            missile.trail.forEach((puff, i) => {
+            primaryFx.trail.forEach((puff, i) => {
               puff.position.set(
                 -0.55 - i * 0.16,
                 Math.sin(elapsed * 0.02 + i) * 0.02,
@@ -5783,12 +5936,57 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
                   : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
             });
+            if (selectedCaptureAnimationId === 'fighterJetAttack' && jetMissiles.length) {
+              const releaseStart = travelTime * 0.56;
+              const releaseEnd = travelTime * 0.96;
+              const missileTravel = Math.max(280, releaseEnd - releaseStart - 100);
+              jetMissiles.forEach((jetMissile, missileIndex) => {
+                const releaseTime = releaseStart + missileIndex * 140;
+                if (elapsed < releaseTime) {
+                  jetMissile.root.visible = false;
+                  return;
+                }
+                const missileU = clamp((elapsed - releaseTime) / missileTravel, 0, 1);
+                if (missileU <= 0 || missileU >= 1) {
+                  jetMissile.root.visible = false;
+                  return;
+                }
+                if (Math.abs(elapsed - releaseTime) < 30) {
+                  playMissileLaunchSound();
+                }
+                const sideOffset = missileIndex === 0 ? -0.045 : 0.045;
+                const launchPos = pos.clone().add(right.clone().multiplyScalar(sideOffset));
+                const missileControl = launchPos
+                  .clone()
+                  .lerp(dynamicTo, 0.46)
+                  .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0))
+                  .add(right.clone().multiplyScalar(sideOffset * 2.6));
+                const missilePos = quadraticBezier(launchPos, missileControl, dynamicTo, easeSmooth(missileU));
+                const missileNext = quadraticBezier(
+                  launchPos,
+                  missileControl,
+                  dynamicTo,
+                  clamp(easeSmooth(missileU) + 0.03, 0, 1)
+                );
+                const missileDir = missileNext.clone().sub(missilePos).normalize();
+                jetMissile.root.visible = true;
+                jetMissile.root.position.copy(missilePos);
+                jetMissile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, missileDir);
+                jetMissile.trail.forEach((puff, i) => {
+                  puff.position.set(-0.5 - i * 0.14, Math.sin(elapsed * 0.024 + i + missileIndex) * 0.02, 0);
+                  puff.scale.setScalar(0.85 + i * 0.12 + missileU * 0.5);
+                });
+              });
+            }
             updateExplosionRig(-1);
             requestAnimationFrame(tick);
             return;
           }
 
-          missile.root.visible = false;
+          primaryFx.root.visible = false;
+          jetMissiles.forEach((entry) => {
+            entry.root.visible = false;
+          });
           const explosionElapsed = (elapsed - travelTime) / 1000;
           explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0)));
           updateExplosionRig(explosionElapsed);
@@ -5803,7 +6001,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             return;
           }
 
-          if (missile.root.parent) missile.root.parent.remove(missile.root);
+          if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
+          jetMissiles.forEach((entry) => {
+            if (entry.root.parent) entry.root.parent.remove(entry.root);
+          });
           if (explosion.root.parent) explosion.root.parent.remove(explosion.root);
           captureFxRef.current = null;
           resolve();
