@@ -767,13 +767,13 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.68,
+  backOffset: 0.62,
   forwardOffset: 0,
   heightOffset: 1.2,
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.06,
+  backOffset: 0.98,
   forwardOffset: 0,
   heightOffset: 2.54,
   targetLift: 0.055 * MODEL_SCALE
@@ -782,7 +782,7 @@ const CAMERA_EXTRA_PULLBACK = 0;
 const CAMERA_EXTRA_LIFT = 0.12;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.12;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
-const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
 const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
@@ -2997,22 +2997,6 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_BASE_THICKNESS = 0.1;
-const TOKEN_NON_PAWN_THICKNESS_FACTOR = 0.94;
-
-function normalizeTokenThickness(token, tokenType) {
-  if (!token?.isObject3D) return;
-  token.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(token);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const maxXZ = Math.max(size.x, size.z, 0);
-  if (maxXZ <= 1e-5) return;
-  const isPawn = /^p$/i.test(String(tokenType ?? ''));
-  const targetThickness = TOKEN_BASE_THICKNESS * (isPawn ? 1 : TOKEN_NON_PAWN_THICKNESS_FACTOR);
-  const thicknessScale = targetThickness / maxXZ;
-  token.scale.set(token.scale.x * thicknessScale, token.scale.y, token.scale.z * thicknessScale);
-}
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -7729,7 +7713,6 @@ async function buildLudoBoard(
         }
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
-      normalizeTokenThickness(token, type);
       const label = createTokenCountLabel();
       if (label) {
         token.add(label);
