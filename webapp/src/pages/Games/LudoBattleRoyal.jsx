@@ -760,11 +760,12 @@ const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
 const CAMERA_ZOOM_MAX_FACTOR = 1;
+const CAMERA_FREE_LOOK_DRAG_SENSITIVITY = 0.0055;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -3367,6 +3368,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const lastCameraRadiusRef = useRef(null);
   const environmentFloorRef = useRef(0);
   const syncSkyboxToCameraRef = useRef(() => {});
+  const freeLookStateRef = useRef({
+    active: false,
+    pointerId: null,
+    yaw: 0,
+    distance: 1,
+    lastClientX: null
+  });
   const tableBuildTokenRef = useRef(0);
   const chairBuildTokenRef = useRef(0);
   const playerColorsRef = useRef(resolvePlayerColors(appearance));
@@ -3485,7 +3493,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
@@ -3496,7 +3504,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
@@ -4974,6 +4982,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     let cancelled = false;
     let onPointerDown = null;
+    let onPointerMove = null;
     let onPointerUp = null;
     let onResize = null;
 
@@ -5180,6 +5189,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.maxPolarAngle = Math.min(CAM.phiMax, initialPolar + CAMERA_FREE_LOOK_POLAR_DELTA);
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
     controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
+    freeLookStateRef.current = {
+      active: false,
+      pointerId: null,
+      yaw: Math.atan2(boardLookTarget.x - camera.position.x, boardLookTarget.z - camera.position.z),
+      distance: Math.max(0.4, initialCameraRadius),
+      lastClientX: null
+    };
     controlsRef.current = controls;
     baseCameraRadiusRef.current = initialCameraRadius;
     syncSkyboxToCameraRef.current = () => {
@@ -5420,14 +5436,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
         event.preventDefault();
+      } else if (!isCamera2d) {
+        freeLookStateRef.current.active = true;
+        freeLookStateRef.current.pointerId = event.pointerId ?? null;
+        freeLookStateRef.current.lastClientX = Number.isFinite(event.clientX) ? event.clientX : null;
       }
     };
+    onPointerMove = (event) => {
+      const freeLook = freeLookStateRef.current;
+      if (!freeLook?.active || isCamera2d) return;
+      if (freeLook.pointerId != null && event.pointerId != null && freeLook.pointerId !== event.pointerId) return;
+      let movementX = 0;
+      if (Number.isFinite(event.movementX) && event.movementX !== 0) {
+        movementX = event.movementX;
+      } else if (Number.isFinite(event.clientX) && Number.isFinite(freeLook.lastClientX)) {
+        movementX = event.clientX - freeLook.lastClientX;
+      }
+      if (Number.isFinite(event.clientX)) freeLook.lastClientX = event.clientX;
+      freeLook.yaw -= movementX * CAMERA_FREE_LOOK_DRAG_SENSITIVITY;
+    };
     onPointerUp = () => {
-      if (!pointerLocked) return;
-      pointerLocked = false;
-      if (controls) controls.enabled = true;
+      if (pointerLocked) {
+        pointerLocked = false;
+        if (controls) controls.enabled = true;
+      }
+      freeLookStateRef.current.active = false;
+      freeLookStateRef.current.pointerId = null;
+      freeLookStateRef.current.lastClientX = null;
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
@@ -5593,6 +5631,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
+      if (!isCamera2d && controls && camera) {
+        const freeLook = freeLookStateRef.current;
+        const distance = Math.max(
+          0.4,
+          Number.isFinite(freeLook?.distance) ? freeLook.distance : camera.position.distanceTo(controls.target)
+        );
+        const yaw = Number.isFinite(freeLook?.yaw) ? freeLook.yaw : 0;
+        controls.target.set(
+          camera.position.x + Math.sin(yaw) * distance,
+          controls.target.y,
+          camera.position.z + Math.cos(yaw) * distance
+        );
+      }
+
       controls?.update();
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
@@ -5623,6 +5675,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       if (renderer?.domElement && onPointerDown) {
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      }
+      if (renderer?.domElement && onPointerMove) {
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
       }
       if (onPointerUp) {
         window.removeEventListener('pointerup', onPointerUp);
@@ -5813,9 +5868,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         const animationScaleFactor =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 0.3
+            ? 0.36
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 0.21
+            ? 0.252
             : 1;
         primaryFx.root.scale.set(
           missileLengthScale * animationScaleFactor,
@@ -5846,10 +5901,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const from = launchAnchor.clone();
         const travelTime =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 1460
+            ? 1825
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 1960
-            : 1780;
+            ? 2450
+            : 2225;
         const explosionTime = 920;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
@@ -5933,7 +5988,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             apexHeight,
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
-          const phaseSplit = selectedCaptureAnimationId === 'fighterJetAttack' ? 0.78 : 0.84;
+          const phaseSplit = selectedCaptureAnimationId === 'fighterJetAttack' ? 0.74 : 0.8;
+          const verticalStrikeRatio = 0.86;
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
@@ -5955,7 +6011,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 apex.y,
                 arenaCenter.z + Math.sin(fromAngle + angularDelta) * orbitalRadius
               );
-              return quadraticBezier(diveStart, apex.clone().lerp(dynamicTo, 0.36), dynamicTo, d);
+              const strikeTop = dynamicTo.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.55, 0));
+              if (d > verticalStrikeRatio) {
+                const verticalT = (d - verticalStrikeRatio) / (1 - verticalStrikeRatio);
+                return strikeTop.clone().lerp(dynamicTo, easeSmooth(verticalT));
+              }
+              const diagonalT = d / Math.max(verticalStrikeRatio, 1e-4);
+              return quadraticBezier(diveStart, apex.clone().lerp(strikeTop, 0.34), strikeTop, diagonalT);
             };
             const pos = pathAt(u);
             const next = pathAt(nextU);
@@ -6005,13 +6067,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   .lerp(dynamicTo, 0.46)
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0))
                   .add(right.clone().multiplyScalar(sideOffset * 2.6));
-                const missilePos = quadraticBezier(launchPos, missileControl, dynamicTo, easeSmooth(missileU));
-                const missileNext = quadraticBezier(
-                  launchPos,
-                  missileControl,
-                  dynamicTo,
-                  clamp(easeSmooth(missileU) + 0.03, 0, 1)
-                );
+                const missileEase = easeSmooth(missileU);
+                const missileStrikeTop = dynamicTo.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.36, 0));
+                const verticalHitWindow = 0.84;
+                const resolveJetMissilePoint = (value) => {
+                  if (value > verticalHitWindow) {
+                    const dropT = (value - verticalHitWindow) / (1 - verticalHitWindow);
+                    return missileStrikeTop.clone().lerp(dynamicTo, easeSmooth(dropT));
+                  }
+                  const diagT = value / Math.max(verticalHitWindow, 1e-4);
+                  return quadraticBezier(launchPos, missileControl, missileStrikeTop, diagT);
+                };
+                const missilePos = resolveJetMissilePoint(missileEase);
+                const missileNext = resolveJetMissilePoint(clamp(missileEase + 0.03, 0, 1));
                 const missileDir = missileNext.clone().sub(missilePos).normalize();
                 jetMissile.root.visible = true;
                 jetMissile.root.position.copy(missilePos);
