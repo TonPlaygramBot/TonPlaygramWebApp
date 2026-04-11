@@ -8416,7 +8416,6 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
-        const jetMissileReleaseTime = CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO;
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -8426,15 +8425,14 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: jetMissileReleaseTime,
+          missileReleaseTime: 0,
           attackFromRightSide,
           jetFx,
           missileFx
         });
-        const jetMissileImpactDelayMs = (jetMissileReleaseTime + CAPTURE_JET_MISSILE_TRAVEL) * 1000;
         return {
-          moveDelayMs: jetMissileImpactDelayMs,
-          captureResolveDelayMs: jetMissileImpactDelayMs
+          moveDelayMs: CAPTURE_JET_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_JET_MISSILE_TRAVEL * 1000
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
