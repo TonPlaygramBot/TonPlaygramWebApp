@@ -610,6 +610,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
 });
 const CAMERA_EXTRA_PULLBACK = 0.18 * MODEL_SCALE;
 const CAMERA_EXTRA_LIFT = 0.12 * MODEL_SCALE;
+const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
+const CAMERA_SEATED_EYE_HEIGHT = 0.7 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -1888,7 +1890,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -5026,6 +5028,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor });
+    }
+    const selfChairGroup = chairs[0]?.group;
+    if (selfChairGroup && camera && controls && boardLookTargetRef.current) {
+      const boardTarget = boardLookTargetRef.current.clone();
+      const seatWorld = selfChairGroup.getWorldPosition(new THREE.Vector3());
+      const inwardDirection = boardTarget.clone().sub(seatWorld).setY(0);
+      if (inwardDirection.lengthSq() > 1e-6) {
+        inwardDirection.normalize();
+        const seatedEyePosition = seatWorld.clone().addScaledVector(inwardDirection, CAMERA_SEATED_INWARD_OFFSET);
+        seatedEyePosition.y = (tableInfo.surfaceY ?? TABLE_HEIGHT) + CAMERA_SEATED_EYE_HEIGHT;
+
+        const desiredRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+        const fromTarget = seatedEyePosition.clone().sub(boardTarget).setY(0);
+        if (fromTarget.lengthSq() > 1e-6) {
+          fromTarget.normalize();
+          seatedEyePosition
+            .copy(boardTarget)
+            .addScaledVector(fromTarget, desiredRadius);
+          seatedEyePosition.y = (tableInfo.surfaceY ?? TABLE_HEIGHT) + CAMERA_SEATED_EYE_HEIGHT;
+        }
+
+        camera.position.copy(seatedEyePosition);
+        controls.target.copy(boardTarget);
+        camera.lookAt(boardTarget);
+        const seatedRadius = camera.position.distanceTo(boardTarget);
+        controls.minDistance = seatedRadius;
+        controls.maxDistance = seatedRadius;
+        baseCameraRadiusRef.current = seatedRadius;
+        controls.update();
+      }
     }
     groundArenaToHdriFloor({ preserveView: true });
     updateEnvironmentFloor();
