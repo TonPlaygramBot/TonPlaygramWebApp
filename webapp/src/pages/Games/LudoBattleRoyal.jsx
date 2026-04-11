@@ -759,12 +759,12 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
-const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
-const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
+const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
+const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
 const CAMERA_ZOOM_MAX_FACTOR = 1;
-const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
-const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
+const LUDO_CAMERA_PHI_MIN = 0.92;
+const LUDO_CAMERA_PHI_MAX = 1.22;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.68,
   forwardOffset: 0,
@@ -786,6 +786,7 @@ const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_MIN_PITCH = 0;
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
+const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = false;
 const HDRI_GROUND_ALIGNMENT_OFFSET = -0.085 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
@@ -5468,7 +5469,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         event.preventDefault();
         return;
       }
-      if (!isCamera2d && controls && event.isPrimary !== false) {
+      if (
+        LUDO_CAMERA_CUSTOM_LOOK_ENABLED &&
+        !isCamera2d &&
+        controls &&
+        event.isPrimary !== false
+      ) {
         cameraLookStateRef.current.pointerId = event.pointerId;
         cameraLookStateRef.current.active = true;
         cameraLookStateRef.current.lastX = clientX;
@@ -5477,7 +5483,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     onPointerMove = (event) => {
       const lookState = cameraLookStateRef.current;
-      if (isCamera2d || !lookState.active || lookState.pointerId !== event.pointerId) return;
+      if (
+        !LUDO_CAMERA_CUSTOM_LOOK_ENABLED ||
+        isCamera2d ||
+        !lookState.active ||
+        lookState.pointerId !== event.pointerId
+      ) {
+        return;
+      }
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
       const deltaX = clientX - lookState.lastX;
@@ -5676,7 +5689,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       if (!isCamera2d && controls) {
-        applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
+        if (LUDO_CAMERA_CUSTOM_LOOK_ENABLED) {
+          applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
+        }
       }
       controls?.update();
       renderer.render(scene, camera);
