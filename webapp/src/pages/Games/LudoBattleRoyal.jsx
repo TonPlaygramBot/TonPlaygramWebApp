@@ -229,7 +229,7 @@ function createCaptureExplosionFx() {
       )
     );
   }
-  root.scale.setScalar(0.6);
+  root.scale.setScalar(0.32);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -612,9 +612,10 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
 const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
 const CAMERA_EXTRA_LIFT = 0.44 * MODEL_SCALE;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 1.22 * MODEL_SCALE;
-const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
+const CAMERA_SEATED_INWARD_OFFSET = 0.72 * MODEL_SCALE;
 const CAMERA_SEATED_EYE_HEIGHT = 0.84 * MODEL_SCALE;
 const PORTRAIT_CAMERA_SEATED_EYE_HEIGHT = 0.94 * MODEL_SCALE;
+const CAMERA_SEATED_DISTANCE_FACTOR = 0.68;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -3297,7 +3298,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const saved = saved3dCameraStateRef.current;
       controls.enableRotate = saved?.enableRotate ?? true;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = false;
+      controls.enableZoom = true;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
@@ -4933,7 +4934,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = false;
+    controls.enableZoom = true;
     controls.enableRotate = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
@@ -4952,8 +4953,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialPolar = controls.getPolarAngle();
     controls.minPolarAngle = Math.max(CAM.phiMin, initialPolar - CAMERA_FREE_LOOK_POLAR_DELTA);
     controls.maxPolarAngle = Math.min(CAM.phiMax, initialPolar + CAMERA_FREE_LOOK_POLAR_DELTA);
-    controls.minDistance = initialCameraRadius;
-    controls.maxDistance = initialCameraRadius;
+    controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
+    controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
     controlsRef.current = controls;
     baseCameraRadiusRef.current = initialCameraRadius;
     syncSkyboxToCameraRef.current = () => {
@@ -5047,7 +5048,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           (tableInfo.surfaceY ?? TABLE_HEIGHT) +
           (isPortrait ? PORTRAIT_CAMERA_SEATED_EYE_HEIGHT : CAMERA_SEATED_EYE_HEIGHT);
 
-        const desiredRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
+        const desiredRadius = clamp(
+          CAM.maxR * initialDistanceFactor * CAMERA_SEATED_DISTANCE_FACTOR,
+          CAM.minR,
+          CAM.maxR
+        );
         const fromTarget = seatedEyePosition.clone().sub(boardTarget).setY(0);
         if (fromTarget.lengthSq() > 1e-6) {
           fromTarget.normalize();
@@ -5063,8 +5068,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         controls.target.copy(boardTarget);
         camera.lookAt(boardTarget);
         const seatedRadius = camera.position.distanceTo(boardTarget);
-        controls.minDistance = seatedRadius;
-        controls.maxDistance = seatedRadius;
+        controls.minDistance = seatedRadius * CAMERA_ZOOM_MIN_FACTOR;
+        controls.maxDistance = seatedRadius * CAMERA_ZOOM_MAX_FACTOR;
         baseCameraRadiusRef.current = seatedRadius;
         controls.update();
       }
@@ -5768,10 +5773,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const playSixRollSound = () => {
     if (!settingsRef.current.soundEnabled) return;
-    if (diceRewardSoundRef.current) {
-      diceRewardSoundRef.current.currentTime = 0;
-      diceRewardSoundRef.current.play().catch(() => {});
-    }
     if (cheerSoundRef.current) {
       cheerSoundRef.current.currentTime = 0;
       cheerSoundRef.current.play().catch(() => {});
