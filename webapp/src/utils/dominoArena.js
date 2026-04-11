@@ -5,7 +5,7 @@ import { makeRoughClothTexture, DEFAULT_TABLE_CLOTH_OPTION } from './murlanTable
 
 const MODEL_SCALE = 0.75;
 const TABLE_SCALE = 0.85;
-const STOOL_SCALE = 1.5 * 1.3;
+const STOOL_SCALE = 1.5 * 1.3 * 0.8;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
