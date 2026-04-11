@@ -521,6 +521,8 @@ const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_VERTICAL_DROP;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
+const CHAIR_GLOBAL_PUSHBACK = 0.08 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.13 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -606,6 +608,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
+const CAMERA_EXTRA_PULLBACK = 0.11 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.085 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
@@ -4790,7 +4794,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : LANDSCAPE_CAMERA_TUNING.forwardOffset;
       const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : LANDSCAPE_CAMERA_TUNING.heightOffset;
       const chairRadius = AI_CHAIR_RADIUS;
-      const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
+      const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset + CAMERA_EXTRA_PULLBACK;
       camera.position.set(
         Math.cos(cameraSeatAngle) * cameraRadius,
         TABLE_HEIGHT + cameraHeightOffset,
@@ -4892,7 +4896,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
     const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
     camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
-    camera.position.y += CAMERA_3D_HEIGHT_BOOST;
+    camera.position.y += CAMERA_3D_HEIGHT_BOOST + CAMERA_EXTRA_LIFT;
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -4967,7 +4971,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / activePlayerCount) * Math.PI * 2;
       const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
+      const seatRadius =
+        AI_CHAIR_RADIUS +
+        CHAIR_GLOBAL_PUSHBACK +
+        (i === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+      const seatPos = forward.clone().multiplyScalar(seatRadius);
       seatPos.y = CHAIR_BASE_HEIGHT;
       const group = new THREE.Group();
       group.position.copy(seatPos);
