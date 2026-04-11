@@ -8425,7 +8425,7 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: 0,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO,
           attackFromRightSide,
           jetFx,
           missileFx
