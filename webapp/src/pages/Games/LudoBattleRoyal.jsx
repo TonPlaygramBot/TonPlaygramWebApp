@@ -611,8 +611,10 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
 });
 const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
 const CAMERA_EXTRA_LIFT = 0.38 * MODEL_SCALE;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.44 * MODEL_SCALE;
 const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
 const CAMERA_SEATED_EYE_HEIGHT = 0.7 * MODEL_SCALE;
+const PORTRAIT_CAMERA_SEATED_EYE_HEIGHT = 0.76 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -1893,6 +1895,7 @@ const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
 const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.71;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4920,9 +4923,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     );
     boardLookTargetRef.current = boardLookTarget;
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
-    const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+    const initialDistanceFactor = isPortrait ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR : INITIAL_CAMERA_DISTANCE_FACTOR;
+    const desiredInitialCameraRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
     camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
-    camera.position.y += CAMERA_3D_HEIGHT_BOOST + CAMERA_EXTRA_LIFT;
+    camera.position.y += CAMERA_3D_HEIGHT_BOOST + (isPortrait ? PORTRAIT_CAMERA_EXTRA_LIFT : CAMERA_EXTRA_LIFT);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -5039,16 +5043,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (inwardDirection.lengthSq() > 1e-6) {
         inwardDirection.normalize();
         const seatedEyePosition = seatWorld.clone().addScaledVector(inwardDirection, CAMERA_SEATED_INWARD_OFFSET);
-        seatedEyePosition.y = (tableInfo.surfaceY ?? TABLE_HEIGHT) + CAMERA_SEATED_EYE_HEIGHT;
+        seatedEyePosition.y =
+          (tableInfo.surfaceY ?? TABLE_HEIGHT) +
+          (isPortrait ? PORTRAIT_CAMERA_SEATED_EYE_HEIGHT : CAMERA_SEATED_EYE_HEIGHT);
 
-        const desiredRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+        const desiredRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
         const fromTarget = seatedEyePosition.clone().sub(boardTarget).setY(0);
         if (fromTarget.lengthSq() > 1e-6) {
           fromTarget.normalize();
           seatedEyePosition
             .copy(boardTarget)
             .addScaledVector(fromTarget, desiredRadius);
-          seatedEyePosition.y = (tableInfo.surfaceY ?? TABLE_HEIGHT) + CAMERA_SEATED_EYE_HEIGHT;
+          seatedEyePosition.y =
+            (tableInfo.surfaceY ?? TABLE_HEIGHT) +
+            (isPortrait ? PORTRAIT_CAMERA_SEATED_EYE_HEIGHT : CAMERA_SEATED_EYE_HEIGHT);
         }
 
         camera.position.copy(seatedEyePosition);
