@@ -490,8 +490,8 @@ let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
-// another ~15% smaller in world space while preserving the exact relative layout.
-const LUDO_ARENA_SHRINK_FACTOR = 0.51;
+// slightly smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.48;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -605,8 +605,8 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.62 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 1.2 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.78 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.11 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
@@ -1895,8 +1895,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.82;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3651,8 +3651,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const updateEnvironmentFloor = useCallback(() => {
     const arena = arenaRef.current;
     if (!arena) return;
+    const tableGroup = arena.tableInfo?.group ?? null;
     const objects = [];
-    if (arena.tableInfo?.group) objects.push(arena.tableInfo.group);
+    if (tableGroup) objects.push(tableGroup);
     if (Array.isArray(arena.chairs)) {
       arena.chairs.forEach((chair) => {
         if (chair?.group) objects.push(chair.group);
@@ -3673,7 +3674,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     });
     if (!hasBounds) return;
-    environmentFloorRef.current = box.min.y;
+    let floorMinY = box.min.y;
+    if (tableGroup) {
+      const tableBounds = new THREE.Box3().setFromObject(tableGroup);
+      if (!tableBounds.isEmpty() && Number.isFinite(tableBounds.min.y)) {
+        floorMinY = tableBounds.min.y;
+      }
+    }
+    environmentFloorRef.current = floorMinY;
     const skybox = envSkyboxRef.current;
     const boardLookTarget = arena.boardLookTarget ?? boardLookTargetRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
@@ -3691,8 +3699,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const groundArenaToHdriFloor = useCallback(({ preserveView = false } = {}) => {
     const arena = arenaRef.current;
     if (!arena?.arenaGroup) return;
+    const tableGroup = arena.tableInfo?.group ?? null;
     const objects = [];
-    if (arena.tableInfo?.group) objects.push(arena.tableInfo.group);
+    if (tableGroup) objects.push(tableGroup);
     if (Array.isArray(arena.chairs)) {
       arena.chairs.forEach((chair) => {
         if (chair?.group) objects.push(chair.group);
@@ -3713,7 +3722,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     });
     if (!hasBounds || !Number.isFinite(bounds.min.y)) return;
-    const yShift = -bounds.min.y;
+    let floorMinY = bounds.min.y;
+    if (tableGroup) {
+      const tableBounds = new THREE.Box3().setFromObject(tableGroup);
+      if (!tableBounds.isEmpty() && Number.isFinite(tableBounds.min.y)) {
+        floorMinY = tableBounds.min.y;
+      }
+    }
+    const yShift = -floorMinY;
     if (Math.abs(yShift) <= 1e-4) {
       environmentFloorRef.current = 0;
       return;
