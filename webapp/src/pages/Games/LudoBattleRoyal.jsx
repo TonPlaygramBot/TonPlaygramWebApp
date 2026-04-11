@@ -507,7 +507,7 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const CHAIR_LEG_TRIM_FACTOR = 0.9;
+const CHAIR_LEG_TRIM_FACTOR = 0.72;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
@@ -590,7 +590,7 @@ const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 0.8;
@@ -608,8 +608,9 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.11 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.085 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.18 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.12 * MODEL_SCALE;
+const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
@@ -3548,6 +3549,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const prevTexture = envTextureRef.current;
       const prevSkybox = envSkyboxRef.current;
       const floorY = environmentFloorRef.current ?? 0;
+      const boardLookTarget = arena.boardLookTarget ?? boardLookTargetRef.current ?? new THREE.Vector3();
       const cameraHeight =
         Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
         HDRI_UNITS_PER_METER;
@@ -3562,13 +3564,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
       );
       const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      const environmentRotationY =
+        typeof activeVariant?.rotationY === 'number'
+          ? activeVariant.rotationY
+          : LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y;
       let skybox = null;
       if (envResult.skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
         try {
           skybox = new GroundedSkybox(envResult.skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
-          skybox.position.y = floorY + cameraHeight;
+          skybox.position.set(boardLookTarget.x, floorY + cameraHeight, boardLookTarget.z);
+          skybox.rotation.y = environmentRotationY;
           skybox.material.depthWrite = false;
           skybox.userData.cameraHeight = cameraHeight;
+          skybox.userData.rotationY = environmentRotationY;
           arena.scene.background = null;
           arena.scene.add(skybox);
           envSkyboxRef.current = skybox;
@@ -3584,9 +3592,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         arena.scene.background = envResult.envMap;
         envSkyboxRef.current = null;
         envSkyboxTextureRef.current = null;
+        if ('backgroundRotation' in arena.scene) {
+          arena.scene.backgroundRotation.set(0, environmentRotationY, 0);
+        }
         if ('backgroundIntensity' in arena.scene && typeof activeVariant?.backgroundIntensity === 'number') {
           arena.scene.backgroundIntensity = activeVariant.backgroundIntensity;
         }
+      }
+      if ('environmentRotation' in arena.scene) {
+        arena.scene.environmentRotation.set(0, environmentRotationY, 0);
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         arena.scene.environmentIntensity = activeVariant.environmentIntensity;
@@ -3653,8 +3667,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!hasBounds) return;
     environmentFloorRef.current = box.min.y;
     const skybox = envSkyboxRef.current;
+    const boardLookTarget = arena.boardLookTarget ?? boardLookTargetRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
+      if (boardLookTarget) {
+        skybox.position.x = boardLookTarget.x;
+        skybox.position.z = boardLookTarget.z;
+      }
       skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
+      if (Number.isFinite(skybox.userData?.rotationY)) {
+        skybox.rotation.y = skybox.userData.rotationY;
+      }
     }
   }, []);
 
@@ -4904,7 +4926,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.enableRotate = true;
+    controls.enableRotate = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
@@ -4922,6 +4944,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialPolar = controls.getPolarAngle();
     controls.minPolarAngle = Math.max(CAM.phiMin, initialPolar - CAMERA_FREE_LOOK_POLAR_DELTA);
     controls.maxPolarAngle = Math.min(CAM.phiMax, initialPolar + CAMERA_FREE_LOOK_POLAR_DELTA);
+    controls.minDistance = initialCameraRadius;
+    controls.maxDistance = initialCameraRadius;
     controlsRef.current = controls;
     baseCameraRadiusRef.current = initialCameraRadius;
     syncSkyboxToCameraRef.current = () => {
@@ -4937,6 +4961,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const floorY = environmentFloorRef.current ?? 0;
       if (Number.isFinite(skybox.userData?.cameraHeight)) {
         skybox.position.y = floorY + skybox.userData.cameraHeight;
+      }
+      skybox.position.x = boardLookTarget.x;
+      skybox.position.z = boardLookTarget.z;
+      if (Number.isFinite(skybox.userData?.rotationY)) {
+        skybox.rotation.y = skybox.userData.rotationY;
       }
     };
     controls.addEventListener('change', syncSkyboxToCameraRef.current);
