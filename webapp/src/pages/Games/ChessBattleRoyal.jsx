@@ -99,9 +99,9 @@ const CAPTURE_JET_SPEED_FACTOR = 2.05; // slightly shorter jet pass while preser
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.2 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
-const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.34; // release once the jet is clearly above the board
-const CAPTURE_JET_TRIMMED_START_RATIO = 0.5; // trim opening silence and begin close to the first missile cue
-const CAPTURE_GROUND_FIRE_TIME = 0.12;
+const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.72; // release when the jet reaches the board-overflight segment
+const CAPTURE_JET_TRIMMED_START_RATIO = 0.66; // skip most off-board approach so entry is visible faster
+const CAPTURE_GROUND_FIRE_TIME = 0.01;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
@@ -113,7 +113,6 @@ const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.16;
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const CAPTURE_JET_EDGE_PATH_FACTOR = 0.02;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8368,7 +8367,6 @@ function Chess3D({
         droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(droneFx.root);
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
-        playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'drone',
           t: 0,
@@ -8388,7 +8386,7 @@ function Chess3D({
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         const attackFromRightSide = fromPos.x >= 0;
-        const borderOffset = half + tile * CAPTURE_JET_EDGE_PATH_FACTOR;
+        const borderOffset = half - tile * 0.08;
         const entryClamp = half - tile * 0.12;
         const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
         const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
@@ -8448,7 +8446,6 @@ function Chess3D({
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
         const launchBase = fromPos.clone();
-        playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'javelin',
           t: 0,
@@ -9999,33 +9996,19 @@ function Chess3D({
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
             } else if (fx.t < impactTime) {
+              if (!fx.hasLaunchAudio) {
+                fx.hasLaunchAudio = true;
+                playAudio(missileLaunchSoundRef);
+              }
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.38, 0));
               const diagonalEnd = launchPos.clone().lerp(targetTop, 0.72);
               const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.16;
-              if (mu < 0.72) {
-                const diagU = smoothEase(mu / 0.72);
-                const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
-                const pos = qBezier(launchPos, control, diagonalEnd, diagU);
-                const next = qBezier(launchPos, control, diagonalEnd, clamp01(diagU + 0.03));
-                pose = { pos, next };
-              } else {
-                const dropU = smoothEase((mu - 0.72) / 0.28);
-                const spin = dropU * Math.PI * 2.2;
-                const swirlRadius = THREE.MathUtils.lerp(0.09, 0.01, dropU);
-                const pos = diagonalEnd.clone().lerp(fx.to, dropU);
-                const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
-                pos.x += Math.sin(spin) * swirlRadius;
-                pos.z += Math.cos(spin * 0.84) * swirlRadius * 0.72;
-                next.x += Math.sin((clamp01(dropU + 0.04) * Math.PI * 2.2)) * THREE.MathUtils.lerp(0.09, 0.01, clamp01(dropU + 0.04));
-                next.z +=
-                  Math.cos((clamp01(dropU + 0.04) * Math.PI * 2.2) * 0.84) *
-                  THREE.MathUtils.lerp(0.09, 0.01, clamp01(dropU + 0.04)) *
-                  0.72;
-                next.x = pos.x;
-                next.z = pos.z;
-                pose = { pos, next };
-              }
+              const diagU = smoothEase(mu);
+              const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
+              const pos = qBezier(launchPos, control, fx.to, diagU);
+              const next = qBezier(launchPos, control, fx.to, clamp01(diagU + 0.03));
+              pose = { pos, next };
             }
             if (!pose) {
               fx.droneFx.root.visible = false;
@@ -10146,6 +10129,10 @@ function Chess3D({
               fx.missileFx.root.visible = true;
               fx.missileFx.root.position.copy(launchPos);
             } else if (fx.t < impactTime) {
+              if (!fx.hasLaunchAudio) {
+                fx.hasLaunchAudio = true;
+                playAudio(missileLaunchSoundRef);
+              }
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.36, 0));
               const diagonalEnd = launchPos.clone().lerp(targetTop, 0.62);
