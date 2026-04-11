@@ -773,14 +773,14 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.68 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.52 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  targetLift: 0.11 * MODEL_SCALE
+  backOffset: 0.46 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 1.46 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.48 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  targetLift: 0.092 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.2 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.44 * MODEL_SCALE;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 1.34 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.14 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.34 * MODEL_SCALE;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 1.02 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -808,6 +808,36 @@ const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIO
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+
+function createAiUniqueLoadout(activePlayerCount) {
+  const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
+  const byPlayer = Array.from({ length: totalPlayers }, () => ({
+    tokenPieceIndex: 0,
+    captureAnimationIndex: 0
+  }));
+  const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
+  if (!aiIndexes.length) return byPlayer;
+
+  const shuffle = (items) => {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const piecePool = shuffle(Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx));
+  const capturePool = shuffle(Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx));
+
+  aiIndexes.forEach((playerIndex, aiIndex) => {
+    byPlayer[playerIndex] = {
+      tokenPieceIndex: piecePool[aiIndex % piecePool.length] ?? 0,
+      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0
+    };
+  });
+  return byPlayer;
+}
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_LEG_EXTENSION_FACTOR = 1.65;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -3418,6 +3448,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
+  const aiLoadoutByPlayer = useMemo(() => createAiUniqueLoadout(activePlayerCount), [activePlayerCount]);
 
   const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
@@ -4784,7 +4815,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const stoolTheme = MURLAN_STOOL_THEMES[safe.stools] ?? MURLAN_STOOL_THEMES[0];
     const envVariant = resolveHdriVariant(safe.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
-    const tokenPieceOption = TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const tokenPieceByPlayer = Array.from({ length: activePlayerCount }, (_, playerIndex) => {
+      if (playerIndex === 0) {
+        return TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+      }
+      const aiTokenPieceIndex = aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
+      return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
+    });
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
@@ -4814,7 +4851,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         activePlayerCount,
         nextColors,
         tokenStyleOption,
-        tokenPieceOption
+        tokenPieceByPlayer
       );
       if (arenaState.boardGroup) {
         arenaState.tableInfo.group.remove(arenaState.boardGroup);
@@ -4904,6 +4941,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [
     appearance,
     activePlayerCount,
+    aiLoadoutByPlayer,
     applyHdriEnvironment,
     applyRailLayout,
     ensureAppearanceUnlocked,
@@ -5035,7 +5073,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const stoolTheme = MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
     const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
-    const tokenPieceOption = TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const tokenPieceByPlayer = Array.from({ length: activePlayerCount }, (_, playerIndex) => {
+      if (playerIndex === 0) {
+        return TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+      }
+      const aiTokenPieceIndex = aiLoadoutByPlayer[playerIndex]?.tokenPieceIndex ?? 0;
+      return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
+    });
     const initialPlayerColors = resolvePlayerColors(initialAppearance);
     appearanceRef.current = initialAppearance;
     playerColorsRef.current = initialPlayerColors;
@@ -5241,7 +5285,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       activePlayerCount,
       initialPlayerColors,
       tokenStyleOption,
-      tokenPieceOption
+      tokenPieceByPlayer
     );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
@@ -5747,17 +5791,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
 
         const selectedCaptureAnimationId =
-          CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation]?.id
-          ?? CAPTURE_ANIMATION_OPTIONS[0]?.id
-          ?? 'missileJavelin';
+          attackerPlayer > 0
+            ? CAPTURE_ANIMATION_OPTIONS[aiLoadoutByPlayer[attackerPlayer]?.captureAnimationIndex ?? 0]?.id
+            : CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation]?.id;
+        const resolvedCaptureAnimationId =
+          selectedCaptureAnimationId ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
         const primaryFx =
-          selectedCaptureAnimationId === 'droneAttack'
+          resolvedCaptureAnimationId === 'droneAttack'
             ? createCaptureDroneFx()
-            : selectedCaptureAnimationId === 'fighterJetAttack'
+            : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? createCaptureJetFx()
             : createCaptureMissileFx();
         const jetMissiles =
-          selectedCaptureAnimationId === 'fighterJetAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack'
             ? [createCaptureMissileFx(), createCaptureMissileFx()]
             : [];
         const explosion = createCaptureExplosionFx();
@@ -7391,17 +7437,14 @@ async function buildLudoBoard(
   playerCount = DEFAULT_PLAYER_COUNT,
   playerColors = DEFAULT_PLAYER_COLORS,
   tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
-  tokenPieceOption = TOKEN_PIECE_OPTIONS[0]
+  tokenPieceByPlayer = TOKEN_PIECE_OPTIONS[0]
 ) {
   const scene = boardGroup;
 
   const lightBoardMat = cloneBoardMaterial(null, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
-  let tokenTypeSequence =
+  let defaultTokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
-  if (tokenPieceOption?.type) {
-    tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
-  }
   const useAbgTokens = true;
   const abgAssets = useAbgTokens ? await getAbgAssets() : null;
   const abgPrototypes = abgAssets?.proto ?? null;
@@ -7513,6 +7556,12 @@ async function buildLudoBoard(
   addBoardMarkers(scene, cellToWorld, playerColors);
 
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
+    const playerTokenPieceOption = Array.isArray(tokenPieceByPlayer)
+      ? tokenPieceByPlayer[playerIdx]
+      : tokenPieceByPlayer;
+    const tokenTypeSequence = playerTokenPieceOption?.type
+      ? Array(4).fill(playerTokenPieceOption.type)
+      : defaultTokenTypeSequence;
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
       const useAbgForPlayer = shouldUseAbgTokens;
