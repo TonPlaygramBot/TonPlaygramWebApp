@@ -95,8 +95,8 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.5; // fighter jet now flies 50% slower
-const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * 1.5; // jet missile now travels 50% slower
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 0.92; // queen jet is only slightly faster than the drone pass
+const CAPTURE_JET_MISSILE_TRAVEL = CAPTURE_GROUND_TRAVEL_TIME * 0.95; // jet missile travel tuned close to drone speed
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
@@ -1013,7 +1013,6 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
-const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 
@@ -7360,8 +7359,6 @@ function Chess3D({
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
-    const jetFlySound = new Audio(JET_FLY_SOUND_URL);
-    jetFlySound.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -8403,14 +8400,15 @@ function Chess3D({
         const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
         const entryClamp = half - tile * 0.22;
         const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
-        const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
+        const nearBoardLane = half + tile * 0.12;
+        const sideLane = attackFromRightSide ? nearBoardLane : -nearBoardLane;
         const jetStart = new THREE.Vector3(
           sideLane,
           CAPTURE_JET_ALTITUDE,
           THREE.MathUtils.clamp(fromPos.z, -entryClamp, entryClamp)
         );
         const jetApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.34),
+          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.62),
           attackAltitude,
           THREE.MathUtils.clamp(fromPos.z, -entryClamp, entryClamp)
         );
@@ -8430,7 +8428,6 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
-        playAudio({ current: jetFlySound }, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -10021,8 +10018,6 @@ function Chess3D({
                 const dropU = smoothEase((mu - 0.68) / 0.32);
                 const pos = diagonalEnd.clone().lerp(fx.to, dropU);
                 const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
-                next.x = pos.x;
-                next.z = pos.z;
                 pose = { pos, next };
               }
             }
@@ -10047,8 +10042,8 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const enterSplit = 0.22;
-            const orbitSplit = 0.74;
+            const enterSplit = 0.08;
+            const orbitSplit = 0.7;
             const exitSplit = 0.9;
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             let jetPos = null;
@@ -10310,7 +10305,6 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
-      jetFlySound?.pause?.();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
       activeCaptureFx.splice(0, activeCaptureFx.length);
