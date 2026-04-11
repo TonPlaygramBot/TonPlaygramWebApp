@@ -101,6 +101,24 @@ export const TOKEN_PIECE_OPTIONS = Object.freeze([
   { id: 'pieceKing', label: 'Play as King', type: 'k', symbol: '♔' }
 ]);
 
+export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
+  {
+    id: 'missileJavelin',
+    label: 'Javelin Missile',
+    description: 'Perimeter missile orbit with a spear-like terminal strike.'
+  },
+  {
+    id: 'droneAttack',
+    label: 'Drone Attack',
+    description: 'Attack drone sweep adapted from Chess Battle Royal scale.'
+  },
+  {
+    id: 'fighterJetAttack',
+    label: 'Fighter Jet Attack',
+    description: 'Fast fighter jet strike adapted from Chess Battle Royal scale.'
+  }
+]);
+
 export const TOKEN_PALETTE_OPTIONS = Object.freeze([
   {
     id: 'vividCore',
