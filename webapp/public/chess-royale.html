@@ -247,9 +247,10 @@ const MISSILE_HEIGHT=0.095;
 const MISSILE_SIZE=0.02;
 const MISSILE_TRAIL_COUNT=5;
 const MISSILE_TRAIL_SPACING=0.08;
-const JET_HEIGHT=0.19;
+const JET_HEIGHT=0.155;
 const JET_SIZE=0.31;
-const JET_SPEED_FACTOR=1.38;
+const JET_SPEED_FACTOR=1;
+const MISSILE_PROGRESS_FACTOR=0.72;
 const DRONE_SIZE=0.048;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
@@ -465,11 +466,15 @@ function setTravelOrientation(node,from,to,bank=0){
 }
 function getJetIngressAndEgress(from,to){
   const center=from.clone().lerp(to,0.5);
-  const margin=2.2;
-  const useTop=Math.random()>0.5;
-  const zEdge=center.z+(useTop?margin:-margin);
-  const entry=new THREE.Vector3(center.x,JET_HEIGHT,zEdge);
-  const exit=new THREE.Vector3(center.x,JET_HEIGHT,-zEdge);
+  const attackerSide=from.clone().sub(center).setY(0);
+  if(attackerSide.lengthSq()<1e-5) attackerSide.set(0,0,1);
+  attackerSide.normalize();
+  const tangent=new THREE.Vector3(-attackerSide.z,0,attackerSide.x).normalize();
+  const edgeDistance=2.3;
+  const laneWidth=0.92;
+  const sideAnchor=center.clone().add(attackerSide.multiplyScalar(edgeDistance));
+  const entry=sideAnchor.clone().add(tangent.clone().multiplyScalar(laneWidth)).setY(JET_HEIGHT);
+  const exit=sideAnchor.clone().add(tangent.clone().multiplyScalar(-laneWidth)).setY(JET_HEIGHT);
   return {entry,exit,center};
 }
 
@@ -631,18 +636,22 @@ function animateJetMissileStrike(from,to){
     const jet=buildJetMesh();
     const missile=buildMissileMesh();
     const {entry,exit,center}=getJetIngressAndEgress(from,to);
+    const centerOverBoard=center.clone().setY(JET_HEIGHT);
+    const attackVector=to.clone().sub(from).setY(0);
+    if(attackVector.lengthSq()<1e-5) attackVector.set(1,0,0);
+    const attackDir=attackVector.normalize();
     const targetLow=to.clone().add(new THREE.Vector3(0,MISSILE_HEIGHT,0));
-    const approach=from.clone().lerp(to,0.62).add(new THREE.Vector3(0,JET_HEIGHT,0));
-    const turnPoint=to.clone().add(new THREE.Vector3(0,JET_HEIGHT,0.48*Math.sign(exit.z||1)));
-    const loopPoint=from.clone().lerp(to,0.4).add(new THREE.Vector3(0,JET_HEIGHT,-0.42*Math.sign(exit.z||1)));
+    const approach=center.clone().add(attackDir.clone().multiplyScalar(-0.52)).setY(JET_HEIGHT);
+    const strikePoint=center.clone().add(attackDir.clone().multiplyScalar(0.38)).setY(JET_HEIGHT);
+    const loopPoint=centerOverBoard.clone().add(attackDir.clone().multiplyScalar(-0.26));
     const missileCurve=[];
     jet.position.copy(entry);
     missile.visible=false;
     scene.add(jet); scene.add(missile); playDroneSound();
     const t0=performance.now();
-    const phaseA=360*JET_SPEED_FACTOR, phaseB=560*JET_SPEED_FACTOR, phaseC=440*JET_SPEED_FACTOR, total=phaseA+phaseB+phaseC;
+    const phaseA=210*JET_SPEED_FACTOR, phaseB=280*JET_SPEED_FACTOR, phaseC=210*JET_SPEED_FACTOR, total=phaseA+phaseB+phaseC;
     let missileLaunched=false;
-    const curveSteps=36;
+    const curveSteps=56;
     const tick=now=>{
       const elapsed=now-t0;
       const flamePulse=0.75+Math.sin(elapsed*0.04)*0.25;
@@ -654,30 +663,30 @@ function animateJetMissileStrike(from,to){
         const t=Math.min(1,elapsed/phaseA);
         const eased=t*t*(3-2*t);
         jet.position.lerpVectors(entry,approach,eased);
-        jet.position.y=JET_HEIGHT+Math.sin(t*Math.PI)*0.03;
-        setTravelOrientation(jet,entry,approach,Math.sin(t*Math.PI)*0.05);
+        jet.position.y=JET_HEIGHT+Math.sin(t*Math.PI)*0.022;
+        setTravelOrientation(jet,entry,approach,Math.sin(t*Math.PI)*0.04);
       }else if(elapsed<=phaseA+phaseB){
         const t=Math.min(1,(elapsed-phaseA)/phaseB);
-        jet.position.lerpVectors(approach,turnPoint,t);
-        jet.position.y+=Math.sin(t*Math.PI)*0.05;
-        setTravelOrientation(jet,approach,to,Math.sin(t*Math.PI)*0.04);
-        if(!missileLaunched){
+        jet.position.lerpVectors(approach,strikePoint,t);
+        jet.position.y+=Math.sin(t*Math.PI)*0.032;
+        setTravelOrientation(jet,approach,strikePoint,Math.sin(t*Math.PI)*0.03);
+        if(!missileLaunched && t>=0.42){
           missileLaunched=true;
           missile.visible=true;
           const curveStart=getJetNoseWorldPosition(jet).setY(MISSILE_HEIGHT);
-          missileCurve.push(...buildQFlightCurve(curveStart,targetLow,{height:MISSILE_HEIGHT,loopRadius:0.58,tailDrift:0.24,steps:curveSteps}));
+          missileCurve.push(...buildQFlightCurve(curveStart,targetLow,{height:MISSILE_HEIGHT,loopRadius:0.9,tailDrift:0.42,steps:curveSteps}));
         }
-        if(missileLaunched) updateMissileRig(missile,missileCurve,Math.min(1,t*0.9));
+        if(missileLaunched) updateMissileRig(missile,missileCurve,Math.min(1,t*MISSILE_PROGRESS_FACTOR));
       }else if(elapsed<=total){
         const t=Math.min(1,(elapsed-phaseA-phaseB)/phaseC);
         const uTurn=t<0.5
-          ? turnPoint.clone().lerp(loopPoint,t*2)
+          ? strikePoint.clone().lerp(loopPoint,t*2)
           : loopPoint.clone().lerp(exit,(t-0.5)*2);
-        const uFrom=t<0.5 ? turnPoint : loopPoint;
+        const uFrom=t<0.5 ? strikePoint : loopPoint;
         jet.position.copy(uTurn);
-        jet.position.y=JET_HEIGHT+Math.sin(t*Math.PI)*0.045;
-        setTravelOrientation(jet,uFrom,exit,-Math.sin(t*Math.PI)*0.05);
-        if(missileLaunched) updateMissileRig(missile,missileCurve,0.9+(t*0.1));
+        jet.position.y=JET_HEIGHT+Math.sin(t*Math.PI)*0.032;
+        setTravelOrientation(jet,uFrom,exit,-Math.sin(t*Math.PI)*0.04);
+        if(missileLaunched) updateMissileRig(missile,missileCurve,Math.min(1,MISSILE_PROGRESS_FACTOR + (t*(1-MISSILE_PROGRESS_FACTOR))));
       }else{
         scene.remove(jet);
         jet.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material){ if(Array.isArray(o.material)) o.material.forEach(m=>m.dispose()); else o.material.dispose(); } });
