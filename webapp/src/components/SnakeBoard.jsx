@@ -155,8 +155,14 @@ export default function SnakeBoard({
   const containerRef = useRef(null);
   const gridRef = useRef(null);
   const tile1Ref = useRef(null);
+  const touchStateRef = useRef({
+    active: false,
+    lastY: 0,
+    cameraDragProgress: 0,
+  });
   const [cellWidth, setCellWidth] = useState(80);
   const [cellHeight, setCellHeight] = useState(40);
+  const [cameraDragProgress, setCameraDragProgress] = useState(0);
   const layoutTiles = BOARD_LAYOUT.tiles;
   const scaledCols = BOARD_WIDTH_UNITS * GRID_SCALE;
   const scaledRows = BOARD_HEIGHT_UNITS * GRID_SCALE;
@@ -295,7 +301,40 @@ export default function SnakeBoard({
   const boardXOffset = 8;
   const boardYOffset = 48;
   const boardZOffset = -64;
+  const CAMERA_DRAG_LIMIT = 1;
+  const CAMERA_DRAG_SENSITIVITY = 0.0048;
+  const cameraSyncProgress = Math.max(-CAMERA_DRAG_LIMIT, Math.min(CAMERA_DRAG_LIMIT, cameraDragProgress));
+  const syncedBoardYOffset = boardYOffset + cameraSyncProgress * 22;
+  const syncedBoardZOffset = boardZOffset + cameraSyncProgress * 34;
+  const syncedBoardAngle = angle + cameraSyncProgress * 5;
   const CAMERA_OFFSET_ROWS = 0;
+
+  const handleTouchStart = (event) => {
+    const touchY = event.touches?.[0]?.clientY;
+    if (typeof touchY !== 'number') return;
+    touchStateRef.current.active = true;
+    touchStateRef.current.lastY = touchY;
+  };
+
+  const handleTouchMove = (event) => {
+    const touchY = event.touches?.[0]?.clientY;
+    if (typeof touchY !== 'number' || !touchStateRef.current.active) return;
+    const deltaY = touchY - touchStateRef.current.lastY;
+    touchStateRef.current.lastY = touchY;
+    const nextProgress = Math.max(
+      -CAMERA_DRAG_LIMIT,
+      Math.min(
+        CAMERA_DRAG_LIMIT,
+        touchStateRef.current.cameraDragProgress + deltaY * CAMERA_DRAG_SENSITIVITY,
+      ),
+    );
+    touchStateRef.current.cameraDragProgress = nextProgress;
+    setCameraDragProgress(nextProgress);
+  };
+
+  const handleTouchEnd = () => {
+    touchStateRef.current.active = false;
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -341,10 +380,15 @@ export default function SnakeBoard({
       <div
         ref={containerRef}
         className="overflow-y-auto"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         style={{
           overflowX: 'hidden',
           height: '100vh',
           overscrollBehaviorY: 'none',
+          touchAction: 'none',
           paddingTop,
           paddingBottom,
         }}
@@ -362,10 +406,10 @@ export default function SnakeBoard({
               '--cell-height': `${cellHeight}px`,
               '--board-width': `${cellWidth * BOARD_WIDTH_UNITS}px`,
               '--board-height': `${cellHeight * BOARD_HEIGHT_UNITS + offsetYMax}px`,
-              '--board-angle': `${angle}deg`,
+              '--board-angle': `${syncedBoardAngle}deg`,
               '--final-scale': FINAL_SCALE,
               '--board-scale': BOARD_SCALE,
-              transform: `translate(${boardXOffset}px, ${boardYOffset}px) translateZ(${boardZOffset}px) rotateX(${angle}deg) scale(${BOARD_SCALE})`,
+              transform: `translate(${boardXOffset}px, ${syncedBoardYOffset}px) translateZ(${syncedBoardZOffset}px) rotateX(${syncedBoardAngle}deg) scale(${BOARD_SCALE})`,
             }}
           >
             {tileElements}
