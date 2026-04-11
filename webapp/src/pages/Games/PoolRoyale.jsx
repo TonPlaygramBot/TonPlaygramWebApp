@@ -22897,17 +22897,73 @@ const powerRef = useRef(hud.power);
             normalizeVector3Snapshot(value, { x: 0, y: BALL_CENTER_Y, z: 0 });
           const cueStroke = cueStrokeRaw
             ? {
-                warmup: normalizeStrokeVec(cueStrokeRaw.warmup),
-                start: normalizeStrokeVec(cueStrokeRaw.start ?? cueStrokeRaw.warmup),
-                impact: normalizeStrokeVec(cueStrokeRaw.impact ?? cueStrokeRaw.start),
-                settle: normalizeStrokeVec(cueStrokeRaw.settle ?? cueStrokeRaw.impact),
+                warmup: normalizeStrokeVec(cueStrokeRaw.warmup ?? cueStrokeRaw.idle),
+                start: normalizeStrokeVec(
+                  cueStrokeRaw.start ?? cueStrokeRaw.pull ?? cueStrokeRaw.warmup
+                ),
+                idle: normalizeStrokeVec(cueStrokeRaw.idle ?? cueStrokeRaw.warmup),
+                pull: normalizeStrokeVec(
+                  cueStrokeRaw.pull ?? cueStrokeRaw.start ?? cueStrokeRaw.warmup
+                ),
+                impact: normalizeStrokeVec(
+                  cueStrokeRaw.impact ?? cueStrokeRaw.follow ?? cueStrokeRaw.start
+                ),
+                follow: normalizeStrokeVec(
+                  cueStrokeRaw.follow ?? cueStrokeRaw.settle ?? cueStrokeRaw.impact
+                ),
+                settle: normalizeStrokeVec(
+                  cueStrokeRaw.settle ?? cueStrokeRaw.follow ?? cueStrokeRaw.impact
+                ),
                 rotationX: Number.isFinite(cueStrokeRaw.rotationX) ? cueStrokeRaw.rotationX : 0,
                 rotationY: Number.isFinite(cueStrokeRaw.rotationY) ? cueStrokeRaw.rotationY : 0,
                 pullback: Math.max(0, cueStrokeRaw.pullbackDuration ?? cueStrokeRaw.pullback ?? 0),
-                forward: Math.max(0, cueStrokeRaw.forwardDuration ?? cueStrokeRaw.forward ?? 0),
+                forward: Math.max(
+                  0,
+                  cueStrokeRaw.releaseDuration ??
+                    cueStrokeRaw.forwardDuration ??
+                    cueStrokeRaw.release ??
+                    cueStrokeRaw.forward ??
+                    0
+                ),
+                release: Math.max(
+                  0,
+                  cueStrokeRaw.releaseDuration ??
+                    cueStrokeRaw.forwardDuration ??
+                    cueStrokeRaw.release ??
+                    cueStrokeRaw.forward ??
+                    0
+                ),
                 settleTime: Math.max(
                   0,
-                  cueStrokeRaw.settleDuration ?? cueStrokeRaw.settleTime ?? 0
+                  cueStrokeRaw.followDuration ??
+                    cueStrokeRaw.settleDuration ??
+                    cueStrokeRaw.followTime ??
+                    cueStrokeRaw.settleTime ??
+                    0
+                ),
+                followDuration: Math.max(
+                  0,
+                  cueStrokeRaw.followDuration ??
+                    cueStrokeRaw.settleDuration ??
+                    cueStrokeRaw.followTime ??
+                    cueStrokeRaw.settleTime ??
+                    0
+                ),
+                recoverTime: Math.max(
+                  0,
+                  cueStrokeRaw.recoverDuration ??
+                    cueStrokeRaw.returnDuration ??
+                    cueStrokeRaw.recoverTime ??
+                    cueStrokeRaw.returnTime ??
+                    0
+                ),
+                recoverDuration: Math.max(
+                  0,
+                  cueStrokeRaw.recoverDuration ??
+                    cueStrokeRaw.returnDuration ??
+                    cueStrokeRaw.recoverTime ??
+                    cueStrokeRaw.returnTime ??
+                    0
                 ),
                 startOffset: Math.max(0, cueStrokeRaw.startOffset ?? 0)
               }
