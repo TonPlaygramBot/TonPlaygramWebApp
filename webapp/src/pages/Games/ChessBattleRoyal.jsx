@@ -95,18 +95,18 @@ const CAPTURE_DRONE_LIFT_TIME = 0.12;
 const CAPTURE_DRONE_CRUISE_TIME = 1.74;
 const CAPTURE_DRONE_DIVE_TIME = 0.92;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 7.2;
-const CAPTURE_JET_MISSILE_DROP = 2.1;
-const CAPTURE_JET_MISSILE_TRAVEL = 1.7;
+const CAPTURE_JET_TOTAL = 13.8;
+const CAPTURE_JET_MISSILE_DROP = 8.2;
+const CAPTURE_JET_MISSILE_TRAVEL = 2.0;
 const CAPTURE_GROUND_FIRE_TIME = 0.08;
 const CAPTURE_GROUND_TRAVEL_TIME = 1.85;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.11;
-const CAPTURE_JET_SCALE = 0.09;
-const CAPTURE_DRONE_ALTITUDE = 0.94;
+const CAPTURE_DRONE_SCALE = 0.15;
+const CAPTURE_JET_SCALE = 0.12;
+const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.54;
-const CAPTURE_MISSILE_SCALE = 0.09;
+const CAPTURE_MISSILE_SCALE = 0.12;
 const CAPTURE_EXPLOSION_SCALE = 0.28;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -8342,64 +8342,6 @@ function Chess3D({
       const next = orbitExit.clone().lerp(impactPos, clamp01(strikeU + 0.05));
       return { pos, next };
     };
-    const getCaptureQPathPose = ({
-      from,
-      to,
-      progress,
-      launchHeight = 0.16,
-      orbitHeight = CAPTURE_FLIGHT_ALTITUDE * 0.3,
-      orbitRadiusMul = 1.05,
-      loopCycles = 1.18,
-      tailSplit = 0.76,
-      tailBend = 0.46
-    }) => {
-      const center = new THREE.Vector3(0, 0, 0);
-      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
-      const impactPos = to.clone().add(new THREE.Vector3(0, 0.02, 0));
-      const orbitRadius = half + tile * orbitRadiusMul;
-      const startAngle = Math.atan2(launchPos.z, launchPos.x);
-      const loopDelta = Math.PI * 2 * loopCycles;
-      const loopExit = new THREE.Vector3(
-        Math.cos(startAngle + loopDelta) * orbitRadius,
-        orbitHeight,
-        Math.sin(startAngle + loopDelta) * orbitRadius
-      ).add(center);
-      const u = clamp01(progress);
-      if (u < tailSplit) {
-        const loopU = smoothEase(u / tailSplit);
-        const angleNow = startAngle + loopDelta * loopU;
-        const angleNext = startAngle + loopDelta * clamp01(loopU + 0.03);
-        const radiusNow = THREE.MathUtils.lerp(Math.max(0.24, launchPos.length()), orbitRadius, loopU);
-        const radiusNext = THREE.MathUtils.lerp(
-          Math.max(0.24, launchPos.length()),
-          orbitRadius,
-          clamp01(loopU + 0.03)
-        );
-        const pos = new THREE.Vector3(
-          Math.cos(angleNow) * radiusNow,
-          THREE.MathUtils.lerp(launchPos.y, orbitHeight, loopU) + Math.sin(loopU * Math.PI * 2) * 0.04,
-          Math.sin(angleNow) * radiusNow
-        ).add(center);
-        const next = new THREE.Vector3(
-          Math.cos(angleNext) * radiusNext,
-          THREE.MathUtils.lerp(launchPos.y, orbitHeight, clamp01(loopU + 0.03)) +
-            Math.sin(clamp01(loopU + 0.03) * Math.PI * 2) * 0.04,
-          Math.sin(angleNext) * radiusNext
-        ).add(center);
-        return { pos, next };
-      }
-      const tailU = smoothEase((u - tailSplit) / (1 - tailSplit));
-      const tailDir = impactPos.clone().sub(loopExit).normalize();
-      const side = new THREE.Vector3(-tailDir.z, 0, tailDir.x).normalize();
-      const tailControl = loopExit
-        .clone()
-        .lerp(impactPos, 0.55)
-        .addScaledVector(side, tile * tailBend)
-        .add(new THREE.Vector3(0, 0.02, 0));
-      const pos = qBezier(loopExit, tailControl, impactPos, tailU);
-      const next = qBezier(loopExit, tailControl, impactPos, clamp01(tailU + 0.06));
-      return { pos, next };
-    };
 
     const playCaptureAnimation = ({
       fromPos,
@@ -8469,12 +8411,8 @@ function Chess3D({
           duration: CAPTURE_JET_TOTAL,
           from: jetStart.clone(),
           to: targetPos.clone(),
-          attackPos: targetPos.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.18, 0)).addScaledVector(tangentDir, tile * 0.28),
-          turnPos: sideDir
-            .clone()
-            .multiplyScalar(half + tile * 2.8)
-            .addScaledVector(tangentDir, tile * 2.1)
-            .add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.22, 0)),
+          orbitEntryPos: fromPos.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.02, 0)),
+          orbitExitPos: targetPos.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.14, 0)),
           exitPos: jetExit,
           jetFx,
           missileFx
@@ -9987,21 +9925,22 @@ function Chess3D({
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
           if (fx.type === 'drone') {
-            const impactTime = CAPTURE_GROUND_TOTAL;
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             const launchPos = fx.launchPos.clone();
             let pose = null;
-            if (fx.t < impactTime) {
-              const mu = smoothEase(fx.t / impactTime);
-              pose = getCaptureQPathPose({
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
+            } else if (fx.t < impactTime) {
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              pose = getCaptureRingOrbitPose({
                 from: launchPos,
-                to: fx.to.clone(),
+                to: fx.to.clone().add(new THREE.Vector3(0, 0.02, 0)),
                 progress: mu,
                 launchHeight: 0.02,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.26,
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.34,
                 orbitRadiusMul: 1.08,
-                loopCycles: 1.2,
-                tailSplit: 0.78,
-                tailBend: 0.44
+                minOrbitCycles: 1.45,
+                orbitSplit: 0.88
               });
             }
             if (!pose) {
@@ -10025,26 +9964,42 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const attackSplit = 0.44;
-            const turnSplit = 0.78;
+            const enterSplit = 0.18;
+            const orbitSplit = 0.54;
+            const exitSplit = 0.88;
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             let jetPos = null;
             let jetNext = null;
-            if (jetU < attackSplit) {
-              const mu = smoothEase(jetU / attackSplit);
-              const ctrl = fx.from.clone().lerp(fx.attackPos, 0.5).add(new THREE.Vector3(0, 0.04, 0));
-              jetPos = qBezier(fx.from, ctrl, fx.attackPos, mu);
-              jetNext = qBezier(fx.from, ctrl, fx.attackPos, clamp01(mu + 0.08));
-            } else if (jetU < turnSplit) {
-              const mu = smoothEase((jetU - attackSplit) / (turnSplit - attackSplit));
-              const ctrl = fx.attackPos.clone().lerp(fx.turnPos, 0.5).add(new THREE.Vector3(0, -0.03, 0));
-              jetPos = qBezier(fx.attackPos, ctrl, fx.turnPos, mu);
-              jetNext = qBezier(fx.attackPos, ctrl, fx.turnPos, clamp01(mu + 0.08));
+            if (jetU < enterSplit) {
+              const mu = smoothEase(jetU / enterSplit);
+              jetPos = fx.from.clone().lerp(fx.orbitEntryPos, mu);
+              jetNext = fx.from.clone().lerp(fx.orbitEntryPos, clamp01(mu + 0.06));
+            } else if (jetU < orbitSplit) {
+              const orbitU = smoothEase((jetU - enterSplit) / (orbitSplit - enterSplit));
+              const center = new THREE.Vector3();
+              const radius = half + tile * 1.7;
+              const startAngle = Math.atan2(fx.orbitEntryPos.z, fx.orbitEntryPos.x);
+              const delta = Math.PI * 2.15;
+              const angleNow = startAngle + delta * orbitU;
+              const angleNext = startAngle + delta * clamp01(orbitU + 0.03);
+              jetPos = new THREE.Vector3(
+                Math.cos(angleNow) * radius,
+                CAPTURE_JET_ALTITUDE - 0.06 + Math.sin(orbitU * Math.PI * 2) * 0.06,
+                Math.sin(angleNow) * radius
+              ).add(center);
+              jetNext = new THREE.Vector3(
+                Math.cos(angleNext) * radius,
+                CAPTURE_JET_ALTITUDE - 0.06 + Math.sin(clamp01(orbitU + 0.03) * Math.PI * 2) * 0.06,
+                Math.sin(angleNext) * radius
+              ).add(center);
+            } else if (jetU < exitSplit) {
+              const mu = smoothEase((jetU - orbitSplit) / (exitSplit - orbitSplit));
+              jetPos = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)), mu);
+              jetNext = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)), clamp01(mu + 0.06));
             } else {
-              const mu = smoothEase((jetU - turnSplit) / (1 - turnSplit));
-              const ctrl = fx.turnPos.clone().lerp(fx.exitPos, 0.5).add(new THREE.Vector3(0, -0.02, 0));
-              jetPos = qBezier(fx.turnPos, ctrl, fx.exitPos, mu);
-              jetNext = qBezier(fx.turnPos, ctrl, fx.exitPos, clamp01(mu + 0.08));
+              const mu = smoothEase((jetU - exitSplit) / (1 - exitSplit));
+              jetPos = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)).lerp(fx.exitPos, mu);
+              jetNext = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.12, 0)).lerp(fx.exitPos, clamp01(mu + 0.06));
             }
             fx.jetFx.root.position.copy(jetPos);
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -10057,17 +10012,16 @@ function Chess3D({
               const mu = smoothEase(
                 clamp01((fx.t - CAPTURE_JET_MISSILE_DROP) / CAPTURE_JET_MISSILE_TRAVEL)
               );
-              const launchPos = fx.jetFx.root.position.clone().add(new THREE.Vector3(0, -0.08, 0));
-              const { pos: missilePos, next: missileNext } = getCaptureQPathPose({
+              const launchPos = fx.jetFx.root.position.clone().add(new THREE.Vector3(0, -0.12, 0));
+              const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
                 from: launchPos,
                 to: fx.to.clone(),
                 progress: mu,
-                launchHeight: 0.01,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.24,
-                orbitRadiusMul: 0.96,
-                loopCycles: 1.08,
-                tailSplit: 0.74,
-                tailBend: 0.34
+                launchHeight: 0.02,
+                orbitRadiusMul: 0.95,
+                minOrbitCycles: 1.02,
+                liftSplit: 0.2,
+                strikeSplit: 0.84
               });
               fx.missileFx.root.visible = true;
               fx.missileFx.root.position.copy(missilePos);
@@ -10088,19 +10042,21 @@ function Chess3D({
             }
           } else if (fx.type === 'javelin') {
             const launchPos = fx.launchPos.clone();
-            const impactTime = CAPTURE_GROUND_TOTAL;
-            if (fx.t < impactTime) {
-              const mu = smoothEase(fx.t / impactTime);
-              const { pos: missilePos, next: missileNext } = getCaptureQPathPose({
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              fx.missileFx.root.visible = true;
+              fx.missileFx.root.position.copy(launchPos);
+            } else if (fx.t < impactTime) {
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              const { pos: missilePos, next: missileNext } = getCaptureRingOrbitPose({
                 from: launchPos,
-                to: fx.to.clone(),
+                to: fx.to.clone().add(new THREE.Vector3(0, 0.02, 0)),
                 progress: mu,
-                launchHeight: 0.01,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.22,
+                launchHeight: 0.02,
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.34,
                 orbitRadiusMul: 1.08,
-                loopCycles: 1.12,
-                tailSplit: 0.75,
-                tailBend: 0.4
+                minOrbitCycles: 1.45,
+                orbitSplit: 0.88
               });
 
               fx.missileFx.root.visible = true;
