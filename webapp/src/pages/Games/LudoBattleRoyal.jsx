@@ -758,7 +758,8 @@ const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
+const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
@@ -782,11 +783,11 @@ const CAMERA_EXTRA_LIFT = 0.12;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.12;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
-const CAMERA_LOOK_MIN_PITCH = 0;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
+const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
-const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = false;
+const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
 const HDRI_GROUND_ALIGNMENT_OFFSET = -0.085 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
@@ -2996,6 +2997,22 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
+const TOKEN_BASE_THICKNESS = 0.1;
+const TOKEN_NON_PAWN_THICKNESS_FACTOR = 0.94;
+
+function normalizeTokenThickness(token, tokenType) {
+  if (!token?.isObject3D) return;
+  token.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(token);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxXZ = Math.max(size.x, size.z, 0);
+  if (maxXZ <= 1e-5) return;
+  const isPawn = /^p$/i.test(String(tokenType ?? ''));
+  const targetThickness = TOKEN_BASE_THICKNESS * (isPawn ? 1 : TOKEN_NON_PAWN_THICKNESS_FACTOR);
+  const thicknessScale = targetThickness / maxXZ;
+  token.scale.set(token.scale.x * thicknessScale, token.scale.y, token.scale.z * thicknessScale);
+}
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -3509,9 +3526,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.maxDistance = max2dDistance;
     } else {
       const saved = saved3dCameraStateRef.current;
-      controls.enableRotate = saved?.enableRotate ?? true;
+      controls.enableRotate = false;
       controls.enablePan = saved?.enablePan ?? false;
-      controls.enableZoom = true;
+      controls.enableZoom = false;
       controls.minPolarAngle = saved?.minPolarAngle ?? CAM.phiMin;
       controls.maxPolarAngle = saved?.maxPolarAngle ?? CAM.phiMax;
       controls.minAzimuthAngle = saved?.minAzimuthAngle ?? -Infinity;
@@ -5176,7 +5193,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.enableRotate = true;
+    controls.enableRotate = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
@@ -6419,7 +6436,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!nextTarget) return;
 
       cameraTurnStateRef.current.activePriority = priority;
-      cameraTurnStateRef.current.followObject = follow && object?.isObject3D ? object : null;
+      cameraTurnStateRef.current.followObject =
+        !LUDO_CAMERA_BROADCAST_LOCKED_POSITION && follow && object?.isObject3D ? object : null;
 
       const nextFocusState = resolveFocusCameraState(nextTarget, offset);
       if (nextFocusState) {
@@ -7711,6 +7729,7 @@ async function buildLudoBoard(
         }
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
+      normalizeTokenThickness(token, type);
       const label = createTokenCountLabel();
       if (label) {
         token.add(label);
