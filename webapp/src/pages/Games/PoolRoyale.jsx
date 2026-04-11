@@ -22661,7 +22661,7 @@ const powerRef = useRef(hud.power);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
-            const safeRecoverDuration = Math.max(90, recoverDuration ?? 0);
+            const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const impactThreshold = THREE.MathUtils.clamp(
               strikeImpactThreshold ?? 0.9,
               0,
@@ -25791,15 +25791,16 @@ const powerRef = useRef(hud.power);
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
-          // Keep a shorter charge-up while preserving a visible pullback/strike cycle.
+          // Match the reference cue workflow exactly:
+          // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: Math.max(LIVE_CUE_FORWARD_DURATION_MS, 170),
-          holdDuration: Math.max(LIVE_CUE_IMPACT_HOLD_MS, 80),
+          strikeDuration: 120,
+          holdDuration: 50,
           pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.88,
+          impactThreshold: 0.9,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
