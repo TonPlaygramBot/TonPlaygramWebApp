@@ -99,6 +99,7 @@ const CAPTURE_JET_SPEED_FACTOR = 2.95; // slightly slower jet pass for better re
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
+const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.06;
 const CAPTURE_JET_TRIMMED_START_RATIO = CAPTURE_JET_MISSILE_RELEASE_RATIO; // skip initial silent segment and start near the missile cue
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
@@ -8425,14 +8426,17 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: 0,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
           attackFromRightSide,
           jetFx,
           missileFx
         });
+        const jetImpactDelayMs =
+          (CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO + CAPTURE_JET_MISSILE_TRAVEL) *
+          1000;
         return {
-          moveDelayMs: CAPTURE_JET_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_JET_MISSILE_TRAVEL * 1000
+          moveDelayMs: jetImpactDelayMs,
+          captureResolveDelayMs: jetImpactDelayMs
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
