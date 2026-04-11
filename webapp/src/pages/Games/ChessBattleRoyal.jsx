@@ -92,17 +92,17 @@ const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 0.144;
-const CAPTURE_DRONE_CRUISE_TIME = 2.62;
-const CAPTURE_DRONE_DIVE_TIME = 1.28;
+const CAPTURE_DRONE_CRUISE_TIME = 2.24;
+const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 2.05; // slightly shorter jet pass while preserving the same fly path
+const CAPTURE_JET_SPEED_FACTOR = 0.96; // slightly shorter jet sequence while keeping in-flight pacing natural
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_JET_MISSILE_TRAVEL = 1.2 * CAPTURE_JET_SPEED_FACTOR;
+const CAPTURE_JET_MISSILE_TRAVEL = 0.94 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
-const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.34; // release once the jet is clearly above the board
-const CAPTURE_JET_TRIMMED_START_RATIO = 0.5; // trim opening silence and begin close to the first missile cue
-const CAPTURE_GROUND_FIRE_TIME = 0.12;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
+const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // hold release until jet is above the board line
+const CAPTURE_JET_TRIMMED_START_RATIO = 0.7; // trim opening and bring jet into frame faster
+const CAPTURE_GROUND_FIRE_TIME = 0;
+const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
 const CAPTURE_JET_SCALE = 0.0695;
@@ -113,7 +113,7 @@ const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.16;
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const CAPTURE_JET_EDGE_PATH_FACTOR = 0.02;
+const CAPTURE_JET_EDGE_PATH_FACTOR = -0.18;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -6064,6 +6064,7 @@ function Chess3D({
   const missileImpactSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
+  const suppressTimerBeepUntilRef = useRef(0);
   const controlsRef = useRef(null);
   const fitRef = useRef(() => {});
   const arenaRef = useRef(null);
@@ -8362,6 +8363,7 @@ function Chess3D({
     }) => {
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const droneFx = createFxDrone();
         droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
         const launchBase = fromPos.clone();
@@ -8385,6 +8387,7 @@ function Chess3D({
         };
       }
       if (pieceType === 'Q') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         const attackFromRightSide = fromPos.x >= 0;
@@ -8443,6 +8446,7 @@ function Chess3D({
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
         missileFx.root.visible = false;
@@ -9252,6 +9256,9 @@ function Chess3D({
       if (activeTurn !== isWhiteTurn) {
         return;
       }
+      if (performance.now() < suppressTimerBeepUntilRef.current) {
+        return;
+      }
       const key = isWhiteTurn ? 'white' : 'black';
       const last = lastBeepRef.current[key];
       if (
@@ -10011,19 +10018,8 @@ function Chess3D({
                 pose = { pos, next };
               } else {
                 const dropU = smoothEase((mu - 0.72) / 0.28);
-                const spin = dropU * Math.PI * 2.2;
-                const swirlRadius = THREE.MathUtils.lerp(0.09, 0.01, dropU);
                 const pos = diagonalEnd.clone().lerp(fx.to, dropU);
                 const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
-                pos.x += Math.sin(spin) * swirlRadius;
-                pos.z += Math.cos(spin * 0.84) * swirlRadius * 0.72;
-                next.x += Math.sin((clamp01(dropU + 0.04) * Math.PI * 2.2)) * THREE.MathUtils.lerp(0.09, 0.01, clamp01(dropU + 0.04));
-                next.z +=
-                  Math.cos((clamp01(dropU + 0.04) * Math.PI * 2.2) * 0.84) *
-                  THREE.MathUtils.lerp(0.09, 0.01, clamp01(dropU + 0.04)) *
-                  0.72;
-                next.x = pos.x;
-                next.z = pos.z;
                 pose = { pos, next };
               }
             }
@@ -10086,15 +10082,24 @@ function Chess3D({
             });
 
             const missileReleaseTime = fx.missileReleaseTime ?? CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO;
+            const releaseAtBoardCenter = Math.abs(jetPos.x - fx.to.x) <= tile * 0.15;
+            const releaseAtBoardLane = Math.abs(jetPos.z - fx.to.z) <= tile * 0.22;
+            const releaseReady = jetU >= 0.5 && releaseAtBoardCenter && releaseAtBoardLane;
+            if (!Number.isFinite(fx.actualMissileReleaseTime) && fx.t >= missileReleaseTime && releaseReady) {
+              fx.actualMissileReleaseTime = fx.t;
+              playAudio(missileLaunchSoundRef);
+            }
+            const actualMissileReleaseTime = Number.isFinite(fx.actualMissileReleaseTime)
+              ? fx.actualMissileReleaseTime
+              : null;
             const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            if (fx.t < missileReleaseTime) {
+            if (!Number.isFinite(actualMissileReleaseTime)) {
               jetMissiles.forEach((missile) => {
                 missile.root.visible = false;
               });
-            } else if (fx.t <= missileReleaseTime + CAPTURE_JET_MISSILE_TRAVEL) {
-              if (Math.abs(fx.t - missileReleaseTime) < dt * 1.2) playAudio(missileLaunchSoundRef);
+            } else if (fx.t <= actualMissileReleaseTime + CAPTURE_JET_MISSILE_TRAVEL) {
               const mu = smoothEase(
-                clamp01((fx.t - missileReleaseTime) / CAPTURE_JET_MISSILE_TRAVEL)
+                clamp01((fx.t - actualMissileReleaseTime) / CAPTURE_JET_MISSILE_TRAVEL)
               );
               const launchPos = jetPos.clone().addScaledVector(jetForward, 0.08).add(new THREE.Vector3(0, -0.015, 0));
               const missileTarget = fx.to.clone().addScaledVector(jetForward, 0.04);
