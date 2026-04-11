@@ -95,8 +95,8 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL;
-const CAPTURE_JET_MISSILE_TRAVEL = 1.65;
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.5; // fighter jet now flies 50% slower
+const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * 1.5; // jet missile now travels 50% slower
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
@@ -107,7 +107,7 @@ const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.86;
 const CAPTURE_MISSILE_SCALE = 0.0595;
-const CAPTURE_EXPLOSION_SCALE = 0.196;
+const CAPTURE_EXPLOSION_SCALE = 0.176; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -259,7 +259,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
-const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.25; // Make chess pieces 25% bigger than current.
+const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5; // Make chess pieces 20% bigger than before (1.25 -> 1.5).
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.035;
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -7438,7 +7438,7 @@ function Chess3D({
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
       const playMateSound = () => playAudio(mateSoundRef);
-      const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 5000 });
+      const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 6000 });
       const chairTheme = mapChairOptionToTheme(chairOption);
       const chairBuild = await buildChessChairTemplate(chairTheme);
       if (cancelled) return;
@@ -7903,7 +7903,7 @@ function Chess3D({
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.minDistance = CAMERA_2D_MIN_RADIUS;
         controls.maxDistance = CAMERA_2D_MAX_RADIUS;
-        const targetRadius = clamp(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
+        const targetRadius = clamp(CAMERA_2D_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
         if (!initial2dViewRef.current) {
           initial2dViewRef.current = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
         }
