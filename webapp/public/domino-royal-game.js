@@ -1013,11 +1013,11 @@ const CAMERA_LATERAL_OFFSET = {
   landscape: 0 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_REAR_OFFSET = {
-  portrait: 1.06 * CAMERA_LAYOUT_SCALE,
+  portrait: 0.78 * CAMERA_LAYOUT_SCALE,
   landscape: 0.62 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_HEIGHT_BOOST = {
-  portrait: 1.79 * CAMERA_LAYOUT_SCALE,
+  portrait: 2.15 * CAMERA_LAYOUT_SCALE,
   landscape: 1.03 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
