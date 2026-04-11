@@ -2198,6 +2198,7 @@ export default function SnakeAndLadder() {
         if (turnBelongsToMe) {
           // Keep roll CTA visible for immediate extra turns.
           setRollCooldown(0);
+          setMoving(false);
         }
         if (!turnBelongsToMe) setPendingExtraRoll(false);
       }
@@ -3196,8 +3197,15 @@ export default function SnakeAndLadder() {
         }))
       ];
 
+  const candidatePlayerIds = useMemo(() => {
+    const ids = [accountId, resolvedAccountId, getPlayerId(), getTelegramId()]
+      .map((id) => (id == null ? '' : String(id).trim()))
+      .filter(Boolean);
+    return Array.from(new Set(ids));
+  }, [accountId, resolvedAccountId]);
+
   const computedIndex = isMultiplayer
-    ? mpPlayers.findIndex((p) => p.id === accountId)
+    ? mpPlayers.findIndex((p) => candidatePlayerIds.includes(String(p.id)))
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const hasLocalExtraRoll = pendingExtraRoll;
