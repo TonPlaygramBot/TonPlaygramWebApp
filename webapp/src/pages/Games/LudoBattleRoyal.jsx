@@ -489,15 +489,12 @@ const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
-// Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
-// another ~15% smaller in world space while preserving the exact relative layout.
-const LUDO_ARENA_SHRINK_FACTOR = 0.51;
-const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
+const ARENA_SCALE = BASE_ARENA_SCALE;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
-const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_RADIUS = 3.48 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
-const CHAIR_GLOBAL_SCALE = 0.56;
+const MODEL_SCALE = 0.75;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
+const CHAIR_GLOBAL_SCALE = 1.3;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -512,17 +509,17 @@ const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACT
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
-const AI_CHAIR_GAP = CARD_W * 0.74;
-const CHAIR_VERTICAL_DROP = 0.08 * MODEL_SCALE;
-const TABLE_VERTICAL_DROP = 0.33 * MODEL_SCALE;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - CHAIR_VERTICAL_DROP;
+const AI_CHAIR_GAP = CARD_W * 0.4;
+const CHAIR_VERTICAL_DROP = 0;
+const TABLE_VERTICAL_DROP = 0;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1 - CHAIR_VERTICAL_DROP;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.015 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT - TABLE_VERTICAL_DROP;
-const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
-const CHAIR_GLOBAL_PUSHBACK = 0.08 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.13 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0;
+const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
+const CHAIR_GLOBAL_PUSHBACK = 0;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -556,8 +553,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
   CHAIR_SIZE_SCALE
 );
 const CHAIR_BOTTOM_TRIM_SCALE = 0.85;
-TARGET_CHAIR_SIZE.y *= 0.9;
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.045 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -587,32 +583,34 @@ const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
+const LOCK_BOTTOM_SEAT_CAMERA = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 0.8;
 const CAMERA_ZOOM_MAX_FACTOR = 1.35;
-const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
-const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
+const LUDO_CAMERA_PHI_MIN = ARENA_CAMERA_DEFAULTS.phiMin;
+const LUDO_CAMERA_PHI_MAX = ARENA_CAMERA_DEFAULTS.phiMax;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.66 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.9 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  backOffset: 0.68,
+  forwardOffset: 0,
+  heightOffset: 1.2
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.2 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  targetLift: 0.044 * MODEL_SCALE
+  backOffset: 1.06,
+  forwardOffset: 0,
+  heightOffset: 2.54,
+  targetLift: 0.055 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.24 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.3 * MODEL_SCALE;
-const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
-const CAMERA_SEATED_EYE_HEIGHT = 0.7 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0;
+const CAMERA_EXTRA_LIFT = 0.12;
+const CAMERA_SEATED_INWARD_OFFSET = 0;
+const CAMERA_SEATED_EYE_HEIGHT = 0;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -1877,8 +1875,8 @@ function disposeChairAssets(chairTemplate, chairMaterials) {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-// Enlarge the Ludo board so it spans 3.1x the classic footprint.
-const BOARD_SCALE = 3.1 * ARENA_SCALE;
+// Match the Snake & Ladder board footprint scaling for arena parity.
+const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -1890,9 +1888,9 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
-const CAMERA_EXTRA_ZOOM_IN = 0.82;
-const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
+const CAMERA_EXTRA_ZOOM_IN = 1;
+const CAMERA_EXTRA_ZOOM_OUT = 1;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -1904,9 +1902,9 @@ const CAM = {
 };
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
-const CAMERA_3D_VERTICAL_DROP = 0.028 * MODEL_SCALE;
-const CAMERA_3D_HEIGHT_BOOST = 0.028 * MODEL_SCALE;
-const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.022 * MODEL_SCALE;
+const CAMERA_3D_VERTICAL_DROP = 0;
+const CAMERA_3D_HEIGHT_BOOST = 0;
+const CAMERA_LOOKDOWN_TARGET_OFFSET = 0;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -4913,11 +4911,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     tableInfo.group.add(boardGroup);
 
     const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
-    const boardLookTarget = new THREE.Vector3(
-      0,
-      tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
-      0
-    );
+    const boardLookTarget = new THREE.Vector3(0, tableInfo.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
     boardLookTargetRef.current = boardLookTarget;
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
     const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
@@ -5032,7 +5026,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
     const selfChairGroup = chairs[0]?.group;
-    if (selfChairGroup && camera && controls && boardLookTargetRef.current) {
+    if (!LOCK_BOTTOM_SEAT_CAMERA && selfChairGroup && camera && controls && boardLookTargetRef.current) {
       const boardTarget = boardLookTargetRef.current.clone();
       const seatWorld = selfChairGroup.getWorldPosition(new THREE.Vector3());
       const inwardDirection = boardTarget.clone().sub(seatWorld).setY(0);
