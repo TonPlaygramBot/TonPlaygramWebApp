@@ -42,7 +42,12 @@ import {
   TABLE_CLOTH_OPTIONS,
   TABLE_BASE_OPTIONS
 } from '../../utils/tableCustomizationOptions.js';
-import { TOKEN_PALETTE_OPTIONS, TOKEN_PIECE_OPTIONS, TOKEN_STYLE_OPTIONS } from '../../config/ludoBattleOptions.js';
+import {
+  CAPTURE_ANIMATION_OPTIONS,
+  TOKEN_PALETTE_OPTIONS,
+  TOKEN_PIECE_OPTIONS,
+  TOKEN_STYLE_OPTIONS
+} from '../../config/ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
@@ -191,6 +196,40 @@ function createCaptureMissileFx() {
     );
   }
 
+  root.visible = false;
+  return { root, trail };
+}
+
+function createCaptureDroneFx() {
+  const root = new THREE.Group();
+  addFxCylinder(root, 0.09, 0.1, 1.1, [0, 0, 0], [0, 0, Math.PI / 2], '#9aa4ad', 16, 0.4, 0.2);
+  addFxBox(root, [0.16, 0.03, 0.78], [0, 0, 0], '#67717a', 0.62, 0.2);
+  addFxBox(root, [0.22, 0.03, 0.2], [-0.44, 0, 0], '#6d7881', 0.6, 0.22);
+  const propeller = addFxCylinder(root, 0.21, 0.21, 0.02, [0.08, 0.12, 0], [Math.PI / 2, 0, 0], '#d4dbe2', 20, 0.2, 0.5);
+  const trail = [];
+  for (let i = 0; i < 4; i += 1) {
+    trail.push(addFxSphere(root, 0.1 + i * 0.03, [-0.7 - i * 0.15, 0, 0], '#8f989d', 1, 0, true, 0.26 - i * 0.04));
+  }
+  root.visible = false;
+  return { root, propeller, trail };
+}
+
+function createCaptureJetFx() {
+  const root = new THREE.Group();
+  addFxCylinder(root, 0.08, 0.11, 1.28, [0, 0, 0], [0, 0, Math.PI / 2], '#b6c0c9', 18, 0.34, 0.28);
+  const nose = new THREE.Mesh(
+    new THREE.ConeGeometry(0.09, 0.34, 16),
+    new THREE.MeshStandardMaterial({ color: '#eef2f6', roughness: 0.22, metalness: 0.2 })
+  );
+  nose.position.set(0.8, 0, 0);
+  nose.rotation.z = -Math.PI / 2;
+  root.add(nose);
+  addFxBox(root, [0.32, 0.02, 0.42], [-0.04, 0, 0], '#6b7680', 0.58, 0.24);
+  addFxBox(root, [0.2, 0.02, 0.18], [-0.44, 0.08, 0], '#59636d', 0.58, 0.24);
+  const trail = [];
+  for (let i = 0; i < 4; i += 1) {
+    trail.push(addFxSphere(root, 0.11 + i * 0.03, [-0.88 - i * 0.16, 0, 0], i < 2 ? '#f6af4b' : '#8f989d', i < 2 ? 0.2 : 1, 0, true, i < 2 ? 0.74 - i * 0.12 : 0.22 - (i - 2) * 0.05));
+  }
   root.visible = false;
   return { root, trail };
 }
@@ -660,7 +699,8 @@ const DEFAULT_APPEARANCE = {
   environmentHdri: DEFAULT_HDRI_INDEX,
   tokenPalette: 0,
   tokenStyle: 0,
-  tokenPiece: 0
+  tokenPiece: 0,
+  captureAnimation: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -671,7 +711,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'environmentHdri', label: 'HDR Environments', options: LUDO_HDRI_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
-  { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS }
+  { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
+  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
 ];
 
 const COMMENTARY_PRESET_STORAGE_KEY = 'ludoBattleRoyaleCommentaryPreset';
@@ -3731,7 +3772,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
 
-    const finalShift = yShift - CAMERA_3D_VERTICAL_DROP;
+    const finalShift = yShift;
     arena.arenaGroup.position.y += finalShift;
     if (arena.boardLookTarget) arena.boardLookTarget.y += finalShift;
     if (arena.defaultLookTarget) arena.defaultLookTarget.y += finalShift;
@@ -4200,6 +4241,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="relative flex flex-col items-center">
               <span className="text-xl">{option.symbol}</span>
               <span className="text-[0.6rem] text-slate-200/80">{option.label}</span>
+            </div>
+          </div>
+        );
+      case 'captureAnimation':
+        return (
+          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.65rem] leading-tight text-slate-100">
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+            <div className="relative flex flex-col items-center gap-0.5">
+              <span className="font-semibold">{option.label}</span>
+              {option.description ? <span className="text-[0.56rem] text-slate-200/80">{option.description}</span> : null}
             </div>
           </div>
         );
@@ -5372,6 +5423,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
           controls.target.lerp(liftedTarget.target, 0.28);
+          if (cameraTurnStateRef.current.followOffset?.isVector3) {
+            const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
+            camera.position.lerp(followCameraTarget, 0.18);
+          }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
       }
@@ -5556,7 +5611,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           return;
         }
 
-        const missile = createCaptureMissileFx();
+        const selectedCaptureAnimationId =
+          CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation]?.id
+          ?? CAPTURE_ANIMATION_OPTIONS[0]?.id
+          ?? 'missileJavelin';
+        const missile =
+          selectedCaptureAnimationId === 'droneAttack'
+            ? createCaptureDroneFx()
+            : selectedCaptureAnimationId === 'fighterJetAttack'
+            ? createCaptureJetFx()
+            : createCaptureMissileFx();
         const explosion = createCaptureExplosionFx();
         scene.add(missile.root);
         scene.add(explosion.root);
@@ -5583,7 +5647,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : targetPosition?.clone?.() ?? launchAnchor.clone();
         const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.04, 0));
         const from = launchAnchor.clone();
-        const travelTime = 1780;
+        const travelTime =
+          selectedCaptureAnimationId === 'fighterJetAttack'
+            ? 1460
+            : selectedCaptureAnimationId === 'droneAttack'
+            ? 1960
+            : 1780;
         const explosionTime = 920;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
@@ -5648,22 +5717,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           arenaCenter.y = dynamicFrom.y;
           const fromOffset = dynamicFrom.clone().sub(arenaCenter).setY(0);
           const toOffset = dynamicTo.clone().sub(arenaCenter).setY(0);
-          const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.72;
+          const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.96;
           const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
           const toRadius = Math.max(toOffset.length(), fallbackRadius);
-          const orbitalRadius = Math.max(fromRadius, toRadius);
+          const orbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
           const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
           const toAngle = Math.atan2(toOffset.z, toOffset.x);
           let angularDelta = toAngle - fromAngle;
           if (angularDelta <= 0) angularDelta += Math.PI * 2;
-          if (angularDelta < Math.PI / 4) angularDelta += Math.PI * 2;
-          const cruiseAngle = fromAngle + angularDelta * 0.72;
+          if (angularDelta < Math.PI / 3) angularDelta += Math.PI * 2;
+          const cruiseAngle = fromAngle + angularDelta * 0.7;
+          const apexHeight =
+            selectedCaptureAnimationId === 'fighterJetAttack'
+              ? liveTarget.y + topStrikeLift.y * 0.88
+              : liveTarget.y + topStrikeLift.y;
           const apex = new THREE.Vector3(
             arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
-            liveTarget.y + topStrikeLift.y,
+            apexHeight,
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
-          const phaseSplit = 0.84;
+          const phaseSplit = selectedCaptureAnimationId === 'fighterJetAttack' ? 0.78 : 0.84;
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
@@ -5671,11 +5744,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               const t = clamp(v, 0, 1);
               if (t < phaseSplit) {
                 const a = easeSmooth(t / phaseSplit);
-                return dynamicFrom.clone().lerp(apex, a);
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  THREE.MathUtils.lerp(dynamicFrom.y, apex.y, a),
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                );
+                return dynamicFrom.clone().lerp(ring, 0.78 + a * 0.22);
               }
               const d = easeSmooth((t - phaseSplit) / (1 - phaseSplit));
-              const verticalTop = new THREE.Vector3(liveTarget.x, apex.y, liveTarget.z);
-              return verticalTop.clone().lerp(dynamicTo, d);
+              const diveStart = new THREE.Vector3(
+                arenaCenter.x + Math.cos(fromAngle + angularDelta) * orbitalRadius,
+                apex.y,
+                arenaCenter.z + Math.sin(fromAngle + angularDelta) * orbitalRadius
+              );
+              return quadraticBezier(diveStart, apex.clone().lerp(dynamicTo, 0.36), dynamicTo, d);
             };
             const pos = pathAt(u);
             const next = pathAt(nextU);
@@ -5684,6 +5767,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             missile.root.visible = true;
             missile.root.position.copy(pos);
             missile.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
+            if (missile.propeller) {
+              missile.propeller.rotation.y += 0.9;
+            }
             missile.trail.forEach((puff, i) => {
               puff.position.set(
                 -0.55 - i * 0.16,
@@ -5783,7 +5869,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const controls = controlsRef.current;
     const camera = cameraRef.current;
     if (!controls || !camera || !toTarget) return;
-    void toPosition;
+    const fromPosition = camera.position.clone();
+    const destinationPosition =
+      toPosition?.isVector3
+        ? toPosition.clone()
+        : camera.position.clone();
     if (!cameraTurnStateRef.current.currentTarget) {
       cameraTurnStateRef.current.currentTarget = controls.target.clone();
     }
@@ -5796,6 +5886,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (resolvedDuration <= 0) {
       controls.target.copy(destination);
       cameraTurnStateRef.current.currentTarget.copy(destination);
+      camera.position.copy(destinationPosition);
       controls.update();
       return;
     }
@@ -5805,6 +5896,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
       const eased = easeSmooth(t);
       controls.target.copy(fromTarget).lerp(destination, eased);
+      camera.position.copy(fromPosition).lerp(destinationPosition, eased);
       cameraTurnStateRef.current.currentTarget.copy(controls.target);
       controls.update();
       if (t < 1) {

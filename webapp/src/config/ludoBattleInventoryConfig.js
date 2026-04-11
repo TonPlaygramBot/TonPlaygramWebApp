@@ -1,4 +1,5 @@
 import {
+  CAPTURE_ANIMATION_OPTIONS,
   TOKEN_PALETTE_OPTIONS,
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS
@@ -18,7 +19,8 @@ export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id),
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
   tokenStyle: [TOKEN_STYLE_OPTIONS[0]?.id],
-  tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id]
+  tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id],
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id]
 });
 
 const reduceLabels = (options) =>
@@ -43,6 +45,7 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tokenPalette: Object.freeze(reduceLabels(TOKEN_PALETTE_OPTIONS)),
   tokenStyle: Object.freeze(reduceLabels(TOKEN_STYLE_OPTIONS)),
   tokenPiece: Object.freeze(reduceLabels(TOKEN_PIECE_OPTIONS)),
+  captureAnimation: Object.freeze(reduceLabels(CAPTURE_ANIMATION_OPTIONS)),
   sideColor: Object.freeze(CHESS_BATTLE_OPTION_LABELS.sideColor),
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
@@ -124,6 +127,15 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     description: 'Unlock an alternate piece identity for your pawns.',
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+    id: `ludo-capture-animation-${option.id}`,
+    type: 'captureAnimation',
+    optionId: option.id,
+    name: option.label,
+    price: 950 + idx * 120,
+    description: option.description,
+    thumbnail: swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
+  })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
 ];
 
@@ -147,5 +159,10 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
   },
   { type: 'tokenPalette', optionId: TOKEN_PALETTE_OPTIONS[0]?.id, label: `${TOKEN_PALETTE_OPTIONS[0]?.label} Palette` },
   { type: 'tokenStyle', optionId: TOKEN_STYLE_OPTIONS[0]?.id, label: TOKEN_STYLE_OPTIONS[0]?.label },
-  { type: 'tokenPiece', optionId: TOKEN_PIECE_OPTIONS[0]?.id, label: TOKEN_PIECE_OPTIONS[0]?.label }
+  { type: 'tokenPiece', optionId: TOKEN_PIECE_OPTIONS[0]?.id, label: TOKEN_PIECE_OPTIONS[0]?.label },
+  {
+    type: 'captureAnimation',
+    optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
+    label: CAPTURE_ANIMATION_OPTIONS[0]?.label
+  }
 ];
