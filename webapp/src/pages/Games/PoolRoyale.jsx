@@ -26341,41 +26341,36 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          let shotAppliedAtImpact = false;
-          const applyShotImpulse = () => {
-            if (shotAppliedAtImpact) return;
-            shotAppliedAtImpact = true;
-            cue.vel.copy(base);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
-            if (cue.omega) {
-              cue.omega.set(0, 0, 0);
-              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-              TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-              const impulseMag = BALL_MASS * base.length();
-              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-            }
-            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-            cue.spinMode = 'standard';
-            cue.swerveStrength = 0;
-            cue.swervePowerStrength = 0;
-            resetSpinRef.current?.();
-            cueLiftRef.current.lift = 0;
-            cueLiftRef.current.startLift = 0;
-            cue.impacted = false;
-            cue.launchDir = shotAimDir.clone().normalize();
-            maxPowerLiftTriggered = false;
-            cue.lift = 0;
-            cue.liftVel = 0;
-            playCueHit(clampedPower * 0.6);
-          };
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -26592,13 +26587,11 @@ const powerRef = useRef(hud.power);
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
-              onImpact: applyShotImpulse,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
           } else {
-            applyShotImpulse();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
