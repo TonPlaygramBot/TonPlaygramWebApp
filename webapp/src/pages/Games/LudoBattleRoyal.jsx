@@ -490,8 +490,8 @@ let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
-// another ~15% smaller in world space while preserving the exact relative layout.
-const LUDO_ARENA_SHRINK_FACTOR = 0.51;
+// slightly smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.48;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -596,14 +596,14 @@ const CAMERA_ZOOM_MAX_FACTOR = 1.35;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.66 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.74 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 0.9 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  heightOffset: 0.8 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.8 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
 
@@ -1883,7 +1883,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.64;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -1896,7 +1896,7 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0.028 * MODEL_SCALE;
-const CAMERA_3D_HEIGHT_BOOST = 0.028 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.038 * MODEL_SCALE;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.022 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
