@@ -8425,16 +8425,14 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO,
+          missileReleaseTime: 0,
           attackFromRightSide,
           jetFx,
           missileFx
         });
         return {
           moveDelayMs: CAPTURE_JET_TOTAL * 1000,
-          captureResolveDelayMs:
-            (CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO + CAPTURE_JET_MISSILE_TRAVEL) *
-            1000
+          captureResolveDelayMs: CAPTURE_JET_MISSILE_TRAVEL * 1000
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
