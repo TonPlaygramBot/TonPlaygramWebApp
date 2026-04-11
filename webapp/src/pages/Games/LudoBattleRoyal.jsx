@@ -547,6 +547,7 @@ const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const CHAIR_SIZE_SCALE = CHAIR_GLOBAL_SCALE;
+const CHAIR_HEIGHT_TRIM_FACTOR = 0.9;
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -590,7 +591,7 @@ const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
+const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 0.8;
@@ -608,8 +609,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.7 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.11 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.085 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.17 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.11 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
@@ -1564,6 +1565,7 @@ function fitChairModelToFootprint(model) {
     const scale = targetMax / currentMax;
     model.scale.multiplyScalar(scale);
   }
+  model.scale.y *= CHAIR_HEIGHT_TRIM_FACTOR;
 
   const scaledBox = new THREE.Box3().setFromObject(model);
   const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
@@ -1887,7 +1889,7 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3566,7 +3568,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (envResult.skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
         try {
           skybox = new GroundedSkybox(envResult.skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
-          skybox.position.y = floorY + cameraHeight;
+          skybox.position.set(0, floorY + cameraHeight, 0);
+          skybox.rotation.y = typeof activeVariant?.rotationY === 'number' ? activeVariant.rotationY : 0;
           skybox.material.depthWrite = false;
           skybox.userData.cameraHeight = cameraHeight;
           arena.scene.background = null;
@@ -3654,7 +3657,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     environmentFloorRef.current = box.min.y;
     const skybox = envSkyboxRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
-      skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
+      skybox.position.set(0, environmentFloorRef.current + skybox.userData.cameraHeight, 0);
     }
   }, []);
 
@@ -3706,7 +3709,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     environmentFloorRef.current = 0;
     const skybox = envSkyboxRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
-      skybox.position.y = skybox.userData.cameraHeight;
+      skybox.position.set(0, skybox.userData.cameraHeight, 0);
     }
   }, []);
 
@@ -4904,7 +4907,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.enableRotate = true;
+    controls.enableRotate = false;
     controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
     const initialCameraRadius = camera.position.distanceTo(boardLookTarget);
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
@@ -4936,7 +4939,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lastCameraRadiusRef.current = radius;
       const floorY = environmentFloorRef.current ?? 0;
       if (Number.isFinite(skybox.userData?.cameraHeight)) {
-        skybox.position.y = floorY + skybox.userData.cameraHeight;
+        skybox.position.set(0, floorY + skybox.userData.cameraHeight, 0);
       }
     };
     controls.addEventListener('change', syncSkyboxToCameraRef.current);
