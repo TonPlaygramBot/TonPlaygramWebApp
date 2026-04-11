@@ -249,7 +249,7 @@ const MISSILE_TRAIL_COUNT=5;
 const MISSILE_TRAIL_SPACING=0.08;
 const JET_HEIGHT=0.19;
 const JET_SIZE=0.31;
-const JET_SPEED_FACTOR=1.38;
+const JET_SPEED_FACTOR=2.07; // 50% slower jet + jet-fired missile travel timing
 const DRONE_SIZE=0.048;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
@@ -465,7 +465,7 @@ function setTravelOrientation(node,from,to,bank=0){
 }
 function getJetIngressAndEgress(from,to){
   const center=from.clone().lerp(to,0.5);
-  const margin=2.2;
+  const margin=2.0; // bring the fly-by path closer so it appears on-screen a bit earlier
   const useTop=Math.random()>0.5;
   const zEdge=center.z+(useTop?margin:-margin);
   const entry=new THREE.Vector3(center.x,JET_HEIGHT,zEdge);
@@ -547,7 +547,7 @@ function animateTinyExplosion(position,color=0xffb703){
     const e0=performance.now(), ed=180;
     const boom=ev=>{
       const et=Math.min(1,(ev-e0)/ed);
-      blast.scale.setScalar(1+0.68*et);
+      blast.scale.setScalar(1+0.56*et); // slightly smaller blast growth
       blast.material.opacity=0.85*(1-et);
       if(et<1) requestAnimationFrame(boom);
       else{
