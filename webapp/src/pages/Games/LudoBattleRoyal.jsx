@@ -1895,10 +1895,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 1;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 1;
-const INITIAL_CAMERA_HEIGHT_EXTRA = 0.22 * MODEL_SCALE;
-const INITIAL_CAMERA_LOOKDOWN_EXTRA = 0.012 * MODEL_SCALE;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4937,7 +4935,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
     const boardLookTarget = new THREE.Vector3(
       0,
-      tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET - INITIAL_CAMERA_LOOKDOWN_EXTRA,
+      tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
       0
     );
     boardLookTargetRef.current = boardLookTarget;
@@ -4945,7 +4943,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const initialDistanceFactor = isPortrait ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR : INITIAL_CAMERA_DISTANCE_FACTOR;
     const desiredInitialCameraRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
     camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
-    camera.position.y += CAMERA_3D_HEIGHT_BOOST + (isPortrait ? PORTRAIT_CAMERA_EXTRA_LIFT : CAMERA_EXTRA_LIFT) + INITIAL_CAMERA_HEIGHT_EXTRA;
+    camera.position.y += CAMERA_3D_HEIGHT_BOOST + (isPortrait ? PORTRAIT_CAMERA_EXTRA_LIFT : CAMERA_EXTRA_LIFT);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -6131,7 +6129,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const countCapturesForTarget = (state, player, targetProgress) => {
     if (targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
     const landingIdx = getTrackIndexForProgress(player, targetProgress);
-    if (landingIdx == null) return 0;
+    if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
     let captures = 0;
     for (let opponent = 0; opponent < activePlayerCount; opponent += 1) {
       if (opponent === player) continue;
@@ -6163,7 +6161,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const countThreatsAgainst = (state, player, targetProgress) => {
     if (!state || targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
     const landingIdx = getTrackIndexForProgress(player, targetProgress);
-    if (landingIdx == null) return 0;
+    if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
     let threat = 0;
     for (let opponent = 0; opponent < activePlayerCount; opponent += 1) {
       if (opponent === player) continue;
@@ -6364,6 +6362,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!state) return [];
     if (landingProgress < 0 || landingProgress >= RING_STEPS) return [];
     const landingIdx = (PLAYER_START_INDEX[player] + landingProgress) % RING_STEPS;
+    if (SAFE_TRACK_INDEXES.has(landingIdx)) return [];
     const victims = [];
     for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
