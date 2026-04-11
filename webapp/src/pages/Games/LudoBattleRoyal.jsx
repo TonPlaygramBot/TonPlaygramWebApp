@@ -497,7 +497,7 @@ const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.48 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
-const CHAIR_GLOBAL_SCALE = 0.56;
+const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -555,8 +555,8 @@ const CHAIR_MODEL_URLS = [
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
-const CHAIR_BOTTOM_TRIM_SCALE = 0.85;
-TARGET_CHAIR_SIZE.y *= 0.9;
+const CHAIR_BOTTOM_TRIM_SCALE = 0.74;
+TARGET_CHAIR_SIZE.y *= 0.84;
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.045 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -609,8 +609,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: 1.2 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.24 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.3 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.38 * MODEL_SCALE;
 const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
 const CAMERA_SEATED_EYE_HEIGHT = 0.7 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
@@ -5573,8 +5573,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         playMissileLaunchSound();
 
         const { bishopHeight, bishopWidth } = getReferenceBishopSize(attackerPlayer, attackerToken);
-        const missileLengthScale = (bishopHeight / 1.02) * 1.06;
-        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.36;
+        const missileLengthScale = (bishopHeight / 1.02) * 0.92;
+        const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         missile.root.scale.set(missileLengthScale, missileThicknessScale, missileThicknessScale);
 
         const tokenWorldPos =
@@ -5652,8 +5652,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }) ?? safeImpactPoint.clone();
           const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
           const dynamicTo = liveTarget.clone().add(new THREE.Vector3(0, 0.06, 0));
-          const apex = liveTarget.clone().add(topStrikeLift);
-          const phaseSplit = 0.72;
+          const arenaCenter =
+            boardLookTargetRef.current?.clone?.() ?? new THREE.Vector3(0, dynamicFrom.y, 0);
+          arenaCenter.y = dynamicFrom.y;
+          const fromOffset = dynamicFrom.clone().sub(arenaCenter).setY(0);
+          const toOffset = dynamicTo.clone().sub(arenaCenter).setY(0);
+          const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.72;
+          const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+          const toRadius = Math.max(toOffset.length(), fallbackRadius);
+          const orbitalRadius = Math.max(fromRadius, toRadius);
+          const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+          const toAngle = Math.atan2(toOffset.z, toOffset.x);
+          let angularDelta = toAngle - fromAngle;
+          if (angularDelta <= 0) angularDelta += Math.PI * 2;
+          if (angularDelta < Math.PI / 4) angularDelta += Math.PI * 2;
+          const cruiseAngle = fromAngle + angularDelta * 0.72;
+          const apex = new THREE.Vector3(
+            arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+            liveTarget.y + topStrikeLift.y,
+            arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+          );
+          const phaseSplit = 0.84;
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
