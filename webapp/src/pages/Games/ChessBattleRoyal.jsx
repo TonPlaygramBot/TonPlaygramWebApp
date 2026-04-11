@@ -98,7 +98,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 2.95; // slightly slower jet pass for better readability
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.68; // release only after the jet is clearly above the board
+const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_JET_TRIMMED_START_RATIO = CAPTURE_JET_MISSILE_RELEASE_RATIO; // skip initial silent segment and start near the missile cue
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
@@ -8425,8 +8425,7 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO,
-          missileLaunchPos: null,
+          missileReleaseTime: 0,
           attackFromRightSide,
           jetFx,
           missileFx
@@ -10077,10 +10076,8 @@ function Chess3D({
               const mu = smoothEase(
                 clamp01((fx.t - missileReleaseTime) / CAPTURE_JET_MISSILE_TRAVEL)
               );
-              if (!fx.missileLaunchPos) {
-                fx.missileLaunchPos = fx.jetFx.root.localToWorld(new THREE.Vector3(2.42, -0.08, 0));
-              }
-              const launchPos = fx.missileLaunchPos.clone();
+              const boardShotAnchor = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.7);
+              const launchPos = boardShotAnchor.clone().add(new THREE.Vector3(0, 0.015, 0));
               const { pos: missilePos, next: missileNext } = getCaptureOrbitPose({
                 from: launchPos,
                 to: fx.to.clone(),
