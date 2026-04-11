@@ -91,23 +91,23 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.1;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 2.2;
-const CAPTURE_DRONE_CRUISE_TIME = 3.2;
-const CAPTURE_DRONE_DIVE_TIME = 2.0;
+const CAPTURE_DRONE_LIFT_TIME = 0.25;
+const CAPTURE_DRONE_CRUISE_TIME = 4.6;
+const CAPTURE_DRONE_DIVE_TIME = 0;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 10.6;
-const CAPTURE_JET_MISSILE_DROP = 5.3;
-const CAPTURE_JET_MISSILE_TRAVEL = 2.4;
+const CAPTURE_JET_TOTAL = 13.2;
+const CAPTURE_JET_MISSILE_DROP = 6.8;
+const CAPTURE_JET_MISSILE_TRAVEL = 3.1;
 const CAPTURE_GROUND_FIRE_TIME = 0.25;
 const CAPTURE_GROUND_TRAVEL_TIME = 4.6;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.24;
-const CAPTURE_JET_SCALE = 0.21;
-const CAPTURE_DRONE_ALTITUDE = 1.82;
+const CAPTURE_DRONE_SCALE = 0.17;
+const CAPTURE_JET_SCALE = 0.14;
+const CAPTURE_DRONE_ALTITUDE = 1.55;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.44;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.64;
 const CAPTURE_MISSILE_SCALE = 0.155; // 50% of previous 0.31.
-const CAPTURE_EXPLOSION_SCALE = 0.36;
+const CAPTURE_EXPLOSION_SCALE = 0.27;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8147,25 +8147,25 @@ function Chess3D({
     };
     const createFxGroundMissile = () => {
       const root = new THREE.Group();
-      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+      addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
       const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.24, 16),
+        new THREE.ConeGeometry(0.1, 0.28, 16),
         new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
       );
-      nose.position.set(0.63, 0, 0);
+      nose.position.set(0.74, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+      addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+      addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
+      addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
+      addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
       const trail = [];
       for (let i = 0; i < 5; i += 1) {
         trail.push(
           addFxSphere(
             root,
-            0.1 + i * 0.025,
-            [-0.7 - i * 0.16, 0, 0],
+            0.12 + i * 0.03,
+            [-0.84 - i * 0.19, 0, 0],
             i < 2 ? '#f6af4b' : '#8f989d',
             i < 2 ? 0.2 : 1,
             0,
@@ -8180,14 +8180,28 @@ function Chess3D({
       const root = new THREE.Group();
       root.position.copy(position);
       root.scale.setScalar(CAPTURE_EXPLOSION_SCALE);
-      const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
+      const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
       const fire = [];
       const smoke = [];
-      for (let i = 0; i < 4; i += 1) {
-        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
+      const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
+      for (let i = 0; i < 6; i += 1) {
+        fire.push(
+          addFxSphere(
+            root,
+            0.21 + i * 0.05,
+            [0, 0.2 + i * 0.045, 0],
+            firePalette[i % firePalette.length],
+            0.2,
+            0,
+            true,
+            0.98 - i * 0.1
+          )
+        );
       }
       for (let i = 0; i < 6; i += 1) {
-        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
+        smoke.push(
+          addFxSphere(root, 0.17 + i * 0.037, [0, 0.165 + i * 0.067, 0], '#646b72', 1, 0, true, 0.34 - i * 0.035)
+        );
       }
       return { root, flash, fire, smoke };
     };
@@ -8322,7 +8336,13 @@ function Chess3D({
       if (pieceType === 'B' || pieceType === 'R') {
         const droneFx = createFxDrone();
         droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-        droneFx.root.position.copy(fromPos.clone().add(new THREE.Vector3(0, 0.35, 0)));
+        const launchBase = new THREE.Vector3();
+        if (movingMesh?.getWorldPosition) {
+          movingMesh.getWorldPosition(launchBase);
+        } else {
+          launchBase.copy(fromPos);
+        }
+        droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.22, 0)));
         captureFxGroup.add(droneFx.root);
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
         activeCaptureFx.push({
@@ -8331,6 +8351,7 @@ function Chess3D({
           duration: CAPTURE_DRONE_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.22, 0)),
           droneFx
         });
         return {
@@ -9882,33 +9903,10 @@ function Chess3D({
           const fx = activeCaptureFx[i];
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
-          if (fx.type === 'drone') {
-            const { pos, next } = getCaptureRingOrbitPose({
-              from: fx.from,
-              to: fx.to.clone().add(new THREE.Vector3(0, 0.05, 0)),
-              progress: u,
-              launchHeight: 0.2,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.48,
-              orbitRadiusMul: 1.02,
-              minOrbitCycles: 1.2,
-              orbitSplit: 0.82
-            });
-            fx.droneFx.root.position.copy(pos);
-            captureDir.copy(next).sub(pos).normalize();
-            fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.droneFx.propeller.rotation.x += dt * 36;
-            fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-1.95 - idx * 0.18 - ((fx.t * 1.45 + idx * 0.18) % 1) * 0.22, Math.sin(fx.t * 3 + idx) * 0.03, 0);
-            });
-            if (u >= 1) {
-              launchExplosion(fx.to);
-              captureFxGroup.remove(fx.droneFx.root);
-              activeCaptureFx.splice(i, 1);
-            }
-          } else if (fx.type === 'jet') {
-            const enterSplit = 0.18;
-            const orbitSplit = 0.54;
-            const exitSplit = 0.88;
+          if (fx.type === 'jet') {
+            const enterSplit = 0.24;
+            const orbitSplit = 0.7;
+            const exitSplit = 0.94;
             const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             let jetPos = null;
             let jetNext = null;
@@ -10016,6 +10014,40 @@ function Chess3D({
             if (fx.t >= impactTime) {
               launchExplosion(fx.to);
               captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'drone') {
+            const launchPos = fx.launchPos.clone();
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              fx.droneFx.root.visible = true;
+              fx.droneFx.root.position.copy(launchPos);
+            } else if (fx.t < impactTime) {
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              const { pos, next } = getCaptureRingOrbitPose({
+                from: launchPos,
+                to: fx.to.clone().add(new THREE.Vector3(0, 0.02, 0)),
+                progress: mu,
+                launchHeight: 0.02,
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.34,
+                orbitRadiusMul: 1.08,
+                minOrbitCycles: 1.45,
+                orbitSplit: 0.88
+              });
+              fx.droneFx.root.visible = true;
+              fx.droneFx.root.position.copy(pos);
+              captureDir.copy(next).sub(pos).normalize();
+              fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.droneFx.propeller.rotation.x += dt * 36;
+              fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
+                puff.position.set(-1.95 - idx * 0.18 - ((fx.t * 1.45 + idx * 0.18) % 1) * 0.22, Math.sin(fx.t * 3 + idx) * 0.03, 0);
+              });
+            } else {
+              fx.droneFx.root.visible = false;
+            }
+            if (fx.t >= impactTime) {
+              launchExplosion(fx.to);
+              captureFxGroup.remove(fx.droneFx.root);
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'missile') {
