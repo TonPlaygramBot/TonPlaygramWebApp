@@ -197,7 +197,7 @@ function createCaptureMissileFx() {
 
 function createCaptureExplosionFx() {
   const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.24, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
+  const flash = addFxSphere(root, 0.28, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
   const fire = [];
   const smoke = [];
   const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
@@ -229,7 +229,7 @@ function createCaptureExplosionFx() {
       )
     );
   }
-  root.scale.setScalar(0.5);
+  root.scale.setScalar(0.6);
   root.visible = false;
   return { root, flash, fire, smoke };
 }
@@ -555,7 +555,8 @@ const CHAIR_MODEL_URLS = [
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
-TARGET_CHAIR_SIZE.y *= 0.92;
+const CHAIR_BOTTOM_TRIM_SCALE = 0.85;
+TARGET_CHAIR_SIZE.y *= 0.9;
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.045 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -603,13 +604,13 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 0.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.2 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.18 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.22 * MODEL_SCALE;
+const CAMERA_EXTRA_PULLBACK = 0.24 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.3 * MODEL_SCALE;
 const CAMERA_SEATED_INWARD_OFFSET = 0.42 * MODEL_SCALE;
 const CAMERA_SEATED_EYE_HEIGHT = 0.7 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
@@ -1567,6 +1568,7 @@ function fitChairModelToFootprint(model) {
     const scale = targetMax / currentMax;
     model.scale.multiplyScalar(scale);
   }
+  model.scale.y *= CHAIR_BOTTOM_TRIM_SCALE;
 
   const scaledBox = new THREE.Box3().setFromObject(model);
   const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
@@ -5577,10 +5579,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
         const tokenWorldPos =
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
-        const launchAnchor = tokenWorldPos
-          .clone()
-          .lerp(startPosition, 0.22)
-          .add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
+        const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
         const resolvedImpactPoint = resolveLiveTokenPosition({
           token: targetToken,
           player: targetPlayer,
@@ -5591,11 +5590,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           resolvedImpactPoint?.isVector3 === true
             ? resolvedImpactPoint
             : targetPosition?.clone?.() ?? launchAnchor.clone();
-        const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.06, 0));
+        const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.04, 0));
         const from = launchAnchor.clone();
-        const travelTime = 1850;
+        const travelTime = 1780;
         const explosionTime = 920;
-        const boardCenter = new THREE.Vector3(0, from.y, 0);
+        const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
+        const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
         const started = performance.now();
         let explosionTriggered = false;
 
@@ -5607,27 +5607,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           explosion.root.visible = true;
           const fireLife = clamp(1 - elapsedSinceImpact / 0.88, 0, 1);
           const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.72 + elapsedSinceImpact * 1.55;
-          const smokeGrow = 0.72 + elapsedSinceImpact * 0.88;
+          const fireGrow = 0.9 + elapsedSinceImpact * 1.75;
+          const smokeGrow = 0.82 + elapsedSinceImpact * 0.95;
 
-          explosion.flash.scale.setScalar(0.44 + elapsedSinceImpact * 1.15);
-          explosion.flash.material.opacity = fireLife;
+          explosion.flash.scale.setScalar(0.54 + elapsedSinceImpact * 1.25);
+          explosion.flash.material.opacity = clamp(fireLife * 1.08, 0, 1);
           explosion.fire.forEach((mesh, i) => {
             const angle = elapsedSinceImpact * 5 + i * 1.35;
             mesh.position.set(
-              Math.cos(angle) * (0.06 + elapsedSinceImpact * 0.14),
-              0.11 + elapsedSinceImpact * 0.24 + i * 0.03,
-              Math.sin(angle) * (0.06 + elapsedSinceImpact * 0.13)
+              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.11),
+              0.09 + elapsedSinceImpact * 0.21 + i * 0.026,
+              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.1)
             );
             mesh.scale.setScalar(fireGrow * (0.78 + i * 0.13));
-            mesh.material.opacity = fireLife * (0.98 - i * 0.08);
+            mesh.material.opacity = clamp(fireLife * (1.02 - i * 0.08), 0, 1);
           });
           explosion.smoke.forEach((mesh, i) => {
             const angle = i * 1.1 + elapsedSinceImpact * 1.8;
             mesh.position.set(
-              Math.cos(angle) * (0.06 + i * 0.024),
+              Math.cos(angle) * (0.05 + i * 0.018),
               0.12 + elapsedSinceImpact * (0.16 + i * 0.036),
-              Math.sin(angle) * (0.06 + i * 0.024)
+              Math.sin(angle) * (0.05 + i * 0.018)
             );
             mesh.scale.setScalar(smokeGrow * (0.66 + i * 0.12));
             mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
@@ -5652,29 +5652,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }) ?? safeImpactPoint.clone();
           const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
           const dynamicTo = liveTarget.clone().add(new THREE.Vector3(0, 0.06, 0));
-          const dynamicStartAngle = Math.atan2(dynamicFrom.z, dynamicFrom.x);
-          const dynamicEndAngle = Math.atan2(dynamicTo.z, dynamicTo.x);
-          const dynamicDelta = ((dynamicEndAngle - dynamicStartAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-          const dynamicOrbitAngle = dynamicStartAngle + Math.PI * 2 + dynamicDelta;
-          const dynamicStartRadius = Math.max(dynamicFrom.clone().setY(0).length(), BOARD_RADIUS * 0.92);
-          const dynamicEndRadius = Math.max(dynamicTo.clone().setY(0).length(), BOARD_RADIUS * 0.92);
+          const apex = liveTarget.clone().add(topStrikeLift);
+          const phaseSplit = 0.72;
           if (elapsed < travelTime) {
             const u = easeSmooth(elapsed / travelTime);
             const nextU = clamp(u + 0.02, 0, 1);
-            const orbitAt = (v) => {
+            const pathAt = (v) => {
               const t = clamp(v, 0, 1);
-              const orbitCurve = easeSmooth(t);
-              const angle = dynamicStartAngle + (dynamicOrbitAngle - dynamicStartAngle) * orbitCurve;
-              const radius = THREE.MathUtils.lerp(dynamicStartRadius, dynamicEndRadius, orbitCurve);
-              const orbitLift = bishopHeight * (0.22 + Math.sin(Math.PI * orbitCurve) * 0.2);
-              return new THREE.Vector3(
-                boardCenter.x + Math.cos(angle) * radius,
-                dynamicFrom.y + orbitLift,
-                boardCenter.z + Math.sin(angle) * radius
-              );
+              if (t < phaseSplit) {
+                const a = easeSmooth(t / phaseSplit);
+                return dynamicFrom.clone().lerp(apex, a);
+              }
+              const d = easeSmooth((t - phaseSplit) / (1 - phaseSplit));
+              const verticalTop = new THREE.Vector3(liveTarget.x, apex.y, liveTarget.z);
+              return verticalTop.clone().lerp(dynamicTo, d);
             };
-            const pos = orbitAt(u);
-            const next = orbitAt(nextU);
+            const pos = pathAt(u);
+            const next = pathAt(nextU);
             const dir = next.clone().sub(pos).normalize();
             const right = dir.clone().cross(MISSILE_WORLD_UP).normalize();
             missile.root.visible = true;
@@ -5700,7 +5694,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
           missile.root.visible = false;
           const explosionElapsed = (elapsed - travelTime) / 1000;
-          explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.01, 0)));
+          explosion.root.position.copy(liveTarget.clone().add(new THREE.Vector3(0, 0.02, 0)));
           updateExplosionRig(explosionElapsed);
           if (!explosionTriggered) {
             explosionTriggered = true;
