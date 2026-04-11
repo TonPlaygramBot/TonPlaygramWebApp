@@ -95,10 +95,11 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 2.6; // shorter jet pass so it clears the board faster
+const CAPTURE_JET_SPEED_FACTOR = 2.95; // slightly slower jet pass for better readability
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
+const CAPTURE_JET_TRIMMED_START_RATIO = CAPTURE_JET_MISSILE_RELEASE_RATIO; // skip initial silent segment and start near the missile cue
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
@@ -8424,14 +8425,14 @@ function Chess3D({
           orbitEntryPos: jetApproach,
           orbitExitPos: jetAttack,
           exitPos: jetExit,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO,
+          missileReleaseTime: 0,
           attackFromRightSide,
           jetFx,
           missileFx
         });
         return {
           moveDelayMs: CAPTURE_JET_TOTAL * 1000,
-          captureResolveDelayMs: (CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO + CAPTURE_JET_MISSILE_TRAVEL) * 1000
+          captureResolveDelayMs: CAPTURE_JET_MISSILE_TRAVEL * 1000
         };
       }
       if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
@@ -10034,7 +10035,8 @@ function Chess3D({
             const enterSplit = 0.22;
             const orbitSplit = 0.74;
             const exitSplit = 0.9;
-            const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
+            const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
+            const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
             let jetPos = null;
             let jetNext = null;
             if (jetU < enterSplit) {
