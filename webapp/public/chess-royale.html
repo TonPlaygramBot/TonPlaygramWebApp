@@ -106,7 +106,7 @@
   </div>
   <div class="controls" aria-label="Zoom controls">
     <button id="zoomOut" aria-label="Zoom out">−</button>
-    <label>Zoom <input type="range" id="zoom" min="70" max="140" step="1" value="100"></label>
+    <label>Zoom <input type="range" id="zoom" min="70" max="140" step="1" value="70"></label>
     <button id="zoomIn" aria-label="Zoom in">+</button>
   </div>
 </div>
@@ -138,7 +138,7 @@ const badge = document.getElementById('badge');
 const backModal = document.getElementById('backModal');
 const continueMatchBtn = document.getElementById('continueMatchBtn');
 const goLobbyBtn = document.getElementById('goLobbyBtn');
-let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null; let gameOver=false; let isAnimating=false;
+let aiMode=false; let zoomLevel=0.7; let camera,controls,renderer; let ready=false; let aiTimer=null; let gameOver=false; let isAnimating=false;
 
 function setAvatar(el,param){
   if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
@@ -233,7 +233,7 @@ const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/contr
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
 const TABLE_SET_SCALE=0.85; // table + board + chairs are scaled 15% smaller while preserving layout
-const PIECE_SIZE_MULTIPLIER=1.25; // chess pieces are scaled 25% larger than their original size
+const PIECE_SIZE_MULTIPLIER=1.5; // chess pieces are scaled 50% larger than their original size
 const BOARD_GROWTH=1.0;
 const PIECE_SPACING_SCALE=1.0;
 const BOARD_Y_OFFSET=0.04;
@@ -249,8 +249,11 @@ const MISSILE_TRAIL_COUNT=5;
 const MISSILE_TRAIL_SPACING=0.08;
 const JET_HEIGHT=0.19;
 const JET_SIZE=0.31;
-const JET_SPEED_FACTOR=1.38;
+const JET_SPEED_FACTOR=2.76;
 const DRONE_SIZE=0.048;
+const MISSILE_FLIGHT_DURATION_FACTOR=2;
+const HAHAHA_SOUND_PATH='/assets/sounds/Haha.mp3';
+const HAHAHA_SOUND_DURATION_SEC=6;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
 const files='abcdefgh';
@@ -429,6 +432,28 @@ function playTone(freq,duration,vol,type='sine'){
 function playBombSound(){ playTone(82,0.24,BOMB_VOLUME,'triangle'); playTone(45,0.3,BOMB_VOLUME*0.66,'sawtooth'); }
 function playSlashSound(){ playTone(640,0.08,SLASH_VOLUME,'square'); playTone(420,0.12,SLASH_VOLUME*0.9,'triangle'); }
 function playDroneSound(){ playTone(220,0.22,DRONE_VOLUME,'sawtooth'); playTone(330,0.16,DRONE_VOLUME*0.85,'triangle'); }
+let hahaAudio=null; let hahaStopTimer=null;
+function playHahaSound(){
+  try{
+    if(!hahaAudio){
+      hahaAudio=new Audio(HAHAHA_SOUND_PATH);
+      hahaAudio.preload='auto';
+      hahaAudio.volume=0.62;
+    }
+    if(hahaStopTimer){ clearTimeout(hahaStopTimer); hahaStopTimer=null; }
+    if(hahaAudio.paused){
+      hahaAudio.currentTime=0;
+      const maybePromise=hahaAudio.play();
+      if(maybePromise && typeof maybePromise.catch==='function') maybePromise.catch(()=>{});
+    }
+    hahaStopTimer=setTimeout(()=>{
+      if(!hahaAudio) return;
+      hahaAudio.pause();
+      hahaAudio.currentTime=0;
+      hahaStopTimer=null;
+    }, HAHAHA_SOUND_DURATION_SEC*1000);
+  }catch(_){ }
+}
 function buildJetMesh(){
   const jet=new THREE.Group();
   const body=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.065,0.46,12), new THREE.MeshStandardMaterial({color:0xb7d3ff, metalness:0.65, roughness:0.35}));
@@ -538,7 +563,7 @@ function updateMissileRig(missile,pathPoints,t){
 function animateTinyExplosion(position,color=0xffb703){
   return new Promise(resolve=>{
     const blast=new THREE.Mesh(
-      new THREE.SphereGeometry(0.032,10,10),
+      new THREE.SphereGeometry(0.027,10,10),
       new THREE.MeshBasicMaterial({color, transparent:true, opacity:0})
     );
     blast.position.copy(position);
@@ -547,7 +572,7 @@ function animateTinyExplosion(position,color=0xffb703){
     const e0=performance.now(), ed=180;
     const boom=ev=>{
       const et=Math.min(1,(ev-e0)/ed);
-      blast.scale.setScalar(1+0.68*et);
+      blast.scale.setScalar(1+0.52*et);
       blast.material.opacity=0.85*(1-et);
       if(et<1) requestAnimationFrame(boom);
       else{
@@ -596,7 +621,7 @@ function animateBazookaMissile(from,to){
     updateMissileRig(missile,curve,0.02);
     scene.add(missile);
     const t0=performance.now();
-    const dur=680;
+    const dur=680*MISSILE_FLIGHT_DURATION_FACTOR;
     const tick=now=>{
       const t=Math.min(1,(now-t0)/dur);
       updateMissileRig(missile,curve,t);
@@ -762,7 +787,7 @@ async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; co
   const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
   const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
   if(isCapture){
-    if(distance>SHORT_CAPTURE_DISTANCE){ await animateBazookaMissile(fromVec,toVec); await animateJetMissileStrike(fromVec,toVec); await animateDroneKamikaze(fromVec,toVec); }
+    if(distance>SHORT_CAPTURE_DISTANCE){ playHahaSound(); await animateBazookaMissile(fromVec,toVec); await animateJetMissileStrike(fromVec,toVec); await animateDroneKamikaze(fromVec,toVec); }
     else{ await animateSlashAt(toVec); }
   }
   if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
