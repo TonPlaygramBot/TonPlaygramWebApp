@@ -5518,24 +5518,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAMERA_LOOK_YAW_LIMIT
       );
       if (isTouchDrag && camera && controls && Math.abs(deltaY) > 0.001) {
-        const toTarget = controls.target.clone().sub(camera.position);
-        const distance = toTarget.length();
-        if (distance > 1e-6) {
-          const dir = toTarget.normalize();
-          const intendedShift = deltaY * CAMERA_TOUCH_PULL_FORWARD_FACTOR * Math.max(distance, 1);
-          const maxForwardShift = Math.max(0, distance * CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO);
-          const maxBackShift = Math.max(0, distance * CAMERA_TOUCH_PULL_BACK_MAX_RATIO);
-          const clampedShift = clamp(intendedShift, -maxBackShift, maxForwardShift);
-          if (Math.abs(clampedShift) > 1e-5) {
-            camera.position.addScaledVector(dir, clampedShift);
-          }
-          const liftDelta = clamp(
-            deltaY * CAMERA_TOUCH_LIFT_FACTOR * MODEL_SCALE,
-            -CAMERA_TOUCH_LIFT_MAX,
-            CAMERA_TOUCH_LIFT_MAX
-          );
-          camera.position.y += liftDelta;
-        }
+        const elementHeight = Math.max(renderer?.domElement?.clientHeight ?? 0, 1);
+        const rotateSpeed = Number.isFinite(controls.rotateSpeed) ? controls.rotateSpeed : 1;
+        const verticalAngle = (2 * Math.PI * deltaY * rotateSpeed) / elementHeight;
+        const offset = camera.position.clone().sub(controls.target);
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        spherical.phi = clamp(
+          spherical.phi + verticalAngle,
+          controls.minPolarAngle,
+          controls.maxPolarAngle
+        );
+        offset.setFromSpherical(spherical);
+        camera.position.copy(controls.target).add(offset);
       } else if (!isTouchDrag) {
         lookState.pitch = clamp(
           lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
