@@ -95,20 +95,22 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.62;
 const CAPTURE_DRONE_DIVE_TIME = 1.28;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.5; // fighter jet now flies 50% slower
-const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * 1.5; // jet missile now travels 50% slower
+const CAPTURE_JET_SPEED_FACTOR = 1.7; // fly a bit slower than the previous 1.5x pacing
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
+const CAPTURE_JET_MISSILE_TRAVEL = 1.65 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
 const CAPTURE_GROUND_FIRE_TIME = 0.12;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.9;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0625;
-const CAPTURE_JET_SCALE = 0.05;
+const CAPTURE_JET_SCALE = 0.058;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.86;
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_EXPLOSION_SCALE = 0.176; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
+const CAPTURE_JET_EDGE_PATH_FACTOR = 0.2;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8400,7 +8402,7 @@ function Chess3D({
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         const attackFromRightSide = fromPos.x >= 0;
-        const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
+        const borderOffset = half + tile * CAPTURE_JET_EDGE_PATH_FACTOR;
         const entryClamp = half - tile * 0.22;
         const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
         const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
@@ -8410,7 +8412,7 @@ function Chess3D({
           THREE.MathUtils.clamp(fromPos.z, -entryClamp, entryClamp)
         );
         const jetApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.34),
+          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.5),
           attackAltitude,
           THREE.MathUtils.clamp(fromPos.z, -entryClamp, entryClamp)
         );
