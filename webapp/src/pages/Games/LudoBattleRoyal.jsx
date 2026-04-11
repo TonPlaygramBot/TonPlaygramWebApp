@@ -78,6 +78,17 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
+const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
+const CAPTURE_VEHICLE_MODEL_HOSTS = [
+  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
+  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
+];
+const CAPTURE_VEHICLE_MODEL_FILES = {
+  drone: 'drone.glb',
+  helicopter: 'helicopter.glb',
+  fighter: 'f15.glb'
+};
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -131,6 +142,47 @@ function createCaptureVehicleMaterial(kind, options = {}) {
     map: getCaptureVehicleTexture(kind),
     ...options
   });
+}
+
+function fitObjectToTargetSize(root, targetSize) {
+  if (!root) return;
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(maxDim) || maxDim <= 0) return;
+  const scale = targetSize / maxDim;
+  root.scale.multiplyScalar(scale);
+  const nextBox = new THREE.Box3().setFromObject(root);
+  const center = nextBox.getCenter(new THREE.Vector3());
+  root.position.x -= center.x;
+  root.position.z -= center.z;
+  root.position.y -= nextBox.min.y;
+}
+
+async function loadCaptureVehicleModel(kind) {
+  const file = CAPTURE_VEHICLE_MODEL_FILES[kind];
+  if (!file) return null;
+  if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
+  const promise = (async () => {
+    const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
+    const loader = new GLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const modelRoot = gltf?.scene || gltf?.scenes?.[0] || null;
+        if (!modelRoot) continue;
+        prepareLoadedModel(modelRoot, { preserveGltfTextureMapping: true });
+        return modelRoot;
+      } catch (error) {
+        console.warn(`Capture ${kind} model load failed`, url, error);
+      }
+    }
+    return null;
+  })();
+  CAPTURE_VEHICLE_MODEL_CACHE.set(kind, promise);
+  return promise;
 }
 
 function applyCaptureTextureToOpaqueMeshes(root, kind) {
@@ -284,8 +336,32 @@ function createCaptureMissileFx() {
   return { root, trail };
 }
 
-function createCaptureDroneFx() {
+async function createCaptureDroneFx() {
   const root = new THREE.Group();
+  const loadedDrone = await loadCaptureVehicleModel('drone');
+  if (loadedDrone) {
+    const model = loadedDrone.clone(true);
+    fitObjectToTargetSize(model, 3.7 * 1.12);
+    model.rotation.y = Math.PI;
+    root.add(model);
+    const trail = [];
+    for (let i = 0; i < 5; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.12 + i * 0.03,
+          [-0.84 - i * 0.19, 0, 0],
+          i < 2 ? '#f6af4b' : '#8f989d',
+          i < 2 ? 0.2 : 1,
+          0,
+          true,
+          i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+        )
+      );
+    }
+    root.visible = false;
+    return { root, propeller: null, trail };
+  }
   root.scale.setScalar(0.3);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
@@ -391,8 +467,32 @@ function createCaptureDroneFx() {
   return { root, propeller, trail };
 }
 
-function createCaptureJetFx() {
+async function createCaptureJetFx() {
   const root = new THREE.Group();
+  const loadedJet = await loadCaptureVehicleModel('fighter');
+  if (loadedJet) {
+    const model = loadedJet.clone(true);
+    fitObjectToTargetSize(model, 5.9 * 1.2);
+    model.rotation.y = Math.PI;
+    root.add(model);
+    const trail = [];
+    for (let i = 0; i < 6; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.11 + i * 0.03,
+          [-1.95 - i * 0.2, 0, 0],
+          i < 2 ? '#f7a94b' : '#8b949b',
+          i < 2 ? 0.22 : 1,
+          0,
+          true,
+          i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+        )
+      );
+    }
+    root.visible = false;
+    return { root, trail };
+  }
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.15, 0.21, 3.18, 28),
     createCaptureVehicleMaterial('fighter', { color: '#bcc3c9', roughness: 0.46, metalness: 0.25 })
@@ -465,8 +565,32 @@ function createCaptureJetFx() {
   return { root, trail };
 }
 
-function createCaptureHelicopterFx() {
+async function createCaptureHelicopterFx() {
   const root = new THREE.Group();
+  const loadedHelicopter = await loadCaptureVehicleModel('helicopter');
+  if (loadedHelicopter) {
+    const model = loadedHelicopter.clone(true);
+    fitObjectToTargetSize(model, 5.5);
+    model.rotation.y = Math.PI;
+    root.add(model);
+    const trail = [];
+    for (let i = 0; i < 6; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.11 + i * 0.03,
+          [-1.76 - i * 0.2, 0, 0],
+          i < 2 ? '#f7a94b' : '#8b949b',
+          i < 2 ? 0.22 : 1,
+          0,
+          true,
+          i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+        )
+      );
+    }
+    root.visible = false;
+    return { root, rotor: null, tailRotor: null, trail };
+  }
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.18, 0.22, 2.56, 24),
     createCaptureVehicleMaterial('helicopter', { color: '#86909a', roughness: 0.56, metalness: 0.26 })
@@ -6088,6 +6212,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     impactPosition
   }) =>
     new Promise((resolve) => {
+      void (async () => {
         const arena = arenaRef.current;
         const scene = arena?.scene;
         if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
@@ -6103,11 +6228,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           selectedCaptureAnimationId ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
         const primaryFx =
           resolvedCaptureAnimationId === 'droneAttack'
-            ? createCaptureDroneFx()
+            ? await createCaptureDroneFx()
             : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? createCaptureHelicopterFx()
+            ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? createCaptureJetFx()
+            ? await createCaptureJetFx()
             : createCaptureMissileFx();
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
@@ -6266,7 +6391,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           );
           const phaseSplit =
             selectedCaptureAnimationId === 'fighterJetAttack'
-              ? 0.78
+              ? 0.84
               : selectedCaptureAnimationId === 'helicopterAttack'
               ? 0.8
               : selectedCaptureAnimationId === 'droneAttack'
@@ -6291,7 +6416,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return dynamicFrom.clone().lerp(ring, 0.78 + a * 0.22);
               }
               const d = easeSmooth((t - phaseSplit) / (1 - phaseSplit));
-              const isJavelinStrike = selectedCaptureAnimationId !== 'fighterJetAttack';
+              if (selectedCaptureAnimationId === 'fighterJetAttack') {
+                const flyByEnd = dynamicTo
+                  .clone()
+                  .add(dynamicTo.clone().sub(arenaCenter).setY(0).normalize().multiplyScalar(orbitalRadius * 0.85))
+                  .add(new THREE.Vector3(0, topStrikeHeight * 0.46, 0));
+                return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
+              }
+              const isJavelinStrike = true;
               const diveStart = new THREE.Vector3(
                 isJavelinStrike
                   ? dynamicTo.x
@@ -6417,7 +6549,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           resolve();
         };
         requestAnimationFrame(tick);
-      });
+      })();
+    });
 
   const playTokenStepSound = () => {
     if (!settingsRef.current.soundEnabled) return;
