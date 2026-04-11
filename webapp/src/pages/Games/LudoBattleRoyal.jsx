@@ -780,6 +780,13 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
 const CAMERA_EXTRA_PULLBACK = 0;
 const CAMERA_EXTRA_LIFT = 0.12;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.12;
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_MIN_PITCH = 0;
+const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
+const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
+const HDRI_GROUND_ALIGNMENT_OFFSET = -0.085 * MODEL_SCALE;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -3365,6 +3372,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const baseCameraRadiusRef = useRef(null);
   const lastCameraRadiusRef = useRef(null);
   const environmentFloorRef = useRef(0);
+  const cameraLookStateRef = useRef({
+    yaw: 0,
+    pitch: 0,
+    pointerId: null,
+    active: false,
+    lastX: 0,
+    lastY: 0
+  });
   const syncSkyboxToCameraRef = useRef(() => {});
   const tableBuildTokenRef = useRef(0);
   const chairBuildTokenRef = useRef(0);
@@ -3872,7 +3887,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     if (!hasBounds) return;
     const floorMinY = box.min.y;
-    environmentFloorRef.current = floorMinY;
+    environmentFloorRef.current = floorMinY - HDRI_GROUND_ALIGNMENT_OFFSET;
     const skybox = envSkyboxRef.current;
     const boardLookTarget = arena.boardLookTarget ?? boardLookTargetRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
@@ -3914,9 +3929,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     if (!hasBounds || !Number.isFinite(bounds.min.y)) return;
     const floorMinY = bounds.min.y;
-    const yShift = -floorMinY;
+    const targetFloorY = HDRI_GROUND_ALIGNMENT_OFFSET;
+    const yShift = targetFloorY - floorMinY;
     if (Math.abs(yShift) <= 1e-4) {
-      environmentFloorRef.current = 0;
+      environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
       return;
     }
 
@@ -3934,10 +3950,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         arena.controls.update();
       }
     }
-    environmentFloorRef.current = 0;
+    environmentFloorRef.current = -HDRI_GROUND_ALIGNMENT_OFFSET;
     const skybox = envSkyboxRef.current;
     if (skybox && Number.isFinite(skybox.userData?.cameraHeight)) {
-      skybox.position.y = skybox.userData.cameraHeight;
+      skybox.position.y = environmentFloorRef.current + skybox.userData.cameraHeight;
     }
   }, []);
 
@@ -5174,9 +5190,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.maxAzimuthAngle = Number.isFinite(CAMERA_FREE_LOOK_AZIMUTH_RANGE)
       ? initialAzimuth + CAMERA_FREE_LOOK_AZIMUTH_RANGE
       : Infinity;
-    const initialPolar = controls.getPolarAngle();
-    controls.minPolarAngle = initialPolar;
-    controls.maxPolarAngle = initialPolar;
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
     controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
     controlsRef.current = controls;
@@ -5407,7 +5420,41 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       moveToken(0, option.token, selection.roll);
       return true;
     };
+    const getCameraLookTarget = () => {
+      if (!controls || !camera) return null;
+      const baseTarget = cameraTurnStateRef.current.currentTarget?.isVector3
+        ? cameraTurnStateRef.current.currentTarget
+        : controls.target;
+      const target = baseTarget.clone();
+      const toTarget = baseTarget.clone().sub(camera.position);
+      if (toTarget.lengthSq() > 1e-6 && Math.abs(cameraLookStateRef.current.yaw) > 0.0001) {
+        const horizontalLength = Math.max(
+          Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z),
+          0.001
+        );
+        const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).normalize();
+        target.addScaledVector(lateral, Math.tan(cameraLookStateRef.current.yaw) * horizontalLength);
+      }
+      if (toTarget.lengthSq() > 1e-6 && Math.abs(cameraLookStateRef.current.pitch) > 0.0001) {
+        target.y += Math.tan(cameraLookStateRef.current.pitch) * toTarget.length();
+      }
+      return target;
+    };
+    const applyCameraLookOffset = ({ recenter = false } = {}) => {
+      if (!controls || !camera || isCamera2d) return;
+      if (recenter) {
+        cameraLookStateRef.current.yaw *= 1 - CAMERA_LOOK_YAW_RECENTER_SPEED;
+        if (Math.abs(cameraLookStateRef.current.yaw) < 1e-4) {
+          cameraLookStateRef.current.yaw = 0;
+        }
+      }
+      const target = getCameraLookTarget();
+      if (!target) return;
+      controls.target.copy(target);
+    };
+
     let pointerLocked = false;
+    let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
@@ -5419,14 +5466,50 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
         event.preventDefault();
+        return;
+      }
+      if (!isCamera2d && controls && event.isPrimary !== false) {
+        cameraLookStateRef.current.pointerId = event.pointerId;
+        cameraLookStateRef.current.active = true;
+        cameraLookStateRef.current.lastX = clientX;
+        cameraLookStateRef.current.lastY = clientY;
       }
     };
-    onPointerUp = () => {
-      if (!pointerLocked) return;
-      pointerLocked = false;
-      if (controls) controls.enabled = true;
+    onPointerMove = (event) => {
+      const lookState = cameraLookStateRef.current;
+      if (isCamera2d || !lookState.active || lookState.pointerId !== event.pointerId) return;
+      const { clientX, clientY } = event;
+      if (clientX == null || clientY == null) return;
+      const deltaX = clientX - lookState.lastX;
+      const deltaY = clientY - lookState.lastY;
+      lookState.lastX = clientX;
+      lookState.lastY = clientY;
+      lookState.yaw = clamp(
+        lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+        -CAMERA_LOOK_YAW_LIMIT,
+        CAMERA_LOOK_YAW_LIMIT
+      );
+      lookState.pitch = clamp(
+        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+        CAMERA_LOOK_MIN_PITCH,
+        CAMERA_LOOK_PITCH_LIMIT
+      );
+      applyCameraLookOffset();
+      controls?.update();
+    };
+    onPointerUp = (event) => {
+      const lookState = cameraLookStateRef.current;
+      if (lookState.pointerId === event?.pointerId) {
+        lookState.pointerId = null;
+        lookState.active = false;
+      }
+      if (pointerLocked) {
+        pointerLocked = false;
+        if (controls) controls.enabled = true;
+      }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
@@ -5592,6 +5675,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
+      if (!isCamera2d && controls) {
+        applyCameraLookOffset({ recenter: !cameraLookStateRef.current.active });
+      }
       controls?.update();
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
@@ -5623,10 +5709,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (renderer?.domElement && onPointerDown) {
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       }
+      if (renderer?.domElement && onPointerMove) {
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      }
       if (onPointerUp) {
         window.removeEventListener('pointerup', onPointerUp);
         window.removeEventListener('pointercancel', onPointerUp);
       }
+      cameraLookStateRef.current.pointerId = null;
+      cameraLookStateRef.current.active = false;
+      cameraLookStateRef.current.yaw = 0;
+      cameraLookStateRef.current.pitch = 0;
       if (controls && syncSkyboxToCameraRef.current) {
         controls.removeEventListener('change', syncSkyboxToCameraRef.current);
       }
