@@ -91,23 +91,23 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.1;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 2.2;
-const CAPTURE_DRONE_CRUISE_TIME = 3.2;
-const CAPTURE_DRONE_DIVE_TIME = 2.0;
+const CAPTURE_DRONE_LIFT_TIME = 0.12;
+const CAPTURE_DRONE_CRUISE_TIME = 1.74;
+const CAPTURE_DRONE_DIVE_TIME = 0.92;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_TOTAL = 10.6;
-const CAPTURE_JET_MISSILE_DROP = 5.3;
-const CAPTURE_JET_MISSILE_TRAVEL = 2.4;
-const CAPTURE_GROUND_FIRE_TIME = 0.25;
-const CAPTURE_GROUND_TRAVEL_TIME = 4.6;
+const CAPTURE_JET_TOTAL = 13.8;
+const CAPTURE_JET_MISSILE_DROP = 8.2;
+const CAPTURE_JET_MISSILE_TRAVEL = 2.0;
+const CAPTURE_GROUND_FIRE_TIME = 0.08;
+const CAPTURE_GROUND_TRAVEL_TIME = 1.85;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.24;
-const CAPTURE_JET_SCALE = 0.21;
-const CAPTURE_DRONE_ALTITUDE = 1.82;
+const CAPTURE_DRONE_SCALE = 0.15;
+const CAPTURE_JET_SCALE = 0.12;
+const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.44;
-const CAPTURE_MISSILE_SCALE = 0.155; // 50% of previous 0.31.
-const CAPTURE_EXPLOSION_SCALE = 0.36;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.54;
+const CAPTURE_MISSILE_SCALE = 0.12;
+const CAPTURE_EXPLOSION_SCALE = 0.28;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -8010,7 +8010,7 @@ function Chess3D({
     };
     const createFxDrone = () => {
       const root = new THREE.Group();
-      root.scale.setScalar(0.42);
+      root.scale.setScalar(0.3);
       addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.18, 0.72, 20),
@@ -8079,8 +8079,19 @@ function Chess3D({
       root.add(propeller);
 
       const exhaustClouds = [];
-      for (let i = 0; i < 4; i += 1) {
-        exhaustClouds.push(addFxSphere(root, 0.08 + i * 0.015, [-2.15 - i * 0.24, 0, 0], '#8d979d', 1, 0, true, 0.21 - i * 0.03));
+      for (let i = 0; i < 5; i += 1) {
+        exhaustClouds.push(
+          addFxSphere(
+            root,
+            0.12 + i * 0.03,
+            [-0.84 - i * 0.19, 0, 0],
+            i < 2 ? '#f6af4b' : '#8f989d',
+            i < 2 ? 0.2 : 1,
+            0,
+            true,
+            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+          )
+        );
       }
       return { root, propeller, exhaustClouds };
     };
@@ -8183,11 +8194,34 @@ function Chess3D({
       const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
       const fire = [];
       const smoke = [];
-      for (let i = 0; i < 4; i += 1) {
-        fire.push(addFxSphere(root, 0.18 + i * 0.05, [0, 0.22 + i * 0.06, 0], i % 2 === 0 ? '#ff9c2f' : '#ff5b2d', 0.2, 0, true, 0.95 - i * 0.15));
+      const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
+      for (let i = 0; i < 6; i += 1) {
+        fire.push(
+          addFxSphere(
+            root,
+            0.21 + i * 0.05,
+            [0, 0.2 + i * 0.045, 0],
+            firePalette[i % firePalette.length],
+            0.2,
+            0,
+            true,
+            0.98 - i * 0.1
+          )
+        );
       }
       for (let i = 0; i < 6; i += 1) {
-        smoke.push(addFxSphere(root, 0.18 + i * 0.035, [0, 0.18 + i * 0.08, 0], '#646b72', 1, 0, true, 0.42 - i * 0.04));
+        smoke.push(
+          addFxSphere(
+            root,
+            0.17 + i * 0.037,
+            [0, 0.165 + i * 0.067, 0],
+            '#646b72',
+            1,
+            0,
+            true,
+            0.34 - i * 0.035
+          )
+        );
       }
       return { root, flash, fire, smoke };
     };
@@ -8322,20 +8356,28 @@ function Chess3D({
       if (pieceType === 'B' || pieceType === 'R') {
         const droneFx = createFxDrone();
         droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-        droneFx.root.position.copy(fromPos.clone().add(new THREE.Vector3(0, 0.35, 0)));
+        const launchBase = new THREE.Vector3();
+        if (movingMesh?.getWorldPosition) {
+          movingMesh.getWorldPosition(launchBase);
+        } else {
+          launchBase.copy(fromPos);
+        }
+        droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.22, 0)));
         captureFxGroup.add(droneFx.root);
-        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_TOTAL * 1000 });
+        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
+        playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'drone',
           t: 0,
-          duration: CAPTURE_DRONE_TOTAL,
+          duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.22, 0)),
           droneFx
         });
         return {
-          moveDelayMs: CAPTURE_DRONE_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_DRONE_TOTAL * 1000
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         };
       }
       if (pieceType === 'Q') {
@@ -9883,24 +9925,40 @@ function Chess3D({
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
           if (fx.type === 'drone') {
-            const { pos, next } = getCaptureRingOrbitPose({
-              from: fx.from,
-              to: fx.to.clone().add(new THREE.Vector3(0, 0.05, 0)),
-              progress: u,
-              launchHeight: 0.2,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.48,
-              orbitRadiusMul: 1.02,
-              minOrbitCycles: 1.2,
-              orbitSplit: 0.82
-            });
-            fx.droneFx.root.position.copy(pos);
-            captureDir.copy(next).sub(pos).normalize();
-            fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.droneFx.propeller.rotation.x += dt * 36;
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            const launchPos = fx.launchPos.clone();
+            let pose = null;
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
+            } else if (fx.t < impactTime) {
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              pose = getCaptureRingOrbitPose({
+                from: launchPos,
+                to: fx.to.clone().add(new THREE.Vector3(0, 0.02, 0)),
+                progress: mu,
+                launchHeight: 0.02,
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.34,
+                orbitRadiusMul: 1.08,
+                minOrbitCycles: 1.45,
+                orbitSplit: 0.88
+              });
+            }
+            if (!pose) {
+              fx.droneFx.root.visible = false;
+            } else {
+              fx.droneFx.root.visible = true;
+              const { pos, next } = pose;
+              fx.droneFx.root.position.copy(pos);
+              captureDir.copy(next).sub(pos).normalize();
+              fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            }
+            fx.droneFx.propeller.rotation.x += dt * 40;
             fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-1.95 - idx * 0.18 - ((fx.t * 1.45 + idx * 0.18) % 1) * 0.22, Math.sin(fx.t * 3 + idx) * 0.03, 0);
+              puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
+              const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
+              puff.scale.setScalar(s);
             });
-            if (u >= 1) {
+            if (fx.t >= impactTime) {
               launchExplosion(fx.to);
               captureFxGroup.remove(fx.droneFx.root);
               activeCaptureFx.splice(i, 1);
@@ -10036,33 +10094,33 @@ function Chess3D({
             }
           } else if (fx.type === 'explosion') {
             const lifeSec = fx.t;
-            const fireLife = clamp01(1 - lifeSec / 0.9);
-            const smokeLife = clamp01(1 - lifeSec / 2.6);
-            const fireGrow = 1 + lifeSec * 4.5;
-            const smokeGrow = 1 + lifeSec * 2.3;
-            fx.explosion.flash.scale.setScalar(1.4 + lifeSec * 6);
+            const fireLife = clamp01(1 - lifeSec / 0.88);
+            const smokeLife = clamp01(1 - lifeSec / LUDO_CAPTURE_EXPLOSION_TIME);
+            const fireGrow = 0.72 + lifeSec * 1.55;
+            const smokeGrow = 0.72 + lifeSec * 0.88;
+            fx.explosion.flash.scale.setScalar(0.44 + lifeSec * 1.15);
             fx.explosion.flash.material.opacity = fireLife;
             fx.explosion.fire.forEach((mesh, idx) => {
               const angle = lifeSec * 5 + idx * 1.35;
               mesh.position.set(
-                Math.cos(angle) * (0.1 + lifeSec * 0.35),
-                0.18 + lifeSec * 0.55 + idx * 0.05,
-                Math.sin(angle) * (0.1 + lifeSec * 0.28)
+                Math.cos(angle) * (0.06 + lifeSec * 0.14),
+                0.11 + lifeSec * 0.24 + idx * 0.03,
+                Math.sin(angle) * (0.06 + lifeSec * 0.13)
               );
-              mesh.scale.setScalar(fireGrow * (0.7 + idx * 0.18));
-              mesh.material.opacity = fireLife * (0.95 - idx * 0.12);
+              mesh.scale.setScalar(fireGrow * (0.78 + idx * 0.13));
+              mesh.material.opacity = fireLife * (0.98 - idx * 0.08);
             });
             fx.explosion.smoke?.forEach((mesh, idx) => {
               const angle = idx * 1.1 + lifeSec * 1.8;
               mesh.position.set(
-                Math.cos(angle) * (0.14 + idx * 0.08),
-                0.25 + lifeSec * (0.55 + idx * 0.1),
-                Math.sin(angle) * (0.14 + idx * 0.08)
+                Math.cos(angle) * (0.06 + idx * 0.024),
+                0.12 + lifeSec * (0.16 + idx * 0.036),
+                Math.sin(angle) * (0.06 + idx * 0.024)
               );
-              mesh.scale.setScalar(smokeGrow * (0.75 + idx * 0.16));
+              mesh.scale.setScalar(smokeGrow * (0.66 + idx * 0.12));
               mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
             });
-            if (fx.t >= 2.6) {
+            if (fx.t >= LUDO_CAPTURE_EXPLOSION_TIME) {
               captureFxGroup.remove(fx.explosion.root);
               activeCaptureFx.splice(i, 1);
             }
