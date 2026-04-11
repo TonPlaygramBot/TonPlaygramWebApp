@@ -249,7 +249,7 @@ const MISSILE_TRAIL_COUNT=5;
 const MISSILE_TRAIL_SPACING=0.08;
 const JET_HEIGHT=0.19;
 const JET_SIZE=0.31;
-const JET_SPEED_FACTOR=2.07; // 50% slower jet + jet-fired missile travel timing
+const JET_SPEED_FACTOR=2.0; // keep jet and jet-fired missile travel at 50% slower pacing
 const DRONE_SIZE=0.048;
 const scalePieceNode=node=>{ if(!node) return; if(!node.userData.baseScale) node.userData.baseScale=node.scale.clone(); node.scale.copy(node.userData.baseScale).multiplyScalar(PIECE_SIZE_MULTIPLIER); };
 
@@ -465,7 +465,7 @@ function setTravelOrientation(node,from,to,bank=0){
 }
 function getJetIngressAndEgress(from,to){
   const center=from.clone().lerp(to,0.5);
-  const margin=2.0; // bring the fly-by path closer so it appears on-screen a bit earlier
+  const margin=1.25; // keep fly-by near the board so the jet appears earlier on-screen
   const useTop=Math.random()>0.5;
   const zEdge=center.z+(useTop?margin:-margin);
   const entry=new THREE.Vector3(center.x,JET_HEIGHT,zEdge);
@@ -638,9 +638,9 @@ function animateJetMissileStrike(from,to){
     const missileCurve=[];
     jet.position.copy(entry);
     missile.visible=false;
-    scene.add(jet); scene.add(missile); playDroneSound();
+    scene.add(jet); scene.add(missile);
     const t0=performance.now();
-    const phaseA=360*JET_SPEED_FACTOR, phaseB=560*JET_SPEED_FACTOR, phaseC=440*JET_SPEED_FACTOR, total=phaseA+phaseB+phaseC;
+    const phaseA=95*JET_SPEED_FACTOR, phaseB=560*JET_SPEED_FACTOR, phaseC=440*JET_SPEED_FACTOR, total=phaseA+phaseB+phaseC;
     let missileLaunched=false;
     const curveSteps=36;
     const tick=now=>{
@@ -706,7 +706,7 @@ function animateDroneKamikaze(from,to){
     const blast=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12), new THREE.MeshBasicMaterial({color:0xfb7185, transparent:true, opacity:0}));
     drone.add(body,propHub,propBladeA,propBladeB);
     const start=from.clone().add(new THREE.Vector3(0,0.09,0));
-    const end=to.clone().add(new THREE.Vector3(0,0.11,0));
+    const end=to.clone().add(new THREE.Vector3(Math.sign((to.x-from.x)||1)*0.17,0.11,Math.sign((to.z-from.z)||1)*0.17));
     const radius=Math.max(0.3,Math.min(0.66,from.distanceTo(to)*0.24));
     drone.position.copy(start); smokeTrail.position.copy(start); blast.position.copy(to.clone().add(new THREE.Vector3(0,0.17,0)));
     scene.add(drone); scene.add(smokeTrail); scene.add(blast); playDroneSound();
@@ -762,7 +762,7 @@ async function doMove(m){ if(isAnimating||gameOver) return; isAnimating=true; co
   const capturedSq=m.enpassant ? rcToSq(m.tr+((state.turn==='w')?1:-1),m.tc) : (aux.captured?to:null);
   const capturedNode=capturedSq?piecesBySquare[capturedSq]:null;
   if(isCapture){
-    if(distance>SHORT_CAPTURE_DISTANCE){ await animateBazookaMissile(fromVec,toVec); await animateJetMissileStrike(fromVec,toVec); await animateDroneKamikaze(fromVec,toVec); }
+    if(distance>SHORT_CAPTURE_DISTANCE){ await animateJetMissileStrike(fromVec,toVec); await animateBazookaMissile(fromVec,toVec); await animateDroneKamikaze(fromVec,toVec); }
     else{ await animateSlashAt(toVec); }
   }
   if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; await animateMove(node,v,240); piecesBySquare[to]=node; delete piecesBySquare[from]; }
