@@ -497,7 +497,7 @@ const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.48 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
-const CHAIR_GLOBAL_SCALE = 0.64;
+const CHAIR_GLOBAL_SCALE = 0.6;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -596,14 +596,14 @@ const CAMERA_ZOOM_MAX_FACTOR = 1.35;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.48 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.56 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 0.9 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.58 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  heightOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  backOffset: 0.44 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   forwardOffset: 1.08 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.54 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.6 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.044 * MODEL_SCALE
 });
 
@@ -1897,6 +1897,7 @@ const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0.02 * MODEL_SCALE;
 const CAMERA_3D_HEIGHT_BOOST = 0.02 * MODEL_SCALE;
+const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.015 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -4882,7 +4883,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     tableInfo.group.add(boardGroup);
 
     const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
-    const boardLookTarget = new THREE.Vector3(0, tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE, 0);
+    const boardLookTarget = new THREE.Vector3(
+      0,
+      tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
+      0
+    );
     boardLookTargetRef.current = boardLookTarget;
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
     const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
