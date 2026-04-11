@@ -595,27 +595,27 @@ const LUDO_CAMERA_AUTO_LOOK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = Infinity;
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(55);
 const CAMERA_ZOOM_MIN_FACTOR = 0.8;
-const CAMERA_ZOOM_MAX_FACTOR = 1.35;
+const CAMERA_ZOOM_MAX_FACTOR = 1.6;
 const LUDO_CAMERA_PHI_MIN = THREE.MathUtils.degToRad(18);
 const LUDO_CAMERA_PHI_MAX = THREE.MathUtils.degToRad(88);
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.66 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 0.9 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 0.72 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
+  forwardOffset: 0.98 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 0.8 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.64 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  forwardOffset: 1.2 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
-  heightOffset: 1.78 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  forwardOffset: 1.36 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
+  heightOffset: 1.96 * ARENA_SCALE_RATIO * LUDO_ARENA_SHRINK_FACTOR,
   targetLift: 0.11 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.3 * MODEL_SCALE;
-const CAMERA_EXTRA_LIFT = 0.44 * MODEL_SCALE;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 1.22 * MODEL_SCALE;
+const CAMERA_EXTRA_LIFT = 0.52 * MODEL_SCALE;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 1.36 * MODEL_SCALE;
 const CAMERA_SEATED_INWARD_OFFSET = 0.72 * MODEL_SCALE;
-const CAMERA_SEATED_EYE_HEIGHT = 0.84 * MODEL_SCALE;
-const PORTRAIT_CAMERA_SEATED_EYE_HEIGHT = 0.94 * MODEL_SCALE;
-const CAMERA_SEATED_DISTANCE_FACTOR = 0.68;
+const CAMERA_SEATED_EYE_HEIGHT = 0.9 * MODEL_SCALE;
+const PORTRAIT_CAMERA_SEATED_EYE_HEIGHT = 1.02 * MODEL_SCALE;
+const CAMERA_SEATED_DISTANCE_FACTOR = 0.62;
 const LUDO_HDRI_MAIN_SCENE_FACING_ROTATION_Y = Math.PI / 2;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -5789,9 +5789,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const playSixRollSound = () => {
     if (!settingsRef.current.soundEnabled) return;
-    if (cheerSoundRef.current) {
-      cheerSoundRef.current.currentTime = 0;
-      cheerSoundRef.current.play().catch(() => {});
+    if (diceRewardSoundRef.current) {
+      diceRewardSoundRef.current.currentTime = 0;
+      diceRewardSoundRef.current.play().catch(() => {});
     }
   };
 
