@@ -8309,7 +8309,15 @@ function Chess3D({
       return { pos, next };
     };
 
-    const playCaptureAnimation = ({ fromPos, targetPos, movingType, distance, deltaR = 0, deltaC = 0 }) => {
+    const playCaptureAnimation = ({
+      fromPos,
+      targetPos,
+      movingType,
+      movingMesh = null,
+      distance,
+      deltaR = 0,
+      deltaC = 0
+    }) => {
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'B' || pieceType === 'R') {
         const droneFx = createFxDrone();
@@ -8377,6 +8385,12 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
+        const launchBase = new THREE.Vector3();
+        if (movingMesh?.getWorldPosition) {
+          movingMesh.getWorldPosition(launchBase);
+        } else {
+          launchBase.copy(fromPos);
+        }
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'javelin',
@@ -8384,7 +8398,7 @@ function Chess3D({
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
-          launchPos: fromPos.clone().add(new THREE.Vector3(0, 0.22, 0)),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.22, 0)),
           deltaR,
           deltaC,
           missileFx
@@ -9356,6 +9370,7 @@ function Chess3D({
           fromPos: fromWorldPos,
           targetPos: worldPos,
           movingType: movingPiece?.t,
+          movingMesh: pieceMeshes[sel.r][sel.c],
           distance: Math.hypot(rr - sel.r, cc - sel.c),
           deltaR: rr - sel.r,
           deltaC: cc - sel.c
@@ -9980,8 +9995,8 @@ function Chess3D({
                 to: fx.to.clone().add(new THREE.Vector3(0, 0.02, 0)),
                 progress: mu,
                 launchHeight: 0.02,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.5,
-                orbitRadiusMul: 1.12,
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.34,
+                orbitRadiusMul: 1.08,
                 minOrbitCycles: 1.45,
                 orbitSplit: 0.88
               });
