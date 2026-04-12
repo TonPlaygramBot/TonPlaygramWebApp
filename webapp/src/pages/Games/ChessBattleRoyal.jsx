@@ -110,14 +110,14 @@ const CAPTURE_JET_TRIMMED_START_RATIO = 0.7; // trim opening and bring jet into 
 const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.066;
+const CAPTURE_DRONE_SCALE = 0.058;
 const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.8;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.12;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.18;
 const CAPTURE_MISSILE_SCALE = 0.0595;
-const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.28; // make javelin missile a bit larger
+const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = -0.3;
@@ -140,6 +140,7 @@ const CAPTURE_MODEL_URLS = Object.freeze({
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/f15.glb'
   ]
 });
+const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
@@ -2940,8 +2941,76 @@ function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null) {
   });
 }
 
+function getCaptureVehicleTexture(kind = 'generic') {
+  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, fallback);
+    return fallback;
+  }
+  const palettes = {
+    fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    generic: ['#55606a', '#74818b', '#313940', '#99a6af']
+  };
+  const tone = palettes[kind] ?? palettes.generic;
+  ctx.fillStyle = tone[0];
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i += 1) {
+    const w = 24 + ((i * 11) % 70);
+    const h = 10 + ((i * 7) % 36);
+    const x = (i * 37) % 256;
+    const y = (i * 53) % 256;
+    ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
+    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= 256; y += 32) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.4, 2.4);
+  texture.anisotropy = 4;
+  CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, texture);
+  return texture;
+}
+
+function createCaptureVehicleMaterial(kind, options = {}) {
+  return new THREE.MeshStandardMaterial({
+    map: getCaptureVehicleTexture(kind),
+    ...options
+  });
+}
+
+function applyCaptureTextureToOpaqueMeshes(root, kind) {
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mat = obj.material;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
+    obj.material = createCaptureVehicleMaterial(kind, {
+      color: mat.color ?? '#ffffff',
+      roughness: typeof mat.roughness === 'number' ? mat.roughness : 0.58,
+      metalness: typeof mat.metalness === 'number' ? mat.metalness : 0.2
+    });
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+}
+
 function applyMilitaryJetLook(model) {
   if (!model) return;
+  applyCaptureTextureToOpaqueMeshes(model, 'fighter');
   model.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -8691,6 +8760,7 @@ function Chess3D({
       const model = cloneCaptureUnitTemplate('helicopter');
       if (model) {
         const root = new THREE.Group();
+        model.rotation.x = Math.PI;
         root.add(model);
         const tailRotor = findCaptureRotor(model, 'tail');
         let topRotor = findCaptureRotor(model, 'main');
@@ -8704,7 +8774,7 @@ function Chess3D({
           });
         }
         applyMilitaryHelicopterLook(model, topRotor, tailRotor);
-        const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
+        const topRotorAxis = new THREE.Vector3(0, 1, 0);
         const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
         return { root, topRotor, tailRotor, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
       }
@@ -8747,6 +8817,7 @@ function Chess3D({
       const model = cloneCaptureUnitTemplate('fighter');
       if (model) {
         const root = new THREE.Group();
+        model.rotation.x = Math.PI;
         root.add(model);
         applyMilitaryJetLook(model);
         const cockpit =
@@ -9029,6 +9100,31 @@ function Chess3D({
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'R') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+        const missileFx = createFxGroundMissile();
+        missileFx.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
+        missileFx.root.visible = false;
+        captureFxGroup.add(missileFx.root);
+        const launchBase = fromPos.clone();
+        playAudio(missileLaunchSoundRef);
+        activeCaptureFx.push({
+          type: 'javelin',
+          t: 0,
+          duration: CAPTURE_GROUND_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
+          deltaR,
+          deltaC,
+          missileFx
+        });
+        return {
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        };
+      }
+      if (pieceType === 'N' || pieceType === 'P') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const droneFx = createFxDrone();
         droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
         const launchBase = fromPos.clone();
@@ -9049,6 +9145,65 @@ function Chess3D({
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
           captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        };
+      }
+      if (pieceType === 'K') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
+        const jetFx = createFxJet();
+        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+        const attackFromRightSide = fromPos.x >= 0;
+        const borderOffset = half + tile * CAPTURE_JET_EDGE_PATH_FACTOR;
+        const entryClamp = half - tile * 0.12;
+        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
+        const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
+        const jetStart = new THREE.Vector3(
+          sideLane,
+          CAPTURE_JET_ALTITUDE,
+          THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
+        );
+        const jetApproach = new THREE.Vector3(
+          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.9),
+          attackAltitude,
+          THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
+        );
+        const jetAttack = new THREE.Vector3(
+          THREE.MathUtils.lerp(sideLane, targetPos.x, 0.92),
+          attackAltitude - 0.06,
+          THREE.MathUtils.clamp(targetPos.z, -entryClamp, entryClamp)
+        );
+        const jetExit = new THREE.Vector3(
+          attackFromRightSide ? -borderOffset : borderOffset,
+          CAPTURE_JET_ALTITUDE - 0.02,
+          THREE.MathUtils.clamp(targetPos.z, -entryClamp, entryClamp)
+        );
+        jetFx.root.position.copy(jetStart);
+        captureFxGroup.add(jetFx.root);
+        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
+        missileFx.forEach((missile) => {
+          missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missile.root.visible = false;
+          captureFxGroup.add(missile.root);
+        });
+        activeCaptureFx.push({
+          type: 'jet',
+          t: 0,
+          duration: CAPTURE_JET_TOTAL,
+          from: jetStart.clone(),
+          to: targetPos.clone(),
+          orbitEntryPos: jetApproach,
+          orbitExitPos: jetAttack,
+          exitPos: jetExit,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          attackFromRightSide,
+          jetFx,
+          missileFx
+        });
+        const jetImpactDelayMs =
+          (CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO + CAPTURE_JET_MISSILE_TRAVEL) *
+          1000;
+        return {
+          moveDelayMs: jetImpactDelayMs,
+          captureResolveDelayMs: jetImpactDelayMs
         };
       }
       if (pieceType === 'B') {
@@ -9169,31 +9324,6 @@ function Chess3D({
         return {
           moveDelayMs: jetImpactDelayMs,
           captureResolveDelayMs: jetImpactDelayMs
-        };
-      }
-      if (pieceType === 'N' || pieceType === 'K' || pieceType === 'P') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-        const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
-        missileFx.root.visible = false;
-        captureFxGroup.add(missileFx.root);
-        const launchBase = fromPos.clone();
-        playAudio(missileLaunchSoundRef);
-        activeCaptureFx.push({
-          type: 'javelin',
-          t: 0,
-          duration: CAPTURE_GROUND_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
-          movingMesh,
-          deltaR,
-          deltaC,
-          missileFx
-        });
-        return {
-          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         };
       }
       if (distance <= 1.5) {
