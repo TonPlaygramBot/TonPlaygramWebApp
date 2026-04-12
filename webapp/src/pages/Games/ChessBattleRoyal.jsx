@@ -96,12 +96,14 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 1.2; // fly a bit slower for clearer tracking on small screens
-const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
-const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
+const CAPTURE_JET_SPEED_FACTOR = 1.32; // fly a bit slower for clearer tracking on small screens
+const PROFILE_VIEW_ROTATION_BY_TYPE = Object.freeze({
+  K: Math.PI,
+  N: Math.PI / 2
+});
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.56; // slower helicopter pass so propeller motion reads clearly
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.72; // slower helicopter pass so propeller motion reads clearly
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -111,13 +113,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
-const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
+const CAPTURE_JET_SCALE = 0.078; // slightly smaller jet silhouette
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.86;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.12;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 0.96;
 const CAPTURE_MISSILE_SCALE = 0.0595;
-const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.28; // make javelin missile a bit larger
+const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.38; // make javelin missile a bit larger
+const KNIGHT_PIECE_SCALE_BONUS = 1.08;
+const CAPTURE_BROADCAST_PHI = 1.03;
+const CAPTURE_BROADCAST_RADIUS_SCALE = 0.96;
+const CAPTURE_BROADCAST_PRESET_MODE = '3d';
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = -0.3;
@@ -1043,6 +1049,7 @@ const CHECKMATE_SOUND_URL =
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
 const HELICOPTER_FLY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
+const HELICOPTER_BLADE_SOUND_URL = '/assets/sounds/spinning.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -2868,7 +2875,7 @@ function normalizeModel(object, targetSize) {
   object.position.y -= normalized.min.y;
 }
 
-function prepareCaptureModel(root) {
+function prepareCaptureModel(root, { preserveOriginalTextureMapping = false } = {}) {
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
@@ -2879,8 +2886,17 @@ function prepareCaptureModel(root) {
       if (material?.emissiveMap) {
         applySRGBColorSpace(material.emissiveMap);
       }
+      if (preserveOriginalTextureMapping) {
+        ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((key) => {
+          const texture = material?.[key];
+          if (texture) {
+            texture.matrixAutoUpdate = true;
+            texture.needsUpdate = true;
+          }
+        });
+      }
       if (material && 'envMapIntensity' in material) {
-        material.envMapIntensity = 1.1;
+        material.envMapIntensity = preserveOriginalTextureMapping ? 1 : 1.1;
         material.needsUpdate = true;
       }
     });
@@ -6119,6 +6135,7 @@ function Chess3D({
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
   const helicopterSoundRef = useRef(null);
+  const helicopterBladeSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
@@ -7062,7 +7079,7 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [swordSoundRef, droneSoundRef, helicopterSoundRef, helicopterBladeSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -7099,7 +7116,7 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [swordSoundRef, droneSoundRef, helicopterSoundRef, helicopterBladeSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -7423,6 +7440,8 @@ function Chess3D({
     droneSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
     helicopterSoundRef.current.volume = baseVolume;
+    helicopterBladeSoundRef.current = new Audio(HELICOPTER_BLADE_SOUND_URL);
+    helicopterBladeSoundRef.current.volume = baseVolume * 0.52;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -7948,6 +7967,7 @@ function Chess3D({
     };
 
     const cameraMemory = { last3d: null };
+    const captureBroadcastState = { active: false, previousMode: null, previousSpherical: null };
 
     const setViewModeInternal = (mode) => {
       if (!controls) return;
@@ -7992,6 +8012,40 @@ function Chess3D({
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
         animateCameraTo(target, 420);
+      }
+    };
+
+    const startCaptureBroadcastCamera = () => {
+      if (!camera || !controls || !boardLookTarget || captureBroadcastState.active) return;
+      const current = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
+      captureBroadcastState.active = true;
+      captureBroadcastState.previousMode = viewModeRef.current;
+      captureBroadcastState.previousSpherical = current.clone();
+      if (viewModeRef.current !== CAPTURE_BROADCAST_PRESET_MODE) {
+        setViewModeInternal(CAPTURE_BROADCAST_PRESET_MODE);
+      }
+      const target = new THREE.Spherical(
+        clamp(current.radius * CAPTURE_BROADCAST_RADIUS_SCALE, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
+        clamp(CAPTURE_BROADCAST_PHI, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+        Number.isFinite(current.theta) ? current.theta : -Math.PI / 4
+      );
+      animateCameraTo(target, 260);
+    };
+
+    const stopCaptureBroadcastCamera = () => {
+      if (!captureBroadcastState.active) return;
+      const restoreSpherical = captureBroadcastState.previousSpherical;
+      const restoreMode = captureBroadcastState.previousMode || viewModeRef.current;
+      captureBroadcastState.active = false;
+      captureBroadcastState.previousSpherical = null;
+      captureBroadcastState.previousMode = null;
+      if (restoreMode !== CAPTURE_BROADCAST_PRESET_MODE) {
+        setViewModeInternal(restoreMode);
+      }
+      if (restoreSpherical) {
+        animateCameraTo(restoreSpherical, 280);
       }
     };
 
@@ -8054,7 +8108,7 @@ function Chess3D({
             });
             const model = (gltf.scene || gltf.scenes?.[0])?.clone?.(true);
             if (!model) continue;
-            prepareCaptureModel(model);
+            prepareCaptureModel(model, { preserveOriginalTextureMapping: key === 'helicopter' });
             normalizeModel(model, targetSize);
             captureUnitTemplates[key] = model;
             return model;
@@ -8072,7 +8126,7 @@ function Chess3D({
       const template = captureUnitTemplates[key];
       if (!template) return null;
       const clone = cloneSkinned(template);
-      prepareCaptureModel(clone);
+      prepareCaptureModel(clone, { preserveOriginalTextureMapping: key === 'helicopter' });
       return clone;
     };
 
@@ -8602,6 +8656,7 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
+      startCaptureBroadcastCamera();
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'R') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
@@ -8665,6 +8720,7 @@ function Chess3D({
           captureFxGroup.add(missile.root);
         });
         playAudio(helicopterSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
+        playAudio(helicopterBladeSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'helicopter',
           t: 0,
@@ -9195,8 +9251,9 @@ function Chess3D({
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
       const applyProfileViewRotation = (pieceMesh, pieceType) => {
-        if (!pieceMesh || !PROFILE_VIEW_ROTATION_TYPES.has(pieceType)) return;
-        pieceMesh.rotation.y += PROFILE_VIEW_ROTATION_RADIANS;
+        const rotation = PROFILE_VIEW_ROTATION_BY_TYPE[pieceType];
+        if (!pieceMesh || !Number.isFinite(rotation)) return;
+        pieceMesh.rotation.y += rotation;
       };
       const yOffset = currentPieceYOffset;
 
@@ -9216,7 +9273,8 @@ function Chess3D({
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
-          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
+          const scaleMultiplier = p.t === 'N' ? KNIGHT_PIECE_SCALE_BONUS : 1;
+          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR * scaleMultiplier);
           applyProfileViewRotation(clone, p.t);
           clone.position.set(
             c * tile - half + tile / 2,
@@ -10556,22 +10614,40 @@ function Chess3D({
               fx.missileFx.root.position.copy(launchPos);
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.44, 0));
-              const diagonalEnd = launchPos.clone().lerp(targetTop, 0.62);
-              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.22;
               let missilePos;
               let missileNext;
-              if (mu < 0.58) {
-                const diagU = smoothEase(mu / 0.58);
-                const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
-                missilePos = qBezier(launchPos, control, diagonalEnd, diagU);
-                missileNext = qBezier(launchPos, control, diagonalEnd, clamp01(diagU + 0.03));
+              const javelinCruiseAltitude = CAPTURE_JET_ALTITUDE;
+              const perimeterRadius = half - tile * 0.16;
+              const boardCenterX = boardLookTarget.x;
+              const boardCenterZ = boardLookTarget.z;
+              const riseSplit = 0.2;
+              const loopSplit = 0.82;
+              if (mu < riseSplit) {
+                const riseU = smoothEase(mu / riseSplit);
+                const riseTarget = launchPos.clone();
+                riseTarget.y = javelinCruiseAltitude;
+                missilePos = launchPos.clone().lerp(riseTarget, riseU);
+                missileNext = launchPos.clone().lerp(riseTarget, clamp01(riseU + 0.06));
+              } else if (mu < loopSplit) {
+                const loopU = smoothEase((mu - riseSplit) / (loopSplit - riseSplit));
+                const perimeterAngle = loopU * Math.PI * 2;
+                missilePos = new THREE.Vector3(
+                  boardCenterX + Math.cos(perimeterAngle) * perimeterRadius,
+                  javelinCruiseAltitude,
+                  boardCenterZ + Math.sin(perimeterAngle) * perimeterRadius
+                );
+                const nextAngle = (loopU + 0.016) * Math.PI * 2;
+                missileNext = new THREE.Vector3(
+                  boardCenterX + Math.cos(nextAngle) * perimeterRadius,
+                  javelinCruiseAltitude,
+                  boardCenterZ + Math.sin(nextAngle) * perimeterRadius
+                );
               } else {
-                const dropU = smoothEase((mu - 0.58) / 0.42);
-                missilePos = diagonalEnd.clone().lerp(fx.to, dropU);
-                missileNext = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
-                missileNext.x = missilePos.x;
-                missileNext.z = missilePos.z;
+                const strikeU = smoothEase((mu - loopSplit) / (1 - loopSplit));
+                const entry = new THREE.Vector3(boardCenterX + perimeterRadius, javelinCruiseAltitude, boardCenterZ);
+                const strikeControl = entry.clone().lerp(fx.to, 0.46).add(new THREE.Vector3(0, 0.22, 0));
+                missilePos = qBezier(entry, strikeControl, fx.to, strikeU);
+                missileNext = qBezier(entry, strikeControl, fx.to, clamp01(strikeU + 0.03));
               }
 
               fx.missileFx.root.visible = true;
@@ -10641,6 +10717,9 @@ function Chess3D({
             }
           }
         }
+      }
+      if (!activeCaptureFx.length) {
+        stopCaptureBroadcastCamera();
       }
 
       if (moveHighlightMesh?.parent && performance.now() <= moveHighlightEndMs) {
@@ -10739,6 +10818,7 @@ function Chess3D({
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
       helicopterSoundRef.current?.pause();
+      helicopterBladeSoundRef.current?.pause();
       jetFlySound?.pause?.();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
