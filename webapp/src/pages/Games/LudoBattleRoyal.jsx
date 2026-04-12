@@ -2789,7 +2789,7 @@ const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
 // Enlarge the Ludo board so it spans 3.1x the classic footprint.
-const BOARD_SCALE = 3.1 * ARENA_SCALE;
+const BOARD_SCALE = 3.22 * ARENA_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -2931,19 +2931,19 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.1;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.115;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.134,
-  0.128,
-  0.134,
-  0.128
+  0.146,
+  0.14,
+  0.146,
+  0.14
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.082;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.074;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -3721,7 +3721,7 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.118;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
@@ -3729,15 +3729,15 @@ const CAMERA_RETURN_ANIMATION_MS = 620;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
-    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.94,
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.9,
     y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.94,
-    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.94
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.9
   },
   knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
   rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.17, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.23, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.28, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z }
 });
 
 function setTokenHighlight(token, active) {
@@ -8741,7 +8741,7 @@ async function buildLudoBoard(
         );
       }
       if (typeKey === 'king') {
-        token.rotation.y = Math.PI;
+        token.rotation.y = Math.PI * 1.5;
       } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
@@ -8836,7 +8836,7 @@ function getHomeStartPads(half, playerCount = DEFAULT_PLAYER_COUNT) {
   const count = clampPlayerCount(playerCount);
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
-  const inwardPull = TILE * 0.4;
+  const inwardPull = TILE * 0.46;
   const lateralSpread = TILE * 0.92;
   const depthSpread = TILE * 0.64;
   const layout = [
