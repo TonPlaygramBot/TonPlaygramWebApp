@@ -6211,11 +6211,13 @@ const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // Snooker Royal does not shift replay start before the recorded cue timeline
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
+const REPLAY_CUE_STARTS_ON_STROKE = true; // replay opens on cue-ball strike instead of idling before the hit
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Snooker Royal
 const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.82;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
@@ -6233,6 +6235,35 @@ const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
 const RAIL_OVERHEAD_CROWD_BALL_THRESHOLD = 3;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ensureCueStrokeForwardMotion = ({
+  pullPos,
+  impactPos,
+  fallbackDirection,
+  minDistance = MIN_VISIBLE_CUE_PUSH_DISTANCE
+}) => {
+  if (!pullPos || !impactPos) {
+    return { pullPos, impactPos, direction: fallbackDirection ?? new THREE.Vector3(0, 0, 1) };
+  }
+  const direction = new THREE.Vector3().subVectors(impactPos, pullPos);
+  if (direction.lengthSq() <= 1e-8) {
+    if (fallbackDirection?.lengthSq() > 1e-8) {
+      direction.copy(fallbackDirection);
+    } else {
+      direction.set(0, 0, 1);
+    }
+  }
+  direction.y = 0;
+  if (direction.lengthSq() <= 1e-8) {
+    direction.set(0, 0, 1);
+  }
+  direction.normalize();
+  const separation = pullPos.distanceTo(impactPos);
+  if (separation + 1e-6 >= Math.max(0, minDistance)) {
+    return { pullPos, impactPos, direction };
+  }
+  const adjustedPull = pullPos.clone().addScaledVector(direction, -Math.max(0, minDistance));
+  return { pullPos: adjustedPull, impactPos, direction };
+};
 const BREAK_DIE_SIZE = BALL_R * 2.25;
 const BREAK_DIE_CORNER_RADIUS = BREAK_DIE_SIZE * 0.17;
 const BREAK_DIE_PIP_RADIUS = BREAK_DIE_SIZE * 0.095;
@@ -18248,6 +18279,7 @@ const powerRef = useRef(hud.power);
       const tmpReplayPos = new THREE.Vector3();
       const tmpReplayCueA = new THREE.Vector3();
       const tmpReplayCueB = new THREE.Vector3();
+      const tmpReplayCueC = new THREE.Vector3();
       const tmpCueStrokeA = new THREE.Vector3();
       const tmpCueStrokeB = new THREE.Vector3();
       const setShootingState = (value) => {
@@ -22508,11 +22540,25 @@ const powerRef = useRef(hud.power);
                 stroke.returnDuration ??
                 0
             ) * replayScale;
+          const cueAxis = tmpReplayCueC
+            .set(
+              Number.isFinite(stroke.rotationY) ? Math.sin(stroke.rotationY - Math.PI) : 0,
+              0,
+              Number.isFinite(stroke.rotationY) ? Math.cos(stroke.rotationY - Math.PI) : 1
+            )
+            .normalize();
+          const normalizedStroke = ensureCueStrokeForwardMotion({
+            pullPos: tmpReplayCueB.set(pullSnap.x, pullSnap.y, pullSnap.z),
+            impactPos: tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z),
+            fallbackDirection: cueAxis
+          });
+          const resolvedPullSnap = normalizedStroke.pullPos;
+          const resolvedImpactSnap = normalizedStroke.impactPos;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
           // Allow replay lead-in to advance the cue stroke timeline even when
           // the recorded stroke offset is short, so replays open on visible
           // cue charging instead of a static idle pose.
-          const localTime =
+          const localTimeBase =
             targetTime - (startOffset - REPLAY_CUE_STROKE_LEAD_IN_MS);
           const playbackWindow = Number.isFinite(playback?.duration)
             ? Math.max(playback.duration, 1400)
@@ -22534,8 +22580,10 @@ const powerRef = useRef(hud.power);
           const impactEnd = pullEnd + release;
           const followEnd = impactEnd + followTime;
           const recoverEnd = followEnd + recoverTime;
+          const hitAlignOffset = REPLAY_CUE_STARTS_ON_STROKE ? impactEnd : 0;
+          const localTime = Math.max(0, localTimeBase + hitAlignOffset);
           tmpReplayCueA.set(idleSnap.x, idleSnap.y, idleSnap.z);
-          tmpReplayCueB.set(pullSnap.x, pullSnap.y, pullSnap.z);
+          tmpReplayCueB.copy(resolvedPullSnap);
           cueStick.rotation.y = Number.isFinite(stroke.rotationY)
             ? stroke.rotationY
             : cueStick.rotation.y;
@@ -22563,8 +22611,8 @@ const powerRef = useRef(hud.power);
               1
             );
             const eased = easeInOutCubic(t);
-            tmpReplayCueA.copy(tmpReplayCueB);
-            tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueA.copy(resolvedPullSnap);
+            tmpReplayCueB.copy(resolvedImpactSnap);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
             syncCueShadow();
             return;
@@ -22576,7 +22624,7 @@ const powerRef = useRef(hud.power);
               1
             );
             const eased = easeOutCubic(t);
-            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueA.copy(resolvedImpactSnap);
             tmpReplayCueB.set(followSnap.x, followSnap.y, followSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, eased);
@@ -22665,19 +22713,19 @@ const powerRef = useRef(hud.power);
             const strikeExtraFollow = Math.max(0, stroke.strikeExtraFollow ?? 0);
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
             const easedPush = easeOutCubic(pushT);
+            const normalizedStroke = ensureCueStrokeForwardMotion({
+              pullPos: pullPos ?? impactPos,
+              impactPos: impactPos ?? pullPos,
+              fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
+            });
+            const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
+            const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
             const strikeTargetPos = tmpCueStrokeA
-              .copy(impactPos ?? pullPos)
-              .add(
-                tmpCueStrokeB
-                  .copy(impactPos ?? pullPos)
-                  .sub(pullPos ?? impactPos)
-                  .setY(0)
-                  .normalize()
-                  .multiplyScalar(strikeExtraFollow)
-              );
+              .copy(resolvedImpactPos)
+              .add(tmpCueStrokeB.copy(normalizedStroke.direction).multiplyScalar(strikeExtraFollow));
 
             cueStick.visible = true;
-            cueStick.position.lerpVectors(pullPos, strikeTargetPos, easedPush);
+            cueStick.position.lerpVectors(resolvedPullPos, strikeTargetPos, easedPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * pushT;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
