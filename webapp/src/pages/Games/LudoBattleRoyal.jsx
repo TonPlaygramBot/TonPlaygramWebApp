@@ -1334,7 +1334,8 @@ const LUDO_ARENA_SHRINK_FACTOR = 0.374;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_RADIUS = 4.2 * MODEL_SCALE;
+const TABLE_SIDE_SHRINK_FACTOR = 0.92;
+const TABLE_RADIUS = 4.2 * MODEL_SCALE * TABLE_SIDE_SHRINK_FACTOR;
 const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.9;
@@ -1363,7 +1364,7 @@ const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
-const CHAIR_INWARD_PULL = 0.19 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.22 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
   TABLE_RADIUS +
   SEAT_DEPTH / 2 +
@@ -1454,13 +1455,13 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.62,
+  backOffset: 0.54,
   forwardOffset: 0,
   heightOffset: 1.08,
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.84,
+  backOffset: 0.74,
   forwardOffset: 0,
   heightOffset: 2.22,
   targetLift: 0.055 * MODEL_SCALE
@@ -2388,8 +2389,10 @@ function fitTableModelToArena(model, tableThemeId = null) {
 }
 
 function getTableWidthScale(tableThemeId) {
-  void tableThemeId;
-  return 1;
+  const id = String(tableThemeId || '').toLowerCase();
+  if (!id) return 1;
+  if (id.includes('octagon')) return 1;
+  return 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -3718,19 +3721,23 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.172;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.118;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: ROCK_TOKEN_REFERENCE_SCALE,
+  pawn: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.94,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.94,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.94
+  },
   knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
   rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.13, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.17, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.23, z: ROCK_TOKEN_REFERENCE_SCALE.z }
 });
 
 function setTokenHighlight(token, active) {
@@ -8733,7 +8740,9 @@ async function buildLudoBoard(
           token.scale.z * typeScale.z
         );
       }
-      if (typeKey === 'king' || typeKey === 'knight' || typeKey === 'horse') {
+      if (typeKey === 'king') {
+        token.rotation.y = Math.PI;
+      } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
       const label = createTokenCountLabel();
