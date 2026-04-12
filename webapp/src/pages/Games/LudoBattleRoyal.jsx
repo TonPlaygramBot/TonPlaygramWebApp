@@ -1218,7 +1218,7 @@ const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.48 * MODEL_SCALE;
-const TABLE_HEIGHT_SCALE = 0.72;
+const TABLE_HEIGHT_SCALE = 0.67;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.85;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
@@ -1419,7 +1419,7 @@ function createAiUniqueLoadout(activePlayerCount) {
   return byPlayer;
 }
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.46;
+const TABLE_LEG_EXTENSION_FACTOR = 1.34;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -3574,17 +3574,17 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.082;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.105;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: { x: 0.602, y: 0.525, z: 0.576 },
+  pawn: { x: 0.482, y: 0.42, z: 0.461 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 1.589, y: 1.96, z: 1.521 },
-  queen: { x: 1.589, y: 2.062, z: 1.521 },
-  king: { x: 1.589, y: 2.163, z: 1.521 }
+  bishop: { x: 2.066, y: 2.548, z: 1.977 },
+  queen: { x: 2.066, y: 2.681, z: 1.977 },
+  king: { x: 2.066, y: 2.812, z: 1.977 }
 });
 
 function setTokenHighlight(token, active) {
