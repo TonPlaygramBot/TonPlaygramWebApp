@@ -37,7 +37,7 @@ namespace Aiming
         public float strikeHoldDuration = 0.05f;
         public float baseStrikeImpulse = 1.8f;
         public float maxStrikeImpulse = 6.5f;
-        [Tooltip("Normalized strike progress where the hit is fired once after the cue has actually pushed forward into cue-ball contact.")]
+        [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
         [Tooltip("How much of the strike stays for the final idle->contact micro drive.")]
         [Range(0.02f, 0.25f)] public float contactDrivePortion = 0.1f;
@@ -327,7 +327,7 @@ namespace Aiming
             float elapsed = 0f;
             bool didStrike = false;
             float contactStartT = Mathf.Clamp01(1f - contactDrivePortion);
-            float hitT = Mathf.Clamp01(hitProgress);
+            float hitT = Mathf.Clamp01(Mathf.Max(hitProgress, contactStartT));
             _currentCueDepth = startDepth;
             UpdateCuePose();
 
@@ -350,9 +350,7 @@ namespace Aiming
                 _currentCueDepth = cueDepth;
                 UpdateCuePose();
 
-                bool reachedCueBallContact = cueDepth <= hitDepth + 0.0001f;
-                bool reachedHitMoment = t >= hitT;
-                if (!didStrike && reachedCueBallContact && reachedHitMoment)
+                if (!didStrike && t >= hitT)
                 {
                     didStrike = true;
                     ApplyStrikeImpulse(strikeDirection, shotPower);
