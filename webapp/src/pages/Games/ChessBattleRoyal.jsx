@@ -115,8 +115,12 @@ const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.8;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.12; // keep aircraft just above piece heads with a visible safety gap
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.03; // helicopter follows the same low loop with only a slight offset
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.34; // keep aircraft lower so the run stays just above piece heads
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.02; // helicopter tracks almost the same low lane as the jet
+const CAPTURE_AIRCRAFT_CLEARANCE_FACTOR = 0.28; // keep a small but visible gap above piece tops
+const CAPTURE_AIRCRAFT_MIN_CLEARANCE = 0.34;
+const CAPTURE_AIR_PATH_BOARD_MARGIN_TILES = 0.54; // keep loops safely inside board bounds
+const CAPTURE_AIR_PATH_PORTRAIT_RADIUS_FACTOR = 0.86; // tighter path for portrait camera framing
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
@@ -9100,12 +9104,17 @@ function Chess3D({
         baseAltitude,
         turnAltitudeDrop = 0.08
       }) => {
+        const isPortraitViewport = window.innerHeight > window.innerWidth;
         const attackFromTopSide = attackerPos.z >= 0;
         const attackerSideSign = attackFromTopSide ? 1 : -1;
-        const edgeInset = tile * 0.16;
-        const attackerLaneZ = attackerSideSign * (half - edgeInset);
-        const enemyLaneZ = -attackerSideSign * (half - edgeInset);
-        const xClamp = half - tile * 0.22;
+        const boardMargin = tile * CAPTURE_AIR_PATH_BOARD_MARGIN_TILES;
+        const boardLaneRadius = Math.max(tile, half - boardMargin);
+        const effectivePathRadius = isPortraitViewport
+          ? boardLaneRadius * CAPTURE_AIR_PATH_PORTRAIT_RADIUS_FACTOR
+          : boardLaneRadius;
+        const attackerLaneZ = attackerSideSign * effectivePathRadius;
+        const enemyLaneZ = -attackerSideSign * effectivePathRadius;
+        const xClamp = effectivePathRadius;
         const laneX = THREE.MathUtils.clamp(
           THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5),
           -xClamp,
@@ -9113,10 +9122,19 @@ function Chess3D({
         );
         const turnBendDirection = victimPos.x >= laneX ? 1 : -1;
         const turnBendX = THREE.MathUtils.clamp(
-          laneX + turnBendDirection * tile * 0.8,
+          laneX + turnBendDirection * tile * 0.62,
           -xClamp,
           xClamp
         );
+        const clampInsideBoardRadius = (point) => {
+          const radialLen = Math.hypot(point.x, point.z);
+          if (radialLen > effectivePathRadius && radialLen > 1e-6) {
+            const scale = effectivePathRadius / radialLen;
+            point.x *= scale;
+            point.z *= scale;
+          }
+          return point;
+        };
         const startPos = new THREE.Vector3(laneX, baseAltitude, attackerLaneZ);
         const entryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.18),
@@ -9144,6 +9162,9 @@ function Chess3D({
           THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.82)
         );
         const exitPos = new THREE.Vector3(laneX, baseAltitude, attackerLaneZ);
+        [startPos, entryPos, turnEntryPos, turnControlPos, turnExitPos, returnEntryPos, exitPos].forEach(
+          clampInsideBoardRadius
+        );
         return {
           attackFromTopSide,
           startPos,
@@ -9213,7 +9234,10 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62)
+          baseAltitude: Math.max(
+            CAPTURE_JET_ALTITUDE,
+            targetPos.y + Math.max(CAPTURE_AIRCRAFT_MIN_CLEARANCE, tile * CAPTURE_AIRCRAFT_CLEARANCE_FACTOR)
+          )
         });
         jetFx.root.position.copy(path.startPos);
         captureFxGroup.add(jetFx.root);
@@ -9253,7 +9277,11 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62) + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
+          baseAltitude:
+            Math.max(
+              CAPTURE_JET_ALTITUDE,
+              targetPos.y + Math.max(CAPTURE_AIRCRAFT_MIN_CLEARANCE, tile * CAPTURE_AIRCRAFT_CLEARANCE_FACTOR)
+            ) + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
           turnAltitudeDrop: 0.06
         });
         helicopterFx.root.position.copy(path.startPos);
@@ -9295,7 +9323,10 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62)
+          baseAltitude: Math.max(
+            CAPTURE_JET_ALTITUDE,
+            targetPos.y + Math.max(CAPTURE_AIRCRAFT_MIN_CLEARANCE, tile * CAPTURE_AIRCRAFT_CLEARANCE_FACTOR)
+          )
         });
         jetFx.root.position.copy(path.startPos);
         captureFxGroup.add(jetFx.root);
