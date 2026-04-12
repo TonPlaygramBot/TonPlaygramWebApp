@@ -97,6 +97,8 @@ const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 1.2; // fly a bit slower for clearer tracking on small screens
+const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
+const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 4;
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.56; // slower helicopter pass so propeller motion reads clearly
@@ -9192,6 +9194,10 @@ function Chess3D({
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
+      const applyProfileViewRotation = (pieceMesh, pieceType) => {
+        if (!pieceMesh || !PROFILE_VIEW_ROTATION_TYPES.has(pieceType)) return;
+        pieceMesh.rotation.y += PROFILE_VIEW_ROTATION_RADIANS;
+      };
       const yOffset = currentPieceYOffset;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
@@ -9211,6 +9217,7 @@ function Chess3D({
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
           clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
+          applyProfileViewRotation(clone, p.t);
           clone.position.set(
             c * tile - half + tile / 2,
             yOffset,
