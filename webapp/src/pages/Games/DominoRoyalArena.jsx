@@ -80,6 +80,10 @@ export default function DominoRoyalArena() {
         <div id="configSections" />
       </div>
       <style>{`
+        #app {
+          transform: scale(0.97);
+          transform-origin: center center;
+        }
         #viewToggle {
           position: fixed !important;
           right: calc(0.38rem + env(safe-area-inset-right, 0px)) !important;
