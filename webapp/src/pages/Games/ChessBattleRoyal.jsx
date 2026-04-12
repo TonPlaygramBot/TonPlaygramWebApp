@@ -96,16 +96,16 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 1.46; // slower pass so entry, U-turn, and missile launch are clearly visible
+const CAPTURE_JET_SPEED_FACTOR = 1.3;
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.74; // keep helicopter slower than jet for readable tracking
-const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
+const CAPTURE_JET_TOTAL = 3.718; // matches Ludo fighterJetAttack travelTime (2860 * 1.3)
+const CAPTURE_JET_MISSILE_TRAVEL = 1.3872; // matches Ludo missile travel window during jet pass
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.161; // matches Ludo helicopterAttack timing ratio (3320 / 2860)
+const CAPTURE_HELICOPTER_TOTAL = 4.316; // matches Ludo helicopterAttack travelTime (3320 * 1.3)
+const CAPTURE_HELICOPTER_MISSILE_TRAVEL = 1.6264; // matches Ludo missile travel window during helicopter pass
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
-const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.64; // release after the enemy-side U-turn starts
+const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // matches Ludo release start timing
 const CAPTURE_JET_TRIMMED_START_RATIO = 0.52; // keep more of the entry phase visible
 const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
@@ -3014,29 +3014,24 @@ function applyMilitaryJetLook(model) {
   model.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.forEach((mat) => {
-      if (!mat?.color) return;
-      if (/window|cockpit|glass|canopy/.test(name)) {
-        mat.color.setHex(0x06090d);
-        if ('metalness' in mat) mat.metalness = 0.58;
-        if ('roughness' in mat) mat.roughness = 0.18;
-        if ('opacity' in mat) mat.opacity = 0.94;
+    paintMeshMaterials(node, (mat) => {
+      if (/cockpit|canopy|window|glass/.test(name)) {
+        mat.color.set('#06080c');
+        if ('metalness' in mat) mat.metalness = 0.55;
+        if ('roughness' in mat) mat.roughness = 0.16;
         if ('transparent' in mat) mat.transparent = true;
-      } else if (/missile|rocket|store|weapon|hardpoint|pod/.test(name)) {
-        mat.color.setHex(0xd9dde2);
-        if ('metalness' in mat) mat.metalness = 0.86;
-        if ('roughness' in mat) mat.roughness = 0.2;
-      } else if (/engine|exhaust|nozzle|thruster/.test(name)) {
-        mat.color.setHex(0x14181d);
-        if ('metalness' in mat) mat.metalness = 0.68;
-        if ('roughness' in mat) mat.roughness = 0.3;
-      } else {
-        mat.color.offsetHSL(-0.02, -0.26, -0.2);
-        if ('metalness' in mat) mat.metalness = Math.min(0.66, (mat.metalness ?? 0.3) + 0.1);
-        if ('roughness' in mat) mat.roughness = Math.max(0.34, (mat.roughness ?? 0.58) - 0.1);
+        if ('opacity' in mat) mat.opacity = 0.94;
+        return;
       }
-      mat.needsUpdate = true;
+      if (/missile|rocket|store|pod/.test(name)) {
+        mat.color.set('#d8dde3');
+        if ('metalness' in mat) mat.metalness = 0.88;
+        if ('roughness' in mat) mat.roughness = 0.24;
+        return;
+      }
+      mat.color.offsetHSL(-0.03, -0.18, -0.12);
+      if ('metalness' in mat) mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
+      if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
     });
   });
 }
@@ -9152,34 +9147,9 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const attackFromTopSide = fromPos.z >= 0;
-        const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
-        const entryClamp = half - tile * 0.12;
-        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
-        const entryLaneZ = attackFromTopSide ? borderOffset : -borderOffset;
-        const enemyLaneZ = -entryLaneZ;
-        const laneX = THREE.MathUtils.clamp((fromPos.x + targetPos.x) * 0.5, -entryClamp, entryClamp);
-        const jetStart = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE,
-          entryLaneZ
-        );
-        const jetApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.45),
-          attackAltitude,
-          THREE.MathUtils.lerp(entryLaneZ, targetPos.z, 0.45)
-        );
-        const jetAttack = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.94),
-          attackAltitude - 0.08,
-          THREE.MathUtils.lerp(targetPos.z, enemyLaneZ, 0.44)
-        );
-        const jetExit = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE - 0.02,
-          entryLaneZ
-        );
-        jetFx.root.position.copy(jetStart);
+        const launchPos = fromPos.clone();
+        launchPos.y = CAPTURE_JET_ALTITUDE;
+        jetFx.root.position.copy(launchPos);
         captureFxGroup.add(jetFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
@@ -9191,13 +9161,10 @@ function Chess3D({
           type: 'jet',
           t: 0,
           duration: CAPTURE_JET_TOTAL,
-          from: jetStart.clone(),
+          from: launchPos.clone(),
           to: targetPos.clone(),
-          orbitEntryPos: jetApproach,
-          orbitExitPos: jetAttack,
-          exitPos: jetExit,
+          altitude: CAPTURE_JET_ALTITUDE,
           missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-          attackFromTopSide,
           jetFx,
           missileFx
         });
@@ -9213,34 +9180,9 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const helicopterFx = createFxHelicopter();
         helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
-        const attackFromTopSide = fromPos.z >= 0;
-        const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
-        const entryClamp = half - tile * 0.12;
-        const attackAltitude = CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST;
-        const entryLaneZ = attackFromTopSide ? borderOffset : -borderOffset;
-        const enemyLaneZ = -entryLaneZ;
-        const laneX = THREE.MathUtils.clamp((fromPos.x + targetPos.x) * 0.5, -entryClamp, entryClamp);
-        const heliStart = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
-          entryLaneZ
-        );
-        const heliApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.42),
-          attackAltitude,
-          THREE.MathUtils.lerp(entryLaneZ, targetPos.z, 0.42)
-        );
-        const heliAttack = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.9),
-          attackAltitude - 0.05,
-          THREE.MathUtils.lerp(targetPos.z, enemyLaneZ, 0.4)
-        );
-        const heliExit = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.03,
-          entryLaneZ
-        );
-        helicopterFx.root.position.copy(heliStart);
+        const launchPos = fromPos.clone();
+        launchPos.y = CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST;
+        helicopterFx.root.position.copy(launchPos);
         captureFxGroup.add(helicopterFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
@@ -9253,13 +9195,10 @@ function Chess3D({
           type: 'helicopter',
           t: 0,
           duration: CAPTURE_HELICOPTER_TOTAL,
-          from: heliStart.clone(),
+          from: launchPos.clone(),
           to: targetPos.clone(),
-          orbitEntryPos: heliApproach,
-          orbitExitPos: heliAttack,
-          exitPos: heliExit,
+          altitude: CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
           missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-          attackFromTopSide,
           helicopterFx,
           missileFx
         });
@@ -9276,34 +9215,9 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const jetFx = createFxJet();
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const attackFromTopSide = fromPos.z >= 0;
-        const borderOffset = half + tile * CAPTURE_EDGE_PATH_FACTOR;
-        const entryClamp = half - tile * 0.12;
-        const attackAltitude = CAPTURE_JET_ALTITUDE - 0.05;
-        const entryLaneZ = attackFromTopSide ? borderOffset : -borderOffset;
-        const enemyLaneZ = -entryLaneZ;
-        const laneX = THREE.MathUtils.clamp((fromPos.x + targetPos.x) * 0.5, -entryClamp, entryClamp);
-        const jetStart = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE,
-          entryLaneZ
-        );
-        const jetApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.45),
-          attackAltitude,
-          THREE.MathUtils.lerp(entryLaneZ, targetPos.z, 0.45)
-        );
-        const jetAttack = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, targetPos.x, 0.94),
-          attackAltitude - 0.08,
-          THREE.MathUtils.lerp(targetPos.z, enemyLaneZ, 0.44)
-        );
-        const jetExit = new THREE.Vector3(
-          laneX,
-          CAPTURE_JET_ALTITUDE - 0.02,
-          entryLaneZ
-        );
-        jetFx.root.position.copy(jetStart);
+        const launchPos = fromPos.clone();
+        launchPos.y = CAPTURE_JET_ALTITUDE;
+        jetFx.root.position.copy(launchPos);
         captureFxGroup.add(jetFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
@@ -9315,13 +9229,10 @@ function Chess3D({
           type: 'jet',
           t: 0,
           duration: CAPTURE_JET_TOTAL,
-          from: jetStart.clone(),
+          from: launchPos.clone(),
           to: targetPos.clone(),
-          orbitEntryPos: jetApproach,
-          orbitExitPos: jetAttack,
-          exitPos: jetExit,
+          altitude: CAPTURE_JET_ALTITUDE,
           missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-          attackFromTopSide,
           jetFx,
           missileFx
         });
@@ -10912,35 +10823,55 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
-            const enterSplit = 0.22;
-            const orbitSplit = 0.74;
-            const exitSplit = 0.9;
-            const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
-            const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
-            let jetPos = null;
-            let jetNext = null;
-            if (jetU < enterSplit) {
-              const mu = smoothEase(jetU / enterSplit);
-              jetPos = fx.from.clone().lerp(fx.orbitEntryPos, mu);
-              jetNext = fx.from.clone().lerp(fx.orbitEntryPos, clamp01(mu + 0.06));
-            } else if (jetU < orbitSplit) {
-              const orbitU = smoothEase((jetU - enterSplit) / (orbitSplit - enterSplit));
-              const uControl = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.4);
-              uControl.y = CAPTURE_JET_ALTITUDE - 0.18;
-              uControl.z += fx.attackFromTopSide ? -0.34 : 0.34;
-              jetPos = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, orbitU);
-              jetNext = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, clamp01(orbitU + 0.04));
-            } else if (jetU < exitSplit) {
-              const mu = smoothEase((jetU - orbitSplit) / (exitSplit - orbitSplit));
-              jetPos = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)), mu);
-              jetNext = fx.orbitExitPos.clone().lerp(fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)), clamp01(mu + 0.06));
-            } else {
-              const mu = smoothEase((jetU - exitSplit) / (1 - exitSplit));
-              jetPos = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)).lerp(fx.exitPos, mu);
-              jetNext = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE - 0.08, 0)).lerp(fx.exitPos, clamp01(mu + 0.06));
-            }
+            const from = fx.from.clone();
+            const to = fx.to.clone();
+            const arenaCenter = new THREE.Vector3(0, from.y, 0);
+            const fromOffset = from.clone().sub(arenaCenter).setY(0);
+            const toOffset = to.clone().sub(arenaCenter).setY(0);
+            const boardRadius = half * Math.SQRT2;
+            const fromRadius = Math.max(fromOffset.length(), boardRadius * 0.96);
+            const toRadius = Math.max(toOffset.length(), boardRadius * 0.96);
+            const orbitalRadius = Math.max(fromRadius, toRadius, boardRadius * 1.02);
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            angularDelta = Math.max(angularDelta + Math.PI * 0.9, Math.PI * 1.8);
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              from.y,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
+            const phaseSplit = 0.84;
+            const pathAt = (v) => {
+              const t = clamp01(v);
+              if (t < phaseSplit) {
+                const a = smoothEase(t / phaseSplit);
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  THREE.MathUtils.lerp(from.y, apex.y, a),
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                );
+                return from.clone().lerp(ring, 0.78 + a * 0.22);
+              }
+              const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
+              const outDir = to.clone().sub(arenaCenter).setY(0);
+              if (outDir.lengthSq() < 1e-6) outDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              outDir.normalize();
+              const flyByEnd = to
+                .clone()
+                .add(outDir.multiplyScalar(orbitalRadius * 0.85))
+                .add(new THREE.Vector3(0, tile * 0.4, 0));
+              return qBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
+            };
+            const jetU = clamp01(fx.t / CAPTURE_JET_TOTAL);
+            const jetPos = pathAt(jetU);
+            const jetNext = pathAt(clamp01(jetU + 0.02));
             fx.jetFx.root.position.copy(jetPos);
             captureDir.copy(jetNext).sub(jetPos).normalize();
+            const right = captureDir.clone().cross(WORLD_UP).normalize();
             const jetForward = captureDir.clone();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             const jetExhaustAnchor = fx.jetFx.exhaustAnchor || new THREE.Vector3(-1.95, 0, 0);
@@ -10954,65 +10885,50 @@ function Chess3D({
               puff.scale.setScalar(s);
             });
 
-            const missileReleaseTime = fx.missileReleaseTime ?? CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO;
-            const releaseAtBoardCenter = Math.abs(jetPos.x - fx.to.x) <= tile * 0.15;
-            const releaseAtBoardLane = Math.abs(jetPos.z - fx.to.z) <= tile * 0.22;
-            const releaseReady = jetU >= 0.5 && releaseAtBoardCenter && releaseAtBoardLane;
-            if (!Number.isFinite(fx.actualMissileReleaseTime) && fx.t >= missileReleaseTime && releaseReady) {
-              fx.actualMissileReleaseTime = fx.t;
-              playAudio(missileLaunchSoundRef);
-            }
-            const actualMissileReleaseTime = Number.isFinite(fx.actualMissileReleaseTime)
-              ? fx.actualMissileReleaseTime
-              : null;
             const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            if (!Number.isFinite(actualMissileReleaseTime)) {
-              jetMissiles.forEach((missile) => {
+            const elapsedMs = fx.t * 1000;
+            const totalMs = CAPTURE_JET_TOTAL * 1000;
+            const releaseStart = totalMs * 0.56;
+            const releaseEnd = totalMs * 0.96;
+            const missileTravelMs = Math.max(280, releaseEnd - releaseStart - 100);
+            const hitTop = fx.to.clone().add(new THREE.Vector3(0, Math.max(tile * 2.2, 0.38), 0));
+            jetMissiles.forEach((missile, idx) => {
+              const releaseTime = releaseStart + idx * 140;
+              if (elapsedMs < releaseTime) {
                 missile.root.visible = false;
-              });
-            } else if (fx.t <= actualMissileReleaseTime + CAPTURE_JET_MISSILE_TRAVEL) {
-              const mu = smoothEase(
-                clamp01((fx.t - actualMissileReleaseTime) / CAPTURE_JET_MISSILE_TRAVEL)
-              );
-              const launchPos = jetPos.clone().addScaledVector(jetForward, 0.08).add(new THREE.Vector3(0, -0.015, 0));
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.34, 0));
-              jetMissiles.forEach((missile, idx) => {
-                const laneOffset = idx === 0 ? -0.045 : 0.045;
-                const releasePos = launchPos.clone().add(new THREE.Vector3(0, 0, laneOffset));
-                let missilePos;
-                let missileNext;
-                if (mu < 0.66) {
-                  const cruiseU = smoothEase(mu / 0.66);
-                  const control = releasePos.clone().lerp(targetTop, 0.54).add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.18, 0));
-                  missilePos = qBezier(releasePos, control, targetTop, cruiseU);
-                  missileNext = qBezier(releasePos, control, targetTop, clamp01(cruiseU + 0.04));
-                } else {
-                  const dropU = smoothEase((mu - 0.66) / 0.34);
-                  missilePos = targetTop.clone().lerp(fx.to, dropU);
-                  missileNext = targetTop.clone().lerp(fx.to, clamp01(dropU + 0.05));
-                  missileNext.x = missilePos.x;
-                  missileNext.z = missilePos.z;
-                }
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                missile.root.visible = true;
-                missile.root.position.copy(missilePos);
-                missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-                missile.trail?.forEach((puff, trailIdx) => {
-                  puff.position.set(
-                    -0.55 - trailIdx * 0.16,
-                    Math.sin(fx.t * 8.2 + trailIdx + idx * 0.4) * 0.02,
-                    0
-                  );
-                });
-              });
-            } else {
-              jetMissiles.forEach((missile) => {
-                missile.root.visible = false;
-              });
-              if (!fx.hasExploded) {
-                fx.hasExploded = true;
-                launchExplosion(fx.to);
+                return;
               }
+              const missileU = clamp01((elapsedMs - releaseTime) / missileTravelMs);
+              if (missileU <= 0 || missileU >= 1) {
+                missile.root.visible = false;
+                return;
+              }
+              if (Math.abs(elapsedMs - releaseTime) < 30) playAudio(missileLaunchSoundRef);
+              const sideOffset = idx === 0 ? -0.045 : 0.045;
+              const launchPos = jetPos.clone().add(right.clone().multiplyScalar(sideOffset)).addScaledVector(jetForward, 0.08);
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.72).add(new THREE.Vector3(0, tile * 0.26, 0));
+              const missilePos =
+                missileU < 0.74
+                  ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
+                  : missileEntry.clone().lerp(fx.to, (missileU - 0.74) / 0.26);
+              const missileNext = qBezier(
+                missileU < 0.74 ? launchPos : missileEntry,
+                missileEntry,
+                fx.to,
+                clamp01(missileU + 0.03)
+              );
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              missile.root.visible = true;
+              missile.root.position.copy(missilePos);
+              missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            });
+            if (jetU > 0.88) {
+              const retreatDir = jetPos.clone().sub(fx.to).setY(0).normalize();
+              fx.jetFx.root.position.addScaledVector(retreatDir, (jetU - 0.88) * 1.5);
+            }
+            if (jetU >= 1 && !fx.hasExploded) {
+              fx.hasExploded = true;
+              launchExplosion(fx.to);
             }
 
             if (u >= 1) {
@@ -11023,47 +10939,53 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'helicopter') {
-            const enterSplit = 0.22;
-            const orbitSplit = 0.74;
-            const exitSplit = 0.9;
-            const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
-            const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
-            let heliPos = null;
-            let heliNext = null;
-            if (heliU < enterSplit) {
-              const mu = smoothEase(heliU / enterSplit);
-              heliPos = fx.from.clone().lerp(fx.orbitEntryPos, mu);
-              heliNext = fx.from.clone().lerp(fx.orbitEntryPos, clamp01(mu + 0.04));
-            } else if (heliU < orbitSplit) {
-              const orbitU = smoothEase((heliU - enterSplit) / (orbitSplit - enterSplit));
-              const uControl = fx.orbitEntryPos.clone().lerp(fx.orbitExitPos, 0.4);
-              uControl.y = CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.08;
-              uControl.z += fx.attackFromTopSide ? -0.26 : 0.26;
-              heliPos = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, orbitU);
-              heliNext = qBezier(fx.orbitEntryPos, uControl, fx.orbitExitPos, clamp01(orbitU + 0.03));
-            } else if (heliU < exitSplit) {
-              const mu = smoothEase((heliU - orbitSplit) / (exitSplit - orbitSplit));
-              heliPos = fx.orbitExitPos.clone().lerp(
-                fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.11, 0)),
-                mu
-              );
-              heliNext = fx.orbitExitPos.clone().lerp(
-                fx.to.clone().add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.11, 0)),
-                clamp01(mu + 0.04)
-              );
-            } else {
-              const mu = smoothEase((heliU - exitSplit) / (1 - exitSplit));
-              heliPos = fx.to
-                .clone()
-                .add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.11, 0))
-                .lerp(fx.exitPos, mu);
-              heliNext = fx.to
-                .clone()
-                .add(new THREE.Vector3(0, CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST - 0.11, 0))
-                .lerp(fx.exitPos, clamp01(mu + 0.04));
-            }
+            const from = fx.from.clone();
+            const to = fx.to.clone();
+            const arenaCenter = new THREE.Vector3(0, from.y, 0);
+            const fromOffset = from.clone().sub(arenaCenter).setY(0);
+            const toOffset = to.clone().sub(arenaCenter).setY(0);
+            const boardRadius = half * Math.SQRT2;
+            const fromRadius = Math.max(fromOffset.length(), boardRadius * 0.96);
+            const toRadius = Math.max(toOffset.length(), boardRadius * 0.96);
+            const orbitalRadius = Math.max(fromRadius, toRadius, boardRadius * 1.02);
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            if (angularDelta < Math.PI / 3) angularDelta += Math.PI * 2;
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
+            const topStrikeHeight = Math.max(tile * 2.2, 0.38);
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              to.y + topStrikeHeight * 0.82,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
+            const phaseSplit = 0.8;
+            const pathAt = (v) => {
+              const t = clamp01(v);
+              if (t < phaseSplit) {
+                const a = smoothEase(t / phaseSplit);
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  THREE.MathUtils.lerp(from.y, apex.y, a),
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                );
+                return from.clone().lerp(ring, 0.78 + a * 0.22);
+              }
+              const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
+              const retreatDir = apex.clone().sub(to).setY(0);
+              if (retreatDir.lengthSq() < 1e-6) retreatDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              retreatDir.normalize();
+              const flyAwayEnd = apex.clone().add(retreatDir.multiplyScalar(orbitalRadius * 1.35)).add(new THREE.Vector3(0, topStrikeHeight * 0.08, 0));
+              return qBezier(apex, apex.clone().lerp(flyAwayEnd, 0.5), flyAwayEnd, d);
+            };
+            const heliU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
+            const heliPos = pathAt(heliU);
+            const heliNext = pathAt(clamp01(heliU + 0.02));
             fx.helicopterFx.root.position.copy(heliPos);
             captureDir.copy(heliNext).sub(heliPos).normalize();
+            const right = captureDir.clone().cross(WORLD_UP).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
@@ -11076,58 +10998,50 @@ function Chess3D({
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
 
-            const missileReleaseTime = fx.missileReleaseTime ?? CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_RELEASE_RATIO;
-            const releaseAtBoardCenter = Math.abs(heliPos.x - fx.to.x) <= tile * 0.15;
-            const releaseAtBoardLane = Math.abs(heliPos.z - fx.to.z) <= tile * 0.22;
-            const releaseReady = heliU >= 0.5 && releaseAtBoardCenter && releaseAtBoardLane;
-            if (!Number.isFinite(fx.actualMissileReleaseTime) && fx.t >= missileReleaseTime && releaseReady) {
-              fx.actualMissileReleaseTime = fx.t;
-              playAudio(missileLaunchSoundRef);
-            }
-            const actualMissileReleaseTime = Number.isFinite(fx.actualMissileReleaseTime)
-              ? fx.actualMissileReleaseTime
-              : null;
             const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            if (!Number.isFinite(actualMissileReleaseTime)) {
-              heliMissiles.forEach((missile) => {
+            const elapsedMs = fx.t * 1000;
+            const totalMs = CAPTURE_HELICOPTER_TOTAL * 1000;
+            const releaseStart = totalMs * 0.56;
+            const releaseEnd = totalMs * 0.96;
+            const missileTravelMs = Math.max(280, releaseEnd - releaseStart - 100);
+            const hitTop = fx.to.clone().add(new THREE.Vector3(0, Math.max(tile * 2.2, 0.38), 0));
+            heliMissiles.forEach((missile, idx) => {
+              const releaseTime = releaseStart + idx * 140;
+              if (elapsedMs < releaseTime) {
                 missile.root.visible = false;
-              });
-            } else if (fx.t <= actualMissileReleaseTime + CAPTURE_HELICOPTER_MISSILE_TRAVEL) {
-              const mu = smoothEase(
-                clamp01((fx.t - actualMissileReleaseTime) / CAPTURE_HELICOPTER_MISSILE_TRAVEL)
-              );
-              const launchPos = heliPos.clone().addScaledVector(heliForward, 0.08).add(new THREE.Vector3(0, -0.03, 0));
-              const targetTop = fx.to.clone().add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.34, 0));
-              heliMissiles.forEach((missile, idx) => {
-                const laneOffset = idx === 0 ? -0.045 : 0.045;
-                const releasePos = launchPos.clone().add(new THREE.Vector3(0, 0, laneOffset));
-                let missilePos;
-                let missileNext;
-                if (mu < 0.66) {
-                  const cruiseU = smoothEase(mu / 0.66);
-                  const control = releasePos.clone().lerp(targetTop, 0.54).add(new THREE.Vector3(0, CAPTURE_FLIGHT_ALTITUDE * 0.16, 0));
-                  missilePos = qBezier(releasePos, control, targetTop, cruiseU);
-                  missileNext = qBezier(releasePos, control, targetTop, clamp01(cruiseU + 0.04));
-                } else {
-                  const dropU = smoothEase((mu - 0.66) / 0.34);
-                  missilePos = targetTop.clone().lerp(fx.to, dropU);
-                  missileNext = targetTop.clone().lerp(fx.to, clamp01(dropU + 0.05));
-                  missileNext.x = missilePos.x;
-                  missileNext.z = missilePos.z;
-                }
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                missile.root.visible = true;
-                missile.root.position.copy(missilePos);
-                missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              });
-            } else {
-              heliMissiles.forEach((missile) => {
-                missile.root.visible = false;
-              });
-              if (!fx.hasExploded) {
-                fx.hasExploded = true;
-                launchExplosion(fx.to);
+                return;
               }
+              const missileU = clamp01((elapsedMs - releaseTime) / missileTravelMs);
+              if (missileU <= 0 || missileU >= 1) {
+                missile.root.visible = false;
+                return;
+              }
+              if (Math.abs(elapsedMs - releaseTime) < 30) playAudio(missileLaunchSoundRef);
+              const sideOffset = idx === 0 ? -0.045 : 0.045;
+              const launchPos = heliPos.clone().add(right.clone().multiplyScalar(sideOffset)).addScaledVector(heliForward, 0.08);
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.72).add(new THREE.Vector3(0, tile * 0.26, 0));
+              const missilePos =
+                missileU < 0.74
+                  ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
+                  : missileEntry.clone().lerp(fx.to, (missileU - 0.74) / 0.26);
+              const missileNext = qBezier(
+                missileU < 0.74 ? launchPos : missileEntry,
+                missileEntry,
+                fx.to,
+                clamp01(missileU + 0.03)
+              );
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              missile.root.visible = true;
+              missile.root.position.copy(missilePos);
+              missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            });
+            if (heliU > 0.88) {
+              const retreatDir = heliPos.clone().sub(fx.to).setY(0).normalize();
+              fx.helicopterFx.root.position.addScaledVector(retreatDir, (heliU - 0.88) * 1.5);
+            }
+            if (heliU >= 1 && !fx.hasExploded) {
+              fx.hasExploded = true;
+              launchExplosion(fx.to);
             }
             if (u >= 1) {
               captureFxGroup.remove(fx.helicopterFx.root);
