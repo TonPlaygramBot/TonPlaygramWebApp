@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-bottom-hand-inward-v25';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-hand-table-scale-v26';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
