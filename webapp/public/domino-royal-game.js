@@ -6594,14 +6594,15 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-const PLAYER_HAND_GAP_SCALE = 0.76;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 0.66;
+const PLAYER_HAND_GAP_SCALE = 0.68;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 0.9;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.11;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 3.9;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.25;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.065;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.76;
 const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.145;
-const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.8;
+const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.72;
+const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = DOMINO_WIDTH * 0.1;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE * DOMINO_HEIGHT_ADJUST;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const CHAIN_EDGE_PADDING = Math.max(0.18, DOMINO_LENGTH * 0.52);
@@ -6619,7 +6620,16 @@ function getChainSpacing(
   prevSpan = getTileSpanAlongChain(false),
   nextSpan = getTileSpanAlongChain(false)
 ) {
-  return prevSpan + nextSpan + DOMINO_CHAIN_GAP;
+  const doubleSpan = getTileSpanAlongChain(true);
+  const prevIsDouble = Math.abs(prevSpan - doubleSpan) <= 0.000001;
+  const nextIsDouble = Math.abs(nextSpan - doubleSpan) <= 0.000001;
+  const needsDoubleBuffer = prevIsDouble !== nextIsDouble;
+  return (
+    prevSpan +
+    nextSpan +
+    DOMINO_CHAIN_GAP +
+    (needsDoubleBuffer ? DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP : 0)
+  );
 }
 
 /* ---------- Materials ---------- */
