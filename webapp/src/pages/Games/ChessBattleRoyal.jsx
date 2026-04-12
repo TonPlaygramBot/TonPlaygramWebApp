@@ -8144,15 +8144,41 @@ function Chess3D({
         const size = new THREE.Vector3();
         bounds.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z) || 0;
+        const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
         if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
+        if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
         const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
-        const score = (roleMatch ? 2 : 0) - maxDim;
+        const spanBias = maxDim / Math.max(minDim, 1e-3);
+        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
+        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
         if (score > bestScore) {
           bestScore = score;
           best = node;
         }
       });
       return best;
+    };
+    const findJetExhaustAnchor = (model) => {
+      if (!model) return new THREE.Vector3(-1.9, 0, 0);
+      const candidates = [];
+      model.traverse((node) => {
+        if (!node?.isMesh) return;
+        const name = `${node.name || ''}`.toLowerCase();
+        if (!/engine|exhaust|nozzle|thruster|afterburn|jet/.test(name)) return;
+        const box = new THREE.Box3().setFromObject(node);
+        if (box.isEmpty()) return;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const score = (box.min.x * -1) + Math.max(size.y, size.z) * 0.2;
+        candidates.push({ center, score });
+      });
+      if (!candidates.length) return new THREE.Vector3(-1.9, 0, 0);
+      candidates.sort((a, b) => b.score - a.score);
+      const anchor = candidates[0].center.clone();
+      model.worldToLocal(anchor);
+      return anchor;
     };
     const createJetExhaustClouds = (root, count = 8, start = [-1.95, 0, 0], stepX = 0.26) => {
       const clouds = [];
@@ -8261,20 +8287,8 @@ function Chess3D({
         let topRotor = findCaptureRotor(model, 'main');
         const tailRotor = findCaptureRotor(model, 'tail');
         if (!topRotor) {
-          const modelBounds = new THREE.Box3().setFromObject(model);
-          const topY = Number.isFinite(modelBounds.max.y) ? modelBounds.max.y * 0.98 : 0.42;
-          const centerZ = Number.isFinite(modelBounds.min.z) && Number.isFinite(modelBounds.max.z)
-            ? (modelBounds.min.z + modelBounds.max.z) * 0.5
-            : 0;
-          const centerX = Number.isFinite(modelBounds.min.x) && Number.isFinite(modelBounds.max.x)
-            ? (modelBounds.min.x + modelBounds.max.x) * 0.35
-            : 0;
-          topRotor = new THREE.Group();
-          topRotor.position.set(centerX, topY, centerZ);
-          addFxBox(topRotor, [0.08, 0.04, 0.1], [0, 0, 0], '#2d3338', 0.6, 0.22);
-          addFxBox(topRotor, [1.35, 0.012, 0.07], [0, 0, 0], '#151a1e', 0.58, 0.1);
-          addFxBox(topRotor, [0.07, 0.012, 1.35], [0, 0, 0], '#151a1e', 0.58, 0.1);
-          model.add(topRotor);
+          const topFallback = findCaptureRotor(model, 'tail');
+          topRotor = topFallback && topFallback !== tailRotor ? topFallback : null;
         }
         return { root, topRotor, tailRotor, exhaustClouds: [] };
       }
@@ -8315,16 +8329,14 @@ function Chess3D({
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
           model;
-        const modelBounds = new THREE.Box3().setFromObject(model);
-        const engineX = Number.isFinite(modelBounds.min.x) ? modelBounds.min.x + 0.08 : -1.9;
-        const centerY = Number.isFinite(modelBounds.min.y) && Number.isFinite(modelBounds.max.y)
-          ? (modelBounds.min.y + modelBounds.max.y) * 0.5
-          : 0;
-        const centerZ = Number.isFinite(modelBounds.min.z) && Number.isFinite(modelBounds.max.z)
-          ? (modelBounds.min.z + modelBounds.max.z) * 0.5
-          : 0;
-        const exhaustClouds = createJetExhaustClouds(root, 8, [engineX, centerY, centerZ], 0.22);
-        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds };
+        const exhaustAnchor = findJetExhaustAnchor(model);
+        const exhaustClouds = createJetExhaustClouds(
+          root,
+          8,
+          [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z],
+          0.22
+        );
+        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds, exhaustAnchor };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
@@ -8366,8 +8378,9 @@ function Chess3D({
       const rightStore = leftStore.clone();
       rightStore.position.z = 1.15;
       root.add(rightStore);
-      const exhaustClouds = createJetExhaustClouds(root, 8, [-1.95, 0, 0], 0.26);
-      return { root, cockpit, leftStore, rightStore, exhaustClouds };
+      const exhaustAnchor = new THREE.Vector3(-1.95, 0, 0);
+      const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
+      return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
     };
     const createFxMissile = () => {
       const root = new THREE.Group();
@@ -10362,8 +10375,13 @@ function Chess3D({
             captureDir.copy(jetNext).sub(jetPos).normalize();
             const jetForward = captureDir.clone();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            const jetExhaustAnchor = fx.jetFx.exhaustAnchor || new THREE.Vector3(-1.75, 0, 0);
             fx.jetFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(-1.75 - idx * 0.24, Math.sin(fx.t * 8.4 + idx * 0.5) * 0.03, 0);
+              puff.position.set(
+                jetExhaustAnchor.x - idx * 0.24,
+                jetExhaustAnchor.y + Math.sin(fx.t * 8.4 + idx * 0.5) * 0.03,
+                jetExhaustAnchor.z
+              );
               const s = 0.82 + idx * 0.14 + ((fx.t * 1.65 + idx * 0.11) % 1) * 0.5;
               puff.scale.setScalar(s);
             });
