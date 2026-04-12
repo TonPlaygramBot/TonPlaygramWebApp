@@ -496,24 +496,24 @@ function findDroneMotorMesh(root) {
   return best;
 }
 
-function applySilverDroneLook(root) {
+function applyMilitaryDroneLook(root, propeller = null) {
   if (!root) return null;
   applyCaptureTextureToOpaqueMeshes(root, 'drone');
-  const motor = findDroneMotorMesh(root);
+  const motor = propeller ?? findDroneMotorMesh(root);
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     const isMotor = node === motor || /propell|rotor|blade|fan|motor/.test(name);
     paintMeshMaterials(node, (mat) => {
-      if (isMotor) {
-        mat.color.set('#0e1116');
-        if ('metalness' in mat) mat.metalness = 0.6;
+      if (isMotor || /engine|exhaust|rear|tail/.test(name)) {
+        mat.color.setHex(0x11151a);
+        if ('metalness' in mat) mat.metalness = 0.72;
         if ('roughness' in mat) mat.roughness = 0.28;
         return;
       }
-      mat.color.set('#d3d9df');
+      mat.color.setHex(0xcfd4d9);
       if ('metalness' in mat) mat.metalness = 0.82;
-      if ('roughness' in mat) mat.roughness = 0.26;
+      if ('roughness' in mat) mat.roughness = 0.2;
     });
   });
   return motor;
@@ -665,7 +665,7 @@ async function createCaptureDroneFx() {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85);
     model.rotation.y = Math.PI;
-    const propeller = applySilverDroneLook(model);
+    const propeller = applyMilitaryDroneLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
@@ -785,7 +785,7 @@ async function createCaptureDroneFx() {
       )
     );
   }
-  applySilverDroneLook(root);
+  applyMilitaryDroneLook(root, propeller);
   root.visible = false;
   return { root, propeller, trail };
 }
@@ -6707,7 +6707,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : selectedCaptureAnimationId === 'helicopterAttack'
             ? 0.364
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 0.26
+            ? 0.34
             : 1;
         primaryFx.root.scale.set(
           missileLengthScale * animationScaleFactor,
@@ -6753,11 +6753,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : selectedCaptureAnimationId === 'helicopterAttack'
             ? 2860
             : selectedCaptureAnimationId === 'droneAttack'
-            ? 2080
+            ? 1780
             : 1780;
         const travelTime =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
-          selectedCaptureAnimationId === 'droneAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack'
             ? baseTravelTime * 1.3
             : baseTravelTime;
@@ -6872,9 +6871,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const nextU = clamp(u + 0.02, 0, 1);
             const pathAt = (v) => {
               const t = clamp(v, 0, 1);
-              if (selectedCaptureAnimationId === 'droneAttack') {
-                return dynamicFrom.clone().lerp(dynamicTo, t);
-              }
               if (t < phaseSplit) {
                 const a = easeSmooth(t / phaseSplit);
                 const orbitAngle = fromAngle + angularDelta * a;
@@ -6925,7 +6921,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.position.copy(pos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
             if (primaryFx.propeller) {
-              primaryFx.propeller.rotation.y += 0.9;
+              primaryFx.propeller.rotation.y += 1.2;
+              primaryFx.propeller.rotation.x += 1.2;
             }
             if (primaryFx.rotor) {
               primaryFx.rotor.rotation.y += 0.5;
