@@ -2182,7 +2182,13 @@ export default function SnakeAndLadder() {
       const totalPlayers = players.length;
       if (totalPlayers <= 0) return -1;
 
-      const idxById = players.findIndex((pl) => pl.id === playerId);
+      const resolveByPlayerId = (candidate) => {
+        if (candidate == null) return -1;
+        const asString = String(candidate);
+        return players.findIndex((pl) => String(pl.id) === asString);
+      };
+
+      const idxById = resolveByPlayerId(playerId);
       const normalizeIndex = (candidate) => {
         if (!Number.isInteger(candidate)) return -1;
         if (candidate >= 0 && candidate < totalPlayers) return candidate;
@@ -2203,8 +2209,13 @@ export default function SnakeAndLadder() {
       const currentTurnResolved = normalizeIndex(currentTurnPayload);
       if (currentTurnResolved >= 0) return currentTurnResolved;
 
+      const currentTurnById = resolveByPlayerId(currentTurnPayload);
+      if (currentTurnById >= 0) return currentTurnById;
+
       if (idxById >= 0) return idxById;
-      return normalizeIndex(playerId);
+      const numericFromPlayerId = normalizeIndex(playerId);
+      if (numericFromPlayerId >= 0) return numericFromPlayerId;
+      return resolveByPlayerId(seatIndex);
     };
 
     const onTurn = ({ playerId, seatIndex, currentTurn: currentTurnPayload }) => {
