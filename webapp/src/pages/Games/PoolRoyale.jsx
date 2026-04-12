@@ -18248,6 +18248,8 @@ const powerRef = useRef(hud.power);
       const tmpReplayPos = new THREE.Vector3();
       const tmpReplayCueA = new THREE.Vector3();
       const tmpReplayCueB = new THREE.Vector3();
+      const tmpCueStrokeA = new THREE.Vector3();
+      const tmpCueStrokeB = new THREE.Vector3();
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
@@ -22653,8 +22655,6 @@ const powerRef = useRef(hud.power);
             baseRotationX,
             baseRotationY,
             strikeDip,
-            wobbleAmount,
-            strikeImpactThreshold,
             forwardOnly
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
@@ -22662,61 +22662,28 @@ const powerRef = useRef(hud.power);
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
-            const impactThreshold = THREE.MathUtils.clamp(
-              strikeImpactThreshold ?? 0.9,
-              0,
-              1
-            );
+            const strikeExtraFollow = Math.max(0, stroke.strikeExtraFollow ?? 0);
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
-            const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-            const motionTechnique = stroke.motionTechnique ?? animationStyle;
-            const easedPush = (() => {
-              switch (animationStyle) {
-                case 'linear':
-                  return pushT;
-                case 'spring': {
-                  const spring = 1 - Math.exp(-7.2 * pushT) * Math.cos(9.4 * pushT);
-                  return THREE.MathUtils.clamp(spring, 0, 1);
-                }
-                case 'snap':
-                  return THREE.MathUtils.smootherstep(pushT, 0, 1);
-                case 'whip':
-                  return Math.pow(pushT, 0.68);
-                case 'classic':
-                default:
-                  return easeOutCubic(pushT);
-              }
-            })();
-            const motionPush = (() => {
-              switch (motionTechnique) {
-                case 'spring':
-                  return THREE.MathUtils.clamp(
-                    easedPush + Math.sin(pushT * Math.PI) * (1 - pushT) * 0.1,
-                    0,
-                    1
-                  );
-                case 'snap': {
-                  const steps = 4;
-                  return Math.ceil(easedPush * steps) / steps;
-                }
-                case 'whip':
-                  return pushT < 0.35
-                    ? pushT * 0.45
-                    : THREE.MathUtils.clamp(0.1575 + (pushT - 0.35) * 1.3, 0, 1);
-                case 'linear':
-                case 'classic':
-                default:
-                  return easedPush;
-              }
-            })();
+            const easedPush = easeOutCubic(pushT);
+            const strikeTargetPos = tmpCueStrokeA
+              .copy(impactPos ?? pullPos)
+              .add(
+                tmpCueStrokeB
+                  .copy(impactPos ?? pullPos)
+                  .sub(pullPos ?? impactPos)
+                  .setY(0)
+                  .normalize()
+                  .multiplyScalar(strikeExtraFollow)
+              );
+
             cueStick.visible = true;
-            cueStick.position.lerpVectors(pullPos, impactPos, motionPush);
-            cueStick.position.y -= (strikeDip ?? 0.003) * motionPush;
+            cueStick.position.lerpVectors(pullPos, strikeTargetPos, easedPush);
+            cueStick.position.y -= (strikeDip ?? 0.003) * pushT;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
-              Math.sin(pushT * Math.PI) * (wobbleAmount ?? 0.0018);
-            if (!stroke.shotApplied && pushT >= impactThreshold) {
+              Math.sin(pushT * Math.PI) * 0.0012;
+            if (!stroke.shotApplied && pushT > 0.9) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
@@ -26639,8 +26606,9 @@ const powerRef = useRef(hud.power);
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
               strikeDip: 0.003,
-              wobbleAmount: 0.0018,
-              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.9,
+              wobbleAmount: 0.0012,
+              strikeImpactThreshold: 0.9,
+              strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
