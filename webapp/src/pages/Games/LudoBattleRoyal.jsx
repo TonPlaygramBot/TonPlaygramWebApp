@@ -1240,7 +1240,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_VERTICAL_LOWERING = 0.09 * MODEL_SCALE;
+const TABLE_VERTICAL_LOWERING = 0.128 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
@@ -2819,7 +2819,7 @@ const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/spinning.mp3';
 const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
-const LUDO_CAPTURE_HELICOPTER_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
+const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -3575,18 +3575,19 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.148;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.172;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.9 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: { x: 0.386, y: 0.336, z: 0.369 },
-  knight: { x: 0.94, y: 0.94, z: 0.9 },
-  rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 2.686, y: 3.312, z: 2.57 },
-  queen: { x: 2.686, y: 3.485, z: 2.57 },
-  king: { x: 2.686, y: 3.656, z: 2.57 }
+  pawn: ROCK_TOKEN_REFERENCE_SCALE,
+  knight: ROCK_TOKEN_REFERENCE_SCALE,
+  rook: ROCK_TOKEN_REFERENCE_SCALE,
+  bishop: ROCK_TOKEN_REFERENCE_SCALE,
+  queen: ROCK_TOKEN_REFERENCE_SCALE,
+  king: ROCK_TOKEN_REFERENCE_SCALE
 });
 
 function setTokenHighlight(token, active) {
