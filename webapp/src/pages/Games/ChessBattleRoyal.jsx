@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 7.8; // slower pass so the full perimeter run is clearly visible on portrait screens
+const CAPTURE_JET_TOTAL = 5.2; // just a bit slower pass for better visual tracking
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 8.9 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned while remaining slightly slower than jet
-const CAPTURE_HELICOPTER_TOTAL = 8.9; // slower helicopter pass for clearer tracking
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 6.2 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slightly longer pass
+const CAPTURE_HELICOPTER_TOTAL = 6.2; // just a bit slower than prior tuning
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -117,7 +117,6 @@ const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.24; // keep jet lower, closer to board in portrait view
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.08; // helicopter still above jet, but closer to board
-const CAPTURE_BISHOP_STACK_GAP = 2.0; // requested visual gap: about two bishop heights above piece heads
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
@@ -10910,6 +10909,7 @@ function Chess3D({
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
+            const phaseSplit = 0.84; // mirror Ludo fighterJetAttack split
             const boardInset = tile * 0.28;
             const boardClamp = half - boardInset;
             const clampToBoard = (value) => {
@@ -10917,63 +10917,55 @@ function Chess3D({
               value.z = THREE.MathUtils.clamp(value.z, -boardClamp, boardClamp);
               return value;
             };
-            const topPieceHeadY = fx.to.y + Math.max(tile * 1.1, 0.14);
-            const bishopVisualHeight = Math.max(tile * 0.9, 0.11);
-            const jetFlightAltitude = Math.max(
-              CAPTURE_JET_ALTITUDE,
-              topPieceHeadY + bishopVisualHeight * CAPTURE_BISHOP_STACK_GAP
+            const arenaCenter = new THREE.Vector3(0, fx.from.y, 0);
+            const fromOffset = fx.from.clone().sub(arenaCenter).setY(0);
+            const toOffset = fx.to.clone().sub(arenaCenter).setY(0);
+            const fallbackRadius = boardClamp * 0.64;
+            const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+            const toRadius = Math.max(toOffset.length(), fallbackRadius);
+            const jetFlightAltitude = Math.max(CAPTURE_JET_ALTITUDE, fx.to.y + Math.max(tile * 0.22, 0.08));
+            const orbitalRadius = Math.min(
+              boardClamp * 0.72,
+              Math.max(fromRadius, toRadius, boardClamp * 0.66)
             );
-            const sideMargin = boardClamp * 0.92;
-            const verticalMargin = boardClamp * 0.98;
-            const cornerRadius = Math.max(tile * 0.72, boardClamp * 0.22);
-            const boardLoopPositionAt = (valueU, altitude) => {
-              const t = ((valueU % 1) + 1) % 1;
-              const direction = fx.attackFromTopSide ? 1 : -1;
-              const perimeterCore = Math.max(0.001, 8 + 2 * Math.PI);
-              const s = t * perimeterCore;
-              const xSign = direction;
-              let xNorm = 0;
-              let zNorm = 0;
-              if (s < 2) {
-                xNorm = xSign * (1 - s);
-                zNorm = -1;
-              } else if (s < 2 + Math.PI / 2) {
-                const a = s - 2;
-                xNorm = -xSign;
-                zNorm = -Math.cos(a);
-              } else if (s < 4 + Math.PI / 2) {
-                const d = s - (2 + Math.PI / 2);
-                xNorm = -xSign;
-                zNorm = -1 + d;
-              } else if (s < 4 + Math.PI) {
-                const a = s - (4 + Math.PI / 2);
-                xNorm = -xSign * Math.cos(a);
-                zNorm = 1;
-              } else if (s < 6 + Math.PI) {
-                const d = s - (4 + Math.PI);
-                xNorm = -xSign + xSign * d;
-                zNorm = 1;
-              } else if (s < 6 + (3 * Math.PI) / 2) {
-                const a = s - (6 + Math.PI);
-                xNorm = xSign;
-                zNorm = Math.cos(a);
-              } else {
-                const d = s - (6 + (3 * Math.PI) / 2);
-                xNorm = xSign;
-                zNorm = 1 - d;
-              }
-              const xRange = Math.max(0.001, sideMargin - cornerRadius);
-              const zRange = Math.max(0.001, verticalMargin - cornerRadius);
-              return clampToBoard(
-                new THREE.Vector3(xNorm * xRange, altitude, zNorm * zRange)
-              );
-            };
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            angularDelta = Math.max(angularDelta + Math.PI * 0.9, Math.PI * 1.8);
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              jetFlightAltitude,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
             let jetPos = null;
             let jetNext = null;
             const pathAt = (valueU) => {
               const t = clamp01(valueU);
-              return boardLoopPositionAt(t, jetFlightAltitude);
+              if (t < phaseSplit) {
+                const a = smoothEase(t / phaseSplit);
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  jetFlightAltitude,
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                );
+                return clampToBoard(fx.from.clone().lerp(ring, 0.78 + a * 0.22));
+              }
+              const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
+              const toRadial = fx.to.clone().sub(arenaCenter).setY(0);
+              if (toRadial.lengthSq() < 1e-6) {
+                toRadial.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              } else {
+                toRadial.normalize();
+              }
+              const flyByEnd = fx.to
+                .clone()
+                .add(toRadial.multiplyScalar(orbitalRadius * 0.85))
+                .add(new THREE.Vector3(0, Math.max(tile * 0.08, 0.03), 0));
+              return clampToBoard(qBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d));
             };
             if (jetU < 1) {
               jetPos = pathAt(jetU);
@@ -11064,6 +11056,7 @@ function Chess3D({
           } else if (fx.type === 'helicopter') {
             const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
             const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
+            const phaseSplit = 0.8; // mirror Ludo helicopterAttack split
             const boardInset = tile * 0.28;
             const boardClamp = half - boardInset;
             const clampToBoard = (value) => {
@@ -11071,63 +11064,57 @@ function Chess3D({
               value.z = THREE.MathUtils.clamp(value.z, -boardClamp, boardClamp);
               return value;
             };
-            const topPieceHeadY = fx.to.y + Math.max(tile * 1.1, 0.14);
-            const bishopVisualHeight = Math.max(tile * 0.9, 0.11);
+            const arenaCenter = new THREE.Vector3(0, fx.from.y, 0);
+            const fromOffset = fx.from.clone().sub(arenaCenter).setY(0);
+            const toOffset = fx.to.clone().sub(arenaCenter).setY(0);
+            const fallbackRadius = boardClamp * 0.64;
+            const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+            const toRadius = Math.max(toOffset.length(), fallbackRadius);
             const helicopterFlightAltitude = Math.max(
               CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
-              topPieceHeadY + bishopVisualHeight * CAPTURE_BISHOP_STACK_GAP + CAPTURE_HELICOPTER_ALTITUDE_BOOST
+              fx.to.y + Math.max(tile * 0.3, 0.11)
             );
-            const sideMargin = boardClamp * 0.95;
-            const verticalMargin = boardClamp * 1.02;
-            const cornerRadius = Math.max(tile * 0.82, boardClamp * 0.24);
-            const boardLoopPositionAt = (valueU, altitude) => {
-              const t = ((valueU % 1) + 1) % 1;
-              const direction = fx.attackFromTopSide ? 1 : -1;
-              const perimeterCore = Math.max(0.001, 8 + 2 * Math.PI);
-              const s = t * perimeterCore;
-              const xSign = direction;
-              let xNorm = 0;
-              let zNorm = 0;
-              if (s < 2) {
-                xNorm = xSign * (1 - s);
-                zNorm = -1;
-              } else if (s < 2 + Math.PI / 2) {
-                const a = s - 2;
-                xNorm = -xSign;
-                zNorm = -Math.cos(a);
-              } else if (s < 4 + Math.PI / 2) {
-                const d = s - (2 + Math.PI / 2);
-                xNorm = -xSign;
-                zNorm = -1 + d;
-              } else if (s < 4 + Math.PI) {
-                const a = s - (4 + Math.PI / 2);
-                xNorm = -xSign * Math.cos(a);
-                zNorm = 1;
-              } else if (s < 6 + Math.PI) {
-                const d = s - (4 + Math.PI);
-                xNorm = -xSign + xSign * d;
-                zNorm = 1;
-              } else if (s < 6 + (3 * Math.PI) / 2) {
-                const a = s - (6 + Math.PI);
-                xNorm = xSign;
-                zNorm = Math.cos(a);
-              } else {
-                const d = s - (6 + (3 * Math.PI) / 2);
-                xNorm = xSign;
-                zNorm = 1 - d;
-              }
-              const xRange = Math.max(0.001, sideMargin - cornerRadius);
-              const zRange = Math.max(0.001, verticalMargin - cornerRadius);
-              return clampToBoard(
-                new THREE.Vector3(xNorm * xRange, altitude, zNorm * zRange)
-              );
-            };
+            const orbitalRadius = Math.min(
+              boardClamp * 0.72,
+              Math.max(fromRadius, toRadius, boardClamp * 0.66)
+            );
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            if (angularDelta < Math.PI / 3) angularDelta += Math.PI * 2;
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              helicopterFlightAltitude,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
             let heliPos = null;
             let heliNext = null;
             const pathAt = (valueU) => {
               const t = clamp01(valueU);
-              return boardLoopPositionAt(t, helicopterFlightAltitude);
+              if (t < phaseSplit) {
+                const a = smoothEase(t / phaseSplit);
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  helicopterFlightAltitude,
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
+                );
+                return clampToBoard(fx.from.clone().lerp(ring, 0.78 + a * 0.22));
+              }
+              const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
+              const retreatDir = apex.clone().sub(fx.to).setY(0);
+              if (retreatDir.lengthSq() < 1e-6) {
+                retreatDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              }
+              retreatDir.normalize();
+              const flyAwayEnd = apex
+                .clone()
+                .add(retreatDir.multiplyScalar(orbitalRadius * 1.35))
+                .add(new THREE.Vector3(0, Math.max(tile * 0.08, 0.03), 0));
+              return clampToBoard(qBezier(apex, apex.clone().lerp(flyAwayEnd, 0.5), flyAwayEnd, d));
             };
             if (heliU < 1) {
               heliPos = pathAt(heliU);
