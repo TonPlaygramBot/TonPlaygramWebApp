@@ -2866,8 +2866,7 @@ function normalizeModel(object, targetSize) {
   object.position.y -= normalized.min.y;
 }
 
-function prepareCaptureModel(root, options = {}) {
-  const preserveOriginalMaterialLook = options.preserveOriginalMaterialLook !== false;
+function prepareCaptureModel(root) {
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
@@ -2878,7 +2877,7 @@ function prepareCaptureModel(root, options = {}) {
       if (material?.emissiveMap) {
         applySRGBColorSpace(material.emissiveMap);
       }
-      if (!preserveOriginalMaterialLook && material && 'envMapIntensity' in material) {
+      if (material && 'envMapIntensity' in material) {
         material.envMapIntensity = 1.1;
         material.needsUpdate = true;
       }
@@ -8053,7 +8052,7 @@ function Chess3D({
             });
             const model = (gltf.scene || gltf.scenes?.[0])?.clone?.(true);
             if (!model) continue;
-            prepareCaptureModel(model, { preserveOriginalMaterialLook: true });
+            prepareCaptureModel(model);
             normalizeModel(model, targetSize);
             captureUnitTemplates[key] = model;
             return model;
@@ -8071,7 +8070,7 @@ function Chess3D({
       const template = captureUnitTemplates[key];
       if (!template) return null;
       const clone = cloneSkinned(template);
-      prepareCaptureModel(clone, { preserveOriginalMaterialLook: true });
+      prepareCaptureModel(clone);
       return clone;
     };
 
@@ -8146,52 +8145,14 @@ function Chess3D({
         bounds.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z) || 0;
         if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
-        const center = new THREE.Vector3();
-        bounds.getCenter(center);
-        const normalizedHeight = modelSize.y > 0 ? (center.y - modelBounds.min.y) / modelSize.y : 0.5;
-        if (role === 'main' && normalizedHeight < 0.52) return;
-        if (role === 'tail' && normalizedHeight > 0.72) return;
-        if (node.parent === model && node.children?.length) return;
         const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
-        const placementScore = role === 'main' ? normalizedHeight : 1 - Math.abs(normalizedHeight - 0.45);
-        const score = (roleMatch ? 2 : 0) + placementScore - maxDim;
+        const score = (roleMatch ? 2 : 0) - maxDim;
         if (score > bestScore) {
           bestScore = score;
           best = node;
         }
       });
       return best;
-    };
-    const resolveJetExhaustOrigin = (model) => {
-      const bounds = new THREE.Box3().setFromObject(model);
-      const center = new THREE.Vector3();
-      bounds.getCenter(center);
-      let best = null;
-      let bestScore = Number.NEGATIVE_INFINITY;
-      model.traverse((node) => {
-        if (!node?.isMesh) return;
-        const name = `${node.name || ''}`.toLowerCase();
-        if (!/engine|exhaust|nozzle|thruster|afterburn/.test(name)) return;
-        const nodeBounds = new THREE.Box3().setFromObject(node);
-        if (!Number.isFinite(nodeBounds.min.x)) return;
-        const nodeCenter = new THREE.Vector3();
-        nodeBounds.getCenter(nodeCenter);
-        const rearBias = center.x - nodeCenter.x;
-        const centerBias = Math.abs(nodeCenter.z - center.z) * 0.25;
-        const score = rearBias - centerBias + 0.5;
-        if (score > bestScore) {
-          bestScore = score;
-          best = nodeBounds;
-        }
-      });
-      if (best) {
-        return new THREE.Vector3(best.min.x + 0.04, (best.min.y + best.max.y) * 0.5, (best.min.z + best.max.z) * 0.5);
-      }
-      return new THREE.Vector3(
-        Number.isFinite(bounds.min.x) ? bounds.min.x + 0.08 : -1.9,
-        Number.isFinite(bounds.min.y) && Number.isFinite(bounds.max.y) ? (bounds.min.y + bounds.max.y) * 0.5 : 0,
-        Number.isFinite(bounds.min.z) && Number.isFinite(bounds.max.z) ? (bounds.min.z + bounds.max.z) * 0.5 : 0
-      );
     };
     const createJetExhaustClouds = (root, count = 8, start = [-1.95, 0, 0], stepX = 0.26) => {
       const clouds = [];
@@ -8354,22 +8315,16 @@ function Chess3D({
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
           model;
-        const exhaustOrigin = resolveJetExhaustOrigin(model);
-        const exhaustClouds = createJetExhaustClouds(
-          root,
-          8,
-          [exhaustOrigin.x, exhaustOrigin.y, exhaustOrigin.z],
-          0.22
-        );
-        return {
-          root,
-          cockpit,
-          leftStore: null,
-          rightStore: null,
-          exhaustClouds,
-          exhaustOrigin,
-          exhaustStep: 0.22
-        };
+        const modelBounds = new THREE.Box3().setFromObject(model);
+        const engineX = Number.isFinite(modelBounds.min.x) ? modelBounds.min.x + 0.08 : -1.9;
+        const centerY = Number.isFinite(modelBounds.min.y) && Number.isFinite(modelBounds.max.y)
+          ? (modelBounds.min.y + modelBounds.max.y) * 0.5
+          : 0;
+        const centerZ = Number.isFinite(modelBounds.min.z) && Number.isFinite(modelBounds.max.z)
+          ? (modelBounds.min.z + modelBounds.max.z) * 0.5
+          : 0;
+        const exhaustClouds = createJetExhaustClouds(root, 8, [engineX, centerY, centerZ], 0.22);
+        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
@@ -8411,10 +8366,8 @@ function Chess3D({
       const rightStore = leftStore.clone();
       rightStore.position.z = 1.15;
       root.add(rightStore);
-      const exhaustOrigin = new THREE.Vector3(-1.95, 0, 0);
-      const exhaustStep = 0.26;
-      const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustOrigin.x, exhaustOrigin.y, exhaustOrigin.z], exhaustStep);
-      return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustOrigin, exhaustStep };
+      const exhaustClouds = createJetExhaustClouds(root, 8, [-1.95, 0, 0], 0.26);
+      return { root, cockpit, leftStore, rightStore, exhaustClouds };
     };
     const createFxMissile = () => {
       const root = new THREE.Group();
@@ -10409,14 +10362,8 @@ function Chess3D({
             captureDir.copy(jetNext).sub(jetPos).normalize();
             const jetForward = captureDir.clone();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            const jetExhaustOrigin = fx.jetFx.exhaustOrigin || new THREE.Vector3(-1.75, 0, 0);
-            const jetExhaustStep = Number.isFinite(fx.jetFx.exhaustStep) ? fx.jetFx.exhaustStep : 0.24;
             fx.jetFx.exhaustClouds?.forEach((puff, idx) => {
-              puff.position.set(
-                jetExhaustOrigin.x - idx * jetExhaustStep,
-                jetExhaustOrigin.y + Math.sin(fx.t * 8.4 + idx * 0.5) * 0.03,
-                jetExhaustOrigin.z
-              );
+              puff.position.set(-1.75 - idx * 0.24, Math.sin(fx.t * 8.4 + idx * 0.5) * 0.03, 0);
               const s = 0.82 + idx * 0.14 + ((fx.t * 1.65 + idx * 0.11) % 1) * 0.5;
               puff.scale.setScalar(s);
             });
