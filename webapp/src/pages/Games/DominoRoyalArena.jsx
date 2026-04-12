@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-table-scale-20pct-v20';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-table-width-chair-offset-domino-shrink-v21';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
