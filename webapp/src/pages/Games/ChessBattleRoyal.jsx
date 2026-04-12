@@ -1041,7 +1041,7 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
-const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
+const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -2934,6 +2934,64 @@ function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null) {
         mat.color.offsetHSL(0.02, -0.14, -0.16);
         if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
         if ('roughness' in mat) mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function applyMilitaryJetLook(model) {
+  if (!model) return;
+  model.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat) => {
+      if (!mat?.color) return;
+      if (/window|cockpit|glass|canopy/.test(name)) {
+        mat.color.setHex(0x06090d);
+        if ('metalness' in mat) mat.metalness = 0.58;
+        if ('roughness' in mat) mat.roughness = 0.18;
+        if ('opacity' in mat) mat.opacity = 0.94;
+        if ('transparent' in mat) mat.transparent = true;
+      } else if (/missile|rocket|store|weapon|hardpoint|pod/.test(name)) {
+        mat.color.setHex(0xd9dde2);
+        if ('metalness' in mat) mat.metalness = 0.86;
+        if ('roughness' in mat) mat.roughness = 0.2;
+      } else if (/engine|exhaust|nozzle|thruster/.test(name)) {
+        mat.color.setHex(0x14181d);
+        if ('metalness' in mat) mat.metalness = 0.68;
+        if ('roughness' in mat) mat.roughness = 0.3;
+      } else {
+        mat.color.offsetHSL(-0.02, -0.26, -0.2);
+        if ('metalness' in mat) mat.metalness = Math.min(0.66, (mat.metalness ?? 0.3) + 0.1);
+        if ('roughness' in mat) mat.roughness = Math.max(0.34, (mat.roughness ?? 0.58) - 0.1);
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function applyMilitaryDroneLook(model, propeller = null) {
+  if (!model) return;
+  model.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const isPropellerMesh =
+      node === propeller ||
+      node.parent === propeller ||
+      /propell|rotor|blade|fan|motor/.test(name);
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat) => {
+      if (!mat?.color) return;
+      if (isPropellerMesh || /engine|exhaust|rear|tail/.test(name)) {
+        mat.color.setHex(0x11151a);
+        if ('metalness' in mat) mat.metalness = 0.72;
+        if ('roughness' in mat) mat.roughness = 0.28;
+      } else {
+        mat.color.setHex(0xcfd4d9);
+        if ('metalness' in mat) mat.metalness = 0.82;
+        if ('roughness' in mat) mat.roughness = 0.2;
       }
       mat.needsUpdate = true;
     });
@@ -6400,7 +6458,7 @@ function Chess3D({
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
-  const laughTimeoutRef = useRef(null);
+  const audioStopTimeoutsRef = useRef(new Map());
   const lastBeepRef = useRef({ white: null, black: null });
   const suppressTimerBeepUntilRef = useRef(0);
   const controlsRef = useRef(null);
@@ -7352,9 +7410,9 @@ function Chess3D({
         } catch {}
       }
     });
-    if (!effectiveSoundEnabled && laughTimeoutRef.current) {
-      clearTimeout(laughTimeoutRef.current);
-      laughTimeoutRef.current = null;
+    if (!effectiveSoundEnabled) {
+      audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      audioStopTimeoutsRef.current.clear();
     }
   }, [effectiveSoundEnabled]);
 
@@ -7714,11 +7772,18 @@ function Chess3D({
     let onResize = null;
     let onClick = null;
 
-    const clearLaughTimeout = () => {
-      if (laughTimeoutRef.current) {
-        clearTimeout(laughTimeoutRef.current);
-        laughTimeoutRef.current = null;
+    const clearAudioStopTimeout = (audioRef = null) => {
+      if (!audioRef?.current) return;
+      const timeoutId = audioStopTimeoutsRef.current.get(audioRef.current);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
+      audioStopTimeoutsRef.current.delete(audioRef.current);
+    };
+
+    const clearAllAudioStopTimeouts = () => {
+      audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      audioStopTimeoutsRef.current.clear();
     };
 
     const setup = async () => {
@@ -7770,14 +7835,15 @@ function Chess3D({
           audioRef.current.currentTime = 0;
           const playPromise = audioRef.current.play();
           if (maxDurationMs && Number.isFinite(maxDurationMs)) {
-            clearLaughTimeout();
-            laughTimeoutRef.current = setTimeout(() => {
+            clearAudioStopTimeout(audioRef);
+            const timeoutId = setTimeout(() => {
               try {
                 audioRef.current.pause();
                 audioRef.current.currentTime = 0;
               } catch {}
-              laughTimeoutRef.current = null;
+              audioStopTimeoutsRef.current.delete(audioRef.current);
             }, maxDurationMs);
+            audioStopTimeoutsRef.current.set(audioRef.current, timeoutId);
           }
           playPromise?.catch(() => {});
         } catch {}
@@ -8549,6 +8615,7 @@ function Chess3D({
           model.getObjectByName('Propeller') ||
           model.getObjectByName('Rotor') ||
           model;
+        applyMilitaryDroneLook(model, propeller);
         return { root, propeller, exhaustClouds: [] };
       }
       const root = new THREE.Group();
@@ -8681,6 +8748,7 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
+        applyMilitaryJetLook(model);
         const cockpit =
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
@@ -8721,10 +8789,10 @@ function Chess3D({
       engineRight.position.z = 0.2;
       root.add(engineRight);
       const leftStore = new THREE.Group();
-      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
+      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 12, 0.22, 0.84);
       const leftStoreNose = new THREE.Mesh(
         new THREE.ConeGeometry(0.05, 0.14, 12),
-        new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+        new THREE.MeshStandardMaterial({ color: '#eef1f5', roughness: 0.18, metalness: 0.86 })
       );
       leftStoreNose.position.set(0.34, 0, 0);
       leftStoreNose.rotation.z = -Math.PI / 2;
@@ -8740,16 +8808,17 @@ function Chess3D({
     };
     const createFxMissile = () => {
       const root = new THREE.Group();
-      addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#c9ced3', 14, 0.42, 0.12);
+      addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 14, 0.2, 0.86);
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.055, 0.18, 14),
-        new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.3, metalness: 0.15 })
+        new THREE.MeshStandardMaterial({ color: '#eef2f6', roughness: 0.16, metalness: 0.9 })
       );
       nose.position.set(0.45, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#7f868d', 0.58, 0.12);
+      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxCylinder(root, 0.055, 0.055, 0.14, [-0.42, 0, 0], [0, 0, Math.PI / 2], '#12161b', 14, 0.34, 0.58);
       const trail = [];
       for (let i = 0; i < 4; i += 1) {
         trail.push(addFxSphere(root, 0.08 + i * 0.02, [-0.5 - i * 0.14, 0, 0], '#90989d', 1, 0, true, 0.22 - i * 0.03));
@@ -8758,18 +8827,19 @@ function Chess3D({
     };
     const createFxGroundMissile = () => {
       const root = new THREE.Group();
-      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+      addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#d4d9de', 16, 0.18, 0.88);
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.08, 0.24, 16),
-        new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+        new THREE.MeshStandardMaterial({ color: '#f2f5f7', roughness: 0.14, metalness: 0.92 })
       );
       nose.position.set(0.63, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#7d858b', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#727a80', 0.58, 0.12);
+      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#8f979d', 0.24, 0.76);
+      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#8f979d', 0.24, 0.76);
+      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#7c858c', 0.28, 0.72);
+      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#7c858c', 0.28, 0.72);
+      addFxCylinder(root, 0.075, 0.075, 0.16, [-0.55, 0, 0], [0, 0, Math.PI / 2], '#101419', 16, 0.34, 0.62);
       const trail = [];
       for (let i = 0; i < 5; i += 1) {
         trail.push(
@@ -11103,7 +11173,7 @@ function Chess3D({
       activeCaptureFx.splice(0, activeCaptureFx.length);
       captureFxGroup.clear();
       scene.remove(captureFxGroup);
-      clearLaughTimeout();
+      clearAllAudioStopTimeouts();
     };
   }, []);
 
