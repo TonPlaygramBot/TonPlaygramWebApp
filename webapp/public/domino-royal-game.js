@@ -944,7 +944,7 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.7;
 const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const TABLE_SIZE_REDUCTION_FACTOR = 0.85;
+const TABLE_SIZE_REDUCTION_FACTOR = 0.68; // 20% smaller than previous 0.85 baseline
 const TABLE_RADIUS_SCALE = 0.79 * TABLE_SIZE_REDUCTION_FACTOR;
 const TABLE_HEIGHT_SCALE = 0.79 * TABLE_SIZE_REDUCTION_FACTOR;
 const ARENA_GROWTH = 1.45;
@@ -1014,12 +1014,12 @@ const CAMERA_LATERAL_OFFSET = {
   landscape: 0 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_REAR_OFFSET = {
-  portrait: 1.06 * CAMERA_LAYOUT_SCALE,
-  landscape: 0.62 * CAMERA_LAYOUT_SCALE
+  portrait: 1.06 * CAMERA_LAYOUT_SCALE * 0.8,
+  landscape: 0.62 * CAMERA_LAYOUT_SCALE * 0.8
 };
 const CAMERA_HEIGHT_BOOST = {
-  portrait: 1.79 * CAMERA_LAYOUT_SCALE,
-  landscape: 1.03 * CAMERA_LAYOUT_SCALE
+  portrait: 1.79 * CAMERA_LAYOUT_SCALE * 0.8,
+  landscape: 1.03 * CAMERA_LAYOUT_SCALE * 0.8
 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
