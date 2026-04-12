@@ -1337,9 +1337,10 @@ const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 4.2 * MODEL_SCALE;
 const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const TABLE_VISUAL_SCALE = 0.9;
+const TABLE_VISUAL_SCALE = 0.86;
 const TABLE_SIDE_EXPANSION_FACTOR = 1.22;
-const TABLE_SIDE_WIDTH_TRIM = 0.92;
+const TABLE_SIDE_WIDTH_TRIM = 0.9;
+const TABLE_SIDE_DEPTH_TRIM = 0.9;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
@@ -1363,8 +1364,8 @@ const TABLE_VERTICAL_LOWERING = 0.198 * MODEL_SCALE;
 const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
-const CHAIR_INWARD_PULL = 0.19 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0.26 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.26 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
   TABLE_RADIUS +
   SEAT_DEPTH / 2 +
@@ -1461,7 +1462,7 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.84,
+  backOffset: 0.78,
   forwardOffset: 0,
   heightOffset: 2.22,
   targetLift: 0.055 * MODEL_SCALE
@@ -1824,11 +1825,18 @@ function measureProceduralTokenHeight() {
 }
 
 const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.054, z: 0.054 });
+const ABG_TOKEN_TYPE_HEIGHT_MULTIPLIER = Object.freeze({
+  p: 0.9,
+  b: 1.07,
+  q: 1.08,
+  k: 1.08
+});
 
-function abgPreparePiece(src) {
+function abgPreparePiece(src, type = 'p') {
   const clone = abgCloneWithMats(src);
   const { size } = abgBbox(clone);
-  const targetHeight = measureProceduralTokenHeight();
+  const heightMultiplier = ABG_TOKEN_TYPE_HEIGHT_MULTIPLIER[type] ?? 1;
+  const targetHeight = measureProceduralTokenHeight() * heightMultiplier;
   if (size.y) {
     const scale = targetHeight / size.y;
     clone.scale.setScalar(scale);
@@ -1954,7 +1962,7 @@ async function getAbgAssets() {
           }
         }
         if (proto[color][type]) {
-          proto[color][type] = abgPreparePiece(proto[color][type]);
+          proto[color][type] = abgPreparePiece(proto[color][type], type);
         }
       });
     });
@@ -2373,7 +2381,7 @@ function fitTableModelToArena(model, tableThemeId = null) {
     model.scale.set(
       model.scale.x * scaleXZ * TABLE_SIDE_WIDTH_TRIM,
       model.scale.y * scaleY,
-      model.scale.z * scaleXZ
+      model.scale.z * scaleXZ * TABLE_SIDE_DEPTH_TRIM
     );
   }
   if (TABLE_LEG_EXTENSION_FACTOR !== 1) {
@@ -2821,8 +2829,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.58;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.52;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3738,15 +3746,15 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.172;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.115;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.98, z: 0.84 });
-const PAWN_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 0.94, z: ROCK_TOKEN_REFERENCE_SCALE.z });
-const BISHOP_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z });
-const ROYAL_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.12, z: ROCK_TOKEN_REFERENCE_SCALE.z });
+const PAWN_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 0.9, z: ROCK_TOKEN_REFERENCE_SCALE.z });
+const BISHOP_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.1, z: ROCK_TOKEN_REFERENCE_SCALE.z });
+const ROYAL_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.16, z: ROCK_TOKEN_REFERENCE_SCALE.z });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: PAWN_TOKEN_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
@@ -8758,7 +8766,9 @@ async function buildLudoBoard(
           token.scale.z * typeScale.z
         );
       }
-      if (typeKey === 'king' || typeKey === 'knight' || typeKey === 'horse') {
+      if (typeKey === 'king') {
+        token.rotation.y = Math.PI;
+      } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
       const label = createTokenCountLabel();
