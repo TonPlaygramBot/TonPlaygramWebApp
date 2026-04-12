@@ -1042,7 +1042,7 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
-const HELICOPTER_FLY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
+const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -2829,6 +2829,10 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 }
 
 let sharedKTX2Loader = null;
+const GLB_MAGIC = 0x46546c67;
+const GLB_VERSION = 2;
+const GLB_JSON_CHUNK = 0x4e4f534a;
+const GLB_BIN_CHUNK = 0x004e4942;
 
 function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
@@ -2885,6 +2889,232 @@ function prepareCaptureModel(root) {
       }
     });
   });
+}
+
+function isDataUri(uri) {
+  return typeof uri === 'string' && uri.startsWith('data:');
+}
+
+function isAbsoluteUrl(uri) {
+  return /^https?:\/\//i.test(uri) || uri.startsWith('blob:');
+}
+
+function uniqueStrings(values) {
+  return Array.from(new Set(values));
+}
+
+function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
+  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
+  return uniqueStrings([
+    imageUri,
+    new URL(imageUri, sourceUrl).href,
+    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
+  ]);
+}
+
+function decodeGlb(buffer) {
+  const view = new DataView(buffer);
+  if (view.byteLength < 20) throw new Error('GLB too small to parse');
+  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Asset is not a GLB file');
+  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
+
+  const totalLength = view.getUint32(8, true);
+  const bytes = new Uint8Array(buffer, 0, totalLength);
+  const decoder = new TextDecoder();
+
+  let offset = 12;
+  let json = null;
+  let binChunk = null;
+
+  while (offset + 8 <= totalLength) {
+    const chunkLength = view.getUint32(offset, true);
+    const chunkType = view.getUint32(offset + 4, true);
+    offset += 8;
+    const chunkBytes = bytes.slice(offset, offset + chunkLength);
+    offset += chunkLength;
+    if (chunkType === GLB_JSON_CHUNK) {
+      json = JSON.parse(decoder.decode(chunkBytes).trim());
+    } else if (chunkType === GLB_BIN_CHUNK) {
+      binChunk = chunkBytes;
+    }
+  }
+
+  if (!json) throw new Error('GLB missing JSON chunk');
+  return { json, binChunk };
+}
+
+function createMinimalGlbBuffer(json, binChunk) {
+  const encoder = new TextEncoder();
+  const rawJson = encoder.encode(JSON.stringify(json));
+  const jsonPadding = (4 - (rawJson.length % 4)) % 4;
+  const paddedJson = new Uint8Array(rawJson.length + jsonPadding);
+  paddedJson.set(rawJson);
+  paddedJson.fill(0x20, rawJson.length);
+
+  let paddedBin = null;
+  if (binChunk) {
+    const binPadding = (4 - (binChunk.length % 4)) % 4;
+    paddedBin = new Uint8Array(binChunk.length + binPadding);
+    paddedBin.set(binChunk);
+  }
+
+  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
+  const buffer = new ArrayBuffer(totalLength);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+
+  view.setUint32(0, GLB_MAGIC, true);
+  view.setUint32(4, GLB_VERSION, true);
+  view.setUint32(8, totalLength, true);
+
+  let offset = 12;
+  view.setUint32(offset, paddedJson.length, true);
+  view.setUint32(offset + 4, GLB_JSON_CHUNK, true);
+  offset += 8;
+  bytes.set(paddedJson, offset);
+  offset += paddedJson.length;
+
+  if (paddedBin) {
+    view.setUint32(offset, paddedBin.length, true);
+    view.setUint32(offset + 4, GLB_BIN_CHUNK, true);
+    offset += 8;
+    bytes.set(paddedBin, offset);
+  }
+
+  return buffer;
+}
+
+function extractBufferViewBytes(json, binChunk, bufferViewIndex) {
+  if (!binChunk) return null;
+  const bufferViews = Array.isArray(json?.bufferViews) ? json.bufferViews : [];
+  const view = bufferViews[bufferViewIndex];
+  if (!view) return null;
+  const byteOffset = typeof view.byteOffset === 'number' ? view.byteOffset : 0;
+  const byteLength = typeof view.byteLength === 'number' ? view.byteLength : 0;
+  if (byteLength <= 0) return null;
+  return binChunk.slice(byteOffset, byteOffset + byteLength);
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function bytesToDataUri(bytes, mimeType) {
+  return `data:${mimeType};base64,${bytesToBase64(bytes)}`;
+}
+
+async function fetchBuffer(url) {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+  return response.arrayBuffer();
+}
+
+async function fetchBlob(url) {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
+  return response.blob();
+}
+
+function parseObjectFromBuffer(loader, buffer) {
+  return new Promise((resolve, reject) => {
+    loader.parse(
+      buffer,
+      '',
+      (gltf) => resolve(gltf?.scene || gltf?.scenes?.[0] || null),
+      (error) => reject(error)
+    );
+  });
+}
+
+async function blobToDataUri(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function makePlaceholderTextureDataUri(primary, secondary) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return 'data:image/png;base64,';
+  ctx.fillStyle = primary;
+  ctx.fillRect(0, 0, 64, 64);
+  ctx.fillStyle = secondary;
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.fillRect(32, 32, 32, 32);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 62, 62);
+  return canvas.toDataURL('image/png');
+}
+
+async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+  if (isDataUri(imageUri)) return imageUri;
+  const placeholderColors = {
+    drone: ['#7c8791', '#4f5861'],
+    helicopter: ['#6f7763', '#4f5648'],
+    fighter: ['#98a1a9', '#646d76']
+  };
+  const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
+  const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
+  const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
+  for (const candidate of candidates) {
+    if (!isAbsoluteUrl(candidate)) continue;
+    const cached = cache.get(candidate);
+    if (cached) return cached;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const blob = await fetchBlob(candidate);
+      // eslint-disable-next-line no-await-in-loop
+      const dataUri = await blobToDataUri(blob);
+      if (dataUri) {
+        cache.set(candidate, dataUri);
+        return dataUri;
+      }
+    } catch {
+      // ignore candidate
+    }
+  }
+  return placeholderDataUri;
+}
+
+async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+  const { json, binChunk } = decodeGlb(buffer);
+  const cloned = JSON.parse(JSON.stringify(json));
+  const images = Array.isArray(cloned.images) ? cloned.images : [];
+  if (!images.length) return buffer;
+
+  for (let i = 0; i < images.length; i += 1) {
+    const image = images[i];
+    if (typeof image.uri === 'string') {
+      // eslint-disable-next-line no-await-in-loop
+      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      delete image.bufferView;
+      image.mimeType = image.mimeType ?? 'image/png';
+      continue;
+    }
+    if (typeof image.bufferView === 'number') {
+      const bytes = extractBufferViewBytes(cloned, binChunk, image.bufferView);
+      if (bytes?.length) {
+        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
+        image.uri = bytesToDataUri(bytes, mimeType);
+        delete image.bufferView;
+        image.mimeType = mimeType;
+      }
+    }
+  }
+
+  return createMinimalGlbBuffer(cloned, binChunk);
 }
 
 async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
@@ -8041,6 +8271,7 @@ function Chess3D({
       if (captureUnitLoads[key]) return captureUnitLoads[key];
       const urls = CAPTURE_MODEL_URLS[key] || [];
       const loader = createConfiguredGLTFLoader(renderer);
+      const imageCache = new Map();
       const task = (async () => {
         for (const url of urls) {
           try {
@@ -8048,12 +8279,26 @@ function Chess3D({
             const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
             loader.setResourcePath(resourcePath);
             loader.setPath('');
-            // eslint-disable-next-line no-await-in-loop
-            const gltf = await new Promise((resolve, reject) => {
-              loader.load(resolvedUrl, resolve, undefined, reject);
-            });
-            const model = (gltf.scene || gltf.scenes?.[0])?.clone?.(true);
+            let model = null;
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const rawBuffer = await fetchBuffer(resolvedUrl);
+              // eslint-disable-next-line no-await-in-loop
+              const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, key, resolvedUrl, urls, imageCache);
+              // eslint-disable-next-line no-await-in-loop
+              model = await parseObjectFromBuffer(loader, patchedBuffer);
+            } catch {
+              // Fallback to default GLTF load flow.
+            }
+            if (!model) {
+              // eslint-disable-next-line no-await-in-loop
+              const gltf = await new Promise((resolve, reject) => {
+                loader.load(resolvedUrl, resolve, undefined, reject);
+              });
+              model = gltf.scene || gltf.scenes?.[0] || null;
+            }
             if (!model) continue;
+            model = model.clone?.(true) ?? model;
             prepareCaptureModel(model);
             normalizeModel(model, targetSize);
             captureUnitTemplates[key] = model;
@@ -8132,6 +8377,7 @@ function Chess3D({
       const modelSize = new THREE.Vector3();
       modelBounds.getSize(modelSize);
       const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
+      const modelCenter = modelBounds.getCenter(new THREE.Vector3());
       const roleMatchers =
         role === 'tail'
           ? [/tail/i, /back/i, /rear/i]
@@ -8149,10 +8395,13 @@ function Chess3D({
         const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
         if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
         if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
+        const center = bounds.getCenter(new THREE.Vector3());
         const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
         const spanBias = maxDim / Math.max(minDim, 1e-3);
-        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
-        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
+        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim * 0.12;
+        const verticalBias = role === 'main' ? (center.y - modelCenter.y) * 2.2 : 0;
+        const tailXBias = role === 'tail' ? (modelCenter.x - center.x) * 1.7 : 0;
+        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias + verticalBias + tailXBias;
         if (score > bestScore) {
           bestScore = score;
           best = node;
@@ -8286,11 +8535,16 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
-        let topRotor = findCaptureRotor(model, 'main');
         const tailRotor = findCaptureRotor(model, 'tail');
+        let topRotor = findCaptureRotor(model, 'main');
         if (!topRotor) {
-          const topFallback = findCaptureRotor(model, 'tail');
-          topRotor = topFallback && topFallback !== tailRotor ? topFallback : null;
+          model.traverse((node) => {
+            if (topRotor || !node?.isMesh || node === tailRotor) return;
+            const name = `${node.name || ''}`.toLowerCase();
+            if (/rotor|propell|blade|fan/.test(name)) {
+              topRotor = node;
+            }
+          });
         }
         return { root, topRotor, tailRotor, exhaustClouds: [] };
       }
