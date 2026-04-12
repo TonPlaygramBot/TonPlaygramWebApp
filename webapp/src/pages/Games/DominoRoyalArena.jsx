@@ -4,7 +4,14 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-layout-camera-tune-v21';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-04-12-domino-layout-camera-tune-v22';
+
+const DOMINO_RUNTIME_TUNING_REPLACEMENTS = Object.freeze([
+  ['const TABLE_RADIUS_SCALE = 1.08;', 'const TABLE_RADIUS_SCALE = 0.92;'],
+  ['const DOMINO_EXTRA_SHRINK_FACTOR = 0.74;', 'const DOMINO_EXTRA_SHRINK_FACTOR = 1.11;'],
+  ['const HAND_Y = RAIL_TOP + TILE_UP_HALF - 0.0025;', 'const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0035;'],
+  ['const CHAIN_TILE_Y = CLOTH_TOP + 0.0018;', 'const CHAIN_TILE_Y = CLOTH_TOP + 0.0082;']
+]);
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -35,25 +42,54 @@ export default function DominoRoyalArena() {
     const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
     const script = document.createElement('script');
     script.type = 'module';
-    script.src = `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`;
     script.dataset.dominoRoyalScript = 'true';
-    script.onload = () => {
-      if (statusNode) {
-        statusNode.textContent = 'Ready';
+
+    let cancelled = false;
+    let runtimeScriptUrl = '';
+
+    const loadRuntime = async () => {
+      const sourceUrl = `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`;
+      const response = await fetch(sourceUrl, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Domino Royal runtime (${response.status})`);
       }
+      let source = await response.text();
+      DOMINO_RUNTIME_TUNING_REPLACEMENTS.forEach(([from, to]) => {
+        source = source.replace(from, to);
+      });
+      runtimeScriptUrl = URL.createObjectURL(
+        new Blob([source], { type: 'text/javascript' })
+      );
+      if (cancelled) return;
+      script.src = runtimeScriptUrl;
+      script.onload = () => {
+        if (statusNode) {
+          statusNode.textContent = 'Ready';
+        }
+      };
+      script.onerror = () => {
+        if (statusNode) {
+          statusNode.textContent = 'Game failed to load. Please refresh and try again.';
+        }
+      };
+      document.body.appendChild(script);
     };
-    script.onerror = () => {
+
+    loadRuntime().catch(() => {
       if (statusNode) {
         statusNode.textContent = 'Game failed to load. Please refresh and try again.';
       }
-    };
-    document.body.appendChild(script);
+    });
 
     return () => {
+      cancelled = true;
       if (typeof window.__dominoRoyalCleanup === 'function') {
         window.__dominoRoyalCleanup('react-unmount');
       }
       script.remove();
+      if (runtimeScriptUrl) {
+        URL.revokeObjectURL(runtimeScriptUrl);
+      }
       if (appRoot) {
         appRoot.replaceChildren();
       }
