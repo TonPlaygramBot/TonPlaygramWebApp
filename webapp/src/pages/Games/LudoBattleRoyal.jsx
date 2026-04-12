@@ -93,6 +93,7 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.92;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -719,7 +720,7 @@ async function createCaptureJetFx() {
   const loadedJet = await loadCaptureVehicleModel('fighter');
   if (loadedJet) {
     const model = loadedJet.clone(true);
-    fitObjectToTargetSize(model, 9.2);
+    fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
     root.add(model);
     const trail = [];
@@ -1212,7 +1213,7 @@ let proceduralTokenHeight = null;
 const BASE_ARENA_SCALE = 0.85;
 // Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
 // slightly smaller in world space while preserving the exact relative layout.
-const LUDO_ARENA_SHRINK_FACTOR = 0.48;
+const LUDO_ARENA_SHRINK_FACTOR = 0.384;
 const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -1242,8 +1243,15 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.1 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
-  TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET - TABLE_EDGE_INSET;
+  TABLE_RADIUS +
+  SEAT_DEPTH / 2 +
+  AI_CHAIR_GAP +
+  0.19 * MODEL_SCALE +
+  CHAIR_OUTWARD_OFFSET -
+  TABLE_EDGE_INSET -
+  CHAIR_INWARD_PULL;
 const CHAIR_GLOBAL_PUSHBACK = 0.08 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.13 * MODEL_SCALE;
 
@@ -2656,6 +2664,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
+const BOARD_GROUP_SURFACE_OFFSET = -0.006;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -3569,12 +3578,12 @@ const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: { x: 0.75, y: 0.75, z: 0.72 },
+  pawn: { x: 0.94, y: 0.82, z: 0.9 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 1.46, y: 1.48, z: 1.52 },
-  queen: { x: 1.46, y: 1.48, z: 1.52 },
-  king: { x: 1.5, y: 1.54, z: 1.56 }
+  bishop: { x: 0.94, y: 1.16, z: 0.9 },
+  queen: { x: 0.94, y: 1.22, z: 0.9 },
+  king: { x: 0.94, y: 1.28, z: 0.9 }
 });
 
 function setTokenHighlight(token, active) {
@@ -4633,7 +4642,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       updateTokenSurfaceOffset(arena.tableThemeId);
 
       if (boardGroup) {
-        boardGroup.position.set(0, tableInfo.surfaceY + 0.0006, 0);
+        boardGroup.position.set(0, tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
         applyBoardGroupScale(boardGroup, tableInfo);
         tableInfo.group.add(boardGroup);
       }
@@ -5439,7 +5448,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const arenaState = arenaRef.current;
       if (!arenaState?.tableInfo?.group) return;
       const nextBoardGroup = new THREE.Group();
-      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + 0.0006, 0);
+      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
       applyBoardGroupScale(nextBoardGroup, arenaState.tableInfo);
       nextBoardGroup.rotation.y = BOARD_ROTATION_Y;
       arenaState.tableInfo.group.add(nextBoardGroup);
@@ -5746,7 +5755,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     updateTokenSurfaceOffset(tableInfo.themeId || tableTheme?.id || 'murlan-default');
 
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableInfo.surfaceY + 0.0006, 0);
+    boardGroup.position.set(0, tableInfo.surfaceY + BOARD_GROUP_SURFACE_OFFSET, 0);
     applyBoardGroupScale(boardGroup, tableInfo);
     boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
@@ -6606,6 +6615,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const tokenWorldPos =
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
+        moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
         setCameraFocus({
           target: launchAnchor,
           follow: false,
@@ -7142,6 +7152,35 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     return { position: camera.position.clone(), target };
   }, []);
+
+  const moveCameraToHighestAllowedAngle = useCallback((focusTarget, offset = CAMERA_TARGET_LIFT) => {
+    if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const arena = arenaRef.current;
+    if (!camera || !controls || !arena?.boardLookTarget || !focusTarget?.isVector3) return;
+
+    const surfaceY = arena.tableInfo?.surfaceY ?? focusTarget.y;
+    const target = focusTarget.clone();
+    target.y = surfaceY + offset;
+
+    const currentOffset = camera.position.clone().sub(controls.target);
+    const radius = clamp(currentOffset.length(), CAM.minR, CAM.maxR);
+    const horizontal = currentOffset.setY(0);
+    if (horizontal.lengthSq() < 1e-6) {
+      horizontal.set(0, 0, 1);
+    } else {
+      horizontal.normalize();
+    }
+    const highestPolar = clamp(controls.minPolarAngle, 0.001, Math.PI - 0.001);
+    const horizontalDistance = radius * Math.sin(highestPolar);
+    const verticalDistance = radius * Math.cos(highestPolar);
+    const position = target
+      .clone()
+      .addScaledVector(horizontal, horizontalDistance)
+      .add(new THREE.Vector3(0, verticalDistance, 0));
+    animateCameraPose(target, position, 220);
+  }, [animateCameraPose, isCamera2d]);
 
   const resolveTurnLookTarget = useCallback((player, offset = CAMERA_TARGET_LIFT) => {
     const controls = controlsRef.current;
