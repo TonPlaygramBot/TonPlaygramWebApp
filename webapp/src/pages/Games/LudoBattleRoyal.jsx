@@ -59,19 +59,7 @@ import {
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
-import {
-  LUDO_BATTLE_SPEAKERS,
-  buildCommentaryLine,
-  createMatchCommentaryScript
-} from '../../utils/ludoBattleRoyaleCommentary.js';
 import { socket } from '../../utils/socket.js';
-import {
-  getSpeechSupport,
-  getSpeechSynthesis,
-  onSpeechSupportChange,
-  primeSpeechSynthesis,
-  speakCommentaryLines
-} from '../../utils/textToSpeech.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1442,7 +1430,7 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.72 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
-const CAMERA_BROADCAST_TARGET_BLEND = 0.68;
+const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 0.84;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
@@ -1575,84 +1563,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
   { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
 ];
-
-const COMMENTARY_PRESET_STORAGE_KEY = 'ludoBattleRoyaleCommentaryPreset';
-const COMMENTARY_MUTE_STORAGE_KEY = 'ludoBattleRoyaleCommentaryMute';
-const COMMENTARY_QUEUE_LIMIT = 4;
-const COMMENTARY_MIN_INTERVAL_MS = 1200;
-const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
-  {
-    id: 'english',
-    label: 'English',
-    description: 'Mixed voices, classic English',
-    language: 'en',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
-    }
-  },
-  {
-    id: 'saffron-table',
-    label: 'Indian Table',
-    description: 'Hindi commentary with lively pacing',
-    language: 'hi',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
-    }
-  },
-  {
-    id: 'moscow-mics',
-    label: 'Russian Booth',
-    description: 'Russian commentary with steady cadence',
-    language: 'ru',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
-    }
-  },
-  {
-    id: 'latin-pulse',
-    label: 'Latin Pulse',
-    description: 'Spanish play-by-play with lively color',
-    language: 'es',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
-    }
-  },
-  {
-    id: 'francophone-booth',
-    label: 'Francophone Booth',
-    description: 'French broadcast pairing',
-    language: 'fr',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
-    }
-  }
-]);
-const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -3726,18 +3636,18 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.78, y: 0.92, z: 0.74 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
-    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.9,
-    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.94,
-    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.9
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.88,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.84,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.88
   },
-  knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.28, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.36, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.45, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.5, z: ROCK_TOKEN_REFERENCE_SCALE.z }
 });
 
 function setTokenHighlight(token, active) {
@@ -3893,76 +3803,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && LUDO_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_COMMENTARY_PRESET_ID;
-  });
-  const [commentaryMuted, setCommentaryMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [isCamera2d, setIsCamera2d] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const [commentaryText, setCommentaryText] = useState('');
   const settingsRef = useRef({ soundEnabled: true });
-  const commentaryMutedRef = useRef(commentaryMuted);
-  const commentaryReadyRef = useRef(false);
-  const commentaryQueueRef = useRef([]);
-  const commentarySpeakingRef = useRef(false);
-  const commentaryLastEventAtRef = useRef(0);
-  const pendingCommentaryLinesRef = useRef(null);
-  const commentaryIntroPlayedRef = useRef(false);
-  const commentarySpeakerIndexRef = useRef(0);
-  const commentaryDisplayTimeoutRef = useRef(null);
   useEffect(() => {
     const handler = () => setSoundEnabled(!isGameMuted());
     window.addEventListener('gameMuteChanged', handler);
     return () => window.removeEventListener('gameMuteChanged', handler);
   }, []);
-  useEffect(() => {
-    commentaryMutedRef.current = commentaryMuted;
-    if (commentaryMuted) {
-      const synth = getSpeechSynthesis();
-      synth?.cancel?.();
-      commentaryQueueRef.current = [];
-      commentarySpeakingRef.current = false;
-      pendingCommentaryLinesRef.current = null;
-      setCommentaryText('');
-      if (commentaryDisplayTimeoutRef.current) {
-        clearTimeout(commentaryDisplayTimeoutRef.current);
-        commentaryDisplayTimeoutRef.current = null;
-      }
-    }
-  }, [commentaryMuted]);
-  useEffect(() => {
-    return () => {
-      if (commentaryDisplayTimeoutRef.current) {
-        clearTimeout(commentaryDisplayTimeoutRef.current);
-      }
-    };
-  }, []);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
-    }
-  }, [commentaryPresetId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
-    }
-  }, [commentaryMuted]);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -3987,13 +3838,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
-  );
-  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
-  const activeCommentaryPreset = useMemo(
-    () =>
-      LUDO_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
-      LUDO_BATTLE_COMMENTARY_PRESETS[0],
-    [commentaryPresetId]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -4049,15 +3893,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       key: resolvedPreferred.join('|')
     };
   }, [activeFrameRateOption]);
-  useEffect(() => {
-    const updateSupport = () => setCommentarySupported(getSpeechSupport());
-    updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
@@ -4314,157 +4149,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
 
-  const commentarySpeakers = useMemo(
-    () => [LUDO_BATTLE_SPEAKERS.lead, LUDO_BATTLE_SPEAKERS.analyst],
-    []
-  );
-  const pickCommentarySpeaker = useCallback(() => {
-    const index = commentarySpeakerIndexRef.current;
-    commentarySpeakerIndexRef.current = index + 1;
-    return commentarySpeakers[index % commentarySpeakers.length] || LUDO_BATTLE_SPEAKERS.lead;
-  }, [commentarySpeakers]);
-
-  const playNextCommentary = useCallback(async () => {
-    if (commentarySpeakingRef.current) return;
-    const next = commentaryQueueRef.current.shift();
-    if (!next) return;
-    const synth = getSpeechSynthesis();
-    if (!synth) return;
-    commentarySpeakingRef.current = true;
-    try {
-      synth.cancel();
-    } catch {}
-    await speakCommentaryLines(next.lines, {
-      speakerSettings: next.preset?.speakerSettings,
-      voiceHints: next.preset?.voiceHints
-    });
-    commentarySpeakingRef.current = false;
-    if (commentaryQueueRef.current.length) {
-      playNextCommentary();
-    }
-  }, []);
-
-  const setCommentaryDisplay = useCallback((lines) => {
-    const lastLine = lines[lines.length - 1];
-    if (!lastLine) return;
-    const nextText = `${lastLine.speaker}: ${lastLine.text}`;
-    setCommentaryText(nextText);
-    if (commentaryDisplayTimeoutRef.current) {
-      clearTimeout(commentaryDisplayTimeoutRef.current);
-    }
-    commentaryDisplayTimeoutRef.current = window.setTimeout(() => {
-      setCommentaryText('');
-    }, 6000);
-  }, []);
-
-  const enqueueLudoCommentary = useCallback(
-    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
-      if (!Array.isArray(lines) || lines.length === 0) return;
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      setCommentaryDisplay(lines);
-      if (!commentaryReadyRef.current) {
-        pendingCommentaryLinesRef.current = { lines, priority, preset };
-        return;
-      }
-      const now = performance.now();
-      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
-      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
-      if (priority) {
-        commentaryQueueRef.current.unshift({ lines, preset });
-      } else {
-        commentaryQueueRef.current.push({ lines, preset });
-      }
-      if (!commentarySpeakingRef.current) {
-        playNextCommentary();
-      }
-      commentaryLastEventAtRef.current = now;
-    },
-    [activeCommentaryPreset, playNextCommentary]
-  );
-
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
     [players]
   );
 
-  const resolveDefaultOpponent = useCallback(
-    (playerIndex) => {
-      if (activePlayerCount === 2) {
-        const opponentIndex = playerIndex === 0 ? 1 : 0;
-        return resolvePlayerLabel(opponentIndex);
-      }
-      return 'the rest of the table';
-    },
-    [activePlayerCount, resolvePlayerLabel]
-  );
-
-  const resolveTokensHomeCount = useCallback((state, playerIndex) => {
-    if (!state?.progress?.[playerIndex]) return 0;
-    return state.progress[playerIndex].filter((value) => value >= GOAL_PROGRESS).length;
-  }, []);
-
-  const enqueueLudoCommentaryEvent = useCallback(
-    (event, context = {}, options = {}) => {
-      const speaker = options.speaker ?? pickCommentarySpeaker();
-      const text = buildCommentaryLine({
-        event,
-        speaker,
-        language: activeCommentaryPreset?.language ?? commentaryPresetId,
-        context: {
-          arena: 'Ludo Battle Royal arena',
-          ...context
-        }
-      });
-      enqueueLudoCommentary([{ speaker, text }], options);
-    },
-    [activeCommentaryPreset?.language, commentaryPresetId, enqueueLudoCommentary, pickCommentarySpeaker]
-  );
-
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const unlockCommentary = () => {
-      if (commentaryReadyRef.current) return;
-      primeSpeechSynthesis();
-      const synth = getSpeechSynthesis();
-      synth?.getVoices?.();
-      commentaryReadyRef.current = true;
-      const pending = pendingCommentaryLinesRef.current;
-      if (pending) {
-        pendingCommentaryLinesRef.current = null;
-        enqueueLudoCommentary(pending.lines, pending);
-      }
-    };
-    window.addEventListener('pointerdown', unlockCommentary);
-    window.addEventListener('click', unlockCommentary);
-    window.addEventListener('touchstart', unlockCommentary);
-    window.addEventListener('keydown', unlockCommentary);
-    return () => {
-      window.removeEventListener('pointerdown', unlockCommentary);
-      window.removeEventListener('click', unlockCommentary);
-      window.removeEventListener('touchstart', unlockCommentary);
-      window.removeEventListener('keydown', unlockCommentary);
-    };
-  }, [enqueueLudoCommentary]);
-
-  useEffect(() => {
-    if (commentaryIntroPlayedRef.current) return;
-    if (!players.length) return;
-    commentaryIntroPlayedRef.current = true;
-    const script = createMatchCommentaryScript({
-      players: {
-        A: players[0]?.name || 'Player A',
-        B: players[1]?.name || 'Player B'
-      },
-      commentators: commentarySpeakers,
-      language: activeCommentaryPreset?.language ?? commentaryPresetId,
-      arena: 'Ludo Battle Royal arena'
-    });
-    enqueueLudoCommentary(script, { priority: true, preset: activeCommentaryPreset });
-  }, [activeCommentaryPreset, commentaryPresetId, commentarySpeakers, enqueueLudoCommentary, players]);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -7849,8 +7541,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (allHome) {
       state.winner = player;
       clearHumanSelection();
-      const winnerName = resolvePlayerLabel(player);
-      const tokensHome = resolveTokensHomeCount(state, player);
       setUi((s) => ({
         ...s,
         winner: COLOR_NAMES[player],
@@ -7859,27 +7549,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       clearHumanRollTimeout();
       playCheer();
       coinConfetti();
-      const lines = [
-        {
-          speaker: LUDO_BATTLE_SPEAKERS.lead,
-          text: buildCommentaryLine({
-            event: 'win',
-            speaker: LUDO_BATTLE_SPEAKERS.lead,
-            language: activeCommentaryPreset?.language ?? commentaryPresetId,
-            context: { player: winnerName, tokensHome }
-          })
-        },
-        {
-          speaker: LUDO_BATTLE_SPEAKERS.analyst,
-          text: buildCommentaryLine({
-            event: 'outro',
-            speaker: LUDO_BATTLE_SPEAKERS.analyst,
-            language: activeCommentaryPreset?.language ?? commentaryPresetId,
-            context: { player: winnerName, tokensHome }
-          })
-        }
-      ];
-      enqueueLudoCommentary(lines, { priority: true, preset: activeCommentaryPreset });
       return true;
     }
     return false;
@@ -7894,58 +7563,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (target > GOAL_PROGRESS) return advanceTurn(false);
     const captureVictims = getCaptureVictims(player, target);
     const hasCapture = captureVictims.length > 0;
-    const finalizeMove = (captures) => {
+    const finalizeMove = () => {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       updateTokenStacks();
-      const playerName = resolvePlayerLabel(player);
-      const tokensHome = resolveTokensHomeCount(state, player);
-      const landingIdx =
-        target >= 0 && target < RING_STEPS
-          ? (PLAYER_START_INDEX[player] + target) % RING_STEPS
-          : null;
-      const landedSafe = landingIdx != null && SAFE_TRACK_INDEXES.has(landingIdx);
-      const opponentLabel =
-        captures.opponents.length === 1 ? captures.opponents[0] : resolveDefaultOpponent(player);
-
-      if (captures.count > 0) {
-        enqueueLudoCommentaryEvent('capture', {
-          player: playerName,
-          opponent: opponentLabel,
-          captureCount: captures.count
-        });
-      } else if (target === GOAL_PROGRESS) {
-        enqueueLudoCommentaryEvent('goal', {
-          player: playerName,
-          tokensHome
-        });
-      } else if (target >= RING_STEPS) {
-        enqueueLudoCommentaryEvent('homeStretch', {
-          player: playerName,
-          tokensHome
-        });
-      } else if (entering) {
-        enqueueLudoCommentaryEvent('enter', {
-          player: playerName
-        });
-      } else if (landedSafe) {
-        enqueueLudoCommentaryEvent('safe', {
-          player: playerName
-        });
-      } else {
-        enqueueLudoCommentaryEvent('move', {
-          player: playerName,
-          roll
-        });
-      }
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
     const applyResult = async () => {
-      const captures = applyCaptureVictims(captureVictims);
-      finalizeMove(captures);
+      applyCaptureVictims(captureVictims);
+      finalizeMove();
     };
     const { skipCameraFollow = false } = options;
     if (hasCapture) {
@@ -7967,19 +7596,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         targetPosition: victimPos,
         impactPosition: impactPos
       }).then(() => {
-        const captures = applyCaptureVictims(captureVictims);
+        applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures), { skipCameraFollow });
+          scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow });
           return;
         }
-        finalizeMove(captures);
+        finalizeMove();
       }).catch(() => {
-        const captures = applyCaptureVictims(captureVictims);
+        applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
-          scheduleMove(player, tokenIndex, target, () => finalizeMove(captures), { skipCameraFollow });
+          scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow });
           return;
         }
-        finalizeMove(captures);
+        finalizeMove();
       });
     } else if (entering || target !== current) {
       scheduleMove(player, tokenIndex, target, applyResult, { skipCameraFollow });
@@ -8043,11 +7672,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       dice: value,
       status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
     }));
-    const playerName = resolvePlayerLabel(player);
-    enqueueLudoCommentaryEvent('diceRoll', { player: playerName, roll: value });
     if (value === 6) {
       playSixRollSound();
-      enqueueLudoCommentaryEvent('extraTurn', { player: playerName });
     }
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
@@ -8120,13 +7746,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
-        {commentaryText ? (
-          <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 px-4">
-            <div className="max-w-[80vw] rounded-full border border-white/15 bg-black/55 px-4 py-2 text-center text-xs font-semibold text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
-              {commentaryText}
-            </div>
-          </div>
-        ) : null}
         <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
@@ -8250,69 +7869,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       }}
                     />
                   </label>
-                  <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                      Commentary
-                    </h3>
-                    <div className="mt-2 grid gap-2">
-                      {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
-                        const active = preset.id === commentaryPresetId;
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => setCommentaryPresetId(preset.id)}
-                            aria-pressed={active}
-                            disabled={!commentarySupported}
-                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              active
-                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                          >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                              {active && (
-                                <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                                  Active
-                                </span>
-                              )}
-                            </span>
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {preset.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCommentaryMuted((prev) => !prev)}
-                      aria-pressed={commentaryMuted}
-                      disabled={!commentarySupported}
-                      className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        commentaryMuted
-                          ? 'bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.65)]'
-                          : 'bg-white/10 text-white/80 hover:bg-white/20'
-                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                    >
-                      <span>Mute commentary</span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                          commentaryMuted
-                            ? 'border-black/30 text-black/70'
-                            : 'border-white/30 text-white/70'
-                        }`}
-                      >
-                        {commentaryMuted ? 'On' : 'Off'}
-                      </span>
-                    </button>
-                    {!commentarySupported && (
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                        Voice commentary needs Web Speech support.
-                      </p>
-                    )}
-                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -8741,7 +8297,7 @@ async function buildLudoBoard(
         );
       }
       if (typeKey === 'king') {
-        token.rotation.y = Math.PI * 1.5;
+        token.rotation.y = Math.PI;
       } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
