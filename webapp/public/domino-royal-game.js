@@ -944,7 +944,7 @@ const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.7;
 const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const DOMINO_AND_CHAIR_SHRINK_FACTOR = 0.612; // 20% smaller than the previous domino/chair sizing
+const DOMINO_AND_CHAIR_SHRINK_FACTOR = 0.765; // ~10% smaller than current arena sizing for dominoes/chairs
 const LEGACY_TABLE_SIZE_REDUCTION_FACTOR = 0.68;
 const TABLE_SHRINK_FACTOR = 0.8;
 const TABLE_AND_CHAIR_SHRINK_FACTOR = 0.765; // ~10% smaller than current arena furniture sizing
