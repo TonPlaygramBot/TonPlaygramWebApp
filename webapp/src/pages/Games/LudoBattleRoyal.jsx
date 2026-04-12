@@ -1240,7 +1240,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_VERTICAL_LOWERING = 0.04 * MODEL_SCALE;
+const TABLE_VERTICAL_LOWERING = 0.09 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
@@ -2812,7 +2812,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.072;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.082;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -3575,7 +3575,8 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_RAIL_OUTWARD_PUSH = 0.125;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.148;
+const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
@@ -6643,7 +6644,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           resolvedImpactPoint?.isVector3 === true
             ? resolvedImpactPoint
             : targetPosition?.clone?.() ?? launchAnchor.clone();
-        const impactAnchor = safeImpactPoint.clone().add(new THREE.Vector3(0, 0.04, 0));
+        const impactAnchor = safeImpactPoint
+          .clone()
+          .add(new THREE.Vector3(0, Math.max(0.02, 0.04 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
         const from = launchAnchor.clone();
         const baseTravelTime =
           selectedCaptureAnimationId === 'fighterJetAttack'
@@ -6724,7 +6727,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               fallbackPosition: safeImpactPoint
             }) ?? safeImpactPoint.clone();
           const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
-          const dynamicTo = liveTarget.clone().add(new THREE.Vector3(0, 0.06, 0));
+          const dynamicTo = liveTarget
+            .clone()
+            .add(new THREE.Vector3(0, Math.max(0.03, 0.06 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
           const arenaCenter =
             boardLookTargetRef.current?.clone?.() ?? new THREE.Vector3(0, dynamicFrom.y, 0);
           arenaCenter.y = dynamicFrom.y;
