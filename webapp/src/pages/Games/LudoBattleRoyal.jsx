@@ -2384,9 +2384,9 @@ function fitTableModelToArena(model, tableThemeId = null) {
   };
 }
 
-function getTableWidthScale(tableThemeId) {
-  if (!tableThemeId) return 1;
-  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
+function getTableWidthScale(_tableThemeId) {
+  if (!_tableThemeId) return 1.06;
+  return 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -2788,7 +2788,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
-const BOARD_GROUP_SURFACE_OFFSET = -0.0055;
+const BOARD_GROUP_SURFACE_OFFSET = -0.003;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -2912,9 +2912,9 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_TRACK_SURFACE_OFFSET = -0.0025;
-const TOKEN_HOME_SURFACE_OFFSET = 0.0005;
-const TOKEN_GOAL_SURFACE_OFFSET = 0.0008;
+const TOKEN_TRACK_SURFACE_OFFSET = 0;
+const TOKEN_HOME_SURFACE_OFFSET = 0.003;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0033;
 const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
 const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
@@ -2933,7 +2933,6 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.128
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
-const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
@@ -3000,10 +2999,9 @@ function getShapedTableHeightLift(tableThemeId) {
   return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
 }
 
-function updateTokenSurfaceOffset(tableThemeId) {
-  tokenSurfaceOffset =
-    (tableThemeId === 'murlan-default' ? 0 : NON_OCTAGON_TOKEN_SURFACE_OFFSET) +
-    getShapedTableHeightLift(tableThemeId);
+function updateTokenSurfaceOffset(_tableThemeId) {
+  const octagonBaselineLift = getShapedTableHeightLift('murlan-default');
+  tokenSurfaceOffset = octagonBaselineLift;
 }
 
 const DICE_SIZE = 0.076;
@@ -3012,7 +3010,7 @@ const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.024;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.027;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
@@ -3719,14 +3717,14 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.9 });
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.94 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: ROCK_TOKEN_REFERENCE_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
   rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
+  bishop: ROCK_TOKEN_REFERENCE_SCALE,
+  queen: ROCK_TOKEN_REFERENCE_SCALE,
+  king: ROCK_TOKEN_REFERENCE_SCALE
 });
 
 function setTokenHighlight(token, active) {
@@ -5353,7 +5351,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const arena = arenaRef.current;
       const group = boardGroup ?? arena?.boardGroup;
       const chairList = chairs ?? arena?.chairs;
-      const table = tableInfo ?? arena?.tableInfo;
       if (!diceObj || !group) return;
 
       const centerWorld = new THREE.Vector3();
@@ -5365,7 +5362,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const heightLocal =
         diceObj.userData?.railHeight ?? diceObj.userData?.baseHeight ?? DICE_BASE_HEIGHT;
-      const diceShapeLift = isShapedLudoTable(table?.themeId) ? SHAPED_TABLE_DICE_SURFACE_LIFT : 0;
+      const diceShapeLift = SHAPED_TABLE_DICE_SURFACE_LIFT;
       const heightWorld = heightLocal * scaleWorld.y;
 
       const fallbackDirs = [
