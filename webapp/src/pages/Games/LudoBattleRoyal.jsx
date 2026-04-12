@@ -2384,10 +2384,9 @@ function fitTableModelToArena(model, tableThemeId = null) {
   };
 }
 
-const OCTAGON_REFERENCE_TABLE_WIDTH_SCALE = 1.06;
-
-function getTableWidthScale() {
-  return OCTAGON_REFERENCE_TABLE_WIDTH_SCALE;
+function getTableWidthScale(tableThemeId) {
+  if (!tableThemeId) return 1;
+  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -2789,7 +2788,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
-const BOARD_GROUP_SURFACE_OFFSET = -0.0025;
+const BOARD_GROUP_SURFACE_OFFSET = -0.0055;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -2934,10 +2933,9 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.128
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
-const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
+const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
-const OCTAGON_REFERENCE_TOKEN_SURFACE_OFFSET = SHAPED_TABLE_TOKEN_SURFACE_LIFT;
 let tokenSurfaceOffset = 0;
 const TOKEN_FRONT_OUTWARD_SHIFT = 0.082;
 const TOKEN_MOVE_SPEED = 2.45;
@@ -3002,8 +3000,10 @@ function getShapedTableHeightLift(tableThemeId) {
   return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
 }
 
-function updateTokenSurfaceOffset() {
-  tokenSurfaceOffset = OCTAGON_REFERENCE_TOKEN_SURFACE_OFFSET + NON_OCTAGON_TOKEN_SURFACE_OFFSET;
+function updateTokenSurfaceOffset(tableThemeId) {
+  tokenSurfaceOffset =
+    (tableThemeId === 'murlan-default' ? 0 : NON_OCTAGON_TOKEN_SURFACE_OFFSET) +
+    getShapedTableHeightLift(tableThemeId);
 }
 
 const DICE_SIZE = 0.076;
@@ -3719,14 +3719,14 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.94 });
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.9 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: ROCK_TOKEN_REFERENCE_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
   rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: ROCK_TOKEN_REFERENCE_SCALE,
-  queen: ROCK_TOKEN_REFERENCE_SCALE,
-  king: ROCK_TOKEN_REFERENCE_SCALE
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
 });
 
 function setTokenHighlight(token, active) {
@@ -5365,7 +5365,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const heightLocal =
         diceObj.userData?.railHeight ?? diceObj.userData?.baseHeight ?? DICE_BASE_HEIGHT;
-      const diceShapeLift = SHAPED_TABLE_DICE_SURFACE_LIFT;
+      const diceShapeLift = isShapedLudoTable(table?.themeId) ? SHAPED_TABLE_DICE_SURFACE_LIFT : 0;
       const heightWorld = heightLocal * scaleWorld.y;
 
       const fallbackDirs = [
