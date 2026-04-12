@@ -1218,7 +1218,7 @@ const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.48 * MODEL_SCALE;
-const TABLE_HEIGHT_SCALE = 0.83;
+const TABLE_HEIGHT_SCALE = 0.76;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.85;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
@@ -1232,7 +1232,7 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const CHAIR_LEG_TRIM_FACTOR = 0.72;
+const CHAIR_LEG_TRIM_FACTOR = 0.64;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
@@ -1288,7 +1288,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 );
 const CHAIR_BOTTOM_TRIM_SCALE = 0.74;
 TARGET_CHAIR_SIZE.y *= 0.84;
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.045 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.07 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -3574,16 +3574,17 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
+const TOKEN_RAIL_OUTWARD_PUSH = 0.065;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: { x: 0.94, y: 0.82, z: 0.9 },
+  pawn: { x: 0.752, y: 0.656, z: 0.72 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 0.94, y: 1.16, z: 0.9 },
-  queen: { x: 0.94, y: 1.22, z: 0.9 },
-  king: { x: 0.94, y: 1.28, z: 0.9 }
+  bishop: { x: 1.222, y: 1.508, z: 1.17 },
+  queen: { x: 1.222, y: 1.586, z: 1.17 },
+  king: { x: 1.222, y: 1.664, z: 1.17 }
 });
 
 function setTokenHighlight(token, active) {
@@ -5291,6 +5292,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
         }
         restRadius = Math.max(restRadius, BOARD_RADIUS + 0.075);
+        restRadius += TOKEN_RAIL_OUTWARD_PUSH;
+        if (table?.getOuterRadius) {
+          const outer = table.getOuterRadius(seatDir);
+          if (Number.isFinite(outer) && outer > 0) {
+            restRadius = Math.min(restRadius, outer - 0.06);
+          }
+        }
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
