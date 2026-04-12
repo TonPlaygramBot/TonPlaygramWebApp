@@ -6582,7 +6582,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SHRINK_FACTOR = 0.8;
-const DOMINO_EXTRA_SHRINK_FACTOR = 0.64; // slightly smaller dominoes only
+const DOMINO_EXTRA_SHRINK_FACTOR = 0.7225; // 15% smaller than the previous in-game domino size (0.85 * 0.85)
 const DOMINO_SCALE =
   1.5 *
   1.26 *
