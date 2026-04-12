@@ -2891,6 +2891,55 @@ function prepareCaptureModel(root) {
   });
 }
 
+function inferRotorSpinAxis(node, fallbackAxis = 'y') {
+  if (!node) return new THREE.Vector3(0, 1, 0);
+  const bounds = new THREE.Box3().setFromObject(node);
+  if (bounds.isEmpty()) {
+    if (fallbackAxis === 'x') return new THREE.Vector3(1, 0, 0);
+    if (fallbackAxis === 'z') return new THREE.Vector3(0, 0, 1);
+    return new THREE.Vector3(0, 1, 0);
+  }
+  const size = new THREE.Vector3();
+  bounds.getSize(size);
+  const dims = [
+    { axis: 'x', value: Math.abs(size.x) },
+    { axis: 'y', value: Math.abs(size.y) },
+    { axis: 'z', value: Math.abs(size.z) }
+  ].sort((a, b) => a.value - b.value);
+  const chosen = dims[0]?.axis || fallbackAxis;
+  if (chosen === 'x') return new THREE.Vector3(1, 0, 0);
+  if (chosen === 'z') return new THREE.Vector3(0, 0, 1);
+  return new THREE.Vector3(0, 1, 0);
+}
+
+function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null) {
+  if (!model) return;
+  model.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const name = `${node.name || ''}`.toLowerCase();
+    materials.forEach((mat) => {
+      if (!mat?.color) return;
+      if (/window|cockpit|glass|canopy/.test(name)) {
+        mat.color.setHex(0x0c1016);
+        if ('metalness' in mat) mat.metalness = 0.38;
+        if ('roughness' in mat) mat.roughness = 0.2;
+        if ('opacity' in mat) mat.opacity = 0.95;
+        if ('transparent' in mat) mat.transparent = true;
+      } else if ((topRotor && node === topRotor) || (tailRotor && node === tailRotor) || /rotor|propell|blade|fan/.test(name)) {
+        mat.color.setHex(0xb8c1cc);
+        if ('metalness' in mat) mat.metalness = 0.72;
+        if ('roughness' in mat) mat.roughness = 0.26;
+      } else {
+        mat.color.offsetHSL(0.02, -0.14, -0.16);
+        if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
+        if ('roughness' in mat) mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
 function isDataUri(uri) {
   return typeof uri === 'string' && uri.startsWith('data:');
 }
@@ -6369,6 +6418,7 @@ function Chess3D({
   const updateEnvironmentRef = useRef(() => {});
   const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
   const environmentFloorRef = useRef(0);
+  const environmentShadowCatcherRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
@@ -7768,7 +7818,8 @@ function Chess3D({
     const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
     const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
     renderer.setPixelRatio(pixelRatio);
-    renderer.shadowMap.enabled = false;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -7804,6 +7855,42 @@ function Chess3D({
     sceneRef.current = scene;
     const arena = new THREE.Group();
     scene.add(arena);
+    const shadowSun = new THREE.DirectionalLight(0xffffff, 1.0);
+    shadowSun.position.set(8, 15, 7);
+    shadowSun.castShadow = true;
+    shadowSun.shadow.mapSize.set(2048, 2048);
+    shadowSun.shadow.radius = 4;
+    shadowSun.shadow.bias = -0.00018;
+    shadowSun.shadow.normalBias = 0.02;
+    shadowSun.shadow.camera.near = 0.5;
+    shadowSun.shadow.camera.far = 50;
+    shadowSun.shadow.camera.left = -12;
+    shadowSun.shadow.camera.right = 12;
+    shadowSun.shadow.camera.top = 12;
+    shadowSun.shadow.camera.bottom = -12;
+    shadowSun.target.position.set(0, 0, 0);
+    scene.add(shadowSun);
+    scene.add(shadowSun.target);
+    const shadowFill = new THREE.HemisphereLight(0xdbeafe, 0x1f2937, 0.26);
+    scene.add(shadowFill);
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.PlaneGeometry(CHESS_ROOM_HALF_SPAN * 2.7, CHESS_ROOM_HALF_SPAN * 2.7),
+      new THREE.ShadowMaterial({ opacity: 0.28 })
+    );
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = environmentFloorRef.current ?? 0;
+    shadowCatcher.receiveShadow = true;
+    shadowCatcher.renderOrder = -1;
+    scene.add(shadowCatcher);
+    environmentShadowCatcherRef.current = shadowCatcher;
+    disposers.push(() => {
+      shadowCatcher.parent?.remove(shadowCatcher);
+      shadowCatcher.geometry?.dispose?.();
+      shadowCatcher.material?.dispose?.();
+      if (environmentShadowCatcherRef.current === shadowCatcher) {
+        environmentShadowCatcherRef.current = null;
+      }
+    });
     arena.textureLoader = textureLoader;
     arena.textureCache = textureCache;
     arena.maxAnisotropy = maxAnisotropy;
@@ -7835,6 +7922,9 @@ function Chess3D({
       const prevTexture = envTextureRef.current;
       const prevSkybox = envSkyboxRef.current;
       const floorY = environmentFloorRef.current ?? 0;
+      if (environmentShadowCatcherRef.current) {
+        environmentShadowCatcherRef.current.position.y = floorY + 0.002;
+      }
       const cameraHeight =
         Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
         HDRI_UNITS_PER_METER;
@@ -8393,7 +8483,7 @@ function Chess3D({
         bounds.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z) || 0;
         const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
-        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
+        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * (role === 'main' ? 0.9 : 0.45)) return;
         if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
         const center = bounds.getCenter(new THREE.Vector3());
         const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
@@ -8546,7 +8636,10 @@ function Chess3D({
             }
           });
         }
-        return { root, topRotor, tailRotor, exhaustClouds: [] };
+        applyMilitaryHelicopterLook(model, topRotor, tailRotor);
+        const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
+        const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
+        return { root, topRotor, tailRotor, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -8574,7 +8667,14 @@ function Chess3D({
           addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
         );
       }
-      return { root, topRotor, tailRotor, exhaustClouds };
+      return {
+        root,
+        topRotor,
+        tailRotor,
+        topRotorAxis: new THREE.Vector3(0, 1, 0),
+        tailRotorAxis: new THREE.Vector3(1, 0, 0),
+        exhaustClouds
+      };
     };
     const createFxJet = () => {
       const model = cloneCaptureUnitTemplate('fighter');
@@ -10741,8 +10841,12 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.helicopterFx.topRotor?.rotateY(dt * 26);
-            fx.helicopterFx.tailRotor?.rotateX(dt * 35);
+            if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
+              fx.helicopterFx.topRotor.rotateOnAxis(fx.helicopterFx.topRotorAxis, dt * 35);
+            }
+            if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
+              fx.helicopterFx.tailRotor.rotateOnAxis(fx.helicopterFx.tailRotorAxis, dt * 35);
+            }
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
