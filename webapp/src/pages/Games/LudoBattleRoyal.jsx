@@ -1240,7 +1240,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_VERTICAL_LOWERING = 0.04 * MODEL_SCALE;
+const TABLE_VERTICAL_LOWERING = 0.08 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
@@ -2812,7 +2812,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.072;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.086;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -2820,7 +2820,7 @@ const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-
 const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/spinning.mp3';
 const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const LUDO_CAPTURE_HELICOPTER_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
-const TOKEN_STEP_JUMP_HEIGHT = 0.03;
+const TOKEN_STEP_JUMP_HEIGHT = 0.026;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
 const TRACK_KEY_SET = new Set(TRACK_COORDS.map(([r, c]) => keyFor(r, c)));
@@ -3453,7 +3453,7 @@ function setDiceOrientation(dice, val) {
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.05 } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -5031,7 +5031,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     diceTransitionRef.current = null;
   };
 
-  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04 } = {}) => {
+  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.032 } = {}) => {
     if (!dice || !destination) return;
     const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
     stopDiceTransition();
@@ -5078,7 +5078,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       dice.position.copy(target);
       return;
     }
-    animateDicePosition(dice, target, { duration: 520, lift: 0.05 });
+    animateDicePosition(dice, target, { duration: 520, lift: 0.042 });
   };
 
   const updateTurnIndicator = (player, immediate = false) => {
