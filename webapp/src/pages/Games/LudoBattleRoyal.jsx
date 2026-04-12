@@ -443,6 +443,8 @@ function applyCaptureTextureToOpaqueMeshes(root, kind) {
       roughness: typeof mat.roughness === 'number' ? mat.roughness : 0.58,
       metalness: typeof mat.metalness === 'number' ? mat.metalness : 0.2
     });
+    obj.castShadow = true;
+    obj.receiveShadow = true;
   });
 }
 
@@ -557,6 +559,7 @@ function createCaptureMissileFx() {
   nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
+  nose.receiveShadow = true;
   root.add(nose);
 
   addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
@@ -871,6 +874,7 @@ async function createCaptureHelicopterFx() {
     new THREE.MeshStandardMaterial({ color: '#12161a', roughness: 0.44, metalness: 0.12 })
   );
   rotorCross.castShadow = true;
+  rotorCross.receiveShadow = true;
   rotor.add(rotorCross);
   root.add(rotor);
   const tailRotor = new THREE.Group();
@@ -881,6 +885,7 @@ async function createCaptureHelicopterFx() {
     new THREE.MeshStandardMaterial({ color: '#15191d', roughness: 0.52, metalness: 0.14 })
   );
   tailRotorCross.castShadow = true;
+  tailRotorCross.receiveShadow = true;
   tailRotor.add(tailRotorCross);
   root.add(tailRotor);
   const missileLeft = new THREE.Group();
@@ -891,6 +896,8 @@ async function createCaptureHelicopterFx() {
   );
   missileNose.position.set(0.34, 0, 0);
   missileNose.rotation.z = -Math.PI / 2;
+  missileNose.castShadow = true;
+  missileNose.receiveShadow = true;
   missileLeft.add(missileNose);
   missileLeft.position.set(0.22, -0.18, -0.62);
   root.add(missileLeft);
@@ -1221,7 +1228,7 @@ const TABLE_RADIUS = 3.48 * MODEL_SCALE;
 const TABLE_HEIGHT_SCALE = 0.62;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.85;
-const TABLE_SIDE_EXPANSION_FACTOR = 1.07;
+const TABLE_SIDE_EXPANSION_FACTOR = 1.1;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
@@ -1241,11 +1248,11 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_VERTICAL_LOWERING = 0.128 * MODEL_SCALE;
-const TABLE_EXTRA_LOWERING = 0.02 * MODEL_SCALE;
+const TABLE_VERTICAL_LOWERING = 0.156 * MODEL_SCALE;
+const TABLE_EXTRA_LOWERING = 0.03 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
+const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
 const CHAIR_INWARD_PULL = 0.1 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
   TABLE_RADIUS +
@@ -1422,7 +1429,7 @@ function createAiUniqueLoadout(activePlayerCount) {
   return byPlayer;
 }
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_LEG_EXTENSION_FACTOR = 1.36;
+const TABLE_LEG_EXTENSION_FACTOR = 1.22;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
@@ -1684,7 +1691,7 @@ function abgCloneWithMats(src) {
         node.material = node.material.clone();
       }
       node.castShadow = true;
-      node.receiveShadow = false;
+      node.receiveShadow = true;
     }
   });
   return clone;
@@ -1720,7 +1727,10 @@ function abgPreparePiece(src) {
   const group = new THREE.Group();
   group.add(clone);
   group.traverse((node) => {
-    if (node.isMesh) node.castShadow = true;
+    if (node.isMesh) {
+      node.castShadow = true;
+      node.receiveShadow = true;
+    }
   });
   return group;
 }
@@ -5660,6 +5670,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
       keyLight.position.set(4.2, 6.4, 3.1);
       keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.bias = -0.00035;
+      keyLight.shadow.normalBias = 0.025;
+      keyLight.shadow.radius = 2.2;
+      keyLight.shadow.camera.left = -8;
+      keyLight.shadow.camera.right = 8;
+      keyLight.shadow.camera.top = 8;
+      keyLight.shadow.camera.bottom = -8;
+      keyLight.shadow.camera.near = 0.5;
+      keyLight.shadow.camera.far = 20;
       scene.add(keyLight);
       const fillLight = new THREE.DirectionalLight(0xffffff, 0.55);
       fillLight.position.set(-4.6, 3.8, 2.2);
