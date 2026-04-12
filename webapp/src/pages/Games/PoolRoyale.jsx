@@ -22710,7 +22710,6 @@ const powerRef = useRef(hud.power);
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
-            const strikeExtraFollow = Math.max(0, stroke.strikeExtraFollow ?? 0);
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
             const easedPush = easeOutCubic(pushT);
             const normalizedStroke = ensureCueStrokeForwardMotion({
@@ -22720,22 +22719,29 @@ const powerRef = useRef(hud.power);
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
             const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const strikeTargetPos = tmpCueStrokeA
-              .copy(resolvedImpactPos)
-              .add(tmpCueStrokeB.copy(normalizedStroke.direction).multiplyScalar(strikeExtraFollow));
+            // Live strike must drive forward into cue-ball contact and stop there.
+            const strikeContactPos = tmpCueStrokeA.copy(resolvedImpactPos);
 
             cueStick.visible = true;
-            cueStick.position.lerpVectors(resolvedPullPos, strikeTargetPos, easedPush);
+            cueStick.position.lerpVectors(resolvedPullPos, strikeContactPos, easedPush);
             cueStick.position.y -= (strikeDip ?? 0.003) * pushT;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
               Math.sin(pushT * Math.PI) * 0.0012;
-            if (!stroke.shotApplied && pushT > 0.9) {
+            const impactThreshold = THREE.MathUtils.clamp(
+              stroke.strikeImpactThreshold ?? 0.9,
+              0.6,
+              1
+            );
+            if (!stroke.shotApplied && pushT >= impactThreshold) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              if (elapsed >= safeStrikeDuration) {
+                cueStick.position.copy(strikeContactPos);
+              }
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -22751,7 +22757,7 @@ const powerRef = useRef(hud.power);
               const eased = easeInOutCubic(t);
               cueStick.visible = true;
               cueStick.position.lerpVectors(
-                followPos ?? impactPos ?? pullPos,
+                strikeContactPos ?? followPos ?? impactPos ?? pullPos,
                 idlePos ?? impactPos ?? pullPos,
                 eased
               );
