@@ -1217,7 +1217,10 @@ const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
 const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 3.48 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE;
+const TABLE_HEIGHT_SCALE = 0.85;
+const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const TABLE_VISUAL_SCALE = 0.85;
+const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -1239,7 +1242,8 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.23 * MODEL_SCALE;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET;
+const AI_CHAIR_RADIUS =
+  TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + 0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET - TABLE_EDGE_INSET;
 const CHAIR_GLOBAL_PUSHBACK = 0.08 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.13 * MODEL_SCALE;
 
@@ -1375,7 +1379,7 @@ const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0] ?? null;
 const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 
 function createAiUniqueLoadout(activePlayerCount) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
@@ -3561,13 +3565,16 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
+const CAMERA_TURN_VIEW_DURATION_MS = 520;
+const CAMERA_BROADCAST_ANIMATION_MS = 560;
+const CAMERA_RETURN_ANIMATION_MS = 620;
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: { x: 0.75, y: 0.75, z: 0.72 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 1.37, y: 1.39, z: 1.42 },
-  queen: { x: 1.37, y: 1.39, z: 1.42 },
-  king: { x: 1.39, y: 1.42, z: 1.44 }
+  bishop: { x: 1.46, y: 1.48, z: 1.52 },
+  queen: { x: 1.46, y: 1.48, z: 1.52 },
+  king: { x: 1.5, y: 1.54, z: 1.56 }
 });
 
 function setTokenHighlight(token, active) {
@@ -4605,7 +4612,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const procedural = createMurlanStyleTable({
           arena: arena.arenaGroup,
           renderer,
-          tableRadius: TABLE_RADIUS,
+          tableRadius: TABLE_RADIUS * TABLE_VISUAL_SCALE,
           tableHeight: TABLE_HEIGHT,
           woodOption,
           clothOption,
@@ -5726,7 +5733,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const procedural = createMurlanStyleTable({
         arena: arenaGroup,
         renderer,
-        tableRadius: TABLE_RADIUS,
+        tableRadius: TABLE_RADIUS * TABLE_VISUAL_SCALE,
         tableHeight: TABLE_HEIGHT,
         woodOption,
         clothOption,
@@ -6599,6 +6606,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const tokenWorldPos =
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
+        setCameraFocus({
+          target: launchAnchor,
+          follow: false,
+          priority: 7,
+          ttl: 1.1,
+          offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
+          force: true
+        });
         const resolvedImpactPoint = resolveLiveTokenPosition({
           token: targetToken,
           player: targetPlayer,
@@ -7148,7 +7163,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return baseTarget;
   }, []);
 
-  const setCameraViewForTurn = useCallback((player, duration = 420, { force = false } = {}) => {
+  const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
     cancelCameraViewAnimation();
     if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
     if (player === 0 && preserveUserTurnCameraRef.current && !force) return;
@@ -7222,7 +7237,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         } else {
           cameraTurnStateRef.current.followOffset = null;
         }
-        animateCameraPose(nextFocusState.target, nextFocusState.position, 380);
+        animateCameraPose(nextFocusState.target, nextFocusState.position, CAMERA_BROADCAST_ANIMATION_MS);
       }
       if (ttl > 0) {
         if (cameraFocusTimeoutRef.current) {
@@ -7237,7 +7252,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (returnTarget) {
             const restoreFocusState = resolveFocusCameraState(returnTarget, CAMERA_TARGET_LIFT);
             if (restoreFocusState) {
-              animateCameraPose(restoreFocusState.target, restoreFocusState.position, 420);
+              animateCameraPose(restoreFocusState.target, restoreFocusState.position, CAMERA_RETURN_ANIMATION_MS);
             }
           }
         }, Math.max(0, ttl * 1000));
@@ -7784,9 +7799,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     dice.userData.isRolling = true;
     setCameraFocus({
       object: dice,
-      follow: true,
-      priority: 4,
-      offset: CAMERA_TARGET_LIFT + 0.04
+      follow: false,
+      priority: 2,
+      ttl: 0.9,
+      offset: CAMERA_TARGET_LIFT + 0.03
     });
     playDiceSound();
     const landingFocus = baseTarget.clone();
@@ -7796,14 +7812,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
-    setCameraFocus({
-      target: landingFocus,
-      follow: false,
-      ttl: 1.6 + DICE_RESULT_EXTRA_HOLD_MS / 1000,
-      priority: 3,
-      offset: CAMERA_TARGET_LIFT + 0.03,
-      force: true
-    });
     setUi((s) => ({
       ...s,
       dice: value,
@@ -7818,19 +7826,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
+    if (options.length) {
+      setCameraFocus({
+        target: landingFocus,
+        follow: false,
+        ttl: 1.2,
+        priority: 2,
+        offset: CAMERA_TARGET_LIFT + 0.03,
+        force: true
+      });
+    }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      setCameraViewForTurn(upcomingTurn, 280, { force: true });
+      setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
         advanceTurn(value === 6);
-      }, 550);
+      }, 900);
       return;
     }
     if (player === 0) {
-      setCameraViewForTurn(0, 260, { force: true });
+      setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       beginHumanSelection(value, options);
       return;
     }
@@ -7838,7 +7856,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!choice) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      setCameraViewForTurn(upcomingTurn, 300, { force: true });
+      setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
