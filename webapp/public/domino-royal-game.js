@@ -942,30 +942,24 @@ scene.background = null;
 const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
-const MODEL_SCALE = 0.7;
-const CAMERA_LAYOUT_SCALE = MODEL_SCALE / 0.75;
-const DOMINO_AND_CHAIR_SHRINK_FACTOR = 0.612; // additional 20% shrink from current size for dominoes/chairs
-const LEGACY_TABLE_SIZE_REDUCTION_FACTOR = 0.68;
-const TABLE_SHRINK_FACTOR = 0.8;
-const TABLE_AND_CHAIR_SHRINK_FACTOR = 0.765; // ~10% smaller than current arena furniture sizing
-const TABLE_SIZE_REDUCTION_FACTOR =
-  LEGACY_TABLE_SIZE_REDUCTION_FACTOR *
-  TABLE_SHRINK_FACTOR *
-  TABLE_AND_CHAIR_SHRINK_FACTOR;
-const TABLE_RADIUS_SCALE = 0.79 * TABLE_SIZE_REDUCTION_FACTOR;
-const TABLE_HEIGHT_SCALE = 0.79 * TABLE_SIZE_REDUCTION_FACTOR;
+const MODEL_SCALE = 0.75; // keep in lockstep with Snake & Ladder arena scale
+const CAMERA_LAYOUT_SCALE = 1;
+const DOMINO_AND_CHAIR_SHRINK_FACTOR = 1;
+const LEGACY_TABLE_SIZE_REDUCTION_FACTOR = 1;
+const TABLE_SHRINK_FACTOR = 1;
+const TABLE_AND_CHAIR_SHRINK_FACTOR = 1;
+const TABLE_SIZE_REDUCTION_FACTOR = 1;
+const TABLE_RADIUS_SCALE = 1;
+const TABLE_HEIGHT_SCALE = 1;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const LEGACY_BASE_TABLE_HEIGHT =
-  1.08 * MODEL_SCALE * 0.79 * LEGACY_TABLE_SIZE_REDUCTION_FACTOR;
+const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const LEGACY_BASE_TABLE_HEIGHT = BASE_TABLE_HEIGHT;
 const STOOL_SCALE =
   1.5 *
-  1.38 *
-  0.8 *
-  LEGACY_TABLE_SIZE_REDUCTION_FACTOR *
-  TABLE_AND_CHAIR_SHRINK_FACTOR *
-  DOMINO_AND_CHAIR_SHRINK_FACTOR;
+  1.3 *
+  1.3 *
+  LEGACY_TABLE_SIZE_REDUCTION_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -981,21 +975,17 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.04 * MODEL_SCALE;
-const CHAIR_OUTWARD_OFFSET = 0.62 * MODEL_SCALE;
+const CHAIR_GAP = 0.152 * MODEL_SCALE; // mirrors Snake & Ladder AI chair gap
+const CHAIR_OUTWARD_OFFSET = 0;
 const CHAIR_RADIUS =
-  TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
-const CHAIR_VISUAL_SCALE =
-  1.408 *
-  LEGACY_TABLE_SIZE_REDUCTION_FACTOR *
-  TABLE_AND_CHAIR_SHRINK_FACTOR *
-  DOMINO_AND_CHAIR_SHRINK_FACTOR;
-const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+  TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
+const CHAIR_VISUAL_SCALE = 1.3;
+const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.024 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const CAMERA_REFERENCE_TABLE_RADIUS = TABLE_RADIUS / TABLE_AND_CHAIR_SHRINK_FACTOR;
-const CAMERA_REFERENCE_TABLE_HEIGHT = TABLE_HEIGHT / TABLE_AND_CHAIR_SHRINK_FACTOR;
+const CAMERA_REFERENCE_TABLE_RADIUS = TABLE_RADIUS;
+const CAMERA_REFERENCE_TABLE_HEIGHT = TABLE_HEIGHT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(90),
@@ -1036,12 +1026,12 @@ const CAMERA_LATERAL_OFFSET = {
   landscape: 0 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_REAR_OFFSET = {
-  portrait: 1.06 * CAMERA_LAYOUT_SCALE * 0.74,
-  landscape: 0.62 * CAMERA_LAYOUT_SCALE * 0.76
+  portrait: 1.06 * CAMERA_LAYOUT_SCALE,
+  landscape: 0.68 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_HEIGHT_BOOST = {
-  portrait: 1.79 * CAMERA_LAYOUT_SCALE * 0.86,
-  landscape: 1.03 * CAMERA_LAYOUT_SCALE * 0.84
+  portrait: 2.54 * CAMERA_LAYOUT_SCALE,
+  landscape: 1.2 * CAMERA_LAYOUT_SCALE
 };
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0055;
@@ -4516,6 +4506,13 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
     }
     scene.environment = envMap || fallbackEnvTexture;
     scene.background = skyboxMap || null;
+    const hdriRotationY = Number.isFinite(variant.rotationY) ? variant.rotationY : 0;
+    if (scene.environmentRotation?.set) {
+      scene.environmentRotation.set(0, hdriRotationY, 0);
+    }
+    if (scene.backgroundRotation?.set) {
+      scene.backgroundRotation.set(0, hdriRotationY, 0);
+    }
     scene.backgroundBlurriness = 0;
     scene.backgroundIntensity = variant.backgroundIntensity ?? 1;
     scene.environmentIntensity = variant.environmentIntensity ?? 1;
@@ -4523,6 +4520,7 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
     renderer.toneMappingExposure =
       variant.exposure ?? renderer.toneMappingExposure;
     activeEnvironmentHdri = variant;
+    syncArenaGroundToFurniture();
   } catch (error) {
     console.warn('Failed to apply Domino HDRI', error);
     if (token !== environmentApplyToken) return;
@@ -6581,13 +6579,12 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SHRINK_FACTOR = 0.8;
-const DOMINO_EXTRA_SHRINK_FACTOR = 0.7225; // 15% smaller than the previous in-game domino size (0.85 * 0.85)
+const DOMINO_SHRINK_FACTOR = 1;
+const DOMINO_EXTRA_SHRINK_FACTOR = 1;
 const DOMINO_SCALE =
   1.5 *
   1.26 *
   DOMINO_SHRINK_FACTOR *
-  DOMINO_AND_CHAIR_SHRINK_FACTOR *
   DOMINO_EXTRA_SHRINK_FACTOR;
 const DOMINO_HEIGHT_ADJUST = 0.9;
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
@@ -6611,7 +6608,7 @@ const CHAIN_CLAMP_MARGIN = Math.max(DOMINO_CHAIN_GAP * 1.5, DOMINO_LENGTH * 0.06
 const XMAX = CLOTH_RADIUS - CHAIN_EDGE_PADDING;
 const ZMAX = CLOTH_RADIUS - CHAIN_EDGE_PADDING;
 const HAND_Y = RAIL_TOP + TILE_UP_HALF - 0.0025;
-const CHAIN_TILE_Y = CLOTH_TOP + 0.0018; // keep dominoes visually lower so they align with the shorter table
+const CHAIN_TILE_Y = CLOTH_TOP + 0.0018;
 
 function getTileSpanAlongChain(isDouble = false) {
   return (isDouble ? DOMINO_WIDTH : DOMINO_LENGTH) * 0.5;
