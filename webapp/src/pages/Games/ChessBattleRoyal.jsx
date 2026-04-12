@@ -101,7 +101,7 @@ const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.56; // slower helicopter pass so propeller motion reads clearly
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.72; // slightly slower helicopter pass so flyby and rotor motion read clearly
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -121,6 +121,7 @@ const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.28; // make jave
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const CAPTURE_JET_EDGE_PATH_FACTOR = -0.3;
+const CAPTURE_HELICOPTER_ENTRY_EDGE_FACTOR = -0.14; // keep same route style, but enter a bit closer to the board
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const CAPTURE_MODEL_URLS = Object.freeze({
@@ -1042,7 +1043,8 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
-const HELICOPTER_FLY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
+// OpenGameArt "Helicopter SFX" (CC0): https://opengameart.org/content/helicopter-sfx
+const HELICOPTER_FLY_SOUND_URL = 'https://opengameart.org/sites/default/files/audio_preview/heli.ogg.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -2868,13 +2870,49 @@ function normalizeModel(object, targetSize) {
   object.position.y -= normalized.min.y;
 }
 
-function prepareCaptureModel(root) {
+function findCaptureRotors(model, role = 'main', limit = 4) {
+  if (!model) return [];
+  const modelBounds = new THREE.Box3().setFromObject(model);
+  const modelSize = new THREE.Vector3();
+  modelBounds.getSize(modelSize);
+  const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
+  const roleMatchers =
+    role === 'tail'
+      ? [/tail/i, /back/i, /rear/i]
+      : [/main/i, /top/i, /upper/i];
+  const scored = [];
+  model.traverse((node) => {
+    if (!node || node === model) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (!/rotor|propell|blade|fan/.test(name)) return;
+    const bounds = new THREE.Box3().setFromObject(node);
+    const size = new THREE.Vector3();
+    bounds.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z) || 0;
+    const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
+    if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
+    if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
+    const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
+    const spanBias = maxDim / Math.max(minDim, 1e-3);
+    const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
+    const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
+    scored.push({ node, score });
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map((item) => item.node);
+}
+
+function prepareCaptureModel(root, options = {}) {
+  const { fallbackTexture = null } = options;
   root.traverse((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
+      if (fallbackTexture && !material?.map && !material?.emissiveMap) {
+        material.map = fallbackTexture;
+      }
       if (material?.map) applySRGBColorSpace(material.map);
       if (material?.emissiveMap) {
         applySRGBColorSpace(material.emissiveMap);
@@ -7422,7 +7460,9 @@ function Chess3D({
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
-    helicopterSoundRef.current.volume = baseVolume;
+    helicopterSoundRef.current.volume = Math.min(1, baseVolume * 1.3);
+    helicopterSoundRef.current.loop = true;
+    helicopterSoundRef.current.preload = 'auto';
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -8040,21 +8080,58 @@ function Chess3D({
       if (captureUnitTemplates[key]) return captureUnitTemplates[key];
       if (captureUnitLoads[key]) return captureUnitLoads[key];
       const urls = CAPTURE_MODEL_URLS[key] || [];
-      const loader = createConfiguredGLTFLoader(renderer);
-      const task = (async () => {
-        for (const url of urls) {
+      const loadWithFallbackAdapters = async (url) => {
+        const resolvedUrl = new URL(url, window.location.href).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        const loaders = [];
+
+        const fullLoader = createConfiguredGLTFLoader(renderer);
+        fullLoader.setResourcePath(resourcePath);
+        fullLoader.setPath(resourcePath);
+        loaders.push(fullLoader);
+
+        const dracoOnlyLoader = new GLTFLoader();
+        dracoOnlyLoader.setCrossOrigin?.('anonymous');
+        const draco = new DRACOLoader();
+        draco.setDecoderPath(DRACO_DECODER_PATH);
+        dracoOnlyLoader.setDRACOLoader(draco);
+        dracoOnlyLoader.setResourcePath(resourcePath);
+        dracoOnlyLoader.setPath(resourcePath);
+        loaders.push(dracoOnlyLoader);
+
+        const plainLoader = new GLTFLoader();
+        plainLoader.setCrossOrigin?.('anonymous');
+        plainLoader.setResourcePath(resourcePath);
+        plainLoader.setPath(resourcePath);
+        loaders.push(plainLoader);
+
+        let lastError = null;
+        for (const loader of loaders) {
           try {
-            const resolvedUrl = new URL(url, window.location.href).href;
-            const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-            loader.setResourcePath(resourcePath);
-            loader.setPath('');
             // eslint-disable-next-line no-await-in-loop
             const gltf = await new Promise((resolve, reject) => {
               loader.load(resolvedUrl, resolve, undefined, reject);
             });
+            return gltf;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (lastError) throw lastError;
+        return null;
+      };
+      const task = (async () => {
+        for (const url of urls) {
+          try {
+            // Try full adapter chain (DRACO + KTX2), then DRACO-only, then plain GLTF.
+            // This keeps official texture mapping when advanced transcoders fail on a device/browser.
+            // eslint-disable-next-line no-await-in-loop
+            const gltf = await loadWithFallbackAdapters(url);
             const model = (gltf.scene || gltf.scenes?.[0])?.clone?.(true);
             if (!model) continue;
-            prepareCaptureModel(model);
+            prepareCaptureModel(model, {
+              fallbackTexture: key === 'helicopter' ? fallbackTexture : null
+            });
             normalizeModel(model, targetSize);
             captureUnitTemplates[key] = model;
             return model;
@@ -8072,7 +8149,9 @@ function Chess3D({
       const template = captureUnitTemplates[key];
       if (!template) return null;
       const clone = cloneSkinned(template);
-      prepareCaptureModel(clone);
+      prepareCaptureModel(clone, {
+        fallbackTexture: key === 'helicopter' ? fallbackTexture : null
+      });
       return clone;
     };
 
@@ -8126,39 +8205,25 @@ function Chess3D({
       mesh.castShadow = true;
       return mesh;
     };
-    const findCaptureRotor = (model, role = 'main') => {
-      if (!model) return null;
-      const modelBounds = new THREE.Box3().setFromObject(model);
-      const modelSize = new THREE.Vector3();
-      modelBounds.getSize(modelSize);
-      const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
-      const roleMatchers =
-        role === 'tail'
-          ? [/tail/i, /back/i, /rear/i]
-          : [/main/i, /top/i, /upper/i];
-      let best = null;
-      let bestScore = Number.NEGATIVE_INFINITY;
-      model.traverse((node) => {
-        if (!node || node === model) return;
-        const name = `${node.name || ''}`.toLowerCase();
-        if (!/rotor|propell|blade|fan/.test(name)) return;
-        const bounds = new THREE.Box3().setFromObject(node);
-        const size = new THREE.Vector3();
-        bounds.getSize(size);
-        const maxDim = Math.max(size.x, size.y, size.z) || 0;
-        const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
-        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
-        if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
-        const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
-        const spanBias = maxDim / Math.max(minDim, 1e-3);
-        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
-        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
-        if (score > bestScore) {
-          bestScore = score;
-          best = node;
-        }
-      });
-      return best;
+    const getRotorSpinAxis = (rotor) => {
+      if (!rotor) return new THREE.Vector3(0, 1, 0);
+      if (rotor.userData?.__spinAxis instanceof THREE.Vector3) {
+        return rotor.userData.__spinAxis;
+      }
+      const bounds = new THREE.Box3().setFromObject(rotor);
+      const size = new THREE.Vector3();
+      bounds.getSize(size);
+      let axis = new THREE.Vector3(0, 1, 0);
+      if (size.x <= size.y && size.x <= size.z) axis = new THREE.Vector3(1, 0, 0);
+      else if (size.y <= size.x && size.y <= size.z) axis = new THREE.Vector3(0, 1, 0);
+      else axis = new THREE.Vector3(0, 0, 1);
+      rotor.userData = { ...(rotor.userData || {}), __spinAxis: axis };
+      return axis;
+    };
+    const spinRotor = (rotor, radians) => {
+      if (!rotor || !Number.isFinite(radians)) return;
+      const axis = getRotorSpinAxis(rotor);
+      rotor.rotateOnAxis(axis, radians);
     };
     const findJetExhaustAnchor = (model) => {
       if (!model) return new THREE.Vector3(-1.9, 0, 0);
@@ -8286,13 +8351,24 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
-        let topRotor = findCaptureRotor(model, 'main');
-        const tailRotor = findCaptureRotor(model, 'tail');
-        if (!topRotor) {
-          const topFallback = findCaptureRotor(model, 'tail');
-          topRotor = topFallback && topFallback !== tailRotor ? topFallback : null;
+        let topRotors = [
+          model.getObjectByName('AW101_propellar'),
+          model.getObjectByName('AW101_propellar_AW101-AW101_sha_0')
+        ].filter(Boolean);
+        let tailRotor =
+          model.getObjectByName('AW101_backrotor') ||
+          model.getObjectByName('AW101_backrotor_AW101-AW101_sha_0') ||
+          null;
+        if (!topRotors.length) {
+          topRotors = findCaptureRotors(model, 'main', 6);
         }
-        return { root, topRotor, tailRotor, exhaustClouds: [] };
+        if (!tailRotor) {
+          [tailRotor] = findCaptureRotors(model, 'tail', 1);
+        }
+        if (!topRotors.length) {
+          topRotors = findCaptureRotors(model, 'tail', 6).filter((rotor) => rotor !== tailRotor);
+        }
+        return { root, topRotors, tailRotor, exhaustClouds: [], model };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -8320,7 +8396,7 @@ function Chess3D({
           addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
         );
       }
-      return { root, topRotor, tailRotor, exhaustClouds };
+      return { root, topRotors: [topRotor], tailRotor, exhaustClouds };
     };
     const createFxJet = () => {
       const model = cloneCaptureUnitTemplate('fighter');
@@ -8632,7 +8708,7 @@ function Chess3D({
         const helicopterFx = createFxHelicopter();
         helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
         const attackFromRightSide = fromPos.x >= 0;
-        const borderOffset = half + tile * CAPTURE_JET_EDGE_PATH_FACTOR;
+        const borderOffset = half + tile * CAPTURE_HELICOPTER_ENTRY_EDGE_FACTOR;
         const entryClamp = half - tile * 0.12;
         const attackAltitude = CAPTURE_JET_ALTITUDE - 0.1;
         const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
@@ -8642,7 +8718,7 @@ function Chess3D({
           THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
         );
         const heliApproach = new THREE.Vector3(
-          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.84),
+          THREE.MathUtils.lerp(sideLane, fromPos.x, 0.9),
           attackAltitude,
           THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
         );
@@ -10487,8 +10563,10 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.helicopterFx.topRotor?.rotateY(dt * 26);
-            fx.helicopterFx.tailRotor?.rotateX(dt * 35);
+            fx.helicopterFx.topRotors?.forEach((rotor) => {
+              spinRotor(rotor, dt * 34);
+            });
+            spinRotor(fx.helicopterFx.tailRotor, dt * 40);
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
