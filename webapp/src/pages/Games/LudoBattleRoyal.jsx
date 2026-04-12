@@ -1337,7 +1337,7 @@ const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 4.2 * MODEL_SCALE;
 const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const TABLE_VISUAL_SCALE = 0.9;
+const TABLE_VISUAL_SCALE = 0.84;
 const TABLE_SIDE_EXPANSION_FACTOR = 1;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
@@ -1363,7 +1363,7 @@ const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
-const CHAIR_INWARD_PULL = 0.19 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.26 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
   TABLE_RADIUS +
   SEAT_DEPTH / 2 +
@@ -1396,7 +1396,7 @@ const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
-const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.8;
 const CHAIR_SIZE_SCALE = CHAIR_GLOBAL_SCALE;
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -2359,15 +2359,15 @@ function fitTableModelToArena(model, tableThemeId = null) {
   if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const maxXZ = Math.max(size.x, size.z);
   const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
   const targetDiameter =
     TABLE_MODEL_TARGET_DIAMETER * TABLE_SIDE_EXPANSION_FACTOR * getTableWidthScale(tableThemeId);
   const targetRadius = targetDiameter / 2;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
-  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-  if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
+  const scaleX = size.x > 0 ? targetDiameter / size.x : 1;
+  const scaleZ = size.z > 0 ? targetDiameter / size.z : 1;
+  if (scaleY !== 1 || scaleX !== 1 || scaleZ !== 1) {
+    model.scale.set(model.scale.x * scaleX, model.scale.y * scaleY, model.scale.z * scaleZ);
   }
   if (TABLE_LEG_EXTENSION_FACTOR !== 1) {
     const stretchedScaleY = model.scale.y * TABLE_LEG_EXTENSION_FACTOR;
@@ -2801,8 +2801,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.5;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -2928,19 +2928,19 @@ const RAIL_TOKEN_SIDE_SPACING = 0.06;
 const TOKEN_HOME_HEIGHT_OFFSETS = Object.freeze([0, 0.0035, 0.0035, 0.0035]);
 const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
-const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.1;
+const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.145;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.134,
-  0.128,
-  0.134,
-  0.128
+  0.176,
+  0.17,
+  0.176,
+  0.17
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
-const TOKEN_FRONT_OUTWARD_SHIFT = 0.082;
+const TOKEN_FRONT_OUTWARD_SHIFT = 0.04;
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -3725,12 +3725,16 @@ const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: ROCK_TOKEN_REFERENCE_SCALE,
+  pawn: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.94,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.92,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.94
+  },
   knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
   rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.13, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.16, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.24, z: ROCK_TOKEN_REFERENCE_SCALE.z }
 });
 
 function setTokenHighlight(token, active) {
@@ -8733,7 +8737,9 @@ async function buildLudoBoard(
           token.scale.z * typeScale.z
         );
       }
-      if (typeKey === 'king' || typeKey === 'knight' || typeKey === 'horse') {
+      if (typeKey === 'king') {
+        token.rotation.y = Math.PI;
+      } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
       const label = createTokenCountLabel();
@@ -8827,7 +8833,7 @@ function getHomeStartPads(half, playerCount = DEFAULT_PLAYER_COUNT) {
   const count = clampPlayerCount(playerCount);
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
-  const inwardPull = TILE * 0.4;
+  const inwardPull = TILE * 0.52;
   const lateralSpread = TILE * 0.92;
   const depthSpread = TILE * 0.64;
   const layout = [
