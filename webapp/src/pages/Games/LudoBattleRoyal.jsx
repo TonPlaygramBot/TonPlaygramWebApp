@@ -1307,9 +1307,12 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.52 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.72 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
-const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
+const CAMERA_BROADCAST_TARGET_BLEND = 0.68;
+const CAMERA_SIDE_AVATAR_BLEND = 0.84;
+const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
+const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
@@ -2800,7 +2803,9 @@ const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
+const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/spinning.mp3';
+const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
+const LUDO_CAPTURE_HELICOPTER_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -3557,12 +3562,12 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: { x: 0.94, y: 0.94, z: 0.9 },
+  pawn: { x: 0.75, y: 0.75, z: 0.72 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 1.14, y: 1.16, z: 1.18 },
-  queen: { x: 1.14, y: 1.16, z: 1.18 },
-  king: { x: 1.16, y: 1.18, z: 1.2 }
+  bishop: { x: 1.37, y: 1.39, z: 1.42 },
+  queen: { x: 1.37, y: 1.39, z: 1.42 },
+  king: { x: 1.39, y: 1.42, z: 1.44 }
 });
 
 function setTokenHighlight(token, active) {
@@ -3663,6 +3668,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const captureSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
+  const droneSoundRef = useRef(null);
+  const fighterJetSoundRef = useRef(null);
   const helicopterSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
@@ -5315,7 +5322,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -5332,6 +5339,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current = new Audio(bombSound);
     missileLaunchSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL);
     missileImpactSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL);
+    droneSoundRef.current = new Audio(LUDO_CAPTURE_DRONE_SOUND_URL);
+    droneSoundRef.current.loop = true;
+    droneSoundRef.current.volume = 0.42;
+    fighterJetSoundRef.current = new Audio(LUDO_CAPTURE_FIGHTER_SOUND_URL);
+    fighterJetSoundRef.current.loop = true;
+    fighterJetSoundRef.current.volume = 0.42;
     helicopterSoundRef.current = new Audio(LUDO_CAPTURE_HELICOPTER_SOUND_URL);
     helicopterSoundRef.current.loop = true;
     helicopterSoundRef.current.volume = 0.42;
@@ -5536,7 +5549,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-    [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.muted = !soundEnabled;
         ref.current.volume = level;
@@ -5570,7 +5583,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const setupScene = async () => {
 
       const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, droneSoundRef, fighterJetSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = baseVolume;
         }
@@ -6426,10 +6439,40 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     helicopterSoundRef.current.play().catch(() => {});
   };
 
+  const playDroneSound = () => {
+    if (!settingsRef.current.soundEnabled || !droneSoundRef.current) return;
+    droneSoundRef.current.currentTime = 0;
+    droneSoundRef.current.play().catch(() => {});
+  };
+
+  const playFighterJetSound = () => {
+    if (!settingsRef.current.soundEnabled || !fighterJetSoundRef.current) return;
+    fighterJetSoundRef.current.currentTime = 0;
+    fighterJetSoundRef.current.play().catch(() => {});
+  };
+
   const stopHelicopterSound = () => {
     if (!helicopterSoundRef.current) return;
     helicopterSoundRef.current.pause();
     helicopterSoundRef.current.currentTime = 0;
+  };
+
+  const stopDroneSound = () => {
+    if (!droneSoundRef.current) return;
+    droneSoundRef.current.pause();
+    droneSoundRef.current.currentTime = 0;
+  };
+
+  const stopFighterJetSound = () => {
+    if (!fighterJetSoundRef.current) return;
+    fighterJetSoundRef.current.pause();
+    fighterJetSoundRef.current.currentTime = 0;
+  };
+
+  const stopCaptureVehicleSounds = () => {
+    stopDroneSound();
+    stopFighterJetSound();
+    stopHelicopterSound();
   };
 
   const getReferenceBishopSize = (player, fallbackToken) => {
@@ -6498,9 +6541,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const resolvedCaptureAnimationId =
           selectedCaptureAnimationId ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
-        if (isHelicopterAttack) {
-          playHelicopterSound();
-        }
+        const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
+        const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
+        stopCaptureVehicleSounds();
+        if (isHelicopterAttack) playHelicopterSound();
+        if (isDroneAttack) playDroneSound();
+        if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
           resolvedCaptureAnimationId === 'droneAttack'
             ? await createCaptureDroneFx()
@@ -6569,7 +6615,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           selectedCaptureAnimationId === 'fighterJetAttack'
             ? 2360
             : selectedCaptureAnimationId === 'helicopterAttack'
-            ? 2360
+            ? 2860
             : selectedCaptureAnimationId === 'droneAttack'
             ? 2080
             : 1780;
@@ -6577,9 +6623,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'droneAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack'
-            ? baseTravelTime * 1.2
+            ? baseTravelTime * 1.3
             : baseTravelTime;
         const explosionTime = 920;
+        const flyAwayDuration =
+          selectedCaptureAnimationId === 'fighterJetAttack'
+            ? 900
+            : selectedCaptureAnimationId === 'helicopterAttack'
+            ? 1400
+            : 0;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
         const started = performance.now();
@@ -6827,7 +6879,44 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             return;
           }
 
-          primaryFx.root.visible = false;
+          if (flyAwayDuration > 0 && elapsed < travelTime + flyAwayDuration) {
+            const flyAwayT = clamp((elapsed - travelTime) / flyAwayDuration, 0, 1);
+            const liveExitFrom =
+              resolveLiveTokenPosition({
+                token: targetToken,
+                player: targetPlayer,
+                tokenIndex: targetTokenIndex,
+                fallbackPosition: safeImpactPoint
+              }) ?? safeImpactPoint.clone();
+            const flyAwayDir = liveExitFrom.clone().sub(arenaCenter).setY(0);
+            if (flyAwayDir.lengthSq() < 1e-6) {
+              flyAwayDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+            }
+            flyAwayDir.normalize();
+            const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
+            const flyAwayEnd = flyAwayStart
+              .clone()
+              .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.25 : 1.45)))
+              .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
+            const flyAwayPos = flyAwayStart.clone().lerp(flyAwayEnd, easeSmooth(flyAwayT));
+            const flyAwayNext = flyAwayStart.clone().lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
+            const flyAwayDirNow = flyAwayNext.sub(flyAwayPos).normalize();
+            primaryFx.root.visible = true;
+            primaryFx.root.position.copy(flyAwayPos);
+            primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, flyAwayDirNow);
+            const fade = clamp(1 - flyAwayT * 1.1, 0, 1);
+            primaryFx.root.traverse((node) => {
+              if (!node?.isMesh) return;
+              const mats = Array.isArray(node.material) ? node.material : [node.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.transparent = true;
+                mat.opacity = fade;
+              });
+            });
+          } else {
+            primaryFx.root.visible = false;
+          }
           jetMissiles.forEach((entry) => {
             entry.root.visible = false;
           });
@@ -6848,14 +6937,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           } else {
             updateExplosionRig(explosionElapsed);
           }
-          if (elapsed < travelTime + explosionTime || (useHelicopterMissileImpact && explosionElapsed < explosionTime / 1000)) {
+          if (
+            elapsed < travelTime + Math.max(explosionTime, flyAwayDuration) ||
+            (useHelicopterMissileImpact && explosionElapsed < explosionTime / 1000)
+          ) {
             requestAnimationFrame(tick);
             return;
           }
 
-          if (isHelicopterAttack) {
-            stopHelicopterSound();
-          }
+          stopCaptureVehicleSounds();
           if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
           jetMissiles.forEach((entry) => {
             if (entry.root.parent) entry.root.parent.remove(entry.root);
@@ -6978,9 +7068,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const boardLookTarget = arena.boardLookTarget;
     const seatWorld = new THREE.Vector3();
     anchor.getWorldPosition(seatWorld);
+    const sideBlend =
+      seatIndex === 1 || seatIndex === 3 ? CAMERA_SIDE_AVATAR_BLEND : CAMERA_BROADCAST_TARGET_BLEND;
     const target = boardLookTarget
       .clone()
-      .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * CAMERA_BROADCAST_TARGET_BLEND);
+      .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * sideBlend);
     target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
     const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) return null;
@@ -7008,8 +7100,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       : desiredOrbitDirection;
     if (!orbitDirection.lengthSq()) return null;
 
+    const position = camera.position.clone();
+    if (seatIndex === 0) {
+      const toCamera = position.clone().sub(boardLookTarget);
+      const horizontal = toCamera.clone().setY(0);
+      if (horizontal.lengthSq() > 1e-6) {
+        horizontal.normalize();
+        position.addScaledVector(horizontal, USER_TURN_CAMERA_PULLBACK);
+      }
+      position.y += USER_TURN_CAMERA_LIFT;
+    }
+
     return {
-      position: camera.position.clone(),
+      position,
       target
     };
   }, []);
@@ -7422,19 +7525,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
       setCameraViewForTurn(nextTurn);
-      const diceObject = diceRef.current;
-      if (diceObject?.isObject3D) {
-        setCameraFocus({
-          object: diceObject,
-          follow: true,
-          ttl: 0.72,
-          priority: 5,
-          offset: CAMERA_TARGET_LIFT + 0.04,
-          force: true
-        });
-      } else {
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
-      }
+      setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
       updated = true;
       const status =
         nextTurn === 0
@@ -7739,6 +7830,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return;
     }
     if (player === 0) {
+      setCameraViewForTurn(0, 260, { force: true });
       beginHumanSelection(value, options);
       return;
     }
