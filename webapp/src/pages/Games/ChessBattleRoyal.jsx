@@ -96,10 +96,10 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 1.08; // fly a bit slower for clearer tracking on small screens
+const CAPTURE_JET_SPEED_FACTOR = 1.2; // fly a bit slower for clearer tracking on small screens
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_JET_MISSILE_TRAVEL = 0.94 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.42; // slower helicopter pass so propeller motion reads clearly
+const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.56; // slower helicopter pass so propeller motion reads clearly
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -109,16 +109,16 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.066;
-const CAPTURE_JET_SCALE = 0.078; // slightly bigger jet silhouette
+const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.0;
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.12;
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.28; // make javelin missile a bit larger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const CAPTURE_JET_EDGE_PATH_FACTOR = -0.18;
+const CAPTURE_JET_EDGE_PATH_FACTOR = -0.3;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const CAPTURE_MODEL_URLS = Object.freeze({
@@ -1040,6 +1040,7 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
+const HELICOPTER_FLY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -2872,12 +2873,8 @@ function prepareCaptureModel(root) {
     child.receiveShadow = true;
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
-      if (material?.map) {
-        material.map.flipY = false;
-        applySRGBColorSpace(material.map);
-      }
+      if (material?.map) applySRGBColorSpace(material.map);
       if (material?.emissiveMap) {
-        material.emissiveMap.flipY = false;
         applySRGBColorSpace(material.emissiveMap);
       }
       if (material && 'envMapIntensity' in material) {
@@ -6119,6 +6116,7 @@ function Chess3D({
   const laughSoundRef = useRef(null);
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
+  const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
@@ -7062,7 +7060,7 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -7099,7 +7097,7 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [swordSoundRef, droneSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -7421,6 +7419,8 @@ function Chess3D({
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
+    helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
+    helicopterSoundRef.current.volume = baseVolume;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -8126,16 +8126,29 @@ function Chess3D({
     };
     const findCaptureRotor = (model, role = 'main') => {
       if (!model) return null;
+      const modelBounds = new THREE.Box3().setFromObject(model);
+      const modelSize = new THREE.Vector3();
+      modelBounds.getSize(modelSize);
+      const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
       const roleMatchers =
         role === 'tail'
           ? [/tail/i, /back/i, /rear/i]
           : [/main/i, /top/i, /upper/i];
       let best = null;
+      let bestScore = Number.NEGATIVE_INFINITY;
       model.traverse((node) => {
         if (!node || node === model) return;
         const name = `${node.name || ''}`.toLowerCase();
         if (!/rotor|propell|blade|fan/.test(name)) return;
-        if (!best || roleMatchers.some((matcher) => matcher.test(name))) {
+        const bounds = new THREE.Box3().setFromObject(node);
+        const size = new THREE.Vector3();
+        bounds.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 0;
+        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
+        const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
+        const score = (roleMatch ? 2 : 0) - maxDim;
+        if (score > bestScore) {
+          bestScore = score;
           best = node;
         }
       });
@@ -8245,8 +8258,24 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
-        const topRotor = findCaptureRotor(model, 'main');
+        let topRotor = findCaptureRotor(model, 'main');
         const tailRotor = findCaptureRotor(model, 'tail');
+        if (!topRotor) {
+          const modelBounds = new THREE.Box3().setFromObject(model);
+          const topY = Number.isFinite(modelBounds.max.y) ? modelBounds.max.y * 0.98 : 0.42;
+          const centerZ = Number.isFinite(modelBounds.min.z) && Number.isFinite(modelBounds.max.z)
+            ? (modelBounds.min.z + modelBounds.max.z) * 0.5
+            : 0;
+          const centerX = Number.isFinite(modelBounds.min.x) && Number.isFinite(modelBounds.max.x)
+            ? (modelBounds.min.x + modelBounds.max.x) * 0.35
+            : 0;
+          topRotor = new THREE.Group();
+          topRotor.position.set(centerX, topY, centerZ);
+          addFxBox(topRotor, [0.08, 0.04, 0.1], [0, 0, 0], '#2d3338', 0.6, 0.22);
+          addFxBox(topRotor, [1.35, 0.012, 0.07], [0, 0, 0], '#151a1e', 0.58, 0.1);
+          addFxBox(topRotor, [0.07, 0.012, 1.35], [0, 0, 0], '#151a1e', 0.58, 0.1);
+          model.add(topRotor);
+        }
         return { root, topRotor, tailRotor, exhaustClouds: [] };
       }
       const root = new THREE.Group();
@@ -8287,8 +8316,14 @@ function Chess3D({
           model.getObjectByName('Cockpit') ||
           model;
         const modelBounds = new THREE.Box3().setFromObject(model);
-        const engineX = Number.isFinite(modelBounds.min.x) ? modelBounds.min.x + 0.2 : -1.9;
-        const exhaustClouds = createJetExhaustClouds(root, 8, [engineX, 0, 0], 0.24);
+        const engineX = Number.isFinite(modelBounds.min.x) ? modelBounds.min.x + 0.08 : -1.9;
+        const centerY = Number.isFinite(modelBounds.min.y) && Number.isFinite(modelBounds.max.y)
+          ? (modelBounds.min.y + modelBounds.max.y) * 0.5
+          : 0;
+        const centerZ = Number.isFinite(modelBounds.min.z) && Number.isFinite(modelBounds.max.z)
+          ? (modelBounds.min.z + modelBounds.max.z) * 0.5
+          : 0;
+        const exhaustClouds = createJetExhaustClouds(root, 8, [engineX, centerY, centerZ], 0.22);
         return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds };
       }
       const root = new THREE.Group();
@@ -8614,6 +8649,7 @@ function Chess3D({
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
+        playAudio(helicopterSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'helicopter',
           t: 0,
@@ -10677,6 +10713,7 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
+      helicopterSoundRef.current?.pause();
       jetFlySound?.pause?.();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
