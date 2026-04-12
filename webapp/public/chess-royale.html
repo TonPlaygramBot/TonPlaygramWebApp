@@ -247,7 +247,7 @@ const MISSILE_HEIGHT=0.095;
 const MISSILE_SIZE=0.02;
 const MISSILE_TRAIL_COUNT=5;
 const MISSILE_TRAIL_SPACING=0.08;
-const JET_HEIGHT=0.19;
+const JET_HEIGHT=0.165;
 const JET_SIZE=0.31;
 const JET_SPEED_FACTOR=2.0; // keep jet and jet-fired missile travel at 50% slower pacing
 const DRONE_SIZE=0.048;
@@ -705,8 +705,8 @@ function animateDroneKamikaze(from,to){
     const smokeTrail=new THREE.Mesh(new THREE.SphereGeometry(0.024,8,8), new THREE.MeshBasicMaterial({color:0x9ca3af, transparent:true, opacity:0.72}));
     const blast=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12), new THREE.MeshBasicMaterial({color:0xfb7185, transparent:true, opacity:0}));
     drone.add(body,propHub,propBladeA,propBladeB);
-    const start=from.clone().add(new THREE.Vector3(0,0.09,0));
-    const end=to.clone().add(new THREE.Vector3(Math.sign((to.x-from.x)||1)*0.17,0.11,Math.sign((to.z-from.z)||1)*0.17));
+    const start=from.clone().add(new THREE.Vector3(0,0.075,0));
+    const end=to.clone().add(new THREE.Vector3(Math.sign((to.x-from.x)||1)*0.17,0.095,Math.sign((to.z-from.z)||1)*0.17));
     const radius=Math.max(0.3,Math.min(0.66,from.distanceTo(to)*0.24));
     drone.position.copy(start); smokeTrail.position.copy(start); blast.position.copy(to.clone().add(new THREE.Vector3(0,0.17,0)));
     scene.add(drone); scene.add(smokeTrail); scene.add(blast); playDroneSound();
@@ -718,7 +718,7 @@ function animateDroneKamikaze(from,to){
       const midB=start.clone().lerp(end,0.62).add(new THREE.Vector3(-radius*0.72,0.035,-radius*0.88));
       const p=cubic(start,midA,midB,end,t);
       drone.position.copy(p);
-      drone.position.y=Math.max(boardY+0.075,p.y);
+      drone.position.y=Math.max(boardY+0.06,p.y);
       smokeTrail.position.lerpVectors(start,p,0.9);
       smokeTrail.material.opacity=0.72*(1-t);
       propHub.rotation.x=t*Math.PI*24;
