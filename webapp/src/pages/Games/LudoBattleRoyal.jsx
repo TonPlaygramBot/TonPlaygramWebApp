@@ -93,9 +93,10 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 0.92;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.86;
 const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.84;
 const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.88;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.12;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -1336,7 +1337,7 @@ const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const TABLE_RADIUS = 4.2 * MODEL_SCALE;
 const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
-const TABLE_VISUAL_SCALE = 0.92;
+const TABLE_VISUAL_SCALE = 0.9;
 const TABLE_SIDE_EXPANSION_FACTOR = 1.22;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
@@ -1362,7 +1363,7 @@ const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
-const CHAIR_INWARD_PULL = 0.1 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.16 * MODEL_SCALE;
 const AI_CHAIR_RADIUS =
   TABLE_RADIUS +
   SEAT_DEPTH / 2 +
@@ -1459,14 +1460,14 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.9,
+  backOffset: 0.84,
   forwardOffset: 0,
-  heightOffset: 2.38,
+  heightOffset: 2.22,
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
-const CAMERA_EXTRA_LIFT = 0.058;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.054;
+const CAMERA_EXTRA_LIFT = 0.044;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.04;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
@@ -2797,8 +2798,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.69;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.63;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.6;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -2811,7 +2812,7 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
-const CAMERA_3D_HEIGHT_BOOST = 0.1 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.084 * MODEL_SCALE;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -2926,13 +2927,15 @@ const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
 const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.088;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.11,
-  0.104,
-  0.11,
-  0.104
+  0.124,
+  0.118,
+  0.124,
+  0.118
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0;
 const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
+const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
+const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
 const TOKEN_FRONT_OUTWARD_SHIFT = 0.082;
 const TOKEN_MOVE_SPEED = 2.45;
@@ -2987,8 +2990,20 @@ function getTokenRailHeight(playerIndex) {
   return getPlayerHomeHeight(playerIndex) + TOKEN_RAIL_HEIGHT_LIFT;
 }
 
+function isShapedLudoTable(tableThemeId) {
+  const id = String(tableThemeId || '').toLowerCase();
+  if (!id) return false;
+  return id === 'murlan-default' || id.includes('octagon') || id.includes('oval') || id.includes('hexagon') || id.includes('diamond');
+}
+
+function getShapedTableHeightLift(tableThemeId) {
+  return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
+}
+
 function updateTokenSurfaceOffset(tableThemeId) {
-  tokenSurfaceOffset = tableThemeId === 'murlan-default' ? 0 : NON_OCTAGON_TOKEN_SURFACE_OFFSET;
+  tokenSurfaceOffset =
+    (tableThemeId === 'murlan-default' ? 0 : NON_OCTAGON_TOKEN_SURFACE_OFFSET) +
+    getShapedTableHeightLift(tableThemeId);
 }
 
 const DICE_SIZE = 0.076;
@@ -3709,9 +3724,9 @@ const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: ROCK_TOKEN_REFERENCE_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
   rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: ROCK_TOKEN_REFERENCE_SCALE,
-  queen: ROCK_TOKEN_REFERENCE_SCALE,
-  king: ROCK_TOKEN_REFERENCE_SCALE
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
 });
 
 function setTokenHighlight(token, active) {
@@ -5350,6 +5365,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const heightLocal =
         diceObj.userData?.railHeight ?? diceObj.userData?.baseHeight ?? DICE_BASE_HEIGHT;
+      const diceShapeLift = isShapedLudoTable(table?.themeId) ? SHAPED_TABLE_DICE_SURFACE_LIFT : 0;
       const heightWorld = heightLocal * scaleWorld.y;
 
       const fallbackDirs = [
@@ -5428,7 +5444,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
-        restWorld.y = centerWorld.y + heightWorld;
+        restWorld.y = centerWorld.y + heightWorld + diceShapeLift;
         const rollWorld = restWorld.clone();
 
         const restLocal = restWorld.clone();
@@ -6791,11 +6807,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : selectedCaptureAnimationId === 'droneAttack'
             ? 1780
             : 1780;
+        const airAttackSlowFactor =
+          selectedCaptureAnimationId === 'fighterJetAttack' ||
+          selectedCaptureAnimationId === 'helicopterAttack' ||
+          selectedCaptureAnimationId === 'droneAttack'
+            ? CAPTURE_AIRCRAFT_SLOW_FACTOR
+            : 1;
         const travelTime =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack'
-            ? baseTravelTime * 1.3
-            : baseTravelTime;
+            ? baseTravelTime * 1.3 * airAttackSlowFactor
+            : baseTravelTime * airAttackSlowFactor;
         const explosionTime = 920;
         const flyAwayDuration =
           selectedCaptureAnimationId === 'fighterJetAttack'
