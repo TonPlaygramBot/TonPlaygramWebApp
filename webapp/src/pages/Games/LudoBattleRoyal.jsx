@@ -1442,7 +1442,7 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.72 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
-const CAMERA_BROADCAST_TARGET_BLEND = 0.68;
+const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 0.84;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
@@ -3726,18 +3726,39 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
+const LUDO_BATTLE_VOICE_COMMENTARY_ENABLED = false;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
-    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.9,
-    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.94,
-    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.9
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.8,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 0.86,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.8
   },
-  knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.22, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.28, z: ROCK_TOKEN_REFERENCE_SCALE.z },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z }
+  knight: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.84,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.84
+  },
+  rook: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.84,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.84
+  },
+  bishop: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.84,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.34,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.84
+  },
+  queen: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.84,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.42,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.84
+  },
+  king: {
+    x: ROCK_TOKEN_REFERENCE_SCALE.x * 0.84,
+    y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.48,
+    z: ROCK_TOKEN_REFERENCE_SCALE.z * 0.84
+  }
 });
 
 function setTokenHighlight(token, active) {
@@ -4359,6 +4380,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const enqueueLudoCommentary = useCallback(
     (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!LUDO_BATTLE_VOICE_COMMENTARY_ENABLED) return;
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
       setCommentaryDisplay(lines);
@@ -8120,13 +8142,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
-        {commentaryText ? (
-          <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 px-4">
-            <div className="max-w-[80vw] rounded-full border border-white/15 bg-black/55 px-4 py-2 text-center text-xs font-semibold text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
-              {commentaryText}
-            </div>
-          </div>
-        ) : null}
         <div className="absolute top-[5.35rem] left-2 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
@@ -8250,69 +8265,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       }}
                     />
                   </label>
-                  <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                      Commentary
-                    </h3>
-                    <div className="mt-2 grid gap-2">
-                      {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
-                        const active = preset.id === commentaryPresetId;
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => setCommentaryPresetId(preset.id)}
-                            aria-pressed={active}
-                            disabled={!commentarySupported}
-                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              active
-                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                          >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                              {active && (
-                                <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
-                                  Active
-                                </span>
-                              )}
-                            </span>
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {preset.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCommentaryMuted((prev) => !prev)}
-                      aria-pressed={commentaryMuted}
-                      disabled={!commentarySupported}
-                      className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        commentaryMuted
-                          ? 'bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.65)]'
-                          : 'bg-white/10 text-white/80 hover:bg-white/20'
-                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                    >
-                      <span>Mute commentary</span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                          commentaryMuted
-                            ? 'border-black/30 text-black/70'
-                            : 'border-white/30 text-white/70'
-                        }`}
-                      >
-                        {commentaryMuted ? 'On' : 'Off'}
-                      </span>
-                    </button>
-                    {!commentarySupported && (
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                        Voice commentary needs Web Speech support.
-                      </p>
-                    )}
-                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -8741,7 +8693,7 @@ async function buildLudoBoard(
         );
       }
       if (typeKey === 'king') {
-        token.rotation.y = Math.PI * 1.5;
+        token.rotation.y = Math.PI;
       } else if (typeKey === 'knight' || typeKey === 'horse') {
         token.rotation.y = Math.PI / 4;
       }
