@@ -446,6 +446,77 @@ function applyCaptureTextureToOpaqueMeshes(root, kind) {
   });
 }
 
+function paintMeshMaterials(node, painter) {
+  if (!node?.isMesh) return;
+  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  materials.forEach((mat) => {
+    if (!mat || !mat.color) return;
+    painter(mat);
+    mat.needsUpdate = true;
+  });
+}
+
+function applyMilitaryJetLook(root) {
+  if (!root) return;
+  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    paintMeshMaterials(node, (mat) => {
+      if (/cockpit|canopy|window|glass/.test(name)) {
+        mat.color.set('#06080c');
+        if ('metalness' in mat) mat.metalness = 0.55;
+        if ('roughness' in mat) mat.roughness = 0.16;
+        if ('transparent' in mat) mat.transparent = true;
+        if ('opacity' in mat) mat.opacity = 0.94;
+        return;
+      }
+      if (/missile|rocket|store|pod/.test(name)) {
+        mat.color.set('#d8dde3');
+        if ('metalness' in mat) mat.metalness = 0.88;
+        if ('roughness' in mat) mat.roughness = 0.24;
+        return;
+      }
+      mat.color.offsetHSL(-0.03, -0.18, -0.12);
+      if ('metalness' in mat) mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
+      if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
+    });
+  });
+}
+
+function findDroneMotorMesh(root) {
+  let best = null;
+  root?.traverse((node) => {
+    if (best || !node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (/propell|rotor|blade|fan|motor/.test(name)) best = node;
+  });
+  return best;
+}
+
+function applySilverDroneLook(root) {
+  if (!root) return null;
+  applyCaptureTextureToOpaqueMeshes(root, 'drone');
+  const motor = findDroneMotorMesh(root);
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const isMotor = node === motor || /propell|rotor|blade|fan|motor/.test(name);
+    paintMeshMaterials(node, (mat) => {
+      if (isMotor) {
+        mat.color.set('#0e1116');
+        if ('metalness' in mat) mat.metalness = 0.6;
+        if ('roughness' in mat) mat.roughness = 0.28;
+        return;
+      }
+      mat.color.set('#d3d9df');
+      if ('metalness' in mat) mat.metalness = 0.82;
+      if ('roughness' in mat) mat.roughness = 0.26;
+    });
+  });
+  return motor;
+}
+
 function easeSmooth(t) {
   const n = clamp(t, 0, 1);
   return n * n * (3 - 2 * n);
@@ -548,21 +619,21 @@ function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.1
 
 function createCaptureMissileFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#bfc5ca', 16, 0.42, 0.12);
+  addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.1, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: '#eef1f4', roughness: 0.28, metalness: 0.12 })
+    new THREE.MeshStandardMaterial({ color: '#edf1f6', roughness: 0.22, metalness: 0.9 })
   );
   nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
 
-  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#7d858b', 0.58, 0.12);
-  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
-  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#727a80', 0.58, 0.12);
+  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
+  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
+  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
+  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
 
   const trail = [];
   for (let i = 0; i < 5; i += 1) {
@@ -591,6 +662,7 @@ async function createCaptureDroneFx() {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85);
     model.rotation.y = Math.PI;
+    const propeller = applySilverDroneLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
@@ -608,12 +680,12 @@ async function createCaptureDroneFx() {
       );
     }
     root.visible = false;
-    return { root, propeller: null, trail };
+    return { root, propeller, trail };
   }
   root.scale.setScalar(0.3);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
-    createCaptureVehicleMaterial('drone', { color: '#c3cbd1', roughness: 0.5, metalness: 0.2 })
+    createCaptureVehicleMaterial('drone', { color: '#d1d7de', roughness: 0.28, metalness: 0.84 })
   );
   body.rotation.set(0, 0, Math.PI / 2);
   body.castShadow = true;
@@ -621,7 +693,7 @@ async function createCaptureDroneFx() {
   root.add(body);
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.17, 0.68, 22),
-    createCaptureVehicleMaterial('drone', { color: '#d8dce0', roughness: 0.48, metalness: 0.2 })
+    createCaptureVehicleMaterial('drone', { color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
   );
   nose.position.set(1.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -629,7 +701,7 @@ async function createCaptureDroneFx() {
   root.add(nose);
   const tail = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.13, 0.58, 16),
-    createCaptureVehicleMaterial('drone', { color: '#778188', roughness: 0.56, metalness: 0.22 })
+    createCaptureVehicleMaterial('drone', { color: '#10151c', roughness: 0.44, metalness: 0.44 })
   );
   tail.position.set(-1.62, 0, 0);
   tail.rotation.set(0, 0, Math.PI / 2);
@@ -710,7 +782,7 @@ async function createCaptureDroneFx() {
       )
     );
   }
-  applyCaptureTextureToOpaqueMeshes(root, 'drone');
+  applySilverDroneLook(root);
   root.visible = false;
   return { root, propeller, trail };
 }
@@ -722,6 +794,7 @@ async function createCaptureJetFx() {
     const model = loadedJet.clone(true);
     fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
+    applyMilitaryJetLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 6; i += 1) {
@@ -757,7 +830,7 @@ async function createCaptureJetFx() {
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#273745', 0.16, 0.34);
+  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#070b12', 0.1, 0.56, true, 0.94);
   cockpit.scale.set(1.25, 0.56, 0.62);
   const wing = createFxPolygon([[-1.6, -2.55], [0.8, 0], [-0.4, 2.55]], 0.1, '#9ba4ac', 0.66, 0.18);
   wing.position.set(-0.18, -0.04, 0);
@@ -780,10 +853,10 @@ async function createCaptureJetFx() {
   engineRight.position.z = 0.22;
   root.add(engineRight);
   const leftStore = new THREE.Group();
-  addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d8dbdf', 12, 0.4, 0.18);
+  addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#dce1e7', 12, 0.24, 0.9);
   const leftStoreNose = new THREE.Mesh(
     new THREE.ConeGeometry(0.05, 0.14, 12),
-    new THREE.MeshStandardMaterial({ color: '#eceef0', roughness: 0.35, metalness: 0.16 })
+    new THREE.MeshStandardMaterial({ color: '#edf1f6', roughness: 0.22, metalness: 0.9 })
   );
   leftStoreNose.position.set(0.34, 0, 0);
   leftStoreNose.rotation.z = -Math.PI / 2;
@@ -808,7 +881,7 @@ async function createCaptureJetFx() {
       )
     );
   }
-  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  applyMilitaryJetLook(root);
   root.visible = false;
   return { root, trail };
 }
@@ -2820,9 +2893,11 @@ const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/spinning.mp3';
+const LUDO_CAPTURE_DRONE_SOUND_URL =
+  '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
+const HAHA_SOUND_MAX_DURATION_MS = 6000;
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -6437,7 +6512,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       hahaSoundRef.current.pause();
       hahaSoundRef.current.currentTime = 0;
       hahaStopTimeoutRef.current = null;
-    }, 5000);
+    }, HAHA_SOUND_MAX_DURATION_MS);
   };
 
   const playCapture = () => {
