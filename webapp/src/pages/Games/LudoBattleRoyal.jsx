@@ -1306,7 +1306,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.56 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.38 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
@@ -1594,8 +1594,7 @@ function normalizeAppearance(value = {}) {
     ['environmentHdri', LUDO_HDRI_OPTIONS.length],
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
-    ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
-    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length]
+    ['tokenPiece', TOKEN_PIECE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -2655,10 +2654,10 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
-const CAMERA_EXTRA_ZOOM_IN = 0.74;
+const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.64;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.68;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -2799,11 +2798,7 @@ const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_HELICOPTER_SOUND_URLS = [
-  '/assets/sounds/helicopter-original.mp3',
-  '/assets/sounds/helicopter.mp3',
-  '/assets/sounds/ufo-sound-effect-240256.mp3'
-];
+const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/ufo-sound-effect-240256.mp3';
 const TOKEN_STEP_JUMP_HEIGHT = 0.03;
 const TOKEN_STEP_JUMP_PHASE = 0.7;
 const keyFor = (r, c) => `${r},${c}`;
@@ -3563,21 +3558,10 @@ const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: { x: 0.94, y: 0.94, z: 0.9 },
   knight: { x: 0.94, y: 0.94, z: 0.9 },
   rook: { x: 0.94, y: 0.94, z: 0.9 },
-  bishop: { x: 1.16, y: 1.18, z: 1.2 },
-  queen: { x: 1.16, y: 1.18, z: 1.2 },
-  king: { x: 1.16, y: 1.18, z: 1.2 }
+  bishop: { x: 1.08, y: 1.1, z: 1.12 },
+  queen: { x: 1.08, y: 1.1, z: 1.12 },
+  king: { x: 1.08, y: 1.1, z: 1.12 }
 });
-const TOKEN_TYPE_Y_ROTATION_PROFILE = Object.freeze({
-  king: Math.PI / 4,
-  knight: Math.PI / 4
-});
-
-function applyTokenBaseRotation(token) {
-  if (!token) return;
-  const tokenTypeKey = String(token.userData?.tokenType || '').toLowerCase();
-  const rotationY = TOKEN_TYPE_Y_ROTATION_PROFILE[tokenTypeKey];
-  token.rotation.set(0, Number.isFinite(rotationY) ? rotationY : 0, 0);
-}
 
 function setTokenHighlight(token, active) {
   if (!token) return;
@@ -3980,8 +3964,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         environmentHdri: LUDO_HDRI_OPTIONS,
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
-        tokenPiece: TOKEN_PIECE_OPTIONS,
-        captureAnimation: CAPTURE_ANIMATION_OPTIONS
+        tokenPiece: TOKEN_PIECE_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -4734,7 +4717,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           setTokenHighlight(token, true);
         }
       });
-      preserveUserTurnCameraRef.current = true;
       setUi((s) => ({
         ...s,
         status: `Tap a token to move (rolled ${roll})`
@@ -5183,7 +5165,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const target = home.clone();
         target.y = homeHeight;
         token.position.copy(target);
-        applyTokenBaseRotation(token);
+        token.rotation.set(0, 0, 0);
       }
     });
 
@@ -5328,27 +5310,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }, [activePlayerCount, applyRailLayout]);
 
   useEffect(() => {
-    const createAudioWithFallback = (sources = [], { loop = false } = {}) => {
-      const queue = Array.isArray(sources) ? sources.filter(Boolean) : [];
-      if (!queue.length) return null;
-      const audio = new Audio(queue[0]);
-      audio.loop = loop;
-      if (queue.length > 1) {
-        let sourceIndex = 0;
-        const handleSourceError = () => {
-          sourceIndex += 1;
-          if (sourceIndex >= queue.length) {
-            audio.removeEventListener('error', handleSourceError);
-            return;
-          }
-          audio.src = queue[sourceIndex];
-          audio.load();
-        };
-        audio.addEventListener('error', handleSourceError);
-      }
-      return audio;
-    };
-
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
       [moveSoundRef, captureSoundRef, missileLaunchSoundRef, missileImpactSoundRef, helicopterSoundRef, cheerSoundRef, diceSoundRef, diceRewardSoundRef, sixRollSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
@@ -5368,10 +5329,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current = new Audio(bombSound);
     missileLaunchSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL);
     missileImpactSoundRef.current = new Audio(LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL);
-    helicopterSoundRef.current = createAudioWithFallback(LUDO_CAPTURE_HELICOPTER_SOUND_URLS, { loop: true });
-    if (helicopterSoundRef.current) {
-      helicopterSoundRef.current.volume = 0.42;
-    }
+    helicopterSoundRef.current = new Audio(LUDO_CAPTURE_HELICOPTER_SOUND_URL);
+    helicopterSoundRef.current.loop = true;
+    helicopterSoundRef.current.volume = 0.42;
     cheerSoundRef.current = new Audio(cheerSound);
     // Procedural dice SFX is generated with Web Audio (no binary asset).
     diceSoundRef.current = null;
@@ -6571,7 +6531,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           selectedCaptureAnimationId === 'fighterJetAttack'
             ? 0.52
             : selectedCaptureAnimationId === 'helicopterAttack'
-            ? 0.437
+            ? 0.364
             : selectedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
@@ -6739,15 +6699,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
                 return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
               }
-              if (selectedCaptureAnimationId === 'helicopterAttack') {
-                const orbitAngle = fromAngle + angularDelta * (phaseSplit + d * (1 - phaseSplit));
-                const retreatRadius = orbitalRadius * (1 + d * 0.9);
-                return new THREE.Vector3(
-                  arenaCenter.x + Math.cos(orbitAngle) * retreatRadius,
-                  apex.y + d * Math.max(topStrikeHeight * 0.24, 0.32),
-                  arenaCenter.z + Math.sin(orbitAngle) * retreatRadius
-                );
-              }
               const isJavelinStrike = true;
               const diveStart = new THREE.Vector3(
                 isJavelinStrike
@@ -6840,8 +6791,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               u > 0.88
             ) {
               const retreatDir = pos.clone().sub(dynamicTo).setY(0).normalize();
-              const retreatSpeed = selectedCaptureAnimationId === 'helicopterAttack' ? 2.4 : 1.5;
-              primaryFx.root.position.addScaledVector(retreatDir, (u - 0.88) * retreatSpeed);
+              primaryFx.root.position.addScaledVector(retreatDir, (u - 0.88) * 1.5);
             }
             updateExplosionRig(-1);
             requestAnimationFrame(tick);
@@ -7516,7 +7466,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const pos = state.startPads[player][token].clone();
       pos.y = getTokenRailHeight(player);
       tokenNode.position.copy(pos);
-      applyTokenBaseRotation(tokenNode);
+      tokenNode.rotation.set(0, 0, 0);
       opponents.push(resolvePlayerLabel(player));
     });
     return { count: opponents.length, opponents };
@@ -7568,9 +7518,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const moveToken = (player, tokenIndex, roll, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
-    if (player === 0) {
-      preserveUserTurnCameraRef.current = false;
-    }
     const current = state.progress[player][tokenIndex];
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
@@ -7581,7 +7528,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
-      applyTokenBaseRotation(state.tokens[player][tokenIndex]);
+      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       updateTokenStacks();
       const playerName = resolvePlayerLabel(player);
       const tokensHome = resolveTokensHomeCount(state, player);
@@ -7745,9 +7692,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      if (upcomingTurn !== player || value !== 6) {
-        setCameraViewForTurn(upcomingTurn, 280, { force: true });
-      }
       const upcomingDiceTarget = rollTargets?.[upcomingTurn]?.clone();
       if (upcomingDiceTarget?.isVector3) {
         setCameraFocus({
@@ -8429,7 +8373,6 @@ async function buildLudoBoard(
           token.scale.z * typeScale.z
         );
       }
-      applyTokenBaseRotation(token);
       const label = createTokenCountLabel();
       if (label) {
         token.add(label);
