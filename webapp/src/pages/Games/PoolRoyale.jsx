@@ -22710,7 +22710,6 @@ const powerRef = useRef(hud.power);
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
-            const strikeExtraFollow = Math.max(0, stroke.strikeExtraFollow ?? 0);
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
             const easedPush = easeOutCubic(pushT);
             const normalizedStroke = ensureCueStrokeForwardMotion({
@@ -22720,9 +22719,8 @@ const powerRef = useRef(hud.power);
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
             const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const strikeTargetPos = tmpCueStrokeA
-              .copy(resolvedImpactPos)
-              .add(tmpCueStrokeB.copy(normalizedStroke.direction).multiplyScalar(strikeExtraFollow));
+            const strikeTargetPos = tmpCueStrokeA.copy(resolvedImpactPos);
+            const strikeWobbleScale = Math.max(0, 1 - pushT);
 
             cueStick.visible = true;
             cueStick.position.lerpVectors(resolvedPullPos, strikeTargetPos, easedPush);
@@ -22730,12 +22728,20 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
-              Math.sin(pushT * Math.PI) * 0.0012;
-            if (!stroke.shotApplied && pushT > 0.9) {
+              Math.sin(pushT * Math.PI) * 0.0012 * strikeWobbleScale;
+            if (!stroke.shotApplied && pushT >= 0.9) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
+            if (elapsed < safeStrikeDuration) {
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              cueStick.position.copy(resolvedImpactPos);
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
