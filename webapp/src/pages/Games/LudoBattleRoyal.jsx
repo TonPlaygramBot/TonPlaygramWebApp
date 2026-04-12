@@ -1428,14 +1428,14 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.72 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 0.84;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
-const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
+const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
@@ -1455,7 +1455,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
-const CAMERA_EXTRA_LIFT = 0.044;
+const CAMERA_EXTRA_LIFT = 0.058;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.04;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -5632,6 +5632,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     );
     boardLookTargetRef.current = boardLookTarget;
     const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
+    if (Math.abs(initialCameraDirection.x) > 1e-4) {
+      const zSign = Math.sign(initialCameraDirection.z) || 1;
+      initialCameraDirection.set(
+        0,
+        initialCameraDirection.y,
+        zSign * Math.max(Math.abs(initialCameraDirection.z), 1e-3)
+      ).normalize();
+    }
     const initialDistanceFactor = isPortrait ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR : INITIAL_CAMERA_DISTANCE_FACTOR;
     const desiredInitialCameraRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
     camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
