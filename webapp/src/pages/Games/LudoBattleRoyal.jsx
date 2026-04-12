@@ -1338,7 +1338,7 @@ const TABLE_RADIUS = 4.2 * MODEL_SCALE;
 const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.9;
-const TABLE_SIDE_EXPANSION_FACTOR = 1.22;
+const TABLE_SIDE_EXPANSION_FACTOR = 1;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
@@ -1820,6 +1820,8 @@ function measureProceduralTokenHeight() {
   return proceduralTokenHeight;
 }
 
+const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.054, z: 0.054 });
+
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
   const { size } = abgBbox(clone);
@@ -1828,7 +1830,13 @@ function abgPreparePiece(src) {
     const scale = targetHeight / size.y;
     clone.scale.setScalar(scale);
     clone.updateMatrixWorld(true);
-    const scaledBox = new THREE.Box3().setFromObject(clone);
+    let scaledBox = new THREE.Box3().setFromObject(clone);
+    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+    const scaleX = scaledSize.x > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.x / scaledSize.x : 1;
+    const scaleZ = scaledSize.z > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.z / scaledSize.z : 1;
+    clone.scale.set(clone.scale.x * scaleX, clone.scale.y, clone.scale.z * scaleZ);
+    clone.updateMatrixWorld(true);
+    scaledBox = new THREE.Box3().setFromObject(clone);
     const center = scaledBox.getCenter(new THREE.Vector3());
     clone.position.x -= center.x;
     clone.position.z -= center.z;
@@ -2371,13 +2379,8 @@ function fitTableModelToArena(model, tableThemeId = null) {
   const topCorrection = targetHeight - topAfterStretch;
   model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y + topCorrection, -center.z));
   const recenteredBox = new THREE.Box3().setFromObject(model);
-  const radius = Math.max(
-    Math.abs(recenteredBox.max.x),
-    Math.abs(recenteredBox.min.x),
-    Math.abs(recenteredBox.max.z),
-    Math.abs(recenteredBox.min.z),
-    targetRadius
-  );
+  void recenteredBox;
+  const radius = targetRadius;
   return {
     surfaceY: targetHeight,
     radius
@@ -2385,8 +2388,8 @@ function fitTableModelToArena(model, tableThemeId = null) {
 }
 
 function getTableWidthScale(tableThemeId) {
-  if (!tableThemeId) return 1;
-  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
+  void tableThemeId;
+  return 1;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -2788,7 +2791,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
-const BOARD_GROUP_SURFACE_OFFSET = -0.0055;
+const BOARD_GROUP_SURFACE_OFFSET = -0.0025;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -2912,9 +2915,9 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_TRACK_SURFACE_OFFSET = -0.0025;
-const TOKEN_HOME_SURFACE_OFFSET = 0.0005;
-const TOKEN_GOAL_SURFACE_OFFSET = 0.0008;
+const TOKEN_TRACK_SURFACE_OFFSET = 0.0005;
+const TOKEN_HOME_SURFACE_OFFSET = 0.0035;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0038;
 const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
 const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
@@ -2933,7 +2936,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.128
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
-const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
+const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
@@ -2997,7 +3000,8 @@ function isShapedLudoTable(tableThemeId) {
 }
 
 function getShapedTableHeightLift(tableThemeId) {
-  return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
+  void tableThemeId;
+  return SHAPED_TABLE_TOKEN_SURFACE_LIFT;
 }
 
 function updateTokenSurfaceOffset(tableThemeId) {
@@ -3012,7 +3016,7 @@ const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.024;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.027;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
@@ -3719,14 +3723,14 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.9 });
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.92, z: 0.84 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: ROCK_TOKEN_REFERENCE_SCALE,
-  knight: ROCK_TOKEN_REFERENCE_SCALE,
-  rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
+  knight: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  rook: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.065, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.13, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.18, z: ROCK_TOKEN_REFERENCE_SCALE.z }
 });
 
 function setTokenHighlight(token, active) {
