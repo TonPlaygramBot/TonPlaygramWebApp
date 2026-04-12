@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 4.9; // slower pass
+const CAPTURE_JET_TOTAL = 5.2; // just a bit slower pass for better visual tracking
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 5.9 / CAPTURE_JET_TOTAL; // slower helicopter pass
-const CAPTURE_HELICOPTER_TOTAL = 5.9; // slower than prior tuning
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 6.2 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slightly longer pass
+const CAPTURE_HELICOPTER_TOTAL = 6.2; // just a bit slower than prior tuning
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -115,8 +115,8 @@ const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.8;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.18;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.14; // helicopter flies slightly higher than the jet
+const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.24; // keep jet lower, closer to board in portrait view
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.08; // helicopter still above jet, but closer to board
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
@@ -10923,7 +10923,7 @@ function Chess3D({
             const fallbackRadius = boardClamp * 0.64;
             const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
             const toRadius = Math.max(toOffset.length(), fallbackRadius);
-            const jetFlightAltitude = Math.max(CAPTURE_JET_ALTITUDE, fx.to.y + Math.max(tile * 0.28, 0.11));
+            const jetFlightAltitude = Math.max(CAPTURE_JET_ALTITUDE, fx.to.y + Math.max(tile * 0.22, 0.08));
             const orbitalRadius = Math.min(
               boardClamp * 0.72,
               Math.max(fromRadius, toRadius, boardClamp * 0.66)
@@ -11072,7 +11072,7 @@ function Chess3D({
             const toRadius = Math.max(toOffset.length(), fallbackRadius);
             const helicopterFlightAltitude = Math.max(
               CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
-              fx.to.y + Math.max(tile * 0.38, 0.15)
+              fx.to.y + Math.max(tile * 0.3, 0.11)
             );
             const orbitalRadius = Math.min(
               boardClamp * 0.72,
