@@ -115,8 +115,12 @@ const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.8;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_JET_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE - 1.12; // keep aircraft just above piece heads with a visible safety gap
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.03; // helicopter follows the same low loop with only a slight offset
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.34; // keep jet/helicopter very close to the board with a small visual gap over pieces
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.22; // never dip below the board plane
+const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.02; // helicopter follows the same low loop with only a tiny offset
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.74; // keep path constrained to board size (inside camera framing on portrait)
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.86; // pull lanes inward from rim so aircraft stays visible on mobile portrait
 const CAPTURE_MISSILE_SCALE = 0.0595;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
@@ -9100,12 +9104,19 @@ function Chess3D({
         baseAltitude,
         turnAltitudeDrop = 0.08
       }) => {
+        const viewportAspect =
+          typeof window !== 'undefined'
+            ? (window.innerWidth || 1) / Math.max(window.innerHeight || 1, 1)
+            : 1;
+        const portraitTightening = viewportAspect < 1 ? THREE.MathUtils.lerp(0.84, 1, viewportAspect) : 1;
         const attackFromTopSide = attackerPos.z >= 0;
         const attackerSideSign = attackFromTopSide ? 1 : -1;
-        const edgeInset = tile * 0.16;
-        const attackerLaneZ = attackerSideSign * (half - edgeInset);
-        const enemyLaneZ = -attackerSideSign * (half - edgeInset);
-        const xClamp = half - tile * 0.22;
+        const boardPathHalf = half * CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR * portraitTightening;
+        const edgeInset = tile * CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES;
+        const laneBound = Math.max(tile * 1.42, boardPathHalf - edgeInset);
+        const attackerLaneZ = attackerSideSign * laneBound;
+        const enemyLaneZ = -attackerSideSign * laneBound;
+        const xClamp = laneBound;
         const laneX = THREE.MathUtils.clamp(
           THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5),
           -xClamp,
@@ -9113,7 +9124,7 @@ function Chess3D({
         );
         const turnBendDirection = victimPos.x >= laneX ? 1 : -1;
         const turnBendX = THREE.MathUtils.clamp(
-          laneX + turnBendDirection * tile * 0.8,
+          laneX + turnBendDirection * tile * 0.44,
           -xClamp,
           xClamp
         );
@@ -9213,7 +9224,7 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62)
+          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + CAPTURE_AIR_STRIKE_BOARD_CLEARANCE)
         });
         jetFx.root.position.copy(path.startPos);
         captureFxGroup.add(jetFx.root);
@@ -9253,7 +9264,9 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62) + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
+          baseAltitude:
+            Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + CAPTURE_AIR_STRIKE_BOARD_CLEARANCE) +
+            CAPTURE_HELICOPTER_ALTITUDE_BOOST,
           turnAltitudeDrop: 0.06
         });
         helicopterFx.root.position.copy(path.startPos);
@@ -9295,7 +9308,7 @@ function Chess3D({
         const path = buildAirStrikePath({
           attackerPos: fromPos,
           victimPos: targetPos,
-          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + tile * 0.62)
+          baseAltitude: Math.max(CAPTURE_JET_ALTITUDE, targetPos.y + CAPTURE_AIR_STRIKE_BOARD_CLEARANCE)
         });
         jetFx.root.position.copy(path.startPos);
         captureFxGroup.add(jetFx.root);
