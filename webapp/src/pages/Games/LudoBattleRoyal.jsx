@@ -1339,7 +1339,6 @@ const TABLE_HEIGHT_SCALE = 0.56;
 const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const TABLE_VISUAL_SCALE = 0.9;
 const TABLE_SIDE_EXPANSION_FACTOR = 1.22;
-const TABLE_SIDE_WIDTH_TRIM = 0.92;
 const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
 const CHAIR_GLOBAL_SCALE = 0.5;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
@@ -1509,8 +1508,6 @@ const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIO
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
-const OCTAGON_LAYOUT_OUTER_RADIUS = (TABLE_MODEL_TARGET_DIAMETER * TABLE_SIDE_EXPANSION_FACTOR * 1.06) / 2;
-const OCTAGON_LAYOUT_INNER_RADIUS = OCTAGON_LAYOUT_OUTER_RADIUS * 0.72;
 
 function createAiUniqueLoadout(activePlayerCount) {
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
@@ -1823,8 +1820,6 @@ function measureProceduralTokenHeight() {
   return proceduralTokenHeight;
 }
 
-const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.054, z: 0.054 });
-
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
   const { size } = abgBbox(clone);
@@ -1833,13 +1828,7 @@ function abgPreparePiece(src) {
     const scale = targetHeight / size.y;
     clone.scale.setScalar(scale);
     clone.updateMatrixWorld(true);
-    let scaledBox = new THREE.Box3().setFromObject(clone);
-    const scaledSize = scaledBox.getSize(new THREE.Vector3());
-    const scaleX = scaledSize.x > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.x / scaledSize.x : 1;
-    const scaleZ = scaledSize.z > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.z / scaledSize.z : 1;
-    clone.scale.set(clone.scale.x * scaleX, clone.scale.y, clone.scale.z * scaleZ);
-    clone.updateMatrixWorld(true);
-    scaledBox = new THREE.Box3().setFromObject(clone);
+    const scaledBox = new THREE.Box3().setFromObject(clone);
     const center = scaledBox.getCenter(new THREE.Vector3());
     clone.position.x -= center.x;
     clone.position.z -= center.z;
@@ -2370,11 +2359,7 @@ function fitTableModelToArena(model, tableThemeId = null) {
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
   if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(
-      model.scale.x * scaleXZ * TABLE_SIDE_WIDTH_TRIM,
-      model.scale.y * scaleY,
-      model.scale.z * scaleXZ
-    );
+    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
   }
   if (TABLE_LEG_EXTENSION_FACTOR !== 1) {
     const stretchedScaleY = model.scale.y * TABLE_LEG_EXTENSION_FACTOR;
@@ -2400,16 +2385,8 @@ function fitTableModelToArena(model, tableThemeId = null) {
 }
 
 function getTableWidthScale(tableThemeId) {
-  void tableThemeId;
-  return 1.06;
-}
-
-function applyOctagonLayoutRadii(tableInfo) {
-  if (!tableInfo) return tableInfo;
-  tableInfo.radius = OCTAGON_LAYOUT_OUTER_RADIUS;
-  tableInfo.getOuterRadius = () => OCTAGON_LAYOUT_OUTER_RADIUS;
-  tableInfo.getInnerRadius = () => OCTAGON_LAYOUT_INNER_RADIUS;
-  return tableInfo;
+  if (!tableThemeId) return 1;
+  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -2811,7 +2788,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
-const BOARD_GROUP_SURFACE_OFFSET = -0.0025;
+const BOARD_GROUP_SURFACE_OFFSET = -0.0055;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -2935,9 +2912,9 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_TRACK_SURFACE_OFFSET = 0.0005;
-const TOKEN_HOME_SURFACE_OFFSET = 0.0035;
-const TOKEN_GOAL_SURFACE_OFFSET = 0.0038;
+const TOKEN_TRACK_SURFACE_OFFSET = -0.0025;
+const TOKEN_HOME_SURFACE_OFFSET = 0.0005;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0008;
 const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
 const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
@@ -2956,7 +2933,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.128
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
-const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
+const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
@@ -3020,8 +2997,7 @@ function isShapedLudoTable(tableThemeId) {
 }
 
 function getShapedTableHeightLift(tableThemeId) {
-  void tableThemeId;
-  return SHAPED_TABLE_TOKEN_SURFACE_LIFT;
+  return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
 }
 
 function updateTokenSurfaceOffset(tableThemeId) {
@@ -3036,7 +3012,7 @@ const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.027;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.024;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
@@ -3743,17 +3719,14 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.88, y: 0.98, z: 0.84 });
-const PAWN_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 0.94, z: ROCK_TOKEN_REFERENCE_SCALE.z });
-const BISHOP_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.06, z: ROCK_TOKEN_REFERENCE_SCALE.z });
-const ROYAL_TOKEN_SCALE = Object.freeze({ x: ROCK_TOKEN_REFERENCE_SCALE.x, y: 1.12, z: ROCK_TOKEN_REFERENCE_SCALE.z });
+const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.94, y: 0.94, z: 0.9 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
-  pawn: PAWN_TOKEN_SCALE,
+  pawn: ROCK_TOKEN_REFERENCE_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
   rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: BISHOP_TOKEN_SCALE,
-  queen: ROYAL_TOKEN_SCALE,
-  king: ROYAL_TOKEN_SCALE
+  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
+  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
 });
 
 function setTokenHighlight(token, active) {
@@ -4779,7 +4752,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             getOuterRadius: () => radius,
             getInnerRadius: () => radius * 0.72
           };
-          applyOctagonLayoutRadii(tableInfo);
         } catch (error) {
           console.warn('Failed to load Poly Haven table', error);
         }
@@ -4800,7 +4772,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           includeBase: true
         });
         applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
-        tableInfo = applyOctagonLayoutRadii({ ...procedural, themeId: tableTheme?.id || procedural.shapeId });
+        tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
       }
 
       if (tableBuildTokenRef.current !== token) {
@@ -5919,7 +5891,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           getOuterRadius: () => radius,
           getInnerRadius: () => radius * 0.72
         };
-        applyOctagonLayoutRadii(tableInfo);
       } catch (error) {
         console.warn('Failed to load Poly Haven table', error);
       }
@@ -5940,7 +5911,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         includeBase: true
       });
       applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
-      tableInfo = applyOctagonLayoutRadii({ ...procedural, themeId: tableTheme?.id || procedural.shapeId });
+      tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
     }
     updateTokenSurfaceOffset(tableInfo.themeId || tableTheme?.id || 'murlan-default');
 
