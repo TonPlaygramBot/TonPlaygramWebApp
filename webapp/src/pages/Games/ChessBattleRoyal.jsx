@@ -101,7 +101,7 @@ const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * CAPTURE_JET_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_TRAVEL = 1.06 * CAPTURE_JET_SPEED_FACTOR;
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.74; // slower helicopter pass so propeller motion reads clearly
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1.56; // slower helicopter pass so propeller motion reads clearly
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = CAPTURE_JET_MISSILE_TRAVEL * CAPTURE_HELICOPTER_SPEED_FACTOR;
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.58;
@@ -130,8 +130,8 @@ const CAPTURE_MODEL_URLS = Object.freeze({
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
   ],
   helicopter: [
-    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
     'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb',
+    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/helicopter.glb'
   ],
   fighter: [
@@ -1042,11 +1042,7 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/spinning.mp3';
-// Keep MP3 first for mobile browser compatibility, with CC0 fallback.
-const HELICOPTER_FLY_SOUND_URLS = [
-  '/assets/sounds/spinning.mp3',
-  'https://opengameart.org/sites/default/files/heli.ogg'
-];
+const HELICOPTER_FLY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -2870,84 +2866,6 @@ function normalizeModel(object, targetSize) {
   object.position.x -= center.x;
   object.position.z -= center.z;
   object.position.y -= normalized.min.y;
-}
-
-function findCaptureRotors(model, role = 'main', limit = 4) {
-  if (!model) return [];
-  const modelBounds = new THREE.Box3().setFromObject(model);
-  const modelSize = new THREE.Vector3();
-  modelBounds.getSize(modelSize);
-  const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
-  const roleMatchers =
-    role === 'tail'
-      ? [/tail/i, /back/i, /rear/i]
-      : [/main/i, /top/i, /upper/i];
-  const scored = [];
-  model.traverse((node) => {
-    if (!node || node === model) return;
-    const name = `${node.name || ''}`.toLowerCase();
-    if (!/rotor|propell|blade|fan/.test(name)) return;
-    const bounds = new THREE.Box3().setFromObject(node);
-    const size = new THREE.Vector3();
-    bounds.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z) || 0;
-    const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
-    if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
-    if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
-    const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
-    const spanBias = maxDim / Math.max(minDim, 1e-3);
-    const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
-    const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
-    scored.push({ node, score });
-  });
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit).map((item) => item.node);
-}
-
-function inferRotorSpinAxis(rotor) {
-  if (!rotor) return new THREE.Vector3(0, 1, 0);
-  const rotorWorldQ = new THREE.Quaternion();
-  rotor.getWorldQuaternion(rotorWorldQ);
-  const rotorWorldQInv = rotorWorldQ.clone().invert();
-  let bestAxis = null;
-  let bestArea = 0;
-  rotor.traverse((node) => {
-    if (!node?.isMesh || !node.geometry) return;
-    const geometry = node.geometry;
-    if (!geometry.boundingBox) geometry.computeBoundingBox();
-    const box = geometry.boundingBox;
-    if (!box) return;
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    if (!Number.isFinite(size.x + size.y + size.z)) return;
-    const dims = [Math.abs(size.x), Math.abs(size.y), Math.abs(size.z)];
-    const minDim = Math.min(...dims);
-    const maxDim = Math.max(...dims);
-    if (maxDim <= 1e-5 || minDim > maxDim * 0.38) return;
-    const area = dims[0] * dims[1] * dims[2];
-    const minIndex = dims.indexOf(minDim);
-    const axisLocal =
-      minIndex === 0
-        ? new THREE.Vector3(1, 0, 0)
-        : minIndex === 1
-          ? new THREE.Vector3(0, 1, 0)
-          : new THREE.Vector3(0, 0, 1);
-    const meshWorldQ = new THREE.Quaternion();
-    node.getWorldQuaternion(meshWorldQ);
-    const axisInRotor = axisLocal
-      .clone()
-      .applyQuaternion(meshWorldQ)
-      .applyQuaternion(rotorWorldQInv)
-      .normalize();
-    if (area > bestArea) {
-      bestArea = area;
-      bestAxis = axisInRotor;
-    }
-  });
-  if (!bestAxis || !Number.isFinite(bestAxis.lengthSq()) || bestAxis.lengthSq() < 1e-4) {
-    return new THREE.Vector3(0, 1, 0);
-  }
-  return bestAxis;
 }
 
 function prepareCaptureModel(root) {
@@ -7146,9 +7064,7 @@ function Chess3D({
     }
     [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
-      const targetVolume =
-        ref === helicopterSoundRef ? Math.min(1, volume * 1.18) : volume;
-      ref.current.volume = effectiveSoundEnabled ? targetVolume : 0;
+      ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
         try {
           ref.current.pause();
@@ -7185,9 +7101,7 @@ function Chess3D({
       }
       [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
-        const targetVolume =
-          ref === helicopterSoundRef ? Math.min(1, volume * 1.18) : volume;
-        ref.current.volume = settingsRef.current.soundEnabled ? targetVolume : 0;
+        ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -7507,17 +7421,8 @@ function Chess3D({
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
-    const helicopterSoundUrl =
-      HELICOPTER_FLY_SOUND_URLS.find((url) => {
-        const ext = url.split('.').pop()?.toLowerCase();
-        if (!ext) return true;
-        const probe = new Audio();
-        return probe.canPlayType?.(`audio/${ext}`) !== '';
-      }) || HELICOPTER_FLY_SOUND_URLS[0];
-    helicopterSoundRef.current = new Audio(helicopterSoundUrl);
-    helicopterSoundRef.current.preload = 'auto';
-    helicopterSoundRef.current.loop = true;
-    helicopterSoundRef.current.volume = Math.min(1, baseVolume * 1.18);
+    helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
+    helicopterSoundRef.current.volume = baseVolume;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -8143,12 +8048,6 @@ function Chess3D({
             const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
             loader.setResourcePath(resourcePath);
             loader.setPath('');
-            loader.manager.setURLModifier((assetUrl) => {
-              if (!assetUrl) return assetUrl;
-              if (/^(data:|blob:|https?:\/\/)/i.test(assetUrl)) return assetUrl;
-              const cleaned = assetUrl.replace(/^\.?\//, '');
-              return `${resourcePath}${cleaned}`;
-            });
             // eslint-disable-next-line no-await-in-loop
             const gltf = await new Promise((resolve, reject) => {
               loader.load(resolvedUrl, resolve, undefined, reject);
@@ -8226,6 +8125,40 @@ function Chess3D({
       );
       mesh.castShadow = true;
       return mesh;
+    };
+    const findCaptureRotor = (model, role = 'main') => {
+      if (!model) return null;
+      const modelBounds = new THREE.Box3().setFromObject(model);
+      const modelSize = new THREE.Vector3();
+      modelBounds.getSize(modelSize);
+      const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
+      const roleMatchers =
+        role === 'tail'
+          ? [/tail/i, /back/i, /rear/i]
+          : [/main/i, /top/i, /upper/i];
+      let best = null;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      model.traverse((node) => {
+        if (!node || node === model) return;
+        const name = `${node.name || ''}`.toLowerCase();
+        if (!/rotor|propell|blade|fan/.test(name)) return;
+        const bounds = new THREE.Box3().setFromObject(node);
+        const size = new THREE.Vector3();
+        bounds.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 0;
+        const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
+        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * 0.45) return;
+        if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
+        const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
+        const spanBias = maxDim / Math.max(minDim, 1e-3);
+        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim;
+        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias;
+        if (score > bestScore) {
+          bestScore = score;
+          best = node;
+        }
+      });
+      return best;
     };
     const findJetExhaustAnchor = (model) => {
       if (!model) return new THREE.Vector3(-1.9, 0, 0);
@@ -8353,24 +8286,13 @@ function Chess3D({
       if (model) {
         const root = new THREE.Group();
         root.add(model);
-        let topRotors = findCaptureRotors(model, 'main', 6);
-        const [tailRotor] = findCaptureRotors(model, 'tail', 1);
-        if (!topRotors.length) {
-          topRotors = findCaptureRotors(model, 'tail', 6).filter((rotor) => rotor !== tailRotor);
+        let topRotor = findCaptureRotor(model, 'main');
+        const tailRotor = findCaptureRotor(model, 'tail');
+        if (!topRotor) {
+          const topFallback = findCaptureRotor(model, 'tail');
+          topRotor = topFallback && topFallback !== tailRotor ? topFallback : null;
         }
-        topRotors.forEach((rotor) => {
-          rotor.userData = {
-            ...(rotor.userData || {}),
-            spinAxis: inferRotorSpinAxis(rotor)
-          };
-        });
-        if (tailRotor) {
-          tailRotor.userData = {
-            ...(tailRotor.userData || {}),
-            spinAxis: inferRotorSpinAxis(tailRotor)
-          };
-        }
-        return { root, topRotors, tailRotor, exhaustClouds: [] };
+        return { root, topRotor, tailRotor, exhaustClouds: [] };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -8392,15 +8314,13 @@ function Chess3D({
       addFxBox(tailRotor, [0.03, 0.38, 0.03], [0, 0, 0], '#21272d', 0.55, 0.08);
       addFxBox(tailRotor, [0.03, 0.03, 0.38], [0, 0, 0], '#21272d', 0.55, 0.08);
       root.add(tailRotor);
-      topRotor.userData = { ...(topRotor.userData || {}), spinAxis: new THREE.Vector3(0, 1, 0) };
-      tailRotor.userData = { ...(tailRotor.userData || {}), spinAxis: new THREE.Vector3(1, 0, 0) };
       const exhaustClouds = [];
       for (let i = 0; i < 6; i += 1) {
         exhaustClouds.push(
           addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
         );
       }
-      return { root, topRotors: [topRotor], tailRotor, exhaustClouds };
+      return { root, topRotor, tailRotor, exhaustClouds };
     };
     const createFxJet = () => {
       const model = cloneCaptureUnitTemplate('fighter');
@@ -8716,9 +8636,8 @@ function Chess3D({
         const entryClamp = half - tile * 0.12;
         const attackAltitude = CAPTURE_JET_ALTITUDE - 0.1;
         const sideLane = attackFromRightSide ? borderOffset : -borderOffset;
-        const heliStartLane = sideLane - Math.sign(sideLane || 1) * tile * 0.58;
         const heliStart = new THREE.Vector3(
-          heliStartLane,
+          sideLane,
           CAPTURE_JET_ALTITUDE,
           THREE.MathUtils.clamp((fromPos.z + targetPos.z) * 0.5, -entryClamp, entryClamp)
         );
@@ -10568,14 +10487,8 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            fx.helicopterFx.topRotors?.forEach((rotor) => {
-              const spinAxis = rotor?.userData?.spinAxis || new THREE.Vector3(0, 1, 0);
-              rotor?.rotateOnAxis(spinAxis, dt * 30);
-            });
-            {
-              const tailSpinAxis = fx.helicopterFx.tailRotor?.userData?.spinAxis || new THREE.Vector3(1, 0, 0);
-              fx.helicopterFx.tailRotor?.rotateOnAxis(tailSpinAxis, dt * 36);
-            }
+            fx.helicopterFx.topRotor?.rotateY(dt * 26);
+            fx.helicopterFx.tailRotor?.rotateX(dt * 35);
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
