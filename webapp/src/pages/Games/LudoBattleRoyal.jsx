@@ -1820,6 +1820,8 @@ function measureProceduralTokenHeight() {
   return proceduralTokenHeight;
 }
 
+const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.06, z: 0.06 });
+
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
   const { size } = abgBbox(clone);
@@ -1828,7 +1830,13 @@ function abgPreparePiece(src) {
     const scale = targetHeight / size.y;
     clone.scale.setScalar(scale);
     clone.updateMatrixWorld(true);
-    const scaledBox = new THREE.Box3().setFromObject(clone);
+    let scaledBox = new THREE.Box3().setFromObject(clone);
+    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+    const scaleX = scaledSize.x > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.x / scaledSize.x : 1;
+    const scaleZ = scaledSize.z > 1e-6 ? STANDARD_TOKEN_FOOTPRINT.z / scaledSize.z : 1;
+    clone.scale.set(clone.scale.x * scaleX, clone.scale.y, clone.scale.z * scaleZ);
+    clone.updateMatrixWorld(true);
+    scaledBox = new THREE.Box3().setFromObject(clone);
     const center = scaledBox.getCenter(new THREE.Vector3());
     clone.position.x -= center.x;
     clone.position.z -= center.z;
@@ -2385,8 +2393,8 @@ function fitTableModelToArena(model, tableThemeId = null) {
 }
 
 function getTableWidthScale(tableThemeId) {
-  if (!tableThemeId) return 1;
-  return tableThemeId === 'gothic_coffee_table' ? 1.03 : 1.06;
+  void tableThemeId;
+  return 1.06;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -2788,7 +2796,7 @@ const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 const PLAYFIELD_HEIGHT = 0.018;
-const BOARD_GROUP_SURFACE_OFFSET = -0.0055;
+const BOARD_GROUP_SURFACE_OFFSET = -0.0025;
 const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
@@ -2912,9 +2920,9 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_TRACK_SURFACE_OFFSET = -0.0025;
-const TOKEN_HOME_SURFACE_OFFSET = 0.0005;
-const TOKEN_GOAL_SURFACE_OFFSET = 0.0008;
+const TOKEN_TRACK_SURFACE_OFFSET = 0.0005;
+const TOKEN_HOME_SURFACE_OFFSET = 0.0035;
+const TOKEN_GOAL_SURFACE_OFFSET = 0.0038;
 const TOKEN_TRACK_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_TRACK_SURFACE_OFFSET;
 const TOKEN_HOME_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_HOME_SURFACE_OFFSET;
 const TOKEN_GOAL_HEIGHT = PLAYFIELD_HEIGHT + TOKEN_GOAL_SURFACE_OFFSET;
@@ -2933,7 +2941,7 @@ const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
   0.128
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
-const NON_OCTAGON_TOKEN_SURFACE_OFFSET = -0.0075;
+const NON_OCTAGON_TOKEN_SURFACE_OFFSET = 0;
 const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
@@ -2997,7 +3005,8 @@ function isShapedLudoTable(tableThemeId) {
 }
 
 function getShapedTableHeightLift(tableThemeId) {
-  return isShapedLudoTable(tableThemeId) ? SHAPED_TABLE_TOKEN_SURFACE_LIFT : 0;
+  void tableThemeId;
+  return SHAPED_TABLE_TOKEN_SURFACE_LIFT;
 }
 
 function updateTokenSurfaceOffset(tableThemeId) {
@@ -3012,7 +3021,7 @@ const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.024;
+const DICE_BASE_HEIGHT = DICE_SIZE / 2 + 0.027;
 const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
 const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
@@ -3724,9 +3733,9 @@ const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: ROCK_TOKEN_REFERENCE_SCALE,
   knight: ROCK_TOKEN_REFERENCE_SCALE,
   rook: ROCK_TOKEN_REFERENCE_SCALE,
-  bishop: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  queen: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 },
-  king: { x: ROCK_TOKEN_REFERENCE_SCALE.x * 1.3, y: ROCK_TOKEN_REFERENCE_SCALE.y * 1.3, z: ROCK_TOKEN_REFERENCE_SCALE.z * 1.3 }
+  bishop: ROCK_TOKEN_REFERENCE_SCALE,
+  queen: ROCK_TOKEN_REFERENCE_SCALE,
+  king: ROCK_TOKEN_REFERENCE_SCALE
 });
 
 function setTokenHighlight(token, active) {
