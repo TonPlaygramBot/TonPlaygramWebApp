@@ -10917,42 +10917,54 @@ function Chess3D({
               value.z = THREE.MathUtils.clamp(value.z, -boardClamp, boardClamp);
               return value;
             };
-            const fromOffset = fx.from.clone().setY(0);
-            const toOffset = fx.to.clone().setY(0);
-            const bishopHeightAltitude = currentPieceYOffset + Math.max(tile * 0.56, 0.28);
-            const jetFlightAltitude = Math.max(
-              fx.to.y + Math.max(tile * 0.14, 0.08),
-              bishopHeightAltitude
+            const arenaCenter = new THREE.Vector3(0, fx.from.y, 0);
+            const fromOffset = fx.from.clone().sub(arenaCenter).setY(0);
+            const toOffset = fx.to.clone().sub(arenaCenter).setY(0);
+            const fallbackRadius = boardClamp * 0.64;
+            const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+            const toRadius = Math.max(toOffset.length(), fallbackRadius);
+            const jetFlightAltitude = Math.max(CAPTURE_JET_ALTITUDE, fx.to.y + Math.max(tile * 0.28, 0.11));
+            const orbitalRadius = Math.min(
+              boardClamp * 0.72,
+              Math.max(fromRadius, toRadius, boardClamp * 0.66)
             );
-            const laneX = THREE.MathUtils.clamp((fx.from.x + fx.to.x) * 0.12, -boardClamp * 0.2, boardClamp * 0.2);
-            const laneStart = clampToBoard(new THREE.Vector3(laneX, jetFlightAltitude, fx.from.z));
-            const laneTarget = clampToBoard(new THREE.Vector3(laneX, jetFlightAltitude, fx.to.z));
-            const laneTravelSign = Math.sign(laneTarget.z - laneStart.z) || Math.sign(toOffset.z - fromOffset.z) || 1;
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            angularDelta = Math.max(angularDelta + Math.PI * 0.9, Math.PI * 1.8);
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
-            const apex = laneStart
-              .clone()
-              .lerp(laneTarget, 0.54)
-              .add(new THREE.Vector3(0, Math.max(tile * 0.05, 0.03), 0));
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              jetFlightAltitude,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
             let jetPos = null;
             let jetNext = null;
             const pathAt = (valueU) => {
               const t = clamp01(valueU);
               if (t < phaseSplit) {
                 const a = smoothEase(t / phaseSplit);
-                const laneMid = laneStart.clone().lerp(apex, a);
-                return clampToBoard(
-                  qBezier(
-                    laneStart,
-                    laneStart.clone().lerp(apex, 0.5).add(new THREE.Vector3(0, Math.max(tile * 0.04, 0.02), 0)),
-                    laneMid,
-                    a
-                  )
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  jetFlightAltitude,
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
                 );
+                return clampToBoard(fx.from.clone().lerp(ring, 0.78 + a * 0.22));
               }
               const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
-              const flyByEnd = laneTarget
+              const toRadial = fx.to.clone().sub(arenaCenter).setY(0);
+              if (toRadial.lengthSq() < 1e-6) {
+                toRadial.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              } else {
+                toRadial.normalize();
+              }
+              const flyByEnd = fx.to
                 .clone()
-                .add(new THREE.Vector3(0, Math.max(tile * 0.07, 0.03), laneTravelSign * boardClamp * 0.52));
+                .add(toRadial.multiplyScalar(orbitalRadius * 0.85))
+                .add(new THREE.Vector3(0, Math.max(tile * 0.08, 0.03), 0));
               return clampToBoard(qBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d));
             };
             if (jetU < 1) {
@@ -11052,42 +11064,56 @@ function Chess3D({
               value.z = THREE.MathUtils.clamp(value.z, -boardClamp, boardClamp);
               return value;
             };
-            const fromOffset = fx.from.clone().setY(0);
-            const toOffset = fx.to.clone().setY(0);
-            const bishopHeightAltitude = currentPieceYOffset + Math.max(tile * 0.62, 0.31);
+            const arenaCenter = new THREE.Vector3(0, fx.from.y, 0);
+            const fromOffset = fx.from.clone().sub(arenaCenter).setY(0);
+            const toOffset = fx.to.clone().sub(arenaCenter).setY(0);
+            const fallbackRadius = boardClamp * 0.64;
+            const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
+            const toRadius = Math.max(toOffset.length(), fallbackRadius);
             const helicopterFlightAltitude = Math.max(
-              fx.to.y + Math.max(tile * 0.18, 0.1),
-              bishopHeightAltitude + Math.max(tile * 0.06, 0.04)
+              CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
+              fx.to.y + Math.max(tile * 0.38, 0.15)
             );
-            const laneX = THREE.MathUtils.clamp((fx.from.x + fx.to.x) * 0.14, -boardClamp * 0.2, boardClamp * 0.2);
-            const laneStart = clampToBoard(new THREE.Vector3(laneX, helicopterFlightAltitude, fx.from.z));
-            const laneTarget = clampToBoard(new THREE.Vector3(laneX, helicopterFlightAltitude, fx.to.z));
-            const laneTravelSign = Math.sign(laneTarget.z - laneStart.z) || Math.sign(toOffset.z - fromOffset.z) || 1;
+            const orbitalRadius = Math.min(
+              boardClamp * 0.72,
+              Math.max(fromRadius, toRadius, boardClamp * 0.66)
+            );
+            const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
+            const toAngle = Math.atan2(toOffset.z, toOffset.x);
+            let angularDelta = toAngle - fromAngle;
+            if (angularDelta <= 0) angularDelta += Math.PI * 2;
+            if (angularDelta < Math.PI / 3) angularDelta += Math.PI * 2;
+            const cruiseAngle = fromAngle + angularDelta * 0.7;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
-            const apex = laneStart
-              .clone()
-              .lerp(laneTarget, 0.54)
-              .add(new THREE.Vector3(0, Math.max(tile * 0.06, 0.035), 0));
+            const apex = new THREE.Vector3(
+              arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
+              helicopterFlightAltitude,
+              arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
+            );
             let heliPos = null;
             let heliNext = null;
             const pathAt = (valueU) => {
               const t = clamp01(valueU);
               if (t < phaseSplit) {
                 const a = smoothEase(t / phaseSplit);
-                const laneMid = laneStart.clone().lerp(apex, a);
-                return clampToBoard(
-                  qBezier(
-                    laneStart,
-                    laneStart.clone().lerp(apex, 0.5).add(new THREE.Vector3(0, Math.max(tile * 0.05, 0.025), 0)),
-                    laneMid,
-                    a
-                  )
+                const orbitAngle = fromAngle + angularDelta * a;
+                const ring = new THREE.Vector3(
+                  arenaCenter.x + Math.cos(orbitAngle) * orbitalRadius,
+                  helicopterFlightAltitude,
+                  arenaCenter.z + Math.sin(orbitAngle) * orbitalRadius
                 );
+                return clampToBoard(fx.from.clone().lerp(ring, 0.78 + a * 0.22));
               }
               const d = smoothEase((t - phaseSplit) / (1 - phaseSplit));
-              const flyAwayEnd = laneTarget
+              const retreatDir = apex.clone().sub(fx.to).setY(0);
+              if (retreatDir.lengthSq() < 1e-6) {
+                retreatDir.set(Math.cos(fromAngle + angularDelta), 0, Math.sin(fromAngle + angularDelta));
+              }
+              retreatDir.normalize();
+              const flyAwayEnd = apex
                 .clone()
-                .add(new THREE.Vector3(0, Math.max(tile * 0.08, 0.04), laneTravelSign * boardClamp * 0.56));
+                .add(retreatDir.multiplyScalar(orbitalRadius * 1.35))
+                .add(new THREE.Vector3(0, Math.max(tile * 0.08, 0.03), 0));
               return clampToBoard(qBezier(apex, apex.clone().lerp(flyAwayEnd, 0.5), flyAwayEnd, d));
             };
             if (heliU < 1) {
