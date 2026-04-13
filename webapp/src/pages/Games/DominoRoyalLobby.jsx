@@ -25,8 +25,8 @@ const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
-const CHESS_PLAYER_FLAG_KEY = 'chessBattleRoyalPlayerFlag';
-const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
+const DOMINO_PLAYER_FLAG_KEY = 'dominoRoyalPlayerFlag';
+const DOMINO_AI_FLAG_KEY = 'dominoRoyalAiFlag';
 
 const PLAYER_OPTIONS = [2, 3, 4];
 const HUMAN_ICON_FALLBACK = '🧑‍🤝‍🧑';
@@ -61,8 +61,9 @@ export default function DominoRoyalLobby() {
   const [frameRateId, setFrameRateId] = useState(DEFAULT_FRAME_RATE_ID);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
-  const [chessPlayerFlag, setChessPlayerFlag] = useState(null);
-  const [chessAiFlag, setChessAiFlag] = useState(null);
+  const [flagsManuallySelected, setFlagsManuallySelected] = useState(false);
+  const [dominoPlayerFlag, setDominoPlayerFlag] = useState(null);
+  const [dominoAiFlag, setDominoAiFlag] = useState(null);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
 
@@ -72,6 +73,28 @@ export default function DominoRoyalLobby() {
 
   const openAiFlagPicker = () => {
     setShowFlagPicker(true);
+  };
+
+  const buildAutoFlags = (count) => {
+    const safeCount = Math.max(1, count | 0);
+    if (!FLAG_EMOJIS.length) return Array.from({ length: safeCount }, () => 0);
+    const defaultFlagIndex = Math.max(0, FLAG_EMOJIS.indexOf('🌐'));
+    const playerIdx = dominoPlayerFlag ?? defaultFlagIndex;
+    const aiPool = FLAG_EMOJIS.map((_, idx) => idx).filter(
+      (idx) => idx !== playerIdx
+    );
+    const randomAi = [];
+    const pool = [...aiPool];
+    for (let i = 1; i < safeCount; i += 1) {
+      if (!pool.length) {
+        randomAi.push(aiPool[Math.floor(Math.random() * aiPool.length)] ?? playerIdx);
+      } else {
+        const pickAt = Math.floor(Math.random() * pool.length);
+        const [picked] = pool.splice(pickAt, 1);
+        randomAi.push(picked ?? playerIdx);
+      }
+    }
+    return [playerIdx, ...randomAi];
   };
 
   useEffect(() => {
@@ -98,26 +121,20 @@ export default function DominoRoyalLobby() {
 
   useEffect(() => {
     try {
-      const storedPlayer = window.localStorage?.getItem(CHESS_PLAYER_FLAG_KEY);
-      const storedAi = window.localStorage?.getItem(CHESS_AI_FLAG_KEY);
+      const storedPlayer = window.localStorage?.getItem(DOMINO_PLAYER_FLAG_KEY);
+      const storedAi = window.localStorage?.getItem(DOMINO_AI_FLAG_KEY);
       const playerIdx = FLAG_EMOJIS.indexOf(storedPlayer);
       const aiIdx = FLAG_EMOJIS.indexOf(storedAi);
-      if (playerIdx >= 0) setChessPlayerFlag(playerIdx);
-      if (aiIdx >= 0) setChessAiFlag(aiIdx);
+      if (playerIdx >= 0) setDominoPlayerFlag(playerIdx);
+      if (aiIdx >= 0) setDominoAiFlag(aiIdx);
     } catch {}
   }, []);
 
   useEffect(() => {
     if (mode !== 'local') return;
-    if (flags.length === flagPickerCount) return;
-    const defaultFlagIndex = Math.max(0, FLAG_EMOJIS.indexOf('🌐'));
-    const playerIdx = chessPlayerFlag ?? defaultFlagIndex;
-    const aiIdx = chessAiFlag ?? playerIdx;
-    const seededFlags = Array.from({ length: flagPickerCount }, (_, seat) =>
-      seat === 0 ? playerIdx : aiIdx
-    );
-    setFlags(seededFlags);
-  }, [mode, flagPickerCount, flags.length, chessPlayerFlag, chessAiFlag]);
+    if (flagsManuallySelected && flags.length === flagPickerCount) return;
+    setFlags(buildAutoFlags(flagPickerCount));
+  }, [mode, flagPickerCount, flags.length, dominoPlayerFlag, dominoAiFlag, flagsManuallySelected]);
 
   const launchGame = ({
     flagOverride = flags,
@@ -204,7 +221,14 @@ export default function DominoRoyalLobby() {
       return;
     }
 
-    launchGame({ flagOverride, accountId, tgId });
+    const effectiveFlags =
+      mode === 'local' && !flagsManuallySelected
+        ? buildAutoFlags(flagPickerCount)
+        : flagOverride;
+    if (mode === 'local' && !flagsManuallySelected) {
+      setFlags(effectiveFlags);
+    }
+    launchGame({ flagOverride: effectiveFlags, accountId, tgId });
   };
 
   useEffect(() => {
@@ -539,9 +563,22 @@ export default function DominoRoyalLobby() {
           open={showFlagPicker}
           count={flagPickerCount}
           selected={flags}
-          onSave={setFlags}
+          onSave={(selection) => {
+            setFlags(selection);
+            setFlagsManuallySelected(true);
+            if (selection.length) {
+              const playerFlag = FLAG_EMOJIS[selection[0]];
+              const aiFlag = FLAG_EMOJIS[selection[1] ?? selection[0]];
+              if (playerFlag) window.localStorage?.setItem(DOMINO_PLAYER_FLAG_KEY, playerFlag);
+              if (aiFlag) window.localStorage?.setItem(DOMINO_AI_FLAG_KEY, aiFlag);
+            }
+          }}
           onClose={() => setShowFlagPicker(false)}
-          onComplete={(sel) => startGame(sel)}
+          onComplete={(sel) => {
+            setFlags(sel);
+            setFlagsManuallySelected(true);
+            startGame(sel);
+          }}
         />
       </div>
     </div>

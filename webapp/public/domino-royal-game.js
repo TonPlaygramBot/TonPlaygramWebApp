@@ -6585,7 +6585,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SHRINK_FACTOR = 1;
-const DOMINO_EXTRA_SHRINK_FACTOR = 0.71;
+const DOMINO_EXTRA_SHRINK_FACTOR = 0.67;
 const DOMINO_SIZE_BOOST = 2.03;
 const DOMINO_SCALE =
   1.5 *
@@ -6600,15 +6600,16 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-const PLAYER_HAND_GAP_SCALE = 0.62;
+const PLAYER_HAND_GAP_SCALE = 0.56;
 const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 2.08;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 0.11;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 1.76;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.065;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.04;
 const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.145;
-const HUMAN_BOTTOM_HAND_GAP_SCALE = 1;
+const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
+const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE * DOMINO_HEIGHT_ADJUST;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const CHAIN_EDGE_PADDING = Math.max(0.12, DOMINO_LENGTH * 0.38);
@@ -8977,7 +8978,9 @@ function startGame({ resetRace = true } = {}) {
           z: 0,
           dir: [-1, 0],
           orient: Math.PI,
-          span: getTileSpanAlongChain(isDoubleStart)
+          span: getTileSpanAlongChain(isDoubleStart),
+          fromStartDouble: true,
+          hasInitialNeighbor: false
         },
         R: {
           v: firstTile.b,
@@ -8985,7 +8988,9 @@ function startGame({ resetRace = true } = {}) {
           z: 0,
           dir: [1, 0],
           orient: 0,
-          span: getTileSpanAlongChain(isDoubleStart)
+          span: getTileSpanAlongChain(isDoubleStart),
+          fromStartDouble: true,
+          hasInitialNeighbor: false
         }
       };
     } else {
@@ -9017,7 +9022,9 @@ function startGame({ resetRace = true } = {}) {
           z: 0,
           dir: [1, 0],
           orient: 0,
-          span: getTileSpanAlongChain(isDoubleStart)
+          span: getTileSpanAlongChain(isDoubleStart),
+          fromStartDouble: true,
+          hasInitialNeighbor: false
         },
         R: {
           v: firstTile.b,
@@ -9025,7 +9032,9 @@ function startGame({ resetRace = true } = {}) {
           z: 0,
           dir: [-1, 0],
           orient: Math.PI,
-          span: getTileSpanAlongChain(isDoubleStart)
+          span: getTileSpanAlongChain(isDoubleStart),
+          fromStartDouble: true,
+          hasInitialNeighbor: false
         }
       };
     } else {
@@ -9098,7 +9107,15 @@ function placeOnBoard(tile, side, options = {}) {
   const prevSpan = Number.isFinite(end.span)
     ? end.span
     : getTileSpanAlongChain(false);
-  const stepDistance = getChainSpacing(prevSpan, nextSpan);
+  let stepDistance = getChainSpacing(prevSpan, nextSpan);
+  if (
+    chain.length === 1 &&
+    chain[0]?.double &&
+    end?.fromStartDouble &&
+    !end?.hasInitialNeighbor
+  ) {
+    stepDistance += DOMINO_OPENING_DOUBLE_SIDE_GAP;
+  }
   let nx = end.x + dx * stepDistance;
   let nz = end.z + dz * stepDistance;
   const railMargin = stepDistance * 0.65;
@@ -9197,7 +9214,9 @@ function placeOnBoard(tile, side, options = {}) {
     z: nz,
     dir: [dx, dz],
     orient: nextOrient,
-    span: nextSpan
+    span: nextSpan,
+    fromStartDouble: false,
+    hasInitialNeighbor: true
   };
   if (side < 0) {
     ends.L = updatedEnd;
