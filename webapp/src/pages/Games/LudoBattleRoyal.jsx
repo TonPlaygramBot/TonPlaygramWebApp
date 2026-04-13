@@ -1400,6 +1400,16 @@ TARGET_CHAIR_SIZE.y *= 0.84;
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.07 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
+const stabilizeChairModelRenderState = (root) => {
+  if (!root?.isObject3D) return;
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    obj.frustumCulled = false;
+  });
+};
+
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '84%' },
   { left: '80%', top: '56%' },
@@ -1457,7 +1467,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
-const CAMERA_EXTRA_LIFT = 0.064;
+const CAMERA_EXTRA_LIFT = 0.076;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.048;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
@@ -4569,6 +4579,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       arena.chairs.forEach(({ group }) => {
         const clone = chairBuild.chairTemplate.clone(true);
+        stabilizeChairModelRenderState(clone);
         group.add(clone);
         group.userData.chairModel = clone;
       });
@@ -5761,12 +5772,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
 
       const chairModel = chairTemplate.clone(true);
-      chairModel.traverse((obj) => {
-        if (obj.isMesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        }
-      });
+      stabilizeChairModelRenderState(chairModel);
       group.add(chairModel);
       group.userData.chairModel = chairModel;
 
