@@ -1453,7 +1453,7 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.74,
   forwardOffset: 0,
-  heightOffset: 2.3,
+  heightOffset: 2.42,
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
@@ -6134,13 +6134,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
+        const previousBySeat = new Map(
+          seatPositionsRef.current
+            .filter((entry) => entry && typeof entry.index === 'number')
+            .map((entry) => [entry.index, entry])
+        );
         const positions = arenaState.seatAnchors.map((anchor, index) => {
           anchor.getWorldPosition(seatWorld);
           seatNdc.copy(seatWorld).project(camera);
           const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
           const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
           const depth = camera.position.distanceTo(seatWorld);
-          return { index, x, y, depth };
+          const previous = previousBySeat.get(index);
+          const previousVisualDepth =
+            previous && Number.isFinite(previous.visualDepth)
+              ? previous.visualDepth
+              : previous && Number.isFinite(previous.depth)
+              ? previous.depth
+              : depth;
+          const visualDepth = THREE.MathUtils.lerp(previousVisualDepth, depth, 0.22);
+          return { index, x, y, depth, visualDepth };
         });
         let changed = positions.length !== seatPositionsRef.current.length;
         if (!changed) {
@@ -8089,7 +8102,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   top: `calc(${fallback.top} + ${selfBottomOffset}%)`,
                   transform: 'translate(-50%, -50%)'
                 };
-            const depth = anchor?.depth ?? 3;
+            const depth = anchor?.visualDepth ?? anchor?.depth ?? 3;
             const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
             const isTurn = ui.turn === player.index;
             return (
