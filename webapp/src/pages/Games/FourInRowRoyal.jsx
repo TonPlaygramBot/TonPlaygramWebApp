@@ -55,23 +55,16 @@ const MODEL_SCALE = 0.75;
 const ROW_GAME_SCALE_REDUCTION = 0.25;
 const TABLE_AND_CHAIR_BASE_SCALE = 0.49;
 const BOARD_AND_CHIPS_BASE_SCALE = 0.7;
-const BOARD_AND_CHIPS_SIZE_MULTIPLIER = 0.35; // 65% smaller
-const TABLE_SIZE_MULTIPLIER = 0.8; // 20% smaller
-const CHAIR_SIZE_MULTIPLIER = 1.2; // 20% bigger
-const TABLE_SCALE =
-  TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION * TABLE_SIZE_MULTIPLIER;
-const CHAIR_SCALE =
-  TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION * CHAIR_SIZE_MULTIPLIER;
+const TABLE_AND_CHAIR_SCALE =
+  TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const BOARD_AND_CHIPS_SCALE =
-  BOARD_AND_CHIPS_BASE_SCALE *
-  ROW_GAME_SCALE_REDUCTION *
-  BOARD_AND_CHIPS_SIZE_MULTIPLIER;
+  BOARD_AND_CHIPS_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const CAMERA_FRAME_MATCH_SCALE = ROW_GAME_SCALE_REDUCTION;
 const ARENA_VISUAL_SCALE = 1;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
 const TABLE_HEIGHT = 1.2 * ROW_GAME_SCALE_REDUCTION;
 const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
-const CHAIR_GAP = 1.3 * CHAIR_SCALE;
+const CHAIR_GAP = 1.3 * TABLE_AND_CHAIR_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
 const BOARD_TABLE_CLEARANCE = 0.2 * BOARD_AND_CHIPS_SCALE;
 const BOARD_VERTICAL_LIFT = 0.06 * BOARD_AND_CHIPS_SCALE;
@@ -92,9 +85,9 @@ const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679 * CHAIR_SCALE,
-  1.9173749900311232 * CHAIR_SCALE,
-  1.7001562547683715 * CHAIR_SCALE
+  1.3162499970197679 * TABLE_AND_CHAIR_SCALE,
+  1.9173749900311232 * TABLE_AND_CHAIR_SCALE,
+  1.7001562547683715 * TABLE_AND_CHAIR_SCALE
 );
 
 const GRAPHICS_PRESETS = Object.freeze([
@@ -805,13 +798,17 @@ export default function FourInRowRoyal() {
     const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const seatedBackInset = (isPortrait ? 0.2 : 0.16) * CAMERA_FRAME_MATCH_SCALE;
-    const seatedForwardLean = (isPortrait ? 0.06 : 0.08) * CAMERA_FRAME_MATCH_SCALE;
-    const seatHeightOffset = TARGET_CHAIR_SIZE.y * (isPortrait ? 0.52 : 0.5);
-    const cameraRadius = CHAIR_DISTANCE - seatedBackInset + seatedForwardLean;
+    const cameraBackOffset =
+      ((isPortrait ? 2.55 : 1.78) + 0.35) * CAMERA_FRAME_MATCH_SCALE;
+    const cameraForwardOffset =
+      (isPortrait ? 0.08 : 0.2) * CAMERA_FRAME_MATCH_SCALE;
+    const cameraHeightOffset =
+      (isPortrait ? 1.86 : 1.44) * CAMERA_FRAME_MATCH_SCALE;
+    const cameraRadius =
+      CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
     perspective.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
-      arenaRoot.position.y + seatHeightOffset,
+      arenaRoot.position.y + TABLE_HEIGHT + cameraHeightOffset,
       Math.sin(cameraSeatAngle) * cameraRadius
     );
     perspectiveCameraRef.current = perspective;
