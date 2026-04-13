@@ -106,22 +106,22 @@ const CAPTURE_HELICOPTER_TOTAL = 8.6; // slower helicopter pass so the board loo
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
-const CAPTURE_JET_TRIMMED_START_RATIO = 0.52; // keep more of the entry phase visible
+const CAPTURE_JET_TRIMMED_START_RATIO = 0.28; // keep more of the entry phase visible and preserve the U-turn arc
 const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.177; // +50% fighter size for clearer portrait readability
-const CAPTURE_HELICOPTER_SCALE = 0.159; // +50% helicopter size while preserving relative silhouette
+const CAPTURE_JET_SCALE = 0.1416; // 20% smaller for tighter portrait framing
+const CAPTURE_HELICOPTER_SCALE = 0.1272; // 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.003; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.009; // keep aircraft lower and tighter to the board plane for portrait framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.012; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.018; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.145; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.84; // widen path so strike passes closer to the bottom player viewpoint
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.52; // keep lanes near board edge for a stronger near-camera fly-by
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.52; // shift fly path toward the bottom side of portrait view
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.165; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.72; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.66; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.2; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -8761,7 +8761,7 @@ function Chess3D({
       const model = cloneCaptureUnitTemplate('helicopter');
       if (model) {
         const root = new THREE.Group();
-        model.rotation.x = Math.PI;
+        model.rotation.set(0, 0, 0);
         root.add(model);
         const tailRotor = findCaptureRotor(model, 'tail');
         let topRotor = findCaptureRotor(model, 'main');
@@ -8818,7 +8818,7 @@ function Chess3D({
       const model = cloneCaptureUnitTemplate('fighter');
       if (model) {
         const root = new THREE.Group();
-        model.rotation.x = Math.PI;
+        model.rotation.set(0, 0, 0);
         root.add(model);
         applyMilitaryJetLook(model);
         const cockpit =
@@ -9150,14 +9150,19 @@ function Chess3D({
           towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.97))
         );
         const turnControlPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(turnBendX, victimPos.x, 0.1),
-          baseAltitude - turnAltitudeDrop * 0.66,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, 0.18))
+          THREE.MathUtils.lerp(turnBendX, victimPos.x, -0.08),
+          baseAltitude - turnAltitudeDrop * 0.62,
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, -0.06))
+        );
+        const uTurnApexPos = new THREE.Vector3(
+          THREE.MathUtils.lerp(turnBendX, victimPos.x, -0.14),
+          baseAltitude - turnAltitudeDrop * 0.7,
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, -0.14))
         );
         const returnEntryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.08),
-          baseAltitude - turnAltitudeDrop * 0.34,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.74))
+          THREE.MathUtils.lerp(laneX, victimPos.x, -0.05),
+          baseAltitude - turnAltitudeDrop * 0.28,
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.68))
         );
         const exitPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         return {
@@ -9166,6 +9171,7 @@ function Chess3D({
           entryPos,
           turnEntryPos,
           turnControlPos,
+          uTurnApexPos,
           turnExitPos,
           returnEntryPos,
           exitPos
@@ -9248,6 +9254,7 @@ function Chess3D({
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
+          uTurnApexPos: path.uTurnApexPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
           exitPos: path.exitPos,
@@ -9292,6 +9299,7 @@ function Chess3D({
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
+          uTurnApexPos: path.uTurnApexPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
           exitPos: path.exitPos,
@@ -9332,6 +9340,7 @@ function Chess3D({
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
+          uTurnApexPos: path.uTurnApexPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
           exitPos: path.exitPos,
@@ -10932,6 +10941,7 @@ function Chess3D({
               fx.orbitEntryPos,
               fx.turnEntryPos,
               fx.turnControlPos,
+              fx.uTurnApexPos,
               fx.orbitExitPos,
               fx.returnEntryPos,
               fx.exitPos
@@ -11046,6 +11056,7 @@ function Chess3D({
               fx.orbitEntryPos,
               fx.turnEntryPos,
               fx.turnControlPos,
+              fx.uTurnApexPos,
               fx.orbitExitPos,
               fx.returnEntryPos,
               fx.exitPos
