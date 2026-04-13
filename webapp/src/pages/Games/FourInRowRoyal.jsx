@@ -59,6 +59,7 @@ const BOARD_AND_CHIPS_BASE_SCALE = 0.7;
 const TABLE_SIZE_REDUCTION_FACTOR = 0.8;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
+const BOARD_VISUAL_SIZE_BOOST = 1.08;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
   TABLE_BASE_SCALE * TABLE_SIZE_REDUCTION_FACTOR * TABLE_AND_CHAIR_SIZE_MULTIPLIER;
@@ -86,7 +87,10 @@ const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FACE_THICKNESS = 0.028 * BOARD_AND_CHIPS_SCALE;
 const BOARD_SLOT_GAP = 0.15 * BOARD_AND_CHIPS_SCALE;
-const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
+const BOARD_FRAME_DEPTH =
+  BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08 * BOARD_AND_CHIPS_SCALE;
+const BOARD_FRAME_SIDE_WIDTH = 0.12 * BOARD_AND_CHIPS_SCALE;
+const BOARD_TOP_RAIL_DEPTH = 0.046 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_CENTER_Z = 0;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
@@ -563,8 +567,10 @@ export default function FourInRowRoyal() {
 
   const rows = selectedLayout.rows;
   const cols = selectedLayout.cols;
-  const boardWidth = (1.08 + cols * 0.19) * BOARD_AND_CHIPS_SCALE;
-  const boardHeight = (0.92 + rows * 0.2) * BOARD_AND_CHIPS_SCALE;
+  const boardWidth =
+    (1.08 + cols * 0.19) * BOARD_AND_CHIPS_SCALE * BOARD_VISUAL_SIZE_BOOST;
+  const boardHeight =
+    (0.92 + rows * 0.2) * BOARD_AND_CHIPS_SCALE * BOARD_VISUAL_SIZE_BOOST;
   const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + BOARD_VERTICAL_LIFT;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
@@ -1025,8 +1031,8 @@ export default function FourInRowRoyal() {
     boardFaceBack.receiveShadow = true;
     boardGroup.add(boardFaceFront, boardFaceBack);
 
-    const frameSideWidth = 0.12;
-    const topRailDepth = 0.046;
+    const frameSideWidth = BOARD_FRAME_SIDE_WIDTH;
+    const topRailDepth = BOARD_TOP_RAIL_DEPTH;
     const topFrontRail = new THREE.Mesh(
       new THREE.BoxGeometry(
         boardWidth + frameSideWidth * 2,
