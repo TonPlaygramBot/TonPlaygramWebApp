@@ -3799,7 +3799,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
   const cameraRef = useRef(null);
-  const seatLockedCameraPositionRef = useRef(null);
   const boardLookTargetRef = useRef(null);
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
@@ -4106,7 +4105,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls.target.copy(boardLookTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
-      controls.enableZoom = false;
+      controls.enableZoom = true;
       controls.minPolarAngle = topDownPolar;
       controls.maxPolarAngle = topDownPolar;
       controls.minAzimuthAngle = -Infinity;
@@ -4134,7 +4133,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       } else {
         fitRef.current?.();
       }
-      seatLockedCameraPositionRef.current = camera.position.clone();
       saved3dCameraStateRef.current = null;
     }
 
@@ -5693,7 +5691,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.minDistance = initialCameraRadius * CAMERA_ZOOM_MIN_FACTOR;
     controls.maxDistance = initialCameraRadius * CAMERA_ZOOM_MAX_FACTOR;
     controlsRef.current = controls;
-    seatLockedCameraPositionRef.current = camera.position.clone();
     baseCameraRadiusRef.current = initialCameraRadius;
     syncSkyboxToCameraRef.current = () => {
       if (!camera || !boardLookTarget) return;
@@ -5999,16 +5996,32 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
       lookState.lastY = clientY;
+      const isTouchDrag = event.pointerType === 'touch';
       lookState.yaw = clamp(
         lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
         -CAMERA_LOOK_YAW_LIMIT,
         CAMERA_LOOK_YAW_LIMIT
       );
-      lookState.pitch = clamp(
-        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-        CAMERA_LOOK_MIN_PITCH,
-        CAMERA_LOOK_PITCH_LIMIT
-      );
+      if (isTouchDrag && camera && controls && Math.abs(deltaY) > 0.001) {
+        const elementHeight = Math.max(renderer?.domElement?.clientHeight ?? 0, 1);
+        const rotateSpeed = Number.isFinite(controls.rotateSpeed) ? controls.rotateSpeed : 1;
+        const verticalAngle = (2 * Math.PI * deltaY * rotateSpeed) / elementHeight;
+        const offset = camera.position.clone().sub(controls.target);
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        spherical.phi = clamp(
+          spherical.phi + verticalAngle,
+          controls.minPolarAngle,
+          controls.maxPolarAngle
+        );
+        offset.setFromSpherical(spherical);
+        camera.position.copy(controls.target).add(offset);
+      } else if (!isTouchDrag) {
+        lookState.pitch = clamp(
+          lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+          CAMERA_LOOK_MIN_PITCH,
+          CAMERA_LOOK_PITCH_LIMIT
+        );
+      }
       applyCameraLookOffset();
       if (stateRef.current?.turn === 0) {
         preserveUserTurnCameraRef.current = true;
@@ -6165,6 +6178,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
           controls.target.lerp(liftedTarget.target, 0.18);
+          if (cameraTurnStateRef.current.followOffset?.isVector3) {
+            const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
+            camera.position.lerp(followCameraTarget, 0.12);
+          }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
       }
@@ -6223,7 +6240,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls?.dispose();
       controls = null;
       cameraRef.current = null;
-      seatLockedCameraPositionRef.current = null;
       boardLookTargetRef.current = null;
       saved3dCameraStateRef.current = null;
       stopDiceTransition();
@@ -6921,16 +6937,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const animateCameraPose = useCallback((toTarget, toPosition = null, duration = 300) => {
-    void toPosition;
     const resolvedDuration = resolveFrameSyncedDuration(duration, { min: 220, max: 1200 });
     const controls = controlsRef.current;
     const camera = cameraRef.current;
     if (!controls || !camera || !toTarget) return;
-    const lockedSeatPosition = seatLockedCameraPositionRef.current?.isVector3
-      ? seatLockedCameraPositionRef.current.clone()
-      : camera.position.clone();
-    const fromPosition = lockedSeatPosition.clone();
-    const destinationPosition = lockedSeatPosition.clone();
+    const fromPosition = camera.position.clone();
+    const destinationPosition =
+      toPosition?.isVector3
+        ? toPosition.clone()
+        : camera.position.clone();
     if (!cameraTurnStateRef.current.currentTarget) {
       cameraTurnStateRef.current.currentTarget = controls.target.clone();
     }
@@ -6953,7 +6968,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const t = Math.min(1, (now - started) / Math.max(resolvedDuration, 1));
       const eased = easeSmooth(t);
       controls.target.copy(fromTarget).lerp(destination, eased);
-      camera.position.copy(fromPosition);
+      camera.position.copy(fromPosition).lerp(destinationPosition, eased);
       cameraTurnStateRef.current.currentTarget.copy(controls.target);
       controls.update();
       if (t < 1) {
