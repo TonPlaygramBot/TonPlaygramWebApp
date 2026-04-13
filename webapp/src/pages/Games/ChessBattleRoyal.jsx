@@ -86,6 +86,7 @@ const clamp01 = (value, fallback = 0) => {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(1, Math.max(0, value));
 };
+const BEAUTIFUL_GAME_GOLD_NAME_RE = /(gold|crown|ring|band|collar|cross|rim)/i;
 const smoothEase = (t) => t * t * (3 - 2 * t);
 const FORWARD = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -96,13 +97,13 @@ const CAPTURE_DRONE_LIFT_TIME = 0.144;
 const CAPTURE_DRONE_CRUISE_TIME = 2.24;
 const CAPTURE_DRONE_DIVE_TIME = 0.94;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
+const CAPTURE_JET_SPEED_FACTOR = 4.2 / CAPTURE_DRONE_TOTAL; // slower pass for easier portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 7.4; // slower cinematic pass so the full fly path is clearly visible
+const CAPTURE_JET_TOTAL = 8.9; // additional slowdown so the fly-by reads better on phone screens
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 8.6 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 8.6; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 10.2 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
+const CAPTURE_HELICOPTER_TOTAL = 10.2; // slower helicopter pass so the board loop remains visible
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -111,17 +112,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.1416; // 20% smaller for tighter portrait framing
-const CAPTURE_HELICOPTER_SCALE = 0.1272; // 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.11328; // 20% smaller than the current tuning
+const CAPTURE_HELICOPTER_SCALE = 0.10176; // 20% smaller than the current tuning
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.012; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.018; // keep aircraft lower and tighter to the board plane for portrait framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.028; // lower jet/helicopter so they sit visibly closer to board centerline
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.035; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.165; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.72; // keep lanes closer to board center while preserving a fly-by arc
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.66; // pull lanes inward from hard board edges
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.2; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.22; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.6; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.05; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.06; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -3556,6 +3557,9 @@ function applyLocalBeautifulGameMaterials(assets) {
 
 function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => markBeautifulGameGoldMaterialSlots(piece));
+  });
   if (pieceStyle?.preserveOriginalMaterials) {
     ['white', 'black'].forEach((colorKey) => {
       Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => {
@@ -3598,6 +3602,15 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         if (shouldStripTextures) {
           stripMaterialTextures(applied);
         }
+        if (isBeautifulGameGoldSlot(child, idx, mat)) {
+          const accentColor = goldAccent || (colorHex === darkColor ? darkAccent : accentLight);
+          applied.color = new THREE.Color(accentColor || '#d7b24a');
+          applied.metalness = clamp01(Math.max(applied.metalness ?? 0, 0.72));
+          applied.roughness = clamp01(Math.min(applied.roughness ?? 0.35, 0.3));
+          if (Array.isArray(child.material)) child.material[idx] = applied;
+          else child.material = applied;
+          return;
+        }
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
         applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
@@ -3630,10 +3643,11 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         name.includes('cross') ||
         name.includes('band') ||
         name.includes('rim');
-      if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
         mats.forEach((mat, idx) => {
           if (!mat) return;
+          const isGoldSlot = isBeautifulGameGoldSlot(child, idx, mat);
+          if (!shouldAccent && !isGoldSlot) return;
           const applied = mat.clone ? mat.clone() : mat;
           if (shouldStripTextures) {
             stripMaterialTextures(applied);
@@ -3705,8 +3719,16 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat) => {
+      mats.forEach((mat, idx) => {
         if (!mat) return;
+        if (isBeautifulGameGoldSlot(child, idx, mat)) {
+          const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+          if (mat.color?.set) mat.color.set(accentColor || '#d7b24a');
+          else mat.color = new THREE.Color(accentColor || '#d7b24a');
+          mat.metalness = clamp01(Math.max(mat.metalness ?? 0, 0.72));
+          mat.roughness = clamp01(Math.min(mat.roughness ?? 0.35, 0.3));
+          return;
+        }
         if (shouldStripTextures) {
           stripMaterialTextures(mat);
         }
@@ -3734,10 +3756,11 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         name.includes('cross') ||
         name.includes('band') ||
         name.includes('rim');
-      if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat) => {
+      mats.forEach((mat, idx) => {
         if (!mat) return;
+        const isGoldSlot = isBeautifulGameGoldSlot(child, idx, mat);
+        if (!shouldAccent && !isGoldSlot) return;
         if (shouldStripTextures) {
           stripMaterialTextures(mat);
         }
@@ -5141,6 +5164,45 @@ function recolorObject(root, hex) {
       if (mat?.emissive) mat.emissive.set(0x000000);
     });
   });
+}
+
+function isGoldLikeMaterialSignature(material, meshName = '') {
+  const name = `${meshName} ${material?.name || ''}`.toLowerCase();
+  if (BEAUTIFUL_GAME_GOLD_NAME_RE.test(name)) return true;
+  const { metalness, roughness, color } = material || {};
+  const warmGold =
+    color &&
+    typeof color.r === 'number' &&
+    typeof color.g === 'number' &&
+    typeof color.b === 'number' &&
+    color.r >= color.g &&
+    color.g > color.b &&
+    color.r > 0.32;
+  return typeof metalness === 'number' && typeof roughness === 'number' && metalness >= 0.58 && roughness <= 0.42 && warmGold;
+}
+
+function markBeautifulGameGoldMaterialSlots(pieceRoot) {
+  if (!pieceRoot || pieceRoot.userData?.__abgGoldSlotsTagged) return;
+  pieceRoot.traverse((child) => {
+    if (!child?.isMesh) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const goldSlots = [];
+    mats.forEach((mat, index) => {
+      if (isGoldLikeMaterialSignature(mat, child.name || '')) goldSlots.push(index);
+    });
+    if (goldSlots.length) {
+      child.userData = { ...(child.userData || {}), __abgGoldMaterialSlots: goldSlots };
+    }
+  });
+  pieceRoot.userData = { ...(pieceRoot.userData || {}), __abgGoldSlotsTagged: true };
+}
+
+function isBeautifulGameGoldSlot(meshNode, materialIndex, material) {
+  const tagged = Array.isArray(meshNode?.userData?.__abgGoldMaterialSlots)
+    ? meshNode.userData.__abgGoldMaterialSlots
+    : [];
+  if (tagged.includes(materialIndex)) return true;
+  return isGoldLikeMaterialSignature(material, meshNode?.name || '');
 }
 
 function applyMaterialSettingsWithSRGB(node) {
@@ -9576,8 +9638,11 @@ function Chess3D({
           if (!node?.isMesh) return;
           ensureIsolatedMaterial(node);
           const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((mat) => {
-            if (!mat || isGoldLikeMaterial(mat)) return;
+          materials.forEach((mat, idx) => {
+            const taggedGoldSlots = Array.isArray(node.userData?.__abgGoldMaterialSlots)
+              ? node.userData.__abgGoldMaterialSlots
+              : [];
+            if (!mat || taggedGoldSlots.includes(idx) || isGoldLikeMaterial(mat)) return;
             mat?.color?.copy(target);
             mat?.emissive?.set(0x000000);
           });
