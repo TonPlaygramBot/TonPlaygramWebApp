@@ -1428,7 +1428,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.085 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 0.84;
@@ -1732,7 +1732,7 @@ function measureProceduralTokenHeight() {
   return proceduralTokenHeight;
 }
 
-const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.05, z: 0.05 });
+const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.054, z: 0.054 });
 
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
@@ -3711,12 +3711,6 @@ function clearTokenHighlight(token) {
   setTokenHighlight(token, false);
 }
 
-function applyTokenIdleRotation(token) {
-  if (!token) return;
-  const baseY = Number.isFinite(token.userData?.baseRotationY) ? token.userData.baseRotationY : 0;
-  token.rotation.set(0, baseY, 0);
-}
-
 const areColorArraysEqual = (a = [], b = []) => {
   if (a.length !== b.length) return false;
   return a.every((value, idx) => value === b[idx]);
@@ -5044,7 +5038,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const target = home.clone();
         target.y = homeHeight;
         token.position.copy(target);
-        applyTokenIdleRotation(token);
+        token.rotation.set(0, 0, 0);
       }
     });
 
@@ -7553,7 +7547,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const pos = state.startPads[player][token].clone();
       pos.y = getTokenRailHeight(player);
       tokenNode.position.copy(pos);
-      applyTokenIdleRotation(tokenNode);
+      tokenNode.rotation.set(0, 0, 0);
       opponents.push(resolvePlayerLabel(player));
     });
     return { count: opponents.length, opponents };
@@ -7592,7 +7586,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
-      applyTokenIdleRotation(state.tokens[player][tokenIndex]);
+      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       updateTokenStacks();
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
@@ -7685,6 +7679,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       offset: CAMERA_TARGET_LIFT + 0.03
     });
     playDiceSound();
+    const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
@@ -7702,6 +7697,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
+    if (options.length) {
+      setCameraFocus({
+        target: landingFocus,
+        follow: false,
+        ttl: 1.2,
+        priority: 2,
+        offset: CAMERA_TARGET_LIFT + 0.03,
+        force: true
+      });
+    }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
@@ -7730,10 +7735,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    if (hasBoardTokenBeforeRoll) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-    }
-    moveToken(player, choice.token, value, { skipCameraFollow: true });
+    moveToken(player, choice.token, value, { skipCameraFollow: !hasBoardTokenBeforeRoll });
   };
 
   rollDiceRef.current = rollDice;
@@ -8313,13 +8315,10 @@ async function buildLudoBoard(
           token.scale.z * typeScale.z
         );
       }
-      let baseRotationY = 0;
       if (typeKey === 'king') {
-        baseRotationY = Math.PI;
-        token.rotation.y = baseRotationY;
+        token.rotation.y = Math.PI;
       } else if (typeKey === 'knight' || typeKey === 'horse') {
-        baseRotationY = Math.PI / 4;
-        token.rotation.y = baseRotationY;
+        token.rotation.y = Math.PI / 4;
       }
       const label = createTokenCountLabel();
       if (label) {
@@ -8331,7 +8330,6 @@ async function buildLudoBoard(
       token.userData.tokenType = type;
       token.userData.playerIndex = playerIdx;
       token.userData.tokenIndex = i;
-      token.userData.baseRotationY = baseRotationY;
       token.traverse((node) => {
         if (!node.userData) node.userData = {};
         node.userData.tokenGroup = token;
