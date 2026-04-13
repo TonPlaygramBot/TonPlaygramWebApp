@@ -1428,10 +1428,10 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.075;
-const CAMERA_TURN_PLAYER_LERP = 0.52;
+const CAMERA_SIDE_LOOK_EXTRA = 0.13;
+const CAMERA_TURN_PLAYER_LERP = 0.58;
 const CAMERA_BROADCAST_TARGET_BLEND = 0;
-const CAMERA_SIDE_AVATAR_BLEND = 0.84;
+const CAMERA_SIDE_AVATAR_BLEND = 1.08;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
@@ -1796,15 +1796,20 @@ function resolveAbgPrototype(proto, colorKey, type) {
 function applyTokenFacingRotation(token) {
   if (!token?.rotation) return;
   const typeKey = String(token.userData?.tokenType || '').toLowerCase();
+  const baseY = token.userData?.baseFacingY ?? token.rotation.y ?? 0;
+  if (!token.userData) token.userData = {};
+  if (!Number.isFinite(token.userData.baseFacingY)) {
+    token.userData.baseFacingY = baseY;
+  }
   if (typeKey === 'king') {
-    token.rotation.set(0, Math.PI, 0);
+    token.rotation.set(0, baseY + Math.PI, 0);
     return;
   }
   if (typeKey === 'knight' || typeKey === 'horse') {
-    token.rotation.set(0, Math.PI / 4, 0);
+    token.rotation.set(0, baseY + Math.PI / 4, 0);
     return;
   }
-  token.rotation.set(0, 0, 0);
+  token.rotation.set(0, baseY, 0);
 }
 
 function cloneAbgToken(proto) {
@@ -3646,7 +3651,7 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_THINNESS_SCALE = 0.92;
+const TOKEN_THINNESS_SCALE = 0.86;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
@@ -7686,13 +7691,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     baseTarget.y = baseHeight;
     stopDiceTransition();
     dice.userData.isRolling = true;
-    setCameraFocus({
-      object: dice,
-      follow: false,
-      priority: 2,
-      ttl: 0.9,
-      offset: CAMERA_TARGET_LIFT + 0.03
-    });
+    setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     playDiceSound();
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
@@ -7710,18 +7709,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       playSixRollSound();
     }
     scheduleDiceClear();
+    setCameraFocus({
+      target: landingFocus,
+      follow: false,
+      ttl: 0.88,
+      priority: 2,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
-    if (options.length) {
-      setCameraFocus({
-        target: landingFocus,
-        follow: false,
-        ttl: 1.2,
-        priority: 2,
-        offset: CAMERA_TARGET_LIFT + 0.03,
-        force: true
-      });
-    }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
