@@ -26062,7 +26062,7 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = (powerOverride = null) => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -26160,7 +26160,10 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const clampedPower = clampPower(powerRef.current, 0);
+        const resolvedPower = Number.isFinite(powerOverride)
+          ? powerOverride
+          : powerRef.current;
+        const clampedPower = clampPower(resolvedPower, 0);
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -32461,8 +32464,8 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (sliderValue) => {
+        fireRef.current?.((sliderValue ?? 0) / 100);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
