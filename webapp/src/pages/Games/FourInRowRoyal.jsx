@@ -43,9 +43,11 @@ import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRow
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const TABLE_AND_CHAIR_SCALE = 0.7;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
 const TABLE_HEIGHT = 1.2;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
+const CAMERA_RADIUS_COMPENSATION = (3.4 * MODEL_SCALE + 1.3) - CHAIR_DISTANCE;
 const BOARD_TABLE_CLEARANCE = 0.2;
 const BOARD_VERTICAL_LIFT = 0.06;
 const INTRO_MESSAGE_DURATION_MS = 2200;
@@ -64,9 +66,13 @@ const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
-const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+const TARGET_CHAIR_SIZE = new THREE.Vector3(
+  1.3162499970197679 * TABLE_AND_CHAIR_SCALE,
+  1.9173749900311232 * TABLE_AND_CHAIR_SCALE,
+  1.7001562547683715 * TABLE_AND_CHAIR_SCALE
+);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * TABLE_AND_CHAIR_SCALE;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * TABLE_AND_CHAIR_SCALE;
 
 const GRAPHICS_PRESETS = Object.freeze([
   { id: 'balanced', label: 'Balanced', pixelRatioScale: 1, shadowMapSize: 1024 },
@@ -553,7 +559,7 @@ export default function FourInRowRoyal() {
     const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35 + CAMERA_RADIUS_COMPENSATION;
     const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
     const cameraHeightOffset = isPortrait ? 1.86 : 1.44;
     const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
