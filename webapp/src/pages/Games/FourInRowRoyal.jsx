@@ -46,6 +46,7 @@ const MODEL_SCALE = 0.75;
 const TABLE_AND_CHAIR_SCALE = 0.7;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
 const TABLE_HEIGHT = 1.2;
+const ARENA_FLOOR_Y = 0;
 const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
 const CAMERA_RADIUS_COMPENSATION = (3.4 * MODEL_SCALE + 1.3) - CHAIR_DISTANCE;
 const BOARD_TABLE_CLEARANCE = 0.2;
@@ -565,7 +566,7 @@ export default function FourInRowRoyal() {
     const cameraRadius = CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
     perspective.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
-      TABLE_HEIGHT + cameraHeightOffset,
+      ARENA_FLOOR_Y + TABLE_HEIGHT + cameraHeightOffset,
       Math.sin(cameraSeatAngle) * cameraRadius
     );
     perspectiveCameraRef.current = perspective;
@@ -574,7 +575,7 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, TABLE_HEIGHT - 0.1, 0);
+    controls.target.set(0, ARENA_FLOOR_Y + TABLE_HEIGHT - 0.1, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
     controls.rotateSpeed = 0.85;
@@ -589,7 +590,13 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
-    const table = createMurlanStyleTable({ arena: scene, renderer, tableRadius: TABLE_RADIUS, tableHeight: TABLE_HEIGHT, tableThemeId: appearance.tableId });
+    const table = createMurlanStyleTable({
+      arena: scene,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: ARENA_FLOOR_Y + TABLE_HEIGHT,
+      tableThemeId: appearance.tableId
+    });
     tablePartsRef.current = table.parts;
     applyTableMaterials(table.parts, MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) || MURLAN_TABLE_FINISHES[0]);
 
@@ -601,8 +608,8 @@ export default function FourInRowRoyal() {
     ];
     chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();
-      chair.position.set(x, y, z);
-      chair.lookAt(0, TABLE_HEIGHT, 0);
+      chair.position.set(x, ARENA_FLOOR_Y + y, z);
+      chair.lookAt(0, ARENA_FLOOR_Y + TABLE_HEIGHT, 0);
       chair.userData = { seatColor: chairTheme.primary, legColor: chairTheme.legColor };
       chairMeshesRef.current.push(chair);
       scene.add(chair);
@@ -757,7 +764,7 @@ export default function FourInRowRoyal() {
       stack.add(topChip);
 
       const sideSign = side === 'front' ? 1 : -1;
-      stack.position.set(xOffset, TABLE_HEIGHT + chipDepth / 2, sideSign * (TABLE_RADIUS * 0.58));
+      stack.position.set(xOffset, ARENA_FLOOR_Y + TABLE_HEIGHT + chipDepth / 2, sideSign * (TABLE_RADIUS * 0.58));
       stack.rotation.y = side === 'front' ? 0 : Math.PI;
       return stack;
     };
@@ -877,6 +884,7 @@ export default function FourInRowRoyal() {
       const groundedRadius = Math.max(TABLE_RADIUS * (variant?.groundRadiusMultiplier ?? 40), 32);
       const groundedResolution = Math.max(96, Math.floor(variant?.groundResolution ?? 112));
       const skybox = new GroundedSkybox(envMap, groundedHeight, groundedRadius, groundedResolution);
+      skybox.position.y = ARENA_FLOOR_Y + groundedHeight;
       if (Number.isFinite(variant?.rotationY)) {
         skybox.rotation.y = variant.rotationY;
       }
