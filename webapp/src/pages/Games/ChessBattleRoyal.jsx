@@ -106,14 +106,14 @@ const CAPTURE_HELICOPTER_TOTAL = 12.4; // slower helicopter pass so the board lo
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
-const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
+const CAPTURE_JET_TRIMMED_START_RATIO = 0.28; // keep more of the entry phase visible and preserve the U-turn arc
 const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.3; // jet is 30% bigger than the drone at full air size
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.15; // helicopter is 15% bigger than the drone at full air size
-const CAPTURE_DRONE_ALTITUDE = 1.5; // slightly higher drone flight profile
+const CAPTURE_JET_SCALE = 0.05799936; // additional 20% downsize from current jet scale
+const CAPTURE_HELICOPTER_SCALE = 0.081408; // additional 20% downsize from current helicopter scale
+const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.56; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -9274,33 +9274,36 @@ function Chess3D({
         baseAltitude,
         turnAltitudeDrop = 0.08
       }) => {
+        const viewportAspect =
+          typeof window !== 'undefined'
+            ? (window.innerWidth || 1) / Math.max(window.innerHeight || 1, 1)
+            : 1;
+        const portraitTightening = viewportAspect < 1 ? THREE.MathUtils.lerp(0.86, 1, viewportAspect) : 1;
         const attackFromTopSide = attackerPos.z >= 0;
-        const perimeterInset = tile * 0.72;
-        const minX = -half + perimeterInset;
-        const maxX = half - perimeterInset;
-        const minZ = -half + perimeterInset;
-        const maxZ = half - perimeterInset;
-        const startPos = new THREE.Vector3(
-          THREE.MathUtils.clamp(attackerPos.x, minX, maxX),
-          baseAltitude - turnAltitudeDrop * 0.34,
-          THREE.MathUtils.clamp(attackerPos.z, minZ, maxZ)
+        const center = new THREE.Vector3(
+          THREE.MathUtils.clamp((attackerPos.x + victimPos.x) * 0.5, -half * 0.38, half * 0.38),
+          baseAltitude,
+          THREE.MathUtils.clamp((attackerPos.z + victimPos.z) * 0.5, -half * 0.38, half * 0.38)
         );
-        const cornerA = new THREE.Vector3(maxX, baseAltitude, attackFromTopSide ? maxZ : minZ);
-        const cornerB = new THREE.Vector3(minX, baseAltitude, attackFromTopSide ? maxZ : minZ);
-        const cornerC = new THREE.Vector3(minX, baseAltitude, attackFromTopSide ? minZ : maxZ);
-        const cornerD = new THREE.Vector3(maxX, baseAltitude, attackFromTopSide ? minZ : maxZ);
-        const orbitMid = new THREE.Vector3(
-          THREE.MathUtils.clamp(victimPos.x, minX * 0.75, maxX * 0.75),
-          baseAltitude + turnAltitudeDrop * 0.3,
-          THREE.MathUtils.clamp(victimPos.z, minZ * 0.75, maxZ * 0.75)
-        );
-        const entryPos = startPos.clone().lerp(cornerA, 0.52);
-        const turnEntryPos = cornerA.clone().lerp(cornerB, 0.42);
-        const turnControlPos = cornerB.clone().lerp(cornerC, 0.56);
-        const uTurnApexPos = cornerC.clone().lerp(orbitMid, 0.48);
-        const turnExitPos = orbitMid.clone().lerp(cornerD, 0.6);
-        const returnEntryPos = cornerD.clone().lerp(startPos, 0.52);
-        const exitPos = startPos.clone();
+        const radiusX = half * CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR * portraitTightening;
+        const radiusZ = radiusX * 0.92;
+        const startAngle = attackFromTopSide ? Math.PI * 0.22 : Math.PI * 1.22;
+        const arc = (turns) => {
+          const angle = startAngle + turns * Math.PI * 2;
+          return new THREE.Vector3(
+            center.x + Math.cos(angle) * radiusX,
+            baseAltitude - Math.sin(turns * Math.PI * 2) * turnAltitudeDrop * 0.24,
+            center.z + Math.sin(angle) * radiusZ
+          );
+        };
+        const startPos = arc(0);
+        const entryPos = arc(0.125);
+        const turnEntryPos = arc(0.25);
+        const turnControlPos = arc(0.5);
+        const uTurnApexPos = arc(0.625);
+        const turnExitPos = arc(0.75);
+        const returnEntryPos = arc(0.875);
+        const exitPos = arc(1);
         const flyPathNodes = [
           startPos.clone(),
           entryPos.clone(),
@@ -9313,6 +9316,7 @@ function Chess3D({
         ];
         return {
           attackFromTopSide,
+          center,
           flyPathNodes,
           startPos,
           entryPos,
@@ -9328,22 +9332,23 @@ function Chess3D({
       const pieceType = (movingType || '').toUpperCase();
       if (pieceType === 'R') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-        const droneFx = createFxDrone();
-        droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE * 0.86);
+        const missileFx = createFxGroundMissile();
+        missileFx.root.scale.setScalar(CAPTURE_JAVELIN_MISSILE_SCALE);
+        missileFx.root.visible = false;
+        captureFxGroup.add(missileFx.root);
         const launchBase = fromPos.clone();
-        droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
-        captureFxGroup.add(droneFx.root);
-        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
-          type: 'drone',
+          type: 'javelin',
           t: 0,
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
           movingMesh,
-          droneFx
+          deltaR,
+          deltaC,
+          missileFx
         });
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
@@ -11040,29 +11045,26 @@ function Chess3D({
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             fx.launchPos.copy(launchPos);
-            const droneScaleProgress = clamp01(fx.t / impactTime);
-            const droneSizePhase =
-              droneScaleProgress < 0.22
-                ? THREE.MathUtils.lerp(0.86, 1, smoothEase(droneScaleProgress / 0.22))
-                : droneScaleProgress > 0.78
-                  ? THREE.MathUtils.lerp(1, 0.86, smoothEase((droneScaleProgress - 0.78) / 0.22))
-                  : 1;
-            fx.droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE * droneSizePhase);
             let pose = null;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              pose = getCaptureRingOrbitPose({
-                from: launchPos,
-                to: fx.to,
-                progress: mu,
-                launchHeight: 0.08,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.62,
-                orbitRadiusMul: 0.9,
-                minOrbitCycles: 0.34,
-                orbitSplit: 0.82
-              });
+              const targetTop = fx.to.clone().add(new THREE.Vector3(0, 0.38, 0));
+              const diagonalEnd = launchPos.clone().lerp(targetTop, 0.72);
+              const diagonalLift = CAPTURE_FLIGHT_ALTITUDE * 0.16;
+              if (mu < 0.72) {
+                const diagU = smoothEase(mu / 0.72);
+                const control = launchPos.clone().lerp(diagonalEnd, 0.5).add(new THREE.Vector3(0, diagonalLift, 0));
+                const pos = qBezier(launchPos, control, diagonalEnd, diagU);
+                const next = qBezier(launchPos, control, diagonalEnd, clamp01(diagU + 0.03));
+                pose = { pos, next };
+              } else {
+                const dropU = smoothEase((mu - 0.72) / 0.28);
+                const pos = diagonalEnd.clone().lerp(fx.to, dropU);
+                const next = diagonalEnd.clone().lerp(fx.to, clamp01(dropU + 0.04));
+                pose = { pos, next };
+              }
             }
             if (!pose) {
               fx.droneFx.root.visible = false;
@@ -11087,13 +11089,6 @@ function Chess3D({
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
-            const jetScalePhase =
-              jetTimelineU < 0.2
-                ? THREE.MathUtils.lerp(0.92, 1, smoothEase(jetTimelineU / 0.2))
-                : jetTimelineU > 0.8
-                  ? THREE.MathUtils.lerp(1, 0.92, smoothEase((jetTimelineU - 0.8) / 0.2))
-                  : 1;
-            fx.jetFx.root.scale.setScalar(CAPTURE_JET_SCALE * jetScalePhase);
             const flyPathNodes = Array.isArray(fx.flyPathNodes) && fx.flyPathNodes.length >= 4
               ? fx.flyPathNodes
               : [
@@ -11216,13 +11211,6 @@ function Chess3D({
           } else if (fx.type === 'helicopter') {
             const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
             const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
-            const heliScalePhase =
-              heliTimelineU < 0.2
-                ? THREE.MathUtils.lerp(0.88, 1, smoothEase(heliTimelineU / 0.2))
-                : heliTimelineU > 0.8
-                  ? THREE.MathUtils.lerp(1, 0.88, smoothEase((heliTimelineU - 0.8) / 0.2))
-                  : 1;
-            fx.helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * heliScalePhase);
             const flyPathNodes = Array.isArray(fx.flyPathNodes) && fx.flyPathNodes.length >= 4
               ? fx.flyPathNodes
               : [
