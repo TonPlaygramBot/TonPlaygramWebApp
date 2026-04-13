@@ -7602,6 +7602,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
+    if (entering) {
+      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+      setCameraFocus({
+        target: resolveTurnLookTarget(player),
+        follow: false,
+        priority: 3,
+        force: true
+      });
+    }
     const captureVictims = getCaptureVictims(player, target);
     const hasCapture = captureVictims.length > 0;
     const finalizeMove = () => {
