@@ -1430,8 +1430,7 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 const CAMERA_SIDE_LOOK_EXTRA = 0.13;
 const CAMERA_TURN_PLAYER_LERP = 0.58;
-const CAMERA_BROADCAST_TARGET_BLEND = 0.6;
-const CAMERA_BROADCAST_SIDE_BLEND = 0.82;
+const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 1.08;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
@@ -1456,8 +1455,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
-const CAMERA_EXTRA_LIFT = 0.064;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.048;
+const CAMERA_EXTRA_LIFT = 0.058;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.04;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -3656,8 +3655,8 @@ const TOKEN_THINNESS_SCALE = 0.86;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
-const CAMERA_BROADCAST_ANIMATION_MS = 700;
-const CAMERA_RETURN_ANIMATION_MS = 760;
+const CAMERA_BROADCAST_ANIMATION_MS = 560;
+const CAMERA_RETURN_ANIMATION_MS = 620;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.78, y: 0.92, z: 0.74 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
@@ -6177,10 +6176,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
-          controls.target.lerp(liftedTarget.target, 0.18);
+          controls.target.lerp(liftedTarget.target, 0.28);
           if (cameraTurnStateRef.current.followOffset?.isVector3) {
             const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
-            camera.position.lerp(followCameraTarget, 0.12);
+            camera.position.lerp(followCameraTarget, 0.18);
           }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
@@ -7047,16 +7046,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const arena = arenaRef.current;
     if (!camera || !arena?.boardLookTarget || !focusTarget?.isVector3) return null;
     const boardLookTarget = arena.boardLookTarget;
-    const sideDistance = Math.min(
-      1,
-      Math.abs(focusTarget.x - boardLookTarget.x) / Math.max(BOARD_CLOTH_HALF * 0.75, 0.01)
-    );
-    const dynamicBlend = THREE.MathUtils.lerp(
-      CAMERA_BROADCAST_TARGET_BLEND,
-      CAMERA_BROADCAST_SIDE_BLEND,
-      sideDistance
-    );
-    const target = boardLookTarget.clone().lerp(focusTarget, dynamicBlend);
+    const target = boardLookTarget.clone().lerp(focusTarget, CAMERA_BROADCAST_TARGET_BLEND);
     target.y = (arena.tableInfo?.surfaceY ?? target.y) + offset;
 
     return { position: camera.position.clone(), target };
@@ -7111,21 +7101,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return baseTarget;
   }, []);
 
-  const shouldRespectUserCamera = useCallback(
-    (player) => {
-      if (player !== 0) return false;
-      if (humanSelectionRef.current) return true;
-      const state = stateRef.current;
-      if (!state || state.winner) return false;
-      return state.turn === 0;
-    },
-    []
-  );
-
   const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
     cancelCameraViewAnimation();
     if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-    if (!force && (preserveUserTurnCameraRef.current || shouldRespectUserCamera(player))) return;
+    if (player === 0 && preserveUserTurnCameraRef.current && !force) return;
     if (player !== 0) {
       preserveUserTurnCameraRef.current = false;
     }
@@ -7165,14 +7144,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
     animateCameraPose(nextView.target, nextView.position, duration);
-  }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState, shouldRespectUserCamera]);
+  }, [animateCameraPose, cancelCameraViewAnimation, isCamera2d, resolveTurnCameraState]);
 
   const setCameraFocus = useCallback(
     (focus = {}) => {
       const state = stateRef.current;
       const controls = controlsRef.current;
       if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
-      if (!focus.force && shouldRespectUserCamera(state.turn)) return;
       const { object, target, follow = false, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
@@ -7228,7 +7206,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }, Math.max(0, ttl * 1000));
       }
     },
-    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget, shouldRespectUserCamera]
+    [animateCameraPose, isCamera2d, resolveFocusCameraState, resolveTurnCameraState, resolveTurnLookTarget]
   );
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
@@ -7510,21 +7488,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
-      const shouldLockHumanCamera = nextTurn === 0;
-      preserveUserTurnCameraRef.current = shouldLockHumanCamera;
-      if (!shouldLockHumanCamera) {
-        setCameraViewForTurn(nextTurn);
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
-      }
-      if (diceRef.current && !shouldLockHumanCamera) {
-        setCameraFocus({
-          object: diceRef.current,
-          follow: true,
-          priority: 4,
-          force: true,
-          offset: CAMERA_TARGET_LIFT + 0.022
-        });
-      }
+      setCameraViewForTurn(nextTurn);
+      setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
       updated = true;
       const status =
         nextTurn === 0
@@ -7628,19 +7593,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const target = entering ? 0 : current + roll;
     if (target > GOAL_PROGRESS) return advanceTurn(false);
     if (entering) {
-      const seatSideTarget = getWorldForProgress(player, 0, tokenIndex);
-      const isSideSeat = player === 1 || player === 3;
-      const enteringOffset = isSideSeat ? CAMERA_TARGET_LIFT + 0.035 : CAMERA_TARGET_LIFT + 0.02;
-      if (player !== 0) {
-        setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      }
+      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       setCameraFocus({
-        target: seatSideTarget,
+        target: resolveTurnLookTarget(player),
         follow: false,
-        priority: 6,
-        ttl: 0.95,
-        force: true,
-        offset: enteringOffset
+        priority: 3,
+        force: true
       });
     }
     const captureVictims = getCaptureVictims(player, target);
@@ -7734,16 +7692,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     baseTarget.y = baseHeight;
     stopDiceTransition();
     dice.userData.isRolling = true;
-    if (player !== 0) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-    }
-    setCameraFocus({
-      object: dice,
-      follow: false,
-      priority: 5,
-      force: true,
-      offset: CAMERA_TARGET_LIFT + 0.025
-    });
+    setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     playDiceSound();
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
