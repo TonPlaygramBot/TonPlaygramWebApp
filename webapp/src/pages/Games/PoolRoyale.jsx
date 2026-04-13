@@ -22707,9 +22707,15 @@ const powerRef = useRef(hud.power);
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
-            const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
-            const safeHoldDuration = Math.max(0, holdDuration ?? 50);
-            const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
+            const safeStrikeDuration = Number.isFinite(strikeDuration)
+              ? Math.max(1, strikeDuration)
+              : 120;
+            const safeHoldDuration = Number.isFinite(holdDuration)
+              ? Math.max(0, holdDuration)
+              : 50;
+            const safeRecoverDuration = Number.isFinite(recoverDuration)
+              ? Math.max(0, recoverDuration)
+              : 0;
             const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
             const easedPush = easeOutCubic(pushT);
             const normalizedStroke = ensureCueStrokeForwardMotion({
@@ -22771,6 +22777,10 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             cueStick.visible = false;
+            if (!stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             syncCueShadow();
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -26065,7 +26075,7 @@ const powerRef = useRef(hud.power);
           currentHud?.over ||
           replayPlaybackRef.current
         )
-          return;
+          return false;
         if (breakWinnerSeatRef.current === 'A') {
           breakWinnerSeatRef.current = null;
         }
@@ -26692,6 +26702,7 @@ const powerRef = useRef(hud.power);
               updateCamera();
             }
           }
+          return true;
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -32448,8 +32459,11 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (value) => {
+        const committedPower = Number.isFinite(value) ? value / 100 : slider.get() / 100;
+        applyPower(committedPower);
+        const fired = fireRef.current?.();
+        if (!fired) return;
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
