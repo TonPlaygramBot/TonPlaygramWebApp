@@ -113,6 +113,11 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import {
+  applyShotImpact,
+  createShotImpactFallback,
+  createShotImpactPayload
+} from './cueShotImpact.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
@@ -1837,8 +1842,6 @@ const SHOT_FORCE_BOOST =
   SHOT_GLOBAL_POWER_SCALE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -1916,7 +1919,6 @@ const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge
 const CUE_PULL_RETURN_PUSH = 0.97; // push the cue forward to contact more decisively after pullback
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
-const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -26217,7 +26219,6 @@ const powerRef = useRef(hud.power);
         if (shotPrediction.railNormal) replayTags.add('bank');
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -26244,7 +26245,8 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          // Preserve a direct 1:1 power transfer from slider selection to shot strength.
+          const powerScale = THREE.MathUtils.clamp(clampedPower, 0, 1);
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
@@ -26435,10 +26437,7 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          let shotImpactCommitted = false;
-          const commitShotImpact = () => {
-            if (shotImpactCommitted) return;
-            shotImpactCommitted = true;
+          const shotImpactPayload = createShotImpactPayload(() => {
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -26469,6 +26468,9 @@ const powerRef = useRef(hud.power);
             cue.lift = 0;
             cue.liftVel = 0;
             playCueHit(clampedPower * 0.6);
+          });
+          const commitShotImpact = () => {
+            applyShotImpact(shotImpactPayload);
           };
 
           if (cameraRef.current && sphRef.current) {
@@ -26583,6 +26585,10 @@ const powerRef = useRef(hud.power);
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
+          );
+          pendingImpactRef.current = createShotImpactFallback(
+            shotImpactPayload,
+            startTime + Math.max(strikeDuration, 0)
           );
           const now = performance.now();
           let pocketViewActivated = false;
