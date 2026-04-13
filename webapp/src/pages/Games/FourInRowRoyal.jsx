@@ -52,8 +52,8 @@ import {
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
-const TABLE_AND_CHAIR_SCALE = 0.49; // 30% smaller than previous table/chair sizing.
-const BOARD_AND_CHIPS_SCALE = 0.7; // 30% smaller board + chip props.
+const TABLE_AND_CHAIR_SCALE = 0.245; // 50% smaller than the current table/chair sizing.
+const BOARD_AND_CHIPS_SCALE = 0.35; // 50% smaller than the current board + chip props.
 const CAMERA_FRAME_MATCH_SCALE = 0.7; // Move camera in to keep the previous framing.
 const ARENA_VISUAL_SCALE = 0.82;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
@@ -86,8 +86,6 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.9173749900311232 * TABLE_AND_CHAIR_SCALE,
   1.7001562547683715 * TABLE_AND_CHAIR_SCALE
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * TABLE_AND_CHAIR_SCALE;
-const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * TABLE_AND_CHAIR_SCALE;
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
@@ -399,10 +397,37 @@ function fitChairModelToFootprint(model) {
   const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
   const offset = new THREE.Vector3(
     -scaledCenter.x,
-    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
-    TARGET_CHAIR_CENTER_Z - scaledCenter.z
+    -scaledBox.min.y,
+    -scaledCenter.z
   );
   model.position.add(offset);
+}
+
+function preserveOriginalGltfTextureMapping(model) {
+  if (!model) return;
+  model.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      const textureSlots = [
+        'map',
+        'normalMap',
+        'roughnessMap',
+        'metalnessMap',
+        'emissiveMap',
+        'aoMap',
+        'alphaMap'
+      ];
+      textureSlots.forEach((slot) => {
+        const tex = mat[slot];
+        if (!tex) return;
+        tex.flipY = false;
+        tex.needsUpdate = true;
+      });
+      mat.needsUpdate = true;
+    });
+  });
 }
 
 function tintChairModel(model, chairTheme) {
@@ -454,6 +479,7 @@ async function createChairModel(chairTheme) {
           obj.castShadow = true;
           obj.receiveShadow = true;
         });
+        preserveOriginalGltfTextureMapping(root);
         fitChairModelToFootprint(root);
         if (!chairTheme.preserveMaterials) {
           tintChairModel(root, chairTheme);
@@ -863,7 +889,7 @@ export default function FourInRowRoyal() {
     chairPositions.forEach(([x, y, z]) => {
       const chair = new THREE.Group();
       chair.position.set(x, y, z);
-      chair.lookAt(0, TABLE_HEIGHT, 0);
+      chair.lookAt(0, 0, 0);
       chair.userData = {
         seatColor: chairTheme.primary,
         legColor: chairTheme.legColor
