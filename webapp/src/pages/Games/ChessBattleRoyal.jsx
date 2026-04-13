@@ -111,17 +111,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.118; // +20% fighter size for clearer portrait readability
-const CAPTURE_HELICOPTER_SCALE = 0.106; // +20% helicopter size while preserving relative silhouette
+const CAPTURE_JET_SCALE = 0.177; // +50% fighter size for clearer portrait readability
+const CAPTURE_HELICOPTER_SCALE = 0.159; // +50% helicopter size while preserving relative silhouette
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.003; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.014; // keep aircraft just above the board plane for a tighter mobile framing
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.009; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.12; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.145; // keep helicopter visibly lower than jet and closer to the board
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.84; // widen path so strike passes closer to the bottom player viewpoint
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.52; // keep lanes near board edge for a stronger near-camera fly-by
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.4; // shift fly path toward the bottom side of portrait view
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.52; // shift fly path toward the bottom side of portrait view
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -9121,42 +9121,43 @@ function Chess3D({
         const attackerLaneZ = attackerSideSign * laneBound;
         const enemyLaneZ = -attackerSideSign * laneBound;
         const xClamp = laneBound;
+        const laneMidX = THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5);
         const laneX = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5),
-          -xClamp,
-          xClamp
+          THREE.MathUtils.lerp(laneMidX, 0, 0.62),
+          -xClamp * 0.72,
+          xClamp * 0.72
         );
         const turnBendDirection = victimPos.x >= laneX ? 1 : -1;
         const turnBendX = THREE.MathUtils.clamp(
-          laneX + turnBendDirection * tile * 0.44,
-          -xClamp,
-          xClamp
+          laneX + turnBendDirection * tile * 0.58,
+          -xClamp * 0.96,
+          xClamp * 0.96
         );
         const startPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         const entryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.32),
-          baseAltitude - turnAltitudeDrop * 0.2,
+          THREE.MathUtils.lerp(laneX, victimPos.x, 0.4),
+          baseAltitude - turnAltitudeDrop * 0.26,
           towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.28))
         );
         const turnEntryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.98),
-          baseAltitude - turnAltitudeDrop * 0.34,
-          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.9))
+          THREE.MathUtils.lerp(laneX, victimPos.x, 1.03),
+          baseAltitude - turnAltitudeDrop * 0.46,
+          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.94))
         );
         const turnExitPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.22),
-          baseAltitude - turnAltitudeDrop * 0.62,
-          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.92))
+          THREE.MathUtils.lerp(laneX, victimPos.x, 0.16),
+          baseAltitude - turnAltitudeDrop * 0.72,
+          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.97))
         );
         const turnControlPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(turnBendX, victimPos.x, 0.22),
-          baseAltitude - turnAltitudeDrop * 0.54,
-          towardBottom(enemyLaneZ)
+          THREE.MathUtils.lerp(turnBendX, victimPos.x, 0.1),
+          baseAltitude - turnAltitudeDrop * 0.66,
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, 0.18))
         );
         const returnEntryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.1),
-          baseAltitude - turnAltitudeDrop * 0.28,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.82))
+          THREE.MathUtils.lerp(laneX, victimPos.x, 0.08),
+          baseAltitude - turnAltitudeDrop * 0.34,
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.74))
         );
         const exitPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         return {
@@ -10942,38 +10943,13 @@ function Chess3D({
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              const segmentLengths = [];
-              let totalLen = 0;
-              for (let idx = 0; idx < flyPathNodes.length - 1; idx += 1) {
-                const len = flyPathNodes[idx].distanceTo(flyPathNodes[idx + 1]);
-                segmentLengths.push(len);
-                totalLen += len;
+              if (!fx.jetPathCurve || fx.jetPathCurveNodeCount !== flyPathNodes.length) {
+                fx.jetPathCurve = new THREE.CatmullRomCurve3(flyPathNodes.map((n) => n.clone()), false, 'catmullrom', 0.28);
+                fx.jetPathCurveNodeCount = flyPathNodes.length;
               }
-              const targetDistance = totalLen * safeU;
-              let acc = 0;
-              for (let idx = 0; idx < segmentLengths.length; idx += 1) {
-                const len = segmentLengths[idx];
-                if (targetDistance <= acc + len || idx === segmentLengths.length - 1) {
-                  const localU = len <= 1e-6 ? 0 : (targetDistance - acc) / len;
-                  const pos = flyPathNodes[idx].clone().lerp(flyPathNodes[idx + 1], clamp01(localU));
-                  const nextStep = Math.min(1, safeU + 0.02);
-                  const nextDistance = totalLen * nextStep;
-                  let nextAcc = 0;
-                  for (let n = 0; n < segmentLengths.length; n += 1) {
-                    const nextLen = segmentLengths[n];
-                    if (nextDistance <= nextAcc + nextLen || n === segmentLengths.length - 1) {
-                      const nextLocalU = nextLen <= 1e-6 ? 0 : (nextDistance - nextAcc) / nextLen;
-                      const next = flyPathNodes[n].clone().lerp(flyPathNodes[n + 1], clamp01(nextLocalU));
-                      return { pos, next };
-                    }
-                    nextAcc += nextLen;
-                  }
-                  return { pos, next: pos.clone().add(new THREE.Vector3(0.08, 0, 0)) };
-                }
-                acc += len;
-              }
-              const end = flyPathNodes[flyPathNodes.length - 1].clone();
-              return { pos: end, next: end.clone().add(new THREE.Vector3(0.08, 0, 0)) };
+              const pos = fx.jetPathCurve.getPointAt(safeU);
+              const next = fx.jetPathCurve.getPointAt(Math.min(1, safeU + 0.02));
+              return { pos, next };
             };
             const { pos: jetPos, next: jetNext } = sampleFlyPath(jetU);
             fx.jetFx.root.position.copy(jetPos);
@@ -11081,38 +11057,13 @@ function Chess3D({
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              const segmentLengths = [];
-              let totalLen = 0;
-              for (let idx = 0; idx < flyPathNodes.length - 1; idx += 1) {
-                const len = flyPathNodes[idx].distanceTo(flyPathNodes[idx + 1]);
-                segmentLengths.push(len);
-                totalLen += len;
+              if (!fx.heliPathCurve || fx.heliPathCurveNodeCount !== flyPathNodes.length) {
+                fx.heliPathCurve = new THREE.CatmullRomCurve3(flyPathNodes.map((n) => n.clone()), false, 'catmullrom', 0.28);
+                fx.heliPathCurveNodeCount = flyPathNodes.length;
               }
-              const targetDistance = totalLen * safeU;
-              let acc = 0;
-              for (let idx = 0; idx < segmentLengths.length; idx += 1) {
-                const len = segmentLengths[idx];
-                if (targetDistance <= acc + len || idx === segmentLengths.length - 1) {
-                  const localU = len <= 1e-6 ? 0 : (targetDistance - acc) / len;
-                  const pos = flyPathNodes[idx].clone().lerp(flyPathNodes[idx + 1], clamp01(localU));
-                  const nextStep = Math.min(1, safeU + 0.02);
-                  const nextDistance = totalLen * nextStep;
-                  let nextAcc = 0;
-                  for (let n = 0; n < segmentLengths.length; n += 1) {
-                    const nextLen = segmentLengths[n];
-                    if (nextDistance <= nextAcc + nextLen || n === segmentLengths.length - 1) {
-                      const nextLocalU = nextLen <= 1e-6 ? 0 : (nextDistance - nextAcc) / nextLen;
-                      const next = flyPathNodes[n].clone().lerp(flyPathNodes[n + 1], clamp01(nextLocalU));
-                      return { pos, next };
-                    }
-                    nextAcc += nextLen;
-                  }
-                  return { pos, next: pos.clone().add(new THREE.Vector3(0.08, 0, 0)) };
-                }
-                acc += len;
-              }
-              const end = flyPathNodes[flyPathNodes.length - 1].clone();
-              return { pos: end, next: end.clone().add(new THREE.Vector3(0.08, 0, 0)) };
+              const pos = fx.heliPathCurve.getPointAt(safeU);
+              const next = fx.heliPathCurve.getPointAt(Math.min(1, safeU + 0.02));
+              return { pos, next };
             };
             const { pos: heliPos, next: heliNext } = sampleFlyPath(heliU);
             fx.helicopterFx.root.position.copy(heliPos);
