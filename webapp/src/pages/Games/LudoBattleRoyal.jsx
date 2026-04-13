@@ -7289,13 +7289,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (typeof onComplete === 'function') onComplete();
       return;
     }
-      if (token && shouldFollowCamera) {
+    if (token && shouldFollowCamera) {
+      const isEnteringFromHome = fromProgress < 0;
+      const entryTurnLookTarget = isEnteringFromHome ? resolveTurnLookTarget(player) : null;
+      if (entryTurnLookTarget?.isVector3) {
+        setCameraFocus({
+          target: entryTurnLookTarget,
+          follow: false,
+          ttl: 1.05,
+          priority: 6,
+          offset: CAMERA_TARGET_LIFT + 0.02
+        });
+      } else {
         setCameraFocus({
           object: token,
           follow: true,
           priority: 6,
           offset: CAMERA_TARGET_LIFT + 0.02
         });
+      }
       }
     state.animation = {
       active: true,
@@ -7693,7 +7705,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     dice.userData.isRolling = true;
     setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     playDiceSound();
-    const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
@@ -7709,16 +7720,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       playSixRollSound();
     }
     scheduleDiceClear();
-    setCameraFocus({
-      target: landingFocus,
-      follow: false,
-      ttl: 0.88,
-      priority: 2,
-      offset: CAMERA_TARGET_LIFT + 0.03,
-      force: true
-    });
     const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
+    const shouldBroadcastDiceLandingFocus = hasBoardTokenBeforeRoll && options.length > 0;
+    if (shouldBroadcastDiceLandingFocus) {
+      const landingFocus = baseTarget.clone();
+      setCameraFocus({
+        target: landingFocus,
+        follow: false,
+        ttl: 0.88,
+        priority: 2,
+        offset: CAMERA_TARGET_LIFT + 0.03,
+        force: true
+      });
+    }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
