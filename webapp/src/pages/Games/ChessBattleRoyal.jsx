@@ -123,6 +123,9 @@ const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the s
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.42; // tighter radius so jet/helicopter path stays centered above the board
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.6; // pull entry/turn points farther in from board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_AIR_PARK_OFFSET_X_TILES = 5.35;
+const CAPTURE_AIR_PARK_JET_Z_TILES = -2.3;
+const CAPTURE_AIR_PARK_HELI_Z_TILES = 2.3;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -2945,9 +2948,9 @@ function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, t
         if ('opacity' in mat) mat.opacity = 0.95;
         if ('transparent' in mat) mat.transparent = true;
       } else if ((topRotor && node === topRotor) || (tailRotor && node === tailRotor) || /rotor|propell|blade|fan/.test(name)) {
-        mat.color.setHex(0xb8c1cc);
-        if ('metalness' in mat) mat.metalness = 0.72;
-        if ('roughness' in mat) mat.roughness = 0.26;
+        mat.color.setHex(0xd4af37);
+        if ('metalness' in mat) mat.metalness = 0.9;
+        if ('roughness' in mat) mat.roughness = 0.2;
       } else {
         mat.color.offsetHSL(0.02, -0.14, -0.16);
         if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
@@ -2956,6 +2959,85 @@ function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, t
       mat.needsUpdate = true;
     });
   });
+}
+
+function createAvatarTexture(photo = '🙂', size = 192) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const radius = size * 0.48;
+  const center = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, size, size);
+  if (typeof photo === 'string' && /^https?:\/\//i.test(photo)) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, 0, 0, size, size);
+      ctx.restore();
+      texture.needsUpdate = true;
+    };
+    img.onerror = () => {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = `${Math.floor(size * 0.52)}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🙂', center, center + size * 0.02);
+      texture.needsUpdate = true;
+    };
+    img.src = photo;
+  } else {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = `${Math.floor(size * 0.52)}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(typeof photo === 'string' ? photo : '🙂', center, center + size * 0.02);
+  }
+  ctx.restore();
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function addVehicleAvatarBadges(root, photo = '🙂', tint = '#f8fafc') {
+  if (!root) return;
+  const texture = createAvatarTexture(photo);
+  const mat = new THREE.MeshStandardMaterial({
+    map: texture,
+    transparent: true,
+    roughness: 0.42,
+    metalness: 0.12,
+    side: THREE.DoubleSide
+  });
+  const badgeGeometry = new THREE.CircleGeometry(0.26, 28);
+  const left = new THREE.Mesh(badgeGeometry, mat.clone());
+  left.position.set(0.2, 0.12, -0.3);
+  left.rotation.y = Math.PI / 2;
+  const right = new THREE.Mesh(badgeGeometry, mat.clone());
+  right.position.set(0.2, 0.12, 0.3);
+  right.rotation.y = -Math.PI / 2;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.28, 0.018, 10, 24),
+    new THREE.MeshStandardMaterial({ color: tint, metalness: 0.62, roughness: 0.3 })
+  );
+  ring.rotation.y = Math.PI / 2;
+  ring.position.set(0.2, 0.12, 0);
+  root.add(left, right, ring);
 }
 
 function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
@@ -8980,7 +9062,7 @@ function Chess3D({
       }
       return { root, propeller, exhaustClouds };
     };
-    const createFxHelicopter = () => {
+    const createFxHelicopter = ({ toneSeed = getCaptureToneSeed('helicopter'), avatarPhoto = null } = {}) => {
       const model = cloneCaptureUnitTemplate('helicopter');
       if (model) {
         const root = new THREE.Group();
@@ -8997,7 +9079,8 @@ function Chess3D({
             }
           });
         }
-        applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
+        applyMilitaryHelicopterLook(model, topRotor, tailRotor, toneSeed);
+        if (avatarPhoto) addVehicleAvatarBadges(root, avatarPhoto, '#d4af37');
         const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
         const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
         return { root, topRotor, tailRotor, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
@@ -9028,6 +9111,7 @@ function Chess3D({
           addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
         );
       }
+      if (avatarPhoto) addVehicleAvatarBadges(root, avatarPhoto, '#d4af37');
       return {
         root,
         topRotor,
@@ -9037,13 +9121,14 @@ function Chess3D({
         exhaustClouds
       };
     };
-    const createFxJet = () => {
+    const createFxJet = ({ toneSeed = getCaptureToneSeed('fighter'), avatarPhoto = null } = {}) => {
       const model = cloneCaptureUnitTemplate('fighter');
       if (model) {
         const root = new THREE.Group();
         model.rotation.set(0, 0, 0);
         root.add(model);
-        applyMilitaryJetLook(model, getCaptureToneSeed('fighter'));
+        applyMilitaryJetLook(model, toneSeed);
+        if (avatarPhoto) addVehicleAvatarBadges(root, avatarPhoto, '#f8fafc');
         const cockpit =
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
@@ -9100,6 +9185,7 @@ function Chess3D({
       root.add(rightStore);
       const exhaustAnchor = new THREE.Vector3(-1.95, 0, 0);
       const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
+      if (avatarPhoto) addVehicleAvatarBadges(root, avatarPhoto, '#f8fafc');
       return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
     };
     const createFxMissile = () => {
@@ -9340,7 +9426,8 @@ function Chess3D({
       orbitSplit = 0.82,
       returnToOrigin = false,
       returnSplit = 0.78,
-      sideSign = 1
+      sideSign = 1,
+      clampToBoard = true
     }) => {
       const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const impactPos = to.clone();
@@ -9374,7 +9461,10 @@ function Chess3D({
         next.y =
           THREE.MathUtils.lerp(launchPos.y, orbitHeight, clamp01(orbitU + 0.02)) +
           Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.04;
-        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+        return {
+          pos: clampToBoard ? constrainInsideBoardPerimeter(pos) : pos,
+          next: clampToBoard ? constrainInsideBoardPerimeter(next) : next
+        };
       }
       if (returnToOrigin) {
         const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
@@ -9382,7 +9472,10 @@ function Chess3D({
         returnTarget.y = Math.max(returnTarget.y, orbitHeight * 0.9);
         const returnPos = orbitExit.clone().lerp(returnTarget, returnU);
         const returnNext = orbitExit.clone().lerp(returnTarget, clamp01(returnU + 0.05));
-        return { pos: constrainInsideBoardPerimeter(returnPos), next: constrainInsideBoardPerimeter(returnNext) };
+        return {
+          pos: clampToBoard ? constrainInsideBoardPerimeter(returnPos) : returnPos,
+          next: clampToBoard ? constrainInsideBoardPerimeter(returnNext) : returnNext
+        };
       }
       const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
       const dropStart = new THREE.Vector3(impactPos.x, Math.max(orbitHeight * 0.95, impactPos.y + 0.44), impactPos.z);
@@ -9398,7 +9491,133 @@ function Chess3D({
         next.x = pos.x;
         next.z = pos.z;
       }
-      return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      return {
+        pos: clampToBoard ? constrainInsideBoardPerimeter(pos) : pos,
+        next: clampToBoard ? constrainInsideBoardPerimeter(next) : next
+      };
+    };
+    const getLocalPlayerSide = () => (onlineRef.current?.side === 'black' ? 'black' : normalizedInitialSide);
+    const getSideAvatar = (isWhiteSide) => {
+      const localSide = getLocalPlayerSide();
+      const localPlayer = playersRef.current?.[0];
+      const rivalPlayer = playersRef.current?.[1];
+      const localIsWhite = localSide === 'white';
+      return isWhiteSide === localIsWhite
+        ? localPlayer?.photoUrl || localPlayer?.name || '🙂'
+        : rivalPlayer?.photoUrl || rivalPlayer?.name || '🙂';
+    };
+    const getPawnBodyToneSeed = (isWhiteSide, fallbackKind = 'fighter') => {
+      const candidateRows = isWhiteSide ? [6, 5, 4, 3, 2, 1, 0, 7] : [1, 2, 3, 4, 5, 6, 7, 0];
+      for (const row of candidateRows) {
+        for (let col = 0; col < 8; col += 1) {
+          const pawn = pieceMeshes?.[row]?.[col];
+          if (!pawn) continue;
+          const pieceType = `${pawn.userData?.t || ''}`.toUpperCase();
+          const isWhite = Boolean(pawn.userData?.w);
+          if (pieceType !== 'P' || isWhite !== isWhiteSide) continue;
+          const headSet = new Set(collectPawnHeadMeshes(pawn));
+          let bodyColor = null;
+          pawn.traverse((node) => {
+            if (bodyColor || !node?.isMesh || headSet.has(node)) return;
+            const mat = Array.isArray(node.material) ? node.material[0] : node.material;
+            if (mat?.color) bodyColor = mat.color.clone();
+          });
+          if (bodyColor) {
+            const base = `#${bodyColor.getHexString()}`;
+            return {
+              base,
+              mid: `#${bodyColor.clone().offsetHSL(0, -0.08, 0.06).getHexString()}`,
+              dark: `#${bodyColor.clone().offsetHSL(0, -0.12, -0.14).getHexString()}`,
+              grid: `#${bodyColor.clone().offsetHSL(0, 0.04, 0.18).getHexString()}`,
+              kind: fallbackKind
+            };
+          }
+        }
+      }
+      return getCaptureToneSeed(fallbackKind);
+    };
+    const getCaptureAirPadPosition = (isWhiteSide, vehicleType = 'jet') => {
+      const xSign = isWhiteSide ? -1 : 1;
+      const padX = xSign * tile * CAPTURE_AIR_PARK_OFFSET_X_TILES;
+      const padZ = tile * (vehicleType === 'helicopter' ? CAPTURE_AIR_PARK_HELI_Z_TILES : CAPTURE_AIR_PARK_JET_Z_TILES);
+      const y = PIECE_PLACEMENT_Y_OFFSET + 0.08;
+      return new THREE.Vector3(padX, y, padZ);
+    };
+    const parkedAirUnits = [];
+    const parkedPadMarkers = [];
+    const syncParkedAirUnits = () => {
+      parkedAirUnits.forEach((unit) => {
+        captureFxGroup.remove(unit.root);
+      });
+      parkedPadMarkers.forEach((marker) => {
+        captureFxGroup.remove(marker);
+      });
+      parkedAirUnits.length = 0;
+      parkedPadMarkers.length = 0;
+      const makePadMarker = (label, position) => {
+        const marker = new THREE.Group();
+        marker.position.copy(position);
+        const outline = new THREE.Mesh(
+          new THREE.PlaneGeometry(tile * 1.9, tile * 1.25),
+          new THREE.MeshBasicMaterial({
+            color: '#ff3b30',
+            transparent: true,
+            opacity: 0.24,
+            side: THREE.DoubleSide
+          })
+        );
+        outline.rotation.x = -Math.PI / 2;
+        marker.add(outline);
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, 128, 128);
+          ctx.strokeStyle = '#ff3b30';
+          ctx.lineWidth = 10;
+          ctx.strokeRect(6, 6, 116, 116);
+          ctx.fillStyle = '#fff3cd';
+          ctx.font = 'bold 72px Inter, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, 64, 70);
+        }
+        const badge = new THREE.Mesh(
+          new THREE.PlaneGeometry(tile * 0.68, tile * 0.68),
+          new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, side: THREE.DoubleSide })
+        );
+        badge.position.set(0, 0.01, 0);
+        badge.rotation.x = -Math.PI / 2;
+        marker.add(badge);
+        captureFxGroup.add(marker);
+        parkedPadMarkers.push(marker);
+      };
+      [true, false].forEach((isWhiteSide) => {
+        const jetPad = getCaptureAirPadPosition(isWhiteSide, 'jet');
+        const heliPad = getCaptureAirPadPosition(isWhiteSide, 'helicopter');
+        makePadMarker('J', jetPad);
+        makePadMarker('H', heliPad);
+        const avatarPhoto = getSideAvatar(isWhiteSide);
+        const jetFx = createFxJet({
+          toneSeed: getPawnBodyToneSeed(isWhiteSide, 'fighter'),
+          avatarPhoto
+        });
+        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE * 0.9);
+        jetFx.root.position.copy(jetPad);
+        jetFx.root.lookAt(0, jetPad.y, 0);
+        captureFxGroup.add(jetFx.root);
+        parkedAirUnits.push({ kind: 'jet', ...jetFx, root: jetFx.root });
+        const heliFx = createFxHelicopter({
+          toneSeed: getPawnBodyToneSeed(isWhiteSide, 'helicopter'),
+          avatarPhoto
+        });
+        heliFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.84);
+        heliFx.root.position.copy(heliPad);
+        heliFx.root.lookAt(0, heliPad.y, 0);
+        captureFxGroup.add(heliFx.root);
+        parkedAirUnits.push({ kind: 'helicopter', ...heliFx, root: heliFx.root });
+      });
     };
 
     const playCaptureAnimation = ({
@@ -9485,9 +9704,13 @@ function Chess3D({
       }
       if (pieceType === 'K') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
-        const jetFx = createFxJet();
+        const attackerIsWhite = Boolean(movingMesh?.userData?.w);
+        const launchBase = getCaptureAirPadPosition(attackerIsWhite, 'jet');
+        const jetFx = createFxJet({
+          toneSeed: getPawnBodyToneSeed(attackerIsWhite, 'fighter'),
+          avatarPhoto: getSideAvatar(attackerIsWhite)
+        });
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const launchBase = fromPos.clone();
         jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(jetFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
@@ -9516,9 +9739,13 @@ function Chess3D({
       }
       if (pieceType === 'B') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
-        const helicopterFx = createFxHelicopter();
+        const attackerIsWhite = Boolean(movingMesh?.userData?.w);
+        const launchBase = getCaptureAirPadPosition(attackerIsWhite, 'helicopter');
+        const helicopterFx = createFxHelicopter({
+          toneSeed: getPawnBodyToneSeed(attackerIsWhite, 'helicopter'),
+          avatarPhoto: getSideAvatar(attackerIsWhite)
+        });
         helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
-        const launchBase = fromPos.clone();
         helicopterFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(helicopterFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
@@ -9548,9 +9775,13 @@ function Chess3D({
       }
       if (pieceType === 'Q') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
-        const jetFx = createFxJet();
+        const attackerIsWhite = Boolean(movingMesh?.userData?.w);
+        const launchBase = getCaptureAirPadPosition(attackerIsWhite, 'jet');
+        const jetFx = createFxJet({
+          toneSeed: getPawnBodyToneSeed(attackerIsWhite, 'fighter'),
+          avatarPhoto: getSideAvatar(attackerIsWhite)
+        });
         jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-        const launchBase = fromPos.clone();
         jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(jetFx.root);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
@@ -10056,6 +10287,7 @@ function Chess3D({
         arenaRef.current.piecePrototypes = prototypes;
         arenaRef.current.activePieceSetId = styleId;
       }
+      syncParkedAirUnits();
     };
 
     const applyPieceSetAssets = (
@@ -11105,6 +11337,15 @@ function Chess3D({
         }
       }
 
+      if (parkedAirUnits.length) {
+        parkedAirUnits.forEach((unit) => {
+          if (unit.kind === 'helicopter') {
+            if (unit.topRotor && unit.topRotorAxis) unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 26);
+            if (unit.tailRotor && unit.tailRotorAxis) unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 26);
+          }
+        });
+      }
+
       if (activeCaptureFx.length) {
         for (let i = activeCaptureFx.length - 1; i >= 0; i -= 1) {
           const fx = activeCaptureFx[i];
@@ -11167,10 +11408,11 @@ function Chess3D({
               orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
               minOrbitCycles: 0.34,
               orbitSplit: 0.74,
-              returnToOrigin: false,
-              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
+              returnToOrigin: true,
+              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1,
+              clampToBoard: false
             });
-            fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
+            fx.jetFx.root.position.copy(jetPos);
             captureDir.copy(jetNext).sub(jetPos).normalize();
             const jetForward = captureDir.clone();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
@@ -11272,10 +11514,11 @@ function Chess3D({
               orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
               minOrbitCycles: 0.34,
               orbitSplit: 0.74,
-              returnToOrigin: false,
-              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
+              returnToOrigin: true,
+              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1,
+              clampToBoard: false
             });
-            fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
+            fx.helicopterFx.root.position.copy(heliPos);
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
