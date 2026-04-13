@@ -1428,8 +1428,8 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0;
-const CAMERA_TURN_PLAYER_LERP = 0.44;
+const CAMERA_SIDE_LOOK_EXTRA = 0.075;
+const CAMERA_TURN_PLAYER_LERP = 0.52;
 const CAMERA_BROADCAST_TARGET_BLEND = 0;
 const CAMERA_SIDE_AVATAR_BLEND = 0.84;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
@@ -1791,6 +1791,20 @@ function resolveAbgColorKey() {
 function resolveAbgPrototype(proto, colorKey, type) {
   if (!proto) return null;
   return proto[colorKey]?.[type] ?? proto[colorKey]?.p ?? proto.w?.p ?? proto.b?.p ?? null;
+}
+
+function applyTokenFacingRotation(token) {
+  if (!token?.rotation) return;
+  const typeKey = String(token.userData?.tokenType || '').toLowerCase();
+  if (typeKey === 'king') {
+    token.rotation.set(0, Math.PI, 0);
+    return;
+  }
+  if (typeKey === 'knight' || typeKey === 'horse') {
+    token.rotation.set(0, Math.PI / 4, 0);
+    return;
+  }
+  token.rotation.set(0, 0, 0);
 }
 
 function cloneAbgToken(proto) {
@@ -3632,6 +3646,7 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
+const TOKEN_THINNESS_SCALE = 0.92;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
@@ -5038,7 +5053,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const target = home.clone();
         target.y = homeHeight;
         token.position.copy(target);
-        token.rotation.set(0, 0, 0);
+        applyTokenFacingRotation(token);
       }
     });
 
@@ -7547,7 +7562,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const pos = state.startPads[player][token].clone();
       pos.y = getTokenRailHeight(player);
       tokenNode.position.copy(pos);
-      tokenNode.rotation.set(0, 0, 0);
+      applyTokenFacingRotation(tokenNode);
       opponents.push(resolvePlayerLabel(player));
     });
     return { count: opponents.length, opponents };
@@ -7586,7 +7601,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
-      state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
+      applyTokenFacingRotation(state.tokens[player][tokenIndex]);
       updateTokenStacks();
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
@@ -7735,7 +7750,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    moveToken(player, choice.token, value, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+    moveToken(player, choice.token, value, { skipCameraFollow: hasBoardTokenBeforeRoll });
   };
 
   rollDiceRef.current = rollDice;
@@ -8310,15 +8325,10 @@ async function buildLudoBoard(
         (typeKey === 'castle' ? TOKEN_TYPE_SCALE_PROFILE.rook : null);
       if (typeScale) {
         token.scale.set(
-          token.scale.x * typeScale.x,
+          token.scale.x * typeScale.x * TOKEN_THINNESS_SCALE,
           token.scale.y * typeScale.y,
-          token.scale.z * typeScale.z
+          token.scale.z * typeScale.z * TOKEN_THINNESS_SCALE
         );
-      }
-      if (typeKey === 'king') {
-        token.rotation.y = Math.PI;
-      } else if (typeKey === 'knight' || typeKey === 'horse') {
-        token.rotation.y = Math.PI / 4;
       }
       const label = createTokenCountLabel();
       if (label) {
@@ -8336,6 +8346,7 @@ async function buildLudoBoard(
         node.userData.playerIndex = playerIdx;
         node.userData.tokenIndex = i;
       });
+      applyTokenFacingRotation(token);
       const homePos = startPads[playerIdx][i].clone();
       homePos.y = getTokenRailHeight(playerIdx);
       token.position.copy(homePos);
