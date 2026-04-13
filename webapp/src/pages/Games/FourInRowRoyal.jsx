@@ -52,20 +52,24 @@ import {
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
-const TABLE_AND_CHAIR_SCALE = 0.7;
+const TABLE_AND_CHAIR_SCALE = 0.49; // 30% smaller than previous table/chair sizing.
+const BOARD_AND_CHIPS_SCALE = 0.7; // 30% smaller board + chip props.
+const CAMERA_FRAME_MATCH_SCALE = 0.7; // Move camera in to keep the previous framing.
 const ARENA_VISUAL_SCALE = 0.82;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
 const TABLE_HEIGHT = 1.2;
 const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
-const CHAIR_DISTANCE = TABLE_RADIUS + 1.3;
-const CAMERA_RADIUS_COMPENSATION = 3.4 * MODEL_SCALE + 1.3 - CHAIR_DISTANCE;
-const BOARD_TABLE_CLEARANCE = 0.2;
-const BOARD_VERTICAL_LIFT = 0.06;
+const CHAIR_GAP = 1.3 * TABLE_AND_CHAIR_SCALE;
+const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
+const CAMERA_RADIUS_COMPENSATION =
+  (3.4 * MODEL_SCALE + 1.3 - CHAIR_DISTANCE) * CAMERA_FRAME_MATCH_SCALE;
+const BOARD_TABLE_CLEARANCE = 0.2 * BOARD_AND_CHIPS_SCALE;
+const BOARD_VERTICAL_LIFT = 0.06 * BOARD_AND_CHIPS_SCALE;
 const INTRO_MESSAGE_DURATION_MS = 2200;
-const BOARD_BASE_THICKNESS = 0.12;
-const BOARD_FRAME_THICKNESS = 0.12;
-const BOARD_FACE_THICKNESS = 0.028;
-const BOARD_SLOT_GAP = 0.15;
+const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
+const BOARD_FRAME_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
+const BOARD_FACE_THICKNESS = 0.028 * BOARD_AND_CHIPS_SCALE;
+const BOARD_SLOT_GAP = 0.15 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_DEPTH = BOARD_SLOT_GAP + BOARD_FACE_THICKNESS * 2 + 0.08;
 const BOARD_FRAME_CENTER_Z = 0;
 const CONNECT4_WOOD = '#4b2b1f';
@@ -548,8 +552,8 @@ export default function FourInRowRoyal() {
 
   const rows = selectedLayout.rows;
   const cols = selectedLayout.cols;
-  const boardWidth = 1.08 + cols * 0.19;
-  const boardHeight = 0.92 + rows * 0.2;
+  const boardWidth = (1.08 + cols * 0.19) * BOARD_AND_CHIPS_SCALE;
+  const boardHeight = (0.92 + rows * 0.2) * BOARD_AND_CHIPS_SCALE;
   const boardBottomY =
     TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + 0.14 + BOARD_VERTICAL_LIFT;
   const boardCenterY = boardBottomY + boardHeight / 2;
@@ -797,9 +801,12 @@ export default function FourInRowRoyal() {
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset =
-      (isPortrait ? 2.55 : 1.78) + 0.35 + CAMERA_RADIUS_COMPENSATION;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.86 : 1.44;
+      ((isPortrait ? 2.55 : 1.78) + 0.35) * CAMERA_FRAME_MATCH_SCALE +
+      CAMERA_RADIUS_COMPENSATION;
+    const cameraForwardOffset =
+      (isPortrait ? 0.08 : 0.2) * CAMERA_FRAME_MATCH_SCALE;
+    const cameraHeightOffset =
+      (isPortrait ? 1.86 : 1.44) * CAMERA_FRAME_MATCH_SCALE;
     const cameraRadius =
       CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset;
     perspective.position.set(
@@ -1056,9 +1063,13 @@ export default function FourInRowRoyal() {
     boardGroup.add(leftRail, rightRail);
 
     const legHeight = boardHeight * 0.66;
-    const legY = boardBaseY - legHeight / 2 - 0.02;
+    const legY = boardBaseY - legHeight / 2 - 0.02 * BOARD_AND_CHIPS_SCALE;
     const legLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, legHeight, 0.2),
+      new THREE.BoxGeometry(
+        0.16 * BOARD_AND_CHIPS_SCALE,
+        legHeight,
+        0.2 * BOARD_AND_CHIPS_SCALE
+      ),
       trimMat
     );
     legLeft.position.set(-sideOffset, legY, BOARD_FRAME_CENTER_Z);
@@ -1066,12 +1077,20 @@ export default function FourInRowRoyal() {
     legRight.position.x = sideOffset;
     boardGroup.add(legLeft, legRight);
 
-    const footY = TABLE_HEIGHT + 0.02;
-    const footGeo = new THREE.BoxGeometry(0.54, 0.16, 0.28);
+    const footY = TABLE_HEIGHT + 0.02 * BOARD_AND_CHIPS_SCALE;
+    const footGeo = new THREE.BoxGeometry(
+      0.54 * BOARD_AND_CHIPS_SCALE,
+      0.16 * BOARD_AND_CHIPS_SCALE,
+      0.28 * BOARD_AND_CHIPS_SCALE
+    );
     const leftFoot = new THREE.Mesh(footGeo, railMat);
-    leftFoot.position.set(-sideOffset - 0.04, footY, BOARD_FRAME_CENTER_Z);
+    leftFoot.position.set(
+      -sideOffset - 0.04 * BOARD_AND_CHIPS_SCALE,
+      footY,
+      BOARD_FRAME_CENTER_Z
+    );
     const rightFoot = leftFoot.clone();
-    rightFoot.position.x = sideOffset + 0.04;
+    rightFoot.position.x = sideOffset + 0.04 * BOARD_AND_CHIPS_SCALE;
     boardGroup.add(leftFoot, rightFoot);
 
     // Keep the board and frame facing the player at the default start camera.
@@ -1079,7 +1098,7 @@ export default function FourInRowRoyal() {
 
     const holeRimGeo = new THREE.TorusGeometry(
       slotRadius * 0.97,
-      0.018,
+      0.018 * BOARD_AND_CHIPS_SCALE,
       16,
       42
     );
@@ -1090,13 +1109,15 @@ export default function FourInRowRoyal() {
         frontRim.position.set(
           x,
           y,
-          BOARD_SLOT_GAP / 2 + boardThickness / 2 + 0.0012
+          BOARD_SLOT_GAP / 2 +
+            boardThickness / 2 +
+            0.0012 * BOARD_AND_CHIPS_SCALE
         );
         const backRim = frontRim.clone();
         backRim.position.z = -(
           BOARD_SLOT_GAP / 2 +
           boardThickness / 2 +
-          0.0012
+          0.0012 * BOARD_AND_CHIPS_SCALE
         );
         boardGroup.add(frontRim, backRim);
       }
@@ -1122,7 +1143,7 @@ export default function FourInRowRoyal() {
         roughness: 0.24,
         metalness: 0.05
       });
-      const chipDepth = 0.024;
+      const chipDepth = 0.024 * BOARD_AND_CHIPS_SCALE;
       for (let i = 0; i < count; i += 1) {
         const chip = new THREE.Mesh(
           new THREE.CylinderGeometry(
@@ -1159,8 +1180,8 @@ export default function FourInRowRoyal() {
     };
 
     boardGroup.add(
-      createChipStack(CONNECT4_RED, 'front', -0.2, 7),
-      createChipStack(CONNECT4_BLUE, 'back', 0.2, 7)
+      createChipStack(CONNECT4_RED, 'front', -0.2 * BOARD_AND_CHIPS_SCALE, 7),
+      createChipStack(CONNECT4_BLUE, 'back', 0.2 * BOARD_AND_CHIPS_SCALE, 7)
     );
 
     const hitPlane = new THREE.Mesh(
