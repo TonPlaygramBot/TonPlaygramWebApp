@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 9.2; // slower cinematic pass so the full fly path is clearly visible
+const CAPTURE_JET_TOTAL = 11.4; // slower cinematic pass so the full fly path is clearly visible
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 10.8 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 10.8; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 12.6 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
+const CAPTURE_HELICOPTER_TOTAL = 12.6; // slower helicopter pass so the board loop remains visible
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -111,17 +111,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.11328; // extra 20% smaller for tighter portrait framing
-const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.090624; // extra 20% smaller than prior tuning for tighter portrait framing
+const CAPTURE_HELICOPTER_SCALE = 0.081408; // extra 20% smaller than prior tuning for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.04; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.05; // keep aircraft lower and tighter to the board plane for portrait framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.075; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.09; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.205; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.6; // keep lanes closer to board center while preserving a fly-by arc
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1; // pull lanes inward from hard board edges
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.08; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.245; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.52; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.25; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.03; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -3555,6 +3555,43 @@ function applyLocalBeautifulGameMaterials(assets) {
 }
 
 const BEAUTIFUL_GAME_GOLD_SIGNATURES = new Set();
+const BEAUTIFUL_GAME_GOLD_PROFILE = new Map();
+
+function locatePieceContext(node) {
+  let current = node;
+  let pieceType = '';
+  let pieceRoot = null;
+  while (current) {
+    const currentType = current.userData?.__pieceType;
+    if (currentType && !pieceType) pieceType = currentType;
+    if (currentType) pieceRoot = current;
+    current = current.parent;
+  }
+  return { pieceRoot, pieceType };
+}
+
+function getPieceRelativeMetrics(node, cache) {
+  if (!node) return null;
+  const { pieceRoot, pieceType } = locatePieceContext(node);
+  if (!pieceRoot || !pieceType) return null;
+  let pieceBox = cache.get(pieceRoot.uuid);
+  if (!pieceBox) {
+    pieceBox = new THREE.Box3().setFromObject(pieceRoot);
+    cache.set(pieceRoot.uuid, pieceBox);
+  }
+  const meshBox = new THREE.Box3().setFromObject(node);
+  const pieceSize = pieceBox.getSize(new THREE.Vector3());
+  const meshCenter = meshBox.getCenter(new THREE.Vector3());
+  const height = Math.max(pieceSize.y, 1e-6);
+  const width = Math.max(pieceSize.x, 1e-6);
+  const depth = Math.max(pieceSize.z, 1e-6);
+  return {
+    pieceType,
+    centerYRatio: clamp01((meshCenter.y - pieceBox.min.y) / height),
+    widthRatio: meshBox.getSize(new THREE.Vector3()).x / width,
+    depthRatio: meshBox.getSize(new THREE.Vector3()).z / depth
+  };
+}
 
 function meshSignature(node, pieceType = '') {
   const names = [];
@@ -3582,6 +3619,7 @@ function isGoldCandidateMaterial(material) {
 }
 
 function captureBeautifulGameGoldSignatures(piecePrototypes) {
+  const pieceBoundsCache = new Map();
   ['white', 'black'].forEach((side) => {
     Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
       piece?.traverse?.((child) => {
@@ -3589,19 +3627,41 @@ function captureBeautifulGameGoldSignatures(piecePrototypes) {
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         if (!materials.some((mat) => isGoldCandidateMaterial(mat))) return;
         BEAUTIFUL_GAME_GOLD_SIGNATURES.add(meshSignature(child, pieceType));
+        const metrics = getPieceRelativeMetrics(child, pieceBoundsCache);
+        if (!metrics) return;
+        const current = BEAUTIFUL_GAME_GOLD_PROFILE.get(pieceType) || {
+          minYRatio: 1,
+          maxYRatio: 0,
+          maxWidthRatio: 0,
+          maxDepthRatio: 0
+        };
+        current.minYRatio = Math.min(current.minYRatio, metrics.centerYRatio);
+        current.maxYRatio = Math.max(current.maxYRatio, metrics.centerYRatio);
+        current.maxWidthRatio = Math.max(current.maxWidthRatio, metrics.widthRatio);
+        current.maxDepthRatio = Math.max(current.maxDepthRatio, metrics.depthRatio);
+        BEAUTIFUL_GAME_GOLD_PROFILE.set(pieceType, current);
       });
     });
   });
 }
 
 function markBeautifulGameGoldMeshes(piecePrototypes) {
+  const pieceBoundsCache = new Map();
   ['white', 'black'].forEach((side) => {
     Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
       piece?.traverse?.((child) => {
         if (!child?.isMesh) return;
         const nameHint = /(gold|crown|ring|band|trim)/i.test(child.name || '');
         const matchesReference = BEAUTIFUL_GAME_GOLD_SIGNATURES.has(meshSignature(child, pieceType));
-        if (!nameHint && !matchesReference) return;
+        const metrics = getPieceRelativeMetrics(child, pieceBoundsCache);
+        const profile = BEAUTIFUL_GAME_GOLD_PROFILE.get(pieceType);
+        const matchesReferenceProfile =
+          Boolean(profile && metrics) &&
+          metrics.centerYRatio >= Math.max(0, profile.minYRatio - 0.12) &&
+          metrics.centerYRatio <= Math.min(1, profile.maxYRatio + 0.12) &&
+          metrics.widthRatio <= profile.maxWidthRatio + 0.12 &&
+          metrics.depthRatio <= profile.maxDepthRatio + 0.12;
+        if (!nameHint && !matchesReference && !matchesReferenceProfile) return;
         child.userData = { ...(child.userData || {}), __abgGold: true };
       });
     });
@@ -3610,6 +3670,7 @@ function markBeautifulGameGoldMeshes(piecePrototypes) {
 
 function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
+  if (BEAUTIFUL_GAME_GOLD_SIGNATURES.size) markBeautifulGameGoldMeshes(piecePrototypes);
   if (pieceStyle?.preserveOriginalMaterials) {
     ['white', 'black'].forEach((colorKey) => {
       Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => {
