@@ -1428,10 +1428,10 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.14;
+const CAMERA_SIDE_LOOK_EXTRA = 0.075;
 const CAMERA_TURN_PLAYER_LERP = 0.52;
 const CAMERA_BROADCAST_TARGET_BLEND = 0;
-const CAMERA_SIDE_AVATAR_BLEND = 1.1;
+const CAMERA_SIDE_AVATAR_BLEND = 0.84;
 const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
@@ -1732,7 +1732,7 @@ function measureProceduralTokenHeight() {
   return proceduralTokenHeight;
 }
 
-const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.05, z: 0.05 });
+const STANDARD_TOKEN_FOOTPRINT = Object.freeze({ x: 0.054, z: 0.054 });
 
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
@@ -1796,11 +1796,11 @@ function resolveAbgPrototype(proto, colorKey, type) {
 function applyTokenFacingRotation(token) {
   if (!token?.rotation) return;
   const typeKey = String(token.userData?.tokenType || '').toLowerCase();
-  if (typeKey === 'king' || typeKey === 'k') {
+  if (typeKey === 'king') {
     token.rotation.set(0, Math.PI, 0);
     return;
   }
-  if (typeKey === 'knight' || typeKey === 'horse' || typeKey === 'n') {
+  if (typeKey === 'knight' || typeKey === 'horse') {
     token.rotation.set(0, Math.PI / 4, 0);
     return;
   }
@@ -7712,7 +7712,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
-    if (options.length && !hasBoardTokenBeforeRoll) {
+    if (options.length) {
       setCameraFocus({
         target: landingFocus,
         follow: false,
@@ -7732,10 +7732,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         advanceTurn(value === 6);
       }, 900);
       return;
-    }
-    if (hasBoardTokenBeforeRoll) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      setCameraFocus({ target: resolveTurnLookTarget(player), priority: 1, force: true });
     }
     if (player === 0) {
       setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
