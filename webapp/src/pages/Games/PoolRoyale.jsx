@@ -22738,7 +22738,11 @@ const powerRef = useRef(hud.power);
             cueStick.rotation.y =
               (baseRotationY ?? cueStick.rotation.y) +
               Math.sin(pushT * Math.PI) * 0.0012 * strikeWobbleScale;
-            if (!stroke.shotApplied && pushT >= 0.9) {
+            // Guarantee impact commit even if a long frame skips over the
+            // push window and lands directly in hold/recover.
+            const reachedImpactThreshold =
+              pushT >= 0.9 || elapsed >= safeStrikeDuration;
+            if (!stroke.shotApplied && reachedImpactThreshold) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
