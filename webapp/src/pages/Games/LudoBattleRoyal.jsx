@@ -6082,16 +6082,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         if (!seg) {
           const done = anim.onComplete;
-          if (anim.token) {
-            setCameraFocus({
-              target: anim.token.position.clone(),
-              follow: false,
-              ttl: 1.4,
-              priority: 2,
-              offset: CAMERA_TARGET_LIFT + 0.02,
-              force: true
-            });
-          }
           clearAnimationHighlights(anim);
           state.animation = null;
           if (typeof done === 'function') done();
@@ -6120,16 +6110,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             anim.elapsed = 0;
             if (anim.segment >= anim.segments.length) {
               const done = anim.onComplete;
-              if (anim.token) {
-                setCameraFocus({
-                  target: anim.token.position.clone(),
-                  follow: false,
-                  ttl: 1.5,
-                  priority: 2,
-                  offset: CAMERA_TARGET_LIFT + 0.02,
-                  force: true
-                });
-              }
               clearAnimationHighlights(anim);
               state.animation = null;
               if (typeof done === 'function') {
@@ -7489,6 +7469,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const advanceTurn = (extraTurn) => {
     clearTurnAdvanceTimeout();
     clearHumanSelection();
+    cancelCameraFocusAnimation();
     let nextTurn = 0;
     let updated = false;
     setUi((s) => {
@@ -7732,6 +7713,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         offset: CAMERA_TARGET_LIFT + 0.03,
         force: true
       });
+    } else {
+      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
