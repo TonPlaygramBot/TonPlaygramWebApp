@@ -92,7 +92,6 @@ const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.72;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
 const CAPTURE_PARK_FORWARD_OFFSET = 1.18;
 const CAPTURE_PARK_SIDE_OFFSET = 0.58;
-const CAPTURE_PARK_SURFACE_LIFT = 0.14;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 
@@ -111,7 +110,7 @@ function getCaptureVehicleTexture(kind = 'generic') {
     drone: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
     fighter: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
     helicopter: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
-    missile: ['#556b2f', '#7a8f45', '#3b4c22', '#95a86a'],
+    missile: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
     truck: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
@@ -643,35 +642,13 @@ function applyMilitaryTruckLook(root) {
         if ('opacity' in mat) mat.opacity = 0.95;
         return;
       }
-      if (/wheel|tire|tyre|rim/.test(name)) {
+      if (/wheel|tire/.test(name)) {
         mat.color.setHex(0x111111);
         if ('metalness' in mat) mat.metalness = 0.25;
         if ('roughness' in mat) mat.roughness = 0.78;
       }
     });
   });
-}
-
-function createEngineFireSmokeTrail(root, anchors = [[-1.95, 0, 0]]) {
-  const trail = [];
-  anchors.forEach((anchor) => {
-    for (let i = 0; i < 6; i += 1) {
-      const isFire = i < 2;
-      trail.push(
-        addFxSphere(
-          root,
-          0.09 + i * 0.028,
-          [anchor[0] - i * 0.2, anchor[1], anchor[2]],
-          isFire ? '#f7a94b' : '#7f888f',
-          isFire ? 0.22 : 1,
-          0,
-          true,
-          isFire ? 0.85 - i * 0.18 : 0.26 - (i - 2) * 0.04
-        )
-      );
-    }
-  });
-  return trail;
 }
 
 function easeSmooth(t) {
@@ -778,11 +755,11 @@ function createCaptureMissileFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
   const body = addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
-  body.material = createCaptureVehicleMaterial('missile', { color: '#556b2f', roughness: 0.3, metalness: 0.82 });
+  body.material = createCaptureVehicleMaterial('missile', { color: '#b6d3bc', roughness: 0.38, metalness: 0.62 });
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.1, 0.28, 16),
-    createCaptureVehicleMaterial('missile', { color: '#7a8f45', roughness: 0.2, metalness: 0.86 })
+    new THREE.MeshStandardMaterial({ color: '#edf1f6', roughness: 0.22, metalness: 0.9 })
   );
   nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -790,10 +767,10 @@ function createCaptureMissileFx() {
   nose.receiveShadow = true;
   root.add(nose);
 
-  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
-  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
-  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
-  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
+  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
+  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
+  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
+  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
 
   const trail = [];
   for (let i = 0; i < 5; i += 1) {
@@ -845,23 +822,23 @@ async function createCaptureMissileTruckFx() {
   }
 
   const launcher = new THREE.Group();
-  launcher.position.set(-0.26, 0.66, 0);
-  addFxBox(launcher, [1.38, 0.06, 0.92], [0, 0, 0], '#1f2125', 0.62, 0.24);
-  addFxBox(launcher, [1.08, 0.16, 0.72], [0.04, 0.11, 0], '#171b20', 0.58, 0.28);
-  const support = addFxBox(launcher, [0.15, 0.22, 0.2], [-0.5, -0.12, 0], '#0f1114', 0.5, 0.36);
-  support.rotation.z = 0.06;
+  launcher.position.set(-0.26, 0.56, 0);
+  launcher.rotation.z = -0.34;
+  addFxBox(launcher, [1.6, 0.05, 0.96], [0, 0, 0], '#1f2125', 0.62, 0.24);
+  const support = addFxBox(launcher, [0.12, 0.36, 0.18], [-0.46, -0.19, 0], '#0f1114', 0.5, 0.36);
+  support.rotation.z = 0.22;
 
   const missileOffsets = [
-    [-0.36, 0.16, -0.24],
-    [0.02, 0.16, 0],
-    [0.4, 0.16, 0.24]
+    [-0.3, 0.08, -0.28],
+    [0.05, 0.08, 0],
+    [0.4, 0.08, 0.28]
   ];
   missileOffsets.forEach((offset) => {
     const missile = createCaptureMissileFx();
     missile.root.visible = true;
-    missile.root.scale.setScalar(0.56);
+    missile.root.scale.setScalar(0.38);
     missile.root.position.set(offset[0], offset[1], offset[2]);
-    missile.root.rotation.z = Math.PI / 2;
+    missile.root.rotation.z = 0;
     launcher.add(missile.root);
   });
 
@@ -1010,13 +987,24 @@ async function createCaptureJetFx() {
   if (loadedJet) {
     const model = loadedJet.clone(true);
     fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.86);
-    model.rotation.set(0, Math.PI, 0);
+    model.rotation.set(Math.PI, Math.PI, 0);
     applyMilitaryJetLook(model);
     root.add(model);
-    const trail = createEngineFireSmokeTrail(root, [
-      [-1.95, -0.03, -0.22],
-      [-1.95, -0.03, 0.22]
-    ]);
+    const trail = [];
+    for (let i = 0; i < 6; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.11 + i * 0.03,
+          [-1.95 - i * 0.2, 0, 0],
+          i < 2 ? '#f7a94b' : '#8b949b',
+          i < 2 ? 0.22 : 1,
+          0,
+          true,
+          i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+        )
+      );
+    }
     root.visible = false;
     return { root, trail };
   }
@@ -1072,10 +1060,21 @@ async function createCaptureJetFx() {
   const rightStore = leftStore.clone();
   rightStore.position.z = 1.15;
   root.add(rightStore);
-  const trail = createEngineFireSmokeTrail(root, [
-    [-1.95, -0.08, -0.22],
-    [-1.95, -0.08, 0.22]
-  ]);
+  const trail = [];
+  for (let i = 0; i < 6; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.11 + i * 0.03,
+        [-1.95 - i * 0.2, 0, 0],
+        i < 2 ? '#f7a94b' : '#8b949b',
+        i < 2 ? 0.22 : 1,
+        0,
+        true,
+        i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
+      )
+    );
+  }
   applyMilitaryJetLook(root);
   root.visible = false;
   return { root, trail };
@@ -4430,7 +4429,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       .clone()
       .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET)
       .addScaledVector(side, CAPTURE_PARK_SIDE_OFFSET * sideSign);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + CAPTURE_PARK_SURFACE_LIFT;
+    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.08;
     return park;
   }, []);
 
