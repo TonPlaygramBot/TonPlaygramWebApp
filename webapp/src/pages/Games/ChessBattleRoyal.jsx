@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 7.4; // slower cinematic pass so the full fly path is clearly visible
+const CAPTURE_JET_TOTAL = 8.8; // extra-slow cinematic pass for easier portrait tracking
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 8.6 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 8.6; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 10.2 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
+const CAPTURE_HELICOPTER_TOTAL = 10.2; // extra-slow helicopter pass so the board loop remains visible
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -111,15 +111,15 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.1416; // 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.1133; // 20% smaller than the current tuned jet size
 const CAPTURE_HELICOPTER_SCALE = 0.1272; // 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.012; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.04; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
 const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.018; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.165; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.72; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.22; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.62; // pull lanes closer to the board center
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.66; // pull lanes inward from hard board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.2; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
@@ -1193,10 +1193,12 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissiveIntensity: 0.18
   },
   accent: '#ffffff',
-  goldAccent: '#ffffff',
+  goldAccent: '#d7b24a',
   whiteAccent: { color: '#ffffff' },
   blackAccent: '#ffffff'
 });
+
+const AUTHENTIC_MARBLE_GOLD_ACCENT = '#d7b24a';
 
 const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameAuroraMetalSet';
@@ -1410,7 +1412,8 @@ const MARBLE_ONYX_STYLE = Object.freeze({
   label: 'Marble & Onyx Tournament',
   white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
   black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
-  accent: '#b1c4cf'
+  accent: '#b1c4cf',
+  goldAccent: AUTHENTIC_MARBLE_GOLD_ACCENT
 });
 
 const KENNEY_WOOD_STYLE = Object.freeze({
@@ -3573,8 +3576,30 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
-  const goldAccent = pieceStyle.goldAccent || '#d7b24a';
+  const goldAccent = pieceStyle.goldAccent || AUTHENTIC_MARBLE_GOLD_ACCENT;
   const shouldStripTextures = !pieceStyle.keepTextures;
+  const isGoldAccentMesh = (child) => {
+    const name = child?.name?.toLowerCase?.() ?? '';
+    if (
+      name.includes('collar') ||
+      name.includes('crown') ||
+      name.includes('ring') ||
+      name.includes('cross') ||
+      name.includes('band') ||
+      name.includes('rim') ||
+      name.includes('top') ||
+      name.includes('finial') ||
+      name.includes('crest') ||
+      name.includes('ornament')
+    ) {
+      return true;
+    }
+    const mats = Array.isArray(child?.material) ? child.material : [child?.material];
+    return mats.some((mat) => {
+      const matName = mat?.name?.toLowerCase?.() ?? '';
+      return matName.includes('gold') || matName.includes('pawn_top') || matName.includes('top_white');
+    });
+  };
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -3619,25 +3644,14 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 
   const accentize = (piece, colorKey) => {
     if (!piece) return;
-    const shouldStripTextures = !pieceStyle.keepTextures;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
-      const name = child.name?.toLowerCase?.() ?? '';
-      const shouldAccent =
-        name.includes('collar') ||
-        name.includes('crown') ||
-        name.includes('ring') ||
-        name.includes('cross') ||
-        name.includes('band') ||
-        name.includes('rim');
+      const shouldAccent = isGoldAccentMesh(child);
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
         mats.forEach((mat, idx) => {
           if (!mat) return;
           const applied = mat.clone ? mat.clone() : mat;
-          if (shouldStripTextures) {
-            stripMaterialTextures(applied);
-          }
           const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
           applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
@@ -3680,8 +3694,30 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
-  const goldAccent = pieceStyle.goldAccent || '#d7b24a';
+  const goldAccent = pieceStyle.goldAccent || AUTHENTIC_MARBLE_GOLD_ACCENT;
   const shouldStripTextures = !pieceStyle.keepTextures;
+  const isGoldAccentMesh = (child) => {
+    const name = child?.name?.toLowerCase?.() ?? '';
+    if (
+      name.includes('collar') ||
+      name.includes('crown') ||
+      name.includes('ring') ||
+      name.includes('cross') ||
+      name.includes('band') ||
+      name.includes('rim') ||
+      name.includes('top') ||
+      name.includes('finial') ||
+      name.includes('crest') ||
+      name.includes('ornament')
+    ) {
+      return true;
+    }
+    const mats = Array.isArray(child?.material) ? child.material : [child?.material];
+    return mats.some((mat) => {
+      const matName = mat?.name?.toLowerCase?.() ?? '';
+      return matName.includes('gold') || matName.includes('pawn_top') || matName.includes('top_white');
+    });
+  };
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -3726,21 +3762,11 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
-      const name = child.name?.toLowerCase?.() ?? '';
-      const shouldAccent =
-        name.includes('collar') ||
-        name.includes('crown') ||
-        name.includes('ring') ||
-        name.includes('cross') ||
-        name.includes('band') ||
-        name.includes('rim');
+      const shouldAccent = isGoldAccentMesh(child);
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (shouldStripTextures) {
-          stripMaterialTextures(mat);
-        }
         if (mat.color?.set) {
           mat.color.set(accentColor || darkAccent || accentLight);
         } else {
