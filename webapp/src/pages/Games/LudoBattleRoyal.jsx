@@ -1451,12 +1451,13 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 0.74,
   forwardOffset: 0,
-  heightOffset: 2.22,
+  heightOffset: 2.3,
   targetLift: 0.055 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0;
 const CAMERA_EXTRA_LIFT = 0.044;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.04;
+const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
@@ -7093,9 +7094,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       const initialBottomView = initialBottomCameraViewRef.current;
       if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
+        const boardLookTarget = boardLookTargetRef.current;
+        const alignedPosition = initialBottomView.position.clone();
+        const alignedTarget = initialBottomView.target.clone();
+        if (boardLookTarget?.isVector3) {
+          alignedPosition.x = boardLookTarget.x;
+          alignedTarget.x = boardLookTarget.x;
+          if (Math.abs(alignedTarget.z - boardLookTarget.z) > CAMERA_PLAYER_CENTER_X_EPSILON) {
+            alignedTarget.z = boardLookTarget.z;
+          }
+        }
         cameraTurnStateRef.current.baseTurnView = {
-          position: initialBottomView.position.clone(),
-          target: initialBottomView.target.clone()
+          position: alignedPosition,
+          target: alignedTarget
         };
         animateCameraPose(
           cameraTurnStateRef.current.baseTurnView.target,
@@ -7208,7 +7219,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const state = stateRef.current;
     if (!state) return;
     const { skipCameraFollow = false } = options;
-    const shouldFollowCamera = !skipCameraFollow && player !== 0;
+    const shouldFollowCamera = !skipCameraFollow;
     const fromProgress = state.progress[player][tokenIndex];
     const path = [];
     if (fromProgress < 0) {
