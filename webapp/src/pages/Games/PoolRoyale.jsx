@@ -32471,7 +32471,11 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: (sliderValue) => {
-        fireRef.current?.((sliderValue ?? 0) / 100);
+        const releasePower = clampPower(
+          Number.isFinite(sliderValue) ? sliderValue / 100 : powerRef.current,
+          powerRef.current
+        );
+        fireRef.current?.(releasePower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
