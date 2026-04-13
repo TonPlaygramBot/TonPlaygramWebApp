@@ -111,13 +111,13 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.0724992; // 20% smaller than the previous jet scale so portrait fly-bys stay tighter
-const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.05799936; // 20% smaller again to match the requested tighter portrait scale
+const CAPTURE_HELICOPTER_SCALE = 0.081408; // 20% smaller again to match the requested tighter portrait scale
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.1; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.14; // keep aircraft lower and tighter to the board plane for portrait framing
-const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 3; // jet/helicopter should fly 3x higher than drone altitude
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.06;
+const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.42; // tighter radius so jet/helicopter path stays centered above the board
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.6; // pull entry/turn points farther in from board edges
@@ -1193,9 +1193,9 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissiveIntensity: 0.18
   },
   accent: '#ffffff',
-  goldAccent: '#ffffff',
-  whiteAccent: { color: '#ffffff' },
-  blackAccent: '#ffffff'
+  goldAccent: '#d7b24a',
+  whiteAccent: { color: '#d7b24a', metalness: 0.76, roughness: 0.24 },
+  blackAccent: { color: '#d7b24a', metalness: 0.78, roughness: 0.22 }
 });
 
 const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
@@ -1251,7 +1251,9 @@ const STAUNTON_CLASSIC_STYLE = Object.freeze({
     emissiveIntensity: 0.18
   },
   accent: '#d8b07a',
-  blackAccent: '#b98950'
+  goldAccent: '#d7b24a',
+  whiteAccent: { color: '#d7b24a', metalness: 0.74, roughness: 0.24 },
+  blackAccent: { color: '#d7b24a', metalness: 0.76, roughness: 0.22 }
 });
 
 const STAUNTON_ASSET_SCALE = 1.02;
@@ -1402,7 +1404,8 @@ const HERITAGE_WALNUT_STYLE = Object.freeze({
   label: 'Heritage Walnut Staunton',
   white: { color: '#f2e8d8', roughness: 0.32, metalness: 0.08, sheen: 0.18 },
   black: { color: '#2b1b10', roughness: 0.42, metalness: 0.06, sheen: 0.16 },
-  accent: '#c49b6b'
+  accent: '#c49b6b',
+  goldAccent: '#d7b24a'
 });
 
 const MARBLE_ONYX_STYLE = Object.freeze({
@@ -1410,7 +1413,8 @@ const MARBLE_ONYX_STYLE = Object.freeze({
   label: 'Marble & Onyx Tournament',
   white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
   black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
-  accent: '#b1c4cf'
+  accent: '#b1c4cf',
+  goldAccent: '#d7b24a'
 });
 
 const KENNEY_WOOD_STYLE = Object.freeze({
@@ -1419,7 +1423,8 @@ const KENNEY_WOOD_STYLE = Object.freeze({
   white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
   black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
   accent: '#d7b07a',
-  blackAccent: '#b98a52'
+  goldAccent: '#d7b24a',
+  blackAccent: '#d7b24a'
 });
 
 const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
@@ -1428,7 +1433,8 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   white: { color: '#e7e8ef', roughness: 0.34, metalness: 0.24, sheen: 0.12 },
   black: { color: '#1c2430', roughness: 0.3, metalness: 0.32, sheen: 0.16 },
   accent: '#7ce3ff',
-  blackAccent: '#50b8d8'
+  goldAccent: '#d7b24a',
+  blackAccent: '#d7b24a'
 });
 
 const BEAUTIFUL_GAME_PIECE_PRESETS = [
@@ -9228,62 +9234,46 @@ function Chess3D({
             : 1;
         const portraitTightening = viewportAspect < 1 ? THREE.MathUtils.lerp(0.84, 1, viewportAspect) : 1;
         const attackFromTopSide = attackerPos.z >= 0;
-        const attackerSideSign = attackFromTopSide ? 1 : -1;
         const boardPathHalf = half * CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR * portraitTightening;
         const edgeInset = tile * CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES;
         const laneBound = Math.max(tile * 1.42, boardPathHalf - edgeInset);
         const bottomPlayerBias = tile * CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES;
-        const towardBottom = (z) =>
-          THREE.MathUtils.clamp(z - bottomPlayerBias, -boardPathHalf, boardPathHalf);
-        const attackerLaneZ = attackerSideSign * laneBound;
-        const enemyLaneZ = -attackerSideSign * laneBound;
-        const xClamp = laneBound;
-        const laneMidX = THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5);
-        const laneX = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(laneMidX, 0, 0.72),
-          -xClamp * 0.72,
-          xClamp * 0.72
+        const centerX = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp((attackerPos.x + victimPos.x) * 0.5, 0, 0.68),
+          -laneBound * 0.52,
+          laneBound * 0.52
         );
-        const turnBendDirection = victimPos.x >= laneX ? 1 : -1;
-        const turnBendX = THREE.MathUtils.clamp(
-          laneX + turnBendDirection * tile * 0.58,
-          -xClamp * 0.96,
-          xClamp * 0.96
+        const centerZ = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp((attackerPos.z + victimPos.z) * 0.5 - bottomPlayerBias, 0, 0.52),
+          -laneBound * 0.28,
+          laneBound * 0.28
         );
-        const startPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
-        const entryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.5),
-          baseAltitude - turnAltitudeDrop * 0.26,
-          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.4))
-        );
-        const turnEntryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 1.03),
-          baseAltitude - turnAltitudeDrop * 0.46,
-          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.94))
-        );
-        const turnExitPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.16),
-          baseAltitude - turnAltitudeDrop * 0.72,
-          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.97))
-        );
-        const turnControlPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(turnBendX, victimPos.x, -0.08),
-          baseAltitude - turnAltitudeDrop * 0.62,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, -0.06))
-        );
-        const uTurnApexPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(turnBendX, victimPos.x, -0.14),
-          baseAltitude - turnAltitudeDrop * 0.7,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, victimPos.z, -0.14))
-        );
-        const returnEntryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, -0.05),
-          baseAltitude - turnAltitudeDrop * 0.28,
-          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.68))
-        );
-        const exitPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
+        const radiusX = Math.max(tile * 1.55, laneBound * 0.96);
+        const radiusZ = Math.max(tile * 1.18, laneBound * 0.72);
+        const startAngle = attackFromTopSide ? Math.PI / 2 : -Math.PI / 2;
+        const endAngle = startAngle + Math.PI * 2;
+        const sampleOvalPoint = (angle) =>
+          new THREE.Vector3(
+            centerX + Math.cos(angle) * radiusX,
+            baseAltitude - turnAltitudeDrop * (0.45 + Math.cos(angle * 2) * 0.08),
+            centerZ + Math.sin(angle) * radiusZ
+          );
+        const startPos = sampleOvalPoint(startAngle);
+        const entryPos = sampleOvalPoint(startAngle + Math.PI * 0.16);
+        const turnEntryPos = sampleOvalPoint(startAngle + Math.PI * 0.32);
+        const turnControlPos = sampleOvalPoint(startAngle + Math.PI * 0.5);
+        const uTurnApexPos = sampleOvalPoint(startAngle + Math.PI * 0.68);
+        const turnExitPos = sampleOvalPoint(startAngle + Math.PI * 0.84);
+        const returnEntryPos = sampleOvalPoint(startAngle + Math.PI * 1.16);
+        const exitPos = sampleOvalPoint(endAngle);
         return {
           attackFromTopSide,
+          centerX,
+          centerZ,
+          radiusX,
+          radiusZ,
+          startAngle,
+          endAngle,
           startPos,
           entryPos,
           turnEntryPos,
@@ -9368,6 +9358,12 @@ function Chess3D({
           duration: CAPTURE_JET_TOTAL,
           from: path.startPos.clone(),
           to: targetPos.clone(),
+          ovalCenterX: path.centerX,
+          ovalCenterZ: path.centerZ,
+          ovalRadiusX: path.radiusX,
+          ovalRadiusZ: path.radiusZ,
+          ovalStartAngle: path.startAngle,
+          ovalEndAngle: path.endAngle,
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
@@ -9413,6 +9409,12 @@ function Chess3D({
           duration: CAPTURE_HELICOPTER_TOTAL,
           from: path.startPos.clone(),
           to: targetPos.clone(),
+          ovalCenterX: path.centerX,
+          ovalCenterZ: path.centerZ,
+          ovalRadiusX: path.radiusX,
+          ovalRadiusZ: path.radiusZ,
+          ovalStartAngle: path.startAngle,
+          ovalEndAngle: path.endAngle,
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
@@ -9454,6 +9456,12 @@ function Chess3D({
           duration: CAPTURE_JET_TOTAL,
           from: path.startPos.clone(),
           to: targetPos.clone(),
+          ovalCenterX: path.centerX,
+          ovalCenterZ: path.centerZ,
+          ovalRadiusX: path.radiusX,
+          ovalRadiusZ: path.radiusZ,
+          ovalStartAngle: path.startAngle,
+          ovalEndAngle: path.endAngle,
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
           turnControlPos: path.turnControlPos,
@@ -11052,30 +11060,33 @@ function Chess3D({
             }
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
-            const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
-            const flyPathNodes = [
-              fx.from,
-              fx.orbitEntryPos,
-              fx.turnEntryPos,
-              fx.turnControlPos,
-              fx.uTurnApexPos,
-              fx.orbitExitPos,
-              fx.returnEntryPos,
-              fx.exitPos
-            ].filter(Boolean);
+            const jetU = jetTimelineU;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
             const sampleFlyPath = (pathU) => {
               const safeU = clamp01(pathU);
-              if (flyPathNodes.length < 2) {
+              if (
+                !Number.isFinite(fx.ovalCenterX) ||
+                !Number.isFinite(fx.ovalCenterZ) ||
+                !Number.isFinite(fx.ovalRadiusX) ||
+                !Number.isFinite(fx.ovalRadiusZ)
+              ) {
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              if (!fx.jetPathCurve || fx.jetPathCurveNodeCount !== flyPathNodes.length) {
-                fx.jetPathCurve = new THREE.CatmullRomCurve3(flyPathNodes.map((n) => n.clone()), false, 'catmullrom', 0.28);
-                fx.jetPathCurveNodeCount = flyPathNodes.length;
-              }
-              const pos = fx.jetPathCurve.getPointAt(safeU);
-              const next = fx.jetPathCurve.getPointAt(Math.min(1, safeU + 0.02));
+              const startAngle = Number.isFinite(fx.ovalStartAngle) ? fx.ovalStartAngle : 0;
+              const endAngle = Number.isFinite(fx.ovalEndAngle) ? fx.ovalEndAngle : startAngle + Math.PI * 2;
+              const angle = THREE.MathUtils.lerp(startAngle, endAngle, safeU);
+              const nextAngle = THREE.MathUtils.lerp(startAngle, endAngle, Math.min(1, safeU + 0.02));
+              const pos = new THREE.Vector3(
+                fx.ovalCenterX + Math.cos(angle) * fx.ovalRadiusX,
+                CAPTURE_JET_ALTITUDE + Math.cos(angle * 2) * 0.025,
+                fx.ovalCenterZ + Math.sin(angle) * fx.ovalRadiusZ
+              );
+              const next = new THREE.Vector3(
+                fx.ovalCenterX + Math.cos(nextAngle) * fx.ovalRadiusX,
+                CAPTURE_JET_ALTITUDE + Math.cos(nextAngle * 2) * 0.025,
+                fx.ovalCenterZ + Math.sin(nextAngle) * fx.ovalRadiusZ
+              );
               return { pos, next };
             };
             const { pos: jetPos, next: jetNext } = sampleFlyPath(jetU);
@@ -11167,30 +11178,34 @@ function Chess3D({
             }
           } else if (fx.type === 'helicopter') {
             const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
-            const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
-            const flyPathNodes = [
-              fx.from,
-              fx.orbitEntryPos,
-              fx.turnEntryPos,
-              fx.turnControlPos,
-              fx.uTurnApexPos,
-              fx.orbitExitPos,
-              fx.returnEntryPos,
-              fx.exitPos
-            ].filter(Boolean);
+            const heliU = heliTimelineU;
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
             const sampleFlyPath = (pathU) => {
               const safeU = clamp01(pathU);
-              if (flyPathNodes.length < 2) {
+              if (
+                !Number.isFinite(fx.ovalCenterX) ||
+                !Number.isFinite(fx.ovalCenterZ) ||
+                !Number.isFinite(fx.ovalRadiusX) ||
+                !Number.isFinite(fx.ovalRadiusZ)
+              ) {
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              if (!fx.heliPathCurve || fx.heliPathCurveNodeCount !== flyPathNodes.length) {
-                fx.heliPathCurve = new THREE.CatmullRomCurve3(flyPathNodes.map((n) => n.clone()), false, 'catmullrom', 0.28);
-                fx.heliPathCurveNodeCount = flyPathNodes.length;
-              }
-              const pos = fx.heliPathCurve.getPointAt(safeU);
-              const next = fx.heliPathCurve.getPointAt(Math.min(1, safeU + 0.02));
+              const startAngle = Number.isFinite(fx.ovalStartAngle) ? fx.ovalStartAngle : 0;
+              const endAngle = Number.isFinite(fx.ovalEndAngle) ? fx.ovalEndAngle : startAngle + Math.PI * 2;
+              const angle = THREE.MathUtils.lerp(startAngle, endAngle, safeU);
+              const nextAngle = THREE.MathUtils.lerp(startAngle, endAngle, Math.min(1, safeU + 0.02));
+              const heliAltitude = CAPTURE_JET_ALTITUDE + CAPTURE_HELICOPTER_ALTITUDE_BOOST;
+              const pos = new THREE.Vector3(
+                fx.ovalCenterX + Math.cos(angle) * fx.ovalRadiusX,
+                heliAltitude + Math.cos(angle * 2) * 0.02,
+                fx.ovalCenterZ + Math.sin(angle) * fx.ovalRadiusZ
+              );
+              const next = new THREE.Vector3(
+                fx.ovalCenterX + Math.cos(nextAngle) * fx.ovalRadiusX,
+                heliAltitude + Math.cos(nextAngle * 2) * 0.02,
+                fx.ovalCenterZ + Math.sin(nextAngle) * fx.ovalRadiusZ
+              );
               return { pos, next };
             };
             const { pos: heliPos, next: heliNext } = sampleFlyPath(heliU);
