@@ -35,7 +35,8 @@ namespace Aiming
         [Header("Strike feel")]
         public float strikeDuration = 0.12f;
         public float strikeHoldDuration = 0.05f;
-        public float baseStrikeImpulse = 1.8f;
+        [Tooltip("Minimum impulse used when slider power is above zero.")]
+        [Min(0f)] public float minStrikeImpulse = 0.25f;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
@@ -384,7 +385,20 @@ namespace Aiming
                 return;
             }
 
-            float impulseMagnitude = Mathf.Lerp(baseStrikeImpulse, maxStrikeImpulse, Mathf.Clamp01(shotPower));
+            float normalizedPower = Mathf.Clamp01(shotPower);
+            if (normalizedPower <= 0f)
+            {
+                return;
+            }
+
+            if (cueBallBody.isKinematic)
+            {
+                cueBallBody.isKinematic = false;
+            }
+
+            cueBallBody.WakeUp();
+
+            float impulseMagnitude = Mathf.Lerp(minStrikeImpulse, maxStrikeImpulse, normalizedPower);
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
         }
 
