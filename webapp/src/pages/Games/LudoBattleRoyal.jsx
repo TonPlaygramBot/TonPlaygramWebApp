@@ -7703,6 +7703,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     stopDiceTransition();
     dice.userData.isRolling = true;
     setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+    setCameraFocus({
+      object: dice,
+      follow: true,
+      priority: 5,
+      force: true,
+      offset: CAMERA_TARGET_LIFT + 0.028
+    });
     playDiceSound();
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
@@ -7741,7 +7748,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
         advanceTurn(value === 6);
-      }, 900);
+      }, 250);
       return;
     }
     if (player === 0) {
