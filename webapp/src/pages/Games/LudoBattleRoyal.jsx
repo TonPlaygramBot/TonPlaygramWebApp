@@ -85,9 +85,6 @@ const CAPTURE_JET_SIZE_MULTIPLIER = 0.86;
 const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.84;
 const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.88;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.12;
-const CAPTURE_AIRCRAFT_FINE_SLOWDOWN = 1.08;
-const CAPTURE_AIRCRAFT_LOWER_ALTITUDE_FACTOR = 0.94;
-const CAPTURE_AIRCRAFT_ORBIT_RADIUS_FACTOR = 0.95;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -3660,8 +3657,6 @@ const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
 const CAMERA_BROADCAST_ANIMATION_MS = 560;
 const CAMERA_RETURN_ANIMATION_MS = 620;
-const CAMERA_FOLLOW_TARGET_SMOOTH_SPEED = 9.5;
-const CAMERA_FOLLOW_POSITION_SMOOTH_SPEED = 7.5;
 const ROCK_TOKEN_REFERENCE_SCALE = Object.freeze({ x: 0.78, y: 0.92, z: 0.74 });
 const TOKEN_TYPE_SCALE_PROFILE = Object.freeze({
   pawn: {
@@ -3791,7 +3786,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusTimeoutRef = useRef(null);
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
-  const holdCameraOnDiceTurnRef = useRef(null);
   const preserveUserTurnCameraRef = useRef(false);
   const cameraTurnStateRef = useRef({
     currentTarget: null,
@@ -6200,12 +6194,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
-          const targetAlpha = 1 - Math.exp(-CAMERA_FOLLOW_TARGET_SMOOTH_SPEED * delta);
-          controls.target.lerp(liftedTarget.target, clamp(targetAlpha, 0.04, 0.32));
+          controls.target.lerp(liftedTarget.target, 0.28);
           if (cameraTurnStateRef.current.followOffset?.isVector3) {
             const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
-            const positionAlpha = 1 - Math.exp(-CAMERA_FOLLOW_POSITION_SMOOTH_SPEED * delta);
-            camera.position.lerp(followCameraTarget, clamp(positionAlpha, 0.03, 0.24));
+            camera.position.lerp(followCameraTarget, 0.18);
           }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
@@ -6556,14 +6548,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const travelTime =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack'
-            ? baseTravelTime * 1.3 * airAttackSlowFactor * CAPTURE_AIRCRAFT_FINE_SLOWDOWN
+            ? baseTravelTime * 1.3 * airAttackSlowFactor
             : baseTravelTime * airAttackSlowFactor;
         const explosionTime = 920;
         const flyAwayDuration =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 980
+            ? 900
             : selectedCaptureAnimationId === 'helicopterAttack'
-            ? 1540
+            ? 1400
             : 0;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
@@ -6634,9 +6626,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.96;
           const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
           const toRadius = Math.max(toOffset.length(), fallbackRadius);
-          const orbitalRadius =
-            Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02) *
-            (isFighterJetAttack || isHelicopterAttack ? CAPTURE_AIRCRAFT_ORBIT_RADIUS_FACTOR : 1);
+          const orbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
           const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
           const toAngle = Math.atan2(toOffset.z, toOffset.x);
           let angularDelta = toAngle - fromAngle;
@@ -6653,13 +6643,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               : selectedCaptureAnimationId === 'helicopterAttack'
               ? liveTarget.y + topStrikeLift.y * 0.82
               : liveTarget.y + topStrikeLift.y;
-          const adjustedApexHeight =
-            isFighterJetAttack || isHelicopterAttack
-              ? THREE.MathUtils.lerp(dynamicTo.y + topStrikeHeight * 0.45, apexHeight, CAPTURE_AIRCRAFT_LOWER_ALTITUDE_FACTOR)
-              : apexHeight;
           const apex = new THREE.Vector3(
             arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
-            adjustedApexHeight,
+            apexHeight,
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
           const phaseSplit =
@@ -7124,27 +7110,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return baseTarget;
   }, []);
 
-  const focusCameraOnTurnDice = useCallback(
-    (player, { priority = 2, force = true } = {}) => {
-      const dice = diceRef.current;
-      const rollTargets = dice?.userData?.rollTargets;
-      const tableSurface = arenaRef.current?.tableInfo?.surfaceY ?? CAMERA_TARGET_LIFT;
-      const diceSpot = rollTargets?.[player]?.clone?.();
-      if (diceSpot?.isVector3) {
-        setCameraFocus({
-          target: new THREE.Vector3(diceSpot.x, tableSurface, diceSpot.z),
-          follow: false,
-          priority,
-          offset: CAMERA_TARGET_LIFT + 0.015,
-          force
-        });
-        return true;
-      }
-      return false;
-    },
-    [setCameraFocus]
-  );
-
   const setCameraViewForTurn = useCallback((player, duration = CAMERA_TURN_VIEW_DURATION_MS, { force = false } = {}) => {
     cancelCameraViewAnimation();
     if (isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
@@ -7531,14 +7496,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
-      const shouldHoldOnDice = holdCameraOnDiceTurnRef.current === nextTurn;
-      if (shouldHoldOnDice) {
-        focusCameraOnTurnDice(nextTurn, { priority: 4, force: true });
-      } else {
-        setCameraViewForTurn(nextTurn);
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
-      }
-      holdCameraOnDiceTurnRef.current = null;
+      setCameraViewForTurn(nextTurn);
+      setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
       updated = true;
       const status =
         nextTurn === 0
@@ -7715,7 +7674,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const rollDice = async () => {
     const state = stateRef.current;
-    holdCameraOnDiceTurnRef.current = null;
     clearHumanRollTimeout();
     clearTurnAdvanceTimeout();
     clearHumanSelection();
@@ -7764,13 +7722,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
-      const shouldTrackDiceForNextTurn = !hasBoardTokenBeforeRoll;
-      if (shouldTrackDiceForNextTurn) {
-        holdCameraOnDiceTurnRef.current = upcomingTurn;
-        focusCameraOnTurnDice(upcomingTurn, { priority: 4, force: true });
-      } else {
-        setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      }
+      setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
@@ -7795,7 +7747,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    moveToken(player, choice.token, value, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+    moveToken(player, choice.token, value, { skipCameraFollow: hasBoardTokenBeforeRoll });
   };
 
   rollDiceRef.current = rollDice;
