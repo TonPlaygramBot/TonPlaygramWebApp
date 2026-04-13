@@ -52,7 +52,7 @@ import {
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
-const ROW_GAME_SCALE_REDUCTION = 0.5;
+const ROW_GAME_SCALE_REDUCTION = 0.25;
 const TABLE_AND_CHAIR_BASE_SCALE = 0.49;
 const BOARD_AND_CHIPS_BASE_SCALE = 0.7;
 const TABLE_AND_CHAIR_SCALE =
@@ -347,33 +347,6 @@ async function resolveHdriUrl(variant) {
   }
 }
 
-function createChair(chairColor = '#7f1d1d', legColor = '#111827') {
-  const group = new THREE.Group();
-  const seat = new THREE.Mesh(
-    new THREE.BoxGeometry(0.85, 0.09, 0.92),
-    new THREE.MeshStandardMaterial({ color: chairColor, roughness: 0.5 })
-  );
-  seat.position.y = TABLE_HEIGHT - 0.05;
-  group.add(seat);
-  const legGeo = new THREE.CylinderGeometry(0.045, 0.05, TABLE_HEIGHT, 20);
-  const legMat = new THREE.MeshStandardMaterial({
-    color: legColor,
-    metalness: 0.35,
-    roughness: 0.45
-  });
-  [
-    [-0.3, TABLE_HEIGHT / 2, -0.3],
-    [0.3, TABLE_HEIGHT / 2, -0.3],
-    [-0.3, TABLE_HEIGHT / 2, 0.3],
-    [0.3, TABLE_HEIGHT / 2, 0.3]
-  ].forEach(([x, y, z]) => {
-    const leg = new THREE.Mesh(legGeo, legMat);
-    leg.position.set(x, y, z);
-    group.add(leg);
-  });
-  return group;
-}
-
 function createConfiguredGLTFLoader() {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
@@ -461,22 +434,18 @@ function buildPolyhavenModelUrls(assetId) {
 }
 
 async function createChairModel(chairTheme) {
-  if (chairTheme?.source === 'polyhaven' && chairTheme?.assetId) {
-    const loader = createConfiguredGLTFLoader();
-    const urls = buildPolyhavenModelUrls(chairTheme.assetId);
-    let gltf = null;
-    let lastError = null;
+  const loader = createConfiguredGLTFLoader();
+  const fallbackAssetId = 'painted_wooden_chair_01';
+  const candidateAssetIds = [chairTheme?.assetId, fallbackAssetId].filter(Boolean);
+  let lastError = null;
+
+  for (const assetId of candidateAssetIds) {
+    const urls = buildPolyhavenModelUrls(assetId);
     for (const url of urls) {
       try {
-        gltf = await loader.loadAsync(url);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (gltf) {
-      const root = gltf.scene || gltf.scenes?.[0];
-      if (root) {
+        const gltf = await loader.loadAsync(url);
+        const root = gltf.scene || gltf.scenes?.[0];
+        if (!root) continue;
         root.traverse((obj) => {
           if (!obj.isMesh) return;
           obj.castShadow = true;
@@ -484,18 +453,18 @@ async function createChairModel(chairTheme) {
         });
         preserveOriginalGltfTextureMapping(root);
         fitChairModelToFootprint(root);
-        if (!chairTheme.preserveMaterials) {
+        if (!chairTheme?.preserveMaterials) {
           tintChairModel(root, chairTheme);
         }
         return root;
+      } catch (error) {
+        lastError = error;
       }
     }
-    console.warn('Falling back to procedural chair', lastError);
   }
-  return createChair(
-    chairTheme?.primary || chairTheme?.seatColor,
-    chairTheme?.legColor
-  );
+
+  console.warn('Four in Row chair model failed to load; using empty chair fallback.', lastError);
+  return new THREE.Group();
 }
 
 const safeThumbnail = (value) => {

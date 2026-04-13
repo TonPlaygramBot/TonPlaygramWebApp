@@ -5,11 +5,13 @@ import {
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js'
 import { swatchThumbnail } from './storeThumbnails.js'
-import { CHESS_CHAIR_OPTIONS } from './chessBattleInventoryConfig.js'
+import { MURLAN_STOOL_THEMES } from './murlanThemes.js'
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id
 
-export const FOUR_IN_ROW_CHAIR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS])
+const FOUR_IN_ROW_POLYHAVEN_CHAIR_OPTIONS = MURLAN_STOOL_THEMES.filter((option) => option.source === 'polyhaven')
+
+export const FOUR_IN_ROW_CHAIR_OPTIONS = Object.freeze([...FOUR_IN_ROW_POLYHAVEN_CHAIR_OPTIONS])
 export const FOUR_IN_ROW_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES])
 
 export const FOUR_IN_ROW_BOARD_LAYOUTS = Object.freeze([
