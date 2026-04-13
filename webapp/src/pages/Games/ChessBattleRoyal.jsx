@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 9.2; // slower cinematic pass so the full fly path is clearly visible
+const CAPTURE_JET_TOTAL = 11.1; // slower cinematic pass so the full fly path is clearly visible on portrait screens
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 10.8 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 10.8; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 12.4 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
+const CAPTURE_HELICOPTER_TOTAL = 12.4; // slower helicopter pass so the board loop remains visible
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -111,17 +111,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.11328; // extra 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.090624; // 20% smaller than prior jet size for tighter portrait framing
 const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.04; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.05; // keep aircraft lower and tighter to the board plane for portrait framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.1; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.14; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.205; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.6; // keep lanes closer to board center while preserving a fly-by arc
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1; // pull lanes inward from hard board edges
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.08; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.245; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.48; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.35; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -3555,6 +3555,7 @@ function applyLocalBeautifulGameMaterials(assets) {
 }
 
 const BEAUTIFUL_GAME_GOLD_SIGNATURES = new Set();
+const BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS = new Map();
 
 function meshSignature(node, pieceType = '') {
   const names = [];
@@ -3582,16 +3583,56 @@ function isGoldCandidateMaterial(material) {
 }
 
 function captureBeautifulGameGoldSignatures(piecePrototypes) {
+  const updatePieceBands = (pieceType, band) => {
+    if (!pieceType || !band) return;
+    const current = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(pieceType) || [];
+    const shouldMerge = (a, b) => Math.min(a.max, b.max) - Math.max(a.min, b.min) >= -0.05;
+    let merged = false;
+    for (let i = 0; i < current.length; i += 1) {
+      if (!shouldMerge(current[i], band)) continue;
+      current[i] = {
+        min: Math.min(current[i].min, band.min),
+        max: Math.max(current[i].max, band.max)
+      };
+      merged = true;
+      break;
+    }
+    if (!merged) current.push(band);
+    BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.set(pieceType, current);
+  };
+
   ['white', 'black'].forEach((side) => {
     Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
+      const pieceBox = new THREE.Box3().setFromObject(piece);
+      const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
       piece?.traverse?.((child) => {
         if (!child?.isMesh) return;
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         if (!materials.some((mat) => isGoldCandidateMaterial(mat))) return;
         BEAUTIFUL_GAME_GOLD_SIGNATURES.add(meshSignature(child, pieceType));
+        const box = new THREE.Box3().setFromObject(child);
+        const band = {
+          min: clamp01((box.min.y - pieceBox.min.y) / pieceHeight, 0),
+          max: clamp01((box.max.y - pieceBox.min.y) / pieceHeight, 1)
+        };
+        updatePieceBands(pieceType, band);
       });
     });
   });
+}
+
+function isInsideReferenceGoldBand(child, piece, pieceType) {
+  if (!piece || !pieceType) return false;
+  const bands = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(pieceType);
+  if (!Array.isArray(bands) || !bands.length) return false;
+  const pieceBox = new THREE.Box3().setFromObject(piece);
+  const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
+  const box = new THREE.Box3().setFromObject(child);
+  const testBand = {
+    min: clamp01((box.min.y - pieceBox.min.y) / pieceHeight, 0),
+    max: clamp01((box.max.y - pieceBox.min.y) / pieceHeight, 1)
+  };
+  return bands.some((band) => Math.min(band.max, testBand.max) - Math.max(band.min, testBand.min) >= 0.02);
 }
 
 function markBeautifulGameGoldMeshes(piecePrototypes) {
@@ -3671,14 +3712,16 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
     Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
   });
 
-  const accentize = (piece, colorKey) => {
+  const accentize = (piece, colorKey, pieceType) => {
     if (!piece) return;
     const shouldStripTextures = !pieceStyle.keepTextures;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
+      const referenceBandMatch = isInsideReferenceGoldBand(child, piece, pieceType);
       const shouldAccent =
         child.userData?.__abgGold ||
+        referenceBandMatch ||
         name.includes('collar') ||
         name.includes('crown') ||
         name.includes('ring') ||
@@ -3686,6 +3729,9 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         name.includes('band') ||
         name.includes('rim');
       if (!shouldAccent) return;
+      if (referenceBandMatch) {
+        child.userData = { ...(child.userData || {}), __abgGold: true };
+      }
       const mats = Array.isArray(child.material) ? child.material : [child.material];
         mats.forEach((mat, idx) => {
           if (!mat) return;
@@ -3713,7 +3759,9 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
+    Object.entries(piecePrototypes[colorKey] || {}).forEach(([pieceType, piece]) =>
+      accentize(piece, colorKey, pieceType)
+    );
   });
 }
 
@@ -3778,12 +3826,16 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   };
 
   const accentize = (mesh, colorKey) => {
+    const pieceType =
+      (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '').toString().toUpperCase() || '';
     const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
+      const referenceBandMatch = isInsideReferenceGoldBand(child, mesh, pieceType);
       const shouldAccent =
         child.userData?.__abgGold ||
+        referenceBandMatch ||
         name.includes('collar') ||
         name.includes('crown') ||
         name.includes('ring') ||
@@ -3791,6 +3843,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         name.includes('band') ||
         name.includes('rim');
       if (!shouldAccent) return;
+      if (referenceBandMatch) {
+        child.userData = { ...(child.userData || {}), __abgGold: true };
+      }
       const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
