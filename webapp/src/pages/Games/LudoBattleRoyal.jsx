@@ -87,7 +87,7 @@ const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74;
 const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.76;
 const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
-const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.82;
+const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.72;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
 const CAPTURE_PARK_FORWARD_OFFSET = 1.18;
 const CAPTURE_PARK_SIDE_OFFSET = 0.58;
@@ -106,9 +106,10 @@ function getCaptureVehicleTexture(kind = 'generic') {
     return fallback;
   }
   const palettes = {
-    drone: ['#4f5a47', '#6f7b61', '#2e362b', '#879574'],
+    drone: ['#6a737d', '#8f98a1', '#3e464d', '#b4bec7'],
     fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
-    helicopter: ['#4a554a', '#697865', '#2a3129', '#7f8d7c'],
+    helicopter: ['#5f6871', '#848f99', '#343c42', '#a5b1ba'],
+    missile: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
   const tone = palettes[kind] ?? palettes.generic;
@@ -4279,25 +4280,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const tokenHex = playerColorsHex[playerIndex] ?? 0xffffff;
     const tokenColor = new THREE.Color(tokenHex);
     const darker = tokenColor.clone().multiplyScalar(0.72);
-    const playerTokenMap = (() => {
-      const playerTokens = stateRef.current?.tokens?.[playerIndex];
-      if (!Array.isArray(playerTokens)) return null;
-      for (const token of playerTokens) {
-        let resolved = null;
-        token?.traverse?.((node) => {
-          if (resolved || !node?.isMesh) return;
-          const mats = Array.isArray(node.material) ? node.material : [node.material];
-          for (const mat of mats) {
-            if (mat?.map) {
-              resolved = mat.map;
-              break;
-            }
-          }
-        });
-        if (resolved) return resolved;
-      }
-      return null;
-    })();
     vehicleRoot.traverse((node) => {
       if (!node?.isMesh) return;
       const name = String(node.name || '').toLowerCase();
@@ -4305,12 +4287,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       mats.forEach((mat) => {
         if (!mat?.color) return;
-        if (playerTokenMap) {
-          mat.map = playerTokenMap;
-          mat.color.set(0xffffff);
-        } else {
-          mat.color.lerp(tokenColor, 0.62);
-        }
+        mat.color.lerp(tokenColor, 0.62);
         if (mat.emissive) mat.emissive.copy(darker);
         mat.needsUpdate = true;
       });
@@ -4373,12 +4350,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     [players]
   );
 
-  const updateParkedCaptureVehicleVisibility = useCallback(() => {
+  const updateParkedCaptureVehicleVisibility = useCallback((humanCaptureAnimationIndex = null) => {
+    const humanOptionIndex =
+      Number.isFinite(humanCaptureAnimationIndex) && humanCaptureAnimationIndex >= 0
+        ? humanCaptureAnimationIndex
+        : appearanceRef.current?.captureAnimation ?? 0;
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
-      const optionIndex =
-        playerIndex > 0
-          ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0
-          : appearanceRef.current?.captureAnimation ?? 0;
+      const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
       const selectedCaptureAnimationId =
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
@@ -4464,7 +4442,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   ]);
 
   useEffect(() => {
-    updateParkedCaptureVehicleVisibility();
+    updateParkedCaptureVehicleVisibility(appearance.captureAnimation);
   }, [appearance.captureAnimation, updateParkedCaptureVehicleVisibility]);
 
   useEffect(() => {
@@ -6718,7 +6696,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const selectedCaptureAnimationId =
           attackerPlayer > 0
             ? CAPTURE_ANIMATION_OPTIONS[aiLoadoutByPlayer[attackerPlayer]?.captureAnimationIndex ?? 0]?.id
-            : CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation]?.id;
+            : CAPTURE_ANIMATION_OPTIONS[appearance.captureAnimation]?.id ??
+              CAPTURE_ANIMATION_OPTIONS[appearanceRef.current?.captureAnimation ?? 0]?.id;
         const resolvedCaptureAnimationId =
           selectedCaptureAnimationId ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
@@ -6771,11 +6750,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileLengthScale = (bishopHeight / 1.02) * 0.92;
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         const animationScaleFactor =
-          selectedCaptureAnimationId === 'fighterJetAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack'
             ? 0.4
-            : selectedCaptureAnimationId === 'helicopterAttack'
+            : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 0.28
-            : selectedCaptureAnimationId === 'droneAttack'
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
         primaryFx.root.scale.set(
@@ -6819,29 +6798,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           .add(new THREE.Vector3(0, Math.max(0.02, 0.04 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
         const from = launchAnchor.clone();
         const baseTravelTime =
-          selectedCaptureAnimationId === 'fighterJetAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack'
             ? 2860
-            : selectedCaptureAnimationId === 'helicopterAttack'
+            : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 3320
-            : selectedCaptureAnimationId === 'droneAttack'
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 1780
             : 1780;
         const airAttackSlowFactor =
-          selectedCaptureAnimationId === 'fighterJetAttack' ||
-          selectedCaptureAnimationId === 'helicopterAttack' ||
-          selectedCaptureAnimationId === 'droneAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack' ||
+          resolvedCaptureAnimationId === 'helicopterAttack' ||
+          resolvedCaptureAnimationId === 'droneAttack'
             ? CAPTURE_AIRCRAFT_SLOW_FACTOR
             : 1;
         const travelTime =
-          selectedCaptureAnimationId === 'fighterJetAttack' ||
-          selectedCaptureAnimationId === 'helicopterAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack' ||
+          resolvedCaptureAnimationId === 'helicopterAttack'
             ? baseTravelTime * 1.3 * airAttackSlowFactor
             : baseTravelTime * airAttackSlowFactor;
         const explosionTime = 920;
         const flyAwayDuration =
-          selectedCaptureAnimationId === 'fighterJetAttack'
+          resolvedCaptureAnimationId === 'fighterJetAttack'
             ? 900
-            : selectedCaptureAnimationId === 'helicopterAttack'
+            : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 1400
             : 0;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
@@ -6894,6 +6873,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               tokenIndex: attackerTokenIndex,
               fallbackPosition: from
             }) ?? from.clone();
+          const liveFromBase =
+            (isFighterJetAttack || isHelicopterAttack) && parkedLaunch?.isVector3
+              ? parkedLaunch
+              : liveFrom;
           const liveTarget =
             resolveLiveTokenPosition({
               token: targetToken,
@@ -6901,7 +6884,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               tokenIndex: targetTokenIndex,
               fallbackPosition: safeImpactPoint
             }) ?? safeImpactPoint.clone();
-          const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.5, 0));
+          const dynamicFrom = liveFromBase.clone().add(new THREE.Vector3(0, bishopHeight * 0.5, 0));
           const dynamicTo = liveTarget
             .clone()
             .add(new THREE.Vector3(0, Math.max(0.024, 0.045 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
