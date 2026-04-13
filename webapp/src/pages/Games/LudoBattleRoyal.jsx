@@ -81,10 +81,10 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 0.86;
-const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.84;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.88;
-const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.12;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.8;
+const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.8;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.82;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.22;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -6418,12 +6418,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }) =>
     new Promise((resolve) => {
       void (async () => {
-        const arena = arenaRef.current;
-        const scene = arena?.scene;
-        if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
-          resolve();
-          return;
-        }
+        try {
+          const arena = arenaRef.current;
+          const scene = arena?.scene;
+          if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
+            resolve();
+            return;
+          }
 
         const selectedCaptureAnimationId =
           attackerPlayer > 0
@@ -6469,11 +6470,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         const animationScaleFactor =
           selectedCaptureAnimationId === 'fighterJetAttack'
-            ? 0.44
+            ? 0.4
             : selectedCaptureAnimationId === 'helicopterAttack'
-            ? 0.31
-            : selectedCaptureAnimationId === 'droneAttack'
             ? 0.28
+            : selectedCaptureAnimationId === 'droneAttack'
+            ? 0.26
             : 1;
         primaryFx.root.scale.set(
           missileLengthScale * animationScaleFactor,
@@ -6608,7 +6609,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const fallbackRadius = Math.max(TABLE_RADIUS, BOARD_RADIUS) * 0.96;
           const fromRadius = Math.max(fromOffset.length(), fallbackRadius);
           const toRadius = Math.max(toOffset.length(), fallbackRadius);
-          const orbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
+          const baseOrbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
+          const orbitalRadius =
+            selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack'
+              ? baseOrbitalRadius * 0.9
+              : baseOrbitalRadius;
           const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
           const toAngle = Math.atan2(toOffset.z, toOffset.x);
           let angularDelta = toAngle - fromAngle;
@@ -6621,9 +6626,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const cruiseAngle = fromAngle + angularDelta * 0.7;
           const apexHeight =
             selectedCaptureAnimationId === 'fighterJetAttack'
-              ? dynamicFrom.y
+              ? liveTarget.y + topStrikeLift.y * 0.54
               : selectedCaptureAnimationId === 'helicopterAttack'
-              ? liveTarget.y + topStrikeLift.y * 0.82
+              ? liveTarget.y + topStrikeLift.y * 0.72
               : liveTarget.y + topStrikeLift.y;
           const apex = new THREE.Vector3(
             arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
@@ -6674,10 +6679,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 return quadraticBezier(apex, apex.clone().lerp(flyAwayEnd, 0.5), flyAwayEnd, d);
               }
               const isDroneStrike = selectedCaptureAnimationId === 'droneAttack';
-              const strikeTop = new THREE.Vector3(dynamicTo.x, apex.y, dynamicTo.z);
               if (isDroneStrike) {
-                return strikeTop.clone().lerp(dynamicTo, d);
+                return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
               }
+              const strikeTop = new THREE.Vector3(dynamicTo.x, apex.y, dynamicTo.z);
               if (selectedCaptureAnimationId === 'missileJavelin') {
                 return strikeTop.clone().lerp(dynamicTo, d);
               }
@@ -6695,8 +6700,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.visible = true;
             primaryFx.root.position.copy(pos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            const isVerticalImpactVehicle =
-              selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'missileJavelin';
+            const isVerticalImpactVehicle = selectedCaptureAnimationId === 'missileJavelin';
             if (isVerticalImpactVehicle && u > phaseSplit) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
             }
@@ -6869,7 +6873,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           captureFxRef.current = null;
           resolve();
         };
-        requestAnimationFrame(tick);
+          requestAnimationFrame(tick);
+        } catch (error) {
+          stopCaptureVehicleSounds();
+          captureFxRef.current = null;
+          resolve();
+        }
       })();
     });
 
@@ -7702,7 +7711,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
-    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length;
+    const hasBoardMoveOption = options.some((option) => !option.entering);
+    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length || !hasBoardMoveOption;
     scheduleDiceClear();
     if (!keepTurnCameraFraming) {
       setCameraFocus({
@@ -7720,6 +7730,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
       setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+      setCameraFocus({ target: resolveTurnLookTarget(upcomingTurn), priority: 1, force: true });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
@@ -7737,6 +7748,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
       setCameraViewForTurn(upcomingTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+      setCameraFocus({ target: resolveTurnLookTarget(upcomingTurn), priority: 1, force: true });
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
         turnAdvanceTimeoutRef.current = null;
