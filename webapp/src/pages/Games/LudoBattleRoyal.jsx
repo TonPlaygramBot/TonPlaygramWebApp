@@ -81,10 +81,13 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 0.8;
-const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.8;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.82;
-const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.22;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.74;
+const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.76;
+const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
+const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.82;
+const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -1443,8 +1446,8 @@ const CAMERA_TURN_PLAYER_LERP = 0.58;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.6;
 const CAMERA_BROADCAST_SIDE_BLEND = 0.82;
 const CAMERA_SIDE_AVATAR_BLEND = 1.08;
-const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
-const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
+const USER_TURN_CAMERA_PULLBACK = 0;
+const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = false;
@@ -1461,14 +1464,14 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.74,
+  backOffset: 0.82,
   forwardOffset: 0,
-  heightOffset: 2.3,
+  heightOffset: 2.36,
   targetLift: 0.055 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0;
+const CAMERA_EXTRA_PULLBACK = 0.04;
 const CAMERA_EXTRA_LIFT = 0.076;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.048;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.062;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -6483,12 +6486,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 0.26
             : 1;
         primaryFx.root.scale.set(
-          missileLengthScale * animationScaleFactor,
-          missileThicknessScale * animationScaleFactor,
-          missileThicknessScale * animationScaleFactor
+          missileLengthScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
+          missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
+          missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER
         );
         if (jetMissiles.length) {
-          const jetMissileScale = missileThicknessScale * 0.85;
+          const jetMissileScale = missileThicknessScale * 0.85 * CAPTURE_MISSILE_SIZE_MULTIPLIER;
           jetMissiles.forEach((entry) => {
             entry.root.scale.set(jetMissileScale, jetMissileScale, jetMissileScale);
           });
@@ -6603,10 +6606,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               tokenIndex: targetTokenIndex,
               fallbackPosition: safeImpactPoint
             }) ?? safeImpactPoint.clone();
-          const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.54, 0));
+          const dynamicFrom = liveFrom.clone().add(new THREE.Vector3(0, bishopHeight * 0.5, 0));
           const dynamicTo = liveTarget
             .clone()
-            .add(new THREE.Vector3(0, Math.max(0.03, 0.06 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
+            .add(new THREE.Vector3(0, Math.max(0.024, 0.045 - CAPTURE_ANIMATION_HEIGHT_COMPENSATION), 0));
           const arenaCenter =
             boardLookTargetRef.current?.clone?.() ?? new THREE.Vector3(0, dynamicFrom.y, 0);
           arenaCenter.y = dynamicFrom.y;
@@ -6618,23 +6621,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const baseOrbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
           const orbitalRadius =
             selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack'
-              ? baseOrbitalRadius * 0.9
+              ? baseOrbitalRadius * CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR
               : baseOrbitalRadius;
           const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
           const toAngle = Math.atan2(toOffset.z, toOffset.x);
           let angularDelta = toAngle - fromAngle;
           if (angularDelta <= 0) angularDelta += Math.PI * 2;
           if (selectedCaptureAnimationId === 'fighterJetAttack') {
-            angularDelta = Math.max(angularDelta + Math.PI * 0.9, Math.PI * 1.8);
+            angularDelta = Math.max(angularDelta + Math.PI * 0.6, Math.PI * 1.45);
           } else if (angularDelta < Math.PI / 3) {
             angularDelta += Math.PI * 2;
           }
           const cruiseAngle = fromAngle + angularDelta * 0.7;
           const apexHeight =
             selectedCaptureAnimationId === 'fighterJetAttack'
-              ? liveTarget.y + topStrikeLift.y * 0.54
+              ? liveTarget.y + topStrikeLift.y * 0.54 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
               : selectedCaptureAnimationId === 'helicopterAttack'
-              ? liveTarget.y + topStrikeLift.y * 0.72
+              ? liveTarget.y + topStrikeLift.y * 0.72 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
               : liveTarget.y + topStrikeLift.y;
           const apex = new THREE.Vector3(
             arenaCenter.x + Math.cos(cruiseAngle) * orbitalRadius,
@@ -6821,7 +6824,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
             const flyAwayEnd = flyAwayStart
               .clone()
-              .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.25 : 1.45)))
+              .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
               .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
             const flyAwayPos = flyAwayStart.clone().lerp(flyAwayEnd, easeSmooth(flyAwayT));
             const flyAwayNext = flyAwayStart.clone().lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
