@@ -111,7 +111,7 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.8; // keep drone in the air a bit longer before strike
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
-const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.3; // keep jet larger than drone while respecting 20% downsize
+const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
 const CAPTURE_DRONE_ALTITUDE = 1.2; // lower flight profile so aircraft sit closer to the board in portrait view
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
@@ -126,6 +126,7 @@ const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bot
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
+const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.04; // make rook javelin read as a heavy drone-sized strike
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -8897,8 +8898,8 @@ function Chess3D({
         kind
       };
     };
-    const createFxDrone = () => {
-      const model = cloneCaptureUnitTemplate('drone');
+    const createFxDrone = ({ forceProcedural = false } = {}) => {
+      const model = forceProcedural ? null : cloneCaptureUnitTemplate('drone');
       if (model) {
         const root = new THREE.Group();
         root.add(model);
@@ -9338,7 +9339,8 @@ function Chess3D({
       minOrbitCycles = 0.34,
       orbitSplit = 0.82,
       returnToOrigin = false,
-      returnSplit = 0.78
+      returnSplit = 0.78,
+      sideSign = 1
     }) => {
       const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const impactPos = to.clone();
@@ -9346,7 +9348,7 @@ function Chess3D({
       const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
       const travelLen = Math.max(0.001, planarTravel.length());
       planarTravel.normalize();
-      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x).multiplyScalar(sideSign >= 0 ? 1 : -1);
       const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.28, tile * 0.32, tile * 1.06);
       const orbitExit = launchPos
         .clone()
@@ -9376,8 +9378,10 @@ function Chess3D({
       }
       if (returnToOrigin) {
         const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
-        const returnPos = orbitExit.clone().lerp(launchPos, returnU);
-        const returnNext = orbitExit.clone().lerp(launchPos, clamp01(returnU + 0.05));
+        const returnTarget = launchPos.clone();
+        returnTarget.y = Math.max(returnTarget.y, orbitHeight * 0.9);
+        const returnPos = orbitExit.clone().lerp(returnTarget, returnU);
+        const returnNext = orbitExit.clone().lerp(returnTarget, clamp01(returnU + 0.05));
         return { pos: constrainInsideBoardPerimeter(returnPos), next: constrainInsideBoardPerimeter(returnNext) };
       }
       const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
@@ -9410,7 +9414,7 @@ function Chess3D({
       if (pieceType === 'R') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+        missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
         const launchBase = fromPos.clone();
         missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
         captureFxGroup.add(missileFx.root);
@@ -9432,9 +9436,32 @@ function Chess3D({
         };
       }
       if (pieceType === 'N' || pieceType === 'P') {
+        if (pieceType === 'N') {
+          suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+          const droneFx = createFxDrone({ forceProcedural: true });
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          const launchBase = fromPos.clone();
+          droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(droneFx.root);
+          playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
+          activeCaptureFx.push({
+            type: 'drone',
+            t: 0,
+            duration: CAPTURE_GROUND_TOTAL,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+            movingMesh,
+            droneFx
+          });
+          return {
+            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+          };
+        }
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
-        missileFx.root.scale.setScalar(pieceType === 'P' ? CAPTURE_PAWN_JAVELIN_SCALE : CAPTURE_JAVELIN_MISSILE_SCALE);
+        missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
         const launchBase = fromPos.clone();
         missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
         captureFxGroup.add(missileFx.root);
@@ -9448,7 +9475,8 @@ function Chess3D({
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
           missileFx,
-          directPath: pieceType === 'P'
+          directPath: false,
+          verticalStrike: true
         });
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
@@ -11135,11 +11163,12 @@ function Chess3D({
               to: fx.to,
               progress: jetU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.48,
-              orbitRadiusMul: 0.9,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
+              orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
               minOrbitCycles: 0.34,
               orbitSplit: 0.74,
-              returnToOrigin: true
+              returnToOrigin: false,
+              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -11239,11 +11268,12 @@ function Chess3D({
               to: fx.to,
               progress: heliU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.48,
-              orbitRadiusMul: 0.9,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
+              orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
               minOrbitCycles: 0.34,
               orbitSplit: 0.74,
-              returnToOrigin: true
+              returnToOrigin: false,
+              sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
@@ -11340,13 +11370,17 @@ function Chess3D({
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const control = launchPos.clone().lerp(fx.to, 0.5);
-              control.y += fx.directPath ? 0.18 : 0.42;
+              control.y += fx.verticalStrike ? 0.62 : fx.directPath ? 0.18 : 0.42;
               const missilePos = fx.directPath
                 ? launchPos.clone().lerp(fx.to, mu)
                 : qBezier(launchPos, control, fx.to, mu);
               const missileNext = fx.directPath
                 ? launchPos.clone().lerp(fx.to, clamp01(mu + 0.035))
                 : qBezier(launchPos, control, fx.to, clamp01(mu + 0.035));
+              if (fx.verticalStrike && mu > 0.72) {
+                missileNext.x = missilePos.x;
+                missileNext.z = missilePos.z;
+              }
 
               fx.missileFx.root.visible = true;
               fx.missileFx.root.position.copy(constrainInsideBoardPerimeter(missilePos));
