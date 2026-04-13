@@ -7245,12 +7245,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return state.progress[player].some((progress) => Number.isFinite(progress) && progress >= 0 && progress < GOAL_PROGRESS);
   }, []);
 
-  const shouldKeepTurnCameraFraming = useCallback((player, options = []) => {
-    const hasBoardToken = hasAnyTokenOnBoard(player);
-    const hasMoves = Array.isArray(options) && options.length > 0;
-    return !hasBoardToken || !hasMoves;
-  }, [hasAnyTokenOnBoard]);
-
   const scheduleMove = (player, tokenIndex, targetProgress, onComplete, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
@@ -7716,8 +7710,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (value === 6) {
       playSixRollSound();
     }
+    const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
-    const keepTurnCameraFraming = shouldKeepTurnCameraFraming(player, options);
+    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length;
     scheduleDiceClear();
     if (!keepTurnCameraFraming) {
       setCameraFocus({
@@ -7742,7 +7737,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     if (player === 0) {
       setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      beginHumanSelection(value, options, { skipCameraFollow: keepTurnCameraFraming });
+      beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
@@ -7757,11 +7752,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    if (choice.entering && (player === 1 || player === 3)) {
-      setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-    }
     moveToken(player, choice.token, value, {
-      skipCameraFollow: keepTurnCameraFraming || choice.entering
+      skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
     });
   };
 
