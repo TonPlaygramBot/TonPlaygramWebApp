@@ -539,7 +539,8 @@ function applyMilitaryJetLook(root) {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     paintMeshMaterials(node, (mat) => {
-      if (/cockpit|canopy|window|glass/.test(name)) {
+      const materialName = `${mat.name || ''}`.toLowerCase();
+      if (/cockpit|canopy|window|glass/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
         mat.color.set('#06080c');
         if ('metalness' in mat) mat.metalness = 0.55;
         if ('roughness' in mat) mat.roughness = 0.16;
@@ -634,18 +635,19 @@ function applyMilitaryTruckLook(root) {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     paintMeshMaterials(node, (mat) => {
-      if (/window|windshield|glass|cockpit/.test(name)) {
-        mat.color.setHex(0x06080c);
+      const materialName = `${mat.name || ''}`.toLowerCase();
+      if (/window|windshield|glass|cockpit/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
+        mat.color.setHex(0x050608);
         if ('metalness' in mat) mat.metalness = 0.58;
         if ('roughness' in mat) mat.roughness = 0.2;
         if ('transparent' in mat) mat.transparent = true;
         if ('opacity' in mat) mat.opacity = 0.95;
         return;
       }
-      if (/wheel|tire/.test(name)) {
-        mat.color.setHex(0x111111);
-        if ('metalness' in mat) mat.metalness = 0.25;
-        if ('roughness' in mat) mat.roughness = 0.78;
+      if (/wheel|tire|tyre|rim/.test(name) || /wheel|tire|tyre|rim/.test(materialName)) {
+        mat.color.setHex(0x080808);
+        if ('metalness' in mat) mat.metalness = 0.2;
+        if ('roughness' in mat) mat.roughness = 0.82;
       }
     });
   });
@@ -755,11 +757,11 @@ function createCaptureMissileFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
   const body = addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
-  body.material = createCaptureVehicleMaterial('missile', { color: '#b6d3bc', roughness: 0.38, metalness: 0.62 });
+  body.material = createCaptureVehicleMaterial('missile', { color: '#556b2f', roughness: 0.24, metalness: 0.82 });
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.1, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: '#edf1f6', roughness: 0.22, metalness: 0.9 })
+    new THREE.MeshStandardMaterial({ color: '#7a8f45', roughness: 0.2, metalness: 0.86 })
   );
   nose.position.set(0.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -767,10 +769,10 @@ function createCaptureMissileFx() {
   nose.receiveShadow = true;
   root.add(nose);
 
-  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
-  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#cfd5dc', 0.34, 0.82);
-  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
-  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#0f1419', 0.5, 0.36);
+  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
+  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
+  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
+  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
 
   const trail = [];
   for (let i = 0; i < 5; i += 1) {
@@ -822,23 +824,23 @@ async function createCaptureMissileTruckFx() {
   }
 
   const launcher = new THREE.Group();
-  launcher.position.set(-0.26, 0.56, 0);
-  launcher.rotation.z = -0.34;
-  addFxBox(launcher, [1.6, 0.05, 0.96], [0, 0, 0], '#1f2125', 0.62, 0.24);
-  const support = addFxBox(launcher, [0.12, 0.36, 0.18], [-0.46, -0.19, 0], '#0f1114', 0.5, 0.36);
-  support.rotation.z = 0.22;
+  launcher.position.set(-0.12, 0.72, 0);
+  launcher.rotation.z = 0;
+  addFxBox(launcher, [1.66, 0.06, 1.02], [0, 0, 0], '#171b20', 0.62, 0.24);
+  const support = addFxBox(launcher, [0.14, 0.32, 0.2], [-0.56, -0.2, 0], '#0f1114', 0.5, 0.36);
+  support.rotation.z = 0;
 
   const missileOffsets = [
-    [-0.3, 0.08, -0.28],
-    [0.05, 0.08, 0],
-    [0.4, 0.08, 0.28]
+    [-0.42, 0.54, -0.3],
+    [0, 0.54, 0],
+    [0.42, 0.54, 0.3]
   ];
   missileOffsets.forEach((offset) => {
     const missile = createCaptureMissileFx();
     missile.root.visible = true;
-    missile.root.scale.setScalar(0.38);
+    missile.root.scale.setScalar(0.78);
     missile.root.position.set(offset[0], offset[1], offset[2]);
-    missile.root.rotation.z = 0;
+    missile.root.rotation.set(0, 0, Math.PI / 2);
     launcher.add(missile.root);
   });
 
@@ -987,16 +989,17 @@ async function createCaptureJetFx() {
   if (loadedJet) {
     const model = loadedJet.clone(true);
     fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.86);
-    model.rotation.set(Math.PI, Math.PI, 0);
+    model.rotation.set(0, Math.PI, 0);
     applyMilitaryJetLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 6; i += 1) {
+      const zOffset = i % 2 === 0 ? -0.22 : 0.22;
       trail.push(
         addFxSphere(
           root,
           0.11 + i * 0.03,
-          [-1.95 - i * 0.2, 0, 0],
+          [-1.95 - i * 0.2, 0, zOffset],
           i < 2 ? '#f7a94b' : '#8b949b',
           i < 2 ? 0.22 : 1,
           0,
@@ -1062,11 +1065,12 @@ async function createCaptureJetFx() {
   root.add(rightStore);
   const trail = [];
   for (let i = 0; i < 6; i += 1) {
+    const zOffset = i % 2 === 0 ? -0.22 : 0.22;
     trail.push(
       addFxSphere(
         root,
         0.11 + i * 0.03,
-        [-1.95 - i * 0.2, 0, 0],
+        [-1.95 - i * 0.2, 0, zOffset],
         i < 2 ? '#f7a94b' : '#8b949b',
         i < 2 ? 0.22 : 1,
         0,
@@ -4429,7 +4433,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       .clone()
       .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET)
       .addScaledVector(side, CAPTURE_PARK_SIDE_OFFSET * sideSign);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.08;
+    park.y = (arena.tableInfo?.surfaceY ?? park.y) + (vehicleType === 'missile' ? 0.14 : 0.08);
     return park;
   }, []);
 
