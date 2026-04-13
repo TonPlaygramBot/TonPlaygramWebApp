@@ -1437,6 +1437,7 @@ const USER_TURN_CAMERA_PULLBACK = 0.15 * MODEL_SCALE;
 const USER_TURN_CAMERA_LIFT = 0.09 * MODEL_SCALE;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
+const LUDO_CAMERA_SEAT_LOCK_ENABLED = false;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
@@ -3787,6 +3788,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const cameraFocusTimeoutRef = useRef(null);
   const cameraFocusFrameRef = useRef(0);
   const cameraViewFrameRef = useRef(0);
+  const cameraSeatLockPositionRef = useRef(null);
+  const lockUserTurnSeatViewRef = useRef(false);
   const preserveUserTurnCameraRef = useRef(false);
   const cameraTurnStateRef = useRef({
     currentTarget: null,
@@ -4132,6 +4135,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         controls.target.copy(saved.target);
       } else {
         fitRef.current?.();
+      }
+      if (LUDO_CAMERA_SEAT_LOCK_ENABLED) {
+        cameraSeatLockPositionRef.current = camera.position.clone();
       }
       saved3dCameraStateRef.current = null;
     }
@@ -5773,6 +5779,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
+    cameraSeatLockPositionRef.current = camera.position.clone();
     baseCameraRadiusRef.current = desiredInitialCameraRadius;
     controls.update();
     groundArenaToHdriFloor({ preserveView: true });
@@ -5800,6 +5807,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         target: initialBottomCameraViewRef.current.target.clone()
       };
     }
+    lockUserTurnSeatViewRef.current = true;
     setCameraFocus({ target: resolveTurnLookTarget(0), priority: 1, force: true });
     setCameraViewForTurn(0, 0, { force: true });
 
@@ -5996,26 +6004,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
       lookState.lastY = clientY;
-      const isTouchDrag = event.pointerType === 'touch';
       lookState.yaw = clamp(
         lookState.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
         -CAMERA_LOOK_YAW_LIMIT,
         CAMERA_LOOK_YAW_LIMIT
       );
-      if (isTouchDrag && camera && controls && Math.abs(deltaY) > 0.001) {
-        const elementHeight = Math.max(renderer?.domElement?.clientHeight ?? 0, 1);
-        const rotateSpeed = Number.isFinite(controls.rotateSpeed) ? controls.rotateSpeed : 1;
-        const verticalAngle = (2 * Math.PI * deltaY * rotateSpeed) / elementHeight;
-        const offset = camera.position.clone().sub(controls.target);
-        const spherical = new THREE.Spherical().setFromVector3(offset);
-        spherical.phi = clamp(
-          spherical.phi + verticalAngle,
-          controls.minPolarAngle,
-          controls.maxPolarAngle
-        );
-        offset.setFromSpherical(spherical);
-        camera.position.copy(controls.target).add(offset);
-      } else if (!isTouchDrag) {
+      if (!lockUserTurnSeatViewRef.current) {
         lookState.pitch = clamp(
           lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
           CAMERA_LOOK_MIN_PITCH,
@@ -6173,7 +6167,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         setSeatAnchors([]);
       }
 
-      if (!isCamera2d && cameraTurnStateRef.current.followObject?.isObject3D && controls) {
+      if (
+        !isCamera2d &&
+        cameraTurnStateRef.current.followObject?.isObject3D &&
+        controls &&
+        !LUDO_CAMERA_SEAT_LOCK_ENABLED
+      ) {
         const followedTarget = cameraTurnStateRef.current.followObject.getWorldPosition(new THREE.Vector3());
         const liftedTarget = resolveFocusCameraState(followedTarget, CAMERA_TARGET_LIFT + 0.02);
         if (liftedTarget) {
@@ -6942,10 +6941,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const camera = cameraRef.current;
     if (!controls || !camera || !toTarget) return;
     const fromPosition = camera.position.clone();
+    const lockedSeatPosition = cameraSeatLockPositionRef.current?.isVector3
+      ? cameraSeatLockPositionRef.current
+      : null;
     const destinationPosition =
-      toPosition?.isVector3
-        ? toPosition.clone()
-        : camera.position.clone();
+      LUDO_CAMERA_SEAT_LOCK_ENABLED && lockedSeatPosition
+        ? lockedSeatPosition.clone()
+        : toPosition?.isVector3
+          ? toPosition.clone()
+          : camera.position.clone();
     if (!cameraTurnStateRef.current.currentTarget) {
       cameraTurnStateRef.current.currentTarget = controls.target.clone();
     }
@@ -7114,7 +7118,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const shouldRespectUserCamera = useCallback(
     (player) => {
       if (player !== 0) return false;
-      if (humanSelectionRef.current) return true;
+      if (lockUserTurnSeatViewRef.current || humanSelectionRef.current) return true;
       const state = stateRef.current;
       if (!state || state.winner) return false;
       return state.turn === 0;
@@ -7132,6 +7136,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (player === 0) {
+      lockUserTurnSeatViewRef.current = true;
+      cameraLookStateRef.current.pitch = 0;
       const initialBottomView = initialBottomCameraViewRef.current;
       if (initialBottomView?.position?.isVector3 && initialBottomView?.target?.isVector3) {
         const boardLookTarget = boardLookTargetRef.current;
@@ -7162,6 +7168,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
       }
     }
+    lockUserTurnSeatViewRef.current = false;
     const nextView = resolveTurnCameraState(player, CAMERA_TARGET_LIFT);
     if (!nextView) return;
     animateCameraPose(nextView.target, nextView.position, duration);
@@ -7172,6 +7179,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const state = stateRef.current;
       const controls = controlsRef.current;
       if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
+      if (state.turn === 0 && lockUserTurnSeatViewRef.current) return;
       if (!focus.force && shouldRespectUserCamera(state.turn)) return;
       const { object, target, follow = false, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
@@ -7512,9 +7520,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       updateTurnIndicator(nextTurn);
       const shouldLockHumanCamera = nextTurn === 0;
       preserveUserTurnCameraRef.current = shouldLockHumanCamera;
+      lockUserTurnSeatViewRef.current = shouldLockHumanCamera;
       if (!shouldLockHumanCamera) {
         setCameraViewForTurn(nextTurn);
         setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
+      } else {
+        setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
       }
       if (diceRef.current && !shouldLockHumanCamera) {
         setCameraFocus({
@@ -7623,6 +7634,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const moveToken = (player, tokenIndex, roll, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
+    if (player === 0) {
+      lockUserTurnSeatViewRef.current = false;
+    }
     const current = state.progress[player][tokenIndex];
     const entering = current < 0;
     const target = entering ? 0 : current + roll;
@@ -7769,14 +7783,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length || !hasBoardMoveOption;
     scheduleDiceClear();
     if (!keepTurnCameraFraming) {
-      setCameraFocus({
-        target: landingFocus,
-        follow: false,
-        ttl: 0.88,
-        priority: 2,
-        offset: CAMERA_TARGET_LIFT + 0.03,
-        force: true
-      });
+      if (!(isHumanTurn && lockUserTurnSeatViewRef.current)) {
+        setCameraFocus({
+          target: landingFocus,
+          follow: false,
+          ttl: 0.88,
+          priority: 2,
+          offset: CAMERA_TARGET_LIFT + 0.03,
+          force: true
+        });
+      }
     } else if (!isHumanTurn) {
       setCameraViewForTurn(player, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     }
@@ -7798,6 +7814,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
+      lockUserTurnSeatViewRef.current = true;
       beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
