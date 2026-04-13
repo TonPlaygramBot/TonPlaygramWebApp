@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 7.4; // slower cinematic pass so the full fly path is clearly visible
+const CAPTURE_JET_TOTAL = 9.2; // slower cinematic pass so the full fly path is clearly visible
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 8.6 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 8.6; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 10.8 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
+const CAPTURE_HELICOPTER_TOTAL = 10.8; // slower helicopter pass so the board loop remains visible
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -111,17 +111,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.1416; // 20% smaller for tighter portrait framing
-const CAPTURE_HELICOPTER_SCALE = 0.1272; // 20% smaller for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.11328; // extra 20% smaller for tighter portrait framing
+const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.012; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.018; // keep aircraft lower and tighter to the board plane for portrait framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.04; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.05; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.165; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.72; // keep lanes closer to board center while preserving a fly-by arc
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.66; // pull lanes inward from hard board edges
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.2; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.205; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.6; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.08; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -3554,6 +3554,60 @@ function applyLocalBeautifulGameMaterials(assets) {
   return assets;
 }
 
+const BEAUTIFUL_GAME_GOLD_SIGNATURES = new Set();
+
+function meshSignature(node, pieceType = '') {
+  const names = [];
+  let current = node;
+  while (current) {
+    if (current.name) names.push(current.name.toLowerCase());
+    if (current.userData?.__pieceType) break;
+    current = current.parent;
+  }
+  return `${pieceType}:${names.reverse().join('/')}`;
+}
+
+function isGoldCandidateMaterial(material) {
+  if (!material) return false;
+  const name = `${material.name || ''}`.toLowerCase();
+  if (/gold|crown|ring|band|trim/.test(name)) return true;
+  const metalness = Number.isFinite(material.metalness) ? material.metalness : 0;
+  const roughness = Number.isFinite(material.roughness) ? material.roughness : 1;
+  const color = material.color;
+  if (!color) return false;
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  const warmGoldHue = hsl.h >= 0.09 && hsl.h <= 0.18;
+  return warmGoldHue && hsl.s >= 0.2 && metalness >= 0.35 && roughness <= 0.65;
+}
+
+function captureBeautifulGameGoldSignatures(piecePrototypes) {
+  ['white', 'black'].forEach((side) => {
+    Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
+      piece?.traverse?.((child) => {
+        if (!child?.isMesh) return;
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        if (!materials.some((mat) => isGoldCandidateMaterial(mat))) return;
+        BEAUTIFUL_GAME_GOLD_SIGNATURES.add(meshSignature(child, pieceType));
+      });
+    });
+  });
+}
+
+function markBeautifulGameGoldMeshes(piecePrototypes) {
+  ['white', 'black'].forEach((side) => {
+    Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
+      piece?.traverse?.((child) => {
+        if (!child?.isMesh) return;
+        const nameHint = /(gold|crown|ring|band|trim)/i.test(child.name || '');
+        const matchesReference = BEAUTIFUL_GAME_GOLD_SIGNATURES.has(meshSignature(child, pieceType));
+        if (!nameHint && !matchesReference) return;
+        child.userData = { ...(child.userData || {}), __abgGold: true };
+      });
+    });
+  });
+}
+
 function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
   if (pieceStyle?.preserveOriginalMaterials) {
@@ -3624,6 +3678,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
       const shouldAccent =
+        child.userData?.__abgGold ||
         name.includes('collar') ||
         name.includes('crown') ||
         name.includes('ring') ||
@@ -3728,6 +3783,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
       const shouldAccent =
+        child.userData?.__abgGold ||
         name.includes('collar') ||
         name.includes('crown') ||
         name.includes('ring') ||
@@ -4988,6 +5044,8 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
       prototypes.black[type] = normalizeBeautifulGamePiece(prototypes.white[type], targetFootprint);
     }
   });
+  captureBeautifulGameGoldSignatures(prototypes);
+  markBeautifulGameGoldMeshes(prototypes);
 
   return {
     boardModel: null,
@@ -5362,6 +5420,8 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     name: 'ABeautifulGame',
     pieceFootprintRatio: BEAUTIFUL_GAME_FOOTPRINT_RATIO
   });
+  captureBeautifulGameGoldSignatures(assets?.piecePrototypes);
+  markBeautifulGameGoldMeshes(assets?.piecePrototypes);
   if (assets.boardModel) {
     assets.boardModel.scale.multiplyScalar(BEAUTIFUL_GAME_BOARD_SCALE_BIAS);
     let finalBox = new THREE.Box3().setFromObject(assets.boardModel);
