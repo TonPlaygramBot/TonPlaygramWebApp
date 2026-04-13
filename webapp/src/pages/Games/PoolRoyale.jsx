@@ -22663,7 +22663,16 @@ const powerRef = useRef(hud.power);
         const updateCueStroke = (now) => {
           const stroke = cueStrokeStateRef.current;
           if (!cueStick) {
-            return Boolean(cueAnimating);
+            if (stroke && !stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
+            cueAnimating = false;
+            cuePullCurrentRef.current = 0;
+            cuePullTargetRef.current = 0;
+            cueStrokeStateRef.current = null;
+            pendingImpactRef.current = null;
+            return false;
           }
           if (!stroke) {
             if (cueAnimating) {
