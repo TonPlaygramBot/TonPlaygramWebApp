@@ -52,10 +52,11 @@ import {
 import { applyRendererSRGB } from '../../utils/colorSpace.js';
 
 const MODEL_SCALE = 0.75;
-const TABLE_AND_CHAIR_SCALE = 0.245; // 50% smaller than the current table/chair sizing.
-const BOARD_AND_CHIPS_SCALE = 0.35; // 50% smaller than the current board + chip props.
-const CAMERA_FRAME_MATCH_SCALE = 0.7; // Move camera in to keep the previous framing.
-const ARENA_VISUAL_SCALE = 0.82;
+const ROW_GAME_SCALE_REDUCTION = 0.5;
+const TABLE_AND_CHAIR_SCALE = 0.49 * ROW_GAME_SCALE_REDUCTION;
+const BOARD_AND_CHIPS_SCALE = 0.7 * ROW_GAME_SCALE_REDUCTION;
+const CAMERA_FRAME_MATCH_SCALE = ROW_GAME_SCALE_REDUCTION;
+const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_AND_CHAIR_SCALE;
 const TABLE_HEIGHT = 1.2;
 const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
