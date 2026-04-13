@@ -4598,12 +4598,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   const beginHumanSelection = useCallback(
-    (roll, options) => {
+    (roll, options, { skipCameraFollow = false } = {}) => {
       const state = stateRef.current;
       if (!state || !Array.isArray(options) || !options.length) return;
       clearHumanSelection();
       const normalized = options.map((option) => ({ token: option.token, entering: option.entering }));
-      humanSelectionRef.current = { roll, options: normalized };
+      humanSelectionRef.current = { roll, options: normalized, skipCameraFollow };
       normalized.forEach((option) => {
         const token = state.tokens?.[0]?.[option.token];
         if (token) {
@@ -5914,7 +5914,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       );
       if (!option) return false;
       clearHumanSelection();
-      moveToken(0, option.token, selection.roll);
+      moveToken(0, option.token, selection.roll, {
+        skipCameraFollow: selection.skipCameraFollow || option.entering
+      });
       return true;
     };
     const getCameraLookTarget = () => {
@@ -7708,17 +7710,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (value === 6) {
       playSixRollSound();
     }
-    scheduleDiceClear();
-    setCameraFocus({
-      target: landingFocus,
-      follow: false,
-      ttl: 0.88,
-      priority: 2,
-      offset: CAMERA_TARGET_LIFT + 0.03,
-      force: true
-    });
-    const options = getMovableTokens(player, value);
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
+    const options = getMovableTokens(player, value);
+    const keepTurnCameraFraming = !hasBoardTokenBeforeRoll || !options.length;
+    scheduleDiceClear();
+    if (!keepTurnCameraFraming) {
+      setCameraFocus({
+        target: landingFocus,
+        follow: false,
+        ttl: 0.88,
+        priority: 2,
+        offset: CAMERA_TARGET_LIFT + 0.03,
+        force: true
+      });
+    }
     if (!options.length) {
       const playerCycle = Math.max(1, activePlayerCount);
       const upcomingTurn = value === 6 ? player : (player + playerCycle - 1) % playerCycle;
@@ -7732,7 +7737,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     if (player === 0) {
       setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      beginHumanSelection(value, options);
+      beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
@@ -7747,7 +7752,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }, DICE_RESULT_EXTRA_HOLD_MS);
       return;
     }
-    moveToken(player, choice.token, value, { skipCameraFollow: hasBoardTokenBeforeRoll });
+    moveToken(player, choice.token, value, {
+      skipCameraFollow: !hasBoardTokenBeforeRoll || choice.entering
+    });
   };
 
   rollDiceRef.current = rollDice;
