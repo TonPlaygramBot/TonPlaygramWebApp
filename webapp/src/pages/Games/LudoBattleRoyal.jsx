@@ -1025,6 +1025,81 @@ async function createCaptureHelicopterFx() {
   return { root, rotor, tailRotor, trail };
 }
 
+function findTokenBodyMaterial(token) {
+  if (!token?.isObject3D) return null;
+  let best = null;
+  token.traverse((node) => {
+    if (best || !node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (/head|face|helmet|cap|hat/.test(name)) return;
+    const material = Array.isArray(node.material) ? node.material[0] : node.material;
+    if (!material) return;
+    best = material;
+  });
+  return best;
+}
+
+function applyPlayerVehicleSkin(root, token, kind = 'fighter') {
+  if (!root) return;
+  const source = findTokenBodyMaterial(token);
+  const sourceColor = source?.color?.clone?.() ?? null;
+  const sourceMap = source?.map ?? null;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat) => {
+      if (!mat) return;
+      if (kind === 'helicopter' && /rotor|propell|blade|fan/.test(name)) {
+        if (mat.color) mat.color.set('#d4af37');
+        if ('metalness' in mat) mat.metalness = 0.88;
+        if ('roughness' in mat) mat.roughness = 0.22;
+        return;
+      }
+      if (/cockpit|glass|window|canopy/.test(name)) return;
+      if (sourceMap) mat.map = sourceMap;
+      if (sourceColor && mat.color) mat.color.copy(sourceColor);
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function createSimpleAvatarTexture(seed = 'P') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#111827';
+  ctx.beginPath();
+  ctx.arc(64, 64, 62, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 56px Inter, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const glyph = `${seed || 'P'}`.trim().charAt(0).toUpperCase();
+  ctx.fillText(glyph || 'P', 64, 68);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function attachAvatarBadgesToVehicle(root, avatarTexture) {
+  if (!root || !avatarTexture) return;
+  const makeBadge = (zOffset) => {
+    const mesh = new THREE.Mesh(
+      new THREE.CircleGeometry(0.18, 24),
+      new THREE.MeshBasicMaterial({ map: avatarTexture, transparent: true, side: THREE.DoubleSide })
+    );
+    mesh.position.set(0.15, 0.06, zOffset);
+    return mesh;
+  };
+  root.add(makeBadge(0.26));
+  root.add(makeBadge(-0.26));
+}
+
 function createCaptureExplosionFx() {
   const root = new THREE.Group();
   const flash = addFxSphere(root, 0.28, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
@@ -1441,7 +1516,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.13;
+const CAMERA_SIDE_LOOK_EXTRA = 0.2;
 const CAMERA_TURN_PLAYER_LERP = 0.58;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.6;
 const CAMERA_BROADCAST_SIDE_BLEND = 0.82;
@@ -1473,6 +1548,9 @@ const CAMERA_EXTRA_PULLBACK = 0.04;
 const CAMERA_EXTRA_LIFT = 0.076;
 const PORTRAIT_CAMERA_EXTRA_LIFT = 0.062;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
+const PARKED_CAPTURE_VEHICLE_SIDE_OFFSET = 0.24;
+const PARKED_CAPTURE_VEHICLE_FORWARD_OFFSET = 0.03;
+const PARKED_CAPTURE_VEHICLE_SCALE = 0.16;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
@@ -3818,6 +3896,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const boardLookTargetRef = useRef(null);
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
+  const parkedCaptureVehiclesRef = useRef(new Map());
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -4983,6 +5062,46 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     moveDiceToRail(player, immediate);
   };
 
+  const syncParkedCaptureVehicles = useCallback(async () => {
+    const arena = arenaRef.current;
+    const scene = arena?.scene;
+    const state = stateRef.current;
+    if (!scene || !state?.vehiclePads) return;
+    for (let player = 0; player < activePlayerCount; player += 1) {
+      const pad = state.vehiclePads[player];
+      if (!pad) continue;
+      const token = state.tokens?.[player]?.[0] ?? null;
+      const avatarTexture = createSimpleAvatarTexture(players[player]?.name || `P${player + 1}`);
+      let entry = parkedCaptureVehiclesRef.current.get(player);
+      if (!entry) {
+        const [jetFx, heliFx] = await Promise.all([createCaptureJetFx(), createCaptureHelicopterFx()]);
+        jetFx.root.scale.setScalar(PARKED_CAPTURE_VEHICLE_SCALE);
+        heliFx.root.scale.setScalar(PARKED_CAPTURE_VEHICLE_SCALE);
+        jetFx.trail?.forEach((trail) => {
+          trail.visible = false;
+        });
+        heliFx.trail?.forEach((trail) => {
+          trail.visible = false;
+        });
+        applyPlayerVehicleSkin(jetFx.root, token, 'fighter');
+        applyPlayerVehicleSkin(heliFx.root, token, 'helicopter');
+        attachAvatarBadgesToVehicle(jetFx.root, avatarTexture);
+        attachAvatarBadgesToVehicle(heliFx.root, avatarTexture);
+        scene.add(jetFx.root);
+        scene.add(heliFx.root);
+        entry = { jet: jetFx.root, helicopter: heliFx.root };
+        parkedCaptureVehiclesRef.current.set(player, entry);
+      }
+      const yaw = Math.atan2(pad.forward.x, pad.forward.z);
+      entry.jet.position.copy(pad.jet);
+      entry.helicopter.position.copy(pad.helicopter);
+      entry.jet.rotation.set(0, yaw, 0);
+      entry.helicopter.rotation.set(0, yaw, 0);
+      entry.jet.visible = true;
+      entry.helicopter.visible = true;
+    }
+  }, [activePlayerCount, players]);
+
   const applyRailLayout = useCallback(() => {
     const dice = diceRef.current;
     const state = stateRef.current;
@@ -4997,6 +5116,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : Array.from({ length: activePlayerCount }, () =>
             Array.from({ length: 4 }, () => new THREE.Vector3())
           );
+
+    const vehiclePads =
+      Array.isArray(state.vehiclePads) && state.vehiclePads.length >= activePlayerCount
+        ? state.vehiclePads.slice()
+        : Array.from({ length: activePlayerCount }, () => null);
 
     layouts.forEach((layout, player) => {
       if (!layout) {
@@ -5047,6 +5171,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const leftOffset = rightOffset.clone().multiplyScalar(-1);
 
       const homeHeight = getTokenRailHeight(player);
+      const parkingBase = base
+        .clone()
+        .add(forward.clone().multiplyScalar(PARKED_CAPTURE_VEHICLE_FORWARD_OFFSET));
+      const parkingY = homeHeight + TILE_HALF_HEIGHT * 0.85;
+      const jetPad = parkingBase
+        .clone()
+        .add(right.clone().multiplyScalar(-PARKED_CAPTURE_VEHICLE_SIDE_OFFSET));
+      const helicopterPad = parkingBase
+        .clone()
+        .add(right.clone().multiplyScalar(PARKED_CAPTURE_VEHICLE_SIDE_OFFSET));
+      jetPad.y = parkingY;
+      helicopterPad.y = parkingY;
+      vehiclePads[player] = { jet: jetPad, helicopter: helicopterPad, forward: forward.clone() };
 
       const playerPads = [
         base.clone().add(backwardOffset).add(leftOffset),
@@ -5090,7 +5227,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
 
     state.startPads = updatedPads;
-  }, [activePlayerCount]);
+    state.vehiclePads = vehiclePads;
+    void syncParkedCaptureVehicles();
+  }, [activePlayerCount, syncParkedCaptureVehicles]);
 
   const configureDiceAnchors = useCallback(
     ({ dice, boardGroup, chairs, tableInfo } = {}) => {
@@ -6285,6 +6424,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         captureFxRef.current.explosion?.parent?.remove?.(captureFxRef.current.explosion);
         captureFxRef.current = null;
       }
+      parkedCaptureVehiclesRef.current.forEach((entry) => {
+        entry?.jet?.parent?.remove?.(entry.jet);
+        entry?.helicopter?.parent?.remove?.(entry.helicopter);
+      });
+      parkedCaptureVehiclesRef.current.clear();
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -6456,6 +6600,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? await createCaptureJetFx()
             : createCaptureMissileFx();
+        if (resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack') {
+          applyPlayerVehicleSkin(
+            primaryFx.root,
+            stateRef.current?.tokens?.[attackerPlayer]?.[0] ?? attackerToken,
+            resolvedCaptureAnimationId === 'helicopterAttack' ? 'helicopter' : 'fighter'
+          );
+          const avatarTexture = createSimpleAvatarTexture(players[attackerPlayer]?.name || `P${attackerPlayer + 1}`);
+          attachAvatarBadgesToVehicle(primaryFx.root, avatarTexture);
+        }
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
             ? [createCaptureMissileFx(), createCaptureMissileFx()]
@@ -6497,8 +6650,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           });
         }
 
+        const parkedPad =
+          selectedCaptureAnimationId === 'fighterJetAttack'
+            ? stateRef.current?.vehiclePads?.[attackerPlayer]?.jet
+            : selectedCaptureAnimationId === 'helicopterAttack'
+            ? stateRef.current?.vehiclePads?.[attackerPlayer]?.helicopter
+            : null;
         const tokenWorldPos =
-          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
+          parkedPad?.isVector3
+            ? parkedPad.clone()
+            : resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
         moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
         setCameraFocus({
@@ -6822,10 +6983,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             flyAwayDir.normalize();
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
-            const flyAwayEnd = flyAwayStart
-              .clone()
-              .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
-              .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
+            const parkedReturnPad =
+              selectedCaptureAnimationId === 'fighterJetAttack'
+                ? stateRef.current?.vehiclePads?.[attackerPlayer]?.jet
+                : selectedCaptureAnimationId === 'helicopterAttack'
+                ? stateRef.current?.vehiclePads?.[attackerPlayer]?.helicopter
+                : null;
+            const flyAwayEnd = parkedReturnPad?.isVector3
+              ? parkedReturnPad.clone()
+              : flyAwayStart
+                  .clone()
+                  .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
+                  .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
             const flyAwayPos = flyAwayStart.clone().lerp(flyAwayEnd, easeSmooth(flyAwayT));
             const flyAwayNext = flyAwayStart.clone().lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
             const flyAwayDirNow = flyAwayNext.sub(flyAwayPos).normalize();
