@@ -111,20 +111,20 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.118; // ~20% larger jet silhouette for clearer portrait readability
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.92;
+const CAPTURE_JET_SCALE = 0.098; // larger jet silhouette for clearer portrait readability
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.004; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.02; // keep aircraft just above the board plane for a tighter mobile framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.008; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.026; // keep aircraft just above the board plane for a tighter mobile framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.108; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.1; // keep helicopter visibly lower than jet and closer to the board
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.84; // widen path so strike passes closer to the bottom player viewpoint
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.52; // keep lanes near board edge for a stronger near-camera fly-by
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.4; // shift fly path toward the bottom side of portrait view
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
-const CAPTURE_EXPLOSION_SCALE = 0.13; // slightly smaller capture explosion
+const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -9143,11 +9143,6 @@ function Chess3D({
           baseAltitude - turnAltitudeDrop * 0.38,
           towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.94))
         );
-        const turnMidPos = new THREE.Vector3(
-          turnBendX,
-          baseAltitude - turnAltitudeDrop * 0.52,
-          towardBottom(enemyLaneZ)
-        );
         const turnExitPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.16),
           baseAltitude - turnAltitudeDrop * 0.62,
@@ -9169,7 +9164,6 @@ function Chess3D({
           startPos,
           entryPos,
           turnEntryPos,
-          turnMidPos,
           turnControlPos,
           turnExitPos,
           returnEntryPos,
@@ -9252,7 +9246,6 @@ function Chess3D({
           to: targetPos.clone(),
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
-          turnMidPos: path.turnMidPos,
           turnControlPos: path.turnControlPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
@@ -9297,7 +9290,6 @@ function Chess3D({
           to: targetPos.clone(),
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
-          turnMidPos: path.turnMidPos,
           turnControlPos: path.turnControlPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
@@ -9338,7 +9330,6 @@ function Chess3D({
           to: targetPos.clone(),
           orbitEntryPos: path.entryPos,
           turnEntryPos: path.turnEntryPos,
-          turnMidPos: path.turnMidPos,
           turnControlPos: path.turnControlPos,
           orbitExitPos: path.turnExitPos,
           returnEntryPos: path.returnEntryPos,
@@ -10935,24 +10926,26 @@ function Chess3D({
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
+            const flyPathNodes = [
+              fx.from,
+              fx.orbitEntryPos,
+              fx.turnEntryPos,
+              fx.turnControlPos,
+              fx.orbitExitPos,
+              fx.returnEntryPos,
+              fx.exitPos
+            ].filter(Boolean);
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
             const sampleFlyPath = (pathU) => {
               const safeU = clamp01(pathU);
-              const pathNodes = [fx.from, fx.orbitEntryPos, fx.turnEntryPos, fx.orbitExitPos, fx.returnEntryPos, fx.exitPos].filter(
-                Boolean
-              );
-              if (pathNodes.length < 2) {
+              if (flyPathNodes.length < 2) {
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              const turnStart = fx.turnEntryPos || pathNodes[2] || pathNodes[1];
-              const turnEnd = fx.orbitExitPos || pathNodes[3] || pathNodes[pathNodes.length - 2];
-              const turnMid = fx.turnMidPos || fx.turnControlPos || turnStart.clone().lerp(turnEnd, 0.5);
-              const turnSegment = [turnStart, turnMid, turnEnd];
               const segmentLengths = [];
               let totalLen = 0;
-              for (let idx = 0; idx < pathNodes.length - 1; idx += 1) {
-                const len = pathNodes[idx].distanceTo(pathNodes[idx + 1]);
+              for (let idx = 0; idx < flyPathNodes.length - 1; idx += 1) {
+                const len = flyPathNodes[idx].distanceTo(flyPathNodes[idx + 1]);
                 segmentLengths.push(len);
                 totalLen += len;
               }
@@ -10962,10 +10955,7 @@ function Chess3D({
                 const len = segmentLengths[idx];
                 if (targetDistance <= acc + len || idx === segmentLengths.length - 1) {
                   const localU = len <= 1e-6 ? 0 : (targetDistance - acc) / len;
-                  const isTurn = pathNodes[idx] === turnStart && pathNodes[idx + 1] === turnEnd;
-                  const pos = isTurn
-                    ? qBezier(turnSegment[0], turnSegment[1], turnSegment[2], clamp01(localU))
-                    : pathNodes[idx].clone().lerp(pathNodes[idx + 1], clamp01(localU));
+                  const pos = flyPathNodes[idx].clone().lerp(flyPathNodes[idx + 1], clamp01(localU));
                   const nextStep = Math.min(1, safeU + 0.02);
                   const nextDistance = totalLen * nextStep;
                   let nextAcc = 0;
@@ -10973,10 +10963,7 @@ function Chess3D({
                     const nextLen = segmentLengths[n];
                     if (nextDistance <= nextAcc + nextLen || n === segmentLengths.length - 1) {
                       const nextLocalU = nextLen <= 1e-6 ? 0 : (nextDistance - nextAcc) / nextLen;
-                      const nextIsTurn = pathNodes[n] === turnStart && pathNodes[n + 1] === turnEnd;
-                      const next = nextIsTurn
-                        ? qBezier(turnSegment[0], turnSegment[1], turnSegment[2], clamp01(nextLocalU))
-                        : pathNodes[n].clone().lerp(pathNodes[n + 1], clamp01(nextLocalU));
+                      const next = flyPathNodes[n].clone().lerp(flyPathNodes[n + 1], clamp01(nextLocalU));
                       return { pos, next };
                     }
                     nextAcc += nextLen;
@@ -10985,7 +10972,7 @@ function Chess3D({
                 }
                 acc += len;
               }
-              const end = pathNodes[pathNodes.length - 1].clone();
+              const end = flyPathNodes[flyPathNodes.length - 1].clone();
               return { pos: end, next: end.clone().add(new THREE.Vector3(0.08, 0, 0)) };
             };
             const { pos: jetPos, next: jetNext } = sampleFlyPath(jetU);
@@ -11005,7 +10992,7 @@ function Chess3D({
             });
 
             const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseStart = fx.missileReleaseTime ?? CAPTURE_JET_TOTAL * 0.56;
+            const releaseStart = CAPTURE_JET_TOTAL * 0.56;
             const releaseEnd = CAPTURE_JET_TOTAL * 0.96;
             const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
             const hitTop = fx.to.clone().add(new THREE.Vector3(0, Math.max(topStrikeHeight * 0.8, 0.38), 0));
@@ -11034,21 +11021,18 @@ function Chess3D({
                 right.normalize();
               }
               const launchPos = jetPos.clone().add(right.multiplyScalar(sideOffset));
-              const missileEntry = launchPos.clone().lerp(hitTop, 0.58);
-              missileEntry.y += topStrikeHeight * 0.1;
-              const impactTop = hitTop.clone();
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
+              missileEntry.y += topStrikeHeight * 0.12;
               const missilePos =
-                missileU < 0.62
-                  ? qBezier(launchPos, missileEntry, impactTop, missileU / 0.62)
-                  : impactTop.clone().lerp(fx.to, (missileU - 0.62) / 0.38);
-              const missileNext =
-                missileU < 0.62
-                  ? qBezier(launchPos, missileEntry, impactTop, clamp01(missileU / 0.62 + 0.03))
-                  : impactTop.clone().lerp(fx.to, clamp01((missileU - 0.62) / 0.38 + 0.04));
-              if (missileU >= 0.62) {
-                missileNext.x = missilePos.x;
-                missileNext.z = missilePos.z;
-              }
+                missileU < 0.74
+                  ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
+                  : missileEntry.clone().lerp(fx.to, (missileU - 0.74) / 0.26);
+              const missileNext = qBezier(
+                missileU < 0.74 ? launchPos : missileEntry,
+                missileEntry,
+                fx.to,
+                clamp01(missileU + 0.03)
+              );
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
               missile.root.position.copy(missilePos);
@@ -11074,24 +11058,26 @@ function Chess3D({
           } else if (fx.type === 'helicopter') {
             const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
             const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
+            const flyPathNodes = [
+              fx.from,
+              fx.orbitEntryPos,
+              fx.turnEntryPos,
+              fx.turnControlPos,
+              fx.orbitExitPos,
+              fx.returnEntryPos,
+              fx.exitPos
+            ].filter(Boolean);
             const topStrikeHeight = Math.max(tile * 2.2, 0.42);
             const sampleFlyPath = (pathU) => {
               const safeU = clamp01(pathU);
-              const pathNodes = [fx.from, fx.orbitEntryPos, fx.turnEntryPos, fx.orbitExitPos, fx.returnEntryPos, fx.exitPos].filter(
-                Boolean
-              );
-              if (pathNodes.length < 2) {
+              if (flyPathNodes.length < 2) {
                 const fallback = fx.exitPos?.clone() || fx.from.clone();
                 return { pos: fallback, next: fallback.clone().add(new THREE.Vector3(0.08, 0, 0)) };
               }
-              const turnStart = fx.turnEntryPos || pathNodes[2] || pathNodes[1];
-              const turnEnd = fx.orbitExitPos || pathNodes[3] || pathNodes[pathNodes.length - 2];
-              const turnMid = fx.turnMidPos || fx.turnControlPos || turnStart.clone().lerp(turnEnd, 0.5);
-              const turnSegment = [turnStart, turnMid, turnEnd];
               const segmentLengths = [];
               let totalLen = 0;
-              for (let idx = 0; idx < pathNodes.length - 1; idx += 1) {
-                const len = pathNodes[idx].distanceTo(pathNodes[idx + 1]);
+              for (let idx = 0; idx < flyPathNodes.length - 1; idx += 1) {
+                const len = flyPathNodes[idx].distanceTo(flyPathNodes[idx + 1]);
                 segmentLengths.push(len);
                 totalLen += len;
               }
@@ -11101,10 +11087,7 @@ function Chess3D({
                 const len = segmentLengths[idx];
                 if (targetDistance <= acc + len || idx === segmentLengths.length - 1) {
                   const localU = len <= 1e-6 ? 0 : (targetDistance - acc) / len;
-                  const isTurn = pathNodes[idx] === turnStart && pathNodes[idx + 1] === turnEnd;
-                  const pos = isTurn
-                    ? qBezier(turnSegment[0], turnSegment[1], turnSegment[2], clamp01(localU))
-                    : pathNodes[idx].clone().lerp(pathNodes[idx + 1], clamp01(localU));
+                  const pos = flyPathNodes[idx].clone().lerp(flyPathNodes[idx + 1], clamp01(localU));
                   const nextStep = Math.min(1, safeU + 0.02);
                   const nextDistance = totalLen * nextStep;
                   let nextAcc = 0;
@@ -11112,10 +11095,7 @@ function Chess3D({
                     const nextLen = segmentLengths[n];
                     if (nextDistance <= nextAcc + nextLen || n === segmentLengths.length - 1) {
                       const nextLocalU = nextLen <= 1e-6 ? 0 : (nextDistance - nextAcc) / nextLen;
-                      const nextIsTurn = pathNodes[n] === turnStart && pathNodes[n + 1] === turnEnd;
-                      const next = nextIsTurn
-                        ? qBezier(turnSegment[0], turnSegment[1], turnSegment[2], clamp01(nextLocalU))
-                        : pathNodes[n].clone().lerp(pathNodes[n + 1], clamp01(nextLocalU));
+                      const next = flyPathNodes[n].clone().lerp(flyPathNodes[n + 1], clamp01(nextLocalU));
                       return { pos, next };
                     }
                     nextAcc += nextLen;
@@ -11124,7 +11104,7 @@ function Chess3D({
                 }
                 acc += len;
               }
-              const end = pathNodes[pathNodes.length - 1].clone();
+              const end = flyPathNodes[flyPathNodes.length - 1].clone();
               return { pos: end, next: end.clone().add(new THREE.Vector3(0.08, 0, 0)) };
             };
             const { pos: heliPos, next: heliNext } = sampleFlyPath(heliU);
@@ -11143,7 +11123,7 @@ function Chess3D({
             });
 
             const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseStart = fx.missileReleaseTime ?? CAPTURE_HELICOPTER_TOTAL * 0.56;
+            const releaseStart = CAPTURE_HELICOPTER_TOTAL * 0.56;
             const releaseEnd = CAPTURE_HELICOPTER_TOTAL * 0.96;
             const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
             const hitTop = fx.to.clone().add(new THREE.Vector3(0, Math.max(topStrikeHeight * 0.8, 0.38), 0));
@@ -11172,21 +11152,18 @@ function Chess3D({
                 right.normalize();
               }
               const launchPos = heliPos.clone().add(right.multiplyScalar(sideOffset));
-              const missileEntry = launchPos.clone().lerp(hitTop, 0.58);
-              missileEntry.y += topStrikeHeight * 0.1;
-              const impactTop = hitTop.clone();
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
+              missileEntry.y += topStrikeHeight * 0.12;
               const missilePos =
-                missileU < 0.62
-                  ? qBezier(launchPos, missileEntry, impactTop, missileU / 0.62)
-                  : impactTop.clone().lerp(fx.to, (missileU - 0.62) / 0.38);
-              const missileNext =
-                missileU < 0.62
-                  ? qBezier(launchPos, missileEntry, impactTop, clamp01(missileU / 0.62 + 0.03))
-                  : impactTop.clone().lerp(fx.to, clamp01((missileU - 0.62) / 0.38 + 0.04));
-              if (missileU >= 0.62) {
-                missileNext.x = missilePos.x;
-                missileNext.z = missilePos.z;
-              }
+                missileU < 0.74
+                  ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
+                  : missileEntry.clone().lerp(fx.to, (missileU - 0.74) / 0.26);
+              const missileNext = qBezier(
+                missileU < 0.74 ? launchPos : missileEntry,
+                missileEntry,
+                fx.to,
+                clamp01(missileU + 0.03)
+              );
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
               missile.root.position.copy(missilePos);
