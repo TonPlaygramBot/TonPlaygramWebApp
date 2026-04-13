@@ -76,7 +76,8 @@ const CAPTURE_VEHICLE_MODEL_HOSTS = [
 const CAPTURE_VEHICLE_MODEL_FILES = {
   drone: 'drone.glb',
   helicopter: 'helicopter.glb',
-  fighter: 'f15.glb'
+  fighter: 'f15.glb',
+  truck: 'fire_truck.glb'
 };
 const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
@@ -106,10 +107,11 @@ function getCaptureVehicleTexture(kind = 'generic') {
     return fallback;
   }
   const palettes = {
-    drone: ['#6a737d', '#8f98a1', '#3e464d', '#b4bec7'],
-    fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
-    helicopter: ['#5f6871', '#848f99', '#343c42', '#a5b1ba'],
-    missile: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    drone: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
+    fighter: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
+    helicopter: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
+    missile: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
+    truck: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
   const tone = palettes[kind] ?? palettes.generic;
@@ -560,6 +562,7 @@ function applyMilitaryJetLook(root) {
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
   if (!root) return;
+  applyCaptureTextureToOpaqueMeshes(root, 'helicopter');
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -579,13 +582,13 @@ function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
         return;
       }
       if (isRotorNode) {
-        mat.color.setHex(0xffd166);
-        if ('emissive' in mat) mat.emissive = new THREE.Color(0x4a3000);
+        mat.color.setHex(0x0f1115);
+        if ('emissive' in mat) mat.emissive = new THREE.Color(0x000000);
         if ('metalness' in mat) mat.metalness = 0.9;
-        if ('roughness' in mat) mat.roughness = 0.2;
+        if ('roughness' in mat) mat.roughness = 0.32;
         return;
       }
-      mat.color.offsetHSL(0.02, -0.14, -0.16);
+      mat.color.offsetHSL(0.01, 0.02, -0.08);
       if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
       if ('roughness' in mat) mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
     });
@@ -617,12 +620,35 @@ function applyMilitaryDroneLook(root, propeller = null) {
         if ('roughness' in mat) mat.roughness = 0.28;
         return;
       }
-      mat.color.setHex(0xcfd4d9);
-      if ('metalness' in mat) mat.metalness = 0.82;
-      if ('roughness' in mat) mat.roughness = 0.2;
+      if ('metalness' in mat) mat.metalness = 0.42;
+      if ('roughness' in mat) mat.roughness = 0.52;
     });
   });
   return motor;
+}
+
+function applyMilitaryTruckLook(root) {
+  if (!root) return;
+  applyCaptureTextureToOpaqueMeshes(root, 'truck');
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    paintMeshMaterials(node, (mat) => {
+      if (/window|windshield|glass|cockpit/.test(name)) {
+        mat.color.setHex(0x06080c);
+        if ('metalness' in mat) mat.metalness = 0.58;
+        if ('roughness' in mat) mat.roughness = 0.2;
+        if ('transparent' in mat) mat.transparent = true;
+        if ('opacity' in mat) mat.opacity = 0.95;
+        return;
+      }
+      if (/wheel|tire/.test(name)) {
+        mat.color.setHex(0x111111);
+        if ('metalness' in mat) mat.metalness = 0.25;
+        if ('roughness' in mat) mat.roughness = 0.78;
+      }
+    });
+  });
 }
 
 function easeSmooth(t) {
@@ -727,7 +753,9 @@ function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.1
 
 function createCaptureMissileFx() {
   const root = new THREE.Group();
-  addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
+  root.userData.lockCaptureTexture = true;
+  const body = addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
+  body.material = createCaptureVehicleMaterial('missile', { color: '#b6d3bc', roughness: 0.38, metalness: 0.62 });
 
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.1, 0.28, 16),
@@ -764,8 +792,64 @@ function createCaptureMissileFx() {
   return { root, trail };
 }
 
+async function createCaptureMissileTruckFx() {
+  const root = new THREE.Group();
+  root.userData.lockCaptureTexture = true;
+  const loadedTruck = await loadCaptureVehicleModel('truck');
+  if (loadedTruck) {
+    const model = loadedTruck.clone(true);
+    fitObjectToTargetSize(model, 5.6);
+    model.rotation.y = Math.PI;
+    applyMilitaryTruckLook(model);
+    root.add(model);
+  } else {
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(2.1, 0.62, 1.0),
+      createCaptureVehicleMaterial('truck', { color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+    );
+    body.castShadow = true;
+    body.receiveShadow = true;
+    root.add(body);
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.78, 0.62, 0.92),
+      createCaptureVehicleMaterial('truck', { color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+    );
+    cabin.position.set(0.86, 0.44, 0);
+    cabin.castShadow = true;
+    cabin.receiveShadow = true;
+    root.add(cabin);
+    addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
+  }
+
+  const launcher = new THREE.Group();
+  launcher.position.set(-0.26, 0.56, 0);
+  launcher.rotation.z = -0.34;
+  addFxBox(launcher, [1.6, 0.05, 0.96], [0, 0, 0], '#1f2125', 0.62, 0.24);
+  const support = addFxBox(launcher, [0.12, 0.36, 0.18], [-0.46, -0.19, 0], '#0f1114', 0.5, 0.36);
+  support.rotation.z = 0.22;
+
+  const missileOffsets = [
+    [-0.3, 0.08, -0.28],
+    [0.05, 0.08, 0],
+    [0.4, 0.08, 0.28]
+  ];
+  missileOffsets.forEach((offset) => {
+    const missile = createCaptureMissileFx();
+    missile.root.visible = true;
+    missile.root.scale.setScalar(0.38);
+    missile.root.position.set(offset[0], offset[1], offset[2]);
+    missile.root.rotation.z = 0;
+    launcher.add(missile.root);
+  });
+
+  root.add(launcher);
+  root.visible = true;
+  return { root };
+}
+
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
+  root.userData.lockCaptureTexture = true;
   const loadedDrone = await loadCaptureVehicleModel('drone');
   if (loadedDrone) {
     const model = loadedDrone.clone(true);
@@ -898,6 +982,7 @@ async function createCaptureDroneFx() {
 
 async function createCaptureJetFx() {
   const root = new THREE.Group();
+  root.userData.lockCaptureTexture = true;
   const loadedJet = await loadCaptureVehicleModel('fighter');
   if (loadedJet) {
     const model = loadedJet.clone(true);
@@ -997,6 +1082,7 @@ async function createCaptureJetFx() {
 
 async function createCaptureHelicopterFx() {
   const root = new THREE.Group();
+  root.userData.lockCaptureTexture = true;
   const loadedHelicopter = await loadCaptureVehicleModel('helicopter');
   if (loadedHelicopter) {
     const model = loadedHelicopter.clone(true);
@@ -4280,18 +4366,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const tokenHex = playerColorsHex[playerIndex] ?? 0xffffff;
     const tokenColor = new THREE.Color(tokenHex);
     const darker = tokenColor.clone().multiplyScalar(0.72);
-    vehicleRoot.traverse((node) => {
-      if (!node?.isMesh) return;
-      const name = String(node.name || '').toLowerCase();
-      if (/rotor|propell|blade|fan/.test(name)) return;
-      const mats = Array.isArray(node.material) ? node.material : [node.material];
-      mats.forEach((mat) => {
-        if (!mat?.color) return;
-        mat.color.lerp(tokenColor, 0.62);
-        if (mat.emissive) mat.emissive.copy(darker);
-        mat.needsUpdate = true;
+    if (!vehicleRoot.userData?.lockCaptureTexture) {
+      vehicleRoot.traverse((node) => {
+        if (!node?.isMesh) return;
+        const name = String(node.name || '').toLowerCase();
+        if (/rotor|propell|blade|fan/.test(name)) return;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach((mat) => {
+          if (!mat?.color) return;
+          mat.color.lerp(tokenColor, 0.62);
+          if (mat.emissive) mat.emissive.copy(darker);
+          mat.needsUpdate = true;
+        });
       });
-    });
+    }
     const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
     const badgeGeo = new THREE.CircleGeometry(0.25, 32);
     const badgeMat = new THREE.MeshBasicMaterial({
@@ -4384,7 +4472,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const helicopterFx = await createCaptureHelicopterFx();
       // eslint-disable-next-line no-await-in-loop
       const droneFx = await createCaptureDroneFx();
-      const missileFx = createCaptureMissileFx();
+      // eslint-disable-next-line no-await-in-loop
+      const missileFx = await createCaptureMissileTruckFx();
       if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root) continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
