@@ -111,17 +111,18 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.086; // slightly bigger jet silhouette
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.8;
+const CAPTURE_JET_SCALE = 0.098; // larger jet silhouette for clearer portrait readability
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_JET_SCALE * 0.9;
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.015; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.04; // keep aircraft just above the board plane for a tighter mobile framing
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0.008; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = 0.026; // keep aircraft just above the board plane for a tighter mobile framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.07; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.74; // keep path constrained to board size (inside camera framing on portrait)
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.86; // pull lanes inward from rim so aircraft stays visible on mobile portrait
-const CAPTURE_MISSILE_SCALE = 0.0595;
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.1; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.84; // widen path so strike passes closer to the bottom player viewpoint
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.52; // keep lanes near board edge for a stronger near-camera fly-by
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.4; // shift fly path toward the bottom side of portrait view
+const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.158; // slightly smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
@@ -9114,6 +9115,9 @@ function Chess3D({
         const boardPathHalf = half * CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR * portraitTightening;
         const edgeInset = tile * CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES;
         const laneBound = Math.max(tile * 1.42, boardPathHalf - edgeInset);
+        const bottomPlayerBias = tile * CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES;
+        const towardBottom = (z) =>
+          THREE.MathUtils.clamp(z - bottomPlayerBias, -boardPathHalf, boardPathHalf);
         const attackerLaneZ = attackerSideSign * laneBound;
         const enemyLaneZ = -attackerSideSign * laneBound;
         const xClamp = laneBound;
@@ -9128,33 +9132,33 @@ function Chess3D({
           -xClamp,
           xClamp
         );
-        const startPos = new THREE.Vector3(laneX, baseAltitude, attackerLaneZ);
+        const startPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         const entryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.18),
           baseAltitude - turnAltitudeDrop * 0.2,
-          THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.2)
+          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.2))
         );
         const turnEntryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.94),
           baseAltitude - turnAltitudeDrop * 0.38,
-          THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.94)
+          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.94))
         );
         const turnExitPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.16),
           baseAltitude - turnAltitudeDrop * 0.62,
-          THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.96)
+          towardBottom(THREE.MathUtils.lerp(victimPos.z, enemyLaneZ, 0.96))
         );
         const turnControlPos = new THREE.Vector3(
           turnBendX,
           baseAltitude - turnAltitudeDrop * 0.54,
-          enemyLaneZ
+          towardBottom(enemyLaneZ)
         );
         const returnEntryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 0.1),
           baseAltitude - turnAltitudeDrop * 0.28,
-          THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.82)
+          towardBottom(THREE.MathUtils.lerp(enemyLaneZ, attackerLaneZ, 0.82))
         );
-        const exitPos = new THREE.Vector3(laneX, baseAltitude, attackerLaneZ);
+        const exitPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         return {
           attackFromTopSide,
           startPos,
