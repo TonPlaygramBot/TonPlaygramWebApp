@@ -111,17 +111,17 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.0724992; // another 20% reduction so the jet reads smaller on portrait screens
+const CAPTURE_JET_SCALE = 0.090624; // 20% smaller than prior jet size for tighter portrait framing
 const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.14; // keep aircraft tighter to the board plane
-const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.18; // lower baseline altitude for tighter portrait fly-bys
+const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.1; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
+const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.14; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // match helicopter altitude with jet
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.41; // tighter radius, centered above board
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.8; // pull entry/turn points further inward from board edges
-const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0; // remove portrait side bias to keep path centered
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.245; // keep helicopter visibly lower than jet and closer to the board
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.48; // keep lanes closer to board center while preserving a fly-by arc
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.35; // pull lanes inward from hard board edges
+const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
@@ -9231,15 +9231,14 @@ function Chess3D({
         const edgeInset = tile * CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES;
         const laneBound = Math.max(tile * 1.42, boardPathHalf - edgeInset);
         const bottomPlayerBias = tile * CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES;
-        const centerPull = 0.18;
         const towardBottom = (z) =>
           THREE.MathUtils.clamp(z - bottomPlayerBias, -boardPathHalf, boardPathHalf);
-        const attackerLaneZ = THREE.MathUtils.lerp(attackerSideSign * laneBound, 0, centerPull);
-        const enemyLaneZ = THREE.MathUtils.lerp(-attackerSideSign * laneBound, 0, centerPull);
+        const attackerLaneZ = attackerSideSign * laneBound;
+        const enemyLaneZ = -attackerSideSign * laneBound;
         const xClamp = laneBound;
         const laneMidX = THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5);
         const laneX = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(laneMidX, 0, 0.72),
+          THREE.MathUtils.lerp(laneMidX, 0, 0.62),
           -xClamp * 0.72,
           xClamp * 0.72
         );
@@ -9251,9 +9250,9 @@ function Chess3D({
         );
         const startPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         const entryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.5),
+          THREE.MathUtils.lerp(laneX, victimPos.x, 0.4),
           baseAltitude - turnAltitudeDrop * 0.26,
-          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.42))
+          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.28))
         );
         const turnEntryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 1.03),
@@ -9684,25 +9683,16 @@ function Chess3D({
     const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
       const meshes = arenaRef.current?.allPieceMeshes || [];
       const target = new THREE.Color(hex);
-      const mappedGold = new THREE.Color(0xd7b24a);
       meshes.forEach((piece) => {
         const isWhite = piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
         const matches = sideKey === 'white' ? isWhite : !isWhite;
         if (!matches) return;
-        const pieceType = (piece?.userData?.t || piece?.userData?.__pieceType || '').toString().toUpperCase();
         piece.traverse((node) => {
           if (!node?.isMesh) return;
           ensureIsolatedMaterial(node);
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           materials.forEach((mat) => {
-            if (!mat) return;
-            const inGoldBand = isInsideReferenceGoldBand(node, piece, pieceType);
-            if (isGoldLikeMaterial(mat) || inGoldBand) {
-              mat?.color?.copy(mappedGold);
-              mat.metalness = clamp01(Math.max(mat.metalness ?? 0.35, 0.62));
-              mat.roughness = clamp01(Math.min(mat.roughness ?? 0.45, 0.34));
-              return;
-            }
+            if (!mat || isGoldLikeMaterial(mat)) return;
             mat?.color?.copy(target);
             mat?.emissive?.set(0x000000);
           });
