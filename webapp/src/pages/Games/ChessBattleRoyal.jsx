@@ -111,16 +111,16 @@ const CAPTURE_GROUND_FIRE_TIME = 0;
 const CAPTURE_GROUND_TRAVEL_TIME = 2.3;
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.058;
-const CAPTURE_JET_SCALE = 0.090624; // 20% smaller than prior jet size for tighter portrait framing
+const CAPTURE_JET_SCALE = 0.0724992; // 20% smaller than the previous jet scale so portrait fly-bys stay tighter
 const CAPTURE_HELICOPTER_SCALE = 0.10176; // extra 20% smaller for tighter portrait framing
 const CAPTURE_DRONE_ALTITUDE = 1.36;
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = -0.1; // lower jet/helicopter so they sit visibly closer to the board on portrait screens
 const CAPTURE_AIR_STRIKE_MIN_ALTITUDE = -0.14; // keep aircraft lower and tighter to the board plane for portrait framing
 const CAPTURE_JET_ALTITUDE = CAPTURE_AIR_STRIKE_MIN_ALTITUDE;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = -0.245; // keep helicopter visibly lower than jet and closer to the board
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.48; // keep lanes closer to board center while preserving a fly-by arc
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.35; // pull lanes inward from hard board edges
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.42; // tighter radius so jet/helicopter path stays centered above the board
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.6; // pull entry/turn points farther in from board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
@@ -3583,9 +3583,11 @@ function isGoldCandidateMaterial(material) {
 }
 
 function captureBeautifulGameGoldSignatures(piecePrototypes) {
+  const normalizePieceType = (pieceType) => `${pieceType || ''}`.toLowerCase();
   const updatePieceBands = (pieceType, band) => {
-    if (!pieceType || !band) return;
-    const current = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(pieceType) || [];
+    const normalizedPieceType = normalizePieceType(pieceType);
+    if (!normalizedPieceType || !band) return;
+    const current = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(normalizedPieceType) || [];
     const shouldMerge = (a, b) => Math.min(a.max, b.max) - Math.max(a.min, b.min) >= -0.05;
     let merged = false;
     for (let i = 0; i < current.length; i += 1) {
@@ -3598,7 +3600,7 @@ function captureBeautifulGameGoldSignatures(piecePrototypes) {
       break;
     }
     if (!merged) current.push(band);
-    BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.set(pieceType, current);
+    BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.set(normalizedPieceType, current);
   };
 
   ['white', 'black'].forEach((side) => {
@@ -3623,7 +3625,7 @@ function captureBeautifulGameGoldSignatures(piecePrototypes) {
 
 function isInsideReferenceGoldBand(child, piece, pieceType) {
   if (!piece || !pieceType) return false;
-  const bands = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(pieceType);
+  const bands = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(`${pieceType}`.toLowerCase());
   if (!Array.isArray(bands) || !bands.length) return false;
   const pieceBox = new THREE.Box3().setFromObject(piece);
   const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
@@ -9238,7 +9240,7 @@ function Chess3D({
         const xClamp = laneBound;
         const laneMidX = THREE.MathUtils.lerp(attackerPos.x, victimPos.x, 0.5);
         const laneX = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(laneMidX, 0, 0.62),
+          THREE.MathUtils.lerp(laneMidX, 0, 0.72),
           -xClamp * 0.72,
           xClamp * 0.72
         );
@@ -9250,9 +9252,9 @@ function Chess3D({
         );
         const startPos = new THREE.Vector3(laneX, baseAltitude, towardBottom(attackerLaneZ));
         const entryPos = new THREE.Vector3(
-          THREE.MathUtils.lerp(laneX, victimPos.x, 0.4),
+          THREE.MathUtils.lerp(laneX, victimPos.x, 0.5),
           baseAltitude - turnAltitudeDrop * 0.26,
-          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.28))
+          towardBottom(THREE.MathUtils.lerp(attackerLaneZ, victimPos.z, 0.4))
         );
         const turnEntryPos = new THREE.Vector3(
           THREE.MathUtils.lerp(laneX, victimPos.x, 1.03),
