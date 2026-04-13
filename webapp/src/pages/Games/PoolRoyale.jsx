@@ -26423,7 +26423,6 @@ const powerRef = useRef(hud.power);
           const commitShotImpact = () => {
             if (shotImpactCommitted) return;
             shotImpactCommitted = true;
-            pendingImpactRef.current = null;
             cue.vel.copy(base);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
@@ -26550,12 +26549,6 @@ const powerRef = useRef(hud.power);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          // Fallback: guarantee the cue-ball impulse is applied even if a frame skip
-          // causes the cue animation impact callback to be missed.
-          pendingImpactRef.current = {
-            time: startTime + Math.max(0, strikeDuration) * 0.9,
-            apply: commitShotImpact
-          };
           const impactPos = idlePos.clone();
           const followPos = impactPos.clone();
           const followDurationResolved = strikeHoldDuration;
@@ -26690,7 +26683,6 @@ const powerRef = useRef(hud.power);
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
