@@ -67,7 +67,6 @@ const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
-const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -89,9 +88,6 @@ const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
 const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.82;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
-const CAPTURE_PARK_FORWARD_OFFSET = 1.18;
-const CAPTURE_PARK_SIDE_OFFSET = 0.58;
-const CAPTURE_VEHICLE_HEIGHT_TO_KING = 3;
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -147,69 +143,6 @@ function createCaptureVehicleMaterial(kind, options = {}) {
   });
 }
 
-function loadCaptureAvatarTexture(photoUrl) {
-  const cacheKey = photoUrl || 'default';
-  if (CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.has(cacheKey)) {
-    return CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.get(cacheKey);
-  }
-  const promise = new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      resolve(new THREE.CanvasTexture(canvas));
-      return;
-    }
-    const finalize = () => {
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true;
-      resolve(texture);
-    };
-    ctx.clearRect(0, 0, 256, 256);
-    ctx.beginPath();
-    ctx.arc(128, 128, 122, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    if (!photoUrl || !/^https?:\/\//i.test(photoUrl)) {
-      ctx.fillStyle = '#1f2937';
-      ctx.font = 'bold 128px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(photoUrl || '🙂').slice(0, 2), 128, 134);
-      finalize();
-      return;
-    }
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(128, 128, 120, 0, Math.PI * 2);
-      ctx.clip();
-      const ratio = Math.max(256 / image.width, 256 / image.height);
-      const drawW = image.width * ratio;
-      const drawH = image.height * ratio;
-      ctx.drawImage(image, (256 - drawW) * 0.5, (256 - drawH) * 0.5, drawW, drawH);
-      ctx.restore();
-      finalize();
-    };
-    image.onerror = () => {
-      ctx.fillStyle = '#1f2937';
-      ctx.font = 'bold 120px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🙂', 128, 134);
-      finalize();
-    };
-    image.src = photoUrl;
-  });
-  CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.set(cacheKey, promise);
-  return promise;
-}
-
 function fitObjectToTargetSize(root, targetSize) {
   if (!root) return;
   const box = new THREE.Box3().setFromObject(root);
@@ -223,15 +156,6 @@ function fitObjectToTargetSize(root, targetSize) {
   root.position.x -= center.x;
   root.position.z -= center.z;
   root.position.y -= nextBox.min.y;
-}
-
-function fitObjectToTargetHeight(root, targetHeight) {
-  if (!root || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const height = size.y;
-  if (!Number.isFinite(height) || height <= 0) return;
-  root.scale.multiplyScalar(targetHeight / height);
 }
 
 async function loadCaptureVehicleModel(kind) {
@@ -577,10 +501,9 @@ function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
         return;
       }
       if (isRotorNode) {
-        mat.color.setHex(0xffd166);
-        if ('emissive' in mat) mat.emissive = new THREE.Color(0x4a3000);
-        if ('metalness' in mat) mat.metalness = 0.9;
-        if ('roughness' in mat) mat.roughness = 0.2;
+        mat.color.setHex(0xb8c1cc);
+        if ('metalness' in mat) mat.metalness = 0.72;
+        if ('roughness' in mat) mat.roughness = 0.26;
         return;
       }
       mat.color.offsetHSL(0.02, -0.14, -0.16);
@@ -1518,7 +1441,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.21;
+const CAMERA_SIDE_LOOK_EXTRA = 0.13;
 const CAMERA_TURN_PLAYER_LERP = 0.58;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.6;
 const CAMERA_BROADCAST_SIDE_BLEND = 0.82;
@@ -3895,7 +3818,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const boardLookTargetRef = useRef(null);
   const saved3dCameraStateRef = useRef(null);
   const captureFxRef = useRef(null);
-  const parkedCaptureVehiclesRef = useRef(new Map());
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
@@ -4267,131 +4189,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       };
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
-  const playersRef = useRef(players);
-  useEffect(() => {
-    playersRef.current = players;
-  }, [players]);
-
-  const applyCaptureVehiclePlayerTheme = useCallback(async (vehicleRoot, playerIndex) => {
-    if (!vehicleRoot?.isObject3D) return;
-    const player = playersRef.current[playerIndex];
-    const tokenHex = playerColorsHex[playerIndex] ?? 0xffffff;
-    const tokenColor = new THREE.Color(tokenHex);
-    const darker = tokenColor.clone().multiplyScalar(0.72);
-    vehicleRoot.traverse((node) => {
-      if (!node?.isMesh) return;
-      const name = String(node.name || '').toLowerCase();
-      if (/rotor|propell|blade|fan/.test(name)) return;
-      const mats = Array.isArray(node.material) ? node.material : [node.material];
-      mats.forEach((mat) => {
-        if (!mat?.color) return;
-        mat.color.lerp(tokenColor, 0.62);
-        if (mat.emissive) mat.emissive.copy(darker);
-        mat.needsUpdate = true;
-      });
-    });
-    const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
-    const badgeGeo = new THREE.CircleGeometry(0.25, 32);
-    const badgeMat = new THREE.MeshBasicMaterial({
-      map: avatarTexture,
-      transparent: true,
-      side: THREE.DoubleSide
-    });
-    const leftBadge = new THREE.Mesh(badgeGeo, badgeMat);
-    leftBadge.position.set(-0.12, 0.05, -0.44);
-    leftBadge.rotation.y = Math.PI / 2;
-    const rightBadge = leftBadge.clone();
-    rightBadge.position.z = 0.44;
-    rightBadge.rotation.y = -Math.PI / 2;
-    vehicleRoot.add(leftBadge);
-    vehicleRoot.add(rightBadge);
-  }, [playerColorsHex]);
-
-  const getKingTokenHeightForPlayer = useCallback((playerIndex) => {
-    const playerTokens = stateRef.current?.tokens?.[playerIndex];
-    if (!Array.isArray(playerTokens) || !playerTokens.length) return 0.28;
-    const kingToken =
-      playerTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) ??
-      playerTokens[0];
-    if (!kingToken) return 0.28;
-    const box = new THREE.Box3().setFromObject(kingToken);
-    const size = box.getSize(new THREE.Vector3());
-    return Math.max(0.2, size.y || 0.28);
-  }, []);
-
-  const fitCaptureVehicleToPlayerKing = useCallback((vehicleRoot, playerIndex) => {
-    if (!vehicleRoot?.isObject3D) return;
-    const kingHeight = getKingTokenHeightForPlayer(playerIndex);
-    fitObjectToTargetHeight(vehicleRoot, kingHeight * CAPTURE_VEHICLE_HEIGHT_TO_KING);
-  }, [getKingTokenHeightForPlayer]);
-
-  const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
-    const arena = arenaRef.current;
-    if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
-    const anchor = arena.seatAnchors[playerIndex];
-    if (!anchor) return null;
-    const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    const inward = arena.boardLookTarget.clone().sub(seatPos).setY(0).normalize();
-    if (inward.lengthSq() < 1e-6) return null;
-    const side = inward.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-    const sideSign = vehicleType === 'fighter' ? 1 : -1;
-    const park = seatPos
-      .clone()
-      .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET)
-      .addScaledVector(side, CAPTURE_PARK_SIDE_OFFSET * sideSign);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.08;
-    return park;
-  }, []);
 
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
     [players]
   );
-
-  const rebuildParkedCaptureVehicles = useCallback(async () => {
-    const arena = arenaRef.current;
-    if (!arena?.scene) return;
-    parkedCaptureVehiclesRef.current.forEach((entry) => {
-      entry?.jet?.parent?.remove?.(entry.jet);
-      entry?.helicopter?.parent?.remove?.(entry.helicopter);
-    });
-    parkedCaptureVehiclesRef.current.clear();
-    for (let playerIndex = 0; playerIndex < activePlayerCount; playerIndex += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      const jetFx = await createCaptureJetFx();
-      // eslint-disable-next-line no-await-in-loop
-      const helicopterFx = await createCaptureHelicopterFx();
-      if (!jetFx?.root || !helicopterFx?.root) continue;
-      fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
-      fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
-      const jetPark = resolveCaptureParkingAnchors(playerIndex, 'fighter');
-      const helicopterPark = resolveCaptureParkingAnchors(playerIndex, 'helicopter');
-      if (!jetPark || !helicopterPark) continue;
-      jetFx.root.position.copy(jetPark);
-      jetFx.root.visible = true;
-      helicopterFx.root.position.copy(helicopterPark);
-      helicopterFx.root.visible = true;
-      jetFx.root.lookAt(arena.boardLookTarget);
-      helicopterFx.root.lookAt(arena.boardLookTarget);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(helicopterFx.root, playerIndex);
-      arena.scene.add(jetFx.root);
-      arena.scene.add(helicopterFx.root);
-      parkedCaptureVehiclesRef.current.set(playerIndex, {
-        jet: jetFx.root,
-        helicopter: helicopterFx.root,
-        jetPark,
-        helicopterPark
-      });
-    }
-  }, [
-    activePlayerCount,
-    applyCaptureVehiclePlayerTheme,
-    fitCaptureVehicleToPlayerKing,
-    resolveCaptureParkingAnchors
-  ]);
 
   useEffect(() => {
     uiRef.current = ui;
@@ -6061,7 +5863,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     updateEnvironmentFloor();
-    void rebuildParkedCaptureVehicles();
     hdriVariantRef.current = envVariant || DEFAULT_HDRI_VARIANT;
     void applyHdriEnvironment(envVariant);
 
@@ -6484,11 +6285,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         captureFxRef.current.explosion?.parent?.remove?.(captureFxRef.current.explosion);
         captureFxRef.current = null;
       }
-      parkedCaptureVehiclesRef.current.forEach((entry) => {
-        entry?.jet?.parent?.remove?.(entry.jet);
-        entry?.helicopter?.parent?.remove?.(entry.helicopter);
-      });
-      parkedCaptureVehiclesRef.current.clear();
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -6648,13 +6444,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
         const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
-        const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
-        const parkedLaunch =
-          isFighterJetAttack
-            ? parkedEntry?.jetPark?.clone?.()
-            : isHelicopterAttack
-            ? parkedEntry?.helicopterPark?.clone?.()
-            : null;
         stopCaptureVehicleSounds();
         if (isHelicopterAttack) playHelicopterSound();
         if (isDroneAttack) playDroneSound();
@@ -6667,10 +6456,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? await createCaptureJetFx()
             : createCaptureMissileFx();
-        if (isFighterJetAttack || isHelicopterAttack) {
-          fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
-          await applyCaptureVehiclePlayerTheme(primaryFx.root, attackerPlayer);
-        }
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
             ? [createCaptureMissileFx(), createCaptureMissileFx()]
@@ -6713,9 +6498,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
 
         const tokenWorldPos =
-          parkedLaunch ||
-          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
-          startPosition.clone();
+          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ?? startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
         moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
         setCameraFocus({
@@ -6935,7 +6718,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               primaryFx.propeller.rotation.x += 1.2;
             }
             if (primaryFx.rotor) {
-              primaryFx.rotor.rotation.y += 0.9;
+              primaryFx.rotor.rotation.y += 0.5;
             }
             if (primaryFx.tailRotor) {
               primaryFx.tailRotor.rotation.x += 0.9;
@@ -7039,17 +6822,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             flyAwayDir.normalize();
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
-            const parkedReturn =
-              parkedLaunch?.clone()?.add(new THREE.Vector3(0, bishopHeight * 0.52, 0)) ?? null;
-            const flyAwayEnd = parkedReturn
-              ? flyAwayStart
-                  .clone()
-                  .lerp(parkedReturn, easeSmooth(flyAwayT))
-                  .add(new THREE.Vector3(0, topStrikeHeight * 0.08, 0))
-              : flyAwayStart
-                  .clone()
-                  .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
-                  .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
+            const flyAwayEnd = flyAwayStart
+              .clone()
+              .add(flyAwayDir.multiplyScalar(orbitalRadius * (isHelicopterAttack ? 1.08 : 1.2)))
+              .add(new THREE.Vector3(0, topStrikeHeight * (isHelicopterAttack ? 0.18 : 0.08), 0));
             const flyAwayPos = flyAwayStart.clone().lerp(flyAwayEnd, easeSmooth(flyAwayT));
             const flyAwayNext = flyAwayStart.clone().lerp(flyAwayEnd, clamp(flyAwayT + 0.04, 0, 1));
             const flyAwayDirNow = flyAwayNext.sub(flyAwayPos).normalize();
