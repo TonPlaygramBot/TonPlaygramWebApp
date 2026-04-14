@@ -115,17 +115,17 @@ const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly 
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
 const CAPTURE_DRONE_ALTITUDE = 0.88; // keep aircraft lower so they stay visually close to the board
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
+const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.34; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight path stays more inward on-screen
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.2; // tighter safe perimeter so aircraft stay close to board center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
-const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.4; // run drone path more inward and closer to board center
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.24; // lower drone route to keep it close to board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.2; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.28; // run drone path more inward and closer to board center
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.18; // lower drone route to keep it close to board surface
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.14; // lower jet/helicopter route so aircraft feel closer to board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -6882,6 +6882,7 @@ function Chess3D({
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
+  const broadcastCameraStateRef = useRef({ active: false, savedTarget: null, savedPosition: null });
   const initial2dViewRef = useRef(null);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const renderSettingsRef = useRef({
@@ -7057,6 +7058,20 @@ function Chess3D({
     promoting: null,
     winner: null
   });
+  const winnerCoinBurst = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, idx) => {
+        const angle = (Math.PI * 2 * idx) / 18;
+        const distance = 42 + (idx % 4) * 13;
+        return {
+          id: `coin-${idx}`,
+          x: Math.cos(angle) * distance,
+          y: Math.sin(angle) * distance,
+          delay: idx * 0.045
+        };
+      }),
+    []
+  );
   const uiRef = useRef(ui);
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
@@ -7503,6 +7518,12 @@ function Chess3D({
       }
     ];
   }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  const winnerPlayer = useMemo(() => {
+    if (!ui.winner) return null;
+    if (ui.winner === 'White') return players[0] || null;
+    if (ui.winner === 'Black') return players[1] || null;
+    return players.find((player) => player?.name === ui.winner) || null;
+  }, [players, ui.winner]);
   const giftPlayers = useMemo(
     () =>
       players.map((player) => ({
@@ -9558,14 +9579,15 @@ function Chess3D({
       return launchPos;
     };
     const getAirStrikeCenterFlightTarget = (from, to) => {
-      const centerBias = THREE.MathUtils.clamp(
-        (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.56,
-        0.9
-      );
-      const flightTarget = to.clone();
-      flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.4);
+      const midpoint = from.clone().lerp(to, 0.52);
+      const maxCenterRadius = Math.max(tile * 1.4, half * 0.5);
+      const planar = new THREE.Vector2(midpoint.x, midpoint.z);
+      if (planar.length() > maxCenterRadius) {
+        planar.setLength(maxCenterRadius);
+      }
+      const flightTarget = new THREE.Vector3(planar.x, to.y, planar.y);
+      flightTarget.x = THREE.MathUtils.lerp(flightTarget.x, 0, 0.42);
+      flightTarget.z = THREE.MathUtils.lerp(flightTarget.z, 0, 0.42);
       return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
     };
     const getCaptureOrbitPose = ({
@@ -11080,6 +11102,21 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
+      const selectedPiece = board[sel.r]?.[sel.c] || null;
+      const destinationPiece = board[rr]?.[cc] || null;
+      const rookToKingCastle =
+        selectedPiece?.t === 'R' &&
+        destinationPiece?.t === 'K' &&
+        destinationPiece?.w === selectedPiece?.w &&
+        sel.r === rr;
+      if (rookToKingCastle) {
+        const kingMoves = legalMoves(board, rr, cc);
+        const kingCastleTarget = kingMoves.find(([targetR, targetC]) => Math.abs(targetC - cc) === 2 && targetR === rr);
+        if (kingCastleTarget) {
+          selectAt(rr, cc, { force: true, selectionColor: paletteRef.current?.capture });
+          [rr, cc] = kingCastleTarget;
+        }
+      }
       if (!legal.some(([r, c]) => r === rr && c === cc)) {
         finalizeAiMove();
         return;
@@ -11235,6 +11272,7 @@ function Chess3D({
         const queenProto = currentPiecePrototypes[color]?.Q;
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
+          replacement.scale.multiplyScalar(PIECE_SCALE_FACTOR);
           replacement.position.copy(m.position);
           replacement.userData = {
             ...m.userData,
@@ -12074,6 +12112,66 @@ function Chess3D({
         }
       }
 
+      if (camera && controls && boardLookTarget) {
+        const broadcastState = broadcastCameraStateRef.current;
+        const getCaptureFocus = (fx) => {
+          if (!fx) return null;
+          if (fx.type === 'jet') {
+            const missile = Array.isArray(fx.missileFx)
+              ? fx.missileFx.find((entry) => entry?.root?.visible)
+              : fx.missileFx?.root?.visible
+                ? fx.missileFx
+                : null;
+            return missile?.root?.position || fx.jetFx?.root?.position || null;
+          }
+          if (fx.type === 'helicopter') {
+            const missile = Array.isArray(fx.missileFx)
+              ? fx.missileFx.find((entry) => entry?.root?.visible)
+              : fx.missileFx?.root?.visible
+                ? fx.missileFx
+                : null;
+            return missile?.root?.position || fx.helicopterFx?.root?.position || null;
+          }
+          if (fx.type === 'drone') return fx.droneFx?.root?.position || null;
+          if (fx.type === 'javelin') return fx.missileFx?.root?.position || null;
+          if (fx.type === 'missile') return fx.missileFx?.root?.position || null;
+          return null;
+        };
+        if (activeCaptureFx.length && !dragState.active) {
+          const activeFocusFx = activeCaptureFx.find((fx) => fx.type === 'jet' || fx.type === 'helicopter' || fx.type === 'drone' || fx.type === 'javelin' || fx.type === 'missile');
+          const focus = getCaptureFocus(activeFocusFx);
+          if (focus) {
+            if (!broadcastState.active) {
+              broadcastState.active = true;
+              broadcastState.savedTarget = controls.target.clone();
+              broadcastState.savedPosition = camera.position.clone();
+            }
+            const targetFocus = focus.clone().add(new THREE.Vector3(0, 0.1, 0));
+            const offset = camera.position.clone().sub(controls.target);
+            const radius = clamp(offset.length() || CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+            const desiredOffset = offset.lengthSq() > 1e-5 ? offset.normalize().multiplyScalar(radius) : new THREE.Vector3(0, 1.22, radius);
+            desiredOffset.y = Math.max(desiredOffset.y, 1);
+            controls.target.lerp(targetFocus, 0.15);
+            camera.position.lerp(targetFocus.clone().add(desiredOffset), 0.12);
+            camera.lookAt(controls.target);
+          }
+        } else if (broadcastState.active) {
+          if (broadcastState.savedTarget && broadcastState.savedPosition) {
+            controls.target.lerp(broadcastState.savedTarget, 0.12);
+            camera.position.lerp(broadcastState.savedPosition, 0.12);
+            camera.lookAt(controls.target);
+          }
+          if (
+            !activeCaptureFx.length &&
+            camera.position.distanceTo(broadcastState.savedPosition || boardLookTarget) < 0.08
+          ) {
+            broadcastState.active = false;
+            broadcastState.savedTarget = null;
+            broadcastState.savedPosition = null;
+          }
+        }
+      }
+
       if (moveHighlightMesh?.parent && performance.now() <= moveHighlightEndMs) {
         const pulse = 0.72 + Math.sin(now * 0.012) * 0.2;
         moveHighlight.material.opacity = pulse;
@@ -12709,6 +12807,39 @@ function Chess3D({
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
+        {ui.winner && winnerPlayer && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <div className="relative flex flex-col items-center">
+              {winnerCoinBurst.map((coin) => (
+                <span
+                  key={coin.id}
+                  className="absolute text-xl"
+                  style={{
+                    transform: `translate(${coin.x}px, ${coin.y}px)`,
+                    animation: `ping 1.1s cubic-bezier(0, 0, 0.2, 1) ${coin.delay}s infinite`
+                  }}
+                >
+                  🪙
+                </span>
+              ))}
+              <div className="rounded-2xl border border-yellow-300/60 bg-black/70 px-8 py-6 text-center shadow-[0_0_40px_rgba(250,204,21,0.35)] backdrop-blur-md">
+                <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-300 bg-white/10 text-4xl">
+                  {typeof winnerPlayer.photoUrl === 'string' &&
+                  winnerPlayer.photoUrl.match(/\.(png|jpe?g|webp|gif|svg)$/i) ? (
+                    <img src={winnerPlayer.photoUrl} alt={winnerPlayer.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span>{winnerPlayer.photoUrl || '🏆'}</span>
+                  )}
+                </div>
+                <p className="text-xs uppercase tracking-[0.28em] text-yellow-100/80">Winner</p>
+                <p className="mt-1 text-xl font-black uppercase tracking-[0.08em] text-yellow-200">
+                  {winnerPlayer.name}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white/90">TPC Coin Burst Celebration</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
