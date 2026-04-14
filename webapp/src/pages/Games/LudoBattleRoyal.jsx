@@ -103,6 +103,7 @@ const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   drone: 0.04,
   missile: 0.1
 };
+const CAPTURE_PARK_ORIENTATION_FORWARD = new THREE.Vector3(1, 0, 0);
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -581,6 +582,15 @@ function paintMeshMaterials(node, painter) {
   });
 }
 
+function hasPreserveCaptureGltfTextureTag(node) {
+  let current = node;
+  while (current) {
+    if (current?.userData?.preserveCaptureGltfTexture) return true;
+    current = current.parent ?? null;
+  }
+  return false;
+}
+
 function applyMilitaryJetLook(root) {
   if (!root) return;
   applyCaptureTextureToOpaqueMeshes(root, 'fighter');
@@ -851,7 +861,8 @@ async function createCaptureMissileTruckFx() {
     const model = loadedTruck.clone(true);
     fitObjectToTargetSize(model, 6.95);
     model.rotation.y = Math.PI;
-    applyMilitaryTruckLook(model);
+    model.userData.preserveCaptureGltfTexture = true;
+    root.userData.preserveCaptureGltfTexture = true;
     root.add(model);
   } else {
     const body = new THREE.Mesh(
@@ -916,7 +927,9 @@ async function createCaptureDroneFx() {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
-    const propeller = applyMilitaryDroneLook(model);
+    const propeller = findDroneMotorMesh(model);
+    model.userData.preserveCaptureGltfTexture = true;
+    root.userData.preserveCaptureGltfTexture = true;
     root.add(model);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
@@ -1049,7 +1062,8 @@ async function createCaptureJetFx() {
     const model = loadedJet.clone(true);
     fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.86);
     model.rotation.set(0, Math.PI, 0);
-    applyMilitaryJetLook(model);
+    model.userData.preserveCaptureGltfTexture = true;
+    root.userData.preserveCaptureGltfTexture = true;
     root.add(model);
     const trail = [];
     for (let i = 0; i < 6; i += 1) {
@@ -1151,7 +1165,8 @@ async function createCaptureHelicopterFx() {
     const model = loadedHelicopter.clone(true);
     fitObjectToTargetSize(model, 7.68 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
-    applyMilitaryHelicopterLook(model);
+    model.userData.preserveCaptureGltfTexture = true;
+    root.userData.preserveCaptureGltfTexture = true;
     root.add(model);
     const trail = [];
     for (let i = 0; i < 6; i += 1) {
@@ -4432,6 +4447,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const themedTexture = getPlayerCaptureVehicleTexture(tokenColor);
     vehicleRoot.traverse((node) => {
       if (!node?.isMesh) return;
+      if (hasPreserveCaptureGltfTextureTag(node)) return;
       const name = String(node.name || '').toLowerCase();
       if (/rotor|propell|blade|fan/.test(name)) return;
       const mats = Array.isArray(node.material) ? node.material : [node.material];
@@ -4568,10 +4584,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
-      jetFx.root.lookAt(arena.boardLookTarget);
-      helicopterFx.root.lookAt(arena.boardLookTarget);
-      droneFx.root.lookAt(arena.boardLookTarget);
-      missileFx.root.lookAt(arena.boardLookTarget);
+      const orientParkedVehicleTowardBoardCenter = (vehicleRoot) => {
+        if (!vehicleRoot?.position || !arena.boardLookTarget) return;
+        const toCenter = arena.boardLookTarget.clone().sub(vehicleRoot.position).setY(0);
+        if (toCenter.lengthSq() < 1e-6) return;
+        toCenter.normalize();
+        vehicleRoot.quaternion.setFromUnitVectors(CAPTURE_PARK_ORIENTATION_FORWARD, toCenter);
+      };
+      orientParkedVehicleTowardBoardCenter(jetFx.root);
+      orientParkedVehicleTowardBoardCenter(helicopterFx.root);
+      orientParkedVehicleTowardBoardCenter(droneFx.root);
+      orientParkedVehicleTowardBoardCenter(missileFx.root);
       // eslint-disable-next-line no-await-in-loop
       await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
       // eslint-disable-next-line no-await-in-loop
