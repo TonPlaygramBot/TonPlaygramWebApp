@@ -2724,7 +2724,7 @@ export default function SnakeAndLadder() {
       const finalizeMove = (finalPos, type, effectStart) => {
         const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
         setPos(finalPos);
-        setHighlight({ cell: finalPos, type, color: playerColors[index] });
+        setHighlight({ cell: finalPos, type, color: playerColors[0] });
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
