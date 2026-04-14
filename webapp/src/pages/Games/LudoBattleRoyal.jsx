@@ -68,6 +68,7 @@ const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
+const CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -83,15 +84,14 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 0.74;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.82;
 const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.76;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.84;
 const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
 const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.72;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
 const CAPTURE_PARK_FORWARD_OFFSET = 1.18;
-const CAPTURE_PARK_SIDE_OFFSET = 0.58;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 
@@ -149,6 +149,46 @@ function createCaptureVehicleMaterial(kind, options = {}) {
     map: getCaptureVehicleTexture(kind),
     ...options
   });
+}
+
+function getPlayerCaptureVehicleTexture(tokenColor) {
+  const safeColor = tokenColor?.isColor ? tokenColor : new THREE.Color(0xffffff);
+  const cacheKey = safeColor.getHexString();
+  if (CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.has(cacheKey)) {
+    return CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.get(cacheKey);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const dark = safeColor.clone().multiplyScalar(0.55).getStyle();
+    const mid = safeColor.clone().multiplyScalar(0.8).getStyle();
+    const light = safeColor.clone().lerp(new THREE.Color('#ffffff'), 0.3).getStyle();
+    const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+    gradient.addColorStop(0, dark);
+    gradient.addColorStop(0.5, mid);
+    gradient.addColorStop(1, light);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 8;
+    for (let i = -256; i < 512; i += 44) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + 180, 256);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1.7, 1.7);
+  texture.anisotropy = 4;
+  CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
 }
 
 function loadCaptureAvatarTexture(photoUrl) {
@@ -800,7 +840,7 @@ async function createCaptureMissileTruckFx() {
   const loadedTruck = await loadCaptureVehicleModel('truck');
   if (loadedTruck) {
     const model = loadedTruck.clone(true);
-    fitObjectToTargetSize(model, 5.6);
+    fitObjectToTargetSize(model, 6.15);
     model.rotation.y = Math.PI;
     applyMilitaryTruckLook(model);
     root.add(model);
@@ -824,16 +864,16 @@ async function createCaptureMissileTruckFx() {
   }
 
   const launcher = new THREE.Group();
-  launcher.position.set(-0.12, 0.72, 0);
+  launcher.position.set(-0.12, 0.96, 0);
   launcher.rotation.z = 0;
   addFxBox(launcher, [1.66, 0.06, 1.02], [0, 0, 0], '#171b20', 0.62, 0.24);
   const support = addFxBox(launcher, [0.14, 0.32, 0.2], [-0.56, -0.2, 0], '#0f1114', 0.5, 0.36);
   support.rotation.z = 0;
 
   const missileOffsets = [
-    [-0.42, 0.54, -0.3],
-    [0, 0.54, 0],
-    [0.42, 0.54, 0.3]
+    [-0.42, 0.72, -0.3],
+    [0, 0.72, 0],
+    [0.42, 0.72, 0.3]
   ];
   missileOffsets.forEach((offset) => {
     const missile = createCaptureMissileFx();
@@ -4370,20 +4410,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const tokenHex = playerColorsHex[playerIndex] ?? 0xffffff;
     const tokenColor = new THREE.Color(tokenHex);
     const darker = tokenColor.clone().multiplyScalar(0.72);
-    if (!vehicleRoot.userData?.lockCaptureTexture) {
-      vehicleRoot.traverse((node) => {
-        if (!node?.isMesh) return;
-        const name = String(node.name || '').toLowerCase();
-        if (/rotor|propell|blade|fan/.test(name)) return;
-        const mats = Array.isArray(node.material) ? node.material : [node.material];
-        mats.forEach((mat) => {
-          if (!mat?.color) return;
-          mat.color.lerp(tokenColor, 0.62);
-          if (mat.emissive) mat.emissive.copy(darker);
-          mat.needsUpdate = true;
-        });
+    const themedTexture = getPlayerCaptureVehicleTexture(tokenColor);
+    vehicleRoot.traverse((node) => {
+      if (!node?.isMesh) return;
+      const name = String(node.name || '').toLowerCase();
+      if (/rotor|propell|blade|fan/.test(name)) return;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((mat) => {
+        if (!mat?.color) return;
+        const materialName = String(mat.name || '').toLowerCase();
+        const isGlassLike = /window|windshield|glass|cockpit|canopy/.test(name) || /window|glass/.test(materialName);
+        if (isGlassLike) return;
+        mat.map = themedTexture;
+        mat.color.copy(tokenColor);
+        if (mat.emissive) mat.emissive.copy(darker);
+        mat.needsUpdate = true;
       });
-    }
+    });
     const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
     const badgeGeo = new THREE.CircleGeometry(0.25, 32);
     const badgeMat = new THREE.MeshBasicMaterial({
@@ -4427,12 +4470,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
     const inward = arena.boardLookTarget.clone().sub(seatPos).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
-    const side = inward.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-    const sideSign = vehicleType === 'fighter' || vehicleType === 'missile' ? 1 : -1;
     const park = seatPos
       .clone()
-      .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET)
-      .addScaledVector(side, CAPTURE_PARK_SIDE_OFFSET * sideSign);
+      .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + (vehicleType === 'missile' ? 0.14 : 0.08);
     return park;
   }, []);
