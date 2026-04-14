@@ -88,6 +88,8 @@ const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const POLYHAVEN_TEXTURE_CACHE = new Map();
 const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
+const CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -99,6 +101,13 @@ const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
   javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
+});
+const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
+  drone: 'rusty_metal_sheet',
+  fighter: 'green_metal_rust',
+  helicopter: 'green_metal_rust',
+  javelin: 'green_metal_rust',
+  supportTruck: 'green_metal_rust'
 });
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -639,6 +648,154 @@ function applyTextureSetToMaterial(material, textureSet, repeat = 1) {
   material.roughnessMap = roughnessMap || null;
   material.normalMap = normalMap || null;
   material.needsUpdate = true;
+}
+
+function createCaptureVehicleTexture(kind = 'fighter') {
+  if (CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.has(kind)) {
+    return CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.get(kind);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, fallback);
+    return fallback;
+  }
+  const palettes = {
+    fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    helicopter: ['#5f6871', '#848f99', '#343c42', '#a5b1ba'],
+    drone: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    javelin: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    supportTruck: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    generic: ['#55606a', '#74818b', '#313940', '#99a6af']
+  };
+  const tone = palettes[kind] ?? palettes.generic;
+  ctx.fillStyle = tone[0];
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i += 1) {
+    const w = 24 + ((i * 11) % 70);
+    const h = 10 + ((i * 7) % 36);
+    const x = (i * 37) % 256;
+    const y = (i * 53) % 256;
+    ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
+    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= 256; y += 32) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.4, 2.4);
+  texture.anisotropy = 4;
+  CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, texture);
+  return texture;
+}
+
+function createCaptureVehicleMaterial(kind = 'fighter') {
+  const textureSet = CAPTURE_POLYHAVEN_TEXTURE_SETS.get(kind) || null;
+  return new THREE.MeshStandardMaterial({
+    map: textureSet?.map || createCaptureVehicleTexture(kind),
+    normalMap: textureSet?.normalMap || null,
+    roughnessMap: textureSet?.roughnessMap || null,
+    roughness: 0.58,
+    metalness: 0.2
+  });
+}
+
+async function primeCaptureVehicleTextureSets(renderer = null) {
+  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 6;
+  const entries = Object.entries(CAPTURE_POLYHAVEN_TEXTURE_ASSETS);
+  await Promise.all(
+    entries.map(async ([kind, assetId]) => {
+      if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
+      const set = await loadPolyhavenTextureSet(assetId, renderer);
+      if (!set) return;
+      if (set.map) set.map.anisotropy = maxAnisotropy;
+      if (set.roughnessMap) set.roughnessMap.anisotropy = maxAnisotropy;
+      if (set.normalMap) set.normalMap.anisotropy = maxAnisotropy;
+      CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
+    })
+  );
+}
+
+function applyCaptureTextureToOpaqueMeshes(root, kind = 'fighter') {
+  if (!root) return;
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const mat = obj.material;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
+    obj.material = createCaptureVehicleMaterial(kind);
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+}
+
+function applyCaptureVehicleLook(root, kind = 'fighter') {
+  applyCaptureTextureToOpaqueMeshes(root, kind);
+  root?.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat) => {
+      if (!mat?.color) return;
+      if (/window|cockpit|glass|canopy|windshield/.test(name)) {
+        mat.color.setHex(0x06080c);
+        if ('metalness' in mat) mat.metalness = 0.52;
+        if ('roughness' in mat) mat.roughness = 0.18;
+        if ('transparent' in mat) mat.transparent = true;
+        if ('opacity' in mat) mat.opacity = 0.94;
+      } else if (/rotor|propell|blade|fan/.test(name)) {
+        mat.color.set('#d4af37');
+        if ('metalness' in mat) mat.metalness = 0.9;
+        if ('roughness' in mat) mat.roughness = 0.2;
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function collectRotorNodes(root, kind = 'fighter') {
+  const all = [];
+  if (!root) return { all, topRotor: null, tailRotor: null };
+  root.traverse((node) => {
+    if (!node?.isObject3D) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (/rotor|propell|blade|fan/.test(name)) all.push(node);
+  });
+  if (kind !== 'helicopter') {
+    return { all, topRotor: all[0] || null, tailRotor: null };
+  }
+  let topRotor = null;
+  let tailRotor = null;
+  all.forEach((node) => {
+    const pos = new THREE.Vector3();
+    node.getWorldPosition(pos);
+    if (!topRotor || pos.y > topRotor.y) topRotor = { node, y: pos.y };
+    if (!tailRotor || Math.abs(pos.x) > Math.abs(tailRotor.x)) tailRotor = { node, x: pos.x };
+  });
+  return { all, topRotor: topRotor?.node || null, tailRotor: tailRotor?.node || null };
+}
+
+function spinCaptureRotors(rig, dtSeconds = 0) {
+  if (!rig || dtSeconds <= 0) return;
+  const speed = 32;
+  if (rig.topRotor) rig.topRotor.rotateOnAxis(new THREE.Vector3(0, 1, 0), dtSeconds * speed);
+  if (rig.tailRotor) rig.tailRotor.rotateOnAxis(new THREE.Vector3(1, 0, 0), dtSeconds * speed);
+  const excluded = new Set([rig.topRotor, rig.tailRotor]);
+  rig.rotorNodes?.forEach((node) => {
+    if (!node || excluded.has(node)) return;
+    node.rotation.y += dtSeconds * speed;
+  });
 }
 
 function pickChessPieceTargets(scene) {
@@ -4258,12 +4415,17 @@ function createCaptureVehicleRig(kind = 'fighter') {
   loadCaptureVehicleModel(kind)
     .then((model) => {
       if (!model) return;
+      applyCaptureVehicleLook(model, kind);
       while (root.children.length > 0) {
         const child = root.children[0];
         if (child?.userData?.trailPuff) break;
         root.remove(child);
       }
       root.add(model);
+      const rotors = collectRotorNodes(model, kind);
+      root.userData.rotorNodes = rotors.all;
+      root.userData.topRotor = rotors.topRotor;
+      root.userData.tailRotor = rotors.tailRotor;
       root.traverse((obj) => {
         if (obj?.userData?.trailPuff) return;
         if (obj.isMesh) {
@@ -4284,7 +4446,20 @@ function createCaptureVehicleRig(kind = 'fighter') {
     root.add(puff);
   }
   root.visible = false;
-  return { root, trail, kind };
+  return {
+    root,
+    trail,
+    kind,
+    get rotorNodes() {
+      return root.userData.rotorNodes || [];
+    },
+    get topRotor() {
+      return root.userData.topRotor || null;
+    },
+    get tailRotor() {
+      return root.userData.tailRotor || null;
+    }
+  };
 }
 
 function createCaptureExplosionRig() {
@@ -4722,6 +4897,7 @@ export default function SnakeBoard3D({
     renderer.domElement.style.touchAction = 'none';
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+    void primeCaptureVehicleTextureSets(renderer).catch(() => {});
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#030712');
 
@@ -5015,6 +5191,20 @@ export default function SnakeBoard3D({
         }
       }
       const board = boardRef.current;
+      if (board?.weaponDisplayGroup) {
+        board.weaponDisplayGroup.children.forEach((holder) => {
+          const rigRoot = holder?.children?.[0];
+          if (!rigRoot) return;
+          spinCaptureRotors(
+            {
+              rotorNodes: rigRoot.userData?.rotorNodes || [],
+              topRotor: rigRoot.userData?.topRotor || null,
+              tailRotor: rigRoot.userData?.tailRotor || null
+            },
+            deltaSeconds
+          );
+        });
+      }
       let hasDiceCenter = false;
       if (board?.diceLights && board?.diceSet?.length) {
         DICE_CENTER_VECTOR.set(0, 0, 0);
@@ -5548,7 +5738,10 @@ export default function SnakeBoard3D({
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const launch = startPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
+    const launchOrigin = parkedPos || startPos;
+    const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const control = launch.clone().lerp(impact, 0.48);
     control.y += TOKEN_HEIGHT * 6.8;
@@ -5631,6 +5824,7 @@ export default function SnakeBoard3D({
           missile.root.visible = true;
           missile.root.position.copy(pos);
           missile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          spinCaptureRotors(missile, 1 / 60);
           if (vehicleKind === 'supportTruck') {
             missile.root.rotation.z = Math.PI * 0.08;
           }
@@ -5661,6 +5855,9 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           attacker.userData.isSliding = false;
           attacker.position.copy(targetPos);
+          if ((vehicleKind === 'fighter' || vehicleKind === 'helicopter') && parkedPos) {
+            missile.root.position.copy(parkedPos);
+          }
           onCaptureAnimationComplete?.(captureEvent.id);
           return true;
         }
