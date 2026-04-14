@@ -121,11 +121,11 @@ const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight path stays more inward on-screen
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.15; // push jet/helicopter loops farther inside board perimeter
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
-const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.4; // run drone path more inward and closer to board center
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.28; // tighten aircraft orbit so they stay much closer to board center
 const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.24; // lower drone route to keep it close to board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.2; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.14; // fly jet/helicopter lower so missiles launch closer to board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -7057,6 +7057,9 @@ function Chess3D({
     promoting: null,
     winner: null
   });
+  const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const winnerCelebrationRef = useRef({ key: null });
+  const coinStyleInjectedRef = useRef(false);
   const uiRef = useRef(ui);
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
@@ -7524,6 +7527,70 @@ function Chess3D({
     const [whitePlayer, blackPlayer] = playersRef.current || [];
     return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
   }, []);
+  const ensureCoinBurstStyles = useCallback(() => {
+    if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.id = 'chess-royale-coin-burst';
+    style.textContent = `
+      @keyframes chessCoinBurst {
+        0% { transform: translateY(-20px) scale(0.8); opacity: 1; }
+        70% { opacity: 1; }
+        100% { transform: translateY(120vh) scale(1.1); opacity: 0; }
+      }
+      .chess-coin-burst {
+        position: fixed;
+        top: -24px;
+        width: 30px;
+        height: 30px;
+        pointer-events: none;
+        z-index: 70;
+        will-change: transform, opacity;
+      }`;
+    document.head.appendChild(style);
+    coinStyleInjectedRef.current = true;
+  }, []);
+  const triggerCoinBurst = useCallback(
+    (count = 18) => {
+      if (typeof document === 'undefined') return;
+      ensureCoinBurstStyles();
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.inset = '0';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '70';
+      document.body.appendChild(container);
+      for (let i = 0; i < count; i += 1) {
+        const img = document.createElement('img');
+        img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+        img.className = 'chess-coin-burst';
+        img.style.left = `${Math.random() * 100}vw`;
+        const delay = Math.random() * 0.6;
+        const duration = 1.5 + Math.random() * 0.8;
+        img.style.animation = `chessCoinBurst ${duration}s linear ${delay}s forwards`;
+        container.appendChild(img);
+      }
+      window.setTimeout(() => container.remove(), 2600);
+    },
+    [ensureCoinBurstStyles]
+  );
+
+  useEffect(() => {
+    if (!ui.winner || !String(ui.status || '').toLowerCase().includes('checkmate')) {
+      setWinnerOverlay(null);
+      winnerCelebrationRef.current.key = null;
+      return;
+    }
+    const key = `${ui.winner}|${ui.status}`;
+    if (winnerCelebrationRef.current.key === key) return;
+    winnerCelebrationRef.current.key = key;
+    const winnerSideIndex = ui.winner === 'White' ? 0 : 1;
+    const winnerPlayer = players[winnerSideIndex] || null;
+    setWinnerOverlay({
+      name: winnerPlayer?.name || ui.winner,
+      avatar: winnerPlayer?.photoUrl || null
+    });
+    triggerCoinBurst(22);
+  }, [players, triggerCoinBurst, ui.status, ui.winner]);
 
   const resolveCommentarySpeaker = useCallback(() => {
     const speakers = [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst];
@@ -9560,12 +9627,12 @@ function Chess3D({
     const getAirStrikeCenterFlightTarget = (from, to) => {
       const centerBias = THREE.MathUtils.clamp(
         (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.56,
-        0.9
+        0.74,
+        0.96
       );
       const flightTarget = to.clone();
       flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.4);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.64);
       return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
     };
     const getCaptureOrbitPose = ({
@@ -9720,7 +9787,7 @@ function Chess3D({
       if (returnToOrigin) {
         const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
         const returnTarget = launchPos.clone();
-        returnTarget.y = Math.max(returnTarget.y, orbitHeight * 0.9);
+        returnTarget.y = launchPos.y;
         const returnPos = orbitExit.clone().lerp(returnTarget, returnU);
         const returnNext = orbitExit.clone().lerp(returnTarget, clamp01(returnU + 0.05));
         return { pos: clampIfNeeded(returnPos), next: clampIfNeeded(returnNext) };
@@ -11033,6 +11100,20 @@ function Chess3D({
       }
       return true;
     };
+    const resolveCastleTargetFromSelection = (targetR, targetC) => {
+      if (!sel?.p || sel.p.t !== 'K' || targetR !== sel.r) return { r: targetR, c: targetC };
+      const targetPiece = board[targetR]?.[targetC];
+      if (!targetPiece || targetPiece.t !== 'R' || targetPiece.w !== sel.p.w) {
+        return { r: targetR, c: targetC };
+      }
+      if (targetC === 7 && legal.some(([r, c]) => r === targetR && c === 6)) {
+        return { r: targetR, c: 6 };
+      }
+      if (targetC === 0 && legal.some(([r, c]) => r === targetR && c === 2)) {
+        return { r: targetR, c: 2 };
+      }
+      return { r: targetR, c: targetC };
+    };
 
     function selectAt(r, c, options = {}) {
       const { force = false, selectionColor } = options;
@@ -11080,7 +11161,10 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
-      if (!legal.some(([r, c]) => r === rr && c === cc)) {
+      const resolvedTarget = byAi ? { r: rr, c: cc } : resolveCastleTargetFromSelection(rr, cc);
+      const nextR = resolvedTarget.r;
+      const nextC = resolvedTarget.c;
+      if (!legal.some(([r, c]) => r === nextR && c === nextC)) {
         finalizeAiMove();
         return;
       }
@@ -11106,17 +11190,17 @@ function Chess3D({
         return;
       }
       const movingPiece = board[sel.r][sel.c];
-      const capturedPiece = board[rr][cc];
+      const capturedPiece = board[nextR][nextC];
       const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
-      const toSquare = resolveChessSquare(rr, cc);
+      const toSquare = resolveChessSquare(nextR, nextC);
       const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
-      const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
+      const toWorldPos = piecePosition(nextR, nextC, currentPieceYOffset);
       let moveDelayMs = 0;
       let captureResolveDelayMs = 0;
       // capture mesh if any
-      const targetMesh = pieceMeshes[rr][cc];
+      const targetMesh = pieceMeshes[nextR][nextC];
       if (targetMesh) {
         const worldPos = new THREE.Vector3();
         targetMesh.getWorldPosition(worldPos);
@@ -11125,9 +11209,9 @@ function Chess3D({
           targetPos: worldPos,
           movingType: movingPiece?.t,
           movingMesh: pieceMeshes[sel.r][sel.c],
-          distance: Math.hypot(rr - sel.r, cc - sel.c),
-          deltaR: rr - sel.r,
-          deltaC: cc - sel.c
+          distance: Math.hypot(nextR - sel.r, nextC - sel.c),
+          deltaR: nextR - sel.r,
+          deltaC: nextC - sel.c
         });
         moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
         captureResolveDelayMs = Math.max(0, captureFx?.captureResolveDelayMs ?? 0);
@@ -11138,7 +11222,7 @@ function Chess3D({
           moveDelayMs = Math.max(moveDelayMs, captureResolveDelayMs);
         }
         const moveCapturedPieceToZone = () => {
-          const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
+          const capturingWhite = board[nextR][nextC]?.w ?? board[sel.r][sel.c].w;
           const zone = capturingWhite ? capturedByWhite : capturedByBlack;
           const idx = zone.push(targetMesh) - 1;
           const row = Math.floor(idx / 8);
@@ -11163,7 +11247,7 @@ function Chess3D({
         } else {
           moveCapturedPieceToZone();
         }
-        pieceMeshes[rr][cc] = null;
+        pieceMeshes[nextR][nextC] = null;
       }
       // move board
       const movedPiece = movingPiece;
@@ -11171,37 +11255,37 @@ function Chess3D({
       const movedFromPawn = movedPiece?.t === 'P';
       const isCastlingMove =
         movedPiece?.t === 'K' &&
-        sel.r === rr &&
-        Math.abs(cc - sel.c) === 2 &&
-        legal.some(([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2);
-      const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
-      const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
+        sel.r === nextR &&
+        Math.abs(nextC - sel.c) === 2 &&
+        legal.some(([r, c]) => r === nextR && c === nextC && Math.abs(c - sel.c) === 2);
+      const rookFromC = isCastlingMove ? (nextC > sel.c ? 7 : 0) : null;
+      const rookToC = isCastlingMove ? (nextC > sel.c ? 5 : 3) : null;
       const rookPiece =
         isCastlingMove && Number.isInteger(rookFromC) ? board[sel.r][rookFromC] : null;
       if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
       const rookMesh =
         isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
-      board[rr][cc] = movedPiece;
+      board[nextR][nextC] = movedPiece;
       board[sel.r][sel.c] = null;
       if (isCastlingMove && rookPiece) {
-        board[rr][rookToC] = rookPiece;
+        board[nextR][rookToC] = rookPiece;
         board[sel.r][rookFromC] = null;
         rookPiece.hasMoved = true;
       }
       if (movedPiece) movedPiece.hasMoved = true;
       // promotion (auto to Queen)
-      const promoted = movedFromPawn && (rr === 0 || rr === 7);
+      const promoted = movedFromPawn && (nextR === 0 || nextR === 7);
       if (promoted) {
-        board[rr][cc].t = 'Q';
+        board[nextR][nextC].t = 'Q';
       }
       // move mesh
       let m = pieceMeshes[sel.r][sel.c];
       pieceMeshes[sel.r][sel.c] = null;
       const syncMovedPieceMesh = () => {
-        pieceMeshes[rr][cc] = m;
-        m.userData.r = rr;
-        m.userData.c = cc;
-        m.userData.t = board[rr][cc].t;
+        pieceMeshes[nextR][nextC] = m;
+        m.userData.r = nextR;
+        m.userData.c = nextC;
+        m.userData.t = board[nextR][nextC].t;
       };
       syncMovedPieceMesh();
       cancelPieceAnimation(m);
@@ -11223,16 +11307,33 @@ function Chess3D({
         pieceMeshes[sel.r][rookFromC] = null;
       }
       if (isCastlingMove && rookMesh) {
-        pieceMeshes[rr][rookToC] = rookMesh;
-        rookMesh.userData.r = rr;
+        pieceMeshes[nextR][rookToC] = rookMesh;
+        rookMesh.userData.r = nextR;
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
-        const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
+        const rookTarget = piecePosition(nextR, rookToC, currentPieceYOffset);
         animatePieceTo(rookMesh, rookTarget, 0.32);
       }
       if (promoted && currentPiecePrototypes) {
-        const color = board[rr][cc].w ? 'white' : 'black';
-        const queenProto = currentPiecePrototypes[color]?.Q;
+        const color = board[nextR][nextC].w ? 'white' : 'black';
+        let queenProto = null;
+        for (const meshRow of pieceMeshes) {
+          for (const mesh of meshRow) {
+            if (!mesh || mesh === m) continue;
+            if (
+              mesh.userData?.t === 'Q' &&
+              mesh.userData?.__pieceColor === color &&
+              mesh.userData?.__pieceStyleId === currentPieceSetId
+            ) {
+              queenProto = mesh;
+              break;
+            }
+          }
+          if (queenProto) break;
+        }
+        if (!queenProto) {
+          queenProto = currentPiecePrototypes[color]?.Q;
+        }
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
           replacement.position.copy(m.position);
@@ -11253,7 +11354,7 @@ function Chess3D({
               __pieceStyleId: currentPieceSetId
             };
           });
-          pieceMeshes[rr][cc] = replacement;
+          pieceMeshes[nextR][nextC] = replacement;
           const index = allPieceMeshes.indexOf(m);
           if (index >= 0) allPieceMeshes[index] = replacement;
           else allPieceMeshes.push(replacement);
@@ -11268,7 +11369,7 @@ function Chess3D({
 
       lastMoveRef.current = {
         from: { r: sel.r, c: sel.c },
-        to: { r: rr, c: cc },
+        to: { r: nextR, c: nextC },
         pieceMesh: m,
         selectionColor: paletteRef.current?.capture,
         highlightColor: paletteRef.current?.highlight
@@ -11318,7 +11419,7 @@ function Chess3D({
         fromSquare,
         toSquare,
         capturedPiece: capturedPieceLabel,
-        castleSide: isCastlingMove ? (cc > sel.c ? 'king-side' : 'queen-side') : 'king-side',
+        castleSide: isCastlingMove ? (nextC > sel.c ? 'king-side' : 'queen-side') : 'king-side',
         winner: winnerName
       };
       let event = 'move';
@@ -11346,7 +11447,7 @@ function Chess3D({
 
       if (onlineRef.current.enabled && onlineRef.current.tableId) {
         const movePayload = {
-          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
+          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: nextR, c: nextC } },
           fen: boardToFEN(board, nextWhite),
           turnWhite: nextWhite
         };
@@ -11509,8 +11610,9 @@ function Chess3D({
       dragState.mesh = null;
       dragState.from = null;
       if (controls) controls.enabled = true;
-      if (tileHit && sel && legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)) {
-        moveSelTo(tileHit.r, tileHit.c);
+      const dropTarget = tileHit && sel ? resolveCastleTargetFromSelection(tileHit.r, tileHit.c) : null;
+      if (dropTarget && legal.some(([r, c]) => r === dropTarget.r && c === dropTarget.c)) {
+        moveSelTo(dropTarget.r, dropTarget.c);
         return;
       }
       if (mesh && from) {
@@ -11566,18 +11668,20 @@ function Chess3D({
       if (!obj) return;
       const ud = obj.userData;
       const targetPiece = board[ud.r]?.[ud.c] || null;
+      const resolvedTarget = sel ? resolveCastleTargetFromSelection(ud.r, ud.c) : null;
       if (
         sel &&
         ud.type === 'piece' &&
         targetPiece &&
-        targetPiece.w !== board[sel.r][sel.c]?.w
+        (targetPiece.w !== board[sel.r][sel.c]?.w ||
+          (sel.p?.t === 'K' && targetPiece.t === 'R' && targetPiece.w === sel.p.w))
       ) {
-        moveSelTo(ud.r, ud.c);
+        moveSelTo(resolvedTarget?.r ?? ud.r, resolvedTarget?.c ?? ud.c);
         return;
       }
       if (ud.type === 'piece') selectAt(ud.r, ud.c);
       else if (ud.type === 'tile' && sel) {
-        moveSelTo(ud.r, ud.c);
+        moveSelTo(resolvedTarget?.r ?? ud.r, resolvedTarget?.c ?? ud.c);
       }
     };
 
@@ -12709,6 +12813,22 @@ function Chess3D({
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
+        {winnerOverlay && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none px-4">
+            <div className="rounded-3xl border border-amber-300/50 bg-[rgba(10,14,24,0.82)] px-6 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-md text-center min-w-[220px]">
+              <div className="mx-auto mb-3 h-20 w-20 overflow-hidden rounded-full border-2 border-amber-300/70 bg-black/20 shadow-[0_0_20px_rgba(251,191,36,0.45)]">
+                {winnerOverlay.avatar ? (
+                  <img src={winnerOverlay.avatar} alt={`${winnerOverlay.name} avatar`} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl">🏆</div>
+                )}
+              </div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200/90">Winner</p>
+              <h3 className="mt-1 text-xl font-black tracking-tight text-white">{winnerOverlay.name}</h3>
+              <p className="mt-1 text-sm font-semibold text-amber-100">Checkmate victory</p>
+            </div>
+          </div>
+        )}
       </div>
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
