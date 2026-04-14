@@ -1971,6 +1971,16 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   grandOval: -0.065,
   diamondEdge: -0.065
 });
+const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
+const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
+
+function getTableHeightForShape(shapeId) {
+  if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
+    return TABLE_HEIGHT - LOWER_PROFILE_TABLE_HEIGHT_DELTA;
+  }
+  return TABLE_HEIGHT;
+}
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -7865,6 +7875,7 @@ function Chess3D({
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
+    const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
@@ -7885,7 +7896,7 @@ function Chess3D({
           arena: arena.arenaGroup,
           renderer: arena.renderer,
           tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT,
+          tableHeight: shapeTableHeight,
           woodOption,
           clothOption,
           baseOption,
@@ -8185,6 +8196,7 @@ function Chess3D({
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
       const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
       const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
+      const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
       const pieceMaterials = createPieceMaterials(pieceStyleOption);
       disposers.push(() => {
         disposePieceMaterials(pieceMaterials);
@@ -8437,7 +8449,7 @@ function Chess3D({
       arena,
       renderer,
       tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
+      tableHeight: shapeTableHeight,
       woodOption,
       clothOption,
       baseOption,
@@ -9289,6 +9301,7 @@ function Chess3D({
       const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
       const laneMap = {
         jet: tile * 1.48,
+        drone: tile * 0.74,
         helicopter: 0,
         truck: -tile * 1.48
       };
@@ -9968,9 +9981,11 @@ function Chess3D({
       airPadGroup.add(marker);
     };
     addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
     addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
     addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
     addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
     addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
     addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
@@ -10323,9 +10338,9 @@ function Chess3D({
       ];
       sides.forEach(({ isWhite, badge }) => {
         const skin = resolveSideVehicleSkin(isWhite);
-        for (let slot = 0; slot < 2; slot += 1) {
+        for (let slot = 0; slot < 1; slot += 1) {
           const jet = createFxJet();
-          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15);
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
@@ -10345,7 +10360,9 @@ function Chess3D({
           });
 
           const helicopter = createFxHelicopter();
-          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
+          helicopter.root.scale.setScalar(
+            CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+          );
           if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
           );
@@ -10366,8 +10383,30 @@ function Chess3D({
             root: helicopter.root
           });
         }
+        const sideDrone = createFxDrone();
+        sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
+        if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
+        attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
+        const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
+        sideDrone.root.position.copy(dronePad);
+        sideDrone.root.rotation.y = isWhite ? -Math.PI * 0.13 : Math.PI * 1.13;
+        const droneHomeRotation = sideDrone.root.rotation.clone();
+        airPadGroup.add(sideDrone.root);
+        parkedAirUnits.push({
+          kind: 'drone',
+          isWhite,
+          slot: 0,
+          busy: false,
+          homePosition: dronePad.clone(),
+          homeRotation: droneHomeRotation,
+          ...sideDrone,
+          root: sideDrone.root
+        });
+
         const supportTruck = createFxSupportTruck();
-        supportTruck.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
+        supportTruck.root.scale.setScalar(
+          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+        );
         if (skin) {
           applyVehicleSkinToModel(
             supportTruck.root,
