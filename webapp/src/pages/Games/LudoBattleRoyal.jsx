@@ -68,7 +68,6 @@ const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
-const CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -102,6 +101,13 @@ const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   drone: 0.03,
   missile: 0.08
 };
+
+function orientCaptureVehicleTowardBoardCenter(root, target) {
+  if (!root?.isObject3D || !target?.isVector3) return;
+  const forward = target.clone().sub(root.position).setY(0);
+  if (forward.lengthSq() < 1e-6) return;
+  root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
+}
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -157,46 +163,6 @@ function createCaptureVehicleMaterial(kind, options = {}) {
     map: getCaptureVehicleTexture(kind),
     ...options
   });
-}
-
-function getPlayerCaptureVehicleTexture(tokenColor) {
-  const safeColor = tokenColor?.isColor ? tokenColor : new THREE.Color(0xffffff);
-  const cacheKey = safeColor.getHexString();
-  if (CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.has(cacheKey)) {
-    return CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.get(cacheKey);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    const dark = safeColor.clone().multiplyScalar(0.55).getStyle();
-    const mid = safeColor.clone().multiplyScalar(0.8).getStyle();
-    const light = safeColor.clone().lerp(new THREE.Color('#ffffff'), 0.3).getStyle();
-    const gradient = ctx.createLinearGradient(0, 0, 256, 256);
-    gradient.addColorStop(0, dark);
-    gradient.addColorStop(0.5, mid);
-    gradient.addColorStop(1, light);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 256);
-    ctx.globalAlpha = 0.18;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 8;
-    for (let i = -256; i < 512; i += 44) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + 180, 256);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1.7, 1.7);
-  texture.anisotropy = 4;
-  CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE.set(cacheKey, texture);
-  return texture;
 }
 
 function loadCaptureAvatarTexture(photoUrl) {
@@ -4425,26 +4391,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const applyCaptureVehiclePlayerTheme = useCallback(async (vehicleRoot, playerIndex) => {
     if (!vehicleRoot?.isObject3D) return;
     const player = playersRef.current[playerIndex];
-    const tokenHex = playerColorsHex[playerIndex] ?? 0xffffff;
-    const tokenColor = new THREE.Color(tokenHex);
-    const darker = tokenColor.clone().multiplyScalar(0.72);
-    const themedTexture = getPlayerCaptureVehicleTexture(tokenColor);
-    vehicleRoot.traverse((node) => {
-      if (!node?.isMesh) return;
-      const name = String(node.name || '').toLowerCase();
-      if (/rotor|propell|blade|fan/.test(name)) return;
-      const mats = Array.isArray(node.material) ? node.material : [node.material];
-      mats.forEach((mat) => {
-        if (!mat?.color) return;
-        const materialName = String(mat.name || '').toLowerCase();
-        const isGlassLike = /window|windshield|glass|cockpit|canopy/.test(name) || /window|glass/.test(materialName);
-        if (isGlassLike) return;
-        mat.map = themedTexture;
-        mat.color.copy(tokenColor);
-        if (mat.emissive) mat.emissive.copy(darker);
-        mat.needsUpdate = true;
-      });
-    });
     const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
     const badgeGeo = new THREE.CircleGeometry(0.25, 32);
     const badgeMat = new THREE.MeshBasicMaterial({
@@ -4460,7 +4406,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     rightBadge.rotation.y = -Math.PI / 2;
     vehicleRoot.add(leftBadge);
     vehicleRoot.add(rightBadge);
-  }, [playerColorsHex]);
+  }, []);
 
   const getKingTokenHeightForPlayer = useCallback((playerIndex) => {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
@@ -4568,10 +4514,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
-      jetFx.root.lookAt(arena.boardLookTarget);
-      helicopterFx.root.lookAt(arena.boardLookTarget);
-      droneFx.root.lookAt(arena.boardLookTarget);
-      missileFx.root.lookAt(arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(jetFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
       // eslint-disable-next-line no-await-in-loop
       await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
       // eslint-disable-next-line no-await-in-loop
