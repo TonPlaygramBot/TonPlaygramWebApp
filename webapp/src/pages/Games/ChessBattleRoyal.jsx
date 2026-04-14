@@ -1973,7 +1973,9 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 5;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.34;
+const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -9298,7 +9300,8 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.28) : half + BOARD.rim + tile * 0.28;
+      const sideX =
+        (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
       const laneMap = {
         jet: tile * 1.48,
         drone: tile * 0.74,
@@ -9308,7 +9311,10 @@ function Chess3D({
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
       const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
       const zOffset = laneBase + laneShift;
-      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.02 : currentPieceYOffset + 0.04;
+      const yOffset =
+        currentPieceYOffset +
+        SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT +
+        (kind === 'truck' ? 0.02 : 0.04);
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
