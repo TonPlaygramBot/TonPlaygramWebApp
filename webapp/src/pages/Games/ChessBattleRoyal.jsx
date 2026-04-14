@@ -1974,9 +1974,8 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.18;
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.34;
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
-const SIDE_PARKED_AIR_UNITS_LANE_GAP_MULTIPLIER = 1.22;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8949,53 +8948,6 @@ function Chess3D({
       });
       return best;
     };
-    const resolveCaptureHelicopterRotors = (model) => {
-      if (!model) {
-        return {
-          topRotor: null,
-          tailRotor: null,
-          topRotorAxis: new THREE.Vector3(0, 1, 0),
-          tailRotorAxis: new THREE.Vector3(1, 0, 0)
-        };
-      }
-      const tailRotor = findCaptureRotor(model, 'tail');
-      let topRotor = findCaptureRotor(model, 'main');
-      if (!topRotor) {
-        model.traverse((node) => {
-          if (topRotor || !node?.isMesh || node === tailRotor) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          if (/rotor|propell|blade|fan/.test(name)) topRotor = node;
-        });
-      }
-      // Some imported helicopters expose individual blades; spin their shared parent if available.
-      const promoteRotorParent = (candidate, role = 'main') => {
-        if (!candidate || candidate === model) return candidate;
-        const parent = candidate.parent;
-        if (!parent || parent === model) return candidate;
-        const roleRegex = role === 'tail' ? /tail|rear|back/ : /main|top|upper/;
-        const parentName = `${parent.name || ''}`.toLowerCase();
-        const childRotorCount = parent.children?.filter?.((child) => {
-          const childName = `${child?.name || ''}`.toLowerCase();
-          return /rotor|propell|blade|fan/.test(childName);
-        })?.length || 0;
-        if (roleRegex.test(parentName) || childRotorCount >= 2) return parent;
-        return candidate;
-      };
-      const promotedTopRotor = promoteRotorParent(topRotor, 'main');
-      const promotedTailRotor = promoteRotorParent(tailRotor, 'tail');
-      let topRotorAxis = inferRotorSpinAxis(promotedTopRotor || topRotor, 'y');
-      let tailRotorAxis = inferRotorSpinAxis(promotedTailRotor || tailRotor, 'x');
-      if (Math.abs(topRotorAxis.y) < 0.25) {
-        // Keep top rotor visually spinning even when source axes are badly mapped.
-        topRotorAxis = new THREE.Vector3(0, 1, 0);
-      }
-      return {
-        topRotor: promotedTopRotor || topRotor,
-        tailRotor: promotedTailRotor || tailRotor,
-        topRotorAxis,
-        tailRotorAxis
-      };
-    };
     const findJetExhaustAnchor = (model) => {
       if (!model) return new THREE.Vector3(-1.9, 0, 0);
       const candidates = [];
@@ -9204,8 +9156,20 @@ function Chess3D({
         const root = new THREE.Group();
         model.rotation.set(0, 0, 0);
         root.add(model);
-        const { topRotor, tailRotor, topRotorAxis, tailRotorAxis } = resolveCaptureHelicopterRotors(model);
+        const tailRotor = findCaptureRotor(model, 'tail');
+        let topRotor = findCaptureRotor(model, 'main');
+        if (!topRotor) {
+          model.traverse((node) => {
+            if (topRotor || !node?.isMesh || node === tailRotor) return;
+            const name = `${node.name || ''}`.toLowerCase();
+            if (/rotor|propell|blade|fan/.test(name)) {
+              topRotor = node;
+            }
+          });
+        }
         applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
+        const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
+        const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
         return { root, topRotor, tailRotor, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
       }
       const root = new THREE.Group();
@@ -9307,85 +9271,45 @@ function Chess3D({
       const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
       return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
     };
-    const addTruckRoofMissiles = (root, toneSeed) => {
-      if (!root) return;
-      const missileMaterial = createCaptureVehicleMaterial('missile', {
-        toneSeed,
-        color: '#8da07a',
-        roughness: 0.28,
-        metalness: 0.8
-      });
-      const noseMaterial = createCaptureVehicleMaterial('missile', {
-        toneSeed,
-        color: '#a7ba92',
-        roughness: 0.22,
-        metalness: 0.84
-      });
-      const addMissile = (zOffset = 0) => {
-        const missile = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.05, 18), missileMaterial);
-        body.rotation.z = Math.PI / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        missile.add(body);
-        const nose = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.34, 18), noseMaterial);
-        nose.rotation.z = -Math.PI / 2;
-        nose.position.x = 1.18;
-        nose.castShadow = true;
-        nose.receiveShadow = true;
-        missile.add(nose);
-        const tailFin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.24, 0.24), missileMaterial);
-        tailFin.position.x = -1.0;
-        tailFin.castShadow = true;
-        tailFin.receiveShadow = true;
-        missile.add(tailFin);
-        missile.position.set(0.08, 0.76, zOffset);
-        root.add(missile);
-      };
-      addMissile(-0.19);
-      addMissile(0.19);
-    };
     const createFxSupportTruck = () => {
       const root = new THREE.Group();
       const model = cloneCaptureUnitTemplate('truck');
-      const toneSeed = getCaptureToneSeed('missile');
       if (model) {
         model.rotation.set(0, Math.PI, 0);
-        applyMilitaryTruckLook(model, toneSeed);
+        applyMilitaryTruckLook(model, getCaptureToneSeed('missile'));
         root.add(model);
-        addTruckRoofMissiles(root, toneSeed);
         return { root };
       }
+      const truckTone = getCaptureToneSeed('missile');
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(2.1, 0.62, 1.0),
-        createCaptureVehicleMaterial('missile', { toneSeed, color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f1b445', roughness: 0.56, metalness: 0.24 })
       );
       body.castShadow = true;
       body.receiveShadow = true;
       root.add(body);
       const cabin = new THREE.Mesh(
         new THREE.BoxGeometry(0.78, 0.62, 0.92),
-        createCaptureVehicleMaterial('missile', { toneSeed, color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f3be59', roughness: 0.52, metalness: 0.22 })
       );
       cabin.position.set(0.86, 0.44, 0);
       cabin.castShadow = true;
       cabin.receiveShadow = true;
       root.add(cabin);
       addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
-      addTruckRoofMissiles(root, toneSeed);
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
         (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
       const laneMap = {
-        jet: tile * 1.48 * SIDE_PARKED_AIR_UNITS_LANE_GAP_MULTIPLIER,
-        drone: tile * 0.74 * SIDE_PARKED_AIR_UNITS_LANE_GAP_MULTIPLIER,
+        jet: tile * 1.48,
+        drone: tile * 0.74,
         helicopter: 0,
-        truck: -tile * 1.48 * SIDE_PARKED_AIR_UNITS_LANE_GAP_MULTIPLIER
+        truck: -tile * 1.48
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * 0.34 : tile * 0.34;
+      const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
       const zOffset = laneBase + laneShift;
       const yOffset =
         currentPieceYOffset +
