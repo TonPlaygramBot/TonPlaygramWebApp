@@ -123,6 +123,9 @@ const CAPTURE_ATTACK_TUNING = Object.freeze({
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
+const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
+const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30;
+const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
   if (!root?.isObject3D || !target?.isVector3) return;
@@ -660,6 +663,34 @@ function inferRotorSpinAxis(node, fallbackAxis = 'y') {
     : chosen === 'z'
     ? new THREE.Vector3(0, 0, 1)
     : new THREE.Vector3(0, 1, 0);
+}
+
+function spinHelicopterRotorAssembly(entry, deltaSeconds) {
+  if (!entry || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+  if (entry.helicopterRotor?.isObject3D) {
+    entry.helicopterRotor.rotateOnAxis(
+      entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0),
+      deltaSeconds * HELICOPTER_TOP_ROTOR_SPIN_SPEED
+    );
+  }
+  if (entry.helicopterTailRotor?.isObject3D) {
+    entry.helicopterTailRotor.rotateOnAxis(
+      entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0),
+      deltaSeconds * HELICOPTER_TAIL_ROTOR_SPIN_SPEED
+    );
+  }
+  if (Array.isArray(entry.helicopterRotorNodes)) {
+    entry.helicopterRotorNodes.forEach((rotorNode) => {
+      if (
+        !rotorNode?.isObject3D ||
+        rotorNode === entry.helicopterRotor ||
+        rotorNode === entry.helicopterTailRotor
+      ) {
+        return;
+      }
+      rotorNode.rotation.y += deltaSeconds * HELICOPTER_AUX_ROTOR_SPIN_SPEED;
+    });
+  }
 }
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
@@ -3028,9 +3059,9 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
-const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.6;
+const CAMERA_EXTRA_ZOOM_OUT = 1.32;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.64;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3946,8 +3977,8 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_THINNESS_SCALE = 0.8;
-const TOKEN_HEIGHT_SCALE = 1.06;
+const TOKEN_THINNESS_SCALE = 0.76;
+const TOKEN_HEIGHT_SCALE = 1.1;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
@@ -6504,30 +6535,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
       const delta = appliedDeltaMs / 1000;
       parkedCaptureVehiclesRef.current.forEach((entry) => {
-        if (entry?.helicopterRotor?.isObject3D) {
-          entry.helicopterRotor.rotateOnAxis(
-            entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0),
-            delta * 26
-          );
-        }
-        if (entry?.helicopterTailRotor?.isObject3D) {
-          entry.helicopterTailRotor.rotateOnAxis(
-            entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0),
-            delta * 30
-          );
-        }
-        if (Array.isArray(entry?.helicopterRotorNodes)) {
-          entry.helicopterRotorNodes.forEach((rotorNode) => {
-            if (
-              !rotorNode?.isObject3D ||
-              rotorNode === entry.helicopterRotor ||
-              rotorNode === entry.helicopterTailRotor
-            ) {
-              return;
-            }
-            rotorNode.rotation.y += delta * 24;
-          });
-        }
+        spinHelicopterRotorAssembly(entry, delta);
         if (entry?.dronePropeller?.isObject3D) {
           entry.dronePropeller.rotation.x += delta * 40;
         }
@@ -7238,12 +7246,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (primaryFx.propeller) {
               primaryFx.propeller.rotation.x += dt * 40;
             }
-            if (primaryFx.rotor) {
-              primaryFx.rotor.rotateOnAxis(primaryFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0), dt * 36);
-            }
-            if (primaryFx.tailRotor) {
-              primaryFx.tailRotor.rotateOnAxis(primaryFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0), dt * 40);
-            }
+            spinHelicopterRotorAssembly(
+              {
+                helicopterRotor: primaryFx.rotor,
+                helicopterTailRotor: primaryFx.tailRotor,
+                helicopterRotorNodes: primaryFx.rotorNodes,
+                helicopterTopRotorAxis: primaryFx.topRotorAxis,
+                helicopterTailRotorAxis: primaryFx.tailRotorAxis
+              },
+              dt
+            );
             primaryFx.trail.forEach((puff, i) => {
               const isJetTrail = selectedCaptureAnimationId === 'fighterJetAttack';
               if (isJetTrail) {
