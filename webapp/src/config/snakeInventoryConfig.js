@@ -27,10 +27,10 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King Token' }
 ]);
 const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'drone', label: 'Drone' },
   { id: 'fighter', label: 'Fighter Jet' },
   { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' },
-  { id: 'drone', label: 'Drone' }
+  { id: 'supportTruck', label: 'Support Truck' }
 ]);
 
 export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
@@ -163,6 +163,15 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
 
 export const SNAKE_STORE_ITEMS = [
   {
+    id: 'capture-fighter',
+    type: 'captureWeapon',
+    optionId: 'fighter',
+    name: 'F-15 Fighter Jet',
+    price: 520,
+    description: 'Capture eliminations use a fighter jet flypath and strike animation.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.fighter
+  },
+  {
     id: 'capture-helicopter',
     type: 'captureWeapon',
     optionId: 'helicopter',
@@ -179,15 +188,6 @@ export const SNAKE_STORE_ITEMS = [
     price: 390,
     description: 'Capture eliminations use an armored truck flypath animation.',
     thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.supportTruck
-  },
-  {
-    id: 'capture-drone',
-    type: 'captureWeapon',
-    optionId: 'drone',
-    name: 'Combat Drone',
-    price: 360,
-    description: 'Capture eliminations use a drone strike flypath.',
-    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.drone
   },
   {
     id: 'arena-crystalLagoon',

@@ -49,7 +49,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.4;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = -0.01 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
@@ -121,8 +121,8 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 720;
-const DICE_SETTLE_DURATION = 260;
+const DICE_ROLL_DURATION = 520;
+const DICE_SETTLE_DURATION = 180;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -181,9 +181,9 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
-const DICE_CAMERA_LOOK_IN_DURATION = 260;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 560;
-const DICE_CAMERA_LOOK_OUT_DURATION = 280;
+const DICE_CAMERA_LOOK_IN_DURATION = 180;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 380;
+const DICE_CAMERA_LOOK_OUT_DURATION = 180;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
 const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
@@ -214,12 +214,12 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.94,
   TILE_SIZE * 0.78,
-  TILE_SIZE * 0.64,
-  TILE_SIZE * 0.78,
-  TILE_SIZE * 0.64
+  TILE_SIZE * 0.94,
+  TILE_SIZE * 0.78
 ]);
-const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.48;
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
   TOKEN_RADIUS * 0.02,
@@ -280,7 +280,6 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 1.2,
   targetLift: 0.08 * MODEL_SCALE
 });
-const LOCK_BOTTOM_SEAT_CAMERA = true;
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -1553,7 +1552,8 @@ function createCameraTransitionAnimation(
     type,
     onComplete,
     returnPosition,
-    returnTarget
+    returnTarget,
+    lockPosition = false
   }
 ) {
   if (!camera || !controls || !toPosition || !toTarget) return null;
@@ -1567,9 +1567,10 @@ function createCameraTransitionAnimation(
   const tempTarget = new THREE.Vector3();
   const start = performance.now();
   const total = durationIn + hold + durationOut;
+  const lockedPosition = startPosition.clone();
 
   const applyFrame = (pos, target) => {
-    camera.position.copy(pos);
+    camera.position.copy(lockPosition ? lockedPosition : pos);
     if (controls?.target) controls.target.copy(target);
     camera.lookAt(target);
     controls?.update?.();
@@ -1670,7 +1671,6 @@ function computeBoardFacingRotation(board, camera, tileIndex) {
 
 function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
   const player = Array.isArray(players) ? players[turnIndex] : null;
   const rawSeatIndex = Number.isFinite(player?.seatIndex)
@@ -1718,7 +1718,6 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
 
 function computeDiceCameraFocusState(board, camera) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
   if (!diceSet.length) return null;
   const boardLookTarget = board.boardLookTarget;
@@ -1730,19 +1729,12 @@ function computeDiceCameraFocusState(board, camera) {
 
   const target = diceCenter.clone();
   target.y += DICE_SIZE * 0.45;
-  const currentDistance = camera.position.distanceTo(boardLookTarget);
-  const direction = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-
-  const position = target.clone().addScaledVector(direction, currentDistance);
-  position.y = camera.position.y;
+  const position = camera.position.clone();
   return { position, target };
 }
 
 function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return null;
   const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
@@ -1757,12 +1749,9 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (pathDir.lengthSq() < 1e-6) return null;
   pathDir.normalize();
 
-  const behindDirection = pathDir.clone().multiplyScalar(-1);
-  const followDistance = TILE_SIZE * CAMERA_FOLLOW_BACK_TILES;
   const target = toPos.clone();
   target.y += TILE_SIZE * 0.18;
-  const position = target.clone().addScaledVector(behindDirection, followDistance);
-  position.y = Math.max(camera.position.y, boardLookTarget.y + CAMERA_EXTRA_LIFT);
+  const position = camera.position.clone();
   return { position, target };
 }
 
@@ -3546,7 +3535,7 @@ function updateTokens(
             .addScaledVector(lateral, railSpread);
           worldPos = railWorld.clone();
           boardRoot.worldToLocal(worldPos);
-          worldPos.y = TOKEN_HEIGHT * 0.62;
+          worldPos.y = TOKEN_HEIGHT * 0.44;
         }
       }
       if (!worldPos) {
@@ -3991,6 +3980,98 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
   });
 }
 
+function createSeatWeaponMesh(weaponType = 'fighter') {
+  const rig = createCaptureVehicleRig(weaponType);
+  const group = rig.root;
+  group.visible = true;
+  const displayScale =
+    weaponType === 'supportTruck'
+      ? TOKEN_HEIGHT * 3.2
+      : weaponType === 'drone'
+      ? TOKEN_HEIGHT * 3
+      : TOKEN_HEIGHT * 3.4;
+  group.scale.setScalar(displayScale);
+  rig.trail?.forEach((puff) => {
+    if (!puff?.material) return;
+    puff.visible = false;
+  });
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    }
+  });
+  return group;
+}
+
+function updateSeatWeaponDisplays(board, players = []) {
+  if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
+  const anchors = board.seatAnchors;
+  const boardLookTarget = board.boardLookTarget;
+  if (!boardLookTarget) return;
+  const keep = new Set();
+  const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck'];
+  const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
+
+  players.forEach((player, index) => {
+    const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    const anchor = anchors[seatIndex];
+    if (!anchor) return;
+    keep.add(index);
+    let holder = board.weaponDisplayGroup.userData.byPlayer?.get(index);
+    if (!holder) {
+      holder = new THREE.Group();
+      holder.userData.weaponType = null;
+      board.weaponDisplayGroup.add(holder);
+      if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
+      board.weaponDisplayGroup.userData.byPlayer.set(index, holder);
+    }
+    const weaponType = player?.weaponType || fallbackOrder[index % fallbackOrder.length];
+    if (holder.userData.weaponType !== weaponType) {
+      while (holder.children.length) {
+        const child = holder.children.pop();
+        if (child) holder.remove(child);
+      }
+      holder.add(createSeatWeaponMesh(weaponType));
+      holder.userData.weaponType = weaponType;
+    }
+    const tokenMesh =
+      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
+      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index);
+    if (tokenMesh) {
+      const sideSign = seatIndex % 2 === 0 ? 1 : -1;
+      holder.position.copy(tokenMesh.position);
+      holder.position.x += sideSign * TOKEN_RADIUS * 2.9;
+      holder.position.z += TOKEN_RADIUS * 0.55;
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.26;
+    } else {
+      const seatWorld = new THREE.Vector3();
+      anchor.getWorldPosition(seatWorld);
+      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+      if (seatDirection.lengthSq() < 1e-6) return;
+      seatDirection.normalize();
+      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+      const markerPos = boardLookTarget
+        .clone()
+        .addScaledVector(seatDirection, radius)
+        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+      holder.position.copy(markerPos);
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.24;
+    }
+    holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+  });
+
+  const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
+  if (!(byPlayer instanceof Map)) return;
+  byPlayer.forEach((group, index) => {
+    if (!keep.has(index)) {
+      group.parent?.remove(group);
+      byPlayer.delete(index);
+    }
+  });
+}
+
 export default function SnakeBoard3D({
   players = [],
   highlight,
@@ -4090,6 +4171,7 @@ export default function SnakeBoard3D({
       hold: 0,
       durationOut: 0,
       type: 'cameraTurnFocus',
+      lockPosition: true,
       returnPosition: focusState.position,
       returnTarget: focusState.target
     });
@@ -4259,12 +4341,18 @@ export default function SnakeBoard3D({
       arena.updateCameraTarget,
       appearanceMemo
     );
+    const weaponDisplayGroup = new THREE.Group();
+    weaponDisplayGroup.name = 'seatWeaponDisplayGroup';
+    weaponDisplayGroup.userData.byPlayer = new Map();
+    arena.boardGroup.add(weaponDisplayGroup);
     boardRef.current = {
       ...board,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? [],
-      startCameraState: arena.startCameraState ?? null
+      startCameraState: arena.startCameraState ?? null,
+      tableInfo: arena.tableInfo ?? null,
+      weaponDisplayGroup
     };
     const captureVehicles = {
       fighter: createCaptureVehicleRig('fighter'),
@@ -4703,6 +4791,7 @@ export default function SnakeBoard3D({
       boardRoot: board.root,
       tableInfo: board.tableInfo
     });
+    updateSeatWeaponDisplays(board, players);
 
     const sanitizedPositions = players.map((player) => {
       const raw = Number(player?.position);
@@ -4744,7 +4833,8 @@ export default function SnakeBoard3D({
             durationIn: 320,
             hold: 0,
             durationOut: 0,
-            type: 'cameraTokenFollow'
+            type: 'cameraTokenFollow',
+            lockPosition: true
           });
           if (followAnimation) animationsRef.current.push(followAnimation);
         }
@@ -4833,7 +4923,8 @@ export default function SnakeBoard3D({
           durationIn: 320,
           hold: 0,
           durationOut: 0,
-          type: 'cameraTokenFollow'
+          type: 'cameraTokenFollow',
+          lockPosition: true
         });
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
@@ -4970,6 +5061,7 @@ export default function SnakeBoard3D({
             hold: DICE_CAMERA_LOOK_HOLD_DURATION,
             durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
             type: 'cameraDiceZoom',
+            lockPosition: true,
             returnPosition: restoreState?.position,
             returnTarget: restoreState?.target
           });
@@ -5065,7 +5157,14 @@ export default function SnakeBoard3D({
     missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
 
     const startTime = performance.now();
-    const flightDuration = CAPTURE_MISSILE_FLIGHT_MS;
+    const flightDuration =
+      vehicleKind === 'drone'
+        ? Math.max(520, CAPTURE_MISSILE_FLIGHT_MS - 180)
+        : vehicleKind === 'helicopter'
+        ? CAPTURE_MISSILE_FLIGHT_MS + 140
+        : vehicleKind === 'supportTruck'
+        ? CAPTURE_MISSILE_FLIGHT_MS + 200
+        : CAPTURE_MISSILE_FLIGHT_MS;
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
     const camera = cameraRef.current;
@@ -5082,19 +5181,44 @@ export default function SnakeBoard3D({
         hold: Math.max(140, flightDuration - 220),
         durationOut: 200,
         type: 'cameraCaptureFocus',
+        lockPosition: true,
         returnPosition: turnCameraStateRef.current?.position,
         returnTarget: turnCameraStateRef.current?.target
       });
       if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
     }
+    const pathAt = (uRaw) => {
+      const u = clamp01(uRaw);
+      if (vehicleKind === 'drone') {
+        const hoverApex = launch.clone().lerp(impact, 0.4);
+        hoverApex.y += TOKEN_HEIGHT * 8.2;
+        return quadraticBezier(launch, hoverApex, impact, u);
+      }
+      if (vehicleKind === 'helicopter') {
+        const sideLift = new THREE.Vector3(
+          (impact.z - launch.z) * 0.15,
+          TOKEN_HEIGHT * 7.3,
+          (launch.x - impact.x) * 0.15
+        );
+        const heliControl = launch.clone().lerp(impact, 0.5).add(sideLift);
+        return quadraticBezier(launch, heliControl, impact, u);
+      }
+      if (vehicleKind === 'supportTruck') {
+        const lowArc = launch.clone().lerp(impact, 0.55);
+        lowArc.y += TOKEN_HEIGHT * 2.1;
+        return quadraticBezier(launch, lowArc, impact, u);
+      }
+      return quadraticBezier(launch, control, impact, u);
+    };
+
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
         if (elapsed <= flightDuration) {
           const u = easeInOut(clamp01(elapsed / flightDuration));
           const nextU = clamp01(u + 0.03);
-          const pos = quadraticBezier(launch, control, impact, u);
-          const next = quadraticBezier(launch, control, impact, nextU);
+          const pos = pathAt(u);
+          const next = pathAt(nextU);
           const dir = next.clone().sub(pos).normalize();
           missile.root.visible = true;
           missile.root.position.copy(pos);
