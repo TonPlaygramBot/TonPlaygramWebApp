@@ -236,15 +236,15 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.46,
+  TILE_SIZE * 1.18,
   TILE_SIZE * 1.52,
-  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.26,
   TILE_SIZE * 1.08
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.48,
+  TILE_SIZE * 1.24,
   TILE_SIZE * 1.62,
-  TILE_SIZE * 0.1,
+  TILE_SIZE * 0.3,
   TILE_SIZE * 1.22
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
@@ -258,7 +258,7 @@ const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.12;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -407,9 +407,9 @@ const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
-  fighter: 0,
-  helicopter: 0,
-  drone: 0,
+  fighter: THREE.MathUtils.degToRad(10),
+  helicopter: THREE.MathUtils.degToRad(8),
+  drone: THREE.MathUtils.degToRad(6),
   supportTruck: 0,
   javelin: 0
 });
@@ -3454,9 +3454,9 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
     }
   }
   if (seatDirection.z < -0.2) {
-    restRadius += TILE_SIZE * 0.94;
+    restRadius += TILE_SIZE * 0.74;
   } else if (seatDirection.z > 0.2) {
-    restRadius -= TILE_SIZE * 0.92;
+    restRadius -= TILE_SIZE * 0.68;
   }
   restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
 
@@ -4621,7 +4621,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .copy(railLayout.railLocal)
         .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
         .addScaledVector(railLayout.seatDirection, WEAPON_PARKING_OUTWARD_OFFSET);
-      holder.position.y = railLayout.railHeightY - TOKEN_HEIGHT * 0.2;
+      holder.position.y = railLayout.railHeightY;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
