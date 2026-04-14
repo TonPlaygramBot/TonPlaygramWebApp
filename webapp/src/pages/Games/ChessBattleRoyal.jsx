@@ -92,14 +92,14 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 0.28;
-const CAPTURE_DRONE_CRUISE_TIME = 2.9;
-const CAPTURE_DRONE_DIVE_TIME = 1.18;
+const CAPTURE_DRONE_LIFT_TIME = 0.42;
+const CAPTURE_DRONE_CRUISE_TIME = 3.48;
+const CAPTURE_DRONE_DIVE_TIME = 1.38;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 2.45; // longer strike cycle so jet/helicopter read slower in portrait and show takeoff/landing
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 3.05; // extend jet/helicopter loop to read slower and keep paths readable
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -108,24 +108,24 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.42;
-const CAPTURE_GROUND_TRAVEL_TIME = 4.45; // slower low-altitude ground strike so launches are easier to read in portrait
+const CAPTURE_GROUND_TRAVEL_TIME = 5.2; // slower low-altitude ground strike so launches stay inside the board perimeter
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.88; // keep aircraft lower so they stay visually close to the board
+const CAPTURE_DRONE_ALTITUDE = 0.72; // fly lower so aircraft stay closer to board surface in portrait
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight path stays more inward on-screen
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.12; // tighter loops so flight path stays well within board perimeter
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.95; // keep turns deeper inboard to avoid outside-side drift
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
-const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.32; // tighten drone/aircraft loops so paths stay close to board center
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.24; // lower drone route to keep it close to board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.16; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.24; // keep drone loop tighter so it hugs the board area
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.17; // lower drone route to keep it close to board surface
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.11; // lower jet/helicopter route so aircraft feel closer to board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -1987,7 +1987,7 @@ const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.42; // negative offset pushes parked weapons further outside the board edge
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.26; // increase spacing between side parked weapons
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.52; // create a wider parking gap between jet/helicopter/drone/truck
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -9362,22 +9362,14 @@ function Chess3D({
           tip.castShadow = true;
           missile.add(tip);
           missile.position.set(-Math.max(size.x * 0.12, 0.16), 0.1, lane * Math.max(size.z, 0.84));
-          missile.rotation.z = -Math.PI * 0.26;
+          missile.rotation.z = Math.PI * 0.22; // tilt launchers upward so missile heads point up
           rack.add(missile);
         });
-        rack.rotation.z = Math.PI * 0.06;
-        rack.rotation.y = Math.PI; // flip launcher direction so roof missiles point opposite
+        rack.rotation.z = -Math.PI * 0.05;
+        rack.rotation.y = Math.PI; // keep forward orientation aligned with parked truck heading
         rack.position.set(center.x - Math.max(size.x * 0.08, 0.14), rackY, center.z);
         target.add(rack);
       };
-      const model = cloneCaptureUnitTemplate('truck');
-      if (model) {
-        model.rotation.set(0, Math.PI, 0);
-        applyMilitaryTruckLook(model, getCaptureToneSeed('missile'));
-        root.add(model);
-        addRoofLongMissiles(root, model);
-        return { root };
-      }
       const truckTone = getCaptureToneSeed('missile');
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(2.1, 0.62, 1.0),
@@ -9560,7 +9552,7 @@ function Chess3D({
       const bc = new THREE.Vector3().copy(b).lerp(c, t);
       return ab.lerp(bc, t);
     };
-    const constrainInsideBoardPerimeter = (vector, marginTiles = 0.42) => {
+    const constrainInsideBoardPerimeter = (vector, marginTiles = 0.62) => {
       const margin = BOARD.tile * marginTiles;
       const boardHalf = (BOARD.N * BOARD.tile) / 2 - margin;
       vector.x = THREE.MathUtils.clamp(vector.x, -boardHalf, boardHalf);
@@ -9578,13 +9570,13 @@ function Chess3D({
     const getAirStrikeCenterFlightTarget = (from, to) => {
       const centerBias = THREE.MathUtils.clamp(
         (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.78,
-        0.96
+        0.86,
+        0.985
       );
       const flightTarget = to.clone();
       flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.68);
-      return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.6);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.76);
+      return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.9);
     };
     const getCaptureOrbitPose = ({
       from,
@@ -9738,9 +9730,19 @@ function Chess3D({
       if (returnToOrigin) {
         const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
         const returnTarget = launchPos.clone();
-        returnTarget.y = Math.max(returnTarget.y, orbitHeight * 0.9);
-        const returnPos = orbitExit.clone().lerp(returnTarget, returnU);
-        const returnNext = orbitExit.clone().lerp(returnTarget, clamp01(returnU + 0.05));
+        const cruiseReturnTarget = returnTarget.clone();
+        cruiseReturnTarget.y = Math.max(returnTarget.y + tile * 0.04, orbitHeight * 0.72);
+        const descendSplit = 0.76;
+        const returnPos =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, returnU / descendSplit)
+            : cruiseReturnTarget.clone().lerp(returnTarget, (returnU - descendSplit) / Math.max(0.001, 1 - descendSplit));
+        const returnNext =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, clamp01(returnU / descendSplit + 0.04))
+            : cruiseReturnTarget
+                .clone()
+                .lerp(returnTarget, clamp01((returnU - descendSplit) / Math.max(0.001, 1 - descendSplit) + 0.06));
         return { pos: clampIfNeeded(returnPos), next: clampIfNeeded(returnNext) };
       }
       const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
@@ -11814,7 +11816,7 @@ function Chess3D({
               orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
               returnSplit: CAPTURE_DRONE_RETURN_SPLIT,
               returnToOrigin: Boolean(fx.returnToOrigin),
-              sideSign: launchPos.x <= 0 ? 1 : -1
+              sideSign: launchPos.x <= 0 ? -1 : 1
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -11933,7 +11935,7 @@ function Chess3D({
               orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
               returnSplit: CAPTURE_DRONE_RETURN_SPLIT,
               returnToOrigin: Boolean(fx.returnToOrigin),
-              sideSign: launchPos.x <= 0 ? 1 : -1
+              sideSign: launchPos.x <= 0 ? -1 : 1
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
