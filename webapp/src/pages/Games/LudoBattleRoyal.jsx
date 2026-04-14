@@ -66,6 +66,15 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const MISSILE_FORWARD = new THREE.Vector3(1, 0, 0);
 const MISSILE_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
+  drone: 'rusty_metal_sheet',
+  fighter: 'green_metal_rust',
+  helicopter: 'green_metal_rust',
+  missile: 'green_metal_rust',
+  truck: 'green_metal_rust'
+});
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
@@ -124,26 +133,33 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
 }
 
-function getCaptureVehicleTexture(kind = 'generic') {
-  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
+function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
+  const seedKey = toneSeed
+    ? `${toneSeed.base || ''}|${toneSeed.mid || ''}|${toneSeed.dark || ''}|${toneSeed.grid || ''}`
+    : '';
+  const cacheKey = `${kind}:${seedKey}`;
+  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(cacheKey)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(cacheKey);
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     const fallback = new THREE.CanvasTexture(canvas);
-    CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, fallback);
+    CAPTURE_VEHICLE_TEXTURE_CACHE.set(cacheKey, fallback);
     return fallback;
   }
   const palettes = {
-    drone: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
     fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
-    helicopter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
-    missile: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
-    truck: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    helicopter: ['#5f6871', '#848f99', '#343c42', '#a5b1ba'],
+    drone: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    missile: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    truck: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
-  const tone = palettes[kind] ?? palettes.generic;
+  const baseTone = palettes[kind] ?? palettes.generic;
+  const tone = toneSeed
+    ? [toneSeed.base || baseTone[0], toneSeed.mid || baseTone[1], toneSeed.dark || baseTone[2], toneSeed.grid || baseTone[3]]
+    : baseTone;
   ctx.fillStyle = tone[0];
   ctx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 90; i += 1) {
@@ -169,15 +185,31 @@ function getCaptureVehicleTexture(kind = 'generic') {
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(2.4, 2.4);
   texture.anisotropy = 4;
-  CAPTURE_VEHICLE_TEXTURE_CACHE.set(kind, texture);
+  CAPTURE_VEHICLE_TEXTURE_CACHE.set(cacheKey, texture);
   return texture;
 }
 
 function createCaptureVehicleMaterial(kind, options = {}) {
+  const { toneSeed = null, ...materialOptions } = options;
+  const textureSet = CAPTURE_POLYHAVEN_TEXTURE_SETS.get(kind) || null;
   return new THREE.MeshStandardMaterial({
-    map: getCaptureVehicleTexture(kind),
-    ...options
+    map: textureSet?.diffuse || getCaptureVehicleTexture(kind, toneSeed),
+    normalMap: textureSet?.normal || null,
+    roughnessMap: textureSet?.roughness || null,
+    ...materialOptions
   });
+}
+
+async function primeCaptureVehicleTextureSets(maxAnisotropy = 1) {
+  const textureLoader = new THREE.TextureLoader();
+  const entries = Object.entries(CAPTURE_POLYHAVEN_TEXTURE_ASSETS);
+  await Promise.all(
+    entries.map(async ([kind, assetId]) => {
+      if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
+      const set = await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, CAPTURE_POLYHAVEN_TEXTURE_CACHE);
+      if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
+    })
+  );
 }
 
 function loadCaptureAvatarTexture(photoUrl) {
@@ -543,12 +575,13 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
   return createMinimalGlbBuffer(cloned, binChunk);
 }
 
-function applyCaptureTextureToOpaqueMeshes(root, kind) {
+function applyCaptureTextureToOpaqueMeshes(root, kind, toneSeed = null) {
   root.traverse((obj) => {
     if (!obj?.isMesh) return;
     const mat = obj.material;
     if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
     obj.material = createCaptureVehicleMaterial(kind, {
+      toneSeed,
       color: mat.color ?? '#ffffff',
       roughness: typeof mat.roughness === 'number' ? mat.roughness : 0.58,
       metalness: typeof mat.metalness === 'number' ? mat.metalness : 0.2
@@ -615,7 +648,7 @@ function findHelicopterRotorNodes(root) {
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
   if (!root) return;
-  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  applyCaptureTextureToOpaqueMeshes(root, 'helicopter');
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -660,7 +693,7 @@ function findDroneMotorMesh(root) {
 
 function applyMilitaryDroneLook(root, propeller = null) {
   if (!root) return null;
-  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  applyCaptureTextureToOpaqueMeshes(root, 'drone');
   const motor = propeller ?? findDroneMotorMesh(root);
   root.traverse((node) => {
     if (!node?.isMesh) return;
@@ -682,7 +715,7 @@ function applyMilitaryDroneLook(root, propeller = null) {
 
 function applyMilitaryTruckLook(root) {
   if (!root) return;
-  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  applyCaptureTextureToOpaqueMeshes(root, 'truck');
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -5953,6 +5986,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       textureCacheRef.current = new Map();
       maxAnisotropyRef.current = maxAnisotropy;
       fallbackTextureRef.current = fallbackTexture;
+      void primeCaptureVehicleTextureSets(maxAnisotropy);
       applyRendererQuality();
 
       scene = new THREE.Scene();
