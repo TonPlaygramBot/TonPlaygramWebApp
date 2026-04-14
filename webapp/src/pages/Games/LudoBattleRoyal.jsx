@@ -1121,38 +1121,7 @@ async function createCaptureJetFx() {
     root.add(model);
     const { exhaustNodes } = findJetCockpitAndExhaustNodes(model);
     const trail = [];
-    for (let i = 0; i < 6; i += 1) {
-      const zOffset = i % 2 === 0 ? -0.22 : 0.22;
-      trail.push(
-        addFxSphere(
-          root,
-          0.11 + i * 0.03,
-          [-1.95 - i * 0.2, 0, zOffset],
-          i < 2 ? '#f7a94b' : '#8b949b',
-          i < 2 ? 0.22 : 1,
-          0,
-          true,
-          i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
-        )
-      );
-    }
     const exhaustTrail = [];
-    for (let i = 0; i < 10; i += 1) {
-      const lane = i % 2 === 0 ? -1 : 1;
-      const pairIndex = Math.floor(i / 2);
-      exhaustTrail.push(
-        addFxSphere(
-          root,
-          pairIndex < 2 ? 0.09 + pairIndex * 0.03 : 0.12 + (pairIndex - 2) * 0.045,
-          [-1.74 - pairIndex * 0.23, 0, lane * 0.22],
-          pairIndex < 2 ? '#ffab38' : '#7c868d',
-          pairIndex < 2 ? 0.2 : 1,
-          0,
-          true,
-          pairIndex < 2 ? 0.86 - pairIndex * 0.2 : 0.36 - (pairIndex - 2) * 0.06
-        )
-      );
-    }
     const exhaustAnchors = exhaustNodes
       .map((node) => getNodePositionInRootSpace(root, node))
       .filter(Boolean);
@@ -1212,38 +1181,7 @@ async function createCaptureJetFx() {
   rightStore.position.z = 1.15;
   root.add(rightStore);
   const trail = [];
-  for (let i = 0; i < 6; i += 1) {
-    const zOffset = i % 2 === 0 ? -0.22 : 0.22;
-    trail.push(
-      addFxSphere(
-        root,
-        0.11 + i * 0.03,
-        [-1.95 - i * 0.2, 0, zOffset],
-        i < 2 ? '#f7a94b' : '#8b949b',
-        i < 2 ? 0.22 : 1,
-        0,
-        true,
-        i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
-      )
-    );
-  }
   const exhaustTrail = [];
-  for (let i = 0; i < 10; i += 1) {
-    const lane = i % 2 === 0 ? -1 : 1;
-    const pairIndex = Math.floor(i / 2);
-    exhaustTrail.push(
-      addFxSphere(
-        root,
-        pairIndex < 2 ? 0.09 + pairIndex * 0.03 : 0.12 + (pairIndex - 2) * 0.045,
-        [-1.78 - pairIndex * 0.23, -0.04, lane * 0.22],
-        pairIndex < 2 ? '#ffab38' : '#7c868d',
-        pairIndex < 2 ? 0.2 : 1,
-        0,
-        true,
-        pairIndex < 2 ? 0.86 - pairIndex * 0.2 : 0.36 - (pairIndex - 2) * 0.06
-      )
-    );
-  }
   applyMilitaryJetLook(root);
   root.visible = false;
   return {
@@ -1265,11 +1203,17 @@ async function createCaptureHelicopterFx() {
     model.rotation.y = Math.PI;
     applyMilitaryHelicopterLook(model);
     const { topRotor, tailRotor } = findHelicopterRotorNodes(model);
+    const rotorNodes = [];
+    model.traverse((node) => {
+      if (!node?.isObject3D) return;
+      const name = `${node.name || ''}`.toLowerCase();
+      if (/rotor|propell|blade|fan/.test(name)) rotorNodes.push(node);
+    });
     const topRotorAxis = new THREE.Vector3(0, 1, 0);
     const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
     root.add(model);
     root.visible = false;
-    return { root, rotor: topRotor, tailRotor, topRotorAxis, tailRotorAxis, trail: [] };
+    return { root, rotor: topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, trail: [] };
   }
   root.scale.setScalar(1.2 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
   const body = new THREE.Mesh(
@@ -1354,6 +1298,7 @@ async function createCaptureHelicopterFx() {
     root,
     rotor,
     tailRotor,
+    rotorNodes: [],
     topRotorAxis: new THREE.Vector3(0, 1, 0),
     tailRotorAxis: new THREE.Vector3(1, 0, 0),
     trail
@@ -3084,8 +3029,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.26;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.66;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.6;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -4001,7 +3946,8 @@ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 const TOKEN_SELECTION_SCALE = 1.08;
 const TOKEN_SIZE_MULTIPLIER = 1.4;
-const TOKEN_THINNESS_SCALE = 0.86;
+const TOKEN_THINNESS_SCALE = 0.8;
+const TOKEN_HEIGHT_SCALE = 1.06;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
 const CAMERA_TURN_VIEW_DURATION_MS = 520;
@@ -4654,6 +4600,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         missile: missileFx.root,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
+        helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
         helicopterTopRotorAxis: helicopterFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0),
         helicopterTailRotorAxis: helicopterFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0),
         dronePropeller: droneFx.propeller ?? null,
@@ -6568,6 +6515,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0),
             delta * 30
           );
+        }
+        if (Array.isArray(entry?.helicopterRotorNodes)) {
+          entry.helicopterRotorNodes.forEach((rotorNode) => {
+            if (
+              !rotorNode?.isObject3D ||
+              rotorNode === entry.helicopterRotor ||
+              rotorNode === entry.helicopterTailRotor
+            ) {
+              return;
+            }
+            rotorNode.rotation.y += delta * 24;
+          });
         }
         if (entry?.dronePropeller?.isObject3D) {
           entry.dronePropeller.rotation.x += delta * 40;
@@ -9031,9 +8990,11 @@ async function buildLudoBoard(
       if (typeScale) {
         token.scale.set(
           token.scale.x * typeScale.x * TOKEN_THINNESS_SCALE,
-          token.scale.y * typeScale.y,
+          token.scale.y * typeScale.y * TOKEN_HEIGHT_SCALE,
           token.scale.z * typeScale.z * TOKEN_THINNESS_SCALE
         );
+      } else {
+        token.scale.y *= TOKEN_HEIGHT_SCALE;
       }
       const label = createTokenCountLabel();
       if (label) {
