@@ -225,10 +225,16 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.94,
-  TILE_SIZE * 0.78,
-  TILE_SIZE * 0.94,
+  TILE_SIZE * 1.12,
+  TILE_SIZE * 0.9,
+  TILE_SIZE * 0.62,
   TILE_SIZE * 0.78
+]);
+const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 1.2,
+  TILE_SIZE * 0.98,
+  TILE_SIZE * 0.56,
+  TILE_SIZE * 0.92
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -240,6 +246,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.5;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -283,9 +290,9 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.82,
+  backOffset: 0.98,
   forwardOffset: 0,
-  heightOffset: 2.36,
+  heightOffset: 2.56,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -3228,7 +3235,7 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
   }
 }
 
-function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0) {
+function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customInset = null) {
   const anchor = board?.seatAnchors?.[seatIndex];
   const boardLookTarget = board?.boardLookTarget;
   const boardRoot = board?.boardRoot;
@@ -3241,7 +3248,9 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0) {
   seatDirection.normalize();
   const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
   const seatDistance = seatWorld.distanceTo(boardLookTarget);
-  const inwardInset = TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
+  const inwardInset = Number.isFinite(customInset)
+    ? customInset
+    : TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
   let restRadius = clamp(
     seatDistance - inwardInset,
     TOKEN_REST_MIN_RADIUS,
@@ -4103,7 +4112,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       : weaponType === 'drone'
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
-  group.scale.setScalar(displayScale * 1.5);
+  group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -4151,7 +4160,13 @@ function updateSeatWeaponDisplays(board, players = []) {
     const tokenMesh =
       board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
       board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index);
-    const railLayout = getSeatRailLayout(board, seatIndex, TILE_SIZE * 0.08);
+    const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
+    const railLayout = getSeatRailLayout(
+      board,
+      seatIndex,
+      TILE_SIZE * 0.08,
+      Number.isFinite(weaponInset) ? weaponInset : null
+    );
     if (railLayout) {
       const sideSign = seatIndex % 2 === 0 ? 1 : -1;
       holder.position.copy(railLayout.railLocal).addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
