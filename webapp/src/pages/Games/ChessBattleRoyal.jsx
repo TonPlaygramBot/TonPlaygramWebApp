@@ -120,9 +120,8 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.24; // shorten loops so jet/helicopter stay closer to board center
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 0.86; // keep turns further inside board bounds
-const CAPTURE_DRONE_PATH_EDGE_MARGIN_TILES = 0.72; // keep drone path slightly tighter than default board clamp
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.3; // shorten loops so jet/helicopter stay closer to board center
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.05; // keep turns further inside board bounds
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
@@ -9287,16 +9286,16 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.86) : half + BOARD.rim + tile * 0.86;
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 1.34) : half + BOARD.rim + tile * 1.34;
       const laneMap = {
-        jet: tile * 1.46,
+        jet: tile * 2.05,
         helicopter: 0,
-        truck: -tile * 1.46
+        truck: -tile * 2.05
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
       const laneShift = slot === 0 ? -tile * 0.3 : tile * 0.3;
       const zOffset = laneBase + laneShift;
-      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.08 : currentPieceYOffset + 0.17;
+      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.04 : currentPieceYOffset + 0.12;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -11564,7 +11563,7 @@ function Chess3D({
                 progress: mu,
                 launchHeight: 0.08,
                 orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.48,
-                orbitRadiusMul: 0.64,
+                orbitRadiusMul: 0.9,
                 minOrbitCycles: 0.34,
                 orbitSplit: 0.88,
                 returnSplit: 0.72
@@ -11575,7 +11574,7 @@ function Chess3D({
             } else {
               fx.droneFx.root.visible = true;
               const { pos, next } = pose;
-              fx.droneFx.root.position.copy(constrainInsideBoardPerimeter(pos, CAPTURE_DRONE_PATH_EDGE_MARGIN_TILES));
+              fx.droneFx.root.position.copy(constrainInsideBoardPerimeter(pos));
               captureDir.copy(next).sub(pos).normalize();
               fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             }
@@ -11594,10 +11593,8 @@ function Chess3D({
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
             const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
             fx.jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-            const launchPos = fx.returnToOrigin
-              ? fx.launchPos.clone()
-              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
+            const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            fx.launchPos.copy(launchPos);
             const { pos: jetPos, next: jetNext } = getCaptureLoopPose({
               from: launchPos,
               to: fx.to,
@@ -11610,9 +11607,7 @@ function Chess3D({
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
-            fx.jetFx.root.position.copy(
-              constrainInsideBoardPerimeter(jetPos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES)
-            );
+            fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
             const jetForward = captureDir.clone();
             fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
@@ -11679,9 +11674,7 @@ function Chess3D({
               }
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
-              missile.root.position.copy(
-                constrainInsideBoardPerimeter(missilePos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES)
-              );
+              missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             });
             if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
@@ -11725,9 +11718,7 @@ function Chess3D({
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
-            fx.helicopterFx.root.position.copy(
-              constrainInsideBoardPerimeter(heliPos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES)
-            );
+            fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
@@ -11793,9 +11784,7 @@ function Chess3D({
               }
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
-              missile.root.position.copy(
-                constrainInsideBoardPerimeter(missilePos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES)
-              );
+              missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             });
             if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
