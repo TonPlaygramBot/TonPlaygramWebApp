@@ -49,7 +49,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.4;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = -0.01 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
@@ -86,6 +86,18 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
+const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
+const CAPTURE_VEHICLE_MODEL_HOSTS = [
+  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
+  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
+];
+const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
+  drone: 'drone.glb',
+  helicopter: 'helicopter.glb',
+  fighter: 'f15.glb',
+  truck: 'fire_truck.glb'
+});
 const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -121,8 +133,8 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 720;
-const DICE_SETTLE_DURATION = 260;
+const DICE_ROLL_DURATION = 520;
+const DICE_SETTLE_DURATION = 180;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -181,12 +193,13 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
-const DICE_CAMERA_LOOK_IN_DURATION = 260;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 560;
-const DICE_CAMERA_LOOK_OUT_DURATION = 280;
+const DICE_CAMERA_LOOK_IN_DURATION = 180;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 380;
+const DICE_CAMERA_LOOK_OUT_DURATION = 180;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
 const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
+const BROADCAST_ROTATION_ONLY_CAMERA = true;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color(0x8b5e34);
@@ -214,12 +227,12 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.94,
   TILE_SIZE * 0.78,
-  TILE_SIZE * 0.64,
-  TILE_SIZE * 0.78,
-  TILE_SIZE * 0.64
+  TILE_SIZE * 0.94,
+  TILE_SIZE * 0.78
 ]);
-const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.48;
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
   TOKEN_RADIUS * 0.02,
@@ -280,7 +293,6 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   heightOffset: 1.2,
   targetLift: 0.08 * MODEL_SCALE
 });
-const LOCK_BOTTOM_SEAT_CAMERA = true;
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
@@ -1161,6 +1173,33 @@ function prepareLoadedModel(model) {
   });
 }
 
+async function loadCaptureVehicleModel(kind = 'fighter', renderer = null) {
+  const normalizedKind = kind === 'supportTruck' ? 'truck' : kind;
+  const cached = CAPTURE_VEHICLE_MODEL_CACHE.get(normalizedKind);
+  if (cached) return cached.then((model) => (model ? model.clone(true) : null));
+  const file = CAPTURE_VEHICLE_MODEL_FILES[normalizedKind];
+  if (!file) return null;
+  const loader = createConfiguredGLTFLoader(renderer);
+  const loadPromise = (async () => {
+    for (const host of CAPTURE_VEHICLE_MODEL_HOSTS) {
+      const url = `${host}/models/${file}`;
+      try {
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (!scene) continue;
+        const prepared = scene.clone(true);
+        prepareLoadedModel(prepared);
+        return prepared;
+      } catch {
+        // try next host
+      }
+    }
+    return null;
+  })();
+  CAPTURE_VEHICLE_MODEL_CACHE.set(normalizedKind, loadPromise);
+  return loadPromise.then((model) => (model ? model.clone(true) : null));
+}
+
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -1559,9 +1598,13 @@ function createCameraTransitionAnimation(
   if (!camera || !controls || !toPosition || !toTarget) return null;
   const startPosition = camera.position.clone();
   const startTarget = controls?.target ? controls.target.clone() : new THREE.Vector3();
-  const goalPosition = toPosition.clone();
+  const goalPosition = BROADCAST_ROTATION_ONLY_CAMERA ? startPosition.clone() : toPosition.clone();
   const goalTarget = toTarget.clone();
-  const finalPosition = returnPosition ? returnPosition.clone() : startPosition.clone();
+  const finalPosition = BROADCAST_ROTATION_ONLY_CAMERA
+    ? startPosition.clone()
+    : returnPosition
+    ? returnPosition.clone()
+    : startPosition.clone();
   const finalTarget = returnTarget ? returnTarget.clone() : startTarget.clone();
   const tempPosition = new THREE.Vector3();
   const tempTarget = new THREE.Vector3();
@@ -1670,7 +1713,6 @@ function computeBoardFacingRotation(board, camera, tileIndex) {
 
 function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
   const player = Array.isArray(players) ? players[turnIndex] : null;
   const rawSeatIndex = Number.isFinite(player?.seatIndex)
@@ -1718,7 +1760,6 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
 
 function computeDiceCameraFocusState(board, camera) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
   if (!diceSet.length) return null;
   const boardLookTarget = board.boardLookTarget;
@@ -1730,19 +1771,12 @@ function computeDiceCameraFocusState(board, camera) {
 
   const target = diceCenter.clone();
   target.y += DICE_SIZE * 0.45;
-  const currentDistance = camera.position.distanceTo(boardLookTarget);
-  const direction = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-
-  const position = target.clone().addScaledVector(direction, currentDistance);
-  position.y = camera.position.y;
+  const position = camera.position.clone();
   return { position, target };
 }
 
 function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (!board || !camera) return null;
-  if (LOCK_BOTTOM_SEAT_CAMERA) return null;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return null;
   const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
@@ -1757,12 +1791,9 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   if (pathDir.lengthSq() < 1e-6) return null;
   pathDir.normalize();
 
-  const behindDirection = pathDir.clone().multiplyScalar(-1);
-  const followDistance = TILE_SIZE * CAMERA_FOLLOW_BACK_TILES;
   const target = toPos.clone();
   target.y += TILE_SIZE * 0.18;
-  const position = target.clone().addScaledVector(behindDirection, followDistance);
-  position.y = Math.max(camera.position.y, boardLookTarget.y + CAMERA_EXTRA_LIFT);
+  const position = camera.position.clone();
   return { position, target };
 }
 
@@ -3546,7 +3577,7 @@ function updateTokens(
             .addScaledVector(lateral, railSpread);
           worldPos = railWorld.clone();
           boardRoot.worldToLocal(worldPos);
-          worldPos.y = TOKEN_HEIGHT * 0.62;
+          worldPos.y = TOKEN_HEIGHT * 0.44;
         }
       }
       if (!worldPos) {
@@ -3852,8 +3883,10 @@ function quadraticBezier(a, b, c, t) {
   return ab.lerp(bc, t);
 }
 
-function createCaptureVehicleRig(kind = 'fighter') {
+function createCaptureVehicleRig(kind = 'fighter', renderer = null) {
   const root = new THREE.Group();
+  const vehicleBody = new THREE.Group();
+  root.add(vehicleBody);
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
   const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
   const finMat = new THREE.MeshStandardMaterial({ color: '#7f868d', roughness: 0.58, metalness: 0.12 });
@@ -3868,15 +3901,15 @@ function createCaptureVehicleRig(kind = 'fighter') {
   if (kind === 'supportTruck') {
     const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.22, 0.3), bodyMat);
     chassis.castShadow = true;
-    root.add(chassis);
+    vehicleBody.add(chassis);
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.28), noseMat);
     cabin.position.set(0.26, 0.2, 0);
     cabin.castShadow = true;
-    root.add(cabin);
+    vehicleBody.add(cabin);
     const launcher = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), finMat);
     launcher.position.set(-0.2, 0.24, 0);
     launcher.castShadow = true;
-    root.add(launcher);
+    vehicleBody.add(launcher);
   } else {
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
@@ -3884,22 +3917,22 @@ function createCaptureVehicleRig(kind = 'fighter') {
     );
     body.rotation.z = Math.PI / 2;
     body.castShadow = true;
-    root.add(body);
+    vehicleBody.add(body);
 
     const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
     nose.position.set(0.6, 0, 0);
     nose.rotation.z = -Math.PI / 2;
     nose.castShadow = true;
-    root.add(nose);
+    vehicleBody.add(nose);
 
     const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
     finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
     finA.castShadow = true;
-    root.add(finA);
+    vehicleBody.add(finA);
     const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
     finB.position.set(-0.25, 0, 0);
     finB.castShadow = true;
-    root.add(finB);
+    vehicleBody.add(finB);
   }
 
   const trail = [];
@@ -3911,6 +3944,25 @@ function createCaptureVehicleRig(kind = 'fighter') {
     root.add(puff);
   }
   root.visible = false;
+  const modelScale = kind === 'supportTruck' ? 0.14 : 0.18;
+  loadCaptureVehicleModel(kind, renderer)
+    .then((loadedModel) => {
+      if (!loadedModel) return;
+      const fitted = loadedModel;
+      fitted.position.set(0, 0, 0);
+      fitted.rotation.set(0, 0, 0);
+      const box = new THREE.Box3().setFromObject(fitted);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
+      const scale = modelScale / maxDim;
+      fitted.scale.setScalar(scale);
+      const recentered = new THREE.Box3().setFromObject(fitted);
+      const center = recentered.getCenter(new THREE.Vector3());
+      fitted.position.sub(center);
+      root.add(fitted);
+      vehicleBody.visible = false;
+    })
+    .catch(() => {});
   return { root, trail, kind };
 }
 
@@ -3988,6 +4040,123 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
     );
     mesh.scale.setScalar(smokeGrow * (0.75 + i * 0.16));
     mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
+  });
+}
+
+function createSeatWeaponMesh(weaponType = 'fighter', renderer = null) {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#d4d4d8', roughness: 0.36, metalness: 0.28 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.5, metalness: 0.22 });
+  if (weaponType === 'supportTruck') {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_RADIUS * 2.2, TOKEN_HEIGHT * 0.45, TOKEN_RADIUS), bodyMat);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_RADIUS * 0.9, TOKEN_HEIGHT * 0.62, TOKEN_RADIUS * 0.82), accentMat);
+    cab.position.set(TOKEN_RADIUS * 0.36, TOKEN_HEIGHT * 0.5, 0);
+    group.add(base, cab);
+  } else if (weaponType === 'helicopter') {
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(TOKEN_RADIUS * 0.32, TOKEN_RADIUS * 1.1, 8, 12), bodyMat);
+    body.rotation.z = Math.PI / 2;
+    const rotor = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_RADIUS * 2.2, TOKEN_HEIGHT * 0.1, TOKEN_HEIGHT * 0.08), accentMat);
+    rotor.position.y = TOKEN_HEIGHT * 0.36;
+    group.add(body, rotor);
+  } else if (weaponType === 'drone') {
+    const core = new THREE.Mesh(new THREE.SphereGeometry(TOKEN_RADIUS * 0.36, 16, 12), bodyMat);
+    const armA = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_RADIUS * 1.8, TOKEN_HEIGHT * 0.1, TOKEN_HEIGHT * 0.1), accentMat);
+    const armB = armA.clone();
+    armB.rotation.y = Math.PI / 2;
+    group.add(core, armA, armB);
+  } else {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(TOKEN_RADIUS * 0.24, TOKEN_RADIUS * 0.32, TOKEN_RADIUS * 1.8, 14), bodyMat);
+    body.rotation.z = Math.PI / 2;
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(TOKEN_RADIUS * 0.24, TOKEN_RADIUS * 0.58, 12), accentMat);
+    nose.position.x = TOKEN_RADIUS * 1.04;
+    nose.rotation.z = -Math.PI / 2;
+    group.add(body, nose);
+  }
+  const fallback = group.clone(true);
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    }
+  });
+  loadCaptureVehicleModel(weaponType, renderer)
+    .then((loadedModel) => {
+      if (!loadedModel) return;
+      const fitted = loadedModel;
+      const box = new THREE.Box3().setFromObject(fitted);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
+      const scale = (weaponType === 'supportTruck' ? TOKEN_RADIUS * 1.9 : TOKEN_RADIUS * 1.8) / maxDim;
+      fitted.scale.setScalar(scale);
+      const recent = new THREE.Box3().setFromObject(fitted);
+      const center = recent.getCenter(new THREE.Vector3());
+      fitted.position.sub(center);
+      while (group.children.length) {
+        const child = group.children.pop();
+        if (child) group.remove(child);
+      }
+      group.add(fitted);
+    })
+    .catch(() => {
+      if (!group.children.length) group.add(fallback);
+    });
+  return group;
+}
+
+function updateSeatWeaponDisplays(board, players = []) {
+  if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
+  const anchors = board.seatAnchors;
+  const boardLookTarget = board.boardLookTarget;
+  if (!boardLookTarget) return;
+  const keep = new Set();
+  const fallbackOrder = ['fighter', 'helicopter', 'supportTruck', 'drone'];
+  const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
+
+  players.forEach((player, index) => {
+    const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    const anchor = anchors[seatIndex];
+    if (!anchor) return;
+    keep.add(index);
+    let holder = board.weaponDisplayGroup.userData.byPlayer?.get(index);
+    if (!holder) {
+      holder = new THREE.Group();
+      holder.userData.weaponType = null;
+      board.weaponDisplayGroup.add(holder);
+      if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
+      board.weaponDisplayGroup.userData.byPlayer.set(index, holder);
+    }
+    const weaponType = player?.weaponType || fallbackOrder[index % fallbackOrder.length];
+    if (holder.userData.weaponType !== weaponType) {
+      while (holder.children.length) {
+        const child = holder.children.pop();
+        if (child) holder.remove(child);
+      }
+      holder.add(createSeatWeaponMesh(weaponType, board.renderer));
+      holder.userData.weaponType = weaponType;
+    }
+    const seatWorld = new THREE.Vector3();
+    anchor.getWorldPosition(seatWorld);
+    const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+    if (seatDirection.lengthSq() < 1e-6) return;
+    seatDirection.normalize();
+    const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+    const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+    const markerPos = boardLookTarget
+      .clone()
+      .addScaledVector(seatDirection, radius)
+      .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+    holder.position.copy(markerPos);
+    holder.position.y = tableY + TOKEN_HEIGHT * 0.24;
+    holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+  });
+
+  const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
+  if (!(byPlayer instanceof Map)) return;
+  byPlayer.forEach((group, index) => {
+    if (!keep.has(index)) {
+      group.parent?.remove(group);
+      byPlayer.delete(index);
+    }
   });
 }
 
@@ -4259,18 +4428,25 @@ export default function SnakeBoard3D({
       arena.updateCameraTarget,
       appearanceMemo
     );
+    const weaponDisplayGroup = new THREE.Group();
+    weaponDisplayGroup.name = 'seatWeaponDisplayGroup';
+    weaponDisplayGroup.userData.byPlayer = new Map();
+    arena.boardGroup.add(weaponDisplayGroup);
     boardRef.current = {
       ...board,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
+      renderer,
       seatAnchors: arena.seatAnchors ?? [],
-      startCameraState: arena.startCameraState ?? null
+      startCameraState: arena.startCameraState ?? null,
+      tableInfo: arena.tableInfo ?? null,
+      weaponDisplayGroup
     };
     const captureVehicles = {
-      fighter: createCaptureVehicleRig('fighter'),
-      helicopter: createCaptureVehicleRig('helicopter'),
-      drone: createCaptureVehicleRig('drone'),
-      supportTruck: createCaptureVehicleRig('supportTruck')
+      fighter: createCaptureVehicleRig('fighter', renderer),
+      helicopter: createCaptureVehicleRig('helicopter', renderer),
+      drone: createCaptureVehicleRig('drone', renderer),
+      supportTruck: createCaptureVehicleRig('supportTruck', renderer)
     };
     const captureExplosion = createCaptureExplosionRig();
     Object.values(captureVehicles).forEach((vehicle) => scene.add(vehicle.root));
@@ -4703,6 +4879,7 @@ export default function SnakeBoard3D({
       boardRoot: board.root,
       tableInfo: board.tableInfo
     });
+    updateSeatWeaponDisplays(board, players);
 
     const sanitizedPositions = players.map((player) => {
       const raw = Number(player?.position);
