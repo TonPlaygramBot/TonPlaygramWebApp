@@ -257,7 +257,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
@@ -303,16 +303,16 @@ const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.78,
+  backOffset: 2.02,
   forwardOffset: 0,
-  heightOffset: 3.62,
-  targetLift: 0.038 * MODEL_SCALE
+  heightOffset: 3.82,
+  targetLift: 0.016 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.6,
+  backOffset: 0.78,
   forwardOffset: 0,
-  heightOffset: 1.2,
-  targetLift: 0.09 * MODEL_SCALE
+  heightOffset: 1.32,
+  targetLift: 0.06 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
@@ -3454,9 +3454,9 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
     }
   }
   if (seatDirection.z < -0.2) {
-    restRadius += TILE_SIZE * 0.52;
+    restRadius += TILE_SIZE * 0.74;
   } else if (seatDirection.z > 0.2) {
-    restRadius -= TILE_SIZE * 0.46;
+    restRadius -= TILE_SIZE * 0.68;
   }
   restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
 
@@ -4562,6 +4562,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
+  group.position.y -= TOKEN_HEIGHT * 0.34;
   group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
