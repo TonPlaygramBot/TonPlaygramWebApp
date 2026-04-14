@@ -54,6 +54,7 @@ import { applyRendererSRGB } from '../../utils/colorSpace.js';
 const MODEL_SCALE = 0.75;
 const ROW_GAME_SCALE_REDUCTION = 0.25;
 const TABLE_AND_CHAIR_BASE_SCALE = 0.49;
+const TABLE_AND_CHAIR_HDRI_PROPORTION_BOOST = 1.2;
 const TABLE_AND_CHAIR_SIZE_MULTIPLIER = 1.6;
 const BOARD_AND_CHIPS_BASE_SCALE = 0.7;
 const TABLE_SIZE_REDUCTION_FACTOR = 0.8;
@@ -62,9 +63,15 @@ const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
 const BOARD_VISUAL_SIZE_BOOST = 1.08;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
-  TABLE_BASE_SCALE * TABLE_SIZE_REDUCTION_FACTOR * TABLE_AND_CHAIR_SIZE_MULTIPLIER;
+  TABLE_BASE_SCALE *
+  TABLE_SIZE_REDUCTION_FACTOR *
+  TABLE_AND_CHAIR_SIZE_MULTIPLIER *
+  TABLE_AND_CHAIR_HDRI_PROPORTION_BOOST;
 const CHAIR_SCALE =
-  TABLE_BASE_SCALE * CHAIR_SIZE_BOOST_FACTOR * TABLE_AND_CHAIR_SIZE_MULTIPLIER;
+  TABLE_BASE_SCALE *
+  CHAIR_SIZE_BOOST_FACTOR *
+  TABLE_AND_CHAIR_SIZE_MULTIPLIER *
+  TABLE_AND_CHAIR_HDRI_PROPORTION_BOOST;
 const BOARD_AND_CHIPS_SCALE =
   BOARD_AND_CHIPS_BASE_SCALE *
   ROW_GAME_SCALE_REDUCTION *
@@ -82,7 +89,6 @@ const CHAIR_GAP = 1.3 * CHAIR_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
 const BOARD_TABLE_CLEARANCE = 0.015 * BOARD_AND_CHIPS_SCALE;
 const BOARD_VERTICAL_LIFT = 0;
-const INTRO_MESSAGE_DURATION_MS = 2200;
 const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FACE_THICKNESS = 0.028 * BOARD_AND_CHIPS_SCALE;
@@ -619,12 +625,10 @@ export default function FourInRowRoyal() {
   const [winner, setWinner] = useState(null);
   const [showWinnerActions, setShowWinnerActions] = useState(false);
   const [winningCells, setWinningCells] = useState([]);
-  const [showIntroBanner, setShowIntroBanner] = useState(true);
   const [hoverCol, setHoverCol] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const introBannerTimeoutRef = useRef(null);
 
   useEffect(() => {
     hoverColRef.current = hoverCol;
@@ -652,23 +656,11 @@ export default function FourInRowRoyal() {
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
 
-  const triggerIntroBanner = useCallback(() => {
-    setShowIntroBanner(true);
-    if (introBannerTimeoutRef.current) {
-      window.clearTimeout(introBannerTimeoutRef.current);
-    }
-    introBannerTimeoutRef.current = window.setTimeout(() => {
-      setShowIntroBanner(false);
-      introBannerTimeoutRef.current = null;
-    }, INTRO_MESSAGE_DURATION_MS);
-  }, []);
-
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
-    triggerIntroBanner();
   };
 
   const worldFromCell = (r, c) => [
@@ -780,17 +772,7 @@ export default function FourInRowRoyal() {
     setWinner(null);
     setWinningCells([]);
     displayedBoardRef.current = createBoard(rows, cols);
-    triggerIntroBanner();
-  }, [rows, cols, triggerIntroBanner]);
-
-  useEffect(
-    () => () => {
-      if (introBannerTimeoutRef.current) {
-        window.clearTimeout(introBannerTimeoutRef.current);
-      }
-    },
-    []
-  );
+  }, [rows, cols]);
 
   useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
 
@@ -1833,11 +1815,6 @@ export default function FourInRowRoyal() {
         </div>
       </div>
 
-      {showIntroBanner && !winner && (
-        <div className="pointer-events-none absolute left-1/2 top-[8%] z-30 -translate-x-1/2 rounded-full border border-cyan-200/35 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">
-          Match 4 in row to win
-        </div>
-      )}
       {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
