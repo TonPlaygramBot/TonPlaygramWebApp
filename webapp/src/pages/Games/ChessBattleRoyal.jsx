@@ -120,8 +120,8 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.42; // tighter radius so jet/helicopter path stays centered above the board
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.6; // pull entry/turn points farther in from board edges
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.3; // shorten loops so jet/helicopter stay closer to board center
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.05; // keep turns further inside board bounds
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
@@ -146,6 +146,11 @@ const CAPTURE_MODEL_URLS = Object.freeze({
     'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb',
     'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/f15.glb',
     'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/f15.glb'
+  ],
+  truck: [
+    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb',
+    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/fire_truck.glb',
+    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/fire_truck.glb'
   ]
 });
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
@@ -155,7 +160,8 @@ const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
   fighter: 'green_metal_rust',
   helicopter: 'green_metal_rust',
-  missile: 'green_metal_rust'
+  missile: 'green_metal_rust',
+  truck: 'green_metal_rust'
 });
 
 const BASE_BOARD_THEME = Object.freeze({
@@ -2982,8 +2988,9 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
   const palettes = {
     fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
     helicopter: ['#5f6871', '#848f99', '#343c42', '#a5b1ba'],
-    drone: ['#6a737d', '#8f98a1', '#3e464d', '#b4bec7'],
+    drone: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
     missile: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
+    truck: ['#8f98a1', '#c4ccd4', '#66707a', '#dce3ea'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
   const baseTone = palettes[kind] ?? palettes.generic;
@@ -3134,7 +3141,7 @@ function applyMilitaryJetLook(model, toneSeed = null, skin = null) {
 
 function applyMilitaryDroneLook(model, propeller = null, toneSeed = null) {
   if (!model) return;
-  applyCaptureTextureToOpaqueMeshes(model, 'drone', toneSeed);
+  applyCaptureTextureToOpaqueMeshes(model, 'missile', toneSeed);
   model.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -3153,6 +3160,32 @@ function applyMilitaryDroneLook(model, propeller = null, toneSeed = null) {
         mat.color.set('#556b2f');
         if ('metalness' in mat) mat.metalness = 0.84;
         if ('roughness' in mat) mat.roughness = 0.34;
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function applyMilitaryTruckLook(model, toneSeed = null) {
+  if (!model) return;
+  applyCaptureTextureToOpaqueMeshes(model, 'missile', toneSeed);
+  model.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat) => {
+      if (!mat?.color) return;
+      const materialName = `${mat.name || ''}`.toLowerCase();
+      if (/window|windshield|glass|cockpit/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
+        mat.color.setHex(0x050608);
+        if ('metalness' in mat) mat.metalness = 0.58;
+        if ('roughness' in mat) mat.roughness = 0.2;
+        if ('transparent' in mat) mat.transparent = true;
+        if ('opacity' in mat) mat.opacity = 0.95;
+      } else if (/wheel|tire|tyre|rim/.test(name) || /wheel|tire|tyre|rim/.test(materialName)) {
+        mat.color.setHex(0x080808);
+        if ('metalness' in mat) mat.metalness = 0.2;
+        if ('roughness' in mat) mat.roughness = 0.82;
       }
       mat.needsUpdate = true;
     });
@@ -8751,7 +8784,8 @@ function Chess3D({
     const captureUnitTemplates = {
       drone: null,
       helicopter: null,
-      fighter: null
+      fighter: null,
+      truck: null
     };
     const captureUnitLoads = {};
 
@@ -8813,6 +8847,7 @@ function Chess3D({
     void loadCaptureUnitTemplate('drone', 3.7);
     void loadCaptureUnitTemplate('helicopter', 5.2);
     void loadCaptureUnitTemplate('fighter', 5.8);
+    void loadCaptureUnitTemplate('truck', 6.2);
     void primeCaptureVehicleTextureSets(renderer?.capabilities?.getMaxAnisotropy?.() || 1);
 
     const addFxBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
@@ -9031,16 +9066,19 @@ function Chess3D({
       }
       const root = new THREE.Group();
       root.scale.setScalar(0.3);
-      addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
+      const droneTone = getCaptureToneSeed('missile');
+      const body = addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
+      body.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#d1d7de', roughness: 0.28, metalness: 0.84 });
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.18, 0.72, 20),
-        new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: 0.5, metalness: 0.18 })
+        createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
       );
       nose.position.set(1.7, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       nose.castShadow = true;
       root.add(nose);
-      addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+      const tail = addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+      tail.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#10151c', roughness: 0.44, metalness: 0.44 });
       const deltaWing = createFxPolygon(
         [
           [-1.2, -2.05],
@@ -9161,7 +9199,6 @@ function Chess3D({
         const root = new THREE.Group();
         model.rotation.set(0, 0, 0);
         root.add(model);
-        applyMilitaryJetLook(model, getCaptureToneSeed('fighter'));
         const cockpit =
           model.getObjectByName('cockpit') ||
           model.getObjectByName('Cockpit') ||
@@ -9220,12 +9257,46 @@ function Chess3D({
       const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
       return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
     };
+    const createFxSupportTruck = () => {
+      const root = new THREE.Group();
+      const model = cloneCaptureUnitTemplate('truck');
+      if (model) {
+        model.rotation.set(0, Math.PI, 0);
+        applyMilitaryTruckLook(model, getCaptureToneSeed('missile'));
+        root.add(model);
+        return { root };
+      }
+      const truckTone = getCaptureToneSeed('missile');
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(2.1, 0.62, 1.0),
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+      );
+      body.castShadow = true;
+      body.receiveShadow = true;
+      root.add(body);
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(0.78, 0.62, 0.92),
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+      );
+      cabin.position.set(0.86, 0.44, 0);
+      cabin.castShadow = true;
+      cabin.receiveShadow = true;
+      root.add(cabin);
+      addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
+      return { root };
+    };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 1.55) : half + BOARD.rim + tile * 1.55;
-      const laneBase = kind === 'jet' ? tile * 1.45 : -tile * 1.45;
-      const laneShift = slot === 0 ? -tile * 0.42 : tile * 0.42;
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 1.34) : half + BOARD.rim + tile * 1.34;
+      const laneMap = {
+        jet: tile * 2.05,
+        helicopter: 0,
+        truck: -tile * 2.05
+      };
+      const laneBase = laneMap[kind] ?? laneMap.helicopter;
+      const laneShift = slot === 0 ? -tile * 0.3 : tile * 0.3;
       const zOffset = laneBase + laneShift;
-      return new THREE.Vector3(sideX, currentPieceYOffset + 0.12, zOffset);
+      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.04 : currentPieceYOffset + 0.12;
+      return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
       const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
@@ -9249,6 +9320,16 @@ function Chess3D({
         airPadGroup.add(unit.root);
       }
       unit.busy = false;
+    };
+    const acquireParkedSupportUnit = (isWhiteSide) => {
+      const truck = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === 'truck');
+      if (!truck?.root) return null;
+      truck.root.visible = true;
+      if (truck.root.parent !== airPadGroup) {
+        truck.root.parent?.remove(truck.root);
+        airPadGroup.add(truck.root);
+      }
+      return truck;
     };
     const createFxMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
@@ -9589,7 +9670,11 @@ function Chess3D({
           suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
           const droneFx = createFxDrone({ forceProcedural: true });
           droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-          const launchBase = fromPos.clone();
+          const isWhiteSide = Boolean(movingMesh?.userData?.w);
+          const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
+          const launchBase =
+            parkedTruck?.homePosition?.clone?.() ||
+            getAirPadAnchor(isWhiteSide, 'truck', 0);
           droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
           captureFxGroup.add(droneFx.root);
           playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
@@ -9601,6 +9686,7 @@ function Chess3D({
             to: targetPos.clone(),
             launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
             movingMesh,
+            returnToOrigin: true,
             droneFx
           });
           return {
@@ -9883,8 +9969,10 @@ function Chess3D({
     };
     addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
     addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
     addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
     addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
     // Tiles
     const tiles = [];
@@ -10278,6 +10366,31 @@ function Chess3D({
             root: helicopter.root
           });
         }
+        const supportTruck = createFxSupportTruck();
+        supportTruck.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.95);
+        if (skin) {
+          applyVehicleSkinToModel(
+            supportTruck.root,
+            skin,
+            (node) => /wheel|tire|tyre|rim|window|windshield|glass|cockpit/.test(`${node.name || ''}`.toLowerCase())
+          );
+        }
+        attachVehicleAvatarBadge(supportTruck.root, badge, isWhite ? 1 : -1);
+        const truckPad = getAirPadAnchor(isWhite, 'truck', 0);
+        supportTruck.root.position.copy(truckPad);
+        supportTruck.root.rotation.y = isWhite ? -Math.PI * 0.18 : Math.PI * 1.18;
+        const truckHomeRotation = supportTruck.root.rotation.clone();
+        airPadGroup.add(supportTruck.root);
+        parkedAirUnits.push({
+          kind: 'truck',
+          isWhite,
+          slot: 0,
+          busy: false,
+          homePosition: truckPad.clone(),
+          homeRotation: truckHomeRotation,
+          ...supportTruck,
+          root: supportTruck.root
+        });
       });
     };
 
