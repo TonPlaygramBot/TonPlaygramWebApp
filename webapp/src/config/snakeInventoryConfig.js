@@ -26,6 +26,12 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen Token' },
   { id: 'king', label: 'King Token' }
 ]);
+const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'fighter', label: 'Fighter Jet' },
+  { id: 'helicopter', label: 'Military Helicopter' },
+  { id: 'supportTruck', label: 'Support Truck' },
+  { id: 'drone', label: 'Drone' }
+]);
 
 export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
   { id: 'current', label: 'Current' },
@@ -89,6 +95,12 @@ const SNAKE_THEME_THUMBNAILS = Object.freeze({
     rook: swatchThumbnail(['#f8fafc', '#1f2937', '#f97316']),
     queen: swatchThumbnail(['#f8fafc', '#1f2937', '#ec4899']),
     king: swatchThumbnail(['#f8fafc', '#1f2937', '#f59e0b'])
+  },
+  captureWeapon: {
+    fighter: swatchThumbnail(['#9ca3af', '#475569', '#cbd5e1']),
+    helicopter: swatchThumbnail(['#84cc16', '#3f6212', '#bef264']),
+    supportTruck: swatchThumbnail(['#f97316', '#7c2d12', '#fdba74']),
+    drone: swatchThumbnail(['#60a5fa', '#1d4ed8', '#bfdbfe'])
   }
 });
 
@@ -102,6 +114,7 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   headStyle: [SNAKE_PAWN_HEAD_OPTIONS[0].id],
   tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
+  captureWeapon: [SNAKE_CAPTURE_WEAPON_OPTIONS[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
@@ -137,6 +150,7 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
   headStyle: mapLabels(SNAKE_PAWN_HEAD_OPTIONS),
   tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
   tokenShape: mapLabels(SNAKE_TOKEN_SHAPE_OPTIONS),
+  captureWeapon: mapLabels(SNAKE_CAPTURE_WEAPON_OPTIONS),
   tables: mapLabels(MURLAN_TABLE_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
   environmentHdri: Object.freeze(
@@ -148,6 +162,33 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
 });
 
 export const SNAKE_STORE_ITEMS = [
+  {
+    id: 'capture-helicopter',
+    type: 'captureWeapon',
+    optionId: 'helicopter',
+    name: 'Military Helicopter',
+    price: 420,
+    description: 'Capture eliminations use a helicopter flypath and strike animation.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.helicopter
+  },
+  {
+    id: 'capture-supportTruck',
+    type: 'captureWeapon',
+    optionId: 'supportTruck',
+    name: 'Support Truck',
+    price: 390,
+    description: 'Capture eliminations use an armored truck flypath animation.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.supportTruck
+  },
+  {
+    id: 'capture-drone',
+    type: 'captureWeapon',
+    optionId: 'drone',
+    name: 'Combat Drone',
+    price: 360,
+    description: 'Capture eliminations use a drone strike flypath.',
+    thumbnail: SNAKE_THEME_THUMBNAILS.captureWeapon.drone
+  },
   {
     id: 'arena-crystalLagoon',
     type: 'arenaTheme',
@@ -351,6 +392,11 @@ export const SNAKE_DEFAULT_LOADOUT = [
     type: 'tokenShape',
     optionId: SNAKE_TOKEN_SHAPE_OPTIONS[0].id,
     label: SNAKE_TOKEN_SHAPE_OPTIONS[0].label
+  },
+  {
+    type: 'captureWeapon',
+    optionId: SNAKE_CAPTURE_WEAPON_OPTIONS[0].id,
+    label: SNAKE_CAPTURE_WEAPON_OPTIONS[0].label
   },
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },

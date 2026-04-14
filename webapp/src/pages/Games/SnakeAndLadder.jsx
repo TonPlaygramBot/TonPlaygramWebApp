@@ -182,9 +182,10 @@ const SNAKE_SFX = Object.freeze({
 const FINAL_TILE = BOARD_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
-const AI_ROLL_DELAY_MS = 3400;
-const AI_EXTRA_ROLL_DELAY_MS = 2600;
-const TURN_ADVANCE_AFTER_DICE_MS = 2000;
+const AI_ROLL_DELAY_MS = 2400;
+const AI_EXTRA_ROLL_DELAY_MS = 1500;
+const TURN_ADVANCE_AFTER_DICE_MS = 1200;
+const DICE_RESULT_HOLD_MS = 1400;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -811,6 +812,12 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'ludoBattleRoyal' },
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
+const CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'fighter', label: 'Fighter Jet' },
+  { id: 'helicopter', label: 'Military Helicopter' },
+  { id: 'supportTruck', label: 'Support Truck' },
+  { id: 'drone', label: 'Drone' }
+]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
@@ -849,6 +856,7 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
   { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
+  { key: 'captureWeapon', label: 'Capture Weapon', options: CAPTURE_WEAPON_OPTIONS },
   { key: 'headStyle', label: 'Pawn Heads', options: PAWN_HEAD_PRESET_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
@@ -917,6 +925,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   boardPalette: 0,
   diceTheme: 0,
   tokenShape: 0,
+  captureWeapon: 0,
   headStyle: 0,
   tableFinish: 0,
   tables: 0,
@@ -935,6 +944,7 @@ function normalizeAppearance(value = {}) {
     ['boardPalette', BOARD_PALETTE_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
     ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
+    ['captureWeapon', CAPTURE_WEAPON_OPTIONS.length],
     ['headStyle', PAWN_HEAD_PRESET_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
@@ -959,6 +969,7 @@ function resolveAppearance(appearance) {
   const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
+  const captureWeapon = CAPTURE_WEAPON_OPTIONS[normalized.captureWeapon] ?? CAPTURE_WEAPON_OPTIONS[0];
   const pawnHead = PAWN_HEAD_PRESET_OPTIONS[normalized.headStyle] ?? PAWN_HEAD_PRESET_OPTIONS[0];
   const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? TABLE_FINISH_OPTIONS[0];
   const snakeSkin = SNAKE_SKIN_OPTIONS[0];
@@ -979,6 +990,7 @@ function resolveAppearance(appearance) {
     dice: { ...dice },
     token: { ...token },
     tokenShape,
+    captureWeapon,
     pawnHead,
     tableFinish,
     snakeSkin: { ...snakeSkin },
@@ -1457,7 +1469,7 @@ export default function SnakeAndLadder() {
   }, []);
 
   const startCaptureAnimation = useCallback(
-    ({ attackerIndex, fromCell, targetCell, victimIndices = [], onComplete }) => {
+    ({ attackerIndex, fromCell, targetCell, victimIndices = [], weaponType, onComplete }) => {
       if (!victimIndices.length || targetCell <= 0) {
         if (typeof onComplete === 'function') onComplete();
         return false;
@@ -1472,6 +1484,7 @@ export default function SnakeAndLadder() {
         attackerIndex,
         fromCell,
         targetCell,
+        weaponType,
         victimIndices,
         onComplete
       };
@@ -1734,6 +1747,9 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
+      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0].id;
+      const randomWeapon = CAPTURE_WEAPON_OPTIONS[Math.floor(Math.random() * CAPTURE_WEAPON_OPTIONS.length)]?.id;
+      const weaponType = mover === 0 ? selectedWeapon : (randomWeapon || selectedWeapon);
       setBurning((b) => [...new Set([...b, ...victims])]);
       const settleCapture = () => {
         if (!muted) {
@@ -1763,6 +1779,7 @@ export default function SnakeAndLadder() {
         attackerIndex: mover,
         fromCell: attackerFrom,
         targetCell: cell,
+        weaponType,
         victimIndices: victims,
         onComplete: settleCapture
       });
@@ -2243,7 +2260,7 @@ export default function SnakeAndLadder() {
     };
     const onRolled = ({ value, playerId }) => {
       setRollResult(value);
-      setTimeout(() => setRollResult(null), 2000);
+      setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
       playDiceRollSound();
       const rollerId = playerId ?? playersRef.current[currentTurn]?.id;
       if (rollerId === myAccountId && Number(value) === 6) {
@@ -2615,7 +2632,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
 
     setTimeout(() => {
       setDiceVisible(false);
@@ -2824,7 +2841,7 @@ export default function SnakeAndLadder() {
       };
 
       moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, DICE_RESULT_HOLD_MS);
   };
 
   const triggerAIRoll = (index) => {
@@ -2870,7 +2887,7 @@ export default function SnakeAndLadder() {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-    setTimeout(() => setRollResult(null), 2000);
+    setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
     setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
@@ -3033,7 +3050,7 @@ export default function SnakeAndLadder() {
       applyEffectHelper(startPos, ctx, (finalPos, type) => finalizeMove(finalPos, type, startPos));
 
     moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
-    }, 2000);
+    }, DICE_RESULT_HOLD_MS);
   };
 
   useEffect(() => {
