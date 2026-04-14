@@ -113,7 +113,7 @@ const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TI
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.72; // keep aircraft lower so they stay visually close to the board
+const CAPTURE_DRONE_ALTITUDE = 0.88; // keep aircraft lower so they stay visually close to the board
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -121,11 +121,11 @@ const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight path stays more inward on-screen
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 1.86; // keep air paths closer to board center and away from edge fly-outs
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
-const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.28; // run drone path more inward and closer to board center
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.18; // lower drone route to keep it close to board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.16; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.4; // run drone path more inward and closer to board center
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.24; // lower drone route to keep it close to board surface
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.2; // lower jet/helicopter route so aircraft feel closer to board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -1985,9 +1985,9 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.22; // keep parked units visibly close to the board edge for launch/return readability
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.42; // negative offset pushes parked weapons further outside the board edge
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 0.94; // tighten side spacing so parked units stay near the board
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.26; // increase spacing between side parked weapons
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -7520,19 +7520,6 @@ function Chess3D({
     playersRef.current = players;
   }, [players]);
 
-  const winnerPresentation = useMemo(() => {
-    if (!ui.winner || !/checkmate/i.test(ui.status || '')) return null;
-    const winnerIndex = ui.winner === 'White' ? 0 : ui.winner === 'Black' ? 1 : null;
-    if (winnerIndex == null) return null;
-    const winnerPlayer = players[winnerIndex];
-    if (!winnerPlayer) return null;
-    return {
-      name: winnerPlayer.name || `${ui.winner} side`,
-      photoUrl: winnerPlayer.photoUrl || '🏆',
-      label: `${winnerPlayer.name || ui.winner} Wins!`
-    };
-  }, [players, ui.winner]);
-
   const resolveChessSideName = useCallback((isWhite) => {
     const [whitePlayer, blackPlayer] = playersRef.current || [];
     return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
@@ -9573,12 +9560,12 @@ function Chess3D({
     const getAirStrikeCenterFlightTarget = (from, to) => {
       const centerBias = THREE.MathUtils.clamp(
         (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.72,
-        0.96
+        0.56,
+        0.9
       );
       const flightTarget = to.clone();
       flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.62);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.4);
       return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
     };
     const getCaptureOrbitPose = ({
@@ -11093,26 +11080,7 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
-      let targetR = rr;
-      let targetC = cc;
-      if (sel.p?.t === 'K' && sel.r === rr) {
-        const kingSideRookTarget =
-          cc > sel.c &&
-          board[rr][7] &&
-          board[rr][7].t === 'R' &&
-          board[rr][7].w === sel.p.w;
-        const queenSideRookTarget =
-          cc < sel.c &&
-          board[rr][0] &&
-          board[rr][0].t === 'R' &&
-          board[rr][0].w === sel.p.w;
-        if (kingSideRookTarget && legal.some(([r, c]) => r === rr && c === 6)) {
-          targetC = 6;
-        } else if (queenSideRookTarget && legal.some(([r, c]) => r === rr && c === 2)) {
-          targetC = 2;
-        }
-      }
-      if (!legal.some(([r, c]) => r === targetR && c === targetC)) {
+      if (!legal.some(([r, c]) => r === rr && c === cc)) {
         finalizeAiMove();
         return;
       }
@@ -11138,17 +11106,17 @@ function Chess3D({
         return;
       }
       const movingPiece = board[sel.r][sel.c];
-      const capturedPiece = board[targetR][targetC];
+      const capturedPiece = board[rr][cc];
       const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
-      const toSquare = resolveChessSquare(targetR, targetC);
+      const toSquare = resolveChessSquare(rr, cc);
       const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
-      const toWorldPos = piecePosition(targetR, targetC, currentPieceYOffset);
+      const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
       let moveDelayMs = 0;
       let captureResolveDelayMs = 0;
       // capture mesh if any
-      const targetMesh = pieceMeshes[targetR][targetC];
+      const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
         const worldPos = new THREE.Vector3();
         targetMesh.getWorldPosition(worldPos);
@@ -11158,8 +11126,8 @@ function Chess3D({
           movingType: movingPiece?.t,
           movingMesh: pieceMeshes[sel.r][sel.c],
           distance: Math.hypot(rr - sel.r, cc - sel.c),
-          deltaR: targetR - sel.r,
-          deltaC: targetC - sel.c
+          deltaR: rr - sel.r,
+          deltaC: cc - sel.c
         });
         moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
         captureResolveDelayMs = Math.max(0, captureFx?.captureResolveDelayMs ?? 0);
@@ -11170,7 +11138,7 @@ function Chess3D({
           moveDelayMs = Math.max(moveDelayMs, captureResolveDelayMs);
         }
         const moveCapturedPieceToZone = () => {
-          const capturingWhite = board[targetR][targetC]?.w ?? board[sel.r][sel.c].w;
+          const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
           const zone = capturingWhite ? capturedByWhite : capturedByBlack;
           const idx = zone.push(targetMesh) - 1;
           const row = Math.floor(idx / 8);
@@ -11195,7 +11163,7 @@ function Chess3D({
         } else {
           moveCapturedPieceToZone();
         }
-        pieceMeshes[targetR][targetC] = null;
+        pieceMeshes[rr][cc] = null;
       }
       // move board
       const movedPiece = movingPiece;
@@ -11203,37 +11171,37 @@ function Chess3D({
       const movedFromPawn = movedPiece?.t === 'P';
       const isCastlingMove =
         movedPiece?.t === 'K' &&
-        sel.r === targetR &&
-        Math.abs(targetC - sel.c) === 2 &&
-        legal.some(([r, c]) => r === targetR && c === targetC && Math.abs(c - sel.c) === 2);
-      const rookFromC = isCastlingMove ? (targetC > sel.c ? 7 : 0) : null;
-      const rookToC = isCastlingMove ? (targetC > sel.c ? 5 : 3) : null;
+        sel.r === rr &&
+        Math.abs(cc - sel.c) === 2 &&
+        legal.some(([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2);
+      const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
+      const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
       const rookPiece =
         isCastlingMove && Number.isInteger(rookFromC) ? board[sel.r][rookFromC] : null;
       if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
       const rookMesh =
         isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
-      board[targetR][targetC] = movedPiece;
+      board[rr][cc] = movedPiece;
       board[sel.r][sel.c] = null;
       if (isCastlingMove && rookPiece) {
-        board[targetR][rookToC] = rookPiece;
+        board[rr][rookToC] = rookPiece;
         board[sel.r][rookFromC] = null;
         rookPiece.hasMoved = true;
       }
       if (movedPiece) movedPiece.hasMoved = true;
       // promotion (auto to Queen)
-      const promoted = movedFromPawn && (targetR === 0 || targetR === 7);
+      const promoted = movedFromPawn && (rr === 0 || rr === 7);
       if (promoted) {
-        board[targetR][targetC].t = 'Q';
+        board[rr][cc].t = 'Q';
       }
       // move mesh
       let m = pieceMeshes[sel.r][sel.c];
       pieceMeshes[sel.r][sel.c] = null;
       const syncMovedPieceMesh = () => {
-        pieceMeshes[targetR][targetC] = m;
-        m.userData.r = targetR;
-        m.userData.c = targetC;
-        m.userData.t = board[targetR][targetC].t;
+        pieceMeshes[rr][cc] = m;
+        m.userData.r = rr;
+        m.userData.c = cc;
+        m.userData.t = board[rr][cc].t;
       };
       syncMovedPieceMesh();
       cancelPieceAnimation(m);
@@ -11255,31 +11223,24 @@ function Chess3D({
         pieceMeshes[sel.r][rookFromC] = null;
       }
       if (isCastlingMove && rookMesh) {
-        pieceMeshes[targetR][rookToC] = rookMesh;
-        rookMesh.userData.r = targetR;
+        pieceMeshes[rr][rookToC] = rookMesh;
+        rookMesh.userData.r = rr;
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
-        const rookTarget = piecePosition(targetR, rookToC, currentPieceYOffset);
+        const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
         animatePieceTo(rookMesh, rookTarget, 0.32);
       }
       if (promoted && currentPiecePrototypes) {
-        const color = board[targetR][targetC].w ? 'white' : 'black';
+        const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
           replacement.position.copy(m.position);
-          replacement.scale.copy(m.scale);
           replacement.userData = {
             ...m.userData,
             t: 'Q',
             __pieceStyleId: currentPieceSetId
           };
-          const oldHeight = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3()).y;
-          const nextHeight = new THREE.Box3().setFromObject(replacement).getSize(new THREE.Vector3()).y;
-          if (oldHeight > 1e-4 && nextHeight > 1e-4) {
-            const scaleFix = oldHeight / nextHeight;
-            replacement.scale.multiplyScalar(scaleFix);
-          }
           const activeAnim = activePieceAnimations.find((anim) => anim.mesh === m);
           if (activeAnim) {
             activeAnim.mesh = replacement;
@@ -11292,7 +11253,7 @@ function Chess3D({
               __pieceStyleId: currentPieceSetId
             };
           });
-          pieceMeshes[targetR][targetC] = replacement;
+          pieceMeshes[rr][cc] = replacement;
           const index = allPieceMeshes.indexOf(m);
           if (index >= 0) allPieceMeshes[index] = replacement;
           else allPieceMeshes.push(replacement);
@@ -11307,7 +11268,7 @@ function Chess3D({
 
       lastMoveRef.current = {
         from: { r: sel.r, c: sel.c },
-        to: { r: targetR, c: targetC },
+        to: { r: rr, c: cc },
         pieceMesh: m,
         selectionColor: paletteRef.current?.capture,
         highlightColor: paletteRef.current?.highlight
@@ -11385,7 +11346,7 @@ function Chess3D({
 
       if (onlineRef.current.enabled && onlineRef.current.tableId) {
         const movePayload = {
-          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: targetR, c: targetC } },
+          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
           fen: boardToFEN(board, nextWhite),
           turnWhite: nextWhite
         };
@@ -12748,48 +12709,6 @@ function Chess3D({
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
-        {winnerPresentation && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-            <div className="relative w-[min(22rem,88vw)] rounded-3xl border border-yellow-300/35 bg-[rgba(7,10,18,0.55)] px-5 pb-5 pt-9 text-center backdrop-blur-sm">
-              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-                {Array.from({ length: 16 }).map((_, i) => {
-                  const angle = (Math.PI * 2 * i) / 16;
-                  const x = Math.cos(angle) * 132;
-                  const y = Math.sin(angle) * 104 - 20;
-                  return (
-                    <span
-                      // eslint-disable-next-line react/no-array-index-key
-                      key={`chess-winner-coin-${i}`}
-                      className="absolute left-1/2 top-1/2 text-xl"
-                      style={{
-                        animation: `chess-winner-coin-burst 880ms ease-out ${i * 28}ms forwards`,
-                        '--x': `${x}px`,
-                        '--y': `${y}px`
-                      }}
-                    >
-                      <img
-                        src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                        alt="TPC coin"
-                        className="h-5 w-5 object-contain"
-                      />
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-300/60 bg-white/10 text-4xl">
-                {typeof winnerPresentation.photoUrl === 'string' &&
-                winnerPresentation.photoUrl.match(/\.(png|jpg|jpeg|webp|gif|svg)$/i) ? (
-                  <img src={winnerPresentation.photoUrl} alt="winner avatar" className="h-full w-full object-cover" />
-                ) : (
-                  <span>{winnerPresentation.photoUrl}</span>
-                )}
-              </div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-yellow-300">Winner</p>
-              <h2 className="mt-2 text-2xl font-bold text-white">{winnerPresentation.label}</h2>
-              <p className="mt-1 text-xs text-white/80">Checkmate secured.</p>
-            </div>
-          </div>
-        )}
       </div>
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
@@ -12932,13 +12851,6 @@ function Chess3D({
           }}
         />
       </div>
-      <style>
-        {`@keyframes chess-winner-coin-burst {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
-          15% { opacity: 1; }
-          100% { opacity: 0; transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, -110px))) scale(1.2); }
-        }`}
-      </style>
     </div>
   );
 }
