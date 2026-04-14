@@ -1966,14 +1966,14 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.065,
-  hexagonTable: -0.065,
-  grandOval: -0.065,
-  diamondEdge: -0.065
+  classicOctagon: -0.14,
+  hexagonTable: -0.14,
+  grandOval: -0.14,
+  diamondEdge: -0.14
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8628,9 +8628,9 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraBackOffset = (isPortrait ? 2.38 : 1.64) + 0.35;
+    const cameraForwardOffset = isPortrait ? 0.1 : 0.22;
+    const cameraHeightOffset = isPortrait ? 1.68 : 1.3;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
@@ -9298,17 +9298,17 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
+      const sideX = isWhiteSide ? -(half - tile * 0.54) : half - tile * 0.54;
       const laneMap = {
-        jet: tile * 1.48,
-        drone: tile * 0.74,
+        jet: tile * 1.32,
+        drone: tile * 0.66,
         helicopter: 0,
-        truck: -tile * 1.48
+        truck: -tile * 1.32
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
+      const laneShift = slot === 0 ? -tile * 0.2 : tile * 0.2;
       const zOffset = laneBase + laneShift;
-      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.14 : currentPieceYOffset + 0.26;
+      const yOffset = currentPieceYOffset + 0.03;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -12553,7 +12553,7 @@ function Chess3D({
             return (
               <div
                 key={`chess-seat-${player.index}`}
-                className="absolute pointer-events-auto flex flex-col items-center"
+                className={`absolute flex flex-col items-center ${(configOpen || viewMode === '3d') ? 'pointer-events-none opacity-55' : 'pointer-events-auto'}`}
                 data-player-index={player.index}
                 style={positionStyle}
               >
