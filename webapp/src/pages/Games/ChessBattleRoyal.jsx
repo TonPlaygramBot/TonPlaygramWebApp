@@ -56,10 +56,9 @@ import {
   isChessOptionUnlocked
 } from '../../utils/chessBattleInventory.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { avatarToName, getAvatarUrl } from '../../utils/avatarUtils.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
-import coinConfetti from '../../utils/coinConfetti.ts';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -94,13 +93,13 @@ const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 0.28;
-const CAPTURE_DRONE_CRUISE_TIME = 3.75;
-const CAPTURE_DRONE_DIVE_TIME = 1.45;
+const CAPTURE_DRONE_CRUISE_TIME = 2.9;
+const CAPTURE_DRONE_DIVE_TIME = 1.18;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
-const CAPTURE_JET_SPEED_FACTOR = 4.15 / CAPTURE_DRONE_TOTAL; // further reduced speed so jet reads slower on portrait
+const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 3.2; // extend strike cycle so jet/helicopter fly noticeably slower
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 2.45; // longer strike cycle so jet/helicopter read slower in portrait and show takeoff/landing
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -114,28 +113,28 @@ const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TI
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.56; // keep aircraft lower and visually closer to the board
+const CAPTURE_DRONE_ALTITUDE = 0.88; // keep aircraft lower so they stay visually close to the board
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.34; // tighten cruise altitude further for portrait framing
+const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight path stays more inward on-screen
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.45; // keep jet/helicopter loops very close to the center region
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
-const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.18; // shorter, tighter inward orbit close to board center
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.1; // lower drone route to stay near board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.08; // keep jet/helicopter lower than before
-const CAPTURE_DRONE_ORBIT_CYCLES = 0.08; // fewer cycles makes flight path shorter
-const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
-const CAPTURE_DRONE_RETURN_SPLIT = 0.64;
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.4; // run drone path more inward and closer to board center
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.24; // lower drone route to keep it close to board surface
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.2; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
+const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
+const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.46;
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.74;
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.032;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.92;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 1.16;
 const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.18;
 const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.54;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.03;
@@ -7052,8 +7051,6 @@ function Chess3D({
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const [winnerBanner, setWinnerBanner] = useState(null);
-  const winnerCelebrationRef = useRef(null);
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -7527,26 +7524,6 @@ function Chess3D({
     const [whitePlayer, blackPlayer] = playersRef.current || [];
     return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
   }, []);
-  const resolveChessSidePhoto = useCallback((isWhite) => {
-    const [whitePlayer, blackPlayer] = playersRef.current || [];
-    return isWhite ? whitePlayer?.photoUrl || '🙂' : blackPlayer?.photoUrl || '🤖';
-  }, []);
-
-  useEffect(() => {
-    const isCheckmate = typeof ui.status === 'string' && ui.status.toLowerCase().includes('checkmate');
-    if (!ui.winner || !isCheckmate) {
-      setWinnerBanner(null);
-      winnerCelebrationRef.current = null;
-      return;
-    }
-    if (winnerCelebrationRef.current === ui.winner) return;
-    winnerCelebrationRef.current = ui.winner;
-    const isWhiteWinner = ui.winner === 'White';
-    const winnerName = resolveChessSideName(isWhiteWinner);
-    const winnerPhotoUrl = getAvatarUrl(resolveChessSidePhoto(isWhiteWinner) || '/assets/icons/profile.svg');
-    setWinnerBanner({ winnerName, winnerPhotoUrl });
-    coinConfetti(70);
-  }, [ui.winner, ui.status, resolveChessSideName, resolveChessSidePhoto]);
 
   const resolveCommentarySpeaker = useCallback(() => {
     const speakers = [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst];
@@ -9583,12 +9560,12 @@ function Chess3D({
     const getAirStrikeCenterFlightTarget = (from, to) => {
       const centerBias = THREE.MathUtils.clamp(
         (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.78,
-        0.96
+        0.56,
+        0.9
       );
       const flightTarget = to.clone();
       flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.62);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.4);
       return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
     };
     const getCaptureOrbitPose = ({
@@ -11255,14 +11232,7 @@ function Chess3D({
       }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
-        const liveQueenMesh = allPieceMeshes.find(
-          (mesh) =>
-            mesh &&
-            mesh !== m &&
-            mesh.userData?.t === 'Q' &&
-            Boolean(mesh.userData?.w) === Boolean(board[rr][cc].w)
-        );
-        const queenProto = liveQueenMesh || currentPiecePrototypes[color]?.Q;
+        const queenProto = currentPiecePrototypes[color]?.Q;
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
           replacement.position.copy(m.position);
@@ -11387,20 +11357,6 @@ function Chess3D({
       clearHighlights();
       finalizeAiMove();
     }
-
-    const resolveCastlingDropTarget = (targetR, targetC) => {
-      if (!sel) return null;
-      const selectedPiece = board[sel.r]?.[sel.c];
-      const targetPiece = board[targetR]?.[targetC];
-      if (!selectedPiece || selectedPiece.t !== 'K' || !targetPiece) return null;
-      if (targetPiece.t !== 'R' || targetPiece.w !== selectedPiece.w) return null;
-      if (targetR !== sel.r) return null;
-      const castleDestC = targetC > sel.c ? 6 : 2;
-      if (legal.some(([r, c]) => r === targetR && c === castleDestC)) {
-        return { r: targetR, c: castleDestC };
-      }
-      return null;
-    };
 
     const dragState = {
       active: false,
@@ -11553,11 +11509,6 @@ function Chess3D({
       dragState.mesh = null;
       dragState.from = null;
       if (controls) controls.enabled = true;
-      const castleDropTarget = tileHit ? resolveCastlingDropTarget(tileHit.r, tileHit.c) : null;
-      if (castleDropTarget) {
-        moveSelTo(castleDropTarget.r, castleDropTarget.c);
-        return;
-      }
       if (tileHit && sel && legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)) {
         moveSelTo(tileHit.r, tileHit.c);
         return;
@@ -11622,11 +11573,6 @@ function Chess3D({
         targetPiece.w !== board[sel.r][sel.c]?.w
       ) {
         moveSelTo(ud.r, ud.c);
-        return;
-      }
-      const castleTarget = resolveCastlingDropTarget(ud.r, ud.c);
-      if (castleTarget) {
-        moveSelTo(castleTarget.r, castleTarget.c);
         return;
       }
       if (ud.type === 'piece') selectAt(ud.r, ud.c);
@@ -12763,20 +12709,6 @@ function Chess3D({
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
-        {winnerBanner && (
-          <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
-            <div className="px-5 py-4 rounded-2xl bg-[rgba(7,10,18,0.78)] border border-[rgba(255,215,0,0.45)] backdrop-blur-md shadow-[0_16px_48px_rgba(0,0,0,0.5)] flex flex-col items-center gap-2">
-              <img
-                src={winnerBanner.winnerPhotoUrl}
-                alt={`${winnerBanner.winnerName} avatar`}
-                className="w-16 h-16 rounded-full border-2 border-yellow-300 object-cover"
-              />
-              <p className="text-[0.65rem] uppercase tracking-[0.28em] text-yellow-200/90">Winner</p>
-              <p className="text-lg font-semibold text-white leading-none">{winnerBanner.winnerName}</p>
-              <p className="text-xs uppercase tracking-[0.16em] text-yellow-100/85">Checkmate</p>
-            </div>
-          </div>
-        )}
       </div>
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
