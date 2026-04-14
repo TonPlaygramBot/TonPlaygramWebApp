@@ -87,22 +87,6 @@ const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
 const CHESS_PIECE_CACHE = { promise: null, pieces: null };
-const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
-const CAPTURE_VEHICLE_MODEL_HOSTS = [
-  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
-  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
-  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
-];
-const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
-  drone: 'drone.glb',
-  helicopter: 'helicopter.glb',
-  fighter: 'f15.glb',
-  supportTruck: 'fire_truck.glb'
-});
-const GLB_MAGIC = 0x46546c67;
-const GLB_VERSION = 2;
-const GLB_JSON_CHUNK = 0x4e4f534a;
-const GLB_BIN_CHUNK = 0x004e4942;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const PYRAMID_LEVELS = [8, 5, 3];
@@ -281,13 +265,13 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.31;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.35;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.96,
+  backOffset: 1.06,
   forwardOffset: 0,
-  heightOffset: 2.42,
+  heightOffset: 2.54,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -3543,11 +3527,6 @@ function updateTokens(
               restRadius = Math.min(restRadius, outer - 0.14);
             }
           }
-          if (seatDirection.z < -0.2) {
-            restRadius += TILE_SIZE * 0.52;
-          } else if (seatDirection.z > 0.2) {
-            restRadius -= TILE_SIZE * 0.46;
-          }
           restRadius = Math.max(restRadius, TOKEN_REST_MIN_RADIUS);
           const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
           const railWorld = boardLookTarget
@@ -3862,245 +3841,11 @@ function quadraticBezier(a, b, c, t) {
   return ab.lerp(bc, t);
 }
 
-function createCaptureVehicleFallbackMesh(kind = 'fighter') {
+function createCaptureVehicleRig(kind = 'fighter') {
   const root = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
   const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
   const finMat = new THREE.MeshStandardMaterial({ color: '#7f868d', roughness: 0.58, metalness: 0.12 });
-  if (kind === 'supportTruck') {
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.22, 0.3), bodyMat);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.28), noseMat);
-    cabin.position.set(0.26, 0.2, 0);
-    const launcher = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), finMat);
-    launcher.position.set(-0.2, 0.24, 0);
-    root.add(chassis, cabin, launcher);
-  } else {
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
-      bodyMat
-    );
-    body.rotation.z = Math.PI / 2;
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
-    nose.position.set(0.6, 0, 0);
-    nose.rotation.z = -Math.PI / 2;
-    const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
-    finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
-    const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
-    finB.position.set(-0.25, 0, 0);
-    root.add(body, nose, finA, finB);
-  }
-  root.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  return root;
-}
-
-async function loadCaptureVehicleModel(kind = 'fighter') {
-  const file = CAPTURE_VEHICLE_MODEL_FILES[kind] || CAPTURE_VEHICLE_MODEL_FILES.fighter;
-  const cacheKey = `${kind}:${file}`;
-  if (!CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
-    CAPTURE_VEHICLE_MODEL_CACHE.set(
-      cacheKey,
-      (async () => {
-        const loader = createConfiguredGLTFLoader();
-        const imageCache = new Map();
-        let modelRoot = null;
-        for (const host of CAPTURE_VEHICLE_MODEL_HOSTS) {
-          const url = `${host}/${file}`;
-          try {
-            // Try robust GLB parsing path first so external image refs resolve reliably.
-            // Some hosted GLBs reference images externally and can fail CORS in direct loader mode.
-            const rawBuffer = await fetchCaptureVehicleBuffer(url);
-            const patchedBuffer = await patchCaptureGlbImagesToDataUris(rawBuffer, url, imageCache);
-            modelRoot = await parseCaptureObjectFromBuffer(loader, patchedBuffer);
-            if (modelRoot) break;
-          } catch (_error) {
-            // Fallback to native GLTFLoader path below.
-          }
-        }
-        if (!modelRoot) {
-          for (const host of CAPTURE_VEHICLE_MODEL_HOSTS) {
-            const url = `${host}/${file}`;
-            try {
-              const gltf = await loader.loadAsync(url);
-              modelRoot = gltf?.scene || gltf?.scenes?.[0] || null;
-              if (modelRoot) break;
-            } catch (_error) {
-              // try next URL
-            }
-          }
-        }
-        if (!modelRoot) throw new Error(`Failed to load capture model: ${kind}`);
-        const model = modelRoot.clone(true);
-        prepareLoadedModel(model);
-        return model;
-      })()
-    );
-  }
-  const model = await CAPTURE_VEHICLE_MODEL_CACHE.get(cacheKey);
-  return model?.clone?.(true) ?? null;
-}
-
-function decodeCaptureGlb(buffer) {
-  const view = new DataView(buffer);
-  if (view.byteLength < 20) throw new Error('GLB too small');
-  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Not GLB');
-  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
-  const totalLength = view.getUint32(8, true);
-  const bytes = new Uint8Array(buffer, 0, totalLength);
-  const decoder = new TextDecoder();
-  let offset = 12;
-  let json = null;
-  let binChunk = null;
-  while (offset + 8 <= totalLength) {
-    const chunkLength = view.getUint32(offset, true);
-    const chunkType = view.getUint32(offset + 4, true);
-    offset += 8;
-    const chunkBytes = bytes.slice(offset, offset + chunkLength);
-    offset += chunkLength;
-    if (chunkType === GLB_JSON_CHUNK) json = JSON.parse(decoder.decode(chunkBytes).trim());
-    if (chunkType === GLB_BIN_CHUNK) binChunk = chunkBytes;
-  }
-  if (!json) throw new Error('GLB missing JSON chunk');
-  return { json, binChunk };
-}
-
-function createCaptureGlbBuffer(json, binChunk) {
-  const encoder = new TextEncoder();
-  const rawJson = encoder.encode(JSON.stringify(json));
-  const jsonPadding = (4 - (rawJson.length % 4)) % 4;
-  const paddedJson = new Uint8Array(rawJson.length + jsonPadding);
-  paddedJson.set(rawJson);
-  paddedJson.fill(0x20, rawJson.length);
-  let paddedBin = null;
-  if (binChunk) {
-    const binPadding = (4 - (binChunk.length % 4)) % 4;
-    paddedBin = new Uint8Array(binChunk.length + binPadding);
-    paddedBin.set(binChunk);
-  }
-  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
-  const buffer = new ArrayBuffer(totalLength);
-  const view = new DataView(buffer);
-  const bytes = new Uint8Array(buffer);
-  view.setUint32(0, GLB_MAGIC, true);
-  view.setUint32(4, GLB_VERSION, true);
-  view.setUint32(8, totalLength, true);
-  let offset = 12;
-  view.setUint32(offset, paddedJson.length, true);
-  view.setUint32(offset + 4, GLB_JSON_CHUNK, true);
-  offset += 8;
-  bytes.set(paddedJson, offset);
-  offset += paddedJson.length;
-  if (paddedBin) {
-    view.setUint32(offset, paddedBin.length, true);
-    view.setUint32(offset + 4, GLB_BIN_CHUNK, true);
-    offset += 8;
-    bytes.set(paddedBin, offset);
-  }
-  return buffer;
-}
-
-function extractCaptureBufferViewBytes(json, binChunk, bufferViewIndex) {
-  if (!binChunk) return null;
-  const bufferViews = Array.isArray(json?.bufferViews) ? json.bufferViews : [];
-  const view = bufferViews[bufferViewIndex];
-  if (!view) return null;
-  const byteOffset = typeof view.byteOffset === 'number' ? view.byteOffset : 0;
-  const byteLength = typeof view.byteLength === 'number' ? view.byteLength : 0;
-  if (byteLength <= 0) return null;
-  return binChunk.slice(byteOffset, byteOffset + byteLength);
-}
-
-function captureBytesToBase64(bytes) {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-function captureBytesToDataUri(bytes, mimeType) {
-  return `data:${mimeType};base64,${captureBytesToBase64(bytes)}`;
-}
-
-async function fetchCaptureVehicleBuffer(url) {
-  const response = await fetch(url, { mode: 'cors' });
-  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-  return response.arrayBuffer();
-}
-
-function parseCaptureObjectFromBuffer(loader, buffer) {
-  return new Promise((resolve, reject) => {
-    loader.parse(
-      buffer,
-      '',
-      (gltf) => resolve(gltf?.scene || gltf?.scenes?.[0] || null),
-      (error) => reject(error)
-    );
-  });
-}
-
-async function fetchCaptureBlob(url) {
-  const response = await fetch(url, { mode: 'cors' });
-  if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
-  return response.blob();
-}
-
-async function captureBlobToDataUri(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function patchCaptureGlbImagesToDataUris(buffer, sourceUrl, cache) {
-  const { json, binChunk } = decodeCaptureGlb(buffer);
-  const cloned = JSON.parse(JSON.stringify(json));
-  const images = Array.isArray(cloned.images) ? cloned.images : [];
-  if (!images.length) return buffer;
-  for (let i = 0; i < images.length; i += 1) {
-    const image = images[i];
-    if (typeof image.uri === 'string') {
-      const absolute = /^https?:\/\//i.test(image.uri) ? image.uri : new URL(image.uri, sourceUrl).href;
-      if (cache.has(absolute)) {
-        image.uri = cache.get(absolute);
-      } else {
-        try {
-          const blob = await fetchCaptureBlob(absolute);
-          const dataUri = await captureBlobToDataUri(blob);
-          if (dataUri) {
-            cache.set(absolute, dataUri);
-            image.uri = dataUri;
-          }
-        } catch (_error) {
-          // keep original uri as fallback
-        }
-      }
-      delete image.bufferView;
-      image.mimeType = image.mimeType ?? 'image/png';
-      continue;
-    }
-    if (typeof image.bufferView === 'number') {
-      const bytes = extractCaptureBufferViewBytes(cloned, binChunk, image.bufferView);
-      if (bytes?.length) {
-        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
-        image.uri = captureBytesToDataUri(bytes, mimeType);
-        delete image.bufferView;
-        image.mimeType = mimeType;
-      }
-    }
-  }
-  return createCaptureGlbBuffer(cloned, binChunk);
-}
-
-function createCaptureVehicleRig(kind = 'fighter') {
-  const root = new THREE.Group();
   const smokeMat = new THREE.MeshStandardMaterial({
     color: '#90989d',
     roughness: 1,
@@ -4109,32 +3854,48 @@ function createCaptureVehicleRig(kind = 'fighter') {
     opacity: 0.2
   });
 
-  root.add(createCaptureVehicleFallbackMesh(kind));
-  loadCaptureVehicleModel(kind)
-    .then((model) => {
-      if (!model) return;
-      while (root.children.length > 0) {
-        const child = root.children[0];
-        if (child?.userData?.trailPuff) break;
-        root.remove(child);
-      }
-      root.add(model);
-      root.traverse((obj) => {
-        if (obj?.userData?.trailPuff) return;
-        if (obj.isMesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        }
-      });
-    })
-    .catch(() => {});
+  if (kind === 'supportTruck') {
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.22, 0.3), bodyMat);
+    chassis.castShadow = true;
+    root.add(chassis);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.28), noseMat);
+    cabin.position.set(0.26, 0.2, 0);
+    cabin.castShadow = true;
+    root.add(cabin);
+    const launcher = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), finMat);
+    launcher.position.set(-0.2, 0.24, 0);
+    launcher.castShadow = true;
+    root.add(launcher);
+  } else {
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
+      bodyMat
+    );
+    body.rotation.z = Math.PI / 2;
+    body.castShadow = true;
+    root.add(body);
+
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+    nose.position.set(0.6, 0, 0);
+    nose.rotation.z = -Math.PI / 2;
+    nose.castShadow = true;
+    root.add(nose);
+
+    const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
+    finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
+    finA.castShadow = true;
+    root.add(finA);
+    const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+    finB.position.set(-0.25, 0, 0);
+    finB.castShadow = true;
+    root.add(finB);
+  }
 
   const trail = [];
   for (let i = 0; i < 4; i += 1) {
     const puff = new THREE.Mesh(new THREE.SphereGeometry(0.08 + i * 0.02, 16, 16), smokeMat.clone());
     puff.position.set(-0.55 - i * 0.14, 0, 0);
     puff.castShadow = true;
-    puff.userData.trailPuff = true;
     trail.push(puff);
     root.add(puff);
   }
@@ -4225,10 +3986,10 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   group.visible = true;
   const displayScale =
     weaponType === 'supportTruck'
-      ? TOKEN_HEIGHT * 0.8
+      ? TOKEN_HEIGHT * 3.2
       : weaponType === 'drone'
-      ? TOKEN_HEIGHT * 0.75
-      : TOKEN_HEIGHT * 0.85;
+      ? TOKEN_HEIGHT * 3
+      : TOKEN_HEIGHT * 3.4;
   group.scale.setScalar(displayScale);
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
@@ -4282,7 +4043,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.copy(tokenMesh.position);
       holder.position.x += sideSign * TOKEN_RADIUS * 2.9;
       holder.position.z += TOKEN_RADIUS * 0.55;
-      holder.position.y = tokenMesh.position.y;
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.26;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4296,7 +4057,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = tableY + TOKEN_HEIGHT * 0.44;
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.24;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
   });
@@ -4738,7 +4499,6 @@ export default function SnakeBoard3D({
     };
     const onWheel = (event) => {
       const isTopDown = cameraViewModeRef.current === '2d';
-      if (!isTopDown) return;
       event.preventDefault();
       const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR : CAMERA_3D_ZOOM_WHEEL_FACTOR;
       const bounds = isTopDown ? [0.86, 1.16] : [0.88, 1.14];
@@ -4758,11 +4518,6 @@ export default function SnakeBoard3D({
       if (Number.isFinite(pinchState.distance)) {
         const deltaDistance = distance - pinchState.distance;
         const isTopDown = cameraViewModeRef.current === '2d';
-        if (!isTopDown) {
-          pinchState.distance = distance;
-          pinchState.mode = cameraViewModeRef.current;
-          return;
-        }
         const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR : CAMERA_3D_ZOOM_PINCH_FACTOR;
         const bounds = isTopDown ? [0.85, 1.15] : [0.9, 1.12];
         const zoomScale = 1 - deltaDistance * factor;
@@ -4881,9 +4636,6 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
-        if (cameraViewModeRef.current !== '2d' && arena.startCameraState?.position) {
-          camera.position.copy(arena.startCameraState.position);
-        }
         const minCameraY = startCameraMinYRef.current;
         if (Number.isFinite(minCameraY) && camera.position.y < minCameraY) {
           camera.position.y = minCameraY;
@@ -5401,8 +5153,8 @@ export default function SnakeBoard3D({
     missile.root.visible = true;
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
-    const tokenHeight = Math.max(TOKEN_HEIGHT * 2.5, bbox.max.y - bbox.min.y);
-    missile.root.scale.set(tokenHeight, tokenHeight * 0.34, tokenHeight * 0.34);
+    const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
+    missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
 
     const startTime = performance.now();
     const flightDuration =
