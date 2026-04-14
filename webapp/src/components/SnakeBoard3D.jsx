@@ -227,16 +227,16 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.34,
-  TILE_SIZE * 1.28,
-  TILE_SIZE * 0.4,
-  TILE_SIZE * 0.72
+  TILE_SIZE * 1.24,
+  TILE_SIZE * 1.2,
+  TILE_SIZE * 0.48,
+  TILE_SIZE * 0.62
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.42,
-  TILE_SIZE * 1.34,
-  TILE_SIZE * 0.46,
-  TILE_SIZE * 0.96
+  TILE_SIZE * 1.32,
+  TILE_SIZE * 1.26,
+  TILE_SIZE * 0.54,
+  TILE_SIZE * 0.88
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -292,10 +292,10 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.46,
+  backOffset: 1.24,
   forwardOffset: 0,
-  heightOffset: 3.16,
-  targetLift: 0.062 * MODEL_SCALE
+  heightOffset: 2.98,
+  targetLift: 0.074 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.6,
