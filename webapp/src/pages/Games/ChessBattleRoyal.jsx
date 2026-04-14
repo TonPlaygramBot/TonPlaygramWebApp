@@ -356,7 +356,7 @@ const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -1914,8 +1914,8 @@ const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAMERA_SAFE_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.2;
 const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
-const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
-const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
+const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.6;
+const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.24;
 const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.14;
 const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS * 0.8;
 const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS * 1.4;
@@ -1966,14 +1966,14 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.065,
-  hexagonTable: -0.065,
-  grandOval: -0.065,
-  diamondEdge: -0.065
+  classicOctagon: -0.14,
+  hexagonTable: -0.14,
+  grandOval: -0.14,
+  diamondEdge: -0.14
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 5;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8628,9 +8628,9 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraBackOffset = (isPortrait ? 2.34 : 1.66) + 0.28;
+    const cameraForwardOffset = isPortrait ? 0.12 : 0.24;
+    const cameraHeightOffset = isPortrait ? 1.68 : 1.3;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
@@ -9298,17 +9298,18 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
+      const boardEdgeInset = tile * 0.34;
+      const sideX = isWhiteSide ? -(half - boardEdgeInset) : half - boardEdgeInset;
       const laneMap = {
-        jet: tile * 1.48,
-        drone: tile * 0.74,
+        jet: tile * 1.16,
+        drone: tile * 0.54,
         helicopter: 0,
-        truck: -tile * 1.48
+        truck: -tile * 1.16
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
+      const laneShift = slot === 0 ? -tile * 0.2 : tile * 0.2;
       const zOffset = laneBase + laneShift;
-      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.14 : currentPieceYOffset + 0.26;
+      const yOffset = currentPieceYOffset + (kind === 'truck' ? 0.03 : 0.06);
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -12553,7 +12554,7 @@ function Chess3D({
             return (
               <div
                 key={`chess-seat-${player.index}`}
-                className="absolute pointer-events-auto flex flex-col items-center"
+                className={`absolute ${configOpen ? 'pointer-events-none' : 'pointer-events-auto'} flex flex-col items-center`}
                 data-player-index={player.index}
                 style={positionStyle}
               >
