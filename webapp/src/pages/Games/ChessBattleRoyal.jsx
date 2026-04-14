@@ -1966,18 +1966,14 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.118,
-  hexagonTable: -0.118,
-  grandOval: -0.118,
-  diamondEdge: -0.118
+  classicOctagon: -0.065,
+  hexagonTable: -0.065,
+  grandOval: -0.065,
+  diamondEdge: -0.065
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 5;
-const SIDE_PARKED_AIRPAD_INWARD_TILES = 0.34;
-const SIDE_PARKED_AIRPAD_LANE_PUSH_INWARD_TILES = 0.22;
-const SIDE_PARKED_AIRPAD_ALTITUDE_OFFSET = 0.06;
-const SIDE_PARKED_AIRPAD_TRUCK_ALTITUDE_OFFSET = 0.03;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8632,8 +8628,8 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.4 : 1.7) + 0.35;
-    const cameraForwardOffset = isPortrait ? 0.1 : 0.24;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
     const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
@@ -9302,22 +9298,17 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideDirection = isWhiteSide ? -1 : 1;
-      const sideX = sideDirection * (half - tile * SIDE_PARKED_AIRPAD_INWARD_TILES);
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
       const laneMap = {
-        jet: tile * (1.48 - SIDE_PARKED_AIRPAD_LANE_PUSH_INWARD_TILES),
-        drone: tile * (0.74 - SIDE_PARKED_AIRPAD_LANE_PUSH_INWARD_TILES),
+        jet: tile * 1.48,
+        drone: tile * 0.74,
         helicopter: 0,
-        truck: -tile * (1.48 - SIDE_PARKED_AIRPAD_LANE_PUSH_INWARD_TILES)
+        truck: -tile * 1.48
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
       const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
       const zOffset = laneBase + laneShift;
-      const yOffset =
-        currentPieceYOffset +
-        (kind === 'truck'
-          ? SIDE_PARKED_AIRPAD_TRUCK_ALTITUDE_OFFSET
-          : SIDE_PARKED_AIRPAD_ALTITUDE_OFFSET);
+      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.14 : currentPieceYOffset + 0.26;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -10349,7 +10340,7 @@ function Chess3D({
         const skin = resolveSideVehicleSkin(isWhite);
         for (let slot = 0; slot < 1; slot += 1) {
           const jet = createFxJet();
-          jet.root.scale.setScalar(CAPTURE_JET_SCALE * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
@@ -10370,7 +10361,7 @@ function Chess3D({
 
           const helicopter = createFxHelicopter();
           helicopter.root.scale.setScalar(
-            CAPTURE_HELICOPTER_SCALE * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+            CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
           );
           if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
@@ -10393,9 +10384,7 @@ function Chess3D({
           });
         }
         const sideDrone = createFxDrone();
-        sideDrone.root.scale.setScalar(
-          CAPTURE_DRONE_SCALE * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
-        );
+        sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
         if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
         attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
         const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
@@ -10416,7 +10405,7 @@ function Chess3D({
 
         const supportTruck = createFxSupportTruck();
         supportTruck.root.scale.setScalar(
-          CAPTURE_HELICOPTER_SCALE * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
         );
         if (skin) {
           applyVehicleSkinToModel(
@@ -12540,18 +12529,17 @@ function Chess3D({
             order={['chat']}
           />
         </div>
-        <div className="absolute inset-0 z-[6] pointer-events-none">
+        <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
             const anchor = viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
-            const topSeatLiftPct = viewMode === '3d' && player.index === 1 ? 5.5 : 0;
             const positionStyle = anchor
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y - topSeatLiftPct}%`,
+                  top: `${anchor.y}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
@@ -12565,9 +12553,7 @@ function Chess3D({
             return (
               <div
                 key={`chess-seat-${player.index}`}
-                className={`absolute flex flex-col items-center ${
-                  configOpen ? 'pointer-events-none' : 'pointer-events-auto'
-                }`}
+                className="absolute pointer-events-auto flex flex-col items-center"
                 data-player-index={player.index}
                 style={positionStyle}
               >
