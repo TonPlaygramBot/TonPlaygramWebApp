@@ -90,6 +90,7 @@ const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
   'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
 ];
 const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
@@ -225,16 +226,16 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.9,
-  TILE_SIZE * 0.62,
+  TILE_SIZE * 1.34,
+  TILE_SIZE * 1.02,
+  TILE_SIZE * 0.4,
   TILE_SIZE * 0.78
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.2,
-  TILE_SIZE * 0.98,
-  TILE_SIZE * 0.56,
-  TILE_SIZE * 0.92
+  TILE_SIZE * 1.44,
+  TILE_SIZE * 1.1,
+  TILE_SIZE * 0.34,
+  TILE_SIZE * 1.06
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -246,7 +247,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.5;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2.25;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -286,19 +287,19 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.98,
+  backOffset: 1.08,
   forwardOffset: 0,
-  heightOffset: 2.56,
+  heightOffset: 2.72,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.54,
+  backOffset: 0.62,
   forwardOffset: 0,
-  heightOffset: 1.08,
+  heightOffset: 1.16,
   targetLift: 0.08 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
