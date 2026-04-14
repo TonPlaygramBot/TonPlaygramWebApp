@@ -119,7 +119,7 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
-  helicopterAttack: { speed: 1.16, height: 0.9, inward: 0.94, takeoff: 0.24, landing: 0.28 },
+  helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
   droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
@@ -644,6 +644,37 @@ function findHelicopterRotorNodes(root) {
     }
   });
   return { topRotor, tailRotor };
+}
+
+function inferRotorSpinAxis(node, fallbackAxis = 'y') {
+  if (!node) {
+    return fallbackAxis === 'x'
+      ? new THREE.Vector3(1, 0, 0)
+      : fallbackAxis === 'z'
+      ? new THREE.Vector3(0, 0, 1)
+      : new THREE.Vector3(0, 1, 0);
+  }
+  const bounds = new THREE.Box3().setFromObject(node);
+  if (bounds.isEmpty()) {
+    return fallbackAxis === 'x'
+      ? new THREE.Vector3(1, 0, 0)
+      : fallbackAxis === 'z'
+      ? new THREE.Vector3(0, 0, 1)
+      : new THREE.Vector3(0, 1, 0);
+  }
+  const size = new THREE.Vector3();
+  bounds.getSize(size);
+  const dims = [
+    { axis: 'x', value: Math.abs(size.x) },
+    { axis: 'y', value: Math.abs(size.y) },
+    { axis: 'z', value: Math.abs(size.z) }
+  ].sort((a, b) => a.value - b.value);
+  const chosen = dims[0]?.axis || fallbackAxis;
+  return chosen === 'x'
+    ? new THREE.Vector3(1, 0, 0)
+    : chosen === 'z'
+    ? new THREE.Vector3(0, 0, 1)
+    : new THREE.Vector3(0, 1, 0);
 }
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
@@ -1214,9 +1245,11 @@ async function createCaptureHelicopterFx() {
     model.rotation.y = Math.PI;
     applyMilitaryHelicopterLook(model);
     const { topRotor, tailRotor } = findHelicopterRotorNodes(model);
+    const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
+    const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
     root.add(model);
     root.visible = false;
-    return { root, rotor: topRotor, tailRotor, trail: [] };
+    return { root, rotor: topRotor, tailRotor, topRotorAxis, tailRotorAxis, trail: [] };
   }
   root.scale.setScalar(1.2 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
   const body = new THREE.Mesh(
@@ -1297,7 +1330,14 @@ async function createCaptureHelicopterFx() {
   }
   applyMilitaryHelicopterLook(root, rotor, tailRotor);
   root.visible = false;
-  return { root, rotor, tailRotor, trail };
+  return {
+    root,
+    rotor,
+    tailRotor,
+    topRotorAxis: new THREE.Vector3(0, 1, 0),
+    tailRotorAxis: new THREE.Vector3(1, 0, 0),
+    trail
+  };
 }
 
 function createCaptureExplosionFx() {
@@ -6955,9 +6995,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const missileThicknessScale = ((bishopWidth * 0.46) / 0.16) * 0.3;
         const animationScaleFactor =
           resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? 0.4
+            ? 0.34
             : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? 0.28
+            ? 0.24
             : resolvedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
@@ -6969,7 +7009,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (jetMissiles.length) {
           const jetMissileScale =
             missileThicknessScale *
-            (isHelicopterAttack ? 0.76 : 0.85) *
+            (isHelicopterAttack ? 0.68 : 0.78) *
             CAPTURE_MISSILE_SIZE_MULTIPLIER;
           jetMissiles.forEach((entry) => {
             entry.root.scale.set(jetMissileScale, jetMissileScale, jetMissileScale);
@@ -7034,6 +7074,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
         const started = performance.now();
+        let previousTickAt = started;
         let explosionTriggered = false;
         let helicopterMissileImpactAt = null;
 
@@ -7073,7 +7114,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
 
         const tick = () => {
-          const elapsed = performance.now() - started;
+          const tickNow = performance.now();
+          const elapsed = tickNow - started;
+          const dt = clamp((tickNow - previousTickAt) / 1000, 1 / 240, 1 / 20);
+          previousTickAt = tickNow;
           const liveFrom =
             resolveLiveTokenPosition({
               token: attackerToken,
@@ -7218,10 +7262,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               primaryFx.propeller.rotation.x += 1.2;
             }
             if (primaryFx.rotor) {
-              primaryFx.rotor.rotation.y += 0.9;
+              primaryFx.rotor.rotateOnAxis(primaryFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0), dt * 36);
             }
             if (primaryFx.tailRotor) {
-              primaryFx.tailRotor.rotation.x += 0.9;
+              primaryFx.tailRotor.rotateOnAxis(primaryFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0), dt * 40);
             }
             primaryFx.trail.forEach((puff, i) => {
               const isJetTrail = selectedCaptureAnimationId === 'fighterJetAttack';
