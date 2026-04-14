@@ -539,17 +539,32 @@ function paintMeshMaterials(node, painter) {
 function applyMilitaryJetLook(root) {
   if (!root) return;
   applyCaptureTextureToOpaqueMeshes(root, 'fighter');
+  const { cockpitNodes, exhaustNodes } = findJetCockpitAndExhaustNodes(root);
+  const cockpitSet = new Set(cockpitNodes);
+  const exhaustSet = new Set(exhaustNodes);
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     paintMeshMaterials(node, (mat) => {
       const materialName = `${mat.name || ''}`.toLowerCase();
-      if (/cockpit|canopy|window|glass/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
+      if (
+        cockpitSet.has(node) ||
+        /cockpit|canopy|window|glass/.test(name) ||
+        /window|glass/.test(materialName) ||
+        mat.transparent
+      ) {
         mat.color.set('#020304');
         if ('metalness' in mat) mat.metalness = 0.48;
         if ('roughness' in mat) mat.roughness = 0.24;
         if ('transparent' in mat) mat.transparent = true;
         if ('opacity' in mat) mat.opacity = 0.98;
+        return;
+      }
+      if (exhaustSet.has(node)) {
+        mat.color.set('#c49a2f');
+        if ('metalness' in mat) mat.metalness = 0.9;
+        if ('roughness' in mat) mat.roughness = 0.26;
+        if ('emissive' in mat) mat.emissive = new THREE.Color(0x1a1200);
         return;
       }
       if (/missile|rocket|store|pod/.test(name)) {
@@ -563,6 +578,35 @@ function applyMilitaryJetLook(root) {
       if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
     });
   });
+}
+
+function findJetCockpitAndExhaustNodes(root) {
+  const candidates = [];
+  root?.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    const matName = `${node.material?.name || ''}`.toLowerCase();
+    candidates.push({ node, name, matName, position: node.getWorldPosition(new THREE.Vector3()) });
+  });
+  const cockpitNodes = candidates
+    .filter(({ name, matName, node, position }) => {
+      if (/cockpit|canopy|window|glass|windscreen/.test(name) || /cockpit|window|glass/.test(matName)) return true;
+      return (node.material?.transparent || node.material?.opacity < 0.995) && position.x > -0.1;
+    })
+    .map((entry) => entry.node);
+  const exhaustCandidates = candidates
+    .filter(({ name, matName, position }) => {
+      if (/exhaust|nozzle|engine|thruster|afterburner/.test(name) || /exhaust|nozzle/.test(matName)) return true;
+      return position.x < -0.55;
+    })
+    .sort((a, b) => a.position.x - b.position.x);
+  const exhaustNodes = [];
+  exhaustCandidates.forEach(({ node, position }) => {
+    if (exhaustNodes.length >= 2) return;
+    const separated = exhaustNodes.every((entry) => Math.abs(entry.getWorldPosition(new THREE.Vector3()).z - position.z) > 0.08);
+    if (separated) exhaustNodes.push(node);
+  });
+  return { cockpitNodes, exhaustNodes };
 }
 
 function findHelicopterRotorNodes(root) {
@@ -1078,6 +1122,7 @@ async function createCaptureJetFx() {
     model.rotation.set(0, Math.PI, 0);
     applyMilitaryJetLook(model);
     root.add(model);
+    const { exhaustNodes } = findJetCockpitAndExhaustNodes(model);
     const trail = [];
     for (let i = 0; i < 6; i += 1) {
       const zOffset = i % 2 === 0 ? -0.22 : 0.22;
@@ -1094,8 +1139,25 @@ async function createCaptureJetFx() {
         )
       );
     }
+    const exhaustTrail = [];
+    for (let i = 0; i < 10; i += 1) {
+      const lane = i % 2 === 0 ? -1 : 1;
+      const pairIndex = Math.floor(i / 2);
+      exhaustTrail.push(
+        addFxSphere(
+          root,
+          pairIndex < 2 ? 0.09 + pairIndex * 0.03 : 0.12 + (pairIndex - 2) * 0.045,
+          [-1.74 - pairIndex * 0.23, 0, lane * 0.22],
+          pairIndex < 2 ? '#ffab38' : '#7c868d',
+          pairIndex < 2 ? 0.2 : 1,
+          0,
+          true,
+          pairIndex < 2 ? 0.86 - pairIndex * 0.2 : 0.36 - (pairIndex - 2) * 0.06
+        )
+      );
+    }
     root.visible = false;
-    return { root, trail };
+    return { root, trail, exhaustTrail, exhaustNodes };
   }
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.15, 0.21, 3.18, 28),
@@ -1165,9 +1227,26 @@ async function createCaptureJetFx() {
       )
     );
   }
+  const exhaustTrail = [];
+  for (let i = 0; i < 10; i += 1) {
+    const lane = i % 2 === 0 ? -1 : 1;
+    const pairIndex = Math.floor(i / 2);
+    exhaustTrail.push(
+      addFxSphere(
+        root,
+        pairIndex < 2 ? 0.09 + pairIndex * 0.03 : 0.12 + (pairIndex - 2) * 0.045,
+        [-1.78 - pairIndex * 0.23, -0.04, lane * 0.22],
+        pairIndex < 2 ? '#ffab38' : '#7c868d',
+        pairIndex < 2 ? 0.2 : 1,
+        0,
+        true,
+        pairIndex < 2 ? 0.86 - pairIndex * 0.2 : 0.36 - (pairIndex - 2) * 0.06
+      )
+    );
+  }
   applyMilitaryJetLook(root);
   root.visible = false;
-  return { root, trail };
+  return { root, trail, exhaustTrail, exhaustNodes: [engineLeft, engineRight] };
 }
 
 async function createCaptureHelicopterFx() {
@@ -6922,11 +7001,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
-        primaryFx.root.scale.set(
-          missileLengthScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
-          missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
-          missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER
-        );
+        const parkedScale =
+          resolvedCaptureAnimationId === 'fighterJetAttack'
+            ? parkedEntry?.jet?.scale
+            : resolvedCaptureAnimationId === 'helicopterAttack'
+            ? parkedEntry?.helicopter?.scale
+            : resolvedCaptureAnimationId === 'droneAttack'
+            ? parkedEntry?.drone?.scale
+            : parkedEntry?.missile?.scale;
+        if (parkedScale?.isVector3) {
+          primaryFx.root.scale.copy(parkedScale);
+        } else {
+          primaryFx.root.scale.set(
+            missileLengthScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
+            missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER,
+            missileThicknessScale * animationScaleFactor * CAPTURE_MISSILE_SIZE_MULTIPLIER
+          );
+        }
         if (jetMissiles.length) {
           const jetMissileScale =
             missileThicknessScale *
@@ -7214,6 +7305,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   ? clamp(0.85 - u * 0.45 - i * 0.12, 0.2, 0.85)
                   : clamp(0.24 - (i - 2) * 0.04, 0.06, 0.24);
             });
+            if (selectedCaptureAnimationId === 'fighterJetAttack' && Array.isArray(primaryFx.exhaustTrail)) {
+              primaryFx.exhaustTrail.forEach((puff, i) => {
+                const lane = i % 2 === 0 ? -1 : 1;
+                const pairIndex = Math.floor(i / 2);
+                puff.position.set(
+                  -1.7 - pairIndex * 0.24,
+                  Math.sin(elapsed * 0.022 + i * 0.45) * 0.025,
+                  lane * 0.22 + Math.sin(elapsed * 0.013 + i * 0.33) * 0.02
+                );
+                const glowPulse = 0.82 + Math.sin(elapsed * 0.024 + i * 0.7) * 0.18;
+                const baseScale = pairIndex < 2 ? 0.86 : 1.02 + (pairIndex - 2) * 0.12;
+                puff.scale.setScalar(baseScale + glowPulse * 0.24);
+                puff.material.opacity =
+                  pairIndex < 2
+                    ? clamp(0.9 - u * 0.42 - pairIndex * 0.12, 0.25, 0.92)
+                    : clamp(0.34 - (pairIndex - 2) * 0.06 - u * 0.08, 0.06, 0.34);
+              });
+            }
             if (
               (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
               jetMissiles.length
@@ -7300,8 +7409,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             flyAwayDir.normalize();
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
+            const shouldLandAtPark =
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
+              parkedLaunch?.isVector3;
             const parkedReturn =
-              parkedLaunch?.clone()?.add(new THREE.Vector3(0, bishopHeight * 0.52, 0)) ?? null;
+              shouldLandAtPark
+                ? parkedLaunch.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0))
+                : null;
             const flyAwayEnd = parkedReturn
               ? flyAwayStart
                   .clone()
@@ -7318,7 +7432,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.position.copy(flyAwayPos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, flyAwayDirNow);
             trackAttackCamera(flyAwayPos, liveTarget, 1);
-            const fade = clamp(1 - flyAwayT * 1.1, 0, 1);
+            const fade = shouldLandAtPark ? clamp(1 - Math.max(0, flyAwayT - 0.86) / 0.14, 0, 1) : clamp(1 - flyAwayT * 1.1, 0, 1);
             primaryFx.root.traverse((node) => {
               if (!node?.isMesh) return;
               const mats = Array.isArray(node.material) ? node.material : [node.material];
@@ -7328,6 +7442,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 mat.opacity = fade;
               });
             });
+            if (shouldLandAtPark && parkedLaunch) {
+              const landingBlend = clamp((flyAwayT - 0.72) / 0.28, 0, 1);
+              const landed = parkedLaunch.clone();
+              landed.y = tableSurfaceY + 0.002;
+              primaryFx.root.position.lerp(landed, easeSmooth(landingBlend));
+            }
           } else {
             primaryFx.root.visible = false;
           }
