@@ -99,7 +99,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 2.6; // longer strike cycle so jet/helicopter read slower in portrait
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 1.85; // longer strike cycle so jet/helicopter read slower in portrait
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -108,12 +108,12 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0;
-const CAPTURE_GROUND_TRAVEL_TIME = 4.9; // slower low-altitude ground strike so launches are easier to read in portrait
+const CAPTURE_GROUND_TRAVEL_TIME = 3.8; // slower low-altitude ground strike so launches are easier to read in portrait
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.92; // keep aircraft lower so they stay visually close to the board
+const CAPTURE_DRONE_ALTITUDE = 1.05; // keep aircraft lower so they stay visually close to the board
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.56; // cruise height the drone visually keeps above board
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -124,21 +124,21 @@ const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.18; // tighter loops so flight p
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.62; // higher margin keeps turns further away from board edges
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.4; // run drone path more inward and closer to board center
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.26; // lower drone route to keep it close to board surface
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.2; // lower jet/helicopter route so aircraft feel closer to board
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.34; // lower drone route to keep it close to board surface
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.28; // lower jet/helicopter route so aircraft feel closer to board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
-const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.5;
-const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.82;
+const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.46;
+const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.74;
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.032;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 1.15;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.18;
-const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.48;
-const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.03;
-const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.52;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 1.5;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.28;
+const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.68;
+const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.06;
+const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.78;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -9344,12 +9344,10 @@ function Chess3D({
           tip.castShadow = true;
           missile.add(tip);
           missile.position.set(-Math.max(size.x * 0.12, 0.16), 0.1, lane * Math.max(size.z, 0.84));
-          missile.rotation.y = Math.PI;
-          missile.rotation.z = Math.PI * 0.18;
+          missile.rotation.z = Math.PI * 0.26;
           rack.add(missile);
         });
-        rack.rotation.y = Math.PI;
-        rack.rotation.z = Math.PI * 0.04;
+        rack.rotation.z = Math.PI * 0.06;
         rack.position.set(center.x - Math.max(size.x * 0.08, 0.14), rackY, center.z);
         target.add(rack);
       };
@@ -11709,7 +11707,7 @@ function Chess3D({
                 from: launchPos,
                 to: fx.to,
                 progress: mu,
-                launchHeight: 0.04,
+                launchHeight: 0.08,
                 orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_DRONE_ORBIT_HEIGHT_MUL,
                 orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
                 minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES,
@@ -11754,7 +11752,7 @@ function Chess3D({
               from: launchPos,
               to: flightTarget,
               progress: jetU,
-              launchHeight: 0.05,
+              launchHeight: 0.08,
               orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
               orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
               minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES + 0.02,
@@ -11873,7 +11871,7 @@ function Chess3D({
               from: launchPos,
               to: flightTarget,
               progress: heliU,
-              launchHeight: 0.05,
+              launchHeight: 0.08,
               orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
               orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
               minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES + 0.02,
@@ -11991,7 +11989,7 @@ function Chess3D({
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const control = launchPos.clone().lerp(fx.to, 0.5);
-              control.y += fx.verticalStrike ? 0.42 : fx.directPath ? 0.14 : 0.28;
+              control.y += fx.verticalStrike ? 0.62 : fx.directPath ? 0.18 : 0.42;
               const missilePos = fx.directPath
                 ? launchPos.clone().lerp(fx.to, mu)
                 : qBezier(launchPos, control, fx.to, mu);
