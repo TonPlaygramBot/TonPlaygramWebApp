@@ -99,7 +99,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 11.1; // slower cinematic pass so the full fly path is clearly visible on portrait screens
+const CAPTURE_JET_TOTAL = 3.85; // keep jet run only slightly longer than drone for portrait framing
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter uses the same timeline as jet
@@ -108,11 +108,11 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.8; // keep drone in the air a bit longer before strike
+const CAPTURE_GROUND_TRAVEL_TIME = 3.15; // slightly slower drone flight for cleaner portrait readability
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
-const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
+const CAPTURE_DRONE_SCALE = 0.046;
+const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 2.08; // larger parked/fly jet to match visible strike scale
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 2.26; // helicopter slightly larger than jet
 const CAPTURE_DRONE_ALTITUDE = 1.2; // lower flight profile so aircraft sit closer to the board in portrait view
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.56; // cruise height the drone visually keeps above board
@@ -120,7 +120,7 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.22; // tighten loops so jet/helicopter stay nearer board center
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.46; // keep jet/helicopter on a drone-like in-board loop
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.28; // keep turns further inside board bounds
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
@@ -1962,9 +1962,12 @@ const CUSTOMIZATION_SECTIONS = [
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
+  'murlan-default': -0.065,
   hexagonTable: -0.065,
+  grandHexagon: -0.065,
   grandOval: -0.065,
-  diamondEdge: -0.07
+  ovalTable: -0.065,
+  diamondEdge: -0.065
 });
 
 function normalizeAppearance(value = {}) {
@@ -1986,10 +1989,18 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  normalized.boardColor = Number.isFinite(Number(value?.boardColor))
+    ? Math.max(0, Math.round(Number(value.boardColor)))
+    : DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = Number.isFinite(Number(value?.whitePieceStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value.whitePieceStyle))), PIECE_STYLE_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = Number.isFinite(Number(value?.blackPieceStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value.blackPieceStyle))), PIECE_STYLE_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = Number.isFinite(Number(value?.headStyle))
+    ? Math.min(Math.max(0, Math.round(Number(value.headStyle))), HEAD_PRESET_OPTIONS.length - 1)
+    : DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -9286,7 +9297,7 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 1.14) : half + BOARD.rim + tile * 1.14;
       const laneMap = {
         jet: tile * 1.48,
         helicopter: 0,
@@ -10325,7 +10336,7 @@ function Chess3D({
         const skin = resolveSideVehicleSkin(isWhite);
         for (let slot = 0; slot < 2; slot += 1) {
           const jet = createFxJet();
-          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 0.72);
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
@@ -10345,7 +10356,7 @@ function Chess3D({
           });
 
           const helicopter = createFxHelicopter();
-          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.74);
+          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
           if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
           );
@@ -10367,7 +10378,7 @@ function Chess3D({
           });
         }
         const supportTruck = createFxSupportTruck();
-        supportTruck.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.95);
+        supportTruck.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
         if (skin) {
           applyVehicleSkinToModel(
             supportTruck.root,
@@ -11563,7 +11574,7 @@ function Chess3D({
                 progress: mu,
                 launchHeight: 0.08,
                 orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.42,
-                orbitRadiusMul: 0.58,
+                orbitRadiusMul: 0.46,
                 minOrbitCycles: 0.22,
                 orbitSplit: 0.84,
                 returnSplit: 0.72
@@ -11574,7 +11585,7 @@ function Chess3D({
             } else {
               fx.droneFx.root.visible = true;
               const { pos, next } = pose;
-              fx.droneFx.root.position.copy(constrainInsideBoardPerimeter(pos));
+              fx.droneFx.root.position.copy(constrainInsideBoardPerimeter(pos, 0.62));
               captureDir.copy(next).sub(pos).normalize();
               fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             }
