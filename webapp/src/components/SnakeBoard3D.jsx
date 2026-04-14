@@ -49,7 +49,7 @@ const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.4;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = -0.01 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
@@ -121,8 +121,8 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 320;
+const DICE_ROLL_DURATION = 720;
+const DICE_SETTLE_DURATION = 260;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -181,9 +181,9 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
-const DICE_CAMERA_LOOK_IN_DURATION = 360;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 900;
-const DICE_CAMERA_LOOK_OUT_DURATION = 420;
+const DICE_CAMERA_LOOK_IN_DURATION = 260;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 560;
+const DICE_CAMERA_LOOK_OUT_DURATION = 280;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
 const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
@@ -199,7 +199,7 @@ const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS_SCALE = 1.19;
-const TOKEN_SCALE_MULTIPLIER = 1.16;
+const TOKEN_SCALE_MULTIPLIER = 1.62;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const TOKEN_HEIGHT = 0.09 * TOKEN_SCALE_MULTIPLIER;
 const CHESS_TOKEN_HEIGHT_SCALE = 1;
@@ -214,12 +214,12 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.86,
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.86
+  TILE_SIZE * 0.78,
+  TILE_SIZE * 0.64,
+  TILE_SIZE * 0.78,
+  TILE_SIZE * 0.64
 ]);
-const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.72;
+const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.48;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
   TOKEN_RADIUS * 0.02,
@@ -366,8 +366,8 @@ const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
 const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.34;
 const SNAKE_NECK_LIFT_RATIO = 0.42;
 const SNAKE_TAIL_LIFT_RATIO = 0.36;
-const CAPTURE_MISSILE_FLIGHT_MS = 760;
-const CAPTURE_EXPLOSION_MS = 680;
+const CAPTURE_MISSILE_FLIGHT_MS = 620;
+const CAPTURE_EXPLOSION_MS = 560;
 const CAPTURE_TOKEN_ADVANCE_MS = 420;
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
@@ -2711,7 +2711,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     0
   );
   const attachBoard = (info, group) => {
-    boardGroup.position.set(0, info.surfaceY + 0.004, 0);
+    boardGroup.position.set(0, info.surfaceY - 0.01, 0);
     boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
     group.add(boardGroup);
   };
@@ -3852,7 +3852,7 @@ function quadraticBezier(a, b, c, t) {
   return ab.lerp(bc, t);
 }
 
-function createCaptureMissileRig() {
+function createCaptureVehicleRig(kind = 'fighter') {
   const root = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#c9ced3', roughness: 0.42, metalness: 0.12 });
   const noseMat = new THREE.MeshStandardMaterial({ color: '#f0f2f4', roughness: 0.32, metalness: 0.16 });
@@ -3865,25 +3865,42 @@ function createCaptureMissileRig() {
     opacity: 0.2
   });
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1, 16), bodyMat);
-  body.rotation.z = Math.PI / 2;
-  body.castShadow = true;
-  root.add(body);
+  if (kind === 'supportTruck') {
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.22, 0.3), bodyMat);
+    chassis.castShadow = true;
+    root.add(chassis);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.28), noseMat);
+    cabin.position.set(0.26, 0.2, 0);
+    cabin.castShadow = true;
+    root.add(cabin);
+    const launcher = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), finMat);
+    launcher.position.set(-0.2, 0.24, 0);
+    launcher.castShadow = true;
+    root.add(launcher);
+  } else {
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
+      bodyMat
+    );
+    body.rotation.z = Math.PI / 2;
+    body.castShadow = true;
+    root.add(body);
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
-  nose.position.set(0.6, 0, 0);
-  nose.rotation.z = -Math.PI / 2;
-  nose.castShadow = true;
-  root.add(nose);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+    nose.position.set(0.6, 0, 0);
+    nose.rotation.z = -Math.PI / 2;
+    nose.castShadow = true;
+    root.add(nose);
 
-  const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.24), finMat);
-  finA.position.set(-0.25, 0, 0);
-  finA.castShadow = true;
-  root.add(finA);
-  const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.02), finMat);
-  finB.position.set(-0.25, 0, 0);
-  finB.castShadow = true;
-  root.add(finB);
+    const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
+    finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
+    finA.castShadow = true;
+    root.add(finA);
+    const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+    finB.position.set(-0.25, 0, 0);
+    finB.castShadow = true;
+    root.add(finB);
+  }
 
   const trail = [];
   for (let i = 0; i < 4; i += 1) {
@@ -3894,7 +3911,7 @@ function createCaptureMissileRig() {
     root.add(puff);
   }
   root.visible = false;
-  return { root, trail };
+  return { root, trail, kind };
 }
 
 function createCaptureExplosionRig() {
@@ -4249,11 +4266,16 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? [],
       startCameraState: arena.startCameraState ?? null
     };
-    const captureMissile = createCaptureMissileRig();
+    const captureVehicles = {
+      fighter: createCaptureVehicleRig('fighter'),
+      helicopter: createCaptureVehicleRig('helicopter'),
+      drone: createCaptureVehicleRig('drone'),
+      supportTruck: createCaptureVehicleRig('supportTruck')
+    };
     const captureExplosion = createCaptureExplosionRig();
-    scene.add(captureMissile.root);
+    Object.values(captureVehicles).forEach((vehicle) => scene.add(vehicle.root));
     scene.add(captureExplosion.root);
-    boardRef.current.captureFx = { missile: captureMissile, explosion: captureExplosion };
+    boardRef.current.captureFx = { vehicles: captureVehicles, explosion: captureExplosion };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
     const getCameraConstraints = () => {
       if (cameraViewModeRef.current === '2d') {
@@ -5008,7 +5030,9 @@ export default function SnakeBoard3D({
     if (captureFxIdRef.current === captureEvent.id) return;
     captureFxIdRef.current = captureEvent.id;
     const board = boardRef.current;
-    const missile = board.captureFx?.missile;
+    const vehicleKind = captureEvent.weaponType || 'fighter';
+    const vehicleMap = board.captureFx?.vehicles || {};
+    const missile = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const explosion = board.captureFx?.explosion;
     if (!missile || !explosion) {
       onCaptureAnimationComplete?.(captureEvent.id);
@@ -5031,6 +5055,9 @@ export default function SnakeBoard3D({
 
     attacker.position.copy(startPos);
     attacker.userData.isSliding = true;
+    Object.values(vehicleMap).forEach((vehicle) => {
+      if (vehicle?.root) vehicle.root.visible = false;
+    });
     missile.root.visible = true;
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
@@ -5041,6 +5068,25 @@ export default function SnakeBoard3D({
     const flightDuration = CAPTURE_MISSILE_FLIGHT_MS;
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
+    const camera = cameraRef.current;
+    const controls = board.controls;
+    if (cameraViewMode !== '2d' && camera && controls) {
+      const focusTarget = launch.clone().lerp(impact, 0.54);
+      const currentOffset = camera.position.clone().sub(controls.target);
+      const desiredTarget = focusTarget.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
+      const desiredPosition = desiredTarget.clone().add(currentOffset);
+      const captureCameraAnimation = createCameraTransitionAnimation(camera, controls, {
+        toPosition: desiredPosition,
+        toTarget: desiredTarget,
+        durationIn: 180,
+        hold: Math.max(140, flightDuration - 220),
+        durationOut: 200,
+        type: 'cameraCaptureFocus',
+        returnPosition: turnCameraStateRef.current?.position,
+        returnTarget: turnCameraStateRef.current?.target
+      });
+      if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
+    }
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
@@ -5053,6 +5099,9 @@ export default function SnakeBoard3D({
           missile.root.visible = true;
           missile.root.position.copy(pos);
           missile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          if (vehicleKind === 'supportTruck') {
+            missile.root.rotation.z = Math.PI * 0.08;
+          }
           missile.trail.forEach((puff, i) => {
             puff.position.set(-0.38 - i * 0.12, Math.sin(now * 0.01 * 8 + i) * 0.015, 0);
             const s = 0.8 + i * 0.16 + ((now * 0.0018 + i * 0.2) % 1) * 0.5;
