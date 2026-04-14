@@ -4563,6 +4563,18 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   return group;
 }
 
+function applyParkedWeaponOrientation(holder, weaponType, boardLookTarget) {
+  if (!holder || !boardLookTarget) return;
+  const yaw = Math.atan2(boardLookTarget.x - holder.position.x, boardLookTarget.z - holder.position.z);
+  holder.rotation.set(0, yaw, 0);
+  const rigRoot = holder.children?.[0];
+  if (!rigRoot) return;
+  rigRoot.rotation.set(0, 0, 0);
+  if (weaponType === 'supportTruck') {
+    rigRoot.rotation.y = Math.PI * 0.5;
+  }
+}
+
 function updateSeatWeaponDisplays(board, players = []) {
   if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
   const anchors = board.seatAnchors;
@@ -4594,9 +4606,6 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
-    const tokenMesh =
-      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
-      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index);
     const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
     const railLayout = getSeatRailLayout(
       board,
@@ -4608,12 +4617,6 @@ function updateSeatWeaponDisplays(board, players = []) {
       const sideSign = seatIndex % 2 === 0 ? 1 : -1;
       holder.position.copy(railLayout.railLocal).addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
       holder.position.y = railLayout.railHeightY;
-    } else if (tokenMesh) {
-      const sideSign = seatIndex % 2 === 0 ? 1 : -1;
-      holder.position.copy(tokenMesh.position);
-      holder.position.x += sideSign * TOKEN_RADIUS * 2.6;
-      holder.position.z += TOKEN_RADIUS * 0.5;
-      holder.position.y = tokenMesh.position.y;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4629,7 +4632,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.copy(markerPos);
       holder.position.y = tableY + TOKEN_HEIGHT * 0.44;
     }
-    holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+    applyParkedWeaponOrientation(holder, weaponType, boardLookTarget);
   });
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
@@ -5722,9 +5725,10 @@ export default function SnakeBoard3D({
     const board = boardRef.current;
     const vehicleKind = captureEvent.weaponType || 'fighter';
     const vehicleMap = board.captureFx?.vehicles || {};
-    const missile = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
+    const carrier = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
+    const projectileTemplate = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const explosion = board.captureFx?.explosion;
-    if (!missile || !explosion) {
+    if (!carrier || !projectileTemplate || !explosion) {
       onCaptureAnimationComplete?.(captureEvent.id);
       return;
     }
@@ -5741,37 +5745,47 @@ export default function SnakeBoard3D({
     const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
-    const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const launchLift = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const centerPoint = (board.boardLookTarget || launchOrigin)
+      .clone()
+      .setY(board.baseLevelTop + TOKEN_HEIGHT * 1.8);
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
-    const control = launch.clone().lerp(impact, 0.48);
-    control.y += TOKEN_HEIGHT * 6.8;
+    const impactTop = impact.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 5.8, 0));
+    const centerApex = centerPoint.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 5.2, 0));
 
     attacker.position.copy(startPos);
     attacker.userData.isSliding = true;
     Object.values(vehicleMap).forEach((vehicle) => {
       if (vehicle?.root) vehicle.root.visible = false;
     });
-    missile.root.visible = true;
+    carrier.root.visible = true;
+    carrier.root.position.copy(launchOrigin);
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
-    missile.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    carrier.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    const missileCount = vehicleKind === 'fighter' || vehicleKind === 'helicopter' ? 2 : 1;
+    const missileVisuals = [];
+    for (let i = 0; i < missileCount; i += 1) {
+      const clone = projectileTemplate.root.clone(true);
+      clone.visible = false;
+      clone.scale.set(tokenHeight * 0.5, tokenHeight * 0.18, tokenHeight * 0.18);
+      board.root.add(clone);
+      missileVisuals.push(clone);
+    }
 
     const startTime = performance.now();
-    const flightDuration =
-      vehicleKind === 'drone'
-        ? Math.max(520, CAPTURE_MISSILE_FLIGHT_MS - 180)
-        : vehicleKind === 'helicopter'
-        ? CAPTURE_MISSILE_FLIGHT_MS + 140
-        : vehicleKind === 'supportTruck'
-        ? CAPTURE_MISSILE_FLIGHT_MS + 200
-        : CAPTURE_MISSILE_FLIGHT_MS;
+    const launchDuration = vehicleKind === 'supportTruck' ? 280 : 420;
+    const cruiseDuration = CAPTURE_MISSILE_FLIGHT_MS + 120;
+    const dropDuration = 260;
+    const returnDuration = vehicleKind === 'supportTruck' ? 280 : 380;
+    const flightDuration = launchDuration + cruiseDuration + dropDuration + returnDuration;
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
     const camera = cameraRef.current;
     const controls = board.controls;
     if (cameraViewMode !== '2d' && camera && controls) {
-      const focusTarget = launch.clone().lerp(impact, 0.54);
+      const focusTarget = centerPoint.clone().lerp(impact, 0.5);
       const currentOffset = camera.position.clone().sub(controls.target);
       const desiredTarget = focusTarget.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
       const desiredPosition = desiredTarget.clone().add(currentOffset);
@@ -5788,57 +5802,98 @@ export default function SnakeBoard3D({
       });
       if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
     }
-    const pathAt = (uRaw) => {
+    const lateral = impact.clone().sub(launchOrigin).cross(new THREE.Vector3(0, 1, 0)).normalize();
+    const launchPoints = missileVisuals.map((_, idx) => {
+      if (missileVisuals.length === 1) return launchLift.clone();
+      const sign = idx === 0 ? -1 : 1;
+      return launchLift.clone().addScaledVector(lateral, sign * TOKEN_HEIGHT * 1.1);
+    });
+    const missilePathAt = (from, uRaw) => {
       const u = clamp01(uRaw);
-      if (vehicleKind === 'drone') {
-        const hoverApex = launch.clone().lerp(impact, 0.4);
-        hoverApex.y += TOKEN_HEIGHT * 8.2;
-        return quadraticBezier(launch, hoverApex, impact, u);
+      if (u < 0.72) {
+        return quadraticBezier(from, centerApex, impactTop, easeInOut(u / 0.72));
       }
-      if (vehicleKind === 'helicopter') {
-        const sideLift = new THREE.Vector3(
-          (impact.z - launch.z) * 0.15,
-          TOKEN_HEIGHT * 7.3,
-          (launch.x - impact.x) * 0.15
-        );
-        const heliControl = launch.clone().lerp(impact, 0.5).add(sideLift);
-        return quadraticBezier(launch, heliControl, impact, u);
-      }
-      if (vehicleKind === 'supportTruck') {
-        const lowArc = launch.clone().lerp(impact, 0.55);
-        lowArc.y += TOKEN_HEIGHT * 2.1;
-        return quadraticBezier(launch, lowArc, impact, u);
-      }
-      return quadraticBezier(launch, control, impact, u);
+      const drop = easeInOut((u - 0.72) / 0.28);
+      return impactTop.clone().lerp(impact, drop);
+    };
+    const alignToDir = (obj, from, to) => {
+      const dir = to.clone().sub(from);
+      if (dir.lengthSq() < 1e-8) return;
+      dir.normalize();
+      obj.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
     };
 
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
-        if (elapsed <= flightDuration) {
-          const u = easeInOut(clamp01(elapsed / flightDuration));
-          const nextU = clamp01(u + 0.03);
-          const pos = pathAt(u);
-          const next = pathAt(nextU);
-          const dir = next.clone().sub(pos).normalize();
-          missile.root.visible = true;
-          missile.root.position.copy(pos);
-          missile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
-          spinCaptureRotors(missile, 1 / 60);
+        const carrierLaunchEnd = launchDuration;
+        const missileCruiseEnd = carrierLaunchEnd + cruiseDuration;
+        const missileDropEnd = missileCruiseEnd + dropDuration;
+        const carrierReturnEnd = missileDropEnd + returnDuration;
+        let focusPoint = launchOrigin;
+
+        if (elapsed <= carrierLaunchEnd) {
+          const t = easeInOut(elapsed / carrierLaunchEnd);
           if (vehicleKind === 'supportTruck') {
-            missile.root.rotation.z = Math.PI * 0.08;
+            carrier.root.position.copy(launchOrigin);
+          } else {
+            const pos = quadraticBezier(launchOrigin, centerApex, centerPoint, t);
+            const next = quadraticBezier(launchOrigin, centerApex, centerPoint, clamp01(t + 0.03));
+            carrier.root.position.copy(pos);
+            alignToDir(carrier.root, pos, next);
+            focusPoint = pos;
           }
-          missile.trail.forEach((puff, i) => {
-            puff.position.set(-0.38 - i * 0.12, Math.sin(now * 0.01 * 8 + i) * 0.015, 0);
-            const s = 0.8 + i * 0.16 + ((now * 0.0018 + i * 0.2) % 1) * 0.5;
-            puff.scale.setScalar(s);
-            puff.material.opacity = 0.24 - i * 0.035;
-          });
+          spinCaptureRotors(carrier, 1 / 60);
           updateCaptureExplosionRig(explosion, -1);
           return false;
         }
-        missile.root.visible = false;
-        const impactElapsed = elapsed - flightDuration;
+
+        if (elapsed <= missileDropEnd) {
+          const missileT = clamp01((elapsed - carrierLaunchEnd) / (cruiseDuration + dropDuration));
+          missileVisuals.forEach((missileRoot, idx) => {
+            const start = vehicleKind === 'supportTruck' ? launchPoints[idx].clone().setY(launchOrigin.y + TOKEN_HEIGHT * 2.4) : launchPoints[idx];
+            const p = missilePathAt(start, missileT);
+            const pNext = missilePathAt(start, clamp01(missileT + 0.02));
+            missileRoot.visible = true;
+            missileRoot.position.copy(p);
+            alignToDir(missileRoot, p, pNext);
+          });
+          if (vehicleKind !== 'supportTruck') {
+            carrier.root.position.copy(centerPoint);
+            applyParkedWeaponOrientation({ position: carrier.root.position, rotation: carrier.root.rotation, children: [carrier.root] }, vehicleKind, impact);
+          }
+          focusPoint = missileVisuals[0]?.position || impactTop;
+          updateCaptureExplosionRig(explosion, -1);
+          return false;
+        }
+
+        missileVisuals.forEach((missileRoot) => {
+          missileRoot.visible = false;
+          missileRoot.position.copy(launchLift);
+        });
+        if (elapsed <= carrierReturnEnd) {
+          const t = easeInOut((elapsed - missileDropEnd) / returnDuration);
+          if (vehicleKind !== 'supportTruck') {
+            const from = centerPoint.clone();
+            const returnApex = launchOrigin.clone().lerp(centerPoint, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 2.8, 0));
+            const pos = quadraticBezier(from, returnApex, launchOrigin, t);
+            const next = quadraticBezier(from, returnApex, launchOrigin, clamp01(t + 0.03));
+            carrier.root.position.copy(pos);
+            alignToDir(carrier.root, pos, next);
+            focusPoint = pos;
+          } else {
+            carrier.root.position.copy(launchOrigin);
+          }
+          spinCaptureRotors(carrier, 1 / 60);
+        } else {
+          carrier.root.position.copy(launchOrigin);
+          applyParkedWeaponOrientation({ position: carrier.root.position, rotation: carrier.root.rotation, children: [carrier.root] }, vehicleKind, board.boardLookTarget);
+        }
+
+        if (cameraViewMode !== '2d' && camera && controls) {
+          controls.target.lerp(focusPoint, 0.28);
+        }
+        const impactElapsed = elapsed - carrierReturnEnd;
         if (impactElapsed <= impactDuration) {
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
@@ -5855,9 +5910,11 @@ export default function SnakeBoard3D({
         if (t >= 1) {
           attacker.userData.isSliding = false;
           attacker.position.copy(targetPos);
-          if ((vehicleKind === 'fighter' || vehicleKind === 'helicopter') && parkedPos) {
-            missile.root.position.copy(parkedPos);
-          }
+          carrier.root.position.copy(launchOrigin);
+          applyParkedWeaponOrientation({ position: carrier.root.position, rotation: carrier.root.rotation, children: [carrier.root] }, vehicleKind, board.boardLookTarget);
+          missileVisuals.forEach((missileRoot) => {
+            missileRoot.parent?.remove(missileRoot);
+          });
           onCaptureAnimationComplete?.(captureEvent.id);
           return true;
         }
