@@ -113,6 +113,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { SHOT_STATE, resolveCommittedShot, easeOut as easeOutShot } from './poolRoyaleShotState.js';
 import {
   applyShotImpact,
   createShotImpactFallback,
@@ -15790,7 +15791,7 @@ const powerRef = useRef(hud.power);
     shootingRef.current = shotActive;
   }, [shotActive]);
   const sliderInstanceRef = useRef(null);
-  const shotStateRef = useRef('idle');
+  const shotStateRef = useRef(SHOT_STATE.IDLE);
   const shotPowerRef = useRef(0);
   const shotDragPowerRef = useRef(0);
   const suggestionAimKeyRef = useRef(null);
@@ -22680,7 +22681,7 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            shotStateRef.current = 'idle';
+            shotStateRef.current = SHOT_STATE.IDLE;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
             return false;
@@ -22698,7 +22699,7 @@ const powerRef = useRef(hud.power);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
-              shotStateRef.current = 'idle';
+              shotStateRef.current = SHOT_STATE.IDLE;
               pendingImpactRef.current = null;
             }
             return false;
@@ -22706,7 +22707,7 @@ const powerRef = useRef(hud.power);
           if (!ENABLE_CUE_STROKE_ANIMATION) {
             cueStick.visible = false;
             cueAnimating = false;
-            shotStateRef.current = 'idle';
+            shotStateRef.current = SHOT_STATE.IDLE;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
             syncCueShadow();
@@ -22802,7 +22803,7 @@ const powerRef = useRef(hud.power);
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            shotStateRef.current = 'idle';
+            shotStateRef.current = SHOT_STATE.IDLE;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
@@ -22890,7 +22891,7 @@ const powerRef = useRef(hud.power);
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
-          shotStateRef.current = 'idle';
+          shotStateRef.current = SHOT_STATE.IDLE;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           if (cameraRef.current && sphRef.current) {
@@ -26088,7 +26089,7 @@ const powerRef = useRef(hud.power);
           currentHud?.over ||
           replayPlaybackRef.current
         ) {
-          shotStateRef.current = 'idle';
+          shotStateRef.current = SHOT_STATE.IDLE;
           return;
         }
         if (breakWinnerSeatRef.current === 'A') {
@@ -26179,7 +26180,7 @@ const powerRef = useRef(hud.power);
             : powerRef.current;
         const clampedPower = clampPower(resolvedPower, 0);
         shotPowerRef.current = clampedPower;
-        shotStateRef.current = clampedPower > 0.02 ? 'striking' : 'idle';
+        shotStateRef.current = clampedPower > 0.02 ? SHOT_STATE.STRIKING : SHOT_STATE.IDLE;
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -26725,7 +26726,7 @@ const powerRef = useRef(hud.power);
             commitShotImpact();
             cueStick.visible = false;
             cueAnimating = false;
-            shotStateRef.current = 'idle';
+            shotStateRef.current = SHOT_STATE.IDLE;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
@@ -30389,9 +30390,9 @@ const powerRef = useRef(hud.power);
           const maxPull = CUE_PULL_BASE;
           const shotState = shotStateRef.current;
           const shotPowerForCue =
-            shotState === 'striking'
+            shotState === SHOT_STATE.STRIKING
               ? shotPowerRef.current
-              : shotState === 'dragging'
+              : shotState === SHOT_STATE.DRAGGING
                 ? shotDragPowerRef.current
                 : powerRef.current;
           const pullProfile = resolveCueStrokeProfile(
@@ -30405,7 +30406,7 @@ const powerRef = useRef(hud.power);
             ? computePullTargetFromPower(
                 shotPowerForCue,
                 maxPull
-              ) + (shotState === 'idle' ? IDLE_GAP : 0)
+              ) + (shotState === SHOT_STATE.IDLE ? IDLE_GAP : 0)
             : IDLE_GAP;
           const pull = computeCuePull(desiredPull, maxPull, {
             instant:
@@ -32505,7 +32506,7 @@ const powerRef = useRef(hud.power);
       onChange: (v) => {
         const normalizedPower = clampPower(v / 100, 0);
         shotDragPowerRef.current = normalizedPower;
-        if (shotStateRef.current === 'dragging') {
+        if (shotStateRef.current === SHOT_STATE.DRAGGING) {
           shotPowerRef.current = normalizedPower;
         }
         applyPower(normalizedPower);
@@ -32515,36 +32516,34 @@ const powerRef = useRef(hud.power);
           cancelAnimationFrame(sliderResetRafRef.current);
           sliderResetRafRef.current = 0;
         }
-        shotStateRef.current = 'dragging';
+        shotStateRef.current = SHOT_STATE.DRAGGING;
         shotDragPowerRef.current = clampPower(powerRef.current, 0);
         shotPowerRef.current = shotDragPowerRef.current;
         sliderShotPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
-      onCommit: (sliderValue) => {
-        const capturedShotPower = clampPower(shotDragPowerRef.current, 0);
-        const releasePower = clampPower(
-          Number.isFinite(sliderValue) ? sliderValue / 100 : capturedShotPower,
-          powerRef.current
-        );
-        const finalShotPower = Number.isFinite(sliderValue)
-          ? releasePower
-          : capturedShotPower;
+      onCommit: () => {
+        const committedShot = resolveCommittedShot({
+          capturedDragPower: shotPowerRef.current,
+          fallbackPower: shotDragPowerRef.current,
+          minStrikePower: 0.02
+        });
+        const finalShotPower = committedShot.shotPower;
         shotPowerRef.current = finalShotPower;
         shotDragPowerRef.current = finalShotPower;
         sliderShotPowerRef.current = finalShotPower;
-        shotStateRef.current = finalShotPower > 0.02 ? 'striking' : 'idle';
-        if (finalShotPower > 0.02) {
+        shotStateRef.current = committedShot.state;
+        if (committedShot.state === SHOT_STATE.STRIKING) {
+          captureCueStickAnchor();
           fireRef.current?.(finalShotPower);
         }
         const resetStart = performance.now();
         const fromValue = slider.get();
         const resetDurationMs = 160;
-        const easeOut = (t) => 1 - Math.pow(1 - t, 3);
         const tickReset = () => {
           const elapsed = performance.now() - resetStart;
           const t = THREE.MathUtils.clamp(elapsed / resetDurationMs, 0, 1);
-          const nextValue = THREE.MathUtils.lerp(fromValue, slider.min, easeOut(t));
+          const nextValue = THREE.MathUtils.lerp(fromValue, slider.min, easeOutShot(t));
           slider.set(nextValue, { animate: false });
           if (t < 1) {
             sliderResetRafRef.current = requestAnimationFrame(tickReset);
@@ -32577,7 +32576,7 @@ const powerRef = useRef(hud.power);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
-    shotStateRef.current = 'idle';
+    shotStateRef.current = SHOT_STATE.IDLE;
     shotPowerRef.current = 0;
     shotDragPowerRef.current = 0;
     cuePullCurrentRef.current = 0;
