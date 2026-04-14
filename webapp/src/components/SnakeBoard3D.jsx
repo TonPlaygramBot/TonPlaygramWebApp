@@ -292,9 +292,9 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.16,
+  backOffset: 1.24,
   forwardOffset: 0,
-  heightOffset: 2.88,
+  heightOffset: 2.98,
   targetLift: 0.074 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
