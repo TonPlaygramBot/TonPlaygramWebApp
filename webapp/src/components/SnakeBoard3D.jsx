@@ -241,6 +241,12 @@ const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.26,
   TILE_SIZE * 1.08
 ]);
+const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 1.24,
+  TILE_SIZE * 1.62,
+  TILE_SIZE * 0.3,
+  TILE_SIZE * 1.22
+]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.08,
@@ -251,14 +257,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2.05;
-const WEAPON_PARK_RADIUS = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.24;
-const WEAPON_PARK_LATERAL_BY_SEAT = Object.freeze([
-  -TOKEN_RADIUS * 0.02,
-  TOKEN_RADIUS * 0.12,
-  TOKEN_RADIUS * 0.04,
-  -TOKEN_RADIUS * 0.1
-]);
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2.25;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -4607,18 +4606,32 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
-    const seatWorld = new THREE.Vector3();
-    anchor.getWorldPosition(seatWorld);
-    const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-    if (seatDirection.lengthSq() < 1e-6) return;
-    seatDirection.normalize();
-    const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-    const markerPos = boardLookTarget
-      .clone()
-      .addScaledVector(seatDirection, WEAPON_PARK_RADIUS)
-      .addScaledVector(lateral, WEAPON_PARK_LATERAL_BY_SEAT[seatIndex] ?? 0);
-    holder.position.copy(markerPos);
-    holder.position.y = tableY + TOKEN_HEIGHT * 0.38;
+    const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
+    const railLayout = getSeatRailLayout(
+      board,
+      seatIndex,
+      TILE_SIZE * 0.08,
+      Number.isFinite(weaponInset) ? weaponInset : null
+    );
+    if (railLayout) {
+      const sideSign = seatIndex % 2 === 0 ? 1 : -1;
+      holder.position.copy(railLayout.railLocal).addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
+      holder.position.y = railLayout.railHeightY;
+    } else {
+      const seatWorld = new THREE.Vector3();
+      anchor.getWorldPosition(seatWorld);
+      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+      if (seatDirection.lengthSq() < 1e-6) return;
+      seatDirection.normalize();
+      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+      const markerPos = boardLookTarget
+        .clone()
+        .addScaledVector(seatDirection, radius)
+        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+      holder.position.copy(markerPos);
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.44;
+    }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
   });
 
