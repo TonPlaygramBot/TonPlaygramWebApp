@@ -69,6 +69,15 @@ const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
 const CAPTURE_PLAYER_VEHICLE_TEXTURE_CACHE = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
+const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
+  drone: 'rusty_metal_sheet',
+  fighter: 'green_metal_rust',
+  helicopter: 'green_metal_rust',
+  missile: 'green_metal_rust',
+  truck: 'green_metal_rust'
+});
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -102,6 +111,12 @@ const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   drone: 0.03,
   missile: 0.08
 };
+const CAPTURE_PARK_FACING_Y_OFFSET = Object.freeze({
+  fighter: -Math.PI / 2,
+  helicopter: -Math.PI / 2,
+  drone: -Math.PI / 2,
+  missile: -Math.PI / 2
+});
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -153,10 +168,30 @@ function getCaptureVehicleTexture(kind = 'generic') {
 }
 
 function createCaptureVehicleMaterial(kind, options = {}) {
+  const textureSet = CAPTURE_POLYHAVEN_TEXTURE_SETS.get(kind) || null;
   return new THREE.MeshStandardMaterial({
-    map: getCaptureVehicleTexture(kind),
+    map: textureSet?.diffuse || getCaptureVehicleTexture(kind),
+    normalMap: textureSet?.normal || null,
+    roughnessMap: textureSet?.roughness || null,
     ...options
   });
+}
+
+async function primeCaptureVehicleTextureSets(textureLoader, maxAnisotropy = 1) {
+  if (!textureLoader) return;
+  const entries = Object.entries(CAPTURE_POLYHAVEN_TEXTURE_ASSETS);
+  await Promise.all(
+    entries.map(async ([kind, assetId]) => {
+      if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
+      const set = await loadPolyhavenTextureSet(
+        assetId,
+        textureLoader,
+        maxAnisotropy,
+        CAPTURE_POLYHAVEN_TEXTURE_CACHE
+      );
+      if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
+    })
+  );
 }
 
 function getPlayerCaptureVehicleTexture(tokenColor) {
@@ -4531,6 +4566,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
   }, [aiLoadoutByPlayer]);
 
+  const orientParkedCaptureVehicleTowardsBoard = useCallback((vehicleRoot, vehicleType, lookTarget) => {
+    if (!vehicleRoot?.isObject3D || !lookTarget?.isVector3) return;
+    vehicleRoot.lookAt(lookTarget);
+    vehicleRoot.rotation.y += CAPTURE_PARK_FACING_Y_OFFSET[vehicleType] ?? 0;
+  }, []);
+
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
     if (!arena?.scene) return;
@@ -4568,10 +4609,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
-      jetFx.root.lookAt(arena.boardLookTarget);
-      helicopterFx.root.lookAt(arena.boardLookTarget);
-      droneFx.root.lookAt(arena.boardLookTarget);
-      missileFx.root.lookAt(arena.boardLookTarget);
+      orientParkedCaptureVehicleTowardsBoard(jetFx.root, 'fighter', arena.boardLookTarget);
+      orientParkedCaptureVehicleTowardsBoard(helicopterFx.root, 'helicopter', arena.boardLookTarget);
+      orientParkedCaptureVehicleTowardsBoard(droneFx.root, 'drone', arena.boardLookTarget);
+      orientParkedCaptureVehicleTowardsBoard(missileFx.root, 'missile', arena.boardLookTarget);
       // eslint-disable-next-line no-await-in-loop
       await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
       // eslint-disable-next-line no-await-in-loop
@@ -4604,7 +4645,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     updateParkedCaptureVehicleVisibility,
     applyCaptureVehiclePlayerTheme,
     fitCaptureVehicleToPlayerKing,
-    resolveCaptureParkingAnchors
+    resolveCaptureParkingAnchors,
+    orientParkedCaptureVehicleTowardsBoard
   ]);
 
   useEffect(() => {
@@ -5950,6 +5992,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       textureCacheRef.current = new Map();
       maxAnisotropyRef.current = maxAnisotropy;
       fallbackTextureRef.current = fallbackTexture;
+      void primeCaptureVehicleTextureSets(textureLoader, maxAnisotropy);
       applyRendererQuality();
 
       scene = new THREE.Scene();
