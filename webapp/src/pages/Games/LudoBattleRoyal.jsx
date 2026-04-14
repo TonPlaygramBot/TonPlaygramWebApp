@@ -76,6 +76,7 @@ const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   truck: 'green_metal_rust'
 });
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
+const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -122,6 +123,7 @@ const CAPTURE_ATTACK_TUNING = Object.freeze({
   droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
+const CAPTURE_CAMERA_TRACK_BLEND = 0.14;
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
@@ -208,6 +210,69 @@ async function primeCaptureVehicleTextureSets(maxAnisotropy = 1) {
       if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
     })
   );
+}
+
+function loadCaptureAvatarTexture(photoUrl) {
+  const cacheKey = photoUrl || 'default';
+  if (CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.has(cacheKey)) {
+    return CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.get(cacheKey);
+  }
+  const promise = new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      resolve(new THREE.CanvasTexture(canvas));
+      return;
+    }
+    const finalize = () => {
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
+      resolve(texture);
+    };
+    ctx.clearRect(0, 0, 256, 256);
+    ctx.beginPath();
+    ctx.arc(128, 128, 122, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    if (!photoUrl || !/^https?:\/\//i.test(photoUrl)) {
+      ctx.fillStyle = '#1f2937';
+      ctx.font = 'bold 128px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(photoUrl || '🙂').slice(0, 2), 128, 134);
+      finalize();
+      return;
+    }
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(128, 128, 120, 0, Math.PI * 2);
+      ctx.clip();
+      const ratio = Math.max(256 / image.width, 256 / image.height);
+      const drawW = image.width * ratio;
+      const drawH = image.height * ratio;
+      ctx.drawImage(image, (256 - drawW) * 0.5, (256 - drawH) * 0.5, drawW, drawH);
+      ctx.restore();
+      finalize();
+    };
+    image.onerror = () => {
+      ctx.fillStyle = '#1f2937';
+      ctx.font = 'bold 120px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🙂', 128, 134);
+      finalize();
+    };
+    image.src = photoUrl;
+  });
+  CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.set(cacheKey, promise);
+  return promise;
 }
 
 function fitObjectToTargetSize(root, targetSize) {
@@ -545,11 +610,11 @@ function applyMilitaryJetLook(root) {
     paintMeshMaterials(node, (mat) => {
       const materialName = `${mat.name || ''}`.toLowerCase();
       if (/cockpit|canopy|window|glass/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
-        mat.color.set('#000000');
-        if ('metalness' in mat) mat.metalness = 0.58;
-        if ('roughness' in mat) mat.roughness = 0.18;
+        mat.color.set('#020304');
+        if ('metalness' in mat) mat.metalness = 0.48;
+        if ('roughness' in mat) mat.roughness = 0.24;
         if ('transparent' in mat) mat.transparent = true;
-        if ('opacity' in mat) mat.opacity = 0.99;
+        if ('opacity' in mat) mat.opacity = 0.98;
         return;
       }
       if (/missile|rocket|store|pod/.test(name)) {
@@ -1725,8 +1790,8 @@ const PORTRAIT_CAMERA_EXTRA_LIFT = 0.062;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(32);
-const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-20);
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(22);
+const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
@@ -4440,6 +4505,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       };
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
+  const playersRef = useRef(players);
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
+
+  const applyCaptureVehiclePlayerTheme = useCallback(async (vehicleRoot, playerIndex) => {
+    if (!vehicleRoot?.isObject3D) return;
+    const player = playersRef.current[playerIndex];
+    const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
+    const badgeGeo = new THREE.CircleGeometry(0.25, 32);
+    const badgeMat = new THREE.MeshBasicMaterial({
+      map: avatarTexture,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    const leftBadge = new THREE.Mesh(badgeGeo, badgeMat);
+    leftBadge.position.set(-0.12, 0.05, -0.44);
+    leftBadge.rotation.y = Math.PI / 2;
+    const rightBadge = leftBadge.clone();
+    rightBadge.position.z = 0.44;
+    rightBadge.rotation.y = -Math.PI / 2;
+    vehicleRoot.add(leftBadge);
+    vehicleRoot.add(rightBadge);
+  }, []);
+
   const getKingTokenHeightForPlayer = useCallback((playerIndex) => {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
     if (!Array.isArray(playerTokens) || !playerTokens.length) return 0.28;
@@ -4558,6 +4648,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
+      // eslint-disable-next-line no-await-in-loop
+      await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
+      // eslint-disable-next-line no-await-in-loop
+      await applyCaptureVehiclePlayerTheme(helicopterFx.root, playerIndex);
+      // eslint-disable-next-line no-await-in-loop
+      await applyCaptureVehiclePlayerTheme(droneFx.root, playerIndex);
+      // eslint-disable-next-line no-await-in-loop
+      await applyCaptureVehiclePlayerTheme(missileFx.root, playerIndex);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
@@ -4567,10 +4665,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         helicopter: helicopterFx.root,
         drone: droneFx.root,
         missile: missileFx.root,
-        helicopterRotor: helicopterFx.rotor,
-        helicopterTailRotor: helicopterFx.tailRotor,
-        helicopterTopRotorAxis: helicopterFx.topRotorAxis,
-        helicopterTailRotorAxis: helicopterFx.tailRotorAxis,
         jetPark,
         helicopterPark,
         dronePark,
@@ -4584,6 +4678,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [
     activePlayerCount,
     updateParkedCaptureVehicleVisibility,
+    applyCaptureVehiclePlayerTheme,
     fitCaptureVehicleToPlayerKing,
     resolveCaptureParkingAnchors
   ]);
@@ -6417,11 +6512,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         -CAMERA_LOOK_YAW_LIMIT,
         CAMERA_LOOK_YAW_LIMIT
       );
-      lookState.pitch = clamp(
-        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-        CAMERA_LOOK_MIN_PITCH,
-        CAMERA_LOOK_PITCH_LIMIT
-      );
+      if (!lockUserTurnSeatViewRef.current) {
+        lookState.pitch = clamp(
+          lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+          CAMERA_LOOK_MIN_PITCH,
+          CAMERA_LOOK_PITCH_LIMIT
+        );
+      }
       applyCameraLookOffset();
       if (stateRef.current?.turn === 0) {
         preserveUserTurnCameraRef.current = true;
@@ -6537,15 +6634,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           lights.target.position.copy(pos);
         }
       }
-
-      parkedCaptureVehiclesRef.current.forEach((entry) => {
-        if (entry?.helicopterRotor) {
-          entry.helicopterRotor.rotateOnAxis(entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0), dt * 22);
-        }
-        if (entry?.helicopterTailRotor) {
-          entry.helicopterTailRotor.rotateOnAxis(entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0), dt * 24);
-        }
-      });
 
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
@@ -6882,6 +6970,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : createCaptureMissileFx();
         if (isFighterJetAttack || isHelicopterAttack) {
           fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
+          await applyCaptureVehiclePlayerTheme(primaryFx.root, attackerPlayer);
         }
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
@@ -6934,11 +7023,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
         moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
         setCameraFocus({
-          object: primaryFx.root,
           target: launchAnchor,
-          follow: true,
+          follow: false,
           priority: 7,
-          ttl: 1.8,
+          ttl: 1.1,
           offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
           force: true
         });
@@ -7152,15 +7240,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.position.copy(pos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
             if (CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) {
-              setCameraFocus({
-                object: primaryFx.root,
-                target: pos,
-                follow: true,
-                priority: 7,
-                ttl: 0,
-                offset: Math.max(0.004, (CAMERA_TARGET_LIFT - 0.018) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                force: true
-              });
+              const camera = arenaRef.current?.camera;
+              if (camera) {
+                const blended = camera.position.clone().lerp(pos, CAPTURE_CAMERA_TRACK_BLEND);
+                setCameraFocus({
+                  target: blended,
+                  follow: false,
+                  priority: 7,
+                  ttl: 0.18,
+                  offset: Math.max(0.004, (CAMERA_TARGET_LIFT - 0.018) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+                  force: true
+                });
+              }
             }
             const isVerticalImpactVehicle = selectedCaptureAnimationId === 'missileJavelin';
             if (isVerticalImpactVehicle && u > phaseSplit) {
@@ -7247,14 +7338,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 ) {
                   helicopterMissileImpactAt = elapsed;
                   explosion.root.position.copy(dynamicTo.clone().add(new THREE.Vector3(0, 0.02, 0)));
-                  setCameraFocus({
-                    target: dynamicTo,
-                    follow: false,
-                    priority: 8,
-                    ttl: 0.75,
-                    offset: Math.max(0.006, CAMERA_TARGET_LIFT - 0.012),
-                    force: true
-                  });
                   playMissileImpactSound();
                   playExplosionBombSound();
                   playCapture();
@@ -7337,14 +7420,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             updateExplosionRig(explosionElapsed);
             if (!explosionTriggered) {
               explosionTriggered = true;
-              setCameraFocus({
-                target: liveTarget,
-                follow: false,
-                priority: 8,
-                ttl: 0.75,
-                offset: Math.max(0.006, CAMERA_TARGET_LIFT - 0.012),
-                force: true
-              });
               playMissileImpactSound();
               playExplosionBombSound();
               playCapture();
