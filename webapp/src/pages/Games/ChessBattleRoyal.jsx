@@ -1966,18 +1966,14 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.155,
-  hexagonTable: -0.155,
-  grandOval: -0.155,
-  diamondEdge: -0.155
+  classicOctagon: -0.065,
+  hexagonTable: -0.065,
+  grandOval: -0.065,
+  diamondEdge: -0.065
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 5;
-const SIDE_AIRPAD_INWARD_TILES = 0.34;
-const SIDE_AIRPAD_SLOT_SPREAD_TILES = 0.18;
-const SIDE_AIRPAD_ALTITUDE_OFFSET = 0.34;
-const SIDE_AIRPAD_TRUCK_ALTITUDE_OFFSET = 0.26;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8632,7 +8628,7 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.42 : 1.68) + 0.28;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
     const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
     const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
@@ -9302,8 +9298,7 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const edgeX = half - tile * SIDE_AIRPAD_INWARD_TILES;
-      const sideX = isWhiteSide ? -edgeX : edgeX;
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
       const laneMap = {
         jet: tile * 1.48,
         drone: tile * 0.74,
@@ -9311,12 +9306,9 @@ function Chess3D({
         truck: -tile * 1.48
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * SIDE_AIRPAD_SLOT_SPREAD_TILES : tile * SIDE_AIRPAD_SLOT_SPREAD_TILES;
+      const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
       const zOffset = laneBase + laneShift;
-      const yOffset =
-        kind === 'truck'
-          ? currentPieceYOffset + SIDE_AIRPAD_TRUCK_ALTITUDE_OFFSET
-          : currentPieceYOffset + SIDE_AIRPAD_ALTITUDE_OFFSET;
+      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.14 : currentPieceYOffset + 0.26;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -12558,18 +12550,12 @@ function Chess3D({
                 };
             const depth = anchor?.depth ?? 3;
             const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
-            const avatarInteractive = !configOpen && viewMode !== '3d';
-            const isTopSeat = player.index === 1;
-            const avatarVisualStyle =
-              viewMode === '3d' && isTopSeat
-                ? { opacity: 0.62, transform: `${positionStyle.transform} translateY(-12%)` }
-                : null;
             return (
               <div
                 key={`chess-seat-${player.index}`}
-                className={`absolute flex flex-col items-center ${avatarInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                className="absolute pointer-events-auto flex flex-col items-center"
                 data-player-index={player.index}
-                style={avatarVisualStyle ? { ...positionStyle, ...avatarVisualStyle } : positionStyle}
+                style={positionStyle}
               >
                 <AvatarTimer
                   index={player.index}
