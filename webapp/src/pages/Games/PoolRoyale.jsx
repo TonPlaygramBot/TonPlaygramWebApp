@@ -1912,6 +1912,7 @@ const STRIKE_TIME = 120;
 const HOLD_TIME = 50;
 const IDLE_GAP = 0;
 const CONTACT_GAP = CUE_TIP_GAP;
+const SLIDER_MIN_SHOT_POWER = 0.02;
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
 const CUE_PULL_DISTANCE_SCALE = 0.5;
@@ -26178,7 +26179,7 @@ const powerRef = useRef(hud.power);
             : powerRef.current;
         const clampedPower = clampPower(resolvedPower, 0);
         shotPowerRef.current = clampedPower;
-        shotStateRef.current = clampedPower > 0.02 ? 'striking' : 'idle';
+        shotStateRef.current = clampedPower > SLIDER_MIN_SHOT_POWER ? 'striking' : 'idle';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -32493,6 +32494,7 @@ const powerRef = useRef(hud.power);
       labels: true,
       onChange: (v) => {
         const normalizedPower = clampPower(v / 100, 0);
+        sliderShotPowerRef.current = normalizedPower;
         shotDragPowerRef.current = normalizedPower;
         if (shotStateRef.current === 'dragging') {
           shotPowerRef.current = normalizedPower;
@@ -32505,21 +32507,25 @@ const powerRef = useRef(hud.power);
           sliderResetRafRef.current = 0;
         }
         shotStateRef.current = 'dragging';
-        shotDragPowerRef.current = clampPower(powerRef.current, 0);
+        shotDragPowerRef.current = clampPower(slider.get() / 100, 0);
         shotPowerRef.current = shotDragPowerRef.current;
-        sliderShotPowerRef.current = clampPower(powerRef.current, 0);
+        sliderShotPowerRef.current = shotDragPowerRef.current;
         captureCueStickAnchor();
       },
       onCommit: (sliderValue) => {
         const releasePower = clampPower(
-          Number.isFinite(sliderValue) ? sliderValue / 100 : sliderShotPowerRef.current,
-          powerRef.current
+          shotStateRef.current === 'dragging'
+            ? shotDragPowerRef.current
+            : Number.isFinite(sliderValue)
+              ? sliderValue / 100
+              : sliderShotPowerRef.current,
+          0
         );
         shotPowerRef.current = releasePower;
-        shotDragPowerRef.current = releasePower;
+        shotDragPowerRef.current = 0;
         sliderShotPowerRef.current = releasePower;
-        shotStateRef.current = releasePower > 0.02 ? 'striking' : 'idle';
-        if (releasePower > 0.02) {
+        shotStateRef.current = releasePower > SLIDER_MIN_SHOT_POWER ? 'striking' : 'idle';
+        if (releasePower > SLIDER_MIN_SHOT_POWER) {
           fireRef.current?.(releasePower);
         }
         const resetStart = performance.now();
@@ -32531,12 +32537,14 @@ const powerRef = useRef(hud.power);
           const t = THREE.MathUtils.clamp(elapsed / resetDurationMs, 0, 1);
           const nextValue = THREE.MathUtils.lerp(fromValue, slider.min, easeOut(t));
           slider.set(nextValue, { animate: false });
+          applyPower(clampPower(nextValue / 100, 0));
           if (t < 1) {
             sliderResetRafRef.current = requestAnimationFrame(tickReset);
             return;
           }
           sliderResetRafRef.current = 0;
           slider.set(slider.min, { animate: false });
+          applyPower(0);
         };
         if (sliderResetRafRef.current) {
           cancelAnimationFrame(sliderResetRafRef.current);
