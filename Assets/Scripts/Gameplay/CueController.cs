@@ -70,6 +70,8 @@ namespace Aiming
         float _power;
         float _maxPowerDuringCharge;
         float _latchedShotPower;
+        Vector2 _liveSpinInput;
+        Vector2 _latchedShotSpin;
         ShotState _shotState = ShotState.Idle;
 
         void Update()
@@ -125,6 +127,7 @@ namespace Aiming
             }
 
             _cueAnchorPosition = cueBall.position;
+            _latchedShotSpin = _liveSpinInput;
             _shotState = ShotState.Dragging;
             _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
             _maxPowerDuringCharge = _power;
@@ -137,7 +140,8 @@ namespace Aiming
 
         public void SetSpinInput(Vector2 normalizedSpin)
         {
-            spinInput = Vector2.ClampMagnitude(normalizedSpin, 1f);
+            _liveSpinInput = Vector2.ClampMagnitude(normalizedSpin, 1f);
+            spinInput = _liveSpinInput;
         }
 
         public void CancelCharge()
@@ -151,6 +155,7 @@ namespace Aiming
             _power = 0f;
             _maxPowerDuringCharge = 0f;
             _latchedShotPower = 0f;
+            _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
             UpdateCuePose();
@@ -228,7 +233,15 @@ namespace Aiming
 
         void UpdateCuePose()
         {
-            Vector3 anchor = _cueAnchorPosition;
+            Vector2 activeSpin = _shotState == ShotState.Striking ? _latchedShotSpin : _liveSpinInput;
+            Vector3 right = Vector3.Cross(Vector3.up, _aimDirection).normalized;
+            if (right.sqrMagnitude < 1e-6f)
+            {
+                right = transform.right;
+            }
+
+            Vector3 spinOffset = (right * (activeSpin.x * ballRadius * 0.65f)) + (Vector3.up * (activeSpin.y * ballRadius * 0.65f));
+            Vector3 anchor = _cueAnchorPosition + spinOffset;
             float cueDistance = baseCueOffset + _currentCueDepth;
             transform.position = anchor - _aimDirection * cueDistance;
             transform.rotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
@@ -325,12 +338,12 @@ namespace Aiming
             float pull = Mathf.Max(0f, _chargedCueDepth - idleTipGap);
             float visualPull = Mathf.Max(pull, minimumVisualPull);
             float startDepth = idleTipGap + visualPull;
-            float hitDepth = idleTipGap;
-            float contactDepth = contactTipGap;
+            float topspin = Mathf.Max(0f, _latchedShotSpin.y * shotPower);
+            float extraFollow = Mathf.Min(0.018f, topspin * 0.016f);
+            float contactDepth = contactTipGap - extraFollow;
             float elapsed = 0f;
             bool didStrike = false;
-            float contactStartT = Mathf.Clamp01(1f - contactDrivePortion);
-            float hitT = Mathf.Clamp01(Mathf.Max(hitProgress, contactStartT));
+            float hitT = Mathf.Clamp01(hitProgress);
             _currentCueDepth = startDepth;
             UpdateCuePose();
 
@@ -338,19 +351,7 @@ namespace Aiming
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
-                float cueDepth;
-                if (t < contactStartT)
-                {
-                    float phaseT = contactStartT > 0f ? t / contactStartT : 1f;
-                    cueDepth = Mathf.Lerp(startDepth, hitDepth, EaseOutCubic(phaseT));
-                }
-                else
-                {
-                    float phaseT = contactStartT < 1f ? (t - contactStartT) / (1f - contactStartT) : 1f;
-                    cueDepth = Mathf.Lerp(hitDepth, contactDepth, EaseOutCubic(phaseT));
-                }
-
-                _currentCueDepth = cueDepth;
+                _currentCueDepth = Mathf.Lerp(startDepth, contactDepth, EaseOutCubic(t));
                 UpdateCuePose();
 
                 if (!didStrike && t >= hitT)
@@ -375,6 +376,7 @@ namespace Aiming
             _power = 0f;
             _maxPowerDuringCharge = 0f;
             _latchedShotPower = 0f;
+            _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _shotState = ShotState.Idle;
             UpdateCuePose();
@@ -418,7 +420,8 @@ namespace Aiming
             cueBallBody.WakeUp();
 
             float impulseMagnitude = Mathf.Lerp(minStrikeImpulse, maxStrikeImpulse, normalizedPower);
-            strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, spinInput, ballRadius);
+            Vector2 appliedSpin = _shotState == ShotState.Striking ? _latchedShotSpin : _liveSpinInput;
+            strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, appliedSpin, ballRadius);
         }
 
         static float EaseOutCubic(float t)
