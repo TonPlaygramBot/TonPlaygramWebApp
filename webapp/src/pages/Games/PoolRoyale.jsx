@@ -32454,6 +32454,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const sliderResetRafRef = useRef(0);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -32468,6 +32469,10 @@ const powerRef = useRef(hud.power);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
+        if (sliderResetRafRef.current) {
+          cancelAnimationFrame(sliderResetRafRef.current);
+          sliderResetRafRef.current = 0;
+        }
         captureCueStickAnchor();
       },
       onCommit: (sliderValue) => {
@@ -32476,15 +32481,35 @@ const powerRef = useRef(hud.power);
           powerRef.current
         );
         fireRef.current?.(releasePower);
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+        const resetStart = performance.now();
+        const fromValue = slider.get();
+        const resetDurationMs = 160;
+        const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+        const tickReset = () => {
+          const elapsed = performance.now() - resetStart;
+          const t = THREE.MathUtils.clamp(elapsed / resetDurationMs, 0, 1);
+          const nextValue = THREE.MathUtils.lerp(fromValue, slider.min, easeOut(t));
+          slider.set(nextValue, { animate: false });
+          if (t < 1) {
+            sliderResetRafRef.current = requestAnimationFrame(tickReset);
+            return;
+          }
+          sliderResetRafRef.current = 0;
+          slider.set(slider.min, { animate: false });
+        };
+        if (sliderResetRafRef.current) {
+          cancelAnimationFrame(sliderResetRafRef.current);
+        }
+        sliderResetRafRef.current = requestAnimationFrame(tickReset);
       }
     });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
+      if (sliderResetRafRef.current) {
+        cancelAnimationFrame(sliderResetRafRef.current);
+        sliderResetRafRef.current = 0;
+      }
       sliderInstanceRef.current = null;
       slider.destroy();
     };
