@@ -26174,7 +26174,7 @@ const powerRef = useRef(hud.power);
         }
         const resolvedPower = Number.isFinite(powerOverride)
           ? powerOverride
-          : shotPowerRef.current > 0
+          : shotStateRef.current === 'striking' || shotStateRef.current === 'dragging'
             ? shotPowerRef.current
             : powerRef.current;
         const clampedPower = clampPower(resolvedPower, 0);
@@ -32521,15 +32521,9 @@ const powerRef = useRef(hud.power);
         sliderShotPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
-      onCommit: (sliderValue) => {
+      onCommit: () => {
         const capturedShotPower = clampPower(shotDragPowerRef.current, 0);
-        const releasePower = clampPower(
-          Number.isFinite(sliderValue) ? sliderValue / 100 : capturedShotPower,
-          powerRef.current
-        );
-        const finalShotPower = Number.isFinite(sliderValue)
-          ? releasePower
-          : capturedShotPower;
+        const finalShotPower = capturedShotPower;
         shotPowerRef.current = finalShotPower;
         shotDragPowerRef.current = finalShotPower;
         sliderShotPowerRef.current = finalShotPower;
