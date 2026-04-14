@@ -237,6 +237,9 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   TOKEN_RADIUS * 0.08,
   -TOKEN_RADIUS * 0.02
 ]);
+const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
+const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
+const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -276,19 +279,19 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.12;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.31;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.96,
+  backOffset: 0.82,
   forwardOffset: 0,
-  heightOffset: 2.42,
+  heightOffset: 2.36,
   targetLift: 0.055 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.68,
+  backOffset: 0.54,
   forwardOffset: 0,
-  heightOffset: 1.2,
+  heightOffset: 1.08,
   targetLift: 0.08 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
@@ -3225,6 +3228,67 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
   }
 }
 
+function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0) {
+  const anchor = board?.seatAnchors?.[seatIndex];
+  const boardLookTarget = board?.boardLookTarget;
+  const boardRoot = board?.boardRoot;
+  if (!anchor || !boardLookTarget || !boardRoot) return null;
+
+  const seatWorld = new THREE.Vector3();
+  anchor.getWorldPosition(seatWorld);
+  const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+  if (seatDirection.lengthSq() < 0.0001) return null;
+  seatDirection.normalize();
+  const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+  const seatDistance = seatWorld.distanceTo(boardLookTarget);
+  const inwardInset = TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
+  let restRadius = clamp(
+    seatDistance - inwardInset,
+    TOKEN_REST_MIN_RADIUS,
+    Math.max(TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.4, seatDistance - TOKEN_RADIUS * 0.55)
+  );
+
+  const tableInfo = board?.tableInfo;
+  if (tableInfo?.getInnerRadius) {
+    const inner = tableInfo.getInnerRadius(seatDirection);
+    if (Number.isFinite(inner) && inner > 0) {
+      const outer = tableInfo.getOuterRadius?.(seatDirection) ?? inner;
+      const rimInner = Math.min(inner, outer);
+      const rimOuter = Math.max(inner, outer);
+      const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
+      restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
+      restRadius = Math.max(restRadius, BOARD_RADIUS + TILE_SIZE * 1.1);
+      if (Number.isFinite(rimOuter)) {
+        restRadius = Math.min(restRadius, rimOuter - 0.12);
+      }
+    }
+  }
+  if (tableInfo?.getOuterRadius) {
+    const outer = tableInfo.getOuterRadius(seatDirection);
+    if (Number.isFinite(outer) && outer > 0) {
+      restRadius = Math.min(restRadius, outer - 0.14);
+    }
+  }
+  if (seatDirection.z < -0.2) {
+    restRadius += TILE_SIZE * 0.52;
+  } else if (seatDirection.z > 0.2) {
+    restRadius -= TILE_SIZE * 0.46;
+  }
+  restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
+
+  const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
+  const railWorld = boardLookTarget
+    .clone()
+    .addScaledVector(seatDirection, restRadius)
+    .addScaledVector(lateral, railSpread)
+    .addScaledVector(seatDirection, -SEAT_RAIL_FORWARD_BIAS);
+  const railLocal = railWorld.clone();
+  boardRoot.worldToLocal(railLocal);
+  const railHeightY = TOKEN_HEIGHT * 0.44;
+  railLocal.y = railHeightY;
+  return { railLocal, railHeightY, seatDirection, lateral };
+}
+
 function updateTokens(
   boardTokensGroup,
   reserveTokensGroup,
@@ -3503,55 +3567,17 @@ function updateTokens(
       baseVector.y += TOKEN_HEIGHT * 0.02;
       worldPos = baseVector;
     } else {
-      const seatAnchor = Number.isFinite(seatIndex) ? seatAnchors?.[seatIndex] : null;
-      if (seatAnchor && boardLookTarget && boardRoot) {
-        const seatWorld = new THREE.Vector3();
-        seatAnchor.getWorldPosition(seatWorld);
-        const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-        if (seatDirection.lengthSq() > 0.0001) {
-          seatDirection.normalize();
-          const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-          const seatDistance = seatWorld.distanceTo(boardLookTarget);
-          const inwardInset = TOKEN_REST_RAIL_INSET_BY_SEAT[seatIndex] ?? TILE_SIZE * 1.35;
-          let restRadius = clamp(
-            seatDistance - inwardInset,
-            TOKEN_REST_MIN_RADIUS,
-            Math.max(TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.4, seatDistance - TOKEN_RADIUS * 0.55)
-          );
-          if (tableInfo?.getInnerRadius) {
-            const inner = tableInfo.getInnerRadius(seatDirection);
-            if (Number.isFinite(inner) && inner > 0) {
-              const outer = tableInfo.getOuterRadius?.(seatDirection) ?? inner;
-              const rimInner = Math.min(inner, outer);
-              const rimOuter = Math.max(inner, outer);
-              const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
-              restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
-              restRadius = Math.max(restRadius, BOARD_RADIUS + TILE_SIZE * 1.1);
-              if (Number.isFinite(rimOuter)) {
-                restRadius = Math.min(restRadius, rimOuter - 0.12);
-              }
-            }
-          }
-          if (tableInfo?.getOuterRadius) {
-            const outer = tableInfo.getOuterRadius(seatDirection);
-            if (Number.isFinite(outer) && outer > 0) {
-              restRadius = Math.min(restRadius, outer - 0.14);
-            }
-          }
-          if (seatDirection.z < -0.2) {
-            restRadius += TILE_SIZE * 0.52;
-          } else if (seatDirection.z > 0.2) {
-            restRadius -= TILE_SIZE * 0.46;
-          }
-          restRadius = Math.max(restRadius, TOKEN_REST_MIN_RADIUS);
-          const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
-          const railWorld = boardLookTarget
+      if (Number.isFinite(seatIndex)) {
+        const railLayout = getSeatRailLayout(
+          { seatAnchors, boardLookTarget, boardRoot, tableInfo },
+          seatIndex
+        );
+        if (railLayout) {
+          const sideSign = seatIndex % 2 === 0 ? -1 : 1;
+          worldPos = railLayout.railLocal
             .clone()
-            .addScaledVector(seatDirection, restRadius)
-            .addScaledVector(lateral, railSpread);
-          worldPos = railWorld.clone();
-          boardRoot.worldToLocal(worldPos);
-          worldPos.y = TOKEN_HEIGHT * 0.44;
+            .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
+          worldPos.y = railLayout.railHeightY;
         }
       }
       if (!worldPos) {
@@ -4077,7 +4103,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       : weaponType === 'drone'
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
-  group.scale.setScalar(displayScale);
+  group.scale.setScalar(displayScale * 1.5);
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -4125,11 +4151,16 @@ function updateSeatWeaponDisplays(board, players = []) {
     const tokenMesh =
       board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
       board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index);
-    if (tokenMesh) {
+    const railLayout = getSeatRailLayout(board, seatIndex, TILE_SIZE * 0.08);
+    if (railLayout) {
+      const sideSign = seatIndex % 2 === 0 ? 1 : -1;
+      holder.position.copy(railLayout.railLocal).addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
+      holder.position.y = railLayout.railHeightY;
+    } else if (tokenMesh) {
       const sideSign = seatIndex % 2 === 0 ? 1 : -1;
       holder.position.copy(tokenMesh.position);
-      holder.position.x += sideSign * TOKEN_RADIUS * 2.9;
-      holder.position.z += TOKEN_RADIUS * 0.55;
+      holder.position.x += sideSign * TOKEN_RADIUS * 2.6;
+      holder.position.z += TOKEN_RADIUS * 0.5;
       holder.position.y = tokenMesh.position.y;
     } else {
       const seatWorld = new THREE.Vector3();
