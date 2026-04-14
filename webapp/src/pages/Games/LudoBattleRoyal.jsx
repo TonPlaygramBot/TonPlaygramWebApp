@@ -549,15 +549,15 @@ function applyMilitaryJetLook(root) {
       const materialName = `${mat.name || ''}`.toLowerCase();
       if (
         cockpitSet.has(node) ||
-        /cockpit|canopy|window|glass/.test(name) ||
-        /window|glass/.test(materialName) ||
+        /cockpit|canopy|window|glass|windscreen|windshield/.test(name) ||
+        /cockpit|window|glass|windscreen|windshield/.test(materialName) ||
         mat.transparent
       ) {
-        mat.color.set('#020304');
+        mat.color.set('#000000');
         if ('metalness' in mat) mat.metalness = 0.48;
         if ('roughness' in mat) mat.roughness = 0.24;
         if ('transparent' in mat) mat.transparent = true;
-        if ('opacity' in mat) mat.opacity = 0.98;
+        if ('opacity' in mat) mat.opacity = 0.96;
         return;
       }
       if (exhaustSet.has(node)) {
@@ -1060,23 +1060,6 @@ async function createCaptureDroneFx() {
   );
   spine.position.set(0.15, 0.03, 0);
   root.add(spine);
-  const finLeft = createFxPolygon(
-    [
-      [-0.28, 0],
-      [0.22, 0],
-      [-0.04, 0.55]
-    ],
-    0.04,
-    '#838b90',
-    0.55,
-    0.24
-  );
-  finLeft.rotation.z = Math.PI / 2;
-  finLeft.position.set(-0.4, 0.35, -0.25);
-  root.add(finLeft);
-  const finRight = finLeft.clone();
-  finRight.position.z = 0.25;
-  root.add(finRight);
   addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, -0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
   addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, 0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
   addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
@@ -1282,7 +1265,7 @@ async function createCaptureHelicopterFx() {
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.26, [0.72, 0.18, 0], '#22303d', 0.18, 0.28);
+  const cockpit = addFxSphere(root, 0.26, [0.72, 0.18, 0], '#000000', 0.18, 0.28);
   cockpit.scale.set(1.2, 0.68, 0.72);
   addFxCylinder(root, 0.08, 0.1, 1.25, [-1.7, 0.1, 0], [0, 0, Math.PI / 2], '#6f7881', 16, 0.56, 0.24);
   addFxBox(root, [1.0, 0.08, 0.1], [0.2, -0.28, 0], '#4f5963', 0.6, 0.2);
@@ -6552,20 +6535,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const delta = appliedDeltaMs / 1000;
       parkedCaptureVehiclesRef.current.forEach((entry) => {
         if (entry?.helicopterRotor?.isObject3D) {
-          entry.helicopterRotor.rotateOnAxis(
-            entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0),
-            delta * 26
-          );
+          entry.helicopterRotor.rotateOnAxis(entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0), delta * 22);
         }
         if (entry?.helicopterTailRotor?.isObject3D) {
-          entry.helicopterTailRotor.rotateOnAxis(
-            entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0),
-            delta * 30
-          );
+          entry.helicopterTailRotor.rotateOnAxis(entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0), delta * 24);
         }
         if (entry?.dronePropeller?.isObject3D) {
-          entry.dronePropeller.rotation.y += delta * 12;
-          entry.dronePropeller.rotation.x += delta * 12;
+          entry.dronePropeller.rotation.x += delta * 40;
         }
       });
 
@@ -7272,14 +7248,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
             }
             if (primaryFx.propeller) {
-              primaryFx.propeller.rotation.y += 1.2;
-              primaryFx.propeller.rotation.x += 1.2;
+              primaryFx.propeller.rotation.x += dt * 40;
             }
             if (primaryFx.rotor) {
-              primaryFx.rotor.rotateOnAxis(primaryFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0), dt * 36);
+              primaryFx.rotor.rotateOnAxis(primaryFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0), dt * 35);
             }
             if (primaryFx.tailRotor) {
-              primaryFx.tailRotor.rotateOnAxis(primaryFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0), dt * 40);
+              primaryFx.tailRotor.rotateOnAxis(primaryFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0), dt * 35);
             }
             primaryFx.trail.forEach((puff, i) => {
               const isJetTrail = selectedCaptureAnimationId === 'fighterJetAttack';
@@ -7309,10 +7284,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               primaryFx.exhaustTrail.forEach((puff, i) => {
                 const lane = i % 2 === 0 ? -1 : 1;
                 const pairIndex = Math.floor(i / 2);
+                let anchor = null;
+                if (Array.isArray(primaryFx.exhaustNodes) && primaryFx.exhaustNodes.length) {
+                  const sourceNode = primaryFx.exhaustNodes[Math.min(primaryFx.exhaustNodes.length - 1, Math.max(0, lane > 0 ? 1 : 0))];
+                  if (sourceNode?.isObject3D) {
+                    anchor = sourceNode.getWorldPosition(new THREE.Vector3());
+                    primaryFx.root.worldToLocal(anchor);
+                  }
+                }
                 puff.position.set(
-                  -1.7 - pairIndex * 0.24,
-                  Math.sin(elapsed * 0.022 + i * 0.45) * 0.025,
-                  lane * 0.22 + Math.sin(elapsed * 0.013 + i * 0.33) * 0.02
+                  (anchor?.x ?? -1.7) - pairIndex * 0.24,
+                  (anchor?.y ?? 0) + Math.sin(elapsed * 0.022 + i * 0.45) * 0.025,
+                  (anchor?.z ?? lane * 0.22) + Math.sin(elapsed * 0.013 + i * 0.33) * 0.02
                 );
                 const glowPulse = 0.82 + Math.sin(elapsed * 0.024 + i * 0.7) * 0.18;
                 const baseScale = pairIndex < 2 ? 0.86 : 1.02 + (pairIndex - 2) * 0.12;
