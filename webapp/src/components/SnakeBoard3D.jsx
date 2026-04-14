@@ -257,8 +257,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_REST_VERTICAL_OFFSET = -TOKEN_HEIGHT * 0.16;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
@@ -304,16 +303,16 @@ const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.92,
+  backOffset: 1.78,
   forwardOffset: 0,
-  heightOffset: 3.78,
-  targetLift: 0.03 * MODEL_SCALE
+  heightOffset: 3.62,
+  targetLift: 0.038 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.7,
+  backOffset: 0.6,
   forwardOffset: 0,
-  heightOffset: 1.28,
-  targetLift: 0.075 * MODEL_SCALE
+  heightOffset: 1.2,
+  targetLift: 0.09 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
@@ -3455,9 +3454,9 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
     }
   }
   if (seatDirection.z < -0.2) {
-    restRadius += TILE_SIZE * 0.7;
+    restRadius += TILE_SIZE * 0.52;
   } else if (seatDirection.z > 0.2) {
-    restRadius -= TILE_SIZE * 0.62;
+    restRadius -= TILE_SIZE * 0.46;
   }
   restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
 
@@ -4621,7 +4620,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .copy(railLayout.railLocal)
         .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
         .addScaledVector(railLayout.seatDirection, WEAPON_PARKING_OUTWARD_OFFSET);
-      holder.position.y = railLayout.railHeightY + WEAPON_REST_VERTICAL_OFFSET;
+      holder.position.y = railLayout.railHeightY;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4635,7 +4634,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = tableY + TOKEN_HEIGHT * 0.44 + WEAPON_REST_VERTICAL_OFFSET;
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.44;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
   });
