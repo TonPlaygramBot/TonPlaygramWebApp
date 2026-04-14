@@ -1974,7 +1974,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.34;
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.2;
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
 
 function getTableHeightForShape(shapeId) {
@@ -2950,6 +2950,16 @@ function inferRotorSpinAxis(node, fallbackAxis = 'y') {
   if (chosen === 'x') return new THREE.Vector3(1, 0, 0);
   if (chosen === 'z') return new THREE.Vector3(0, 0, 1);
   return new THREE.Vector3(0, 1, 0);
+}
+
+function isDescendantOf(node, ancestor) {
+  if (!node || !ancestor) return false;
+  let current = node;
+  while (current) {
+    if (current === ancestor) return true;
+    current = current.parent || null;
+  }
+  return false;
 }
 
 function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, toneSeed = null, skin = null) {
@@ -9158,9 +9168,15 @@ function Chess3D({
         root.add(model);
         const tailRotor = findCaptureRotor(model, 'tail');
         let topRotor = findCaptureRotor(model, 'main');
+        const rotorNodes = [];
+        model.traverse((node) => {
+          if (!node?.isObject3D) return;
+          const name = `${node.name || ''}`.toLowerCase();
+          if (/rotor|propell|blade|fan/.test(name)) rotorNodes.push(node);
+        });
         if (!topRotor) {
           model.traverse((node) => {
-            if (topRotor || !node?.isMesh || node === tailRotor) return;
+            if (topRotor || !node?.isMesh || isDescendantOf(node, tailRotor)) return;
             const name = `${node.name || ''}`.toLowerCase();
             if (/rotor|propell|blade|fan/.test(name)) {
               topRotor = node;
@@ -9168,9 +9184,9 @@ function Chess3D({
           });
         }
         applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
-        const topRotorAxis = inferRotorSpinAxis(topRotor, 'y');
+        const topRotorAxis = new THREE.Vector3(0, 1, 0);
         const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
-        return { root, topRotor, tailRotor, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
+        return { root, topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -9273,11 +9289,57 @@ function Chess3D({
     };
     const createFxSupportTruck = () => {
       const root = new THREE.Group();
+      const addRoofLongMissiles = (target, referenceObject) => {
+        if (!target) return;
+        const bounds = referenceObject ? new THREE.Box3().setFromObject(referenceObject) : new THREE.Box3();
+        if (bounds.isEmpty()) {
+          bounds.min.set(-1.1, -0.3, -0.5);
+          bounds.max.set(1.1, 0.5, 0.5);
+        }
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const missileLength = Math.max(size.x * 0.9, 1.35);
+        const rackY = bounds.max.y + Math.max(size.y * 0.18, 0.12);
+        const rack = new THREE.Group();
+        addFxBox(
+          rack,
+          [Math.max(size.x * 0.62, 0.9), 0.05, Math.max(size.z * 0.8, 0.6)],
+          [0, 0, 0],
+          '#2e353d',
+          0.68,
+          0.24
+        );
+        [-0.2, 0, 0.2].forEach((lane) => {
+          addFxCylinder(
+            rack,
+            Math.max(size.z * 0.07, 0.05),
+            Math.max(size.z * 0.085, 0.06),
+            missileLength,
+            [0, 0.08, lane * Math.max(size.z, 0.7)],
+            [0, 0, Math.PI / 2],
+            '#6e7f57',
+            14,
+            0.24,
+            0.82
+          );
+          const tip = new THREE.Mesh(
+            new THREE.ConeGeometry(Math.max(size.z * 0.09, 0.065), Math.max(size.x * 0.16, 0.26), 14),
+            new THREE.MeshStandardMaterial({ color: '#8ca66a', roughness: 0.2, metalness: 0.86 })
+          );
+          tip.position.set(missileLength * 0.5 + Math.max(size.x * 0.08, 0.1), 0.08, lane * Math.max(size.z, 0.7));
+          tip.rotation.z = -Math.PI / 2;
+          tip.castShadow = true;
+          rack.add(tip);
+        });
+        rack.position.set(center.x, rackY, center.z);
+        target.add(rack);
+      };
       const model = cloneCaptureUnitTemplate('truck');
       if (model) {
         model.rotation.set(0, Math.PI, 0);
         applyMilitaryTruckLook(model, getCaptureToneSeed('missile'));
         root.add(model);
+        addRoofLongMissiles(root, model);
         return { root };
       }
       const truckTone = getCaptureToneSeed('missile');
@@ -9297,19 +9359,20 @@ function Chess3D({
       cabin.receiveShadow = true;
       root.add(cabin);
       addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
+      addRoofLongMissiles(root, root);
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
         (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
       const laneMap = {
-        jet: tile * 1.48,
-        drone: tile * 0.74,
+        jet: tile * 1.86,
+        drone: tile * 0.98,
         helicopter: 0,
-        truck: -tile * 1.48
+        truck: -tile * 1.86
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
+      const laneShift = slot === 0 ? -tile * 0.3 : tile * 0.3;
       const zOffset = laneBase + laneShift;
       const yOffset =
         currentPieceYOffset +
@@ -11562,6 +11625,10 @@ function Chess3D({
         if (unit.tailRotor && unit.tailRotorAxis) {
           unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 24);
         }
+        unit.rotorNodes?.forEach((rotorNode) => {
+          if (!rotorNode || rotorNode === unit.topRotor || rotorNode === unit.tailRotor) return;
+          rotorNode.rotation.y += dt * 24;
+        });
       });
 
       if (activePieceAnimations.length) {
@@ -11777,6 +11844,10 @@ function Chess3D({
             if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
               fx.helicopterFx.tailRotor.rotateOnAxis(fx.helicopterFx.tailRotorAxis, dt * 35);
             }
+            fx.helicopterFx.rotorNodes?.forEach((rotorNode) => {
+              if (!rotorNode || rotorNode === fx.helicopterFx.topRotor || rotorNode === fx.helicopterFx.tailRotor) return;
+              rotorNode.rotation.y += dt * 36;
+            });
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
