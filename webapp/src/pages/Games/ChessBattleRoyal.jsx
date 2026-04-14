@@ -108,7 +108,7 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0;
-const CAPTURE_GROUND_TRAVEL_TIME = 3.2; // slightly slower drone pass for clearer portrait framing
+const CAPTURE_GROUND_TRAVEL_TIME = 3.8; // slower low-altitude ground strike so launches are easier to read in portrait
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
@@ -1974,7 +1974,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.2;
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = 0.08;
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
 
 function getTableHeightForShape(shapeId) {
@@ -9298,24 +9298,25 @@ function Chess3D({
         }
         const size = bounds.getSize(new THREE.Vector3());
         const center = bounds.getCenter(new THREE.Vector3());
-        const missileLength = Math.max(size.x * 0.9, 1.35);
-        const rackY = bounds.max.y + Math.max(size.y * 0.18, 0.12);
+        const missileLength = Math.max(size.x * 1.16, 1.9);
+        const rackY = bounds.max.y + Math.max(size.y * 0.16, 0.11);
         const rack = new THREE.Group();
         addFxBox(
           rack,
-          [Math.max(size.x * 0.62, 0.9), 0.05, Math.max(size.z * 0.8, 0.6)],
+          [Math.max(size.x * 0.66, 1.0), 0.05, Math.max(size.z * 0.84, 0.64)],
           [0, 0, 0],
           '#2e353d',
           0.68,
           0.24
         );
-        [-0.2, 0, 0.2].forEach((lane) => {
+        [-0.18, 0.18].forEach((lane) => {
+          const missile = new THREE.Group();
           addFxCylinder(
-            rack,
-            Math.max(size.z * 0.07, 0.05),
-            Math.max(size.z * 0.085, 0.06),
+            missile,
+            Math.max(size.z * 0.05, 0.038),
+            Math.max(size.z * 0.062, 0.046),
             missileLength,
-            [0, 0.08, lane * Math.max(size.z, 0.7)],
+            [0, 0, 0],
             [0, 0, Math.PI / 2],
             '#6e7f57',
             14,
@@ -9323,13 +9324,16 @@ function Chess3D({
             0.82
           );
           const tip = new THREE.Mesh(
-            new THREE.ConeGeometry(Math.max(size.z * 0.09, 0.065), Math.max(size.x * 0.16, 0.26), 14),
+            new THREE.ConeGeometry(Math.max(size.z * 0.066, 0.052), Math.max(size.x * 0.18, 0.32), 14),
             new THREE.MeshStandardMaterial({ color: '#8ca66a', roughness: 0.2, metalness: 0.86 })
           );
-          tip.position.set(missileLength * 0.5 + Math.max(size.x * 0.08, 0.1), 0.08, lane * Math.max(size.z, 0.7));
+          tip.position.set(missileLength * 0.5 + Math.max(size.x * 0.08, 0.12), 0, 0);
           tip.rotation.z = -Math.PI / 2;
           tip.castShadow = true;
-          rack.add(tip);
+          missile.add(tip);
+          missile.position.set(-Math.max(size.x * 0.06, 0.08), 0.1, lane * Math.max(size.z, 0.72));
+          missile.rotation.z = -Math.PI * 0.18;
+          rack.add(missile);
         });
         rack.position.set(center.x, rackY, center.z);
         target.add(rack);
@@ -9727,8 +9731,10 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
-        const launchBase = fromPos.clone();
-        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
+        const launchBase = parkedTruck?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'truck', 0);
+        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.14, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
@@ -9750,15 +9756,16 @@ function Chess3D({
       if (pieceType === 'N' || pieceType === 'P') {
         if (pieceType === 'N') {
           suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-          const droneFx = createFxDrone({ forceProcedural: true });
-          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
           const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
-          const launchBase =
-            parkedTruck?.homePosition?.clone?.() ||
-            getAirPadAnchor(isWhiteSide, 'truck', 0);
-          droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
-          captureFxGroup.add(droneFx.root);
+          const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+          const droneFx = parkedDrone || createFxDrone({ forceProcedural: true });
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          if (!parkedDrone) {
+            const launchBase = getAirPadAnchor(isWhiteSide, 'drone', 0);
+            droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+            captureFxGroup.add(droneFx.root);
+          }
+          const launchBase = parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
           playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
           activeCaptureFx.push({
             type: 'drone',
@@ -9769,6 +9776,7 @@ function Chess3D({
             launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
             movingMesh,
             returnToOrigin: true,
+            sourceUnit: parkedDrone,
             droneFx
           });
           return {
@@ -9779,8 +9787,10 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
-        const launchBase = fromPos.clone();
-        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
+        const launchBase = parkedTruck?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'truck', 0);
+        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.14, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
@@ -11698,7 +11708,11 @@ function Chess3D({
             });
             if (fx.t >= impactTime) {
               launchExplosion(fx.to);
-              captureFxGroup.remove(fx.droneFx.root);
+              if (fx.sourceUnit) {
+                returnParkedAirUnit(fx.sourceUnit);
+              } else {
+                captureFxGroup.remove(fx.droneFx.root);
+              }
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
