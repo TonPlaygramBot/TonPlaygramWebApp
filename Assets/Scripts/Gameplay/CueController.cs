@@ -35,8 +35,10 @@ namespace Aiming
         [Header("Strike feel")]
         public float strikeDuration = 0.12f;
         public float strikeHoldDuration = 0.05f;
-        [Tooltip("Minimum impulse used when slider power is above zero.")]
+        [Tooltip("Minimum impulse used whenever a valid shot is released.")]
         [Min(0f)] public float minStrikeImpulse = 0.25f;
+        [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
+        [Range(0f, 0.5f)] public float minimumShotPowerNormalized = 0.06f;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
@@ -162,8 +164,8 @@ namespace Aiming
             }
 
             float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
-            _latchedShotPower = Mathf.Clamp01(Mathf.Max(Mathf.Max(_power, recoveredPower), _maxPowerDuringCharge));
-            if (_latchedShotPower <= 0.02f)
+            _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower, _maxPowerDuringCharge);
+            if (_latchedShotPower <= 0f)
             {
                 _shotState = ShotState.Idle;
                 _maxPowerDuringCharge = 0f;
@@ -378,6 +380,18 @@ namespace Aiming
             UpdateCuePose();
         }
 
+
+        float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float maxChargePower)
+        {
+            float raw = Mathf.Clamp01(Mathf.Max(Mathf.Max(sliderPower, recoveredPower), maxChargePower));
+            if (raw <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Max(minimumShotPowerNormalized, raw);
+        }
+
         void ApplyStrikeImpulse(Vector3 strikeDirection, float shotPower)
         {
             if (cueBallBody == null)
@@ -386,6 +400,11 @@ namespace Aiming
             }
 
             float normalizedPower = Mathf.Clamp01(shotPower);
+            if (normalizedPower > 0f)
+            {
+                normalizedPower = Mathf.Max(minimumShotPowerNormalized, normalizedPower);
+            }
+
             if (normalizedPower <= 0f)
             {
                 return;
