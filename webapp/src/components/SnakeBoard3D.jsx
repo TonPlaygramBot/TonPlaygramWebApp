@@ -94,10 +94,11 @@ const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
 ];
 const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
-  drone: 'drone.glb',
-  helicopter: 'helicopter.glb',
-  fighter: 'f15.glb',
-  supportTruck: 'fire_truck.glb'
+  drone: ['drone.glb'],
+  helicopter: ['helicopter.glb'],
+  fighter: ['f15.glb'],
+  supportTruck: ['fire_truck.glb'],
+  javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
 });
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
@@ -227,15 +228,15 @@ const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 1.24,
-  TILE_SIZE * 1.02,
+  TILE_SIZE * 1.2,
   TILE_SIZE * 0.48,
-  TILE_SIZE * 0.78
+  TILE_SIZE * 0.62
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 1.32,
-  TILE_SIZE * 1.1,
-  TILE_SIZE * 0.44,
-  TILE_SIZE * 1.04
+  TILE_SIZE * 1.26,
+  TILE_SIZE * 0.54,
+  TILE_SIZE * 0.88
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -291,10 +292,10 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.08,
+  backOffset: 1.16,
   forwardOffset: 0,
-  heightOffset: 2.74,
-  targetLift: 0.068 * MODEL_SCALE
+  heightOffset: 2.88,
+  targetLift: 0.074 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.6,
@@ -3906,17 +3907,18 @@ function createCaptureVehicleFallbackMesh(kind = 'fighter') {
     launcher.position.set(-0.2, 0.24, 0);
     root.add(chassis, cabin, launcher);
   } else {
+    const isJavelin = kind === 'javelin';
     const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
+      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.08, kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.09, isJavelin ? 1.2 : 1, 16),
       bodyMat
     );
     body.rotation.z = Math.PI / 2;
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
-    nose.position.set(0.6, 0, 0);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(isJavelin ? 0.07 : 0.095, isJavelin ? 0.34 : 0.24, 16), noseMat);
+    nose.position.set(isJavelin ? 0.72 : 0.6, 0, 0);
     nose.rotation.z = -Math.PI / 2;
-    const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
-    finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
-    const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+    const finA = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.18 : 0.12, 0.02, kind === 'helicopter' ? 0.4 : isJavelin ? 0.2 : 0.24), finMat);
+    finA.position.set(kind === 'drone' ? 0 : isJavelin ? -0.32 : -0.25, 0, 0);
+    const finB = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.16 : 0.12, kind === 'drone' ? 0.12 : isJavelin ? 0.16 : 0.24, 0.02), finMat);
     finB.position.set(-0.25, 0, 0);
     root.add(body, nose, finA, finB);
   }
@@ -4132,7 +4134,8 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
     fighter: ['#98a1a9', '#646d76'],
-    supportTruck: ['#6b7280', '#4b5563']
+    supportTruck: ['#6b7280', '#4b5563'],
+    javelin: ['#5b6470', '#39414d']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
@@ -4187,42 +4190,45 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
 }
 
 async function loadCaptureVehicleModel(kind = 'fighter') {
-  const file = CAPTURE_VEHICLE_MODEL_FILES[kind] || CAPTURE_VEHICLE_MODEL_FILES.fighter;
-  const cacheKey = `${kind}:${file}`;
+  const files = CAPTURE_VEHICLE_MODEL_FILES[kind] || CAPTURE_VEHICLE_MODEL_FILES.fighter;
+  const fileList = Array.isArray(files) ? files : [files];
+  const cacheKey = `${kind}:${fileList.join('|')}`;
   if (!CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
     CAPTURE_VEHICLE_MODEL_CACHE.set(
       cacheKey,
       (async () => {
-        const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
         const loader = createConfiguredGLTFLoader();
         const imageCache = new Map();
 
-        for (const url of urls) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const rawBuffer = await fetchBuffer(url);
-            // eslint-disable-next-line no-await-in-loop
-            const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, kind, url, urls, imageCache);
-            // eslint-disable-next-line no-await-in-loop
-            const modelRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-            if (!modelRoot) continue;
-            prepareLoadedModel(modelRoot);
-            return normalizeCaptureVehicleModel(modelRoot);
-          } catch (error) {
-            console.warn(`Capture ${kind} model load failed`, url, error);
+        for (const file of fileList) {
+          const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
+          for (const url of urls) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const rawBuffer = await fetchBuffer(url);
+              // eslint-disable-next-line no-await-in-loop
+              const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, kind, url, urls, imageCache);
+              // eslint-disable-next-line no-await-in-loop
+              const modelRoot = await parseObjectFromBuffer(loader, patchedBuffer);
+              if (!modelRoot) continue;
+              prepareLoadedModel(modelRoot);
+              return normalizeCaptureVehicleModel(modelRoot);
+            } catch (error) {
+              console.warn(`Capture ${kind} model load failed`, url, error);
+            }
           }
-        }
 
-        for (const url of urls) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const gltf = await loader.loadAsync(url);
-            const modelRoot = gltf?.scene || gltf?.scenes?.[0] || null;
-            if (!modelRoot) continue;
-            prepareLoadedModel(modelRoot);
-            return normalizeCaptureVehicleModel(modelRoot);
-          } catch (error) {
-            console.warn(`Capture ${kind} model load failed`, url, error);
+          for (const url of urls) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const gltf = await loader.loadAsync(url);
+              const modelRoot = gltf?.scene || gltf?.scenes?.[0] || null;
+              if (!modelRoot) continue;
+              prepareLoadedModel(modelRoot);
+              return normalizeCaptureVehicleModel(modelRoot);
+            } catch (error) {
+              console.warn(`Capture ${kind} model load failed`, url, error);
+            }
           }
         }
 
@@ -4384,7 +4390,7 @@ function updateSeatWeaponDisplays(board, players = []) {
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return;
   const keep = new Set();
-  const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck'];
+  const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
   const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
 
   players.forEach((player, index) => {
@@ -4744,7 +4750,8 @@ export default function SnakeBoard3D({
       fighter: createCaptureVehicleRig('fighter'),
       helicopter: createCaptureVehicleRig('helicopter'),
       drone: createCaptureVehicleRig('drone'),
-      supportTruck: createCaptureVehicleRig('supportTruck')
+      supportTruck: createCaptureVehicleRig('supportTruck'),
+      javelin: createCaptureVehicleRig('javelin')
     };
     const captureExplosion = createCaptureExplosionRig();
     Object.values(captureVehicles).forEach((vehicle) => scene.add(vehicle.root));

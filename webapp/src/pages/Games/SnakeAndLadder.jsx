@@ -816,7 +816,8 @@ const CAPTURE_WEAPON_OPTIONS = Object.freeze([
   { id: 'drone', label: 'Drone' },
   { id: 'fighter', label: 'Fighter Jet' },
   { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' }
+  { id: 'supportTruck', label: 'Support Truck' },
+  { id: 'javelin', label: 'Javelin Missile' }
 ]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
