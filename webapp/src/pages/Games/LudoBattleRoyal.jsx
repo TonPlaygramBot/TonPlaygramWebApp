@@ -1762,6 +1762,7 @@ const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
+const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
@@ -3060,8 +3061,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.32;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.64;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.68;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -6904,6 +6905,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         try {
           const arena = arenaRef.current;
           const scene = arena?.scene;
+          const tableSurfaceY = arena?.tableInfo?.surfaceY ?? 0;
           if (!scene || !attackerToken || !startPosition?.isVector3 || !targetPosition?.isVector3) {
             resolve();
             return;
@@ -6928,6 +6930,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.helicopterPark?.clone?.()
             : isDroneAttack
             ? parkedEntry?.dronePark?.clone?.()
+            : null;
+        const parkedVehicleToRestore =
+          resolvedCaptureAnimationId === 'fighterJetAttack'
+            ? parkedEntry?.jet
+            : resolvedCaptureAnimationId === 'helicopterAttack'
+            ? parkedEntry?.helicopter
+            : resolvedCaptureAnimationId === 'droneAttack'
+            ? parkedEntry?.drone
+            : resolvedCaptureAnimationId === 'missileJavelin'
+            ? parkedEntry?.missile
             : null;
         stopCaptureVehicleSounds();
         if (isHelicopterAttack) playHelicopterSound();
@@ -7005,15 +7017,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
           startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
-        moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
-        setCameraFocus({
-          target: launchAnchor,
-          follow: false,
-          priority: 7,
-          ttl: 1.1,
-          offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
-          force: true
-        });
+        if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = false;
+        if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) {
+          setCameraViewForTurn(0, CAMERA_BROADCAST_ANIMATION_MS, { force: true });
+        } else {
+          moveCameraToHighestAllowedAngle(launchAnchor, Math.max(0.004, CAMERA_TARGET_LIFT - 0.018));
+          setCameraFocus({
+            target: launchAnchor,
+            follow: false,
+            priority: 7,
+            ttl: 1.1,
+            offset: Math.max(0.004, CAMERA_TARGET_LIFT - 0.018),
+            force: true
+          });
+        }
         const resolvedImpactPoint = resolveLiveTokenPosition({
           token: targetToken,
           player: targetPlayer,
@@ -7158,6 +7175,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
           const trackAttackCamera = (weaponPosition, targetPosition, shotProgress = 0.5) => {
+            if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
             if (!CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) return;
             const blendToWeapon = selectedCaptureAnimationId === 'helicopterAttack' ? 0.64 : 0.6;
             const weight = clamp(blendToWeapon - shotProgress * 0.24, 0.34, 0.68);
@@ -7458,6 +7476,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           }
 
           stopCaptureVehicleSounds();
+          if (parkedVehicleToRestore?.isObject3D && parkedLaunch?.isVector3) {
+            parkedVehicleToRestore.visible = true;
+            parkedVehicleToRestore.position.copy(parkedLaunch);
+            parkedVehicleToRestore.position.y = tableSurfaceY + 0.002;
+            orientCaptureVehicleTowardBoardCenter(parkedVehicleToRestore, boardLookTargetRef.current ?? new THREE.Vector3());
+          }
           if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
           jetMissiles.forEach((entry) => {
             if (entry.root.parent) entry.root.parent.remove(entry.root);
@@ -7469,6 +7493,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           requestAnimationFrame(tick);
         } catch (error) {
           stopCaptureVehicleSounds();
+          if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = true;
           captureFxRef.current = null;
           resolve();
         }
