@@ -182,10 +182,10 @@ const SNAKE_SFX = Object.freeze({
 const FINAL_TILE = BOARD_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
-const AI_ROLL_DELAY_MS = 2400;
-const AI_EXTRA_ROLL_DELAY_MS = 1500;
-const TURN_ADVANCE_AFTER_DICE_MS = 1200;
-const DICE_RESULT_HOLD_MS = 1400;
+const AI_ROLL_DELAY_MS = 1300;
+const AI_EXTRA_ROLL_DELAY_MS = 850;
+const TURN_ADVANCE_AFTER_DICE_MS = 850;
+const DICE_RESULT_HOLD_MS = 2000;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
@@ -813,10 +813,10 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
 const CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  { id: 'drone', label: 'Drone' },
   { id: 'fighter', label: 'Fighter Jet' },
   { id: 'helicopter', label: 'Military Helicopter' },
-  { id: 'supportTruck', label: 'Support Truck' },
-  { id: 'drone', label: 'Drone' }
+  { id: 'supportTruck', label: 'Support Truck' }
 ]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
@@ -1748,8 +1748,8 @@ export default function SnakeAndLadder() {
     });
     if (victims.length && cell > 0) {
       const selectedWeapon = resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0].id;
-      const randomWeapon = CAPTURE_WEAPON_OPTIONS[Math.floor(Math.random() * CAPTURE_WEAPON_OPTIONS.length)]?.id;
-      const weaponType = mover === 0 ? selectedWeapon : (randomWeapon || selectedWeapon);
+      const aiWeapon = mover > 0 ? aiWeaponLoadout[mover - 1] : null;
+      const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon);
       setBurning((b) => [...new Set([...b, ...victims])]);
       const settleCapture = () => {
         if (!muted) {
@@ -3212,6 +3212,14 @@ export default function SnakeAndLadder() {
 
   const playerHeadPreset = resolvedAppearance?.pawnHead?.preset ?? null;
   const playerHeadPresetId = resolvedAppearance?.pawnHead?.id ?? 'current';
+  const aiWeaponLoadout = useMemo(
+    () =>
+      Array.from({ length: ai }, () => {
+        const random = CAPTURE_WEAPON_OPTIONS[Math.floor(Math.random() * CAPTURE_WEAPON_OPTIONS.length)];
+        return random?.id || CAPTURE_WEAPON_OPTIONS[0].id;
+      }),
+    [ai]
+  );
 
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
@@ -3220,7 +3228,8 @@ export default function SnakeAndLadder() {
         photoUrl: p.photoUrl || '/assets/icons/profile.svg',
         type: 'normal',
         color: playerColors[i] || '#fff',
-        seatIndex: seatAssignments.get(i)
+        seatIndex: seatAssignments.get(i),
+        weaponType: CAPTURE_WEAPON_OPTIONS[i % CAPTURE_WEAPON_OPTIONS.length]?.id || CAPTURE_WEAPON_OPTIONS[0].id
       }))
     : [
         {
@@ -3229,6 +3238,7 @@ export default function SnakeAndLadder() {
           type: tokenType,
           color: playerColors[0],
           seatIndex: 0,
+          weaponType: resolvedAppearance?.captureWeapon?.id || CAPTURE_WEAPON_OPTIONS[0].id,
           tokenShape: resolvedAppearance?.tokenShape,
           headPreset: playerHeadPreset,
           headPresetId: playerHeadPresetId
@@ -3239,6 +3249,7 @@ export default function SnakeAndLadder() {
           type: 'normal',
           color: playerColors[i + 1],
           seatIndex: i + 1,
+          weaponType: aiWeaponLoadout[i] || CAPTURE_WEAPON_OPTIONS[0].id,
           tokenShape: aiTokenShapes[i] || TOKEN_SHAPE_OPTIONS[i % TOKEN_SHAPE_OPTIONS.length],
           headPreset: null,
           headPresetId: 'current'
