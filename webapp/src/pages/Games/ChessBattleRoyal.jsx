@@ -99,16 +99,16 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 11.1; // slower cinematic pass so the full fly path is clearly visible on portrait screens
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 1.4; // jet keeps a drone-like route, with a slightly longer strike cycle
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
-const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter uses the same timeline as jet
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.8; // keep drone in the air a bit longer before strike
+const CAPTURE_GROUND_TRAVEL_TIME = 3.2; // slightly slower drone pass for clearer portrait framing
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
@@ -123,6 +123,11 @@ const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the s
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.22; // tighten loops so jet/helicopter stay nearer board center
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.28; // keep turns further inside board bounds
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
+const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.46; // keep drone run slightly inward so it stays within board perimeter
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.42; // portrait-safe drone/aircraft altitude above board
+const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
+const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
+const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -1964,7 +1969,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
   hexagonTable: -0.065,
   grandOval: -0.065,
-  diamondEdge: -0.07
+  diamondEdge: -0.065
 });
 
 function normalizeAppearance(value = {}) {
@@ -7837,11 +7842,6 @@ function Chess3D({
 
     const normalized = normalizeAppearance(appearance);
     const previousAppearance = arena.lastAppliedAppearance ?? normalized;
-    const tableOrSeatAppearanceChanged =
-      previousAppearance.tables !== normalized.tables ||
-      previousAppearance.tableFinish !== normalized.tableFinish ||
-      previousAppearance.tableCloth !== normalized.tableCloth ||
-      previousAppearance.chairColor !== normalized.chairColor;
     const boardOrPieceAppearanceChanged =
       previousAppearance.boardColor !== normalized.boardColor ||
       previousAppearance.whitePieceStyle !== normalized.whitePieceStyle ||
@@ -7974,7 +7974,7 @@ function Chess3D({
       }
     }
 
-    const shouldRefreshBoardPieces = !tableOrSeatAppearanceChanged || boardOrPieceAppearanceChanged;
+    const shouldRefreshBoardPieces = !arena.lastAppliedAppearance || boardOrPieceAppearanceChanged;
     if (shouldRefreshBoardPieces && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
@@ -10325,7 +10325,7 @@ function Chess3D({
         const skin = resolveSideVehicleSkin(isWhite);
         for (let slot = 0; slot < 2; slot += 1) {
           const jet = createFxJet();
-          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 0.72);
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
@@ -10345,7 +10345,7 @@ function Chess3D({
           });
 
           const helicopter = createFxHelicopter();
-          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.74);
+          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
           if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
           );
@@ -10367,7 +10367,7 @@ function Chess3D({
           });
         }
         const supportTruck = createFxSupportTruck();
-        supportTruck.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.95);
+        supportTruck.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
         if (skin) {
           applyVehicleSkinToModel(
             supportTruck.root,
@@ -11562,11 +11562,11 @@ function Chess3D({
                 to: fx.to,
                 progress: mu,
                 launchHeight: 0.08,
-                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.42,
-                orbitRadiusMul: 0.58,
-                minOrbitCycles: 0.22,
-                orbitSplit: 0.84,
-                returnSplit: 0.72
+                orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_DRONE_ORBIT_HEIGHT_MUL,
+                orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
+                minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES,
+                orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
+                returnSplit: CAPTURE_DRONE_RETURN_SPLIT
               });
             }
             if (!pose) {
@@ -11602,10 +11602,11 @@ function Chess3D({
               to: fx.to,
               progress: jetU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
-              orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
-              minOrbitCycles: 0.34,
-              orbitSplit: 0.74,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_DRONE_ORBIT_HEIGHT_MUL,
+              orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
+              minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES + 0.02,
+              orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
+              returnSplit: CAPTURE_DRONE_RETURN_SPLIT,
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
@@ -11713,10 +11714,11 @@ function Chess3D({
               to: fx.to,
               progress: heliU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
-              orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
-              minOrbitCycles: 0.34,
-              orbitSplit: 0.74,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_DRONE_ORBIT_HEIGHT_MUL,
+              orbitRadiusMul: CAPTURE_DRONE_ORBIT_RADIUS_MUL,
+              minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES + 0.02,
+              orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
+              returnSplit: CAPTURE_DRONE_RETURN_SPLIT,
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
