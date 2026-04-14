@@ -227,16 +227,16 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.86,
-  TILE_SIZE * 1.34,
-  TILE_SIZE * 0.38,
-  TILE_SIZE * 0.84
+  TILE_SIZE * 1.18,
+  TILE_SIZE * 1.52,
+  TILE_SIZE * 0.26,
+  TILE_SIZE * 1.08
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.92,
-  TILE_SIZE * 1.42,
-  TILE_SIZE * 0.44,
-  TILE_SIZE * 1.06
+  TILE_SIZE * 1.24,
+  TILE_SIZE * 1.62,
+  TILE_SIZE * 0.3,
+  TILE_SIZE * 1.22
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -288,14 +288,15 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.2;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.72;
+const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.42,
+  backOffset: 1.78,
   forwardOffset: 0,
-  heightOffset: 3.24,
-  targetLift: 0.052 * MODEL_SCALE
+  heightOffset: 3.62,
+  targetLift: 0.038 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.6,
@@ -2713,6 +2714,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   tableRoot.add(activeTableGroup);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraTuning = isPortrait ? PORTRAIT_CAMERA_TUNING : LANDSCAPE_CAMERA_TUNING;
+  const initialCameraDistanceFactor = isPortrait
+    ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR
+    : LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR;
   const targetLift = cameraTuning.targetLift;
 
   const boardGroup = new THREE.Group();
@@ -2759,7 +2763,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     Math.sin(cameraSeatAngle) * cameraRadius
   );
   const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
-  const desiredInitialCameraRadius = clamp(CAM.maxR * INITIAL_CAMERA_DISTANCE_FACTOR, CAM.minR, CAM.maxR);
+  const desiredInitialCameraRadius = clamp(CAM.maxR * initialCameraDistanceFactor, CAM.minR, CAM.maxR);
   camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
   camera.lookAt(boardLookTarget);
 
@@ -4783,7 +4787,7 @@ export default function SnakeBoard3D({
         spherical.radius = minRadius;
         spherical.theta = Math.PI / 2;
         spherical.phi = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, INITIAL_CAMERA_DISTANCE_FACTOR),
+          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, initialCameraDistanceFactor),
           minPolar,
           maxPolar
         );
