@@ -1973,7 +1973,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 4;
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 5;
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8628,7 +8628,7 @@ function Chess3D({
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
+    const cameraBackOffset = (isPortrait ? 2.32 : 1.62) + 0.3;
     const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
     const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
@@ -9298,7 +9298,7 @@ function Chess3D({
       return { root };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
+      const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.28) : half + BOARD.rim + tile * 0.28;
       const laneMap = {
         jet: tile * 1.48,
         drone: tile * 0.74,
@@ -9308,7 +9308,7 @@ function Chess3D({
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
       const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
       const zOffset = laneBase + laneShift;
-      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.14 : currentPieceYOffset + 0.26;
+      const yOffset = kind === 'truck' ? currentPieceYOffset + 0.02 : currentPieceYOffset + 0.04;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
@@ -12553,7 +12553,7 @@ function Chess3D({
             return (
               <div
                 key={`chess-seat-${player.index}`}
-                className="absolute pointer-events-auto flex flex-col items-center"
+                className={`absolute ${configOpen ? 'pointer-events-none' : 'pointer-events-auto'} flex flex-col items-center`}
                 data-player-index={player.index}
                 style={positionStyle}
               >
