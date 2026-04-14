@@ -90,6 +90,7 @@ const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
   'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
 ];
 const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
@@ -225,16 +226,16 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.12,
-  TILE_SIZE * 0.9,
-  TILE_SIZE * 0.62,
+  TILE_SIZE * 1.24,
+  TILE_SIZE * 1.02,
+  TILE_SIZE * 0.48,
   TILE_SIZE * 0.78
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.2,
-  TILE_SIZE * 0.98,
-  TILE_SIZE * 0.56,
-  TILE_SIZE * 0.92
+  TILE_SIZE * 1.32,
+  TILE_SIZE * 1.1,
+  TILE_SIZE * 0.44,
+  TILE_SIZE * 1.04
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -246,7 +247,7 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.5;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2.25;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -290,16 +291,16 @@ const INITIAL_CAMERA_DISTANCE_FACTOR = 0.56;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.98,
+  backOffset: 1.08,
   forwardOffset: 0,
-  heightOffset: 2.56,
-  targetLift: 0.055 * MODEL_SCALE
+  heightOffset: 2.74,
+  targetLift: 0.068 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.54,
+  backOffset: 0.6,
   forwardOffset: 0,
-  heightOffset: 1.08,
-  targetLift: 0.08 * MODEL_SCALE
+  heightOffset: 1.2,
+  targetLift: 0.09 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
@@ -3952,6 +3953,239 @@ function normalizeCaptureVehicleModel(model) {
   return model;
 }
 
+
+const GLB_MAGIC = 0x46546c67;
+const GLB_VERSION = 2;
+const GLB_JSON_CHUNK = 0x4e4f534a;
+const GLB_BIN_CHUNK = 0x004e4942;
+
+function isAbsoluteUrl(uri) {
+  return /^https?:\/\//i.test(uri) || uri.startsWith('blob:');
+}
+
+function isDataUri(uri) {
+  return typeof uri === 'string' && uri.startsWith('data:');
+}
+
+function uniqueStrings(values) {
+  return Array.from(new Set(values));
+}
+
+function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
+  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
+  return uniqueStrings([
+    imageUri,
+    new URL(imageUri, sourceUrl).href,
+    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
+  ]);
+}
+
+function decodeGlb(buffer) {
+  const view = new DataView(buffer);
+  if (view.byteLength < 20) throw new Error('GLB too small to parse');
+  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Asset is not a GLB file');
+  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
+
+  const totalLength = view.getUint32(8, true);
+  const bytes = new Uint8Array(buffer, 0, totalLength);
+  const decoder = new TextDecoder();
+
+  let offset = 12;
+  let json = null;
+  let binChunk = null;
+
+  while (offset + 8 <= totalLength) {
+    const chunkLength = view.getUint32(offset, true);
+    const chunkType = view.getUint32(offset + 4, true);
+    offset += 8;
+    const chunkBytes = bytes.slice(offset, offset + chunkLength);
+    offset += chunkLength;
+    if (chunkType === GLB_JSON_CHUNK) {
+      json = JSON.parse(decoder.decode(chunkBytes).trim());
+    } else if (chunkType === GLB_BIN_CHUNK) {
+      binChunk = chunkBytes;
+    }
+  }
+
+  if (!json) throw new Error('GLB missing JSON chunk');
+  return { json, binChunk };
+}
+
+function createMinimalGlbBuffer(json, binChunk) {
+  const encoder = new TextEncoder();
+  const rawJson = encoder.encode(JSON.stringify(json));
+  const jsonPadding = (4 - (rawJson.length % 4)) % 4;
+  const paddedJson = new Uint8Array(rawJson.length + jsonPadding);
+  paddedJson.set(rawJson);
+  paddedJson.fill(0x20, rawJson.length);
+
+  let paddedBin = null;
+  if (binChunk) {
+    const binPadding = (4 - (binChunk.length % 4)) % 4;
+    paddedBin = new Uint8Array(binChunk.length + binPadding);
+    paddedBin.set(binChunk);
+  }
+
+  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
+  const buffer = new ArrayBuffer(totalLength);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+
+  view.setUint32(0, GLB_MAGIC, true);
+  view.setUint32(4, GLB_VERSION, true);
+  view.setUint32(8, totalLength, true);
+
+  let offset = 12;
+  view.setUint32(offset, paddedJson.length, true);
+  view.setUint32(offset + 4, GLB_JSON_CHUNK, true);
+  offset += 8;
+  bytes.set(paddedJson, offset);
+  offset += paddedJson.length;
+
+  if (paddedBin) {
+    view.setUint32(offset, paddedBin.length, true);
+    view.setUint32(offset + 4, GLB_BIN_CHUNK, true);
+    offset += 8;
+    bytes.set(paddedBin, offset);
+  }
+
+  return buffer;
+}
+
+function extractBufferViewBytes(json, binChunk, bufferViewIndex) {
+  if (!binChunk) return null;
+  const bufferViews = Array.isArray(json?.bufferViews) ? json.bufferViews : [];
+  const view = bufferViews[bufferViewIndex];
+  if (!view) return null;
+  const byteOffset = typeof view.byteOffset === 'number' ? view.byteOffset : 0;
+  const byteLength = typeof view.byteLength === 'number' ? view.byteLength : 0;
+  if (byteLength <= 0) return null;
+  return binChunk.slice(byteOffset, byteOffset + byteLength);
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function bytesToDataUri(bytes, mimeType) {
+  return `data:${mimeType};base64,${bytesToBase64(bytes)}`;
+}
+
+async function fetchBuffer(url) {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+  return response.arrayBuffer();
+}
+
+async function fetchBlob(url) {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
+  return response.blob();
+}
+
+function parseObjectFromBuffer(loader, buffer) {
+  return new Promise((resolve, reject) => {
+    loader.parse(
+      buffer,
+      '',
+      (gltf) => resolve(gltf?.scene || gltf?.scenes?.[0] || null),
+      (error) => reject(error)
+    );
+  });
+}
+
+async function blobToDataUri(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function makePlaceholderTextureDataUri(primary, secondary) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return 'data:image/png;base64,';
+  ctx.fillStyle = primary;
+  ctx.fillRect(0, 0, 64, 64);
+  ctx.fillStyle = secondary;
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.fillRect(32, 32, 32, 32);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 62, 62);
+  return canvas.toDataURL('image/png');
+}
+
+async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+  if (isDataUri(imageUri)) return imageUri;
+  const placeholderColors = {
+    drone: ['#7c8791', '#4f5861'],
+    helicopter: ['#6f7763', '#4f5648'],
+    fighter: ['#98a1a9', '#646d76'],
+    supportTruck: ['#6b7280', '#4b5563']
+  };
+  const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
+  const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
+  const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
+  for (const candidate of candidates) {
+    if (!isAbsoluteUrl(candidate)) continue;
+    const cached = cache.get(candidate);
+    if (cached) return cached;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const blob = await fetchBlob(candidate);
+      // eslint-disable-next-line no-await-in-loop
+      const dataUri = await blobToDataUri(blob);
+      if (dataUri) {
+        cache.set(candidate, dataUri);
+        return dataUri;
+      }
+    } catch (err) {
+      // ignore candidate
+    }
+  }
+  return placeholderDataUri;
+}
+
+async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+  const { json, binChunk } = decodeGlb(buffer);
+  const cloned = JSON.parse(JSON.stringify(json));
+  const images = Array.isArray(cloned.images) ? cloned.images : [];
+  if (!images.length) return buffer;
+
+  for (let i = 0; i < images.length; i += 1) {
+    const image = images[i];
+    if (typeof image.uri === 'string') {
+      // eslint-disable-next-line no-await-in-loop
+      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      delete image.bufferView;
+      image.mimeType = image.mimeType ?? 'image/png';
+      continue;
+    }
+    if (typeof image.bufferView === 'number') {
+      const bytes = extractBufferViewBytes(cloned, binChunk, image.bufferView);
+      if (bytes?.length) {
+        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
+        image.uri = bytesToDataUri(bytes, mimeType);
+        delete image.bufferView;
+        image.mimeType = mimeType;
+      }
+    }
+  }
+
+  return createMinimalGlbBuffer(cloned, binChunk);
+}
+
 async function loadCaptureVehicleModel(kind = 'fighter') {
   const file = CAPTURE_VEHICLE_MODEL_FILES[kind] || CAPTURE_VEHICLE_MODEL_FILES.fighter;
   const cacheKey = `${kind}:${file}`;
@@ -3959,22 +4193,40 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
     CAPTURE_VEHICLE_MODEL_CACHE.set(
       cacheKey,
       (async () => {
+        const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
         const loader = createConfiguredGLTFLoader();
-        let gltf = null;
-        let lastError = null;
-        for (const host of CAPTURE_VEHICLE_MODEL_HOSTS) {
-          const url = `${host}/${file}`;
+        const imageCache = new Map();
+
+        for (const url of urls) {
           try {
-            gltf = await loader.loadAsync(url);
-            break;
+            // eslint-disable-next-line no-await-in-loop
+            const rawBuffer = await fetchBuffer(url);
+            // eslint-disable-next-line no-await-in-loop
+            const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, kind, url, urls, imageCache);
+            // eslint-disable-next-line no-await-in-loop
+            const modelRoot = await parseObjectFromBuffer(loader, patchedBuffer);
+            if (!modelRoot) continue;
+            prepareLoadedModel(modelRoot);
+            return normalizeCaptureVehicleModel(modelRoot);
           } catch (error) {
-            lastError = error;
+            console.warn(`Capture ${kind} model load failed`, url, error);
           }
         }
-        if (!gltf) throw lastError || new Error(`Failed to load capture model: ${kind}`);
-        const model = (gltf.scene || gltf.scenes?.[0] || gltf).clone(true);
-        prepareLoadedModel(model);
-        return normalizeCaptureVehicleModel(model);
+
+        for (const url of urls) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const gltf = await loader.loadAsync(url);
+            const modelRoot = gltf?.scene || gltf?.scenes?.[0] || null;
+            if (!modelRoot) continue;
+            prepareLoadedModel(modelRoot);
+            return normalizeCaptureVehicleModel(modelRoot);
+          } catch (error) {
+            console.warn(`Capture ${kind} model load failed`, url, error);
+          }
+        }
+
+        throw new Error(`Failed to load capture model: ${kind}`);
       })()
     );
   }
