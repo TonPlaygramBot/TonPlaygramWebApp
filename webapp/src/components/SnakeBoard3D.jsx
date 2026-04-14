@@ -257,7 +257,8 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2.25;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 2;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -4615,7 +4616,10 @@ function updateSeatWeaponDisplays(board, players = []) {
     );
     if (railLayout) {
       const sideSign = seatIndex % 2 === 0 ? 1 : -1;
-      holder.position.copy(railLayout.railLocal).addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
+      holder.position
+        .copy(railLayout.railLocal)
+        .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
+        .addScaledVector(railLayout.seatDirection, WEAPON_PARKING_OUTWARD_OFFSET);
       holder.position.y = railLayout.railHeightY;
     } else {
       const seatWorld = new THREE.Vector3();
