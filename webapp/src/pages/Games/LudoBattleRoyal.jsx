@@ -76,7 +76,6 @@ const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   truck: 'green_metal_rust'
 });
 const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
-const CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE = new Map();
 const CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -123,7 +122,6 @@ const CAPTURE_ATTACK_TUNING = Object.freeze({
   droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
-const CAPTURE_CAMERA_TRACK_BLEND = 0.14;
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 
 function orientCaptureVehicleTowardBoardCenter(root, target) {
@@ -210,69 +208,6 @@ async function primeCaptureVehicleTextureSets(maxAnisotropy = 1) {
       if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
     })
   );
-}
-
-function loadCaptureAvatarTexture(photoUrl) {
-  const cacheKey = photoUrl || 'default';
-  if (CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.has(cacheKey)) {
-    return CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.get(cacheKey);
-  }
-  const promise = new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      resolve(new THREE.CanvasTexture(canvas));
-      return;
-    }
-    const finalize = () => {
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true;
-      resolve(texture);
-    };
-    ctx.clearRect(0, 0, 256, 256);
-    ctx.beginPath();
-    ctx.arc(128, 128, 122, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    if (!photoUrl || !/^https?:\/\//i.test(photoUrl)) {
-      ctx.fillStyle = '#1f2937';
-      ctx.font = 'bold 128px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(photoUrl || '🙂').slice(0, 2), 128, 134);
-      finalize();
-      return;
-    }
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(128, 128, 120, 0, Math.PI * 2);
-      ctx.clip();
-      const ratio = Math.max(256 / image.width, 256 / image.height);
-      const drawW = image.width * ratio;
-      const drawH = image.height * ratio;
-      ctx.drawImage(image, (256 - drawW) * 0.5, (256 - drawH) * 0.5, drawW, drawH);
-      ctx.restore();
-      finalize();
-    };
-    image.onerror = () => {
-      ctx.fillStyle = '#1f2937';
-      ctx.font = 'bold 120px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🙂', 128, 134);
-      finalize();
-    };
-    image.src = photoUrl;
-  });
-  CAPTURE_PLAYER_AVATAR_TEXTURE_CACHE.set(cacheKey, promise);
-  return promise;
 }
 
 function fitObjectToTargetSize(root, targetSize) {
@@ -1178,7 +1113,7 @@ async function createCaptureJetFx() {
   nose.rotation.z = -Math.PI / 2;
   nose.castShadow = true;
   root.add(nose);
-  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#070b12', 0.1, 0.56, true, 0.94);
+  const cockpit = addFxSphere(root, 0.21, [0.66, 0.16, 0], '#000000', 0.1, 0.56, true, 0.98);
   cockpit.scale.set(1.25, 0.56, 0.62);
   const wing = createFxPolygon([[-1.6, -2.55], [0.8, 0], [-0.4, 2.55]], 0.1, '#9ba4ac', 0.66, 0.18);
   wing.position.set(-0.18, -0.04, 0);
@@ -1764,7 +1699,7 @@ const CAMERA_SIDE_AVATAR_BLEND = 1.08;
 const USER_TURN_CAMERA_PULLBACK = 0;
 const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
-const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
+const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
@@ -4505,31 +4440,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       };
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
-  const playersRef = useRef(players);
-  useEffect(() => {
-    playersRef.current = players;
-  }, [players]);
-
-  const applyCaptureVehiclePlayerTheme = useCallback(async (vehicleRoot, playerIndex) => {
-    if (!vehicleRoot?.isObject3D) return;
-    const player = playersRef.current[playerIndex];
-    const avatarTexture = await loadCaptureAvatarTexture(player?.photoUrl || '');
-    const badgeGeo = new THREE.CircleGeometry(0.25, 32);
-    const badgeMat = new THREE.MeshBasicMaterial({
-      map: avatarTexture,
-      transparent: true,
-      side: THREE.DoubleSide
-    });
-    const leftBadge = new THREE.Mesh(badgeGeo, badgeMat);
-    leftBadge.position.set(-0.12, 0.05, -0.44);
-    leftBadge.rotation.y = Math.PI / 2;
-    const rightBadge = leftBadge.clone();
-    rightBadge.position.z = 0.44;
-    rightBadge.rotation.y = -Math.PI / 2;
-    vehicleRoot.add(leftBadge);
-    vehicleRoot.add(rightBadge);
-  }, []);
-
   const getKingTokenHeightForPlayer = useCallback((playerIndex) => {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
     if (!Array.isArray(playerTokens) || !playerTokens.length) return 0.28;
@@ -4648,14 +4558,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(jetFx.root, playerIndex);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(helicopterFx.root, playerIndex);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(droneFx.root, playerIndex);
-      // eslint-disable-next-line no-await-in-loop
-      await applyCaptureVehiclePlayerTheme(missileFx.root, playerIndex);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
@@ -4665,6 +4567,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         helicopter: helicopterFx.root,
         drone: droneFx.root,
         missile: missileFx.root,
+        helicopterRotor: helicopterFx.rotor ?? null,
+        helicopterTailRotor: helicopterFx.tailRotor ?? null,
+        helicopterTopRotorAxis: helicopterFx.topRotorAxis ?? new THREE.Vector3(0, 1, 0),
+        helicopterTailRotorAxis: helicopterFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0),
+        dronePropeller: droneFx.propeller ?? null,
         jetPark,
         helicopterPark,
         dronePark,
@@ -4678,7 +4585,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [
     activePlayerCount,
     updateParkedCaptureVehicleVisibility,
-    applyCaptureVehiclePlayerTheme,
     fitCaptureVehicleToPlayerKing,
     resolveCaptureParkingAnchors
   ]);
@@ -6512,13 +6418,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         -CAMERA_LOOK_YAW_LIMIT,
         CAMERA_LOOK_YAW_LIMIT
       );
-      if (!lockUserTurnSeatViewRef.current) {
-        lookState.pitch = clamp(
-          lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-          CAMERA_LOOK_MIN_PITCH,
-          CAMERA_LOOK_PITCH_LIMIT
-        );
-      }
+      lookState.pitch = clamp(
+        lookState.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+        CAMERA_LOOK_MIN_PITCH,
+        CAMERA_LOOK_PITCH_LIMIT
+      );
       applyCameraLookOffset();
       if (stateRef.current?.turn === 0) {
         preserveUserTurnCameraRef.current = true;
@@ -6567,6 +6471,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const appliedDeltaMs = Math.min(deltaMs, maxFrameTime);
       lastRenderTime = now - Math.max(0, deltaMs - appliedDeltaMs);
       const delta = appliedDeltaMs / 1000;
+      parkedCaptureVehiclesRef.current.forEach((entry) => {
+        if (entry?.helicopterRotor?.isObject3D) {
+          entry.helicopterRotor.rotateOnAxis(
+            entry.helicopterTopRotorAxis ?? new THREE.Vector3(0, 1, 0),
+            delta * 26
+          );
+        }
+        if (entry?.helicopterTailRotor?.isObject3D) {
+          entry.helicopterTailRotor.rotateOnAxis(
+            entry.helicopterTailRotorAxis ?? new THREE.Vector3(1, 0, 0),
+            delta * 30
+          );
+        }
+        if (entry?.dronePropeller?.isObject3D) {
+          entry.dronePropeller.rotation.y += delta * 12;
+          entry.dronePropeller.rotation.x += delta * 12;
+        }
+      });
 
       const state = stateRef.current;
       if (state?.animation?.active) {
@@ -6970,7 +6892,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : createCaptureMissileFx();
         if (isFighterJetAttack || isHelicopterAttack) {
           fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
-          await applyCaptureVehiclePlayerTheme(primaryFx.root, attackerPlayer);
         }
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
@@ -7173,6 +7094,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             apexHeight,
             arenaCenter.z + Math.sin(cruiseAngle) * orbitalRadius
           );
+          const trackAttackCamera = (weaponPosition, targetPosition, shotProgress = 0.5) => {
+            if (!CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) return;
+            const blendToWeapon = selectedCaptureAnimationId === 'helicopterAttack' ? 0.64 : 0.6;
+            const weight = clamp(blendToWeapon - shotProgress * 0.24, 0.34, 0.68);
+            const cameraTarget = targetPosition.clone().lerp(weaponPosition, weight);
+            setCameraFocus({
+              object: primaryFx.root,
+              target: cameraTarget,
+              follow: true,
+              priority: 8,
+              ttl: 0,
+              offset: Math.max(0.006, (CAMERA_TARGET_LIFT - 0.016) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+              force: true
+            });
+          };
           const phaseSplit =
             selectedCaptureAnimationId === 'fighterJetAttack'
               ? 0.84
@@ -7239,20 +7175,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.visible = true;
             primaryFx.root.position.copy(pos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, dir);
-            if (CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) {
-              const camera = arenaRef.current?.camera;
-              if (camera) {
-                const blended = camera.position.clone().lerp(pos, CAPTURE_CAMERA_TRACK_BLEND);
-                setCameraFocus({
-                  target: blended,
-                  follow: false,
-                  priority: 7,
-                  ttl: 0.18,
-                  offset: Math.max(0.004, (CAMERA_TARGET_LIFT - 0.018) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
-                  force: true
-                });
-              }
-            }
+            trackAttackCamera(pos, dynamicTo, u);
             const isVerticalImpactVehicle = selectedCaptureAnimationId === 'missileJavelin';
             if (isVerticalImpactVehicle && u > phaseSplit) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
@@ -7394,6 +7317,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             primaryFx.root.visible = true;
             primaryFx.root.position.copy(flyAwayPos);
             primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, flyAwayDirNow);
+            trackAttackCamera(flyAwayPos, liveTarget, 1);
             const fade = clamp(1 - flyAwayT * 1.1, 0, 1);
             primaryFx.root.traverse((node) => {
               if (!node?.isMesh) return;
