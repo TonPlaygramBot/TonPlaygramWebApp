@@ -108,7 +108,7 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0;
-const CAPTURE_GROUND_TRAVEL_TIME = 2.8; // keep drone in the air a bit longer before strike
+const CAPTURE_GROUND_TRAVEL_TIME = 3.15; // slightly slower drone travel for clearer portrait framing
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
@@ -120,7 +120,7 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.22; // tighten loops so jet/helicopter stay nearer board center
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.2; // keep jet/helicopter loops a touch more inward like drone perimeter
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.28; // keep turns further inside board bounds
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_MISSILE_SCALE = 0.068;
@@ -129,6 +129,9 @@ const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
 const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.04; // make rook javelin read as a heavy drone-sized strike
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
+const PARKED_JET_SCALE_MULTIPLIER = 1;
+const PARKED_HELICOPTER_SCALE_MULTIPLIER = 1;
+const PARKED_TRUCK_SCALE_MULTIPLIER = CAPTURE_HELICOPTER_SCALE / CAPTURE_DRONE_SCALE;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const CAPTURE_MODEL_URLS = Object.freeze({
@@ -1964,7 +1967,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
   hexagonTable: -0.065,
   grandOval: -0.065,
-  diamondEdge: -0.07
+  diamondEdge: -0.065
 });
 
 function normalizeAppearance(value = {}) {
@@ -1986,10 +1989,17 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
+  const cosmeticEntries = [
+    ['boardColor', QUICK_BOARD_THEMES.length],
+    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
+  ];
+  cosmeticEntries.forEach(([key, max]) => {
+    const raw = Number(value?.[key]);
+    if (!Number.isFinite(raw)) return;
+    normalized[key] = Math.min(Math.max(0, Math.round(raw)), max - 1);
+  });
   return normalized;
 }
 
@@ -7955,6 +7965,7 @@ function Chess3D({
         arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
+        arena.rebuildParkedAirUnits?.();
         fitRef.current?.();
       };
 
@@ -9442,7 +9453,7 @@ function Chess3D({
       const bc = new THREE.Vector3().copy(b).lerp(c, t);
       return ab.lerp(bc, t);
     };
-    const constrainInsideBoardPerimeter = (vector, marginTiles = 0.42) => {
+    const constrainInsideBoardPerimeter = (vector, marginTiles = 0.56) => {
       const margin = BOARD.tile * marginTiles;
       const boardHalf = (BOARD.N * BOARD.tile) / 2 - margin;
       vector.x = THREE.MathUtils.clamp(vector.x, -boardHalf, boardHalf);
@@ -10325,7 +10336,7 @@ function Chess3D({
         const skin = resolveSideVehicleSkin(isWhite);
         for (let slot = 0; slot < 2; slot += 1) {
           const jet = createFxJet();
-          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 0.72);
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * PARKED_JET_SCALE_MULTIPLIER);
           if (skin) applyVehicleSkinToModel(jet.root, skin);
           attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
           const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
@@ -10345,7 +10356,7 @@ function Chess3D({
           });
 
           const helicopter = createFxHelicopter();
-          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.74);
+          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * PARKED_HELICOPTER_SCALE_MULTIPLIER);
           if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
           );
@@ -10367,7 +10378,7 @@ function Chess3D({
           });
         }
         const supportTruck = createFxSupportTruck();
-        supportTruck.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.95);
+        supportTruck.root.scale.setScalar(CAPTURE_DRONE_SCALE * PARKED_TRUCK_SCALE_MULTIPLIER);
         if (skin) {
           applyVehicleSkinToModel(
             supportTruck.root,
@@ -10563,6 +10574,7 @@ function Chess3D({
         arenaRef.current.applySideColorHex = applySideColorHex;
         arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
         arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
+        arenaRef.current.rebuildParkedAirUnits = rebuildParkedAirUnits;
       }
 
       if (typeof window !== 'undefined') {
@@ -10638,6 +10650,7 @@ function Chess3D({
         activePieceSetId: currentPieceSetId,
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
+        rebuildParkedAirUnits,
         setProceduralBoardVisible,
         usingProceduralBoard: proceduralBoardVisible
       };
@@ -11563,7 +11576,7 @@ function Chess3D({
                 progress: mu,
                 launchHeight: 0.08,
                 orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.42,
-                orbitRadiusMul: 0.58,
+                orbitRadiusMul: 0.5,
                 minOrbitCycles: 0.22,
                 orbitSplit: 0.84,
                 returnSplit: 0.72
@@ -11602,10 +11615,10 @@ function Chess3D({
               to: fx.to,
               progress: jetU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.42,
               orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
-              minOrbitCycles: 0.34,
-              orbitSplit: 0.74,
+              minOrbitCycles: 0.42,
+              orbitSplit: 0.8,
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
@@ -11713,10 +11726,10 @@ function Chess3D({
               to: fx.to,
               progress: heliU,
               launchHeight: 0.08,
-              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.56,
+              orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.42,
               orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
-              minOrbitCycles: 0.34,
-              orbitSplit: 0.74,
+              minOrbitCycles: 0.42,
+              orbitSplit: 0.8,
               returnToOrigin: Boolean(fx.returnToOrigin),
               sideSign: fx.to.x - launchPos.x >= 0 ? 1 : -1
             });
