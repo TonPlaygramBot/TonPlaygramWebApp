@@ -113,7 +113,6 @@ const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TI
 const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_PARKED_SIDE_UNITS_SCALE_MULTIPLIER = 4; // make side-pad vehicles/drone 4x larger for clearer portrait readability
 const CAPTURE_DRONE_ALTITUDE = 1.2; // lower flight profile so aircraft sit closer to the board in portrait view
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.56; // cruise height the drone visually keeps above board
@@ -1967,10 +1966,10 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.11,
-  hexagonTable: -0.11,
-  grandOval: -0.11,
-  diamondEdge: -0.11
+  classicOctagon: -0.065,
+  hexagonTable: -0.065,
+  grandOval: -0.065,
+  diamondEdge: -0.065
 });
 
 function normalizeAppearance(value = {}) {
@@ -9289,10 +9288,9 @@ function Chess3D({
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 0.98) : half + BOARD.rim + tile * 0.98;
       const laneMap = {
-        jet: tile * 1.68,
-        drone: tile * 0.56,
-        helicopter: -tile * 0.56,
-        truck: -tile * 1.68
+        jet: tile * 1.48,
+        helicopter: 0,
+        truck: -tile * 1.48
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
       const laneShift = slot === 0 ? -tile * 0.22 : tile * 0.22;
@@ -9970,11 +9968,9 @@ function Chess3D({
       airPadGroup.add(marker);
     };
     addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
-    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
     addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
     addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
     addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
-    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
     addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
     addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
 
@@ -10327,70 +10323,51 @@ function Chess3D({
       ];
       sides.forEach(({ isWhite, badge }) => {
         const skin = resolveSideVehicleSkin(isWhite);
-        const jet = createFxJet();
-        jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * CAPTURE_PARKED_SIDE_UNITS_SCALE_MULTIPLIER);
-        if (skin) applyVehicleSkinToModel(jet.root, skin);
-        attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
-        const jetPad = getAirPadAnchor(isWhite, 'jet', 0);
-        jet.root.position.copy(jetPad);
-        jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
-        const jetHomeRotation = jet.root.rotation.clone();
-        airPadGroup.add(jet.root);
-        parkedAirUnits.push({
-          kind: 'jet',
-          isWhite,
-          slot: 0,
-          busy: false,
-          homePosition: jetPad.clone(),
-          homeRotation: jetHomeRotation,
-          ...jet,
-          root: jet.root
-        });
+        for (let slot = 0; slot < 2; slot += 1) {
+          const jet = createFxJet();
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15);
+          if (skin) applyVehicleSkinToModel(jet.root, skin);
+          attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
+          const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
+          jet.root.position.copy(jetPad);
+          jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
+          const jetHomeRotation = jet.root.rotation.clone();
+          airPadGroup.add(jet.root);
+          parkedAirUnits.push({
+            kind: 'jet',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: jetPad.clone(),
+            homeRotation: jetHomeRotation,
+            ...jet,
+            root: jet.root
+          });
 
-        const helicopter = createFxHelicopter();
-        helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15 * CAPTURE_PARKED_SIDE_UNITS_SCALE_MULTIPLIER);
-        if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
-          /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
-        );
-        attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
-        const heliPad = getAirPadAnchor(isWhite, 'helicopter', 0);
-        helicopter.root.position.copy(heliPad);
-        helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
-        const heliHomeRotation = helicopter.root.rotation.clone();
-        airPadGroup.add(helicopter.root);
-        parkedAirUnits.push({
-          kind: 'helicopter',
-          isWhite,
-          slot: 0,
-          busy: false,
-          homePosition: heliPad.clone(),
-          homeRotation: heliHomeRotation,
-          ...helicopter,
-          root: helicopter.root
-        });
-
-        const drone = createFxDrone({ forceProcedural: true });
-        drone.root.scale.setScalar(CAPTURE_DRONE_SCALE * CAPTURE_PARKED_SIDE_UNITS_SCALE_MULTIPLIER);
-        if (skin) applyVehicleSkinToModel(drone.root, skin);
-        attachVehicleAvatarBadge(drone.root, badge, isWhite ? 1 : -1);
-        const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
-        drone.root.position.copy(dronePad);
-        drone.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
-        const droneHomeRotation = drone.root.rotation.clone();
-        airPadGroup.add(drone.root);
-        parkedAirUnits.push({
-          kind: 'drone',
-          isWhite,
-          slot: 0,
-          busy: false,
-          homePosition: dronePad.clone(),
-          homeRotation: droneHomeRotation,
-          ...drone,
-          root: drone.root
-        });
-
+          const helicopter = createFxHelicopter();
+          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
+          if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
+            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+          );
+          attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
+          const heliPad = getAirPadAnchor(isWhite, 'helicopter', slot);
+          helicopter.root.position.copy(heliPad);
+          helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
+          const heliHomeRotation = helicopter.root.rotation.clone();
+          airPadGroup.add(helicopter.root);
+          parkedAirUnits.push({
+            kind: 'helicopter',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: heliPad.clone(),
+            homeRotation: heliHomeRotation,
+            ...helicopter,
+            root: helicopter.root
+          });
+        }
         const supportTruck = createFxSupportTruck();
-        supportTruck.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15 * CAPTURE_PARKED_SIDE_UNITS_SCALE_MULTIPLIER);
+        supportTruck.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 1.15);
         if (skin) {
           applyVehicleSkinToModel(
             supportTruck.root,
