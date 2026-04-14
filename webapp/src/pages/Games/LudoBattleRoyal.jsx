@@ -91,9 +91,17 @@ const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
 const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.72;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
-const CAPTURE_PARK_FORWARD_OFFSET = 1.18;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
+const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
+const CAPTURE_PARK_SIDE_OFFSET = 0.19;
+const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
+const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
+  fighter: 0.03,
+  helicopter: 0.03,
+  drone: 0.03,
+  missile: 0.08
+};
 
 function getCaptureVehicleTexture(kind = 'generic') {
   if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(kind)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(kind);
@@ -107,11 +115,11 @@ function getCaptureVehicleTexture(kind = 'generic') {
     return fallback;
   }
   const palettes = {
-    drone: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
-    fighter: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
-    helicopter: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
+    drone: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    fighter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
+    helicopter: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
     missile: ['#14532d', '#1f7a42', '#0f2f1e', '#6fbf7e'],
-    truck: ['#f59e0b', '#fbbf24', '#7c4a03', '#fde68a'],
+    truck: ['#555f66', '#7f8c94', '#353d43', '#9caab2'],
     generic: ['#55606a', '#74818b', '#313940', '#99a6af']
   };
   const tone = palettes[kind] ?? palettes.generic;
@@ -603,7 +611,7 @@ function applyMilitaryJetLook(root) {
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
   if (!root) return;
-  applyCaptureTextureToOpaqueMeshes(root, 'helicopter');
+  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -648,7 +656,7 @@ function findDroneMotorMesh(root) {
 
 function applyMilitaryDroneLook(root, propeller = null) {
   if (!root) return null;
-  applyCaptureTextureToOpaqueMeshes(root, 'drone');
+  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
   const motor = propeller ?? findDroneMotorMesh(root);
   root.traverse((node) => {
     if (!node?.isMesh) return;
@@ -670,7 +678,7 @@ function applyMilitaryDroneLook(root, propeller = null) {
 
 function applyMilitaryTruckLook(root) {
   if (!root) return;
-  applyCaptureTextureToOpaqueMeshes(root, 'truck');
+  applyCaptureTextureToOpaqueMeshes(root, 'fighter');
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
@@ -840,21 +848,21 @@ async function createCaptureMissileTruckFx() {
   const loadedTruck = await loadCaptureVehicleModel('truck');
   if (loadedTruck) {
     const model = loadedTruck.clone(true);
-    fitObjectToTargetSize(model, 6.15);
+    fitObjectToTargetSize(model, 6.95);
     model.rotation.y = Math.PI;
     applyMilitaryTruckLook(model);
     root.add(model);
   } else {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(2.1, 0.62, 1.0),
-      createCaptureVehicleMaterial('truck', { color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+      createCaptureVehicleMaterial('fighter', { color: '#f1b445', roughness: 0.56, metalness: 0.24 })
     );
     body.castShadow = true;
     body.receiveShadow = true;
     root.add(body);
     const cabin = new THREE.Mesh(
       new THREE.BoxGeometry(0.78, 0.62, 0.92),
-      createCaptureVehicleMaterial('truck', { color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+      createCaptureVehicleMaterial('fighter', { color: '#f3be59', roughness: 0.52, metalness: 0.22 })
     );
     cabin.position.set(0.86, 0.44, 0);
     cabin.castShadow = true;
@@ -866,8 +874,18 @@ async function createCaptureMissileTruckFx() {
   const launcher = new THREE.Group();
   launcher.position.set(-0.12, 0.96, 0);
   launcher.rotation.z = 0;
-  addFxBox(launcher, [1.66, 0.06, 1.02], [0, 0, 0], '#171b20', 0.62, 0.24);
+  const launcherDeck = addFxBox(launcher, [1.66, 0.06, 1.02], [0, 0, 0], '#171b20', 0.62, 0.24);
+  launcherDeck.material = createCaptureVehicleMaterial('fighter', {
+    color: '#171b20',
+    roughness: 0.62,
+    metalness: 0.24
+  });
   const support = addFxBox(launcher, [0.14, 0.32, 0.2], [-0.56, -0.2, 0], '#0f1114', 0.5, 0.36);
+  support.material = createCaptureVehicleMaterial('fighter', {
+    color: '#0f1114',
+    roughness: 0.5,
+    metalness: 0.36
+  });
   support.rotation.z = 0;
 
   const missileOffsets = [
@@ -920,7 +938,7 @@ async function createCaptureDroneFx() {
   root.scale.setScalar(0.3);
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
-    createCaptureVehicleMaterial('drone', { color: '#d1d7de', roughness: 0.28, metalness: 0.84 })
+    createCaptureVehicleMaterial('fighter', { color: '#d1d7de', roughness: 0.28, metalness: 0.84 })
   );
   body.rotation.set(0, 0, Math.PI / 2);
   body.castShadow = true;
@@ -928,7 +946,7 @@ async function createCaptureDroneFx() {
   root.add(body);
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(0.17, 0.68, 22),
-    createCaptureVehicleMaterial('drone', { color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
+    createCaptureVehicleMaterial('fighter', { color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
   );
   nose.position.set(1.74, 0, 0);
   nose.rotation.z = -Math.PI / 2;
@@ -936,7 +954,7 @@ async function createCaptureDroneFx() {
   root.add(nose);
   const tail = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.13, 0.58, 16),
-    createCaptureVehicleMaterial('drone', { color: '#10151c', roughness: 0.44, metalness: 0.44 })
+    createCaptureVehicleMaterial('fighter', { color: '#10151c', roughness: 0.44, metalness: 0.44 })
   );
   tail.position.set(-1.62, 0, 0);
   tail.rotation.set(0, 0, Math.PI / 2);
@@ -4462,20 +4480,35 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     fitObjectToTargetHeight(vehicleRoot, kingHeight * CAPTURE_VEHICLE_HEIGHT_TO_KING);
   }, [getKingTokenHeightForPlayer]);
 
+  const getKingTokenPositionForPlayer = useCallback((playerIndex) => {
+    const playerTokens = stateRef.current?.tokens?.[playerIndex];
+    if (!Array.isArray(playerTokens) || !playerTokens.length) return null;
+    const kingToken =
+      playerTokens.find((token) => /king/i.test(String(token?.userData?.tokenType ?? ''))) ??
+      playerTokens[0];
+    if (!kingToken?.getWorldPosition) return null;
+    return kingToken.getWorldPosition(new THREE.Vector3());
+  }, []);
+
   const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
     const arena = arenaRef.current;
     if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    const inward = arena.boardLookTarget.clone().sub(seatPos).setY(0).normalize();
+    const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
+    const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
-    const park = seatPos
+    const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
+    const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
+    const park = kingPos
       .clone()
-      .addScaledVector(inward, CAPTURE_PARK_FORWARD_OFFSET);
+      .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
+      .addScaledVector(inward, forwardOffset)
+      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + (vehicleType === 'missile' ? 0.14 : 0.08);
     return park;
-  }, []);
+  }, [getKingTokenPositionForPlayer]);
 
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
@@ -4525,7 +4558,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       fitObjectToTargetSize(jetFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(helicopterFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(droneFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
-      fitObjectToTargetSize(missileFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
+      fitObjectToTargetSize(missileFx.root, CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE);
       const jetPark = resolveCaptureParkingAnchors(playerIndex, 'fighter');
       const helicopterPark = resolveCaptureParkingAnchors(playerIndex, 'helicopter');
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
