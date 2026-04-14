@@ -236,9 +236,9 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.18,
+  TILE_SIZE * 1.42,
   TILE_SIZE * 1.52,
-  TILE_SIZE * 0.26,
+  TILE_SIZE * 0.08,
   TILE_SIZE * 1.08
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
@@ -259,6 +259,7 @@ const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
+const WEAPON_PARKED_Y_DROP = TOKEN_HEIGHT * 0.62;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -407,9 +408,9 @@ const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
-  fighter: THREE.MathUtils.degToRad(10),
-  helicopter: THREE.MathUtils.degToRad(8),
-  drone: THREE.MathUtils.degToRad(6),
+  fighter: 0,
+  helicopter: 0,
+  drone: 0,
   supportTruck: 0,
   javelin: 0
 });
@@ -4562,7 +4563,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.position.y -= TOKEN_HEIGHT * 0.34;
+  group.position.y -= WEAPON_PARKED_Y_DROP;
   group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
