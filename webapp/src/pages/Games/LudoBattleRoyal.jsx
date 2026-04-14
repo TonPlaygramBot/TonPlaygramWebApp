@@ -83,13 +83,13 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 0.82;
+const CAPTURE_JET_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.84;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 0.92;
 const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
-const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.34;
-const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.72;
-const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.82;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
+const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.68;
+const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
@@ -555,17 +555,17 @@ function applyMilitaryJetLook(root) {
     paintMeshMaterials(node, (mat) => {
       const materialName = `${mat.name || ''}`.toLowerCase();
       if (/cockpit|canopy|window|glass/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
-        mat.color.set('#06080c');
-        if ('metalness' in mat) mat.metalness = 0.55;
-        if ('roughness' in mat) mat.roughness = 0.16;
+        mat.color.set('#020304');
+        if ('metalness' in mat) mat.metalness = 0.48;
+        if ('roughness' in mat) mat.roughness = 0.24;
         if ('transparent' in mat) mat.transparent = true;
-        if ('opacity' in mat) mat.opacity = 0.94;
+        if ('opacity' in mat) mat.opacity = 0.98;
         return;
       }
       if (/missile|rocket|store|pod/.test(name)) {
-        mat.color.set('#d8dde3');
-        if ('metalness' in mat) mat.metalness = 0.88;
-        if ('roughness' in mat) mat.roughness = 0.24;
+        mat.color.set('#6b7f3d');
+        if ('metalness' in mat) mat.metalness = 0.72;
+        if ('roughness' in mat) mat.roughness = 0.34;
         return;
       }
       mat.color.offsetHSL(-0.03, -0.18, -0.12);
@@ -573,6 +573,22 @@ function applyMilitaryJetLook(root) {
       if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
     });
   });
+}
+
+function findHelicopterRotorNodes(root) {
+  let topRotor = null;
+  let tailRotor = null;
+  root?.traverse((node) => {
+    if (!node?.isObject3D) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (!topRotor && /rotor|propell|blade|fan/.test(name) && !/tail/.test(name)) {
+      topRotor = node;
+    }
+    if (!tailRotor && /tail/.test(name) && /rotor|propell|blade|fan/.test(name)) {
+      tailRotor = node;
+    }
+  });
+  return { topRotor, tailRotor };
 }
 
 function applyMilitaryHelicopterLook(root, topRotor = null, tailRotor = null) {
@@ -814,7 +830,7 @@ async function createCaptureMissileTruckFx() {
   const loadedTruck = await loadCaptureVehicleModel('truck');
   if (loadedTruck) {
     const model = loadedTruck.clone(true);
-    fitObjectToTargetSize(model, 6.95);
+    fitObjectToTargetSize(model, 7.35);
     model.rotation.y = Math.PI;
     applyMilitaryTruckLook(model);
     root.add(model);
@@ -862,7 +878,7 @@ async function createCaptureMissileTruckFx() {
   missileOffsets.forEach((offset) => {
     const missile = createCaptureMissileFx();
     missile.root.visible = true;
-    missile.root.scale.setScalar(0.78);
+    missile.root.scale.setScalar(0.96);
     missile.root.position.set(offset[0], offset[1], offset[2]);
     missile.root.rotation.set(0, 0, Math.PI / 2);
     launcher.add(missile.root);
@@ -1012,7 +1028,7 @@ async function createCaptureJetFx() {
   const loadedJet = await loadCaptureVehicleModel('fighter');
   if (loadedJet) {
     const model = loadedJet.clone(true);
-    fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.86);
+    fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.92);
     model.rotation.set(0, Math.PI, 0);
     applyMilitaryJetLook(model);
     root.add(model);
@@ -1117,24 +1133,10 @@ async function createCaptureHelicopterFx() {
     fitObjectToTargetSize(model, 7.68 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
     applyMilitaryHelicopterLook(model);
+    const { topRotor, tailRotor } = findHelicopterRotorNodes(model);
     root.add(model);
-    const trail = [];
-    for (let i = 0; i < 6; i += 1) {
-      trail.push(
-        addFxSphere(
-          root,
-          0.11 + i * 0.03,
-          [-1.76 - i * 0.2, 0, 0],
-          i < 2 ? '#f7a94b' : '#8b949b',
-          i < 2 ? 0.22 : 1,
-          0,
-          true,
-          i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
-        )
-      );
-    }
     root.visible = false;
-    return { root, rotor: null, tailRotor: null, trail };
+    return { root, rotor: topRotor, tailRotor, trail: [] };
   }
   root.scale.setScalar(1.2 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
   const body = new THREE.Mesh(
@@ -7114,11 +7116,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               primaryFx.tailRotor.rotation.x += 0.9;
             }
             primaryFx.trail.forEach((puff, i) => {
-              puff.position.set(
-                -0.55 - i * 0.16,
-                Math.sin(elapsed * 0.02 + i) * 0.02,
-                Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
-              );
+              const isJetTrail = selectedCaptureAnimationId === 'fighterJetAttack';
+              if (isJetTrail) {
+                const lane = i % 2 === 0 ? -1 : 1;
+                const pairIndex = Math.floor(i / 2);
+                puff.position.set(
+                  -1.62 - pairIndex * 0.22,
+                  Math.sin(elapsed * 0.02 + i * 0.5) * 0.018,
+                  lane * 0.22 + Math.sin(elapsed * 0.012 + i * 0.4) * 0.016
+                );
+              } else {
+                puff.position.set(
+                  -0.55 - i * 0.16,
+                  Math.sin(elapsed * 0.02 + i) * 0.02,
+                  Math.sin(elapsed * 0.012 + i * 0.4) * 0.01 + right.z * 0.005
+                );
+              }
               const s = 0.85 + i * 0.16 + ((elapsed * 0.0018 + i * 0.18) % 1) * 0.6;
               puff.scale.setScalar(s);
               puff.material.opacity =
