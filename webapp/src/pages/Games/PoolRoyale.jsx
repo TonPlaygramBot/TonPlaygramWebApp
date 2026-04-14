@@ -15418,9 +15418,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const shotPowerRef = useRef(hud.power);
-const sliderShotStateRef = useRef('idle');
-const powerResetRafRef = useRef(null);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -15436,15 +15433,6 @@ const powerResetRafRef = useRef(null);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
-  useEffect(
-    () => () => {
-      if (powerResetRafRef.current) {
-        cancelAnimationFrame(powerResetRafRef.current);
-        powerResetRafRef.current = null;
-      }
-    },
-    []
-  );
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -32478,18 +32466,8 @@ const powerResetRafRef = useRef(null);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const normalized = clampPower(v / 100, 0);
-        shotPowerRef.current = normalized;
-        applyPower(normalized);
-      },
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        sliderShotStateRef.current = 'dragging';
-        if (powerResetRafRef.current) {
-          cancelAnimationFrame(powerResetRafRef.current);
-          powerResetRafRef.current = null;
-        }
-        shotPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
       onCommit: (sliderValue) => {
@@ -32497,34 +32475,11 @@ const powerResetRafRef = useRef(null);
           Number.isFinite(sliderValue) ? sliderValue / 100 : powerRef.current,
           powerRef.current
         );
-        shotPowerRef.current = releasePower;
-        sliderShotStateRef.current = releasePower > 0.02 ? 'striking' : 'idle';
         fireRef.current?.(releasePower);
-
-        const resetFrom = clampPower(powerRef.current, releasePower);
-        const resetStart = performance.now();
-        const resetDurationMs = 160;
-        const resetTick = () => {
-          const t = THREE.MathUtils.clamp(
-            (performance.now() - resetStart) / resetDurationMs,
-            0,
-            1
-          );
-          const eased = easeOutCubic(t);
-          const nextPower = THREE.MathUtils.lerp(resetFrom, 0, eased);
-          applyPower(nextPower);
-          slider.set(nextPower * 100, { animate: false });
-          if (t < 1) {
-            powerResetRafRef.current = requestAnimationFrame(resetTick);
-            return;
-          }
-          powerResetRafRef.current = null;
-          sliderShotStateRef.current = 'idle';
-          shotPowerRef.current = 0;
-          slider.set(slider.min, { animate: false });
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
           applyPower(0);
-        };
-        powerResetRafRef.current = requestAnimationFrame(resetTick);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -32533,7 +32488,7 @@ const powerResetRafRef = useRef(null);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applyPower, applySliderLock, captureCueStickAnchor, clampPower, showPowerSlider]);
+  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
