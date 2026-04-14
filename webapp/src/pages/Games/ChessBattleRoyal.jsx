@@ -101,8 +101,8 @@ const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
 const CAPTURE_JET_TOTAL = 11.1; // slower cinematic pass so the full fly path is clearly visible on portrait screens
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_HELICOPTER_SPEED_FACTOR = 12.4 / CAPTURE_JET_TOTAL; // keep helicopter pacing aligned with the slower cinematic loop
-const CAPTURE_HELICOPTER_TOTAL = 12.4; // slower helicopter pass so the board loop remains visible
+const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter uses the same timeline as jet
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -9220,10 +9220,35 @@ function Chess3D({
       const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
       return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
     };
-    const getAirPadAnchor = (isWhiteSide, kind = 'jet') => {
+    const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX = isWhiteSide ? -(half + BOARD.rim + tile * 1.55) : half + BOARD.rim + tile * 1.55;
-      const zOffset = kind === 'jet' ? tile * 1.4 : -tile * 1.4;
+      const laneBase = kind === 'jet' ? tile * 1.45 : -tile * 1.45;
+      const laneShift = slot === 0 ? -tile * 0.42 : tile * 0.42;
+      const zOffset = laneBase + laneShift;
       return new THREE.Vector3(sideX, currentPieceYOffset + 0.12, zOffset);
+    };
+    const acquireParkedAirUnit = (isWhiteSide, kind) => {
+      const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
+      if (!preferred?.root) return null;
+      preferred.busy = true;
+      preferred.root.visible = true;
+      if (preferred.root.parent !== captureFxGroup) {
+        preferred.root.parent?.remove(preferred.root);
+        captureFxGroup.add(preferred.root);
+      }
+      return preferred;
+    };
+    const returnParkedAirUnit = (unit) => {
+      if (!unit?.root) return;
+      unit.root.visible = true;
+      unit.root.position.copy(unit.homePosition);
+      unit.root.rotation.copy(unit.homeRotation);
+      unit.root.quaternion.setFromEuler(unit.root.rotation);
+      if (unit.root.parent !== airPadGroup) {
+        unit.root.parent?.remove(unit.root);
+        airPadGroup.add(unit.root);
+      }
+      unit.busy = false;
     };
     const createFxMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
@@ -9609,21 +9634,25 @@ function Chess3D({
       }
       if (pieceType === 'K') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
-        const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const launchBase = getAirPadAnchor(isWhiteSide, 'jet');
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
-        attachVehicleAvatarBadge(
-          jetFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
-        jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
-        captureFxGroup.add(jetFx.root);
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
+        const jetFx = parkedUnit || createFxJet();
+        if (!parkedUnit) {
+          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 0);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
+          attachVehicleAvatarBadge(
+            jetFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
+          );
+          jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(jetFx.root);
+        }
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 0);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
           missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
@@ -9640,6 +9669,7 @@ function Chess3D({
           movingMesh,
           returnToOrigin: true,
           missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          sourceUnit: parkedUnit,
           jetFx,
           missileFx
         });
@@ -9651,25 +9681,29 @@ function Chess3D({
       }
       if (pieceType === 'B') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
-        const helicopterFx = createFxHelicopter();
-        helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const launchBase = getAirPadAnchor(isWhiteSide, 'helicopter');
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) {
-          applyVehicleSkinToModel(helicopterFx.root, sideSkin, (node) =>
-            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
+        const helicopterFx = parkedUnit || createFxHelicopter();
+        if (!parkedUnit) {
+          helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'helicopter', 0);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) {
+            applyVehicleSkinToModel(helicopterFx.root, sideSkin, (node) =>
+              /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+            );
+          }
+          attachVehicleAvatarBadge(
+            helicopterFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
           );
+          helicopterFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(helicopterFx.root);
         }
-        attachVehicleAvatarBadge(
-          helicopterFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
-        helicopterFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
-        captureFxGroup.add(helicopterFx.root);
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'helicopter', 0);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
           missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
@@ -9687,6 +9721,7 @@ function Chess3D({
           movingMesh,
           returnToOrigin: true,
           missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          sourceUnit: parkedUnit,
           helicopterFx,
           missileFx
         });
@@ -9698,21 +9733,25 @@ function Chess3D({
       }
       if (pieceType === 'Q') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
-        const jetFx = createFxJet();
-        jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const launchBase = getAirPadAnchor(isWhiteSide, 'jet');
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
-        attachVehicleAvatarBadge(
-          jetFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
-        jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
-        captureFxGroup.add(jetFx.root);
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
+        const jetFx = parkedUnit || createFxJet();
+        if (!parkedUnit) {
+          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 1);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
+          attachVehicleAvatarBadge(
+            jetFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
+          );
+          jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(jetFx.root);
+        }
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 1);
         const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
         missileFx.forEach((missile) => {
           missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
@@ -9729,6 +9768,7 @@ function Chess3D({
           movingMesh,
           returnToOrigin: true,
           missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          sourceUnit: parkedUnit,
           jetFx,
           missileFx
         });
@@ -10195,27 +10235,49 @@ function Chess3D({
       ];
       sides.forEach(({ isWhite, badge }) => {
         const skin = resolveSideVehicleSkin(isWhite);
-        const jet = createFxJet();
-        jet.root.scale.setScalar(CAPTURE_JET_SCALE * 0.72);
-        if (skin) applyVehicleSkinToModel(jet.root, skin);
-        attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
-        const jetPad = getAirPadAnchor(isWhite, 'jet');
-        jet.root.position.copy(jetPad);
-        jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
-        airPadGroup.add(jet.root);
-        parkedAirUnits.push({ kind: 'jet', ...jet, root: jet.root });
+        for (let slot = 0; slot < 2; slot += 1) {
+          const jet = createFxJet();
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 0.72);
+          if (skin) applyVehicleSkinToModel(jet.root, skin);
+          attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
+          const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
+          jet.root.position.copy(jetPad);
+          jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
+          const jetHomeRotation = jet.root.rotation.clone();
+          airPadGroup.add(jet.root);
+          parkedAirUnits.push({
+            kind: 'jet',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: jetPad.clone(),
+            homeRotation: jetHomeRotation,
+            ...jet,
+            root: jet.root
+          });
 
-        const helicopter = createFxHelicopter();
-        helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.74);
-        if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
-          /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
-        );
-        attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
-        const heliPad = getAirPadAnchor(isWhite, 'helicopter');
-        helicopter.root.position.copy(heliPad);
-        helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
-        airPadGroup.add(helicopter.root);
-        parkedAirUnits.push({ kind: 'helicopter', ...helicopter, root: helicopter.root });
+          const helicopter = createFxHelicopter();
+          helicopter.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE * 0.74);
+          if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
+            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+          );
+          attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
+          const heliPad = getAirPadAnchor(isWhite, 'helicopter', slot);
+          helicopter.root.position.copy(heliPad);
+          helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
+          const heliHomeRotation = helicopter.root.rotation.clone();
+          airPadGroup.add(helicopter.root);
+          parkedAirUnits.push({
+            kind: 'helicopter',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: heliPad.clone(),
+            homeRotation: heliHomeRotation,
+            ...helicopter,
+            root: helicopter.root
+          });
+        }
       });
     };
 
@@ -11513,7 +11575,11 @@ function Chess3D({
             }
 
             if (u >= 1) {
-              captureFxGroup.remove(fx.jetFx.root);
+              if (fx.sourceUnit) {
+                returnParkedAirUnit(fx.sourceUnit);
+              } else {
+                captureFxGroup.remove(fx.jetFx.root);
+              }
               jetMissiles.forEach((missile) => {
                 captureFxGroup.remove(missile.root);
               });
@@ -11618,7 +11684,11 @@ function Chess3D({
               }
             }
             if (u >= 1) {
-              captureFxGroup.remove(fx.helicopterFx.root);
+              if (fx.sourceUnit) {
+                returnParkedAirUnit(fx.sourceUnit);
+              } else {
+                captureFxGroup.remove(fx.helicopterFx.root);
+              }
               heliMissiles.forEach((missile) => {
                 captureFxGroup.remove(missile.root);
               });
