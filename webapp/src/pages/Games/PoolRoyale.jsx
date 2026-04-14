@@ -32455,6 +32455,7 @@ const powerRef = useRef(hud.power);
   // --------------------------------------------------
   const sliderRef = useRef(null);
   const sliderResetRafRef = useRef(0);
+  const sliderShotPowerRef = useRef(0);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -32473,14 +32474,18 @@ const powerRef = useRef(hud.power);
           cancelAnimationFrame(sliderResetRafRef.current);
           sliderResetRafRef.current = 0;
         }
+        sliderShotPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
       onCommit: (sliderValue) => {
         const releasePower = clampPower(
-          Number.isFinite(sliderValue) ? sliderValue / 100 : powerRef.current,
+          Number.isFinite(sliderValue) ? sliderValue / 100 : sliderShotPowerRef.current,
           powerRef.current
         );
-        fireRef.current?.(releasePower);
+        sliderShotPowerRef.current = releasePower;
+        if (releasePower > 0.02) {
+          fireRef.current?.(releasePower);
+        }
         const resetStart = performance.now();
         const fromValue = slider.get();
         const resetDurationMs = 160;
