@@ -25973,15 +25973,13 @@ const powerRef = useRef(hud.power);
         return Math.min(compensated, basePull * maxScale);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
+        // Match the provided reference technique exactly:
+        // pull = PULL_RANGE * easeOut(power)
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
+        const desired = 0.34 * (1 - Math.pow(1 - ratio, 3));
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
-        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target =
-          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
-        return Math.min(target, visualMax);
+        const visualMax = Math.max(effectiveMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+        return Math.min(desired, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
@@ -26245,12 +26243,23 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          // Preserve a direct 1:1 power transfer from slider selection to shot strength.
+          // Match the reference shot transfer:
+          // cueBall.vel = dir * (1.8 + 6.2 * power) + perp * (spinX * power * 0.22)
           const powerScale = THREE.MathUtils.clamp(clampedPower, 0, 1);
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = shotAimDir
+          const shotDir3 = TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+          if (shotDir3.lengthSq() < 1e-8) {
+            shotDir3.set(0, 0, -1);
+          } else {
+            shotDir3.normalize();
+          }
+          const shotPerp3 = TMP_VEC3_B.set(shotDir3.z, 0, -shotDir3.x);
+          if (shotPerp3.lengthSq() > 1e-8) shotPerp3.normalize();
+          const shotSpeed = (1.8 + 6.2 * powerScale) * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const squirt = (rawSpin?.x ?? 0) * powerScale * 0.22;
+          const base = shotDir3
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(shotSpeed)
+            .addScaledVector(shotPerp3, squirt);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -26508,7 +26517,7 @@ const powerRef = useRef(hud.power);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
+          const pullRange = 0.34;
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
