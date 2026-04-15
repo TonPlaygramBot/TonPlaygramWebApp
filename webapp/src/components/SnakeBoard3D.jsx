@@ -255,19 +255,25 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   -TOKEN_RADIUS * 0.02
 ]);
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.28,
+  -TILE_SIZE * 0.48,
   0,
-  TILE_SIZE * 0.34,
+  TILE_SIZE * 0.56,
   0
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.26;
-const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([0, 0, 0, -TILE_SIZE * 0.22]);
-const WEAPON_PARKED_Y_DROP = TOKEN_HEIGHT * 0.96;
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.2;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([0, -TILE_SIZE * 0.12, 0, -TILE_SIZE * 0.12]);
+const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
+  fighter: TOKEN_HEIGHT * 1.48,
+  helicopter: TOKEN_HEIGHT * 1.54,
+  drone: TOKEN_HEIGHT * 1.42,
+  supportTruck: TOKEN_HEIGHT * 1.5,
+  javelin: TOKEN_HEIGHT * 1.48
+});
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.5;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -301,7 +307,7 @@ const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
-const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 3.6;
+const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.15;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
@@ -4585,7 +4591,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.position.y -= WEAPON_PARKED_Y_DROP;
+  group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[weaponType] ?? TOKEN_HEIGHT * 1.48;
   group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
   group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[weaponType] ?? 0;
   rig.trail?.forEach((puff) => {
@@ -4640,7 +4646,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       Number.isFinite(weaponInset) ? weaponInset : null
     );
     if (railLayout) {
-      const sideSign = seatIndex % 2 === 0 ? 1 : -1;
+      const sideSign = seatIndex % 2 === 0 ? -1 : 1;
       holder.position
         .copy(railLayout.railLocal)
         .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
@@ -5113,7 +5119,7 @@ export default function SnakeBoard3D({
       if (!isTopDown) return;
       event.preventDefault();
       const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_WHEEL_FACTOR : CAMERA_3D_ZOOM_WHEEL_FACTOR;
-      const bounds = isTopDown ? [0.86, 1.16] : [0.88, 1.14];
+      const bounds = isTopDown ? [0.86, 1.24] : [0.88, 1.14];
       const zoomScale = 1 + event.deltaY * factor;
       applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
     };
@@ -5136,7 +5142,7 @@ export default function SnakeBoard3D({
           return;
         }
         const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR : CAMERA_3D_ZOOM_PINCH_FACTOR;
-        const bounds = isTopDown ? [0.85, 1.15] : [0.9, 1.12];
+        const bounds = isTopDown ? [0.85, 1.22] : [0.9, 1.12];
         const zoomScale = 1 - deltaDistance * factor;
         applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
       }
