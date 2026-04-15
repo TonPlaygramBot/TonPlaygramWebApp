@@ -160,7 +160,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.2 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.46 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -254,12 +254,20 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
   TOKEN_RADIUS * 0.08,
   -TOKEN_RADIUS * 0.02
 ]);
+const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
+  -TILE_SIZE * 0.28,
+  0,
+  TILE_SIZE * 0.34,
+  0
+]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
-const WEAPON_PARKED_Y_DROP = TOKEN_HEIGHT * 0.62;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.26;
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([0, 0, 0, -TILE_SIZE * 0.22]);
+const WEAPON_PARKED_Y_DROP = TOKEN_HEIGHT * 0.96;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.2;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -294,7 +302,7 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 3.6;
-const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
@@ -408,6 +416,13 @@ const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
+  fighter: 0,
+  helicopter: 0,
+  drone: 0,
+  supportTruck: 0,
+  javelin: 0
+});
+const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
   fighter: 0,
   helicopter: 0,
   drone: 0,
@@ -1895,8 +1910,14 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
       target: boardLookTarget.clone()
     };
   }
-  if (seatIndex === 1) target.x += CAMERA_SIDE_LOOK_EXTRA;
-  if (seatIndex === 3) target.x -= CAMERA_SIDE_LOOK_EXTRA;
+  if (seatIndex === 1) {
+    target.x += CAMERA_SIDE_LOOK_EXTRA;
+    target.z += TILE_SIZE * 0.12;
+  }
+  if (seatIndex === 3) {
+    target.x -= CAMERA_SIDE_LOOK_EXTRA;
+    target.z += TILE_SIZE * 0.12;
+  }
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
     boardToCamera.normalize();
@@ -3459,6 +3480,7 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
   } else if (seatDirection.z > 0.2) {
     restRadius -= TILE_SIZE * 0.68;
   }
+  restRadius += TOKEN_REST_EXTRA_RADIAL_BY_SEAT[seatIndex] ?? 0;
   restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
 
   const railSpread = TOKEN_REST_LATERAL_BY_SEAT[seatIndex] ?? 0;
@@ -4565,6 +4587,7 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
   group.position.y -= WEAPON_PARKED_Y_DROP;
   group.rotation.x = WEAPON_PARKED_PITCH_BY_KIND[weaponType] ?? 0;
+  group.rotation.z = WEAPON_PARKED_ROLL_BY_KIND[weaponType] ?? 0;
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
@@ -4621,8 +4644,11 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position
         .copy(railLayout.railLocal)
         .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
-        .addScaledVector(railLayout.seatDirection, WEAPON_PARKING_OUTWARD_OFFSET);
-      holder.position.y = railLayout.railHeightY;
+        .addScaledVector(
+          railLayout.seatDirection,
+          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+        );
+      holder.position.y = railLayout.railHeightY + WEAPON_REST_HEIGHT_OFFSET;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4636,9 +4662,11 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = tableY + TOKEN_HEIGHT * 0.44;
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.18;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
+    holder.rotation.x = 0;
+    holder.rotation.z = 0;
   });
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
