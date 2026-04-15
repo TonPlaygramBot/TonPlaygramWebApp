@@ -26697,10 +26697,6 @@ const powerRef = useRef(hud.power);
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y
             };
-            // Restore legacy shot feel: slider release applies physics immediately,
-            // while the cue stroke animation continues as visual feedback only.
-            commitShotImpact();
-            pendingImpactRef.current = null;
             cueStrokeStateRef.current = {
               startTime,
               idlePos: idlePos.clone(),
@@ -26721,7 +26717,6 @@ const powerRef = useRef(hud.power);
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
-              shotApplied: true,
               onImpact: commitShotImpact,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
