@@ -1,10 +1,9 @@
 import { FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
-import { AmericanBilliards } from '../../lib/americanBilliards.js';
 import { NineBall } from '../../lib/nineBall.js';
 import { BcaEightBall } from '../../lib/bcaEightBall.js';
 
-type PoolVariantId = 'american' | '8ball' | 'uk' | '9ball';
+type PoolVariantId = '8ball' | 'uk' | '9ball';
 
 type UkColour = 'blue' | 'red' | 'black' | 'cue';
 
@@ -41,19 +40,6 @@ type EightBallSerializedState = {
   breakInProgress: boolean;
 };
 
-type Race61SerializedState = {
-  ballsOnTable: number[];
-  currentPlayer: 'A' | 'B';
-  scores: { A: number; B: number };
-  assignments: { A: 'SOLID' | 'STRIPE' | null; B: 'SOLID' | 'STRIPE' | null };
-  ballInHand: boolean;
-  foulStreak: { A: number; B: number };
-  frameOver: boolean;
-  winner: 'A' | 'B' | 'TIE' | null;
-  breakInProgress: boolean;
-  targetScore: number;
-};
-
 type NineSerializedState = {
   ballsOnTable: number[];
   currentPlayer: 'A' | 'B';
@@ -74,12 +60,6 @@ type PoolMeta =
   | {
       variant: '8ball';
       state: EightBallSerializedState;
-      hud: HudInfo;
-      breakInProgress?: boolean;
-    }
-  | {
-      variant: 'american';
-      state: Race61SerializedState;
       hud: HudInfo;
       breakInProgress?: boolean;
     }
@@ -175,42 +155,6 @@ function applyEightBallState(game: BcaEightBall, snapshot: EightBallSerializedSt
   };
 }
 
-function serializeRace61State(state: AmericanBilliards['state']): Race61SerializedState {
-  return {
-    ballsOnTable: Array.from(state.ballsOnTable.values()),
-    currentPlayer: state.currentPlayer,
-    scores: { ...state.scores },
-    assignments: {
-      A: state.assignments?.A ?? null,
-      B: state.assignments?.B ?? null
-    },
-    ballInHand: state.ballInHand,
-    foulStreak: { ...state.foulStreak },
-    frameOver: state.frameOver,
-    winner: state.winner,
-    breakInProgress: state.breakInProgress,
-    targetScore: state.targetScore ?? 61
-  };
-}
-
-function applyRace61State(game: AmericanBilliards, snapshot: Race61SerializedState) {
-  game.state = {
-    ballsOnTable: new Set(snapshot.ballsOnTable),
-    currentPlayer: snapshot.currentPlayer,
-    scores: { ...snapshot.scores },
-    assignments: {
-      A: snapshot.assignments?.A ?? null,
-      B: snapshot.assignments?.B ?? null
-    },
-    ballInHand: snapshot.ballInHand,
-    foulStreak: { ...snapshot.foulStreak },
-    frameOver: snapshot.frameOver,
-    winner: snapshot.winner,
-    breakInProgress: snapshot.breakInProgress,
-    targetScore: snapshot.targetScore ?? 61
-  };
-}
-
 function serializeNineState(state: NineBall['state']): NineSerializedState {
   return {
     ballsOnTable: Array.from(state.ballsOnTable.values()),
@@ -296,13 +240,6 @@ export class PoolRoyaleRules {
       normalized === 'bca8ball'
     ) {
       this.variant = '8ball';
-    } else if (
-      normalized === 'race61' ||
-      normalized === 'american' ||
-      normalized === 'americanbilliards' ||
-      normalized === 'rotation61'
-    ) {
-      this.variant = 'american';
     } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
       this.variant = '9ball';
     } else {
@@ -367,35 +304,6 @@ export class PoolRoyaleRules {
         } satisfies PoolMeta;
         return base;
       }
-      case 'american': {
-        const game = new AmericanBilliards();
-        game.state.ballInHand = true;
-        const snapshot = serializeRace61State(game.state);
-        const ballOn = this.computeRace61BallOn(snapshot);
-        const scores = this.computeRace61Scores(snapshot);
-        const base: FrameState = {
-          balls: [],
-          activePlayer: 'A',
-          players: basePlayers(playerA, playerB),
-          currentBreak: 0,
-          phase: 'REDS_AND_COLORS',
-          redsRemaining: snapshot.ballsOnTable.length,
-          ballOn,
-          frameOver: false
-        };
-        const hud: HudInfo = {
-          next: ballOn.length > 0 ? ballOn.join(' / ').toLowerCase() : 'frame over',
-          phase: 'rotation',
-          scores
-        };
-        base.meta = {
-          variant: 'american',
-          state: snapshot,
-          hud,
-          breakInProgress: true
-        } satisfies PoolMeta;
-        return base;
-      }
       case '8ball':
       default: {
         const game = new BcaEightBall();
@@ -434,8 +342,6 @@ export class PoolRoyaleRules {
         return this.applyUkShot(state, events, context);
       case '9ball':
         return this.applyNineBallShot(state, events, context);
-      case 'american':
-        return this.applyAmericanShot(state, events, context);
       case '8ball':
       default:
         return this.applyEightBallShot(state, events, context);
@@ -662,96 +568,6 @@ export class PoolRoyaleRules {
     return hasStripe ? ['STRIPE'] : state.ballsOnTable.includes(8) ? ['BLACK'] : [];
   }
 
-  private applyAmericanShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
-    const meta = state.meta as PoolMeta | undefined;
-    const previous = meta && meta.variant === 'american' && meta.state ? meta : null;
-    const game = new AmericanBilliards();
-    if (previous) {
-      applyRace61State(game, previous.state);
-    } else {
-      game.state.ballInHand = true;
-    }
-    const contactOrder: number[] = [];
-    for (const ev of events) {
-      if (ev.type !== 'HIT') continue;
-      const id = parseNumericId(ev.ballId ?? ev.firstContact);
-      if (id != null) contactOrder.push(id);
-    }
-    const potted: number[] = [];
-    for (const ev of events) {
-      if (ev.type !== 'POTTED') continue;
-      if (isCueBallId(ev.ballId ?? ev.ball)) {
-        potted.push(0);
-      } else {
-        const id = parseNumericId(ev.ballId ?? ev.ball);
-        if (id != null) potted.push(id);
-      }
-    }
-    const result = game.shotTaken({
-      contactOrder,
-      potted,
-      cueOffTable: Boolean(context.cueBallPotted),
-      placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
-    });
-    const pottedCount = potted.filter((id) => id !== 0).length;
-    const snapshot = serializeRace61State(game.state);
-    const ballOn = this.computeRace61BallOn(snapshot);
-    const scores = this.computeRace61Scores(snapshot);
-    const frameOver = snapshot.frameOver;
-    const nextLabel =
-      ballOn.length === 0
-        ? 'frame over'
-        : ballOn.map((entry) => entry.toLowerCase().replace('_', ' ')).join(' / ');
-    const hud: HudInfo = {
-      next: frameOver ? 'frame over' : nextLabel,
-      phase: frameOver ? 'complete' : 'rotation',
-      scores
-    };
-    const breakInProgress = Boolean(snapshot.breakInProgress);
-    return {
-      ...state,
-      activePlayer: game.state.currentPlayer,
-      players: {
-        A: { ...state.players.A, score: scores.A },
-        B: { ...state.players.B, score: scores.B }
-      },
-      currentBreak:
-        !result.foul && game.state.currentPlayer === state.activePlayer && pottedCount > 0
-          ? (state.currentBreak ?? 0) + pottedCount
-          : 0,
-      ballOn: frameOver ? [] : ballOn,
-      frameOver,
-      winner: snapshot.winner ?? undefined,
-      foul: result.foul
-        ? {
-            points: 0,
-            reason: result.reason ?? 'foul'
-          }
-        : undefined,
-      meta: {
-        variant: 'american',
-        state: snapshot,
-        hud,
-        breakInProgress
-      } satisfies PoolMeta
-    };
-  }
-
-  private computeRace61Scores(state: Race61SerializedState): { A: number; B: number } {
-    return {
-      A: state.scores?.A ?? 0,
-      B: state.scores?.B ?? 0
-    };
-  }
-
-  private computeRace61BallOn(state: Race61SerializedState): string[] {
-    if (state.frameOver) return [];
-    const lowest = lowestBall(state.ballsOnTable);
-    if (lowest == null) return [];
-    return [`BALL_${lowest}`];
-  }
-
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === '9ball' && meta.state ? meta : null;
@@ -782,7 +598,9 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      breakShot: Boolean(previous?.state?.breakInProgress),
+      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);

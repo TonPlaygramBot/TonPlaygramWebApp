@@ -1994,10 +1994,34 @@ const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 2.275; // shrink GLTF rail grain by ~30% (smaller pattern tiles) while keeping leg density aligned.
-const DEFAULT_POOL_VARIANT = 'american';
+const DEFAULT_POOL_VARIANT = 'uk';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
+const AMERICAN_BALL_SET = Object.freeze({
+  objectColors: [
+    0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28,
+    0x111111, 0xffc52c, 0x0a58ff, 0xd32232, 0x8f32d6, 0xff7c1f, 0x0faa60, 0x651f28
+  ],
+  objectNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+  objectPatterns: [
+    'solid',
+    'solid',
+    'solid',
+    'solid',
+    'solid',
+    'solid',
+    'solid',
+    'solid',
+    'stripe',
+    'stripe',
+    'stripe',
+    'stripe',
+    'stripe',
+    'stripe',
+    'stripe'
+  ]
+});
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
   uk: {
     id: 'uk',
@@ -2040,64 +2064,6 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       null
     ],
     objectPatterns: new Array(15).fill('solid')
-  },
-  american: {
-    id: 'american',
-    label: 'American 8-Ball',
-    cueColor: 0xffffff,
-    rackLayout: 'triangle',
-    disableSnookerMarkings: true,
-    objectColors: [
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28,
-      0x111111,
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28
-    ],
-    objectNumbers: [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15
-    ],
-    objectPatterns: [
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe'
-    ]
   },
   '9ball': {
     id: '9ball',
@@ -2160,6 +2126,10 @@ function resolvePoolVariant(variantId, ballSet = null) {
   if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
+    normalized === 'american' ||
+    normalized === 'americanbilliards' ||
+    normalized === 'rotation61' ||
+    normalized === 'race61' ||
     normalized === '8balluk' ||
     normalized === 'eightballuk' ||
     normalized === '8pooluk' ||
@@ -2171,7 +2141,7 @@ function resolvePoolVariant(variantId, ballSet = null) {
     POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
   const ballSetKey = normalizeBallSetKey(ballSet);
   if (base.id === 'uk' && ballSetKey === 'american') {
-    const american = POOL_VARIANT_COLOR_SETS.american;
+    const american = AMERICAN_BALL_SET;
     return {
       ...base,
       ballSet: 'american',
@@ -2186,10 +2156,10 @@ function resolvePoolVariant(variantId, ballSet = null) {
 function deriveInHandFromFrame(frame) {
   const meta = frame && typeof frame === 'object' ? frame.meta : null;
   if (!meta || typeof meta !== 'object') return false;
-  if (meta.variant === 'american' && meta.state) {
+  if (meta.variant === '9ball' && meta.state) {
     return Boolean(meta.state.ballInHand);
   }
-  if (meta.variant === '9ball' && meta.state) {
+  if (meta.variant === '8ball' && meta.state) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
@@ -3291,108 +3261,108 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalk: createStandardWoodFinish({
     id: 'carbonFiberChalk',
     label: 'LT Black',
-    rail: 0x242b36,
-    base: 0x242b36,
-    trim: 0x242b36,
-    woodTextureId: 'plastic_monoblock_lt_black',
+    rail: 0x2a313d,
+    base: 0x2a313d,
+    trim: 0x2a313d,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0xb3bcc8,
-    base: 0xb3bcc8,
-    trim: 0xb3bcc8,
-    woodTextureId: 'plastic_monoblock_lt_grey',
+    rail: 0xbdc5cf,
+    base: 0xbdc5cf,
+    trim: 0xbdc5cf,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
     id: 'carbonFiberChalkBeige',
     label: 'LT Dark Grey',
-    rail: 0x687381,
-    base: 0x687381,
-    trim: 0x687381,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey',
+    rail: 0x727d8b,
+    base: 0x727d8b,
+    trim: 0x727d8b,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0xa95b60,
-    base: 0xa95b60,
-    trim: 0xa95b60,
-    woodTextureId: 'plastic_monoblock_lt_burgundy',
+    rail: 0xb66569,
+    base: 0xb66569,
+    trim: 0xb66569,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
     id: 'carbonFiberChalkWhite',
     label: 'LT Milk Cream',
-    rail: 0xf6ead7,
-    base: 0xf6ead7,
-    trim: 0xf6ead7,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream',
+    rail: 0xf8eedf,
+    base: 0xf8eedf,
+    trim: 0xf8eedf,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkGreen',
     label: 'LT Dark Green',
-    rail: 0x4b7958,
-    base: 0x4b7958,
-    trim: 0x4b7958,
-    woodTextureId: 'plastic_monoblock_lt_dark_green',
+    rail: 0x548460,
+    base: 0x548460,
+    trim: 0x548460,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkYellow',
     label: 'LT Dark Yellow',
-    rail: 0xc59a48,
-    base: 0xc59a48,
-    trim: 0xc59a48,
-    woodTextureId: 'plastic_monoblock_lt_dark_yellow',
+    rail: 0xd1a652,
+    base: 0xd1a652,
+    trim: 0xd1a652,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBrown',
     label: 'LT Dark Brown',
-    rail: 0x8a6045,
-    base: 0x8a6045,
-    trim: 0x8a6045,
-    woodTextureId: 'plastic_monoblock_lt_dark_brown',
+    rail: 0x956b4f,
+    base: 0x956b4f,
+    trim: 0x956b4f,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkRed: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkRed',
     label: 'LT Dark Red',
-    rail: 0x9e4646,
-    base: 0x9e4646,
-    trim: 0x9e4646,
-    woodTextureId: 'plastic_monoblock_lt_dark_red',
+    rail: 0xaa5151,
+    base: 0xaa5151,
+    trim: 0xaa5151,
+    woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
-    disableWoodPattern: true,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -23928,9 +23898,9 @@ const powerRef = useRef(hud.power);
           addCueStick(-PLAY_W * 0.2, rackStartZ + BALL_R * 4.2, -Math.PI * 0.04);
           addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.2, Math.PI * 0.06);
         } else {
-          const rackColors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
-          const rackNumbers = POOL_VARIANT_COLOR_SETS.american.objectNumbers || [];
-          const rackPatterns = POOL_VARIANT_COLOR_SETS.american.objectPatterns || [];
+          const rackColors = AMERICAN_BALL_SET.objectColors || [];
+          const rackNumbers = AMERICAN_BALL_SET.objectNumbers || [];
+          const rackPatterns = AMERICAN_BALL_SET.objectPatterns || [];
           const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
           const rackPositions = generateRackPositions(
             rackColors.length,
@@ -29021,7 +28991,7 @@ const powerRef = useRef(hud.power);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const variantId = activeVariantRef.current?.id ?? 'american';
+          const variantId = activeVariantRef.current?.id ?? 'uk';
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
@@ -30979,7 +30949,7 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
               if (
-                (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2 &&
+                (shotContextRef.current.railContactCountAfterContact ?? 0) >= 1 &&
                 !shotContextRef.current.doubleBankBroadcastCutApplied
               ) {
                 shotContextRef.current.doubleBankBroadcastCutApplied = true;
@@ -32469,11 +32439,6 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const shotBroadcastActive = shotActive || pocketCameraActive;
-  useEffect(() => {
-    if (shotBroadcastActive && isTopDownView && !isRailOverheadView) {
-      setIsRailOverheadView(true);
-    }
-  }, [isRailOverheadView, isTopDownView, shotBroadcastActive]);
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
@@ -32816,7 +32781,7 @@ const powerRef = useRef(hud.power);
   }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
-    const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
+    const colors = AMERICAN_BALL_SET.objectColors || [];
     return colors.reduce((acc, hex, idx) => {
       acc[idx + 1] = `#${hex.toString(16).padStart(6, '0')}`;
       return acc;

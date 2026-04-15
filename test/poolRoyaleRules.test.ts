@@ -44,23 +44,21 @@ describe('PoolRoyaleRules', () => {
     expect(foulState.ballOn).toContain('YELLOW');
   });
 
-  test('American variant uses rotation logic with race to 61 and lowest-ball target', () => {
+  test('Legacy american variant key is remapped to 8-ball rules', () => {
     const rules = new PoolRoyaleRules('american');
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const initialMeta = initialFrame.meta as any;
 
-    expect(initialMeta?.variant).toBe('american');
+    expect(initialMeta?.variant).toBe('8ball');
     expect(initialMeta?.breakInProgress).toBe(true);
     expect(initialMeta?.state?.ballInHand).toBe(true);
-    expect(initialMeta?.state?.targetScore).toBe(61);
-    expect(initialMeta?.hud?.next).toBe('ball_1');
-    expect(initialMeta?.hud?.phase).toBe('rotation');
-    expect(initialFrame.ballOn).toEqual(['BALL_1']);
+    expect(initialMeta?.hud?.next).toBe('open table');
+    expect(initialMeta?.hud?.phase).toBe('groups');
+    expect(initialFrame.ballOn).toEqual(['SOLID', 'STRIPE']);
 
     const breakEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 1, ballId: 1 },
-      { type: 'POTTED', ball: 1, pocket: 'BL', ballId: 1 },
-      { type: 'POTTED', ball: 2, pocket: 'TM', ballId: 2 }
+      { type: 'POTTED', ball: 1, pocket: 'BL', ballId: 1 }
     ];
     const cleared = rules.applyShot(initialFrame, breakEvents, {
       placedFromHand: true,
@@ -71,10 +69,10 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['BALL_3']);
-    expect(clearedMeta?.hud?.next).toBe('ball 3');
-    expect(clearedMeta?.hud?.phase).toBe('rotation');
-    expect(cleared.players.A.score).toBe(3);
+    expect(cleared.ballOn).toEqual(['SOLID']);
+    expect(clearedMeta?.hud?.next).toBe('solid');
+    expect(clearedMeta?.hud?.phase).toBe('groups');
+    expect(cleared.players.A.score).toBe(1);
     expect(cleared.activePlayer).toBe('A');
 
     const scratchEvents: ShotEvent[] = [
@@ -89,9 +87,9 @@ describe('PoolRoyaleRules', () => {
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratchMeta?.breakInProgress).toBe(false);
     expect(scratch.activePlayer).toBe('B');
-    expect(scratch.ballOn).toEqual(['BALL_3']);
-    expect(scratchMeta?.hud?.next).toBe('ball 3');
-    expect(scratchMeta?.hud?.phase).toBe('rotation');
+    expect(scratch.ballOn).toEqual(['STRIPE']);
+    expect(scratchMeta?.hud?.next).toBe('stripe');
+    expect(scratchMeta?.hud?.phase).toBe('groups');
   });
 
   test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
@@ -109,7 +107,10 @@ describe('PoolRoyaleRules', () => {
       { type: 'HIT', firstContact: 1, ballId: 1 },
       { type: 'POTTED', ball: 1, pocket: 'TM', ballId: 1 }
     ];
-    const postBreak = rules.applyShot(initialFrame, breakEvents, { contactMade: true });
+    const postBreak = rules.applyShot(initialFrame, breakEvents, {
+      contactMade: true,
+      railContactCountAfterContact: 4
+    });
     const postBreakMeta = postBreak.meta as any;
 
     expect(postBreak.foul).toBeUndefined();
@@ -138,6 +139,18 @@ describe('PoolRoyaleRules', () => {
     expect(recoveryMeta?.state?.ballInHand).toBe(false);
     expect(recoveryState.ballOn).toEqual(['BALL_3']);
     expect(recoveryMeta?.hud?.next).toBe('ball 3');
+  });
+
+  test('9-ball marks an illegal break as foul when no ball is potted and rails are insufficient', () => {
+    const rules = new PoolRoyaleRules('9ball');
+    const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
+    const illegalBreak = rules.applyShot(
+      initialFrame,
+      [{ type: 'HIT', firstContact: 1, ballId: 1 }],
+      { contactMade: true, railContactCountAfterContact: 1 }
+    );
+    expect(illegalBreak.foul?.reason).toBe('illegal break');
+    expect(illegalBreak.activePlayer).toBe('B');
   });
 
   test('8-ball keeps its own rules and allows a legal black-ball finish', () => {
