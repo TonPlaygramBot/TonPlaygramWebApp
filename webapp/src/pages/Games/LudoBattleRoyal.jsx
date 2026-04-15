@@ -1007,16 +1007,16 @@ async function createCaptureMissileTruckFx() {
 
   const missileOffsets = [
     [-0.42, 0.4, -0.3],
+    [0, 0.42, 0],
     [0.42, 0.4, 0.3]
   ];
-  const parkedDronePayloads = [];
   let reloadMissile = null;
   let reloadMissileLocalPosition = null;
   let reloadMissileLocalRotation = null;
   missileOffsets.forEach((offset, missileIndex) => {
     const missile = createCaptureMissileFx({ withTrail: false });
     missile.root.visible = true;
-    missile.root.scale.set(0.92, 1.14, 1.14);
+    missile.root.scale.setScalar(0.92);
     missile.root.position.set(offset[0], offset[1], offset[2]);
     missile.root.rotation.set(0, 0, Math.PI / 3.4);
     if (missileIndex === 1) {
@@ -1024,7 +1024,6 @@ async function createCaptureMissileTruckFx() {
       reloadMissileLocalPosition = missile.root.position.clone();
       reloadMissileLocalRotation = missile.root.rotation.clone();
     }
-    parkedDronePayloads.push(missile.root);
     const strut = addFxBox(launcher, [0.06, 0.22, 0.06], [offset[0] - 0.08, 0.18, offset[2]], '#111418', 0.56, 0.28);
     strut.rotation.z = -Math.PI * 0.24;
     strut.material = createCaptureVehicleMaterial('truck', { color: '#111418', roughness: 0.56, metalness: 0.28 });
@@ -1037,10 +1036,41 @@ async function createCaptureMissileTruckFx() {
   return {
     root,
     launcher,
-    parkedDronePayloads,
     reloadMissile,
     reloadMissileLocalPosition,
     reloadMissileLocalRotation
+  };
+}
+
+async function createCaptureDroneLauncherTruckFx() {
+  const truckFx = await createCaptureMissileTruckFx();
+  if (!truckFx?.root || !truckFx?.launcher) return truckFx;
+  const parkedDronePayloads = [];
+  const preserve = new Set([truckFx.reloadMissile]);
+  [...truckFx.launcher.children].forEach((child) => {
+    if (!child?.isObject3D) return;
+    const isMissilePayload = child.userData?.lockCaptureTexture === true;
+    if (!isMissilePayload) return;
+    if (!preserve.has(child)) {
+      truckFx.launcher.remove(child);
+    }
+  });
+  const droneOffsets = [
+    [-0.42, 0.4, -0.3],
+    [0.42, 0.4, 0.3]
+  ];
+  droneOffsets.forEach((offset) => {
+    const dronePayload = createCaptureMissileFx({ withTrail: false });
+    dronePayload.root.visible = true;
+    dronePayload.root.scale.set(0.92, 1.14, 1.14);
+    dronePayload.root.position.set(offset[0], offset[1], offset[2]);
+    dronePayload.root.rotation.set(0, 0, Math.PI / 3.4);
+    parkedDronePayloads.push(dronePayload.root);
+    truckFx.launcher.add(dronePayload.root);
+  });
+  return {
+    ...truckFx,
+    parkedDronePayloads
   };
 }
 
@@ -4587,7 +4617,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = selectedCaptureAnimationId === 'droneAttack';
+      if (entry?.drone) entry.drone.visible = false;
+      if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
     });
   }, [aiLoadoutByPlayer]);
@@ -4600,6 +4631,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       entry?.helicopter?.parent?.remove?.(entry.helicopter);
       entry?.drone?.parent?.remove?.(entry.drone);
       entry?.missile?.parent?.remove?.(entry.missile);
+      entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
     });
     parkedCaptureVehiclesRef.current.clear();
 
@@ -4612,7 +4644,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const droneFx = await createCaptureDroneFx();
       // eslint-disable-next-line no-await-in-loop
       const missileFx = await createCaptureMissileTruckFx();
-      if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root) continue;
+      // eslint-disable-next-line no-await-in-loop
+      const droneTruckFx = await createCaptureDroneLauncherTruckFx();
+      if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root) continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(droneFx.root, playerIndex);
@@ -4620,36 +4654,44 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       fitObjectToTargetSize(helicopterFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(droneFx.root, CAPTURE_PARK_BOX_TARGET_SIZE);
       fitObjectToTargetSize(missileFx.root, CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE);
+      fitObjectToTargetSize(droneTruckFx.root, CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE);
       jetFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.fighter);
       helicopterFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.helicopter);
       missileFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.missile);
+      droneTruckFx.root.scale.multiplyScalar(CAPTURE_PARK_SCALE_BY_TYPE.missile);
       const jetPark = resolveCaptureParkingAnchors(playerIndex, 'fighter');
       const helicopterPark = resolveCaptureParkingAnchors(playerIndex, 'helicopter');
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
       const missilePark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      if (!jetPark || !helicopterPark || !dronePark || !missilePark) continue;
+      const droneTruckPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
+      if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark) continue;
       jetFx.root.position.copy(jetPark);
       helicopterFx.root.position.copy(helicopterPark);
       droneFx.root.position.copy(dronePark);
       missileFx.root.position.copy(missilePark);
+      droneTruckFx.root.position.copy(droneTruckPark);
       const tableSurfaceY = arena.tableInfo?.surfaceY;
       alignObjectBottomToY(jetFx.root, tableSurfaceY);
       alignObjectBottomToY(helicopterFx.root, tableSurfaceY);
       alignObjectBottomToY(droneFx.root, tableSurfaceY);
       alignObjectBottomToY(missileFx.root, tableSurfaceY);
+      alignObjectBottomToY(droneTruckFx.root, tableSurfaceY);
       orientCaptureVehicleTowardBoardCenter(jetFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(missileFx.root, arena.boardLookTarget);
+      orientCaptureVehicleTowardBoardCenter(droneTruckFx.root, arena.boardLookTarget);
       arena.scene.add(jetFx.root);
       arena.scene.add(helicopterFx.root);
       arena.scene.add(droneFx.root);
       arena.scene.add(missileFx.root);
+      arena.scene.add(droneTruckFx.root);
       const parkedEntry = {
         jet: jetFx.root,
         helicopter: helicopterFx.root,
         drone: droneFx.root,
         missile: missileFx.root,
+        droneTruck: droneTruckFx.root,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
@@ -4657,7 +4699,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         helicopterTailRotorAxis: helicopterFx.tailRotorAxis ?? new THREE.Vector3(1, 0, 0),
         dronePropeller: droneFx.propeller ?? null,
         missileLauncher: missileFx.launcher ?? null,
-        parkedDronePayloads: Array.isArray(missileFx.parkedDronePayloads) ? missileFx.parkedDronePayloads : [],
+        droneTruckPayloads: Array.isArray(droneTruckFx.parkedDronePayloads) ? droneTruckFx.parkedDronePayloads : [],
         nextDronePayloadIndex: 0,
         reloadMissile: missileFx.reloadMissile ?? null,
         reloadMissileLocalPosition: missileFx.reloadMissileLocalPosition ?? null,
@@ -4665,7 +4707,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         jetPark,
         helicopterPark,
         dronePark,
-        missilePark
+        missilePark,
+        droneTruckPark
       };
       parkedCaptureVehiclesRef.current.set(playerIndex, {
         ...parkedEntry
@@ -6779,6 +6822,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         entry?.helicopter?.parent?.remove?.(entry.helicopter);
         entry?.drone?.parent?.remove?.(entry.drone);
         entry?.missile?.parent?.remove?.(entry.missile);
+        entry?.droneTruck?.parent?.remove?.(entry.droneTruck);
       });
       parkedCaptureVehiclesRef.current.clear();
       arenaRef.current = null;
@@ -6958,7 +7002,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : isHelicopterAttack
             ? parkedEntry?.helicopterPark?.clone?.()
             : isDroneAttack
-            ? parkedEntry?.dronePark?.clone?.()
+            ? parkedEntry?.droneTruckPark?.clone?.() ?? parkedEntry?.dronePark?.clone?.()
             : isMissileTruckAttack
             ? parkedEntry?.missilePark?.clone?.()
             : null;
@@ -6968,15 +7012,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter
             : resolvedCaptureAnimationId === 'droneAttack'
-            ? parkedEntry?.drone
+            ? parkedEntry?.droneTruck ?? parkedEntry?.drone
             : resolvedCaptureAnimationId === 'missileJavelin'
             ? parkedEntry?.missile
             : null;
         parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
         parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
         parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
-        if (isMissileTruckAttack) {
-          const parkedPayloads = Array.isArray(parkedEntry?.parkedDronePayloads) ? parkedEntry.parkedDronePayloads : [];
+        if (isDroneAttack) {
+          const parkedPayloads = Array.isArray(parkedEntry?.droneTruckPayloads) ? parkedEntry.droneTruckPayloads : [];
           if (parkedPayloads.length > 0) {
             const nextPayloadIndex = Number.isFinite(parkedEntry?.nextDronePayloadIndex)
               ? parkedEntry.nextDronePayloadIndex
@@ -6990,7 +7034,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           stopFighterJetSound();
           playHelicopterSound();
         }
-        if (isDroneAttack || isMissileTruckAttack) playDroneSound();
+        if (isDroneAttack) playDroneSound();
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
           resolvedCaptureAnimationId === 'droneAttack'
@@ -6999,7 +7043,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? await createCaptureJetFx()
-            : await createCaptureDroneFx();
+            : createCaptureMissileFx({ withTrail: true });
         if (isFighterJetAttack || isHelicopterAttack) {
           fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
         }
@@ -7064,15 +7108,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
           startPosition.clone();
         const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
-        if (isMissileTruckAttack && (parkedDronePayload?.isObject3D || parkedReloadMissile?.isObject3D)) {
+        if (isDroneAttack && parkedDronePayload?.isObject3D) {
           const parkedMissileWorld = new THREE.Vector3();
-          const activePayload = parkedDronePayload?.isObject3D ? parkedDronePayload : parkedReloadMissile;
-          activePayload.getWorldPosition(parkedMissileWorld);
+          parkedDronePayload.getWorldPosition(parkedMissileWorld);
           launchAnchor.copy(parkedMissileWorld);
           if (Number.isFinite(tableSurfaceY)) {
             launchAnchor.y = Math.max(launchAnchor.y, tableSurfaceY + 0.014);
           }
-          activePayload.visible = false;
+          parkedDronePayload.visible = false;
         } else if (parkedVehicleToRestore?.isObject3D) {
           parkedVehicleToRestore.visible = false;
         }
@@ -7541,21 +7584,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             parkedVehicleToRestore.position.y = tableSurfaceY + 0.002;
             orientCaptureVehicleTowardBoardCenter(parkedVehicleToRestore, boardLookTargetRef.current ?? new THREE.Vector3());
           }
-          if (isMissileTruckAttack && (parkedDronePayload?.isObject3D || parkedReloadMissile?.isObject3D)) {
+          if (isDroneAttack && parkedDronePayload?.isObject3D) {
             if (parkedDronePayload?.isObject3D) {
               parkedDronePayload.visible = true;
             }
-            if (parkedReloadMissile?.isObject3D && parkedReloadMissileLocalPosition?.isVector3) {
+          }
+          if (isMissileTruckAttack && parkedReloadMissile?.isObject3D) {
+            if (parkedReloadMissileLocalPosition?.isVector3) {
               parkedReloadMissile.position.copy(parkedReloadMissileLocalPosition);
             }
-            if (parkedReloadMissile?.isObject3D && parkedReloadMissileLocalRotation) {
+            if (parkedReloadMissileLocalRotation) {
               parkedReloadMissile.rotation.set(
                 parkedReloadMissileLocalRotation.x,
                 parkedReloadMissileLocalRotation.y,
                 parkedReloadMissileLocalRotation.z
               );
             }
-            if (parkedReloadMissile?.isObject3D) parkedReloadMissile.visible = true;
+            parkedReloadMissile.visible = true;
           }
           if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
           jetMissiles.forEach((entry) => {
@@ -7569,21 +7614,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         } catch (error) {
           stopCaptureVehicleSounds();
           if (parkedVehicleToRestore?.isObject3D) parkedVehicleToRestore.visible = true;
-          if (isMissileTruckAttack && (parkedDronePayload?.isObject3D || parkedReloadMissile?.isObject3D)) {
+          if (isDroneAttack && parkedDronePayload?.isObject3D) {
             if (parkedDronePayload?.isObject3D) {
               parkedDronePayload.visible = true;
             }
-            if (parkedReloadMissile?.isObject3D && parkedReloadMissileLocalPosition?.isVector3) {
+          }
+          if (isMissileTruckAttack && parkedReloadMissile?.isObject3D) {
+            if (parkedReloadMissileLocalPosition?.isVector3) {
               parkedReloadMissile.position.copy(parkedReloadMissileLocalPosition);
             }
-            if (parkedReloadMissile?.isObject3D && parkedReloadMissileLocalRotation) {
+            if (parkedReloadMissileLocalRotation) {
               parkedReloadMissile.rotation.set(
                 parkedReloadMissileLocalRotation.x,
                 parkedReloadMissileLocalRotation.y,
                 parkedReloadMissileLocalRotation.z
               );
             }
-            if (parkedReloadMissile?.isObject3D) parkedReloadMissile.visible = true;
+            parkedReloadMissile.visible = true;
           }
           captureFxRef.current = null;
           resolve();
