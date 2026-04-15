@@ -1817,12 +1817,16 @@ export default function SnakeAndLadder() {
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
+  const lastDiceRollSfxAtRef = useRef(0);
   const turnEndRef = useRef(Date.now() + TURN_TIME * 1000);
   const aiRollTimeRef = useRef(null);
   const prevTimeLeftRef = useRef(TURN_TIME);
 
   const playDiceRollSound = useCallback(() => {
     if (muted || !diceRollSoundRef.current) return;
+    const now = Date.now();
+    if (now - lastDiceRollSfxAtRef.current < 240) return;
+    lastDiceRollSfxAtRef.current = now;
     diceRollSoundRef.current.volume = 1;
     diceRollSoundRef.current.currentTime = 0;
     diceRollSoundRef.current.play().catch(() => {});
