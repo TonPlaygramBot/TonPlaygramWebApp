@@ -957,6 +957,53 @@ function createCaptureMissileFx({ withTrail = true } = {}) {
   return { root, trail };
 }
 
+function createCaptureTruckDroneFx({ parked = false, withTrail = true } = {}) {
+  const droneCore = createCaptureMissileFx({ withTrail });
+  const { root } = droneCore;
+  const triangleBody = [];
+  const deltaWing = createFxPolygon(
+    [
+      [-0.46, -0.9],
+      [0.42, 0],
+      [-0.46, 0.9]
+    ],
+    0.05,
+    '#7f888f',
+    0.62,
+    0.18
+  );
+  deltaWing.position.set(-0.14, -0.02, 0);
+  root.add(deltaWing);
+  triangleBody.push(deltaWing);
+
+  const upperSpine = createFxPolygon(
+    [
+      [-0.24, -0.08],
+      [0.44, 0],
+      [-0.24, 0.08]
+    ],
+    0.04,
+    '#687178',
+    0.58,
+    0.2
+  );
+  upperSpine.position.set(0.08, 0.08, 0);
+  root.add(upperSpine);
+  triangleBody.push(upperSpine);
+
+  triangleBody.forEach((node) => {
+    node.visible = !parked;
+  });
+
+  const setTriangularBodyVisible = (visible) => {
+    triangleBody.forEach((node) => {
+      node.visible = !!visible;
+    });
+  };
+
+  return { ...droneCore, triangleBody, setTriangularBodyVisible };
+}
+
 async function createCaptureMissileTruckFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
@@ -1007,22 +1054,23 @@ async function createCaptureMissileTruckFx() {
 
   const missileOffsets = [
     [-0.42, 0.4, -0.3],
-    [0, 0.42, 0],
     [0.42, 0.4, 0.3]
   ];
   let reloadMissile = null;
   let reloadMissileLocalPosition = null;
   let reloadMissileLocalRotation = null;
+  let reloadDroneSetTriangularBodyVisible = null;
   missileOffsets.forEach((offset, missileIndex) => {
-    const missile = createCaptureMissileFx({ withTrail: false });
+    const missile = createCaptureTruckDroneFx({ parked: true, withTrail: false });
     missile.root.visible = true;
     missile.root.scale.set(0.92, 1.14, 1.14);
     missile.root.position.set(offset[0], offset[1], offset[2]);
     missile.root.rotation.set(0, 0, Math.PI / 3.4);
-    if (missileIndex === 1) {
+    if (missileIndex === 0) {
       reloadMissile = missile.root;
       reloadMissileLocalPosition = missile.root.position.clone();
       reloadMissileLocalRotation = missile.root.rotation.clone();
+      reloadDroneSetTriangularBodyVisible = missile.setTriangularBodyVisible;
     }
     const strut = addFxBox(launcher, [0.06, 0.22, 0.06], [offset[0] - 0.08, 0.18, offset[2]], '#111418', 0.56, 0.28);
     strut.rotation.z = -Math.PI * 0.24;
@@ -1033,7 +1081,14 @@ async function createCaptureMissileTruckFx() {
   root.add(launcher);
   root.scale.setScalar(1.15 * 1.15);
   root.visible = true;
-  return { root, launcher, reloadMissile, reloadMissileLocalPosition, reloadMissileLocalRotation };
+  return {
+    root,
+    launcher,
+    reloadMissile,
+    reloadMissileLocalPosition,
+    reloadMissileLocalRotation,
+    reloadDroneSetTriangularBodyVisible
+  };
 }
 
 async function createCaptureDroneFx() {
@@ -4652,6 +4707,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         reloadMissile: missileFx.reloadMissile ?? null,
         reloadMissileLocalPosition: missileFx.reloadMissileLocalPosition ?? null,
         reloadMissileLocalRotation: missileFx.reloadMissileLocalRotation ?? null,
+        reloadDroneSetTriangularBodyVisible: missileFx.reloadDroneSetTriangularBodyVisible ?? null,
         jetPark,
         helicopterPark,
         dronePark,
@@ -6917,6 +6973,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         let parkedReloadMissile = null;
         let parkedReloadMissileLocalPosition = null;
         let parkedReloadMissileLocalRotation = null;
+        let parkedReloadDroneSetTriangularBodyVisible = null;
         let parkedLaunch = null;
         let isMissileTruckAttack = false;
         try {
@@ -6964,6 +7021,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
         parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
         parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
+        parkedReloadDroneSetTriangularBodyVisible = parkedEntry?.reloadDroneSetTriangularBodyVisible ?? null;
         stopCaptureVehicleSounds();
         if (isHelicopterAttack) {
           stopFighterJetSound();
@@ -6978,7 +7036,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
             ? await createCaptureJetFx()
-            : createCaptureMissileFx({ withTrail: true });
+            : createCaptureTruckDroneFx({ parked: false, withTrail: true });
         if (isFighterJetAttack || isHelicopterAttack) {
           fitCaptureVehicleToPlayerKing(primaryFx.root, attackerPlayer);
         }
@@ -7018,7 +7076,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.helicopter?.scale
             : resolvedCaptureAnimationId === 'droneAttack'
             ? parkedEntry?.drone?.scale
-            : parkedEntry?.missile?.scale;
+            : parkedEntry?.reloadMissile?.scale;
         if (parkedScale?.isVector3) {
           primaryFx.root.scale.copy(parkedScale);
         } else {
@@ -7049,6 +7107,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           launchAnchor.copy(parkedMissileWorld);
           if (Number.isFinite(tableSurfaceY)) {
             launchAnchor.y = Math.max(launchAnchor.y, tableSurfaceY + 0.014);
+          }
+          if (typeof parkedReloadDroneSetTriangularBodyVisible === 'function') {
+            parkedReloadDroneSetTriangularBodyVisible(false);
           }
           parkedReloadMissile.visible = false;
         } else if (parkedVehicleToRestore?.isObject3D) {
@@ -7530,6 +7591,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 parkedReloadMissileLocalRotation.z
               );
             }
+            if (typeof parkedReloadDroneSetTriangularBodyVisible === 'function') {
+              parkedReloadDroneSetTriangularBodyVisible(false);
+            }
             parkedReloadMissile.visible = true;
           }
           if (primaryFx.root.parent) primaryFx.root.parent.remove(primaryFx.root);
@@ -7554,6 +7618,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 parkedReloadMissileLocalRotation.y,
                 parkedReloadMissileLocalRotation.z
               );
+            }
+            if (typeof parkedReloadDroneSetTriangularBodyVisible === 'function') {
+              parkedReloadDroneSetTriangularBodyVisible(false);
             }
             parkedReloadMissile.visible = true;
           }
