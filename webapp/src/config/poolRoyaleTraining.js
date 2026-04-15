@@ -3,7 +3,7 @@ const DIFFICULTY_LABELS = ['Intro', 'Rookie', 'Challenger', 'Advanced', 'Elite']
 const TRAINING_BLUEPRINTS = [
   {
     title: 'Corner tap-in',
-    discipline: 'American Billiards',
+    discipline: '8Ball',
     objective: 'Feather the overhanging ball into the corner without scratching.',
     cue: { x: -0.62, z: -0.68 },
     balls: [{ rackIndex: 1, x: 0.78, z: 0.84 }],
@@ -21,7 +21,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Long straight stun',
-    discipline: 'American Billiards',
+    discipline: '8Ball',
     objective: 'Drill the down-table ball cleanly and leave the cue ball centred for the next shot.',
     cue: { x: -0.36, z: 0.52 },
     balls: [{ rackIndex: 3, x: 0, z: -0.64 }],
@@ -39,7 +39,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Two-ball pattern',
-    discipline: 'American Billiards',
+    discipline: '8Ball',
     objective: 'Clear two open balls while floating gently into shape.',
     cue: { x: -0.52, z: -0.28 },
     balls: [
@@ -63,7 +63,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Bank safety',
-    discipline: 'American Billiards',
+    discipline: '8Ball',
     objective: 'Bank off the long rail, pocket the ball, and hide behind the blocker.',
     cue: { x: -0.62, z: -0.14 },
     balls: [
@@ -100,7 +100,7 @@ const TRAINING_BLUEPRINTS = [
   },
   {
     title: 'Combo finisher',
-    discipline: 'American Billiards',
+    discipline: '8Ball',
     objective: 'Nudge the lead ball to combo the hanger while keeping shape.',
     cue: { x: -0.46, z: -0.22 },
     balls: [
@@ -117,7 +117,6 @@ const clamp = (value) => Math.max(-0.94, Math.min(0.94, value));
 const DISCIPLINE_TO_VARIANT = {
   '8Ball': 'uk',
   '9-Ball': '9ball',
-  'American Billiards': 'american'
 };
 
 const DIFFICULTY_STEPS = [
@@ -156,7 +155,7 @@ export const TRAINING_SCENARIOS = (() => {
       };
 
       const shotLimit = resolveShotLimit(blueprint, tier);
-      const variant = DISCIPLINE_TO_VARIANT[blueprint.discipline] || 'american';
+      const variant = DISCIPLINE_TO_VARIANT[blueprint.discipline] || 'uk';
       const reward = Math.round(60 + level * 10 + (tier.rewardBonus || 0));
       scenarios.push({
         level,

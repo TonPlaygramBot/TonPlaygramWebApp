@@ -740,10 +740,9 @@ export default function PoolRoyaleLobby() {
                   Ruleset
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'uk', label: '8Ball' },
-                  { id: 'american', label: 'American' },
                   { id: '9ball', label: '9-Ball' }
                 ].map(({ id, label }) => {
                   const active = variant === id;
