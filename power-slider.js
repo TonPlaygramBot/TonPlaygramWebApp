@@ -222,9 +222,6 @@ export class PowerSlider {
 
   _pointerUp(e) {
     if (!this.dragging) return;
-    if (e?.type === 'pointerup' && Number.isFinite(e.clientY)) {
-      this._updateFromClientY(e.clientY);
-    }
     this.dragging = false;
     try {
       this.el.releasePointerCapture(e.pointerId);
