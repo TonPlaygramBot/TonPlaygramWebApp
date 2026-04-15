@@ -9906,6 +9906,93 @@ function Chess3D({
       }
       return { pos, next };
     };
+    const getCaptureLudoStyleDronePose = ({
+      launchPos,
+      targetPos,
+      elapsedSeconds,
+      returnToOrigin = false
+    }) => {
+      const total = Math.max(0.001, CAPTURE_DRONE_TOTAL);
+      const liftRatio = clamp01(CAPTURE_DRONE_LIFT_TIME / total);
+      const cruiseRatio = clamp01((CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME) / total);
+      const boardCenter = getBoardCenterWorldPosition();
+      const shortMissileAltitude = Math.max(targetPos.y + tile * 0.24, launchPos.y + CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.9);
+      const droneAltitude = shortMissileAltitude + tile * 0.06;
+      const centerPoint = boardCenter.clone();
+      centerPoint.y = droneAltitude;
+      const approachDir = centerPoint.clone().sub(launchPos);
+      approachDir.y = 0;
+      if (approachDir.lengthSq() < 1e-6) {
+        approachDir.set(1, 0, 0);
+      } else {
+        approachDir.normalize();
+      }
+      const shortHopDistance = Math.min(boardCenter.distanceTo(launchPos), tile * 0.86);
+      const liftPoint = launchPos.clone().addScaledVector(approachDir, shortHopDistance * 0.52);
+      liftPoint.y = droneAltitude;
+      const cruisePoint = liftPoint.clone().lerp(centerPoint, 0.7);
+      const strikeTop = new THREE.Vector3(targetPos.x, droneAltitude, targetPos.z);
+      const endPoint = returnToOrigin ? launchPos.clone() : targetPos.clone();
+      const u = clamp01(elapsedSeconds / total);
+      const pathAt = (p) => {
+        if (p < liftRatio) {
+          const lu = smoothEase(p / Math.max(liftRatio, 1e-4));
+          return qBezier(launchPos, liftPoint, cruisePoint, lu);
+        }
+        if (p < cruiseRatio) {
+          const cu = smoothEase((p - liftRatio) / Math.max(cruiseRatio - liftRatio, 1e-4));
+          const cruiseCtrl = cruisePoint.clone().lerp(centerPoint, 0.56);
+          const cruiseExit = cruisePoint.clone().lerp(strikeTop, 0.42);
+          return qBezier(cruisePoint, cruiseCtrl, cruiseExit, cu);
+        }
+        const du = smoothEase((p - cruiseRatio) / Math.max(1 - cruiseRatio, 1e-4));
+        if (returnToOrigin) {
+          const returnCtrl = strikeTop.clone().lerp(launchPos, 0.52);
+          return qBezier(strikeTop, returnCtrl, endPoint, du);
+        }
+        return qBezier(strikeTop, strikeTop.clone().lerp(targetPos, 0.4), endPoint, du);
+      };
+      const pos = pathAt(u);
+      const next = pathAt(clamp(u + 0.02, 0, 1));
+      if (!returnToOrigin) {
+        constrainInsideBoardPerimeter(pos);
+        constrainInsideBoardPerimeter(next);
+      }
+      return { pos, next };
+    };
+    const getCaptureLudoStyleTruckMissilePose = ({
+      launchPos,
+      targetPos,
+      progress,
+      verticalCrash = false
+    }) => {
+      const u = clamp01(progress);
+      const boardCenter = getBoardCenterWorldPosition();
+      const centerTop = boardCenter.clone();
+      centerTop.y = Math.max(targetPos.y + tile * 0.34, launchPos.y + CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.72);
+      const targetTop = new THREE.Vector3(
+        targetPos.x,
+        Math.max(centerTop.y, targetPos.y + tile * (verticalCrash ? 0.72 : 0.58)),
+        targetPos.z
+      );
+      const strikeSplit = verticalCrash ? 0.7 : 0.78;
+      let pos;
+      let next;
+      if (u < strikeSplit) {
+        const arcU = smoothEase(u / strikeSplit);
+        pos = qBezier(launchPos, centerTop, targetTop, arcU);
+        next = qBezier(launchPos, centerTop, targetTop, clamp01(arcU + 0.04));
+      } else {
+        const dropU = smoothEase((u - strikeSplit) / Math.max(0.001, 1 - strikeSplit));
+        pos = targetTop.clone().lerp(targetPos, dropU);
+        next = targetTop.clone().lerp(targetPos, clamp01(dropU + 0.08));
+        next.x = pos.x;
+        next.z = pos.z;
+      }
+      constrainInsideBoardPerimeter(pos);
+      constrainInsideBoardPerimeter(next);
+      return { pos, next };
+    };
 
     const playCaptureAnimation = ({
       fromPos,
@@ -11918,12 +12005,10 @@ function Chess3D({
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
             } else if (fx.t < impactTime) {
-              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              pose = getCaptureLudoStyleAirPose({
-                animationId: 'droneAttack',
+              pose = getCaptureLudoStyleDronePose({
                 launchPos,
                 targetPos: fx.to,
-                progress: mu,
+                elapsedSeconds: fx.t - CAPTURE_GROUND_FIRE_TIME,
                 returnToOrigin: false
               });
             }
@@ -12192,11 +12277,10 @@ function Chess3D({
               fx.missileFx.root.position.copy(launchPos);
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              const { pos: missilePos, next: missileNext } = getCaptureDirectStrikePose({
+              const { pos: missilePos, next: missileNext } = getCaptureLudoStyleTruckMissilePose({
                 launchPos,
                 targetPos: fx.to,
                 progress: mu,
-                altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.92,
                 verticalCrash: Boolean(fx.verticalStrike)
               });
 
