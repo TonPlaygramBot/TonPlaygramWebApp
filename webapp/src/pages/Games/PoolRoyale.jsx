@@ -1994,7 +1994,7 @@ const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 2.275; // shrink GLTF rail grain by ~30% (smaller pattern tiles) while keeping leg density aligned.
-const DEFAULT_POOL_VARIANT = 'american';
+const DEFAULT_POOL_VARIANT = 'uk';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -2163,7 +2163,10 @@ function resolvePoolVariant(variantId, ballSet = null) {
     normalized === '8balluk' ||
     normalized === 'eightballuk' ||
     normalized === '8pooluk' ||
-    normalized === 'uk8'
+    normalized === 'uk8' ||
+    normalized === 'american' ||
+    normalized === 'american8ball' ||
+    normalized === 'us8ball'
   ) {
     key = 'uk';
   }
@@ -3294,8 +3297,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x242b36,
     base: 0x242b36,
     trim: 0x242b36,
-    woodTextureId: 'plastic_monoblock_lt_black',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3303,11 +3306,11 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0xb3bcc8,
-    base: 0xb3bcc8,
-    trim: 0xb3bcc8,
-    woodTextureId: 'plastic_monoblock_lt_grey',
-    woodRepeatScale: 1,
+    rail: 0xb8c2ce,
+    base: 0xb8c2ce,
+    trim: 0xb8c2ce,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3318,8 +3321,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x687381,
     base: 0x687381,
     trim: 0x687381,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3327,11 +3330,11 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0xa95b60,
-    base: 0xa95b60,
-    trim: 0xa95b60,
-    woodTextureId: 'plastic_monoblock_lt_burgundy',
-    woodRepeatScale: 1,
+    rail: 0xad6166,
+    base: 0xad6166,
+    trim: 0xad6166,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3342,8 +3345,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xf6ead7,
     base: 0xf6ead7,
     trim: 0xf6ead7,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3354,8 +3357,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4b7958,
     base: 0x4b7958,
     trim: 0x4b7958,
-    woodTextureId: 'plastic_monoblock_lt_dark_green',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3366,8 +3369,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xc59a48,
     base: 0xc59a48,
     trim: 0xc59a48,
-    woodTextureId: 'plastic_monoblock_lt_dark_yellow',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3378,8 +3381,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x8a6045,
     base: 0x8a6045,
     trim: 0x8a6045,
-    woodTextureId: 'plastic_monoblock_lt_dark_brown',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3390,8 +3393,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x9e4646,
     base: 0x9e4646,
     trim: 0x9e4646,
-    woodTextureId: 'plastic_monoblock_lt_dark_red',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3402,8 +3405,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x242b36,
     base: 0x242b36,
     trim: 0x242b36,
-    woodTextureId: 'plastic_monoblock_lt_black_snake',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3411,11 +3414,11 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberSnakeChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberSnakeChalkGrey',
     label: 'LT Grey Snake',
-    rail: 0xb3bcc8,
-    base: 0xb3bcc8,
-    trim: 0xb3bcc8,
-    woodTextureId: 'plastic_monoblock_lt_grey_snake',
-    woodRepeatScale: 1,
+    rail: 0xb8c2ce,
+    base: 0xb8c2ce,
+    trim: 0xb8c2ce,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3426,8 +3429,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x687381,
     base: 0x687381,
     trim: 0x687381,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey_snake',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3435,11 +3438,11 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberSnakeChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberSnakeChalkDarkBlue',
     label: 'LT Burgundy Snake',
-    rail: 0xa95b60,
-    base: 0xa95b60,
-    trim: 0xa95b60,
-    woodTextureId: 'plastic_monoblock_lt_burgundy_snake',
-    woodRepeatScale: 1,
+    rail: 0xad6166,
+    base: 0xad6166,
+    trim: 0xad6166,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3450,8 +3453,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xf6ead7,
     base: 0xf6ead7,
     trim: 0xf6ead7,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream_snake',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3462,8 +3465,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4b7958,
     base: 0x4b7958,
     trim: 0x4b7958,
-    woodTextureId: 'plastic_monoblock_lt_dark_green_snake',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3474,8 +3477,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x556b3f,
     base: 0x556b3f,
     trim: 0x556b3f,
-    woodTextureId: 'plastic_monoblock_lt_olive_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3486,8 +3489,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x3f5a3c,
     base: 0x3f5a3c,
     trim: 0x3f5a3c,
-    woodTextureId: 'plastic_monoblock_lt_swamp_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3498,8 +3501,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x6f5b45,
     base: 0x6f5b45,
     trim: 0x6f5b45,
-    woodTextureId: 'plastic_monoblock_lt_clay_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3510,8 +3513,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x8a7b5e,
     base: 0x8a7b5e,
     trim: 0x8a7b5e,
-    woodTextureId: 'plastic_monoblock_lt_sand_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3522,8 +3525,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4f6048,
     base: 0x4f6048,
     trim: 0x4f6048,
-    woodTextureId: 'plastic_monoblock_lt_moss_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -3534,8 +3537,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x2f3c32,
     base: 0x2f3c32,
     trim: 0x2f3c32,
-    woodTextureId: 'plastic_monoblock_lt_night_alligator',
-    woodRepeatScale: 1,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01,
     disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
@@ -15265,6 +15268,7 @@ function PoolRoyaleGame({
     cushionAfterContact: false,
     railContactCountAfterContact: 0,
     doubleBankBroadcastCutApplied: false,
+    railSearchBroadcastCutApplied: false,
     attemptsPenaltyApplied: false
   });
   const shotReplayRef = useRef(null);
@@ -26106,6 +26110,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
           doubleBankBroadcastCutApplied: false,
+          railSearchBroadcastCutApplied: false,
           attemptsPenaltyApplied: false,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
@@ -29447,6 +29452,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
           doubleBankBroadcastCutApplied: false,
+          railSearchBroadcastCutApplied: false,
           attemptsPenaltyApplied: false,
           spin: { x: 0, y: 0 }
         };
@@ -30974,6 +30980,22 @@ const powerRef = useRef(hud.power);
             }
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
+            if (
+              railImpact &&
+              b.id === 'cue' &&
+              !shotContextRef.current.contactMade &&
+              !shotContextRef.current.railSearchBroadcastCutApplied
+            ) {
+              shotContextRef.current.railSearchBroadcastCutApplied = true;
+              if (activeShotView?.mode === 'action') {
+                activeShotView.preferRailOverhead = true;
+                activeShotView.pendingActivation = false;
+                activeShotView.activationDelay = null;
+                activeShotView.activationTravel = 0;
+              }
+              queuedPocketView = null;
+              enterTopView(true, { variant: 'rail' });
+            }
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
