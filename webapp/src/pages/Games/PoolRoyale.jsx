@@ -3267,7 +3267,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
@@ -3279,7 +3279,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
@@ -3291,7 +3291,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
@@ -3303,7 +3303,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
@@ -3315,7 +3315,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
@@ -3327,7 +3327,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
@@ -3339,7 +3339,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
@@ -3351,7 +3351,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkRed: createStandardWoodFinish({
@@ -3363,7 +3363,7 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalk: createStandardWoodFinish({
