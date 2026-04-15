@@ -32441,12 +32441,11 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
+      onCommit: (committedValue = 0) => {
         fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+        const powerRatio = THREE.MathUtils.clamp((committedValue ?? 0) / 100, 0, 1);
+        const resetDurationMs = THREE.MathUtils.lerp(190, 105, powerRatio);
+        slider.animateToMin({ duration: resetDurationMs });
       }
     });
     sliderInstanceRef.current = slider;
