@@ -99,7 +99,6 @@ export class PowerSlider {
 
     this._setupPowerBar();
 
-    this.setReturnAnimation();
     this.set(value);
   }
 
@@ -130,19 +129,6 @@ export class PowerSlider {
     this.el.classList.remove('ps-locked');
     this.el.tabIndex = 0;
     this.el.setAttribute('aria-disabled', 'false');
-  }
-
-  setReturnAnimation({ durationMs = 150, easing = 'cubic-bezier(0.22, 1, 0.36, 1)' } = {}) {
-    const safeDurationMs = Number.isFinite(durationMs)
-      ? Math.min(480, Math.max(70, durationMs))
-      : 150;
-    this.el.style.setProperty('--ps-return-duration', `${safeDurationMs}ms`);
-    this.el.style.setProperty('--ps-return-ease', easing || 'cubic-bezier(0.22, 1, 0.36, 1)');
-  }
-
-  resetToMinWithRhythm(opts = {}) {
-    this.setReturnAnimation(opts);
-    this.set(this.min, { animate: true });
   }
 
   destroy() {

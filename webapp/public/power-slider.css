@@ -11,8 +11,6 @@
   --ps-glow: rgba(255, 0, 0, 0.6);
   --ps-tooltip-bg: rgba(0, 0, 0, 0.8);
   --ps-tooltip-color: #fff;
-  --ps-return-duration: 0.15s;
-  --ps-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   position: relative;
   width: var(--ps-width);
@@ -99,7 +97,7 @@
   top: 0;
   left: 100%;
   transform: translate(0, 0);
-  transition: transform var(--ps-return-duration) var(--ps-return-ease);
+  transition: transform 0.15s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -141,7 +139,7 @@
   white-space: nowrap;
   transform-origin: 50% 100%;
   transition:
-    transform var(--ps-return-duration) var(--ps-return-ease),
+    transform 0.15s ease,
     opacity 0.15s ease;
   pointer-events: none;
 }
