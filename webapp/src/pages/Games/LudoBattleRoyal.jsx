@@ -103,6 +103,8 @@ const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
+const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze([0.012, 0.012, 0.03, 0.012]);
+const CAPTURE_PARK_SURFACE_CLEARANCE = 0.0002;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   fighter: 0.03,
   helicopter: 0.03,
@@ -3240,9 +3242,9 @@ const TOKEN_RAIL_BASE_FORWARD_SHIFT = Object.freeze([0.012, 0, 0, 0]);
 const TOKEN_RAIL_SIDE_MULTIPLIER = Object.freeze([1.12, 1.12, 1.12, 1.12]);
 const TOKEN_RAIL_CENTER_PULL_DEFAULT = 0.115;
 const TOKEN_RAIL_CENTER_PULL_PER_PLAYER = Object.freeze([
-  0.146,
-  0.14,
-  0.146,
+  0.16,
+  0.152,
+  0.132,
   0.14
 ]);
 const TOKEN_RAIL_HEIGHT_LIFT = 0.0035;
@@ -3251,6 +3253,7 @@ const SHAPED_TABLE_TOKEN_SURFACE_LIFT = 0.005;
 const SHAPED_TABLE_DICE_SURFACE_LIFT = 0.0055;
 let tokenSurfaceOffset = 0;
 const TOKEN_FRONT_OUTWARD_SHIFT = 0.074;
+const TOKEN_FRONT_OUTWARD_SHIFT_PER_PLAYER = Object.freeze([0.072, 0.07, 0.082, 0.074]);
 const TOKEN_MOVE_SPEED = 2.45;
 const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
@@ -4592,12 +4595,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (inward.lengthSq() < 1e-6) return null;
     const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
+    const outwardOffset = CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER[playerIndex] ?? CAPTURE_PARK_OUTWARD_OFFSET;
     const park = kingPos
       .clone()
       .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
       .addScaledVector(inward, forwardOffset)
-      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
+      .addScaledVector(inward, -outwardOffset);
+    park.y = (arena.tableInfo?.surfaceY ?? park.y) + CAPTURE_PARK_SURFACE_CLEARANCE;
     return park;
   }, [getKingTokenPositionForPlayer]);
 
@@ -5565,8 +5569,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         base.add(forward.clone().multiplyScalar(baseForwardShift));
       }
 
-      if (TOKEN_FRONT_OUTWARD_SHIFT !== 0) {
-        base.add(forward.clone().multiplyScalar(TOKEN_FRONT_OUTWARD_SHIFT));
+      const outwardShift = TOKEN_FRONT_OUTWARD_SHIFT_PER_PLAYER[player] ?? TOKEN_FRONT_OUTWARD_SHIFT;
+      if (outwardShift !== 0) {
+        base.add(forward.clone().multiplyScalar(outwardShift));
       }
 
       const forwardOffset = forward.clone().multiplyScalar(RAIL_TOKEN_FORWARD_SPACING);
@@ -7581,7 +7586,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (parkedVehicleToRestore?.isObject3D && parkedLaunch?.isVector3) {
             parkedVehicleToRestore.visible = true;
             parkedVehicleToRestore.position.copy(parkedLaunch);
-            parkedVehicleToRestore.position.y = tableSurfaceY + 0.002;
+            parkedVehicleToRestore.position.y = tableSurfaceY + CAPTURE_PARK_SURFACE_CLEARANCE;
             orientCaptureVehicleTowardBoardCenter(parkedVehicleToRestore, boardLookTargetRef.current ?? new THREE.Vector3());
           }
           if (isDroneAttack && parkedDronePayload?.isObject3D) {
