@@ -32522,9 +32522,13 @@ const powerRef = useRef(hud.power);
         sliderShotPowerRef.current = clampPower(powerRef.current, 0);
         captureCueStickAnchor();
       },
-      onCommit: () => {
+      onCommit: (sliderValue) => {
+        const releasePower = clampPower(
+          Number.isFinite(sliderValue) ? sliderValue / 100 : shotPowerRef.current,
+          shotDragPowerRef.current
+        );
         const committedShot = resolveCommittedShot({
-          capturedDragPower: shotPowerRef.current,
+          capturedDragPower: releasePower,
           fallbackPower: shotDragPowerRef.current,
           minStrikePower: 0.02
         });
