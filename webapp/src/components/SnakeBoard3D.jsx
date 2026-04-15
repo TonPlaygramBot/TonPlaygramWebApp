@@ -236,36 +236,36 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.42,
-  TILE_SIZE * 1.52,
-  TILE_SIZE * 0.08,
+  TILE_SIZE * 1.08,
+  TILE_SIZE * 1.08,
+  TILE_SIZE * 1.08,
   TILE_SIZE * 1.08
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.24,
-  TILE_SIZE * 1.62,
-  TILE_SIZE * 0.3,
-  TILE_SIZE * 1.52
+  TILE_SIZE * 1.08,
+  TILE_SIZE * 1.08,
+  TILE_SIZE * 1.08,
+  TILE_SIZE * 1.08
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
-  -TOKEN_RADIUS * 0.08,
-  TOKEN_RADIUS * 0.02,
-  TOKEN_RADIUS * 0.08,
-  -TOKEN_RADIUS * 0.02
+  0,
+  0,
+  0,
+  0
 ]);
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.78,
   0,
-  TILE_SIZE * 0.9,
+  0,
+  0,
   0
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
-const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([0, -TILE_SIZE * 0.12, 0, -TILE_SIZE * 0.34]);
+const WEAPON_PARKING_OUTWARD_OFFSET = 0;
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([0, 0, 0, 0]);
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
   helicopter: TOKEN_HEIGHT * 1.82,
@@ -273,7 +273,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.78;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.62;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -340,9 +340,10 @@ const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
 const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
-const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 2.4;
-const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 1.65;
-const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 1.45;
+const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 0.8;
+const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 0.5;
+const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 0.38;
+const DICE_TURN_DISPLAY_EXTRA = TILE_SIZE * 1.92;
 
 const DICE_SEAT_ADJUSTMENTS = [
   {
@@ -2163,6 +2164,7 @@ function makeDice(theme = {}) {
 
 function computeDiceThrowLayout(board, seatIndex, count) {
   const result = {
+    displayPositions: [],
     basePositions: [],
     startPositions: [],
     travelVectors: [],
@@ -2214,6 +2216,7 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
   const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
   const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
+  const displayDistanceBase = settleDistanceBase + DICE_TURN_DISPLAY_EXTRA;
 
   const applyAxisOffsets = (vec, phase) => {
     const front = frontAdjust?.[phase];
@@ -2264,9 +2267,16 @@ function computeDiceThrowLayout(board, seatIndex, count) {
     base.addScaledVector(awayFromBoard, outwardJitter);
     base.y = diceBaseY;
     applyAxisOffsets(base, 'base');
+    const display = centerLocal
+      .clone()
+      .addScaledVector(awayFromBoard, displayDistanceBase)
+      .addScaledVector(lateral, offset * 0.84);
+    display.y = diceBaseY;
+    applyAxisOffsets(display, 'base');
 
     const bouncePoint = bounce.clone();
 
+    result.displayPositions.push(display);
     result.startPositions.push(start);
     result.bouncePoints.push(bouncePoint);
     result.basePositions.push(base);
@@ -5608,7 +5618,7 @@ export default function SnakeBoard3D({
     const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
     if (!visibleDice.length) return;
     const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
-    const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
+    const basePositions = Array.isArray(layout.displayPositions) ? layout.displayPositions : [];
     if (!basePositions.length) return;
     removeAnimationsByType(animationsRef.current, 'diceHandoff');
     const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
