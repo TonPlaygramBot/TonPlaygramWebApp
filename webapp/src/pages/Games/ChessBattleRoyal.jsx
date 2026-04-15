@@ -110,9 +110,9 @@ const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live
 const CAPTURE_GROUND_FIRE_TIME = 0.42;
 const CAPTURE_GROUND_TRAVEL_TIME = 5.2; // slower low-altitude ground strike so launches stay inside the board perimeter
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
-const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
-const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
+const CAPTURE_DRONE_SCALE = 0.0432 * 1.15; // request: air units +15%
+const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // keep relative jet proportion
+const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep relative helicopter proportion
 const CAPTURE_DRONE_ALTITUDE = 0.72; // fly lower so aircraft stay closer to board surface in portrait
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
@@ -9323,6 +9323,7 @@ function Chess3D({
     };
     const createFxSupportTruck = () => {
       const root = new THREE.Group();
+      const dronePayloads = [];
       const addRoofLongMissiles = (target, referenceObject) => {
         if (!target) return;
         const bounds = referenceObject ? new THREE.Box3().setFromObject(referenceObject) : new THREE.Box3();
@@ -9347,8 +9348,8 @@ function Chess3D({
           const missile = new THREE.Group();
           addFxCylinder(
             missile,
-            Math.max(size.z * 0.05, 0.038),
-            Math.max(size.z * 0.062, 0.046),
+            Math.max(size.z * 0.064, 0.048),
+            Math.max(size.z * 0.078, 0.058),
             missileLength,
             [0, 0, 0],
             [0, 0, Math.PI / 2],
@@ -9367,6 +9368,7 @@ function Chess3D({
           missile.add(tip);
           missile.position.set(-Math.max(size.x * 0.12, 0.16), 0.1, lane * Math.max(size.z, 0.84));
           missile.rotation.z = Math.PI * 0.22; // tilt launchers upward so missile heads point up
+          dronePayloads.push(missile);
           rack.add(missile);
         });
         rack.rotation.z = -Math.PI * 0.05;
@@ -9391,8 +9393,21 @@ function Chess3D({
       cabin.receiveShadow = true;
       root.add(cabin);
       addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
+      const wheelMaterial = new THREE.MeshStandardMaterial({ color: '#070809', roughness: 0.7, metalness: 0.08 });
+      [
+        [-0.64, -0.34, -0.44],
+        [0.56, -0.34, -0.44],
+        [-0.64, -0.34, 0.44],
+        [0.56, -0.34, 0.44]
+      ].forEach(([x, y, z]) => {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.17, 16), wheelMaterial);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(x, y, z);
+        wheel.castShadow = true;
+        root.add(wheel);
+      });
       addRoofLongMissiles(root, root);
-      return { root };
+      return { root, dronePayloads };
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
@@ -9425,7 +9440,7 @@ function Chess3D({
     };
     const returnParkedAirUnit = (unit) => {
       if (!unit?.root) return;
-      unit.root.visible = true;
+      unit.root.visible = unit.kind !== 'drone';
       unit.root.position.copy(unit.homePosition);
       unit.root.rotation.copy(unit.homeRotation);
       unit.root.quaternion.setFromEuler(unit.root.rotation);
@@ -9444,6 +9459,20 @@ function Chess3D({
         airPadGroup.add(truck.root);
       }
       return truck;
+    };
+    const consumeTruckDronePayload = (truck) => {
+      if (!truck?.dronePayloads?.length) return null;
+      const payload = truck.dronePayloads.find((node) => node?.visible !== false) || truck.dronePayloads[0];
+      if (payload) payload.visible = false;
+      return payload;
+    };
+    const restoreTruckDronePayload = (truck, payload, delay = CAPTURE_RELOAD_SHOW_TIME) => {
+      if (!payload) return;
+      setTimeout(() => {
+        if (truck?.root?.parent && payload.parent) {
+          payload.visible = true;
+        }
+      }, Math.max(0, delay * 1000));
     };
     const createFxMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
@@ -9469,7 +9498,7 @@ function Chess3D({
     const createFxGroundMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
       const root = new THREE.Group();
-      const body = addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#556b2f', 16, 0.24, 0.82);
+      const body = addFxCylinder(root, 0.085, 0.1, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#556b2f', 16, 0.24, 0.82);
       body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#556b2f', roughness: 0.24, metalness: 0.82 });
       const nose = new THREE.Mesh(
         new THREE.ConeGeometry(0.08, 0.24, 16),
@@ -9478,8 +9507,8 @@ function Chess3D({
       nose.position.set(0.63, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
+      addFxBox(root, [0.18, 0.024, 0.32], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
+      addFxBox(root, [0.18, 0.32, 0.024], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
       addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#5e7035', 0.28, 0.72);
       addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#5e7035', 0.28, 0.72);
       addFxCylinder(root, 0.075, 0.075, 0.16, [-0.55, 0, 0], [0, 0, Math.PI / 2], '#101419', 16, 0.34, 0.62);
@@ -9844,7 +9873,8 @@ function Chess3D({
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
           missileFx,
-          directPath: false
+          directPath: false,
+          verticalStrike: true
         });
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
@@ -9856,6 +9886,8 @@ function Chess3D({
           suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
           const isWhiteSide = Boolean(movingMesh?.userData?.w);
           const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+          const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
+          const consumedPayload = consumeTruckDronePayload(parkedTruck);
           const droneFx = parkedDrone || createFxDrone({ forceProcedural: true });
           droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
           if (!parkedDrone) {
@@ -9863,7 +9895,13 @@ function Chess3D({
             droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
             captureFxGroup.add(droneFx.root);
           }
-          const launchBase = parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
+          const payloadLaunch = new THREE.Vector3();
+          consumedPayload?.getWorldPosition?.(payloadLaunch);
+          const launchBase =
+            (consumedPayload ? payloadLaunch : null) ||
+            parkedTruck?.homePosition?.clone?.() ||
+            parkedDrone?.homePosition?.clone?.() ||
+            getAirPadAnchor(isWhiteSide, 'drone', 0);
           playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
           activeCaptureFx.push({
             type: 'drone',
@@ -9875,6 +9913,8 @@ function Chess3D({
             movingMesh,
             returnToOrigin: true,
             sourceUnit: parkedDrone,
+            sourceTruck: parkedTruck,
+            sourceTruckPayload: consumedPayload,
             droneFx
           });
           return {
@@ -9987,6 +10027,7 @@ function Chess3D({
           captureFxGroup.add(missile.root);
         });
         playAudio(helicopterSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
+        jetFlySound?.pause?.();
         activeCaptureFx.push({
           type: 'helicopter',
           t: 0,
@@ -10567,6 +10608,7 @@ function Chess3D({
         const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
         sideDrone.root.position.copy(dronePad);
         sideDrone.root.rotation.y = isWhite ? -Math.PI * 0.13 : Math.PI * 1.13;
+        sideDrone.root.visible = false; // parked drone body stays hidden; truck roof payload represents parked state
         const droneHomeRotation = sideDrone.root.rotation.clone();
         airPadGroup.add(sideDrone.root);
         parkedAirUnits.push({
@@ -10582,15 +10624,8 @@ function Chess3D({
 
         const supportTruck = createFxSupportTruck();
         supportTruck.root.scale.setScalar(
-          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER * 1.15
         );
-        if (skin) {
-          applyVehicleSkinToModel(
-            supportTruck.root,
-            skin,
-            (node) => /wheel|tire|tyre|rim|window|windshield|glass|cockpit/.test(`${node.name || ''}`.toLowerCase())
-          );
-        }
         attachVehicleAvatarBadge(supportTruck.root, badge, isWhite ? 1 : -1);
         const truckPad = getAirPadAnchor(isWhite, 'truck', 0);
         supportTruck.root.position.copy(truckPad);
@@ -11843,6 +11878,7 @@ function Chess3D({
               } else {
                 captureFxGroup.remove(fx.droneFx.root);
               }
+              restoreTruckDronePayload(fx.sourceTruck, fx.sourceTruckPayload);
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
@@ -12075,6 +12111,7 @@ function Chess3D({
             const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             fx.launchPos.copy(launchPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            const isTraveling = fx.t >= CAPTURE_GROUND_FIRE_TIME && fx.t < impactTime;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               fx.missileFx.root.visible = true;
               fx.missileFx.root.position.copy(launchPos);
@@ -12106,6 +12143,9 @@ function Chess3D({
             } else {
               fx.missileFx.root.visible = false;
             }
+            fx.missileFx.trail?.forEach((puff) => {
+              puff.visible = isTraveling;
+            });
             if (fx.t >= impactTime) {
               if (!fx.hasExploded) {
                 fx.hasExploded = true;
