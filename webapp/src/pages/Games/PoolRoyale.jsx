@@ -25867,14 +25867,13 @@ const powerRef = useRef(hud.power);
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
-        const strikeDuration = THREE.MathUtils.lerp(132, 96, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration,
+          strikeDuration: 120,
           holdDuration: 50,
           pullbackDuration,
           recoverDuration: 0,
@@ -26065,9 +26064,8 @@ const powerRef = useRef(hud.power);
           !allStopped((ballsRef.current?.length > 0 ? ballsRef.current : balls)) ||
           currentHud?.over ||
           replayPlaybackRef.current
-        ) {
-          return { triggered: false };
-        }
+        )
+          return;
         if (breakWinnerSeatRef.current === 'A') {
           breakWinnerSeatRef.current = null;
         }
@@ -26237,11 +26235,6 @@ const powerRef = useRef(hud.power);
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          const normalizedShotSpeed = THREE.MathUtils.clamp(
-            predictedCueSpeed / Math.max(speedBase * SHOT_MAX_FACTOR, 1e-6),
-            0,
-            1
-          );
           if (shouldRecordReplay) {
             const frameTiming = frameTimingRef.current;
             const frameTimeMs =
@@ -26692,15 +26685,6 @@ const powerRef = useRef(hud.power);
               updateCamera();
             }
           }
-          const sliderResetDurationMs = THREE.MathUtils.lerp(
-            205,
-            108,
-            normalizedShotSpeed
-          );
-          return {
-            triggered: true,
-            sliderResetDurationMs
-          };
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -32458,14 +32442,9 @@ const powerRef = useRef(hud.power);
         captureCueStickAnchor();
       },
       onCommit: () => {
-        const shotResult = fireRef.current?.();
-        if (!shotResult?.triggered) {
-          return;
-        }
+        fireRef.current?.();
         requestAnimationFrame(() => {
-          slider.resetToMinWithRhythm({
-            durationMs: shotResult.sliderResetDurationMs
-          });
+          slider.set(slider.min, { animate: true });
           applyPower(0);
         });
       }
