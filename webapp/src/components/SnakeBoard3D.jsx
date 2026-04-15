@@ -242,10 +242,10 @@ const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 1.08
 ]);
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 1.24,
-  TILE_SIZE * 1.62,
-  TILE_SIZE * 0.3,
-  TILE_SIZE * 1.52
+  TILE_SIZE * 1.42,
+  TILE_SIZE * 1.52,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 1.08
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze([
@@ -273,7 +273,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.78;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.34;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -340,37 +340,37 @@ const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
 const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
-const SIDE_SEAT_THROW_START_EXTRA = TILE_SIZE * 2.4;
-const SIDE_SEAT_THROW_BOUNCE_EXTRA = TILE_SIZE * 1.65;
-const SIDE_SEAT_THROW_SETTLE_EXTRA = TILE_SIZE * 1.45;
+const SIDE_SEAT_THROW_START_EXTRA = 0;
+const SIDE_SEAT_THROW_BOUNCE_EXTRA = 0;
+const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 
 const DICE_SEAT_ADJUSTMENTS = [
   {
     forward: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.1,
-      base: TILE_SIZE * 0.18
+      start: 0,
+      bounce: 0,
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.1,
-      base: TILE_SIZE * 0.18
+      start: 0,
+      bounce: 0,
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.1,
-      base: TILE_SIZE * 0.18
+      start: 0,
+      bounce: 0,
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.1,
-      base: TILE_SIZE * 0.18
+      start: 0,
+      bounce: 0,
+      base: 0
     }
   }
 ];
@@ -2199,7 +2199,7 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
   const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
   const settleBaseDistance =
-    boardHalf + DICE_THROW_LANDING_MARGIN * 0.72 + DICE_RETREAT_EXTRA * 0.35;
+    boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12;
 
   const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
   const forwardAdjust = seatAdjust.forward ?? {};
