@@ -1812,7 +1812,13 @@ const USER_TURN_CAMERA_LIFT = 0;
 const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = false;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
-const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = true;
+const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
+const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
+  fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
+  helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
+  droneAttack: { focusWeight: 0.62, targetLift: 0.016, followPullback: 0.054, followLift: 0.018 },
+  missileJavelin: { focusWeight: 0.67, targetLift: 0.012, followPullback: 0.048, followLift: 0.016 }
+});
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(26);
 const CAMERA_FREE_LOOK_POLAR_DELTA = THREE.MathUtils.degToRad(16);
 const CAMERA_ZOOM_MIN_FACTOR = 1;
@@ -7278,16 +7284,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const trackAttackCamera = (weaponPosition, targetPosition, shotProgress = 0.5) => {
             if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) return;
             if (!CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)) return;
-            const blendToWeapon = 0.6;
-            const weight = clamp(blendToWeapon - shotProgress * 0.24, 0.34, 0.68);
-            const cameraTarget = targetPosition.clone().lerp(weaponPosition, weight);
+            const framing =
+              CAPTURE_ATTACK_CAMERA_FRAME[selectedCaptureAnimationId] ??
+              CAPTURE_ATTACK_CAMERA_FRAME.missileJavelin;
+            const dynamicWeight = clamp(
+              framing.focusWeight - shotProgress * 0.2,
+              framing.focusWeight - 0.18,
+              framing.focusWeight + 0.06
+            );
+            const cameraTarget = targetPosition.clone().lerp(weaponPosition, dynamicWeight);
+            cameraTarget.y += framing.targetLift;
+            const travelDir = weaponPosition.clone().sub(targetPosition).setY(0);
+            const followOffset =
+              travelDir.lengthSq() > 1e-6
+                ? travelDir.normalize().multiplyScalar(framing.followPullback).setY(framing.followLift)
+                : new THREE.Vector3(0, framing.followLift, framing.followPullback);
             setCameraFocus({
               object: primaryFx.root,
               target: cameraTarget,
               follow: true,
               priority: 8,
               ttl: 0,
-              offset: Math.max(0.006, (CAMERA_TARGET_LIFT - 0.016) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+              offset: Math.max(0.008, (CAMERA_TARGET_LIFT - 0.012) * CAPTURE_CAMERA_ZOOM_OUT_FACTOR),
+              followOffset,
               force: true
             });
           };
@@ -7937,7 +7956,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!state || !controls || isCamera2d || !LUDO_CAMERA_AUTO_LOOK_ENABLED) return;
       if (state.turn === 0 && lockUserTurnSeatViewRef.current) return;
       if (!focus.force && shouldRespectUserCamera(state.turn)) return;
-      const { object, target, follow = false, ttl = 0, priority = 0, force = false, offset = CAMERA_TARGET_LIFT } = focus;
+      const {
+        object,
+        target,
+        follow = false,
+        ttl = 0,
+        priority = 0,
+        force = false,
+        offset = CAMERA_TARGET_LIFT,
+        followOffset = null
+      } = focus;
       if (!force && priority < cameraTurnStateRef.current.activePriority) return;
 
       let nextTarget = null;
@@ -7965,9 +7993,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (nextFocusState) {
         if (cameraTurnStateRef.current.followObject) {
           const camera = cameraRef.current;
-          cameraTurnStateRef.current.followOffset = camera
-            ? camera.position.clone().sub(nextFocusState.target)
-            : null;
+          cameraTurnStateRef.current.followOffset =
+            followOffset?.isVector3 === true
+              ? followOffset.clone()
+              : camera
+              ? camera.position.clone().sub(nextFocusState.target)
+              : null;
         } else {
           cameraTurnStateRef.current.followOffset = null;
         }
