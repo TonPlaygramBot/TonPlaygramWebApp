@@ -91,10 +91,11 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_JET_SIZE_MULTIPLIER = 1.26 * 1.15;
-const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74 * 1.15;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 1.104 * 1.15;
-const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
+const CAPTURE_VEHICLE_UPSCALE_FACTOR = 1.2;
+const CAPTURE_JET_SIZE_MULTIPLIER = 1.26 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
+const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 1.104 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
+const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
 const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.68;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
@@ -102,24 +103,48 @@ const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
+const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
+  0: -0.34,
+  1: 0.24,
+  2: -0.32,
+  3: 0.34
+});
+const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
+  fighter: 0,
+  helicopter: 0,
+  drone: 0,
+  missile: 0
+});
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
+const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze({
+  0: 0.35,
+  1: 0.33,
+  2: 0.33,
+  3: 0.35
+});
+const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
+  fighter: 0,
+  helicopter: 0,
+  drone: 0,
+  missile: 0
+});
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
-  fighter: 0.03,
-  helicopter: 0.03,
-  drone: 0.03,
-  missile: 0.08
+  fighter: 0.012,
+  helicopter: 0.01,
+  drone: 0.008,
+  missile: 0.016
 };
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
-  fighter: 1.4 * 1.15,
-  helicopter: 1.2 * 1.15,
-  missile: 1.15,
-  drone: 1.15
+  fighter: 1.4 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
+  helicopter: 1.2 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
+  missile: 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
+  drone: 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
-  droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
+  droneAttack: { speed: 1.03, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
@@ -132,6 +157,10 @@ function orientCaptureVehicleTowardBoardCenter(root, target) {
   const forward = target.clone().sub(root.position).setY(0);
   if (forward.lengthSq() < 1e-6) return;
   root.quaternion.setFromUnitVectors(MISSILE_FORWARD, forward.normalize());
+  const facingOffsetY = Number(root.userData?.forwardTowardCenterOffsetY);
+  if (Number.isFinite(facingOffsetY) && Math.abs(facingOffsetY) > 1e-5) {
+    root.rotateY(facingOffsetY);
+  }
 }
 
 function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
@@ -556,11 +585,11 @@ function applyMilitaryJetLook(root) {
         /window|glass/.test(materialName) ||
         mat.transparent
       ) {
-        mat.color.set('#020304');
+        mat.color.set('#000000');
         if ('metalness' in mat) mat.metalness = 0.48;
-        if ('roughness' in mat) mat.roughness = 0.24;
+        if ('roughness' in mat) mat.roughness = 0.18;
         if ('transparent' in mat) mat.transparent = true;
-        if ('opacity' in mat) mat.opacity = 0.98;
+        if ('opacity' in mat) mat.opacity = 1;
         return;
       }
       if (exhaustSet.has(node)) {
@@ -1031,7 +1060,7 @@ async function createCaptureMissileTruckFx() {
   });
 
   root.add(launcher);
-  root.scale.setScalar(1.15 * 1.15);
+  root.scale.setScalar(1.15 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR);
   root.visible = true;
   return {
     root,
@@ -1082,6 +1111,7 @@ async function createCaptureDroneFx() {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
+    root.userData.forwardTowardCenterOffsetY = Math.PI;
     const propeller = applyMilitaryDroneLook(model);
     root.add(model);
     const trail = [];
@@ -1198,6 +1228,7 @@ async function createCaptureJetFx() {
     const model = loadedJet.clone(true);
     fitObjectToTargetSize(model, 9.2 * CAPTURE_JET_SIZE_MULTIPLIER * 0.92);
     model.rotation.set(0, Math.PI, 0);
+    root.userData.forwardTowardCenterOffsetY = Math.PI;
     applyMilitaryJetLook(model);
     root.add(model);
     const { exhaustNodes } = findJetCockpitAndExhaustNodes(model);
@@ -1282,6 +1313,7 @@ async function createCaptureHelicopterFx() {
     const model = loadedHelicopter.clone(true);
     fitObjectToTargetSize(model, 7.68 * CAPTURE_HELICOPTER_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
+    root.userData.forwardTowardCenterOffsetY = Math.PI;
     applyMilitaryHelicopterLook(model);
     const { topRotor, tailRotor } = findHelicopterRotorNodes(model);
     const rotorNodes = [];
@@ -4598,11 +4630,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (inward.lengthSq() < 1e-6) return null;
     const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
+    const sideOffsetByPlayer = CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER[playerIndex] ?? CAPTURE_PARK_SIDE_OFFSET;
+    const sideOffsetByType = CAPTURE_PARK_SIDE_OFFSET_BY_TYPE[vehicleType] ?? 0;
+    const sideOffset = sideOffsetByPlayer + sideOffsetByType;
+    const outwardOffsetByPlayer = CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER[playerIndex] ?? CAPTURE_PARK_OUTWARD_OFFSET;
+    const outwardOffsetByType = CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE[vehicleType] ?? 0;
+    const outwardOffset = outwardOffsetByPlayer + outwardOffsetByType;
     const park = kingPos
       .clone()
-      .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
+      .addScaledVector(leftSide, sideOffset)
       .addScaledVector(inward, forwardOffset)
-      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
+      .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
   }, [getKingTokenPositionForPlayer]);
