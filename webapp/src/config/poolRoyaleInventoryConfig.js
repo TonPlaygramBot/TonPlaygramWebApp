@@ -658,6 +658,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     carbonFiberChalkDarkYellow: 'LT Dark Yellow',
     carbonFiberChalkDarkBrown: 'LT Dark Brown',
     carbonFiberChalkDarkRed: 'LT Dark Red',
+    carbonFiberSnakeChalk: 'LT Black Snake',
+    carbonFiberSnakeChalkGrey: 'LT Grey Snake',
+    carbonFiberSnakeChalkBeige: 'LT Dark Grey Snake',
+    carbonFiberSnakeChalkDarkBlue: 'LT Burgundy Snake',
+    carbonFiberSnakeChalkWhite: 'LT Milk Cream Snake',
+    carbonFiberSnakeChalkDarkGreen: 'LT Dark Green Snake',
     carbonFiberAlligatorOlive: 'LT Olive Alligator',
     carbonFiberAlligatorSwamp: 'LT Swamp Alligator',
     carbonFiberAlligatorClay: 'LT Clay Alligator',
@@ -831,6 +837,60 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1240,
     description: 'Dark-red LT carbon-fiber weave finish with deep crimson character.',
     thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalk',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalk',
+    name: 'LT Black Snake Finish',
+    price: 1250,
+    description: 'Black LT snake-weave finish with the same scale density and a brighter charcoal tone.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalk
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkGrey',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkGrey',
+    name: 'LT Grey Snake Finish',
+    price: 1260,
+    description: 'Grey LT snake-weave finish with the same scale size and a clean brighter lift.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkGrey
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkBeige',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkBeige',
+    name: 'LT Dark Grey Snake Finish',
+    price: 1270,
+    description: 'Dark-grey LT snake-weave finish keeping identical pattern density.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkBeige
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkDarkBlue',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkDarkBlue',
+    name: 'LT Burgundy Snake Finish',
+    price: 1280,
+    description: 'Burgundy LT snake-weave finish tuned to match the LT burgundy palette.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkBlue
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkWhite',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkWhite',
+    name: 'LT Milk Cream Snake Finish',
+    price: 1290,
+    description: 'Milk-cream LT snake-weave finish with the same pattern scale and density.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkWhite
+  },
+  {
+    id: 'finish-carbonFiberSnakeChalkDarkGreen',
+    type: 'tableFinish',
+    optionId: 'carbonFiberSnakeChalkDarkGreen',
+    name: 'LT Dark Green Snake Finish',
+    price: 1300,
+    description: 'Dark-green LT snake-weave finish with matching LT color tone and weave scale.',
+    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberSnakeChalkDarkGreen
   },
   {
     id: 'finish-carbonFiberAlligatorOlive',
