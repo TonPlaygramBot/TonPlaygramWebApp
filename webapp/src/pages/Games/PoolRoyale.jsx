@@ -833,8 +833,8 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rounded cut a touch so the arc reads slightly larger
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
@@ -1085,7 +1085,9 @@ function addPocketCuts(
   pocketPositions.forEach((p, index) => {
     if (!p) return;
     const isSide = index >= 4;
-    const baseRadius = isSide ? POCKET_HOLE_R * sideRadiusScale : POCKET_HOLE_R;
+    const baseRadius = isSide
+      ? POCKET_HOLE_R * sideRadiusScale
+      : POCKET_HOLE_R * CORNER_POCKET_CLOTH_CUT_SCALE;
     const inner = Math.max(MICRO_EPS, baseRadius * POCKET_CUT_EXPANSION);
     const outer = inner + stripeWidth;
     const sleeveShape = new THREE.Shape();
@@ -1487,6 +1489,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
+const CORNER_POCKET_CLOTH_CUT_SCALE = 0.985; // trim only corner cloth cutouts/pocket sleeves very slightly while keeping middle pockets unchanged
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -3273,9 +3276,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0xbdc5cf,
-    base: 0xbdc5cf,
-    trim: 0xbdc5cf,
+    rail: 0xc8d0da,
+    base: 0xc8d0da,
+    trim: 0xc8d0da,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
@@ -3297,9 +3300,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0xb66569,
-    base: 0xb66569,
-    trim: 0xb66569,
+    rail: 0xc17276,
+    base: 0xc17276,
+    trim: 0xc17276,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
@@ -3528,12 +3531,6 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.carbonFiberChalkDarkYellow,
     TABLE_FINISHES.carbonFiberChalkDarkBrown,
     TABLE_FINISHES.carbonFiberChalkDarkRed,
-    TABLE_FINISHES.carbonFiberSnakeChalk,
-    TABLE_FINISHES.carbonFiberSnakeChalkGrey,
-    TABLE_FINISHES.carbonFiberSnakeChalkBeige,
-    TABLE_FINISHES.carbonFiberSnakeChalkDarkBlue,
-    TABLE_FINISHES.carbonFiberSnakeChalkWhite,
-    TABLE_FINISHES.carbonFiberSnakeChalkDarkGreen,
     TABLE_FINISHES.carbonFiberAlligatorOlive,
     TABLE_FINISHES.carbonFiberAlligatorSwamp,
     TABLE_FINISHES.carbonFiberAlligatorClay,
@@ -4042,7 +4039,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal procedural weave footprint so cloth thread size stays consistent
+const CLOTH_PATTERN_SCALE = 0.8; // slightly denser weave so cloth pattern appears a bit smaller
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
@@ -8987,7 +8984,9 @@ export function Table3D(
     const pocketSectors = centers
       .map((center, index) => {
         const isSidePocket = index >= 4;
-        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+        const radius = isSidePocket
+          ? holeRadius * sideRadiusScale
+          : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
         const sweep = Math.PI * 2;
         const baseSegments = isSidePocket ? 96 : 64;
         return createPocketSector(center, sweep, radius, baseSegments, false);
@@ -9015,7 +9014,9 @@ export function Table3D(
     centers.forEach((p, index) => {
       const hole = new THREE.Path();
       const isSidePocket = index >= 4;
-      const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+      const radius = isSidePocket
+        ? holeRadius * sideRadiusScale
+        : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
       hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
       hole.autoClose = true;
       fallback.holes.push(hole);
@@ -26302,7 +26303,8 @@ const powerRef = useRef(hud.power);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras =
-            broadcastSystem?.avoidPocketCameras;
+            Boolean(broadcastSystem?.avoidPocketCameras) ||
+            Boolean(shotPrediction?.railNormal);
           const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
@@ -31256,8 +31258,11 @@ const powerRef = useRef(hud.power);
           }
         }
         const suppressPocketCameras =
-          (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
-            ?.avoidPocketCameras;
+          Boolean(
+            (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
+              ?.avoidPocketCameras
+          ) ||
+          Boolean(shotContextRef.current?.cushionAfterContact);
         const earlyPocketIntent = pocketSwitchIntentRef.current;
         if (earlyPocketIntent && earlyPocketIntent.createdAt) {
           const now = performance.now();
