@@ -160,7 +160,7 @@ const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_TARGET_EXTRA = 0.12 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.62 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.46 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -237,37 +237,17 @@ const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
 const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 0.08;
-const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TOP_SEAT_TOKEN_REST_RAIL_INSET + TILE_SIZE * 0.5, // bottom seat: pull inward
-  TOP_SEAT_TOKEN_REST_RAIL_INSET + TILE_SIZE * 0.44, // right seat: pull inward
-  Math.max(0, TOP_SEAT_TOKEN_REST_RAIL_INSET - TILE_SIZE * 0.22), // top seat: push outward
-  TOP_SEAT_TOKEN_REST_RAIL_INSET
-]);
-const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TOP_SEAT_WEAPON_REST_RAIL_INSET + TILE_SIZE * 0.56, // bottom seat: move closer to table
-  TOP_SEAT_WEAPON_REST_RAIL_INSET + TILE_SIZE * 0.56, // right seat: move closer to table
-  TOP_SEAT_WEAPON_REST_RAIL_INSET, // top seat baseline
-  TOP_SEAT_WEAPON_REST_RAIL_INSET // left seat baseline
-]);
+const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
+const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_WEAPON_REST_RAIL_INSET));
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
-const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.08,
-  -TILE_SIZE * 0.08,
-  TILE_SIZE * 0.18,
-  0
-]);
+const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
-const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.08,
-  -TILE_SIZE * 0.08,
-  0,
-  0
-]);
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
   helicopter: TOKEN_HEIGHT * 1.82,
@@ -275,7 +255,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.9;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.62;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -320,15 +300,15 @@ const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 2.2,
+  backOffset: 2.02,
   forwardOffset: 0,
-  heightOffset: 4,
+  heightOffset: 3.82,
   targetLift: 0.016 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.92,
+  backOffset: 0.78,
   forwardOffset: 0,
-  heightOffset: 1.42,
+  heightOffset: 1.32,
   targetLift: 0.06 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;

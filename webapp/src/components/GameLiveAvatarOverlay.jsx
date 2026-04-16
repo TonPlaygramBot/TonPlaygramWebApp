@@ -25,15 +25,8 @@ const AVATAR_ANCHOR_SELECTORS = [
   '[aria-label="You"]'
 ];
 
-const FRAME_SCALE = 1;
-const ACTIVATION_TOUCH_PADDING = 0;
-const MENU_PRIORITY_SELECTORS = [
-  '[role="dialog"][aria-modal="true"]',
-  '[data-menu-open="true"]',
-  '.modal-open',
-  '.drawer-open',
-  '.menu-open'
-];
+const FRAME_SCALE = 2;
+const ACTIVATION_TOUCH_PADDING = 8;
 const AVATAR_FRAME_STYLES = Object.freeze({
   borderRadius: '999px',
   border: '2px solid rgba(255,255,255,.32)',
@@ -54,7 +47,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     width: 44,
     height: 44
   });
-  const [menuHasPriority, setMenuHasPriority] = useState(false);
 
   const displayName = useMemo(() => {
     if (typeof window === 'undefined') return 'Player';
@@ -265,40 +257,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [anchorElement, liveMode]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const isVisibleElement = (element) => {
-      if (!(element instanceof HTMLElement)) return false;
-      const style = window.getComputedStyle(element);
-      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-
-    const evaluateMenuPriority = () => {
-      const hasOpenMenu = MENU_PRIORITY_SELECTORS.some((selector) =>
-        Array.from(document.querySelectorAll(selector)).some((node) => isVisibleElement(node))
-      );
-      setMenuHasPriority(hasOpenMenu);
-    };
-
-    evaluateMenuPriority();
-    const observer = new MutationObserver(evaluateMenuPriority);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'aria-hidden', 'aria-modal', 'data-menu-open']
-    });
-    window.addEventListener('resize', evaluateMenuPriority);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', evaluateMenuPriority);
-    };
-  }, []);
-
   return (
     <>
       {children}
@@ -306,11 +264,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         <button
           type="button"
           aria-label="Turn on live avatar video"
-          onClick={() => {
-            if (menuHasPriority) return;
-            setLiveMode(true);
-          }}
-          className={`fixed z-[64] rounded-full bg-transparent touch-manipulation ${menuHasPriority ? 'pointer-events-none' : ''}`}
+          onClick={() => setLiveMode(true)}
+          className="fixed z-[64] rounded-full bg-transparent touch-manipulation"
           style={{
             top: `${activationRect.top}px`,
             left: `${activationRect.left}px`,
@@ -323,11 +278,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         <button
           type="button"
           aria-label="Turn off live avatar video"
-          onClick={() => {
-            if (menuHasPriority) return;
-            setLiveMode(false);
-          }}
-          className={`fixed z-[65] overflow-hidden touch-manipulation ${menuHasPriority ? 'pointer-events-none' : ''}`}
+          onClick={() => setLiveMode(false)}
+          className="fixed z-[65] overflow-hidden touch-manipulation"
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
