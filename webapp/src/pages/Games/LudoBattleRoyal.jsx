@@ -102,12 +102,12 @@ const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
-const CAPTURE_PARK_SIDE_OFFSET = 0.26;
+const CAPTURE_PARK_SIDE_OFFSET = 0.19;
 const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
-  0: -0.52,
-  1: 0.5,
-  2: -0.5,
-  3: 0.52
+  0: -0.34,
+  1: 0.28,
+  2: -0.32,
+  3: 0.34
 });
 const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
@@ -115,12 +115,12 @@ const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
   drone: 0,
   missile: 0
 });
-const CAPTURE_PARK_OUTWARD_OFFSET = 0.05;
+const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze({
-  0: 0.56,
-  1: 0.55,
-  2: 0.55,
-  3: 0.56
+  0: 0.35,
+  1: 0.33,
+  2: 0.33,
+  3: 0.35
 });
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
