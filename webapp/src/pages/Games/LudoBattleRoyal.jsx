@@ -95,19 +95,19 @@ const CAPTURE_JET_SIZE_MULTIPLIER = 1.26 * 1.15;
 const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74 * 1.15;
 const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 1.104 * 1.15;
 const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
-const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.95;
-const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.4;
-const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.44;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
+const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.68;
+const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
 const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
-const CAPTURE_PARK_SIDE_OFFSET = 0.25;
-const CAPTURE_PARK_OUTWARD_OFFSET = 0.07;
+const CAPTURE_PARK_SIDE_OFFSET = 0.19;
+const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
-  fighter: 0.01,
-  helicopter: 0.055,
-  drone: 0.1,
-  missile: 0.16
+  fighter: 0.03,
+  helicopter: 0.03,
+  drone: 0.03,
+  missile: 0.08
 };
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.15,
@@ -117,10 +117,10 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
-  fighterJetAttack: { speed: 1.3, height: 0.54, inward: 0.6, takeoff: 0.34, landing: 0.36 },
-  helicopterAttack: { speed: 1.34, height: 0.48, inward: 0.58, takeoff: 0.36, landing: 0.38 },
-  droneAttack: { speed: 1.28, height: 0.44, inward: 0.52, takeoff: 0.34, landing: 0.4 },
-  missileJavelin: { speed: 0.94, height: 0.3, inward: 0.46, takeoff: 0.32, landing: 0.46 }
+  fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
+  helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
+  droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
+  missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
 const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26;
@@ -1016,7 +1016,7 @@ async function createCaptureMissileTruckFx() {
   missileOffsets.forEach((offset, missileIndex) => {
     const missile = createCaptureMissileFx({ withTrail: false });
     missile.root.visible = true;
-    missile.root.scale.set(0.88, 1.24, 1.24);
+    missile.root.scale.setScalar(0.92);
     missile.root.position.set(offset[0], offset[1], offset[2]);
     missile.root.rotation.set(0, 0, Math.PI / 3.4);
     if (missileIndex === 1) {
@@ -1031,7 +1031,7 @@ async function createCaptureMissileTruckFx() {
   });
 
   root.add(launcher);
-  root.scale.setScalar(1.15 * 1.15 * 1.2);
+  root.scale.setScalar(1.15 * 1.15);
   root.visible = true;
   return {
     root,
@@ -7109,8 +7109,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           });
         }
 
-        const tokenWorldPos = parkedLaunch || resolveTokenAnchorPoint(attackerToken, startPosition, 0) || startPosition.clone();
-        const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.66, 0));
+        const tokenWorldPos =
+          (isMissileTruckAttack ? null : parkedLaunch) ||
+          resolveTokenAnchorPoint(attackerToken, startPosition, 0) ||
+          startPosition.clone();
+        const launchAnchor = tokenWorldPos.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0));
         if (isDroneAttack && parkedDronePayload?.isObject3D) {
           const parkedMissileWorld = new THREE.Vector3();
           parkedDronePayload.getWorldPosition(parkedMissileWorld);
@@ -7121,9 +7124,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           parkedDronePayload.visible = false;
         } else if (parkedVehicleToRestore?.isObject3D) {
           parkedVehicleToRestore.visible = false;
-        }
-        if (isMissileTruckAttack && parkedLaunch?.isVector3 && Number.isFinite(tableSurfaceY)) {
-          launchAnchor.y = Math.max(launchAnchor.y, tableSurfaceY + bishopHeight * 0.52);
         }
         if (LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW) {
           setCameraViewForTurn(0, CAMERA_BROADCAST_ANIMATION_MS, { force: true });
@@ -7175,13 +7175,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const explosionTime = 920;
         const flyAwayDuration =
           resolvedCaptureAnimationId === 'fighterJetAttack'
-            ? 1220
+            ? 900
             : resolvedCaptureAnimationId === 'helicopterAttack'
-            ? 1340
-            : resolvedCaptureAnimationId === 'droneAttack'
-            ? 980
-            : resolvedCaptureAnimationId === 'missileJavelin'
-            ? 920
+            ? 900
             : 0;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
         const topStrikeLift = new THREE.Vector3(0, topStrikeHeight, 0);
@@ -7237,7 +7233,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               tokenIndex: attackerTokenIndex,
               fallbackPosition: from
             }) ?? from.clone();
-          const liveFromBase = parkedLaunch?.isVector3 ? parkedLaunch : liveFrom;
+          const liveFromBase =
+            (isFighterJetAttack || isHelicopterAttack) && parkedLaunch?.isVector3
+              ? parkedLaunch
+              : liveFrom;
           const liveTarget =
             resolveLiveTokenPosition({
               token: targetToken,
@@ -7259,9 +7258,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const toRadius = Math.max(toOffset.length(), fallbackRadius);
           const baseOrbitalRadius = Math.max(fromRadius, toRadius, BOARD_RADIUS * 1.02);
           const orbitalRadius = CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId)
-            ? selectedCaptureAnimationId === 'missileJavelin'
-              ? Math.max(0.08, Math.min(baseOrbitalRadius * 0.24, 0.16))
-              : baseOrbitalRadius * CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR * captureTuning.inward
+            ? baseOrbitalRadius * CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR * captureTuning.inward
             : baseOrbitalRadius;
           const fromAngle = Math.atan2(fromOffset.z, fromOffset.x);
           const toAngle = Math.atan2(toOffset.z, toOffset.x);
@@ -7319,9 +7316,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : selectedCaptureAnimationId === 'helicopterAttack'
               ? 0.84
               : selectedCaptureAnimationId === 'droneAttack'
-              ? 0.8
-              : selectedCaptureAnimationId === 'missileJavelin'
-              ? 0.58
+              ? 0.78
               : 0.84;
           if (elapsed < tunedTravelTime) {
             const rawU = easeSmooth(elapsed / tunedTravelTime);
@@ -7358,15 +7353,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               if (isDroneStrike) {
                 return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
               }
+              const strikeTop = new THREE.Vector3(dynamicTo.x, apex.y, dynamicTo.z);
               if (selectedCaptureAnimationId === 'missileJavelin') {
-                const shortLift = Math.max(0.055, bishopHeight * 0.22);
-                const launchRise = dynamicFrom.clone().add(new THREE.Vector3(0, shortLift, 0));
-                const javelinApex = dynamicTo.clone().add(new THREE.Vector3(0, shortLift * 1.05, 0));
-                const verticalDropStart = javelinApex.clone();
-                if (d < 0.42) {
-                  return launchRise.clone().lerp(javelinApex, d / 0.42);
-                }
-                return verticalDropStart.clone().lerp(dynamicTo, (d - 0.42) / 0.58);
+                return strikeTop.clone().lerp(dynamicTo, d);
               }
               const diveStart = new THREE.Vector3(
                 arenaCenter.x + Math.cos(fromAngle + angularDelta) * orbitalRadius,
@@ -7538,7 +7527,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             flyAwayDir.normalize();
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
             const shouldLandAtPark =
-              CAPTURE_AIR_ATTACK_ID_SET.has(selectedCaptureAnimationId) && parkedLaunch?.isVector3;
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
+              parkedLaunch?.isVector3;
             const parkedReturn =
               shouldLandAtPark
                 ? parkedLaunch.clone().add(new THREE.Vector3(0, bishopHeight * 0.52, 0))
