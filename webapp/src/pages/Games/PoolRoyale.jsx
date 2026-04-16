@@ -3214,6 +3214,8 @@ const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
   dark_wood: 2,
   rosewood_veneer_01: 2.4
 });
+const LT_TABLE_WOOD_TEXTURE_ID = 'rosewood_veneer_01';
+const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01;
 
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
@@ -3267,10 +3269,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x2a313d,
     base: 0x2a313d,
     trim: 0x2a313d,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
@@ -3279,10 +3281,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xc8d0da,
     base: 0xc8d0da,
     trim: 0xc8d0da,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
@@ -3291,10 +3293,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x727d8b,
     base: 0x727d8b,
     trim: 0x727d8b,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
@@ -3303,10 +3305,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xc17276,
     base: 0xc17276,
     trim: 0xc17276,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
@@ -3315,10 +3317,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xf8eedf,
     base: 0xf8eedf,
     trim: 0xf8eedf,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
@@ -3327,10 +3329,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x548460,
     base: 0x548460,
     trim: 0x548460,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
@@ -3339,10 +3341,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xd1a652,
     base: 0xd1a652,
     trim: 0xd1a652,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
@@ -3351,10 +3353,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x956b4f,
     base: 0x956b4f,
     trim: 0x956b4f,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkRed: createStandardWoodFinish({
@@ -3363,10 +3365,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xaa5151,
     base: 0xaa5151,
     trim: 0xaa5151,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'matte',
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalk: createStandardWoodFinish({
@@ -3447,10 +3449,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x556b3f,
     base: 0x556b3f,
     trim: 0x556b3f,
-    woodTextureId: 'plastic_monoblock_lt_olive_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorSwamp: createStandardWoodFinish({
@@ -3459,10 +3461,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x3f5a3c,
     base: 0x3f5a3c,
     trim: 0x3f5a3c,
-    woodTextureId: 'plastic_monoblock_lt_swamp_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorClay: createStandardWoodFinish({
@@ -3471,10 +3473,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x6f5b45,
     base: 0x6f5b45,
     trim: 0x6f5b45,
-    woodTextureId: 'plastic_monoblock_lt_clay_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorSand: createStandardWoodFinish({
@@ -3483,10 +3485,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x8a7b5e,
     base: 0x8a7b5e,
     trim: 0x8a7b5e,
-    woodTextureId: 'plastic_monoblock_lt_sand_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorMoss: createStandardWoodFinish({
@@ -3495,10 +3497,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4f6048,
     base: 0x4f6048,
     trim: 0x4f6048,
-    woodTextureId: 'plastic_monoblock_lt_moss_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorNight: createStandardWoodFinish({
@@ -3507,10 +3509,10 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x2f3c32,
     base: 0x2f3c32,
     trim: 0x2f3c32,
-    woodTextureId: 'plastic_monoblock_lt_night_alligator',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
-    surfaceStyle: 'matte',
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
+    surfaceStyle: 'standard',
     useBrandCarbonTexture: false
   })
 });
