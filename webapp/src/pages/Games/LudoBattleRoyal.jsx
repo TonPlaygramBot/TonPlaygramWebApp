@@ -105,7 +105,7 @@ const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
 const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
   0: -0.34,
-  1: 0.32,
+  1: 0.24,
   2: -0.32,
   3: 0.34
 });
