@@ -108,19 +108,20 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.42;
-const CAPTURE_GROUND_TRAVEL_TIME = 5.2; // slower low-altitude ground strike so launches stay inside the board perimeter
+const CAPTURE_GROUND_TRAVEL_TIME = 5.7; // slightly slower truck missile travel for a clearer direct-hit read
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_DRONE_SCALE = 0.0432; // 20% smaller baseline drone
+const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
+const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.72; // fly lower so aircraft stay closer to board surface in portrait
+const CAPTURE_DRONE_ALTITUDE = 0.68; // lower baseline flight so all aircraft track closer to board
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.48; // cruise height the drone visually keeps above board
+const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.44; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.12; // tighter loops so flight path stays well within board perimeter
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.1; // tighten loops a bit more so paths stay closer to board center
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 2.95; // keep turns deeper inboard to avoid outside-side drift
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.24; // keep drone loop tighter so it hugs the board area
@@ -1991,7 +1992,8 @@ const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.42; // negative offset pushes parked weapons further outside the board edge
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.52; // create a wider parking gap between jet/helicopter/drone/truck
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.36; // equalize side parking spacing for jet/drone/helicopter/truck
+const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.2; // truck also gets the requested +20% size bump
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -9397,14 +9399,15 @@ function Chess3D({
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
       const sideX =
         (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
+      const equalLaneStep = tile * SIDE_PARKED_AIR_UNITS_LANE_SPREAD;
       const laneMap = {
-        jet: tile * (1.86 * SIDE_PARKED_AIR_UNITS_LANE_SPREAD),
-        drone: tile * (0.98 * SIDE_PARKED_AIR_UNITS_LANE_SPREAD),
-        helicopter: 0,
-        truck: -tile * (1.86 * SIDE_PARKED_AIR_UNITS_LANE_SPREAD)
+        jet: equalLaneStep * 1.5,
+        drone: equalLaneStep * 0.5,
+        helicopter: -equalLaneStep * 0.5,
+        truck: -equalLaneStep * 1.5
       };
       const laneBase = laneMap[kind] ?? laneMap.helicopter;
-      const laneShift = slot === 0 ? -tile * 0.44 : tile * 0.44;
+      const laneShift = slot === 0 ? 0 : tile * 0.34;
       const zOffset = laneBase + laneShift;
       const yOffset =
         currentPieceYOffset +
@@ -10582,7 +10585,10 @@ function Chess3D({
 
         const supportTruck = createFxSupportTruck();
         supportTruck.root.scale.setScalar(
-          CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
+          CAPTURE_HELICOPTER_SCALE *
+            1.15 *
+            SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER *
+            SIDE_PARKED_TRUCK_SCALE_MULTIPLIER
         );
         if (skin) {
           applyVehicleSkinToModel(
@@ -11857,7 +11863,7 @@ function Chess3D({
               launchPos,
               targetPos: fx.to,
               progress: jetU,
-              altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE + 0.1,
+              altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE + 0.06,
               returnToOrigin: true
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
@@ -11969,7 +11975,7 @@ function Chess3D({
               launchPos,
               targetPos: fx.to,
               progress: heliU,
-              altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE + 0.08,
+              altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE + 0.05,
               returnToOrigin: true
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
@@ -12084,7 +12090,7 @@ function Chess3D({
                 launchPos,
                 targetPos: fx.to,
                 progress: mu,
-                altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.92,
+                altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82,
                 verticalCrash: Boolean(fx.verticalStrike)
               });
 
