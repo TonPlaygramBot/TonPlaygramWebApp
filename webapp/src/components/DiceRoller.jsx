@@ -18,7 +18,6 @@ export default function DiceRoller({
   renderVisual = true,
   placeholder = null,
   diceWrapperClassName = 'flex space-x-4 items-center justify-center',
-  soundEnabled = true
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -56,7 +55,7 @@ export default function DiceRoller({
 
   const rollDice = () => {
     if (rolling) return;
-    if (soundEnabled && soundRef.current && !muted) {
+    if (soundRef.current && !muted) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
