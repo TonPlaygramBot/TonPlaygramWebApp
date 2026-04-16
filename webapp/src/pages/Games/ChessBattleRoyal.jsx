@@ -92,7 +92,7 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 0.42;
+const CAPTURE_DRONE_LIFT_TIME = 0.62; // slower, more readable lift-off from parking pad
 const CAPTURE_DRONE_CRUISE_TIME = 3.76; // slightly slower cruise to make air strikes easier to track on portrait screens
 const CAPTURE_DRONE_DIVE_TIME = 1.38;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
@@ -114,7 +114,7 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.62; // lower baseline flight so all aircraft track closer to board
+const CAPTURE_DRONE_ALTITUDE = 0.52; // keep flight closer to piece-head height
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -130,20 +130,20 @@ const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.09; // lower jet/helicopter route 
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
-const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.46;
-const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.74;
+const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.4;
+const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.68;
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 1.16;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.18;
-const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.54;
-const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.03;
-const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.56;
-const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.42; // short inboard hop from parking pad before launch
-const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.24;
-const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.62;
-const CAPTURE_RELOAD_SHOW_TIME = 0.36;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.82;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.11;
+const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.34;
+const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.015;
+const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.34;
+const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.26; // keep launch hop close to parking position
+const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // spend longer lifting before cruise
+const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
+const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -9780,11 +9780,11 @@ function Chess3D({
       const forwardPoint = launchPos
         .clone()
         .addScaledVector(toCenter, tile * CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE);
-      const cruiseHeight = Math.max(launchPos.y + altitude, launchPos.y + 0.18);
+      const cruiseHeight = Math.max(launchPos.y + altitude, launchPos.y + 0.1);
       const takeoffPoint = forwardPoint.clone();
       takeoffPoint.y = cruiseHeight;
       const strikeTop = targetPos.clone();
-      strikeTop.y = Math.max(targetPos.y + 0.52, cruiseHeight * 0.92);
+      strikeTop.y = Math.max(targetPos.y + 0.2, cruiseHeight * 0.84);
       const u = clamp01(progress);
       let pos = launchPos.clone();
       let next = launchPos.clone().add(new THREE.Vector3(0.05, 0, 0));
@@ -9811,10 +9811,8 @@ function Chess3D({
           next.z = pos.z;
         }
       }
-      if (!returnToOrigin) {
-        constrainInsideBoardPerimeter(pos);
-        constrainInsideBoardPerimeter(next);
-      }
+      constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+      constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
       return { pos, next };
     };
 
@@ -9846,6 +9844,7 @@ function Chess3D({
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
+          sourceUnit: parkedTruck,
           missileFx,
           directPath: false
         });
@@ -9902,6 +9901,7 @@ function Chess3D({
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
+          sourceUnit: parkedTruck,
           missileFx,
           directPath: false,
           verticalStrike: true
@@ -12078,7 +12078,7 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
-            const launchPos = getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            const launchPos = fx.sourceUnit?.homePosition?.clone?.() || getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             fx.launchPos.copy(launchPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
@@ -12123,6 +12123,7 @@ function Chess3D({
                 fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0));
               } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
                 fx.missileFx.root.visible = false;
+                fx.missileFx.root.position.copy(launchPos);
                 captureFxGroup.remove(fx.missileFx.root);
                 activeCaptureFx.splice(i, 1);
               }
