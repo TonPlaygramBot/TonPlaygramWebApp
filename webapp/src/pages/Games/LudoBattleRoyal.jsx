@@ -91,11 +91,10 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
-const CAPTURE_VEHICLE_UPSCALE_FACTOR = 1.2;
-const CAPTURE_JET_SIZE_MULTIPLIER = 1.26 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
-const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
-const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 1.104 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
-const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9 * CAPTURE_VEHICLE_UPSCALE_FACTOR;
+const CAPTURE_JET_SIZE_MULTIPLIER = 1.26 * 1.15;
+const CAPTURE_DRONE_SIZE_MULTIPLIER = 0.74 * 1.15;
+const CAPTURE_HELICOPTER_SIZE_MULTIPLIER = 1.104 * 1.15;
+const CAPTURE_MISSILE_SIZE_MULTIPLIER = 0.9;
 const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
 const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.68;
 const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
@@ -103,30 +102,24 @@ const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
-const CAPTURE_PARK_LAYOUT_BY_TYPE = Object.freeze({
-  fighter: { side: 0.34, depth: -0.27 },
-  helicopter: { side: -0.34, depth: -0.24 },
-  drone: { side: 0.34, depth: 0.25 },
-  missile: { side: -0.34, depth: 0.26 }
-});
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
-  fighter: 0.038,
-  helicopter: 0.028,
-  drone: 0.02,
-  missile: 0.09
+  fighter: 0.03,
+  helicopter: 0.03,
+  drone: 0.03,
+  missile: 0.08
 };
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
-  fighter: 1.4 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
-  helicopter: 1.2 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
-  missile: 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
-  drone: 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR
+  fighter: 1.4 * 1.15,
+  helicopter: 1.2 * 1.15,
+  missile: 1.15,
+  drone: 1.15
 });
 const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
-  droneAttack: { speed: 1.22, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
+  droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
@@ -563,7 +556,7 @@ function applyMilitaryJetLook(root) {
         /window|glass/.test(materialName) ||
         mat.transparent
       ) {
-        mat.color.set('#000000');
+        mat.color.set('#020304');
         if ('metalness' in mat) mat.metalness = 0.48;
         if ('roughness' in mat) mat.roughness = 0.24;
         if ('transparent' in mat) mat.transparent = true;
@@ -1038,7 +1031,7 @@ async function createCaptureMissileTruckFx() {
   });
 
   root.add(launcher);
-  root.scale.setScalar(1.15 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR);
+  root.scale.setScalar(1.15 * 1.15);
   root.visible = true;
   return {
     root,
@@ -4605,13 +4598,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (inward.lengthSq() < 1e-6) return null;
     const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
-    const vehicleLayout = CAPTURE_PARK_LAYOUT_BY_TYPE[vehicleType] ?? null;
-    const sideOffset = vehicleLayout?.side ?? CAPTURE_PARK_SIDE_OFFSET;
-    const depthOffset = vehicleLayout?.depth ?? forwardOffset - CAPTURE_PARK_OUTWARD_OFFSET;
     const park = kingPos
       .clone()
-      .addScaledVector(leftSide, sideOffset)
-      .addScaledVector(inward, depthOffset);
+      .addScaledVector(leftSide, CAPTURE_PARK_SIDE_OFFSET)
+      .addScaledVector(inward, forwardOffset)
+      .addScaledVector(inward, -CAPTURE_PARK_OUTWARD_OFFSET);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
   }, [getKingTokenPositionForPlayer]);
