@@ -783,9 +783,9 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1;
-const CORNER_POCKET_INWARD_SCALE = 0.986; // tighten only corner-pocket mouth/cut geometry a touch
-const CORNER_POCKET_SCALE_BOOST = 0.994; // keep corner shrink subtle so playability remains unchanged
-const CORNER_POCKET_EXTRA_SCALE = 1.016; // preserve rounded shape while landing at a slightly smaller corner cutout
+const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
+const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
+const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the corner chrome arch radius aligned with the middle pockets
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull the rounded corner cut a touch farther inward while keeping the notch aligned to the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.034; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
@@ -833,7 +833,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.05; // open only the corner chrome rounded cut a touch more so the arc reads slightly larger
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.035; // open only the corner chrome rounded cut a touch so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open middle-pocket chrome rounded cuts a touch more so the arc reads larger on portrait views
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the jaw outside diameter
@@ -3273,9 +3273,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkGrey: createStandardWoodFinish({
     id: 'carbonFiberChalkGrey',
     label: 'LT Grey',
-    rail: 0xc7cfd9,
-    base: 0xc7cfd9,
-    trim: 0xc7cfd9,
+    rail: 0xbdc5cf,
+    base: 0xbdc5cf,
+    trim: 0xbdc5cf,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
@@ -3297,9 +3297,9 @@ const TABLE_FINISHES = Object.freeze({
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
     id: 'carbonFiberChalkDarkBlue',
     label: 'LT Burgundy',
-    rail: 0xc37177,
-    base: 0xc37177,
-    trim: 0xc37177,
+    rail: 0xb66569,
+    base: 0xb66569,
+    trim: 0xb66569,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1,
     disableWoodPattern: false,
@@ -3372,9 +3372,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x242b36,
     base: 0x242b36,
     trim: 0x242b36,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_black_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3384,9 +3384,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xb3bcc8,
     base: 0xb3bcc8,
     trim: 0xb3bcc8,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_grey_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3396,9 +3396,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x687381,
     base: 0x687381,
     trim: 0x687381,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_dark_grey_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3408,9 +3408,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xa95b60,
     base: 0xa95b60,
     trim: 0xa95b60,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_burgundy_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3420,9 +3420,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xf6ead7,
     base: 0xf6ead7,
     trim: 0xf6ead7,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_milk_cream_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3432,9 +3432,9 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4b7958,
     base: 0x4b7958,
     trim: 0x4b7958,
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: 'plastic_monoblock_lt_dark_green_snake',
     woodRepeatScale: 1,
-    disableWoodPattern: false,
+    disableWoodPattern: true,
     surfaceStyle: 'matte',
     useBrandCarbonTexture: false
   }),
@@ -3528,6 +3528,12 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.carbonFiberChalkDarkYellow,
     TABLE_FINISHES.carbonFiberChalkDarkBrown,
     TABLE_FINISHES.carbonFiberChalkDarkRed,
+    TABLE_FINISHES.carbonFiberSnakeChalk,
+    TABLE_FINISHES.carbonFiberSnakeChalkGrey,
+    TABLE_FINISHES.carbonFiberSnakeChalkBeige,
+    TABLE_FINISHES.carbonFiberSnakeChalkDarkBlue,
+    TABLE_FINISHES.carbonFiberSnakeChalkWhite,
+    TABLE_FINISHES.carbonFiberSnakeChalkDarkGreen,
     TABLE_FINISHES.carbonFiberAlligatorOlive,
     TABLE_FINISHES.carbonFiberAlligatorSwamp,
     TABLE_FINISHES.carbonFiberAlligatorClay,
@@ -4036,7 +4042,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.7; // slightly denser weave so cloth pattern appears a bit smaller on-screen
+const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal procedural weave footprint so cloth thread size stays consistent
 const CLOTH_TEXTURE_REPEAT_HINT = 1.66;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
@@ -20917,12 +20923,6 @@ const powerRef = useRef(hud.power);
                 if (shouldForceRailOverhead) {
                   activeShotView.preferRailOverhead = true;
                 }
-              }
-              const cushionOrBankShotActive =
-                Boolean(shotContextRef.current?.cushionAfterContact) ||
-                (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 1;
-              if (cushionOrBankShotActive) {
-                activeShotView.preferRailOverhead = true;
               }
               const broadcastRailDir =
                 activeShotView.axis === 'short'
