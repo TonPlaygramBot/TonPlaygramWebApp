@@ -242,32 +242,24 @@ const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_CO
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
-// Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
-// Keep the bottom reserve pair close to the dice lane and push both side seats
-// outward so token/weapon parking sits on the side rails (matching portrait UI).
+// Pull bottom/right reserve tokens inwards and push top token outwards slightly.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
   -TILE_SIZE * 0.78,
-  TILE_SIZE * 0.22,
+  -TILE_SIZE * 0.74,
   TILE_SIZE * 0.68,
-  TILE_SIZE * 0.22
+  0
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
-// Keep bottom weapon close to the near edge while side-seat weapons stay on the rail.
+// Pull bottom/right parked weapons closer so they match the top seat distance.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   -TILE_SIZE * 0.84,
-  TILE_SIZE * 0.2,
+  -TILE_SIZE * 0.82,
   0,
-  TILE_SIZE * 0.2
-]);
-const SEAT_RAIL_SLOT_SIGN_BY_SEAT = Object.freeze([
-  -1, // bottom token/weapon appear to the right of the seat lane
-  -1, // right seat stack appears toward screen-up side
-  -1, // top seat keeps the same slot side as before
-  -1 // left seat stack appears toward screen-down side
+  0
 ]);
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
@@ -3789,7 +3781,7 @@ function updateTokens(
           seatIndex
         );
         if (railLayout) {
-          const sideSign = SEAT_RAIL_SLOT_SIGN_BY_SEAT[seatIndex] ?? -1;
+          const sideSign = seatIndex % 2 === 0 ? -1 : 1;
           worldPos = railLayout.railLocal
             .clone()
             .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
@@ -4649,7 +4641,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       Number.isFinite(weaponInset) ? weaponInset : null
     );
     if (railLayout) {
-      const sideSign = SEAT_RAIL_SLOT_SIGN_BY_SEAT[seatIndex] ?? -1;
+      const sideSign = seatIndex % 2 === 0 ? -1 : 1;
       holder.position
         .copy(railLayout.railLocal)
         .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
