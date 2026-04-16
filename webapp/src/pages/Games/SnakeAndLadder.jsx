@@ -4094,6 +4094,7 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted={muted}
             fixedSoundVolume={1}
+            soundEnabled={false}
           />
         </div>
       )}
@@ -4105,6 +4106,7 @@ export default function SnakeAndLadder() {
               showButton={false}
               muted={muted}
               fixedSoundVolume={1}
+              soundEnabled={false}
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {
@@ -4152,14 +4154,7 @@ export default function SnakeAndLadder() {
             </div>
           )}
           {canRoll && (
-            <button
-              type="button"
-              onClick={handleRollButtonClick}
-              onTouchStart={handleRollButtonClick}
-              className="pointer-events-auto px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
-            >
-              ROLL
-            </button>
+            <span className="sr-only">Roll available</span>
           )}
         </div>
       )}
