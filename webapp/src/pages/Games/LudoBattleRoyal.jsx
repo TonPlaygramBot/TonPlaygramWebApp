@@ -104,10 +104,10 @@ const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
 const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
-  0: -0.48,
-  1: 0.46,
-  2: -0.5,
-  3: 0.5
+  0: -0.34,
+  1: 0.28,
+  2: -0.32,
+  3: 0.34
 });
 const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
@@ -117,10 +117,10 @@ const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
 });
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze({
-  0: 0.52,
-  1: 0.5,
-  2: 0.52,
-  3: 0.5
+  0: 0.35,
+  1: 0.33,
+  2: 0.33,
+  3: 0.35
 });
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
@@ -129,10 +129,10 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   missile: 0
 });
 const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
-  fighter: -0.008,
-  helicopter: -0.01,
-  drone: -0.012,
-  missile: -0.004
+  fighter: 0.012,
+  helicopter: 0.01,
+  drone: 0.008,
+  missile: 0.016
 };
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.15 * CAPTURE_VEHICLE_UPSCALE_FACTOR,
