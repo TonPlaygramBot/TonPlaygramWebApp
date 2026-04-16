@@ -252,6 +252,23 @@ const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
+// Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
+// Keep reserve token placement stable and tune weapon to sit on the opposite side
+// for bottom/side seats so both props are clearly separated.
+const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, -1, -1]);
+const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.06,
+  0,
+  0,
+  0
+]);
+const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
+  -TILE_SIZE * 0.22,
+  -TILE_SIZE * 0.12,
+  0,
+  TILE_SIZE * 0.12
+]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
 // Pull parked weapons for bottom/side seats inward so they align with each player edge position.
@@ -3781,10 +3798,11 @@ function updateTokens(
           seatIndex
         );
         if (railLayout) {
-          const sideSign = seatIndex % 2 === 0 ? -1 : 1;
+          const sideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+          const lateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
           worldPos = railLayout.railLocal
             .clone()
-            .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET);
+            .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge);
           worldPos.y = railLayout.railHeightY;
         }
       }
@@ -4641,10 +4659,11 @@ function updateSeatWeaponDisplays(board, players = []) {
       Number.isFinite(weaponInset) ? weaponInset : null
     );
     if (railLayout) {
-      const sideSign = seatIndex % 2 === 0 ? -1 : 1;
+      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
       holder.position
         .copy(railLayout.railLocal)
-        .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET)
+        .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge)
         .addScaledVector(
           railLayout.seatDirection,
           WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
