@@ -3860,7 +3860,7 @@ export default function SnakeAndLadder() {
             return (
               <div
                 key={`player-${p.index}`}
-                className="absolute pointer-events-auto flex flex-col items-center"
+                className={`absolute flex flex-col items-center ${showConfig ? 'pointer-events-none' : 'pointer-events-auto'}`}
                 style={positionStyle}
               >
                 <AvatarTimer
@@ -4092,7 +4092,7 @@ export default function SnakeAndLadder() {
             numDice={diceCount}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
-            muted={muted}
+            muted
             fixedSoundVolume={1}
           />
         </div>
@@ -4103,7 +4103,7 @@ export default function SnakeAndLadder() {
             <DiceRoller
               clickable
               showButton={false}
-              muted={muted}
+              muted
               fixedSoundVolume={1}
               emitRollEvent
               divRef={diceRollerDivRef}
@@ -4142,7 +4142,6 @@ export default function SnakeAndLadder() {
                 <button
                   type="button"
                   onClick={handleRollButtonClick}
-                  onTouchStart={handleRollButtonClick}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(255,215,0,0.5)] bg-[rgba(255,215,0,0.14)] text-base leading-none text-[#f7e7a4] shadow-[0_0_10px_rgba(250,204,21,0.28)]"
                   aria-label="Roll dice"
                 >
@@ -4151,23 +4150,12 @@ export default function SnakeAndLadder() {
               ) : null}
             </div>
           )}
-          {canRoll && (
-            <button
-              type="button"
-              onClick={handleRollButtonClick}
-              onTouchStart={handleRollButtonClick}
-              className="pointer-events-auto px-6 py-3 rounded-full font-semibold text-sm text-[#f7e7a4] shadow-lg bg-gradient-to-b from-[#2b2b2b] to-[#121212] border border-[rgba(255,215,0,0.45)]"
-            >
-              ROLL
-            </button>
-          )}
         </div>
       )}
       {canRoll && diceAnchor ? (
         <button
           type="button"
           onClick={handleRollButtonClick}
-          onTouchStart={handleRollButtonClick}
           className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center text-2xl text-[#f7e7a4]"
           style={{
             left: `${diceAnchor.x}%`,
