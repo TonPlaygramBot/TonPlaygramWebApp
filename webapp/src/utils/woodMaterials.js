@@ -1426,10 +1426,12 @@ export const applyWoodTextures = (
     roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
     roughnessBase = 0.18,
     roughnessVariance = 0.25,
-    sharedKey = null
+    sharedKey = null,
+    preserveBaseColor = false
   } = {}
 ) => {
   if (!material) return null;
+  const baseColor = preserveBaseColor && material.color?.isColor ? material.color.clone() : null;
   disposeWoodTextures(material);
   const fallbackTextures = {
     map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
@@ -1487,7 +1489,11 @@ export const applyWoodTextures = (
   material.map = map;
   material.roughnessMap = roughnessMap;
   material.normalMap = normalMap;
-  material.color.setHex(0xffffff);
+  if (baseColor && material.color?.isColor) {
+    material.color.copy(baseColor);
+  } else {
+    material.color.setHex(0xffffff);
+  }
   material.needsUpdate = true;
   if (material.map) material.map.needsUpdate = true;
   if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
@@ -1508,7 +1514,8 @@ export const applyWoodTextures = (
     roughnessSize,
     roughnessBase,
     roughnessVariance,
-    sharedKey
+    sharedKey,
+    preserveBaseColor
   };
   material.userData.woodRepeat = new THREE.Vector2(repeatVec.x, repeatVec.y);
   return { map, roughnessMap };
