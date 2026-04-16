@@ -92,7 +92,7 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 0.62; // slower, more readable lift-off from parking pad
+const CAPTURE_DRONE_LIFT_TIME = 0.94; // much slower lift-off so takeoff is clearly visible on portrait screens
 const CAPTURE_DRONE_CRUISE_TIME = 3.76; // slightly slower cruise to make air strikes easier to track on portrait screens
 const CAPTURE_DRONE_DIVE_TIME = 1.38;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
@@ -107,22 +107,22 @@ const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTA
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
-const CAPTURE_GROUND_FIRE_TIME = 0.42;
-const CAPTURE_GROUND_TRAVEL_TIME = 5.7; // slightly slower truck missile travel for a clearer direct-hit read
+const CAPTURE_GROUND_FIRE_TIME = 0.56; // hold a little longer on launcher for clearer "missile leaving truck" read
+const CAPTURE_GROUND_TRAVEL_TIME = 3.6; // shorten pawn/rook strike loop so vertical javelin attacks stay quick
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.52; // keep flight closer to piece-head height
+const CAPTURE_DRONE_ALTITUDE = 0.46; // keep flight closer to piece-head height
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.085; // tighten loops so the fly path stays closer to the board
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.15; // keep turns deeper inboard to avoid outside-side drift
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.07; // tighten loops so the fly path stays closer to the board
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.5; // keep turns more inboard so aircraft remain in-frame
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.2; // keep drone loop tighter so it hugs the board area
 const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.14; // lower drone route to keep it close to board surface
@@ -140,9 +140,12 @@ const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.11;
 const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.34;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.015;
 const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.34;
-const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.26; // keep launch hop close to parking position
-const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // spend longer lifting before cruise
+const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.2; // keep launch hop very close to parking position
+const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.42; // spend longer lifting before cruise
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
+const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0.08; // pawn javelin starts almost straight up from launcher
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.14; // low vertical arc so pawn strikes stay above piece heads
+const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.13; // short top point before vertical drop
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
@@ -1990,9 +1993,9 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.22; // keep all parked side units at an equal but closer distance from board edge
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.28; // push parked vehicles a bit farther outside board edge
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.2; // evenly spaced lanes so jet/drone/helicopter/truck park with matching gaps
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.34; // wider lane gaps between parked jet/drone/helicopter/truck
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.2; // truck also gets the requested +20% size bump
 
 function getTableHeightForShape(shapeId) {
@@ -9472,24 +9475,24 @@ function Chess3D({
     const createFxGroundMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
       const root = new THREE.Group();
-      const body = addFxCylinder(root, 0.07, 0.08, 1.02, [0, 0, 0], [0, 0, Math.PI / 2], '#556b2f', 16, 0.24, 0.82);
-      body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#556b2f', roughness: 0.24, metalness: 0.82 });
+      const body = addFxCylinder(root, 0.092, 0.112, 1.16, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 16, 0.2, 0.86);
+      body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#d9dde2', roughness: 0.2, metalness: 0.86 });
       const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.24, 16),
-        createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#7a8f45', roughness: 0.2, metalness: 0.86 })
+        new THREE.ConeGeometry(0.102, 0.28, 16),
+        createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#eef2f6', roughness: 0.16, metalness: 0.9 })
       );
-      nose.position.set(0.63, 0, 0);
+      nose.position.set(0.72, 0, 0);
       nose.rotation.z = -Math.PI / 2;
       root.add(nose);
-      addFxBox(root, [0.14, 0.02, 0.28], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
-      addFxBox(root, [0.14, 0.28, 0.02], [-0.15, 0, 0], '#6b7f3d', 0.24, 0.76);
-      addFxBox(root, [0.1, 0.02, 0.18], [-0.36, 0, 0], '#5e7035', 0.28, 0.72);
-      addFxBox(root, [0.1, 0.18, 0.02], [-0.36, 0, 0], '#5e7035', 0.28, 0.72);
-      addFxCylinder(root, 0.075, 0.075, 0.16, [-0.55, 0, 0], [0, 0, Math.PI / 2], '#101419', 16, 0.34, 0.62);
+      addFxBox(root, [0.2, 0.026, 0.38], [-0.16, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.2, 0.38, 0.026], [-0.16, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.14, 0.024, 0.24], [-0.44, 0, 0], '#7e8891', 0.3, 0.68);
+      addFxBox(root, [0.14, 0.24, 0.024], [-0.44, 0, 0], '#7e8891', 0.3, 0.68);
+      addFxCylinder(root, 0.088, 0.088, 0.19, [-0.66, 0, 0], [0, 0, Math.PI / 2], '#12161b', 16, 0.34, 0.58);
       const rotor = new THREE.Group();
-      rotor.position.set(-0.48, 0, 0);
-      addFxBox(rotor, [0.03, 0.54, 0.04], [0, 0, 0], '#090b0d', 0.5, 0.35);
-      const rotorCross = addFxBox(rotor, [0.03, 0.04, 0.54], [0, 0, 0], '#090b0d', 0.5, 0.35);
+      rotor.position.set(-0.58, 0, 0);
+      addFxBox(rotor, [0.034, 0.62, 0.046], [0, 0, 0], '#090b0d', 0.5, 0.35);
+      const rotorCross = addFxBox(rotor, [0.034, 0.046, 0.62], [0, 0, 0], '#090b0d', 0.5, 0.35);
       rotorCross.rotation.x = Math.PI / 2;
       root.add(rotor);
       const trail = [];
@@ -9777,14 +9780,18 @@ function Chess3D({
       verticalCrash = false
     }) => {
       const toCenter = new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0).normalize();
+      const inwardDistance = verticalCrash ? CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE : CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE;
+      const strikeAltitude = verticalCrash ? CAPTURE_VERTICAL_STRIKE_ALTITUDE : altitude;
       const forwardPoint = launchPos
         .clone()
-        .addScaledVector(toCenter, tile * CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE);
-      const cruiseHeight = Math.max(launchPos.y + altitude, launchPos.y + 0.1);
+        .addScaledVector(toCenter, tile * inwardDistance);
+      const cruiseHeight = Math.max(launchPos.y + strikeAltitude, launchPos.y + (verticalCrash ? 0.06 : 0.1));
       const takeoffPoint = forwardPoint.clone();
       takeoffPoint.y = cruiseHeight;
       const strikeTop = targetPos.clone();
-      strikeTop.y = Math.max(targetPos.y + 0.2, cruiseHeight * 0.84);
+      strikeTop.y = verticalCrash
+        ? Math.max(targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET, launchPos.y + CAPTURE_VERTICAL_STRIKE_ALTITUDE)
+        : Math.max(targetPos.y + 0.2, cruiseHeight * 0.84);
       const u = clamp01(progress);
       let pos = launchPos.clone();
       let next = launchPos.clone().add(new THREE.Vector3(0.05, 0, 0));
