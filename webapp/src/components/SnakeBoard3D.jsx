@@ -242,24 +242,24 @@ const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_CO
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
-// Pull bottom/right reserve tokens inwards and push top token outwards slightly.
+// Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.78,
-  -TILE_SIZE * 0.74,
+  -TILE_SIZE * 1.18,
+  -TILE_SIZE * 0.98,
   TILE_SIZE * 0.68,
-  0
+  -TILE_SIZE * 0.98
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
-// Pull bottom/right parked weapons closer so they match the top seat distance.
+// Pull parked weapons for bottom/side seats inward so they align with each player edge position.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.84,
-  -TILE_SIZE * 0.82,
+  -TILE_SIZE * 1.02,
+  -TILE_SIZE * 0.9,
   0,
-  0
+  -TILE_SIZE * 0.9
 ]);
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
