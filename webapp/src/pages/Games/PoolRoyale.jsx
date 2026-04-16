@@ -3128,7 +3128,8 @@ const createStandardWoodFinish = ({
   woodRepeatScale,
   disableWoodPattern = false,
   surfaceStyle = 'standard',
-  useBrandCarbonTexture = false
+  useBrandCarbonTexture = false,
+  preserveFinishTintOnWood = false
 }) => ({
   id,
   label,
@@ -3143,6 +3144,7 @@ const createStandardWoodFinish = ({
   disableWoodPattern,
   useBrandCarbonTexture,
   surfaceStyle,
+  preserveFinishTintOnWood,
   createMaterials: () => {
     const useMatteSurface = surfaceStyle === 'matte';
     const frameColor = new THREE.Color(base);
@@ -3188,6 +3190,11 @@ const createStandardWoodFinish = ({
       trim: trimMat,
       accent: null
     };
+    [frame, railMat, trimMat].forEach((material) => {
+      if (!material?.color) return;
+      material.userData = material.userData || {};
+      material.userData.baseTintHex = material.color.getHex();
+    });
     if (accent != null) {
       materials.accent = new THREE.MeshPhysicalMaterial({
         color: accent,
@@ -3216,6 +3223,15 @@ const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
 });
 const LT_TABLE_WOOD_TEXTURE_ID = 'rosewood_veneer_01';
 const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01;
+
+function applyFinishWoodTint(material, finish) {
+  if (!material?.color || !finish?.preserveFinishTintOnWood) return;
+  const tintHex = material.userData?.baseTintHex;
+  if (typeof tintHex === 'number') {
+    material.color.setHex(tintHex);
+    material.needsUpdate = true;
+  }
+}
 
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
@@ -3272,7 +3288,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkGrey: createStandardWoodFinish({
@@ -3284,7 +3301,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkBeige: createStandardWoodFinish({
@@ -3296,7 +3314,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBlue: createStandardWoodFinish({
@@ -3308,7 +3327,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkWhite: createStandardWoodFinish({
@@ -3320,7 +3340,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkGreen: createStandardWoodFinish({
@@ -3332,7 +3353,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkYellow: createStandardWoodFinish({
@@ -3344,7 +3366,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkBrown: createStandardWoodFinish({
@@ -3356,7 +3379,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberChalkDarkRed: createStandardWoodFinish({
@@ -3368,7 +3392,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalk: createStandardWoodFinish({
@@ -3452,7 +3477,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorSwamp: createStandardWoodFinish({
@@ -3464,7 +3490,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorClay: createStandardWoodFinish({
@@ -3476,7 +3503,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorSand: createStandardWoodFinish({
@@ -3488,7 +3516,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorMoss: createStandardWoodFinish({
@@ -3500,7 +3529,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorNight: createStandardWoodFinish({
@@ -3512,7 +3542,8 @@ const TABLE_FINISHES = Object.freeze({
     woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
     woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
     disableWoodPattern: false,
-    surfaceStyle: 'standard',
+    surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   })
 });
@@ -8589,6 +8620,7 @@ export function Table3D(
     if (resolvedFinish?.surfaceStyle === 'matte') {
       applyMonoMattePlasticSurface(mat);
     }
+    applyFinishWoodTint(mat, resolvedFinish);
   });
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
@@ -12808,6 +12840,8 @@ function applyTableFinishToTable(table, finish) {
       applyMonoMattePlasticSurface(railMat);
       applyMonoMattePlasticSurface(frameMat);
     }
+    applyFinishWoodTint(railMat, resolvedFinish);
+    applyFinishWoodTint(frameMat, resolvedFinish);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh) return;
       const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
@@ -12836,6 +12870,7 @@ function applyTableFinishToTable(table, finish) {
       if (resolvedFinish?.surfaceStyle === 'matte') {
         applyMonoMattePlasticSurface(mesh.material);
       }
+      applyFinishWoodTint(mesh.material, resolvedFinish);
       if (mesh.material.color && sourceMaterial?.color) {
         mesh.material.color.copy(sourceMaterial.color);
       }
@@ -12860,6 +12895,7 @@ function applyTableFinishToTable(table, finish) {
     if (resolvedFinish?.surfaceStyle === 'matte') {
       applyMonoMattePlasticSurface(legMat);
     }
+    applyFinishWoodTint(legMat, resolvedFinish);
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
