@@ -11,8 +11,6 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const SPIN_RESPONSE_EXPONENT = 1.45;
-export const SPIN_GLOBAL_EFFECT_MULTIPLIER = 1.2;
-export const STRAIGHT_TOPSPIN_EXTRA_MULTIPLIER = 1.1;
 export const SPIN_CENTER_TOPSPIN_BIAS = 0.16;
 export const SPIN_DIRECTIONS = [
   {
@@ -204,27 +202,16 @@ export const mapSpinForPhysics = (spin, options = {}) => {
   };
   const quantized = normalizeSpinInput(adjusted);
   if (Math.hypot(quantized.x, quantized.y) <= 1e-6) {
-    return { x: 0, y: SPIN_CENTER_TOPSPIN_BIAS * SPIN_GLOBAL_EFFECT_MULTIPLIER };
+    return { x: 0, y: SPIN_CENTER_TOPSPIN_BIAS };
   }
   const { cameraRight, cameraUp, cueForward } = options;
-  const mapped = mapUiOffsetToCueFrame(
+  return mapUiOffsetToCueFrame(
     quantized.x,
     quantized.y,
     cameraRight,
     cameraUp,
     cueForward
   );
-  const boosted = {
-    x: mapped.x * SPIN_GLOBAL_EFFECT_MULTIPLIER,
-    y: mapped.y * SPIN_GLOBAL_EFFECT_MULTIPLIER
-  };
-  const nearStraightTopspin = boosted.y > 0 && Math.abs(boosted.x) <= STRAIGHT_SPIN_DEADZONE * 2;
-  if (nearStraightTopspin) {
-    boosted.y *= STRAIGHT_TOPSPIN_EXTRA_MULTIPLIER;
-  }
-  boosted.x = clamp(boosted.x, -1, 1);
-  boosted.y = clamp(boosted.y, -1, 1);
-  return boosted;
 };
 
 // Smooth damp helper adapted from Unity's Mathf.SmoothDamp (MIT licensed).
