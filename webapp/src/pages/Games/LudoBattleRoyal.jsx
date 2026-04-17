@@ -106,10 +106,12 @@ const CAPTURE_PARK_SIDE_OFFSET = 0.19;
 // Seat order is fixed to portrait view (0=bottom, 1=right, 2=top, 3=left).
 // Keep parked capture weapons at board-corner parking pads (as marked in the mobile UI reference).
 const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
-  0: -0.5,
-  1: -0.5,
-  2: -0.5,
-  3: 0.5
+  // Portrait camera calibration (from mobile 2D reference):
+  // 0=bottom seat, 1=right seat, 2=top seat, 3=left seat.
+  0: -0.54,
+  1: -0.46,
+  2: -0.42,
+  3: 0.54
 });
 const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
@@ -119,10 +121,10 @@ const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
 });
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze({
-  0: 0.58,
-  1: 0.58,
-  2: 0.58,
-  3: 0.58
+  0: 0.56,
+  1: 0.52,
+  2: 0.5,
+  3: 0.56
 });
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
