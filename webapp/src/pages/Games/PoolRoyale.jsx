@@ -1521,7 +1521,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.975,
+  restitution: 0.96,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -1545,8 +1545,8 @@ const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly s
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
 const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.0066;
-const STOP_SOFTENING = 0.982; // ease balls into a stop naturally instead of hard-braking at the speed threshold
+const STOP_EPS = 0.0074;
+const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -1586,8 +1586,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1.01; // make cushion cuts just a touch bouncier
-const CUSHION_CUT_FRICTION_SCALE = 0.99; // reduce cut-line grab slightly so bounces stay lively
+const CUSHION_CUT_RESTITUTION_SCALE = 0.99; // keep cut-angle rebounds lively without adding excess speed
+const CUSHION_CUT_FRICTION_SCALE = 1.02; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -1798,7 +1798,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 1.764; // +50% overall spin response from the current baseline
+const SPIN_GLOBAL_SCALE = 1.176; // +20% global spin response for stronger overall english/follow/draw
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1.22; // stronger straight follow-through so center-line follow shots carry farther
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -1825,7 +1825,7 @@ const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.58; // increase overall shot power slightly for a touch more pace
+const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
 const SHOT_GLOBAL_POWER_SCALE = 0.85; // reduce all shot output by an additional 15%
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1965,7 +1965,7 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.62; // add a mild extra spin boost while keeping control predictable
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536; // +20% overall spin response
 const SIDE_SPIN_MULTIPLIER = 1.78 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
@@ -7144,11 +7144,6 @@ const allStopped = (balls) =>
     if (!Number.isFinite(speed)) return true;
     return speed < STOP_EPS;
   });
-
-const hasActivePocketDropMotion = (pocketDrops) =>
-  Array.isArray(pocketDrops)
-    ? pocketDrops.some((entry) => entry && !entry.resting)
-    : false;
 
 function makeClothTexture(
   palette = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors
@@ -29631,8 +29626,6 @@ const powerRef = useRef(hud.power);
               }
             }
             if (cueBallPotted) {
-              // Respawn only after shot motion is fully settled so the cue ball does not
-              // pop back on the cloth while pocket animations are still running.
               removePocketDropEntry(cue.id);
               respawnCueBallForInHand({ preferCenter: !isTraining });
             }
@@ -30054,12 +30047,8 @@ const powerRef = useRef(hud.power);
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
-        const pocketDropsInMotion = hasActivePocketDropMotion(
-          Array.from(pocketDropRef.current.values())
-        );
         const canShowCue =
           allStopped(balls) &&
-          !pocketDropsInMotion &&
           cue?.active &&
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
@@ -32063,10 +32052,7 @@ const powerRef = useRef(hud.power);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            const pocketDropsInMotion = hasActivePocketDropMotion(
-              Array.from(pocketDropRef.current.values())
-            );
-            if (!any && !pocketDropsInMotion) {
+            if (!any) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
