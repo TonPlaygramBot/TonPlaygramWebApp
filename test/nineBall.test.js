@@ -60,3 +60,37 @@ test('legal break that pots an object ball keeps breaker shooting', () => {
   assert.equal(game.state.breakInProgress, false);
   assert.equal(game.state.ballsOnTable.has(1), false);
 });
+
+test('official 9-ball: legal nine on the break wins immediately', () => {
+  const game = new NineBall();
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [9],
+    cueOffTable: false,
+    placedFromHand: false,
+    railContactsAfterFirstHit: 4
+  });
+
+  assert.equal(res.foul, false);
+  assert.equal(res.frameOver, true);
+  assert.equal(res.winner, 'A');
+  assert.equal(game.state.gameOver, true);
+});
+
+test('official 9-ball: nine potted on a foul break is spotted and inning passes with ball in hand', () => {
+  const game = new NineBall();
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [9, 0],
+    cueOffTable: false,
+    placedFromHand: false,
+    railContactsAfterFirstHit: 4
+  });
+
+  assert.equal(res.foul, true);
+  assert.equal(res.reason, 'scratch');
+  assert.equal(res.frameOver, false);
+  assert.equal(res.nextPlayer, 'B');
+  assert.equal(res.ballInHandNext, true);
+  assert.equal(game.state.ballsOnTable.has(9), true);
+});
