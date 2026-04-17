@@ -105,7 +105,7 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.82; // Slightly smaller arena props so table/chairs/cards better match HDRI scale in portrait.
+const ARENA_PROP_SCALE = 0.78; // Slightly smaller arena props so table/chairs/cards better match HDRI scale in portrait.
 const TOP_SEAT_AVATAR_UP_LIFT = 3.8; // Portrait-space lift for the visual top player's avatar badge.
 
 const TABLE_RADIUS = 3.22 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2257,7 +2257,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE;
+const CARD_SCALE = ARENA_PROP_SCALE * 0.96;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -2363,6 +2363,10 @@ const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.52;
+const HDRI_GROUND_FLOOR_Y = -0.015 * MODEL_SCALE;
+const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
+const HDRI_GROUND_FLOOR_OPACITY = 0.22;
+const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.72 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
@@ -3297,6 +3301,7 @@ export default function MurlanRoyaleArena({ search }) {
       DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
     ),
     scoreboard: null,
+    hdriGround: null,
     tableInfo: null,
     tableThemeId: null,
     tableShapeId: null,
@@ -4016,14 +4021,20 @@ export default function MurlanRoyaleArena({ search }) {
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.backgroundMap || envResult.envMap;
       const rotationY = Number.isFinite(activeVariant?.rotationY) ? activeVariant.rotationY : 0;
+      const rotationX = Number.isFinite(activeVariant?.rotationX) ? activeVariant.rotationX : HDRI_BACKGROUND_PITCH;
       if ('backgroundRotation' in three.scene) {
-        three.scene.backgroundRotation.set(0, rotationY, 0);
+        three.scene.backgroundRotation.set(rotationX, rotationY, 0);
       }
       if ('environmentRotation' in three.scene) {
-        three.scene.environmentRotation.set(0, rotationY, 0);
+        three.scene.environmentRotation.set(rotationX, rotationY, 0);
       }
       if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+      }
+      if ('backgroundBlurriness' in three.scene) {
+        three.scene.backgroundBlurriness = Number.isFinite(activeVariant?.backgroundBlurriness)
+          ? activeVariant.backgroundBlurriness
+          : 0.03;
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
@@ -4697,6 +4708,20 @@ export default function MurlanRoyaleArena({ search }) {
       const innerHalfDepth = interiorDepth / 2;
 
       const floorRadius = Math.max(innerHalfWidth, innerHalfDepth) * 1.35;
+      const hdriGroundRadius = floorRadius * HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER;
+      const hdriGround = new THREE.Mesh(
+        new THREE.CircleGeometry(hdriGroundRadius, 96),
+        new THREE.ShadowMaterial({
+          color: 0x000000,
+          opacity: HDRI_GROUND_FLOOR_OPACITY
+        })
+      );
+      hdriGround.rotation.x = -Math.PI / 2;
+      hdriGround.position.y = HDRI_GROUND_FLOOR_Y;
+      hdriGround.receiveShadow = true;
+      hdriGround.renderOrder = -1;
+      arenaGroup.add(hdriGround);
+      threeStateRef.current.hdriGround = hdriGround;
 
       const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth);
       void applyHdriEnvironment(environmentVariant);
@@ -4896,7 +4921,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.97;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
@@ -5086,6 +5111,14 @@ export default function MurlanRoyaleArena({ search }) {
         texture?.dispose?.();
         store.scoreboard = null;
       }
+      if (store.hdriGround) {
+        if (store.hdriGround.parent) {
+          store.hdriGround.parent.remove(store.hdriGround);
+        }
+        store.hdriGround.geometry?.dispose?.();
+        store.hdriGround.material?.dispose?.();
+        store.hdriGround = null;
+      }
       if (store.tableInfo) {
         store.tableInfo.dispose?.();
         store.tableInfo = null;
@@ -5177,6 +5210,7 @@ export default function MurlanRoyaleArena({ search }) {
           DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
         ),
         scoreboard: null,
+        hdriGround: null,
         tableInfo: null,
         tableThemeId: null,
         tableShapeId: null,
