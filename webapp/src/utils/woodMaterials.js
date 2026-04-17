@@ -372,6 +372,51 @@ const makeInlineOakVeneerPattern = ({
   return { mapUrl: colorMap, roughnessMapUrl: roughnessMap, normalMapUrl: null };
 };
 
+const makeInlineRosewoodVeneerPattern = ({
+  id,
+  base = '#5a3027',
+  streak = '#8d4e3b',
+  pore = '#2f1712',
+  highlight = '#b8795e'
+}) => {
+  const colorMap = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="${id}-base" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="${base}"/>
+      <stop offset="38%" stop-color="${highlight}"/>
+      <stop offset="62%" stop-color="${streak}"/>
+      <stop offset="100%" stop-color="${base}"/>
+    </linearGradient>
+    <pattern id="${id}-grain" patternUnits="userSpaceOnUse" width="160" height="160">
+      <path d="M-38 18 C 0 2, 44 32, 86 16 S 170 -2, 214 18" stroke="${streak}" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.44"/>
+      <path d="M-32 54 C 6 34, 48 66, 92 48 S 174 30, 218 56" stroke="${streak}" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.4"/>
+      <path d="M-42 92 C -4 74, 40 104, 84 88 S 166 68, 210 94" stroke="${streak}" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.42"/>
+      <path d="M-30 132 C 8 110, 52 144, 96 126 S 178 104, 222 132" stroke="${streak}" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.38"/>
+      <circle cx="24" cy="40" r="2.2" fill="${pore}" opacity="0.34"/>
+      <circle cx="78" cy="96" r="1.9" fill="${pore}" opacity="0.3"/>
+      <circle cx="132" cy="62" r="1.7" fill="${pore}" opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#${id}-base)"/>
+  <rect width="512" height="512" fill="url(#${id}-grain)"/>
+</svg>`);
+  const roughnessMap = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <pattern id="${id}-rough" patternUnits="userSpaceOnUse" width="160" height="160">
+      <rect width="160" height="160" fill="#bdbdbd"/>
+      <path d="M-38 18 C 0 2, 44 32, 86 16 S 170 -2, 214 18" stroke="#d1d1d1" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.62"/>
+      <path d="M-32 54 C 6 34, 48 66, 92 48 S 174 30, 218 56" stroke="#a6a6a6" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.58"/>
+      <path d="M-42 92 C -4 74, 40 104, 84 88 S 166 68, 210 94" stroke="#cecece" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.6"/>
+      <path d="M-30 132 C 8 110, 52 144, 96 126 S 178 104, 222 132" stroke="#ababab" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.56"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#${id}-rough)"/>
+</svg>`);
+  return { mapUrl: colorMap, roughnessMapUrl: roughnessMap, normalMapUrl: null };
+};
+
 
 const makeInlinePlasticMonoblockPattern = ({ id, base = '#2b2f36', sheen = '#3f4652' }) => {
   if (typeof document !== 'undefined') {
@@ -1052,225 +1097,261 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'plastic_monoblock_lt_black',
     label: 'LT Black',
-    source: 'TonPlaygram molded-plastic satin texture (LT Black)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Black tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-black-rail',
-        base: '#1a2028',
-        sheen: '#313946'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-black-rail',
+        base: '#1f242b',
+        streak: '#3a434f',
+        highlight: '#4f5a68',
+        pore: '#151a20'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-black-frame',
-        base: '#1a2028',
-        sheen: '#313946'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-black-frame',
+        base: '#1f242b',
+        streak: '#3a434f',
+        highlight: '#4f5a68',
+        pore: '#151a20'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_grey',
     label: 'LT Grey',
-    source: 'TonPlaygram molded-plastic satin texture (LT Grey)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Grey tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-grey-rail',
-        base: '#676f7c',
-        sheen: '#8e97a6'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-grey-rail',
+        base: '#727d8b',
+        streak: '#8d98a9',
+        highlight: '#a4adbb',
+        pore: '#58606b'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-grey-frame',
-        base: '#676f7c',
-        sheen: '#8e97a6'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-grey-frame',
+        base: '#727d8b',
+        streak: '#8d98a9',
+        highlight: '#a4adbb',
+        pore: '#58606b'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_grey',
     label: 'LT Dark Grey',
-    source: 'TonPlaygram molded-plastic satin texture (LT Dark Grey)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Dark Grey tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-grey-rail',
-        base: '#39414b',
-        sheen: '#505a67'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-grey-rail',
+        base: '#3f4956',
+        streak: '#566374',
+        highlight: '#6a7788',
+        pore: '#2d343d'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-grey-frame',
-        base: '#39414b',
-        sheen: '#505a67'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-grey-frame',
+        base: '#3f4956',
+        streak: '#566374',
+        highlight: '#6a7788',
+        pore: '#2d343d'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_burgundy',
     label: 'LT Burgundy',
-    source: 'TonPlaygram molded-plastic satin texture (LT Burgundy)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Burgundy tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-burgundy-rail',
-        base: '#5b2f26',
-        sheen: '#7c4a3b'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-burgundy-rail',
+        base: '#6a3233',
+        streak: '#874546',
+        highlight: '#a55c5d',
+        pore: '#461f1f'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-burgundy-frame',
-        base: '#5b2f26',
-        sheen: '#7c4a3b'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-burgundy-frame',
+        base: '#6a3233',
+        streak: '#874546',
+        highlight: '#a55c5d',
+        pore: '#461f1f'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_milk_cream',
     label: 'LT Milk Cream',
-    source: 'TonPlaygram molded-plastic satin texture (LT Milk Cream)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Milk Cream tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-milk-cream-rail',
-        base: '#d2c2ac',
-        sheen: '#e5d5c1'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-milk-cream-rail',
+        base: '#d8ccb9',
+        streak: '#c1b198',
+        highlight: '#ece3d3',
+        pore: '#9a8a75'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-milk-cream-frame',
-        base: '#d2c2ac',
-        sheen: '#e5d5c1'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-milk-cream-frame',
+        base: '#d8ccb9',
+        streak: '#c1b198',
+        highlight: '#ece3d3',
+        pore: '#9a8a75'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_green',
     label: 'LT Dark Green',
-    source: 'TonPlaygram molded-plastic satin texture (LT Dark Green)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Dark Green tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-green-rail',
-        base: '#2b4533',
-        sheen: '#3d6148'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-green-rail',
+        base: '#314d39',
+        streak: '#446a50',
+        highlight: '#588365',
+        pore: '#1f3227'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-green-frame',
-        base: '#2b4533',
-        sheen: '#3d6148'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-green-frame',
+        base: '#314d39',
+        streak: '#446a50',
+        highlight: '#588365',
+        pore: '#1f3227'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_yellow',
     label: 'LT Dark Yellow',
-    source: 'TonPlaygram molded-plastic satin texture (LT Dark Yellow)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Dark Yellow tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-yellow-rail',
-        base: '#876426',
-        sheen: '#a27b33'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-yellow-rail',
+        base: '#8d6b2c',
+        streak: '#ab8440',
+        highlight: '#c79d52',
+        pore: '#5d461d'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-yellow-frame',
-        base: '#876426',
-        sheen: '#a27b33'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-yellow-frame',
+        base: '#8d6b2c',
+        streak: '#ab8440',
+        highlight: '#c79d52',
+        pore: '#5d461d'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_brown',
     label: 'LT Dark Brown',
-    source: 'TonPlaygram molded-plastic satin texture (LT Dark Brown)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Dark Brown tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-brown-rail',
-        base: '#5a3a2a',
-        sheen: '#734a37'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-brown-rail',
+        base: '#5f3f30',
+        streak: '#7b5441',
+        highlight: '#95664f',
+        pore: '#3d281f'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-brown-frame',
-        base: '#5a3a2a',
-        sheen: '#734a37'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-brown-frame',
+        base: '#5f3f30',
+        streak: '#7b5441',
+        highlight: '#95664f',
+        pore: '#3d281f'
       })
     }
   }),
   Object.freeze({
     id: 'plastic_monoblock_lt_dark_red',
     label: 'LT Dark Red',
-    source: 'TonPlaygram molded-plastic satin texture (LT Dark Red)',
+    source: 'TonPlaygram rosewood veneer matte pattern (LT Dark Red tint)',
     rail: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-red-rail',
-        base: '#6a2323',
-        sheen: '#8a3434'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-red-rail',
+        base: '#803a36',
+        streak: '#9f4b47',
+        highlight: '#bd615e',
+        pore: '#552523'
       })
     },
     frame: {
       repeat: { x: 7.2, y: 7.2 },
       rotation: 0,
       textureSize: 2048,
-      ...makeInlinePlasticMonoblockPattern({
-        id: 'plastic-monoblock-lt-dark-red-frame',
-        base: '#6a2323',
-        sheen: '#8a3434'
+      ...makeInlineRosewoodVeneerPattern({
+        id: 'lt-rosewood-dark-red-frame',
+        base: '#803a36',
+        streak: '#9f4b47',
+        highlight: '#bd615e',
+        pore: '#552523'
       })
     }
   }),
