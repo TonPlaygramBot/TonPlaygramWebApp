@@ -4627,9 +4627,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    // Keep parked weapons locked to the player's seat lane (portrait camera reference),
-    // so they stay on the corner parking pads even while kings move around the board.
-    const inward = arena.boardLookTarget.clone().sub(seatPos).setY(0).normalize();
+    const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
+    const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
     const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
     const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
@@ -4639,14 +4638,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const outwardOffsetByPlayer = CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER[playerIndex] ?? CAPTURE_PARK_OUTWARD_OFFSET;
     const outwardOffsetByType = CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE[vehicleType] ?? 0;
     const outwardOffset = outwardOffsetByPlayer + outwardOffsetByType;
-    const park = seatPos
+    const park = kingPos
       .clone()
       .addScaledVector(leftSide, sideOffset)
       .addScaledVector(inward, forwardOffset)
       .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
-  }, []);
+  }, [getKingTokenPositionForPlayer]);
 
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
