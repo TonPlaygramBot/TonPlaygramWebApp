@@ -57,7 +57,8 @@ const TABLE_AND_CHAIR_BASE_SCALE = 0.49;
 const TABLE_AND_CHAIR_HDRI_PROPORTION_BOOST = 1.2;
 const TABLE_AND_CHAIR_SIZE_MULTIPLIER = 1.6;
 const BOARD_AND_CHIPS_BASE_SCALE = 0.7;
-const TABLE_SIZE_REDUCTION_FACTOR = 0.8;
+const TABLE_SIZE_REDUCTION_FACTOR = 0.74;
+const TABLE_HEIGHT_REDUCTION_FACTOR = 0.88;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
 const BOARD_VISUAL_SIZE_BOOST = 1.08;
@@ -82,10 +83,11 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT =
   1.2 *
   ROW_GAME_SCALE_REDUCTION *
+  TABLE_HEIGHT_REDUCTION_FACTOR *
   TABLE_SIZE_REDUCTION_FACTOR *
   TABLE_AND_CHAIR_SIZE_MULTIPLIER;
 const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
-const CHAIR_GAP = 1.3 * CHAIR_SCALE;
+const CHAIR_GAP = 1.08 * CHAIR_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
 const BOARD_TABLE_CLEARANCE = 0.015 * BOARD_AND_CHIPS_SCALE;
 const BOARD_VERTICAL_LIFT = 0;
@@ -98,6 +100,11 @@ const BOARD_FRAME_DEPTH =
 const BOARD_FRAME_SIDE_WIDTH = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_TOP_RAIL_DEPTH = 0.046 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_CENTER_Z = 0;
+const TOKEN_THICKNESS = BOARD_SLOT_GAP * 0.9;
+const TOKEN_DOME_RADIUS = slotRadius => slotRadius * 0.88;
+const TOKEN_DOME_OFFSET = TOKEN_THICKNESS * 0.2;
+const TOKEN_RIM_RADIUS_FACTOR = 0.9;
+const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.14;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -711,18 +718,19 @@ export default function FourInRowRoyal() {
     });
     const tokenMesh = new THREE.Group();
     const material = token === 'player' ? playerMat : aiMat;
+    const domeRadius = TOKEN_DOME_RADIUS(slotRadius);
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(
         slotRadius * 0.99,
         slotRadius * 0.99,
-        0.13,
+        TOKEN_THICKNESS,
         42
       ),
       material
     );
     const domeA = new THREE.Mesh(
       new THREE.SphereGeometry(
-        slotRadius * 0.93,
+        domeRadius,
         36,
         20,
         0,
@@ -733,11 +741,16 @@ export default function FourInRowRoyal() {
       material
     );
     domeA.rotation.x = Math.PI;
-    domeA.position.y = 0.038;
+    domeA.position.y = TOKEN_DOME_OFFSET;
     const domeB = domeA.clone();
-    domeB.position.y = -0.038;
+    domeB.position.y = -TOKEN_DOME_OFFSET;
     const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(slotRadius * 0.96, 0.01, 12, 36),
+      new THREE.TorusGeometry(
+        slotRadius * TOKEN_RIM_RADIUS_FACTOR,
+        TOKEN_RIM_TUBE,
+        12,
+        36
+      ),
       rimMat
     );
     rim.rotation.x = Math.PI / 2;
@@ -799,11 +812,11 @@ export default function FourInRowRoyal() {
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset =
-      ((isPortrait ? 2.55 : 1.78) + 0.35) * CAMERA_FRAME_MATCH_SCALE;
+      ((isPortrait ? 2.18 : 1.52) + 0.28) * CAMERA_FRAME_MATCH_SCALE;
     const cameraForwardOffset =
-      (isPortrait ? 0.2 : 0.28) * CAMERA_FRAME_MATCH_SCALE;
+      (isPortrait ? 0.36 : 0.42) * CAMERA_FRAME_MATCH_SCALE;
     const cameraHeightOffset =
-      (isPortrait ? 1.12 : 0.94) *
+      (isPortrait ? 0.92 : 0.76) *
       CAMERA_FRAME_MATCH_SCALE *
       TABLE_AND_CHAIR_SIZE_MULTIPLIER;
     const cameraRadius =
@@ -819,7 +832,7 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.1, 0);
+    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.07, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
@@ -1792,25 +1805,25 @@ export default function FourInRowRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[17%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
           <AvatarTimer
             photoUrl="🤖"
             name="AI Rival"
             active
             isTurn={turn === 'ai'}
-            size={1}
+            size={0.92}
           />
         </div>
         <div
           data-self-player="true"
-          className="absolute left-1/2 top-[85%] -translate-x-1/2"
+          className="absolute left-1/2 top-[91.5%] -translate-x-1/2"
         >
           <AvatarTimer
             photoUrl={avatar}
             name={username}
             active
             isTurn={turn === 'player'}
-            size={1}
+            size={0.92}
           />
         </div>
       </div>
