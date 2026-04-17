@@ -1431,12 +1431,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.965; // match snooker middle pocket mouth width
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.982; // open middle pocket mouths slightly while preserving corner-pocket proportions
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 1; // keep side pocket cut radius identical to the physical mouth geometry
+const SIDE_POCKET_CUT_SCALE = 1.02; // enlarge middle pocket cutouts a touch so the visual jaw opening matches the widened mouth
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -26371,16 +26371,13 @@ const powerRef = useRef(hud.power);
             return count;
           })();
           const isCrowdedShot = shotCrowdBallCount >= RAIL_OVERHEAD_CROWD_BALL_THRESHOLD;
+          const isCushionTargetShot =
+            Boolean(shotPrediction?.railNormal) ||
+            Boolean(shotContextRef.current?.cushionAfterContact) ||
+            (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 1;
           const forceImmediateRailOverheadView =
-            !isShortStraightShot &&
-            (isBreakShot ||
-              Boolean(shotPrediction?.railNormal) ||
-              hasCueTargetDirectionSplit ||
-              isMiddlePocketIntent ||
-              hasLikelyPocketIntent ||
-              isCrowdedShot);
-          const prioritizeRailOverheadCut =
-            forceImmediateRailOverheadView || isBreakShot || Boolean(shotPrediction?.railNormal);
+            !isShortStraightShot && isCushionTargetShot;
+          const prioritizeRailOverheadCut = forceImmediateRailOverheadView;
           const allowRailOverheadActionView = true;
           const allowLongShotCameraSwitch =
             (forceImmediateRailOverheadView || !suppressOpeningShotViews) &&
@@ -26435,12 +26432,8 @@ const powerRef = useRef(hud.power);
             actionView.activationDelay = null;
             actionView.activationTravel = 0;
           }
-          const shouldForceImmediateRailOverhead =
-            Boolean(shotPrediction?.railNormal) ||
-            (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 2;
-          const shouldKeepRailOverheadOnly =
-            Boolean(shotPrediction?.railNormal) ||
-            (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 1;
+          const shouldForceImmediateRailOverhead = isCushionTargetShot;
+          const shouldKeepRailOverheadOnly = isCushionTargetShot;
           if (shouldForceImmediateRailOverhead) {
             queuedPocketView = null;
             suspendedActionView = actionView ?? null;
