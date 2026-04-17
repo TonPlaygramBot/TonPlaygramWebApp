@@ -103,13 +103,11 @@ const CAPTURE_VEHICLE_HEIGHT_TO_KING = 1.35;
 const CAPTURE_PARK_BOX_TARGET_SIZE = 0.17;
 const CAPTURE_PARK_TRUCK_BOX_TARGET_SIZE = 0.21;
 const CAPTURE_PARK_SIDE_OFFSET = 0.19;
-// Seat order is fixed to portrait view (0=bottom, 1=right, 2=top, 3=left).
-// Keep parked capture weapons at board-corner parking pads (as marked in the mobile UI reference).
 const CAPTURE_PARK_SIDE_OFFSET_BY_PLAYER = Object.freeze({
-  0: -0.5,
-  1: -0.5,
-  2: -0.5,
-  3: 0.5
+  0: -0.34,
+  1: 0.28,
+  2: -0.32,
+  3: 0.34
 });
 const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
@@ -119,10 +117,10 @@ const CAPTURE_PARK_SIDE_OFFSET_BY_TYPE = Object.freeze({
 });
 const CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_PLAYER = Object.freeze({
-  0: 0.58,
-  1: 0.58,
-  2: 0.58,
-  3: 0.58
+  0: 0.35,
+  1: 0.33,
+  2: 0.33,
+  3: 0.35
 });
 const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   fighter: 0,
