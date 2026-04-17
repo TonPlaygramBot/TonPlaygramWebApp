@@ -45,9 +45,6 @@ const LOOKAHEAD_CANDIDATES = 14
 const MONTE_CARLO_BASE_SAMPLES = 128
 const POWER_SCALE = 0.8
 const DEFAULT_REST_SPEED_EPSILON = 0.03
-const AI_EASY_SHOT_MIN_QUALITY = 0.32
-const AI_EASY_SHOT_MAX_CUT_RAD = Math.PI / 7.5
-const AI_EASY_SHOT_MIN_VIEW = 0.5
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -703,7 +700,7 @@ function clearShotCandidates (req) {
   const targets = chooseTargets(req)
   const pockets = req.state.pockets
   const maxCut = req.maxCutAngle ?? Math.PI / 4.15
-  const minView = req.minViewScore ?? 0.45
+  const minView = req.minViewScore ?? 0.42
   const candidates = []
 
   for (const target of targets) {
@@ -1027,7 +1024,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     ? Math.max(24, Math.round(options.mcSamples))
     : 20
   const potChance = monteCarloPotChance(req, cue, target, pocket, entry, ghost, balls, mcSamples, rng)
-  const minPotChance = strict ? 0.24 : 0.12
+  const minPotChance = strict ? 0.2 : 0.1
   if (potChance < minPotChance) return null
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const scratchAfterImpact = scratchRiskAlongLine(target, cueAfter, req.state.pockets || [], r)
@@ -1077,7 +1074,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     Math.max(0, spin.top || 0) * 0.04
   const powerControlPenalty = Math.max(0, power - (0.5 * POWER_SCALE)) * 0.35
   const clearanceScore = Math.max(0, Math.min((laneClearance - 0.5) / 0.7, 1))
-  if (strict && (centerAlign < 0.56 || pocketOpen < 0.36)) {
+  if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
   }
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
@@ -1090,15 +1087,15 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     0,
     Math.min(
       1,
-      0.5 * potChance +
-        0.18 * pocketOpen +
-        0.14 * centerAlign +
-        0.05 * nextScore +
-        0.02 * nearHole +
-        0.11 * runoutPotential +
-        0.12 * clearanceScore -
-        0.28 * risk -
-        (scratchAfterImpact ? 0.26 : 0) -
+      0.46 * potChance +
+        0.15 * pocketOpen +
+        0.13 * centerAlign +
+        0.06 * nextScore +
+        0.03 * nearHole +
+        0.14 * runoutPotential +
+        0.11 * clearanceScore -
+        0.21 * risk -
+        (scratchAfterImpact ? 0.2 : 0) -
         spinPenalty -
         powerControlPenalty -
         difficultyPenalty
@@ -1211,23 +1208,6 @@ function isBetterShotCandidate (candidate, currentBest) {
 
   return candidate.power < currentBest.power
 }
-
-function isEasyPotOpportunity (req, decision) {
-  if (!req?.state || !decision?.targetBallId || !decision?.targetPocket) return false
-  const cueBallId = resolveCueBallId(req.state)
-  const cue = req.state.balls.find(b => b.id === cueBallId)
-  const target = req.state.balls.find(b => b.id === decision.targetBallId)
-  if (!cue || !target || target.pocketed) return false
-  const r = req.state.ballRadius
-  const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
-  const potVec = { x: decision.targetPocket.x - target.x, y: decision.targetPocket.y - target.y }
-  let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
-  if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
-  const viewAngle = Math.atan2(r * 2, Math.max(1e-6, dist(target, decision.targetPocket)))
-  const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
-  return cutAngle <= AI_EASY_SHOT_MAX_CUT_RAD && viewScore >= AI_EASY_SHOT_MIN_VIEW
-}
-
 
 /**
  * @param {AimRequest} req
@@ -1373,7 +1353,7 @@ export function planShot (req) {
           for (const spin of spins.concat(defaultSpins)) {
             if (power === powers[0] && spin === spins[0]) continue
             if (Date.now() > deadline) {
-              return best && best.quality >= 0.12 ? best : fallbackAimAtTarget(req) || safetyShot(req)
+              return best && best.quality >= 0.1 ? best : fallbackAimAtTarget(req) || safetyShot(req)
             }
             const cand = evaluate(
               req,
@@ -1415,10 +1395,8 @@ export function planShot (req) {
         best.suggestedAimPoint = suggestion.suggestedAimPoint
       }
     }
-    const easyPot = isEasyPotOpportunity(req, best)
-    if (best.quality >= 0.12) return best
-    if (easyPot && best.quality >= AI_EASY_SHOT_MIN_QUALITY) return best
-    if (hasViableShot && best.targetBallId != null) return best
+    if (best.quality >= 0.1) return best
+    if (hasViableShot) return best
   }
   if (!hasViableShot) return safetyShot(req)
   fallback = fallbackAimAtTarget(req)
