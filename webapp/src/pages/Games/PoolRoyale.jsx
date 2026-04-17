@@ -785,7 +785,7 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const CORNER_POCKET_EXTRA_SCALE = 0.992; // trim only corner pocket mouths slightly so the openings read a touch tighter on mobile
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the corner chrome arch radius aligned with the middle pockets
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull the rounded corner cut a touch farther inward while keeping the notch aligned to the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.034; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
@@ -1489,7 +1489,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 0.985; // trim only corner cloth cutouts/pocket sleeves very slightly while keeping middle pockets unchanged
+const CORNER_POCKET_CLOTH_CUT_SCALE = 0.968; // shrink only corner cloth cutouts a bit more to match the tighter corner pocket mouth
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -1963,7 +1963,7 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.28;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536;
 const SIDE_SPIN_MULTIPLIER = 1.78 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
@@ -3402,10 +3402,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x242b36,
     base: 0x242b36,
     trim: 0x242b36,
-    woodTextureId: 'plastic_monoblock_lt_black_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalkGrey: createStandardWoodFinish({
@@ -3414,10 +3415,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xb3bcc8,
     base: 0xb3bcc8,
     trim: 0xb3bcc8,
-    woodTextureId: 'plastic_monoblock_lt_grey_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalkBeige: createStandardWoodFinish({
@@ -3426,10 +3428,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x687381,
     base: 0x687381,
     trim: 0x687381,
-    woodTextureId: 'plastic_monoblock_lt_dark_grey_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalkDarkBlue: createStandardWoodFinish({
@@ -3438,10 +3441,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xa95b60,
     base: 0xa95b60,
     trim: 0xa95b60,
-    woodTextureId: 'plastic_monoblock_lt_burgundy_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalkWhite: createStandardWoodFinish({
@@ -3450,10 +3454,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xf6ead7,
     base: 0xf6ead7,
     trim: 0xf6ead7,
-    woodTextureId: 'plastic_monoblock_lt_milk_cream_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberSnakeChalkDarkGreen: createStandardWoodFinish({
@@ -3462,10 +3467,11 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x4b7958,
     base: 0x4b7958,
     trim: 0x4b7958,
-    woodTextureId: 'plastic_monoblock_lt_dark_green_snake',
-    woodRepeatScale: 1,
-    disableWoodPattern: true,
+    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
+    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
+    disableWoodPattern: false,
     surfaceStyle: 'matte',
+    preserveFinishTintOnWood: true,
     useBrandCarbonTexture: false
   }),
   carbonFiberAlligatorOlive: createStandardWoodFinish({
@@ -6220,15 +6226,15 @@ const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like 
 const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.82;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 55; // switch sooner from stroke follow to pocket/broadcast views for earlier pot framing
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 180;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
-const CAMERA_SWITCH_MIN_HOLD_MS = 70; // cut mandatory lock further so rail-overhead camera switches in noticeably earlier
+const CAMERA_SWITCH_MIN_HOLD_MS = 50; // reduce minimum lock so pocket cameras can cut in earlier near the drop
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
-const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
+const STROKE_CAMERA_MIN_HOLD_MS = 70; // keep stroke hold brief so broadcast transitions happen quicker
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
 const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
@@ -31300,7 +31306,8 @@ const powerRef = useRef(hud.power);
             (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
               ?.avoidPocketCameras
           ) ||
-          Boolean(shotContextRef.current?.cushionAfterContact);
+          Boolean(shotContextRef.current?.cushionAfterContact) ||
+          Boolean(shotPrediction?.railNormal);
         const earlyPocketIntent = pocketSwitchIntentRef.current;
         if (earlyPocketIntent && earlyPocketIntent.createdAt) {
           const now = performance.now();
