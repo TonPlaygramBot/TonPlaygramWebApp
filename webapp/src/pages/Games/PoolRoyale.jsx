@@ -1521,7 +1521,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.15,
+  restitution: 0.96,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
@@ -1553,7 +1553,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // disable max-power bounce lift (never reaches this)
+const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
@@ -1586,8 +1586,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.93; // keep a livelier jaw rebound so rails feel less dead
-const CUSHION_CUT_FRICTION_SCALE = 1.06; // trim grab slightly so added bounce is visible without making cuts skid
+const CUSHION_CUT_RESTITUTION_SCALE = 0.99; // keep cut-angle rebounds lively without adding excess speed
+const CUSHION_CUT_FRICTION_SCALE = 1.02; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -1799,7 +1799,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
 const SPIN_GLOBAL_SCALE = 1.176; // +20% global spin response for stronger overall english/follow/draw
-const STRAIGHT_TOPSPIN_BONUS_SCALE = 1.1; // add ~10% extra topspin when side english is near zero
+const STRAIGHT_TOPSPIN_BONUS_SCALE = 1.22; // stronger straight follow-through so center-line follow shots carry farther
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
@@ -1965,7 +1965,7 @@ const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so 
 const SPIN_RING_RATIO = 1;
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
-const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.28;
+const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536; // +20% overall spin response
 const SIDE_SPIN_MULTIPLIER = 1.78 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.72 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = BACKSPIN_MULTIPLIER;
@@ -1973,7 +1973,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 // angle for cushion cuts guiding balls into corner pockets
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
+const DEFAULT_CUSHION_CUT_ANGLE = 33;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 64;
@@ -3258,10 +3258,21 @@ const LT_TABLE_WOOD_REPEAT_SCALE = POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_
 function applyFinishWoodTint(material, finish) {
   if (!material?.color || !finish?.preserveFinishTintOnWood) return;
   const tintHex = material.userData?.baseTintHex;
-  if (typeof tintHex === 'number') {
-    material.color.setHex(tintHex);
-    material.needsUpdate = true;
+  if (typeof tintHex !== 'number') return;
+  material.color.setHex(tintHex);
+  const isLtFinish = typeof finish?.label === 'string' && finish.label.startsWith('LT ');
+  if (isLtFinish) {
+    const hsl = { h: 0, s: 0, l: 0 };
+    material.color.getHSL(hsl);
+    const saturationBoost = finish.label.includes('Milk Cream') ? 0.04 : 0.12;
+    const lightnessOffset = finish.label.includes('Black') || finish.label.includes('Night') ? -0.03 : 0.02;
+    material.color.setHSL(
+      hsl.h,
+      THREE.MathUtils.clamp(hsl.s + saturationBoost, 0, 1),
+      THREE.MathUtils.clamp(hsl.l + lightnessOffset, 0, 1)
+    );
   }
+  material.needsUpdate = true;
 }
 
 const TABLE_FINISHES = Object.freeze({
@@ -6599,10 +6610,10 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const MAX_TOPSPIN_INPUT = 1; // allow full topspin input so forward spin can match draw strength
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.52; // stronger transfer keeps forward roll alive longer for clearer follow-through
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
-const TOPSPIN_POWER_SOFT_CAP = 1;
+const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.6;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
@@ -7778,6 +7789,15 @@ function applyRailImpulse(ball, impact) {
     );
   }
   ball.vel.set(TMP_VEC3_C.x, TMP_VEC3_C.z);
+  const reboundCap = Number.isFinite(ball.maxRailSpeed)
+    ? Math.max(0, ball.maxRailSpeed)
+    : null;
+  if (reboundCap != null) {
+    const reboundSpeed = ball.vel.length();
+    if (reboundSpeed > reboundCap && reboundSpeed > 1e-8) {
+      ball.vel.multiplyScalar(reboundCap / reboundSpeed);
+    }
+  }
 }
 
 function resolveSwerveAimDir(
@@ -25513,10 +25533,27 @@ const powerRef = useRef(hud.power);
         if (!client) return null;
         const currentProjected = projectFromClient(client.x, client.y);
         if (!currentProjected) return null;
+        const previousScreen = inHandDrag.lastScreen;
+        const previousPos = inHandDrag.lastPos?.clone?.() ?? null;
         inHandDrag.lastScreen = client;
         if (!inHandDrag.smoothedPos) {
           inHandDrag.smoothedPos = currentProjected.clone();
           return currentProjected;
+        }
+        if (previousScreen && previousPos) {
+          const screenDx = client.x - previousScreen.x;
+          const screenDy = client.y - previousScreen.y;
+          const activeCamera = cameraRef.current ?? activeRenderCameraRef.current ?? camera;
+          const cameraDistance = activeCamera?.position
+            ? activeCamera.position.distanceTo(new THREE.Vector3(previousPos.x, BALL_CENTER_Y, previousPos.y))
+            : TABLE.W;
+          const tableUnitsPerPixel = (TABLE.W * 0.85) / Math.max(dom.clientWidth || 1, 1);
+          const movementScale = tableUnitsPerPixel * THREE.MathUtils.clamp(cameraDistance / TABLE.W, 0.6, 1.7);
+          const dragDelta = new THREE.Vector2(screenDx * movementScale, -screenDy * movementScale);
+          const dragTarget = previousPos.clone().add(dragDelta);
+          const blend = inHandDrag.source === 'icon' ? 0.5 : 0.58;
+          inHandDrag.smoothedPos.lerp(dragTarget, blend);
+          return inHandDrag.smoothedPos.clone();
         }
         const delta = inHandDrag.smoothedPos.distanceTo(currentProjected);
         if (delta <= BALL_R * 0.03) {
@@ -26163,6 +26200,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
           doubleBankBroadcastCutApplied: false,
+          forceRailOverheadOnly: false,
           attemptsPenaltyApplied: false,
           spin: {
             x: appliedSpinSnapshot.x ?? 0,
@@ -26434,6 +26472,9 @@ const powerRef = useRef(hud.power);
           }
           const shouldForceImmediateRailOverhead = isCushionTargetShot;
           const shouldKeepRailOverheadOnly = isCushionTargetShot;
+          if (shotContextRef.current) {
+            shotContextRef.current.forceRailOverheadOnly = shouldKeepRailOverheadOnly;
+          }
           if (shouldForceImmediateRailOverhead) {
             queuedPocketView = null;
             suspendedActionView = actionView ?? null;
@@ -26478,6 +26519,7 @@ const powerRef = useRef(hud.power);
             }
           }
           cue.vel.copy(base);
+          cue.maxRailSpeed = Math.max(cue.vel.length(), 0);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
           }
@@ -29505,6 +29547,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false,
           railContactCountAfterContact: 0,
           doubleBankBroadcastCutApplied: false,
+          forceRailOverheadOnly: false,
           attemptsPenaltyApplied: false,
           spin: { x: 0, y: 0 }
         };
@@ -31377,7 +31420,7 @@ const powerRef = useRef(hud.power);
           shooting &&
           !topViewRef.current
         ) {
-          if (!pocketHoldActive && queuedPocketView) {
+          if (!pocketHoldActive && queuedPocketView && !Boolean(shotContextRef.current?.forceRailOverheadOnly)) {
             const cueBall = cueRef.current;
             const cueSpeed =
               cueBall?.vel && typeof cueBall.vel.length === 'function'
@@ -31400,7 +31443,7 @@ const powerRef = useRef(hud.power);
               updatePocketCameraState(true);
               activeShotView = view;
             }
-          } else if (!pocketHoldActive && (activeShotView?.mode !== 'pocket' || !activeShotView)) {
+          } else if (!pocketHoldActive && !Boolean(shotContextRef.current?.forceRailOverheadOnly) && (activeShotView?.mode !== 'pocket' || !activeShotView)) {
             const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const sph = sphRef.current;
             const orbitSnapshot = sph
@@ -31652,6 +31695,7 @@ const powerRef = useRef(hud.power);
                 const shouldForceCornerPocketView =
                   !topViewRef.current &&
                   pocketIndex < 4 &&
+                  !Boolean(shotContextRef.current?.forceRailOverheadOnly) &&
                   !Boolean(shotContextRef.current?.cushionAfterContact) &&
                   (shotContextRef.current?.railContactCountAfterContact ?? 0) < 1;
                 const shouldForceRailOverheadPocketView =
