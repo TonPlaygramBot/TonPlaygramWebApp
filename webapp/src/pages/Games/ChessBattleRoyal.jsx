@@ -99,10 +99,10 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 4.2; // extend jet/helicopter loop more so return-to-pad is clearly visible
+const CAPTURE_JET_TOTAL = 4.9; // readable loop: takeoff -> tiny forward move -> fire -> return to same pad
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
-const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing and route behavior
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
@@ -150,10 +150,15 @@ const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.1; // low vertical arc
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.09; // short top point before vertical drop
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_PAD_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // jet/helicopter cruise at same low strike altitude as short pawn missile
-const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.32; // tiny forward move before missile release
+const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.2; // move only a tiny amount from parking spot before firing
 const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.24;
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.54;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.84;
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.48; // launch while aircraft is hovering near pad-forward point
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME; // same short missile speed as pawn/truck strike
+const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // guarantee explosion when missile reaches target end of path
+const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST = 1.75;
+const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME = 0.32;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -9875,6 +9880,14 @@ function Chess3D({
       }
       return { pos, next, forward: towardTarget, strikeAnchor: forwardTarget };
     };
+    const getCaptureShortMissilePose = ({ launchPos, targetPos, progress, altitude = CAPTURE_VERTICAL_STRIKE_ALTITUDE }) =>
+      getCaptureDirectStrikePose({
+        launchPos,
+        targetPos,
+        progress,
+        altitude,
+        verticalCrash: true
+      });
 
     const playCaptureAnimation = ({
       fromPos,
@@ -11943,22 +11956,17 @@ function Chess3D({
             });
 
             const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseStart = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-            const releaseEnd = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-            const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
-            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
-            const hitTop = fx.to
-              .clone()
-              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+            const releaseTime = CAPTURE_JET_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
+            const missileTravel = CAPTURE_PAD_MISSILE_TRAVEL_TIME;
             let anyMissileVisible = false;
             jetMissiles.forEach((missile, idx) => {
-              const releaseTime = releaseStart + idx * 0.14;
-              if (fx.t < releaseTime) {
+              const stagedReleaseTime = releaseTime + idx * 0.08;
+              if (fx.t < stagedReleaseTime) {
                 missile.root.visible = false;
                 return;
               }
-              const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
+              const missileU = clamp01((fx.t - stagedReleaseTime) / missileTravel);
+              if (missileU <= 0 || missileU > 1) {
                 missile.root.visible = false;
                 return;
               }
@@ -11974,43 +11982,27 @@ function Chess3D({
               } else {
                 right.normalize();
               }
-              const launchPos = strikeAnchor.clone().add(right.multiplyScalar(sideOffset));
-              const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
-              missileEntry.y += topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT;
-              const verticalDropStart = new THREE.Vector3(
-                fx.to.x,
-                Math.max(hitTop.y, fx.to.y + topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL),
-                fx.to.z
+              const launchPos = strikeAnchor.clone().add(right.multiplyScalar(sideOffset)).setY(
+                Math.max(strikeAnchor.y, fx.launchPos.y + CAPTURE_VERTICAL_STRIKE_ALTITUDE)
               );
-              const missilePos =
-                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                  ? launchPos.clone().lerp(missileEntry, missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT)
-                  : verticalDropStart
-                      .clone()
-                      .lerp(fx.to, (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION);
-              const missileNext =
-                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                  ? qBezier(launchPos, missileEntry, verticalDropStart, clamp01(missileU + 0.03))
-                  : verticalDropStart
-                      .clone()
-                      .lerp(fx.to, clamp01((missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION + 0.06));
-              if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
-                missileNext.x = missilePos.x;
-                missileNext.z = missilePos.z;
-              }
+              const { pos: missilePos, next: missileNext } = getCaptureShortMissilePose({
+                launchPos,
+                targetPos: fx.to,
+                progress: missileU
+              });
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            });
-            if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
-              jetMissiles.forEach((missile) => {
-                missile.root.visible = false;
-              });
-              if (!fx.hasExploded) {
+              if (!fx.hasExploded && (missileU >= CAPTURE_SHORT_MISSILE_HIT_THRESHOLD || missilePos.distanceTo(fx.to) <= CAPTURE_GROUND_CONTACT_RADIUS)) {
                 fx.hasExploded = true;
                 launchExplosion(fx.to);
               }
+            });
+            if (!anyMissileVisible && fx.t > releaseTime + missileTravel + 0.12) {
+              jetMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
             }
 
             if (jetTimelineU >= 1) {
@@ -12054,22 +12046,17 @@ function Chess3D({
             });
 
             const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseStart = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-            const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-            const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
-            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
-            const hitTop = fx.to
-              .clone()
-              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+            const releaseTime = CAPTURE_HELICOPTER_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
+            const missileTravel = CAPTURE_PAD_MISSILE_TRAVEL_TIME;
             let anyMissileVisible = false;
             heliMissiles.forEach((missile, idx) => {
-              const releaseTime = releaseStart + idx * 0.14;
-              if (fx.t < releaseTime) {
+              const stagedReleaseTime = releaseTime + idx * 0.08;
+              if (fx.t < stagedReleaseTime) {
                 missile.root.visible = false;
                 return;
               }
-              const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
+              const missileU = clamp01((fx.t - stagedReleaseTime) / missileTravel);
+              if (missileU <= 0 || missileU > 1) {
                 missile.root.visible = false;
                 return;
               }
@@ -12085,43 +12072,27 @@ function Chess3D({
               } else {
                 right.normalize();
               }
-              const launchPos = strikeAnchor.clone().add(right.multiplyScalar(sideOffset));
-              const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
-              missileEntry.y += topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT;
-              const verticalDropStart = new THREE.Vector3(
-                fx.to.x,
-                Math.max(hitTop.y, fx.to.y + topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL),
-                fx.to.z
+              const launchPos = strikeAnchor.clone().add(right.multiplyScalar(sideOffset)).setY(
+                Math.max(strikeAnchor.y, fx.launchPos.y + CAPTURE_VERTICAL_STRIKE_ALTITUDE)
               );
-              const missilePos =
-                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                  ? launchPos.clone().lerp(missileEntry, missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT)
-                  : verticalDropStart
-                      .clone()
-                      .lerp(fx.to, (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION);
-              const missileNext =
-                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                  ? qBezier(launchPos, missileEntry, verticalDropStart, clamp01(missileU + 0.03))
-                  : verticalDropStart
-                      .clone()
-                      .lerp(fx.to, clamp01((missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION + 0.06));
-              if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
-                missileNext.x = missilePos.x;
-                missileNext.z = missilePos.z;
-              }
+              const { pos: missilePos, next: missileNext } = getCaptureShortMissilePose({
+                launchPos,
+                targetPos: fx.to,
+                progress: missileU
+              });
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            });
-            if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
-              heliMissiles.forEach((missile) => {
-                missile.root.visible = false;
-              });
-              if (!fx.hasExploded) {
+              if (!fx.hasExploded && (missileU >= CAPTURE_SHORT_MISSILE_HIT_THRESHOLD || missilePos.distanceTo(fx.to) <= CAPTURE_GROUND_CONTACT_RADIUS)) {
                 fx.hasExploded = true;
                 launchExplosion(fx.to);
               }
+            });
+            if (!anyMissileVisible && fx.t > releaseTime + missileTravel + 0.12) {
+              heliMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
             }
             if (heliTimelineU >= 1) {
               if (fx.sourceUnit) {
@@ -12161,8 +12132,12 @@ function Chess3D({
               fx.missileFx.trail?.forEach((puff, idx) => {
                 puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
                 const launchBoost =
-                  fx.sourceUnit && fx.t < CAPTURE_GROUND_FIRE_TIME + 0.25
-                    ? THREE.MathUtils.lerp(1.38, 1, clamp01((fx.t - CAPTURE_GROUND_FIRE_TIME) / 0.25))
+                  fx.sourceUnit && fx.t < CAPTURE_GROUND_FIRE_TIME + CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME
+                    ? THREE.MathUtils.lerp(
+                        CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST,
+                        1,
+                        clamp01((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME)
+                      )
                     : 1;
                 const s = (0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52) * launchBoost;
                 puff.scale.setScalar(s);
@@ -12174,17 +12149,9 @@ function Chess3D({
               fx.missileFx.root.visible = false;
             }
             if (fx.t >= impactTime) {
+              const strikeProgress = clamp01((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
               const contactDistance = fx.missileFx.root.position.distanceTo(fx.to);
-              if (!fx.hasExploded && contactDistance <= CAPTURE_GROUND_CONTACT_RADIUS) {
-                fx.hasExploded = true;
-                fx.missileFx.root.position.copy(fx.to);
-                launchExplosion(fx.to);
-                fx.reloading = true;
-                fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
-                fx.missileFx.root.position.copy(launchPos);
-                fx.missileFx.root.visible = true;
-                fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0));
-              } else if (!fx.hasExploded && fx.t >= impactTime + 0.06) {
+              if (!fx.hasExploded && (strikeProgress >= CAPTURE_SHORT_MISSILE_HIT_THRESHOLD || contactDistance <= CAPTURE_GROUND_CONTACT_RADIUS)) {
                 fx.hasExploded = true;
                 fx.missileFx.root.position.copy(fx.to);
                 launchExplosion(fx.to);
