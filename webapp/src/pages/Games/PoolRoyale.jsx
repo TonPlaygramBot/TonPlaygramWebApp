@@ -1441,7 +1441,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const BASE_CORNER_POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const CORNER_POCKET_RADIUS_SCALE = 1; // keep corner pocket radius identical to the physical mouth geometry
+const CORNER_POCKET_RADIUS_SCALE = 0.968; // tighten only corner pocket mouths slightly for a smaller corner opening
 const POCKET_VIS_R = BASE_CORNER_POCKET_VIS_R * CORNER_POCKET_RADIUS_SCALE;
 const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter tight at the rim for slightly smaller pocket openings
 const POCKET_R = POCKET_VIS_R * 0.985;
@@ -1489,7 +1489,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 0.985; // trim only corner cloth cutouts/pocket sleeves very slightly while keeping middle pockets unchanged
+const CORNER_POCKET_CLOTH_CUT_SCALE = 0.958; // shrink only the corner cloth cutouts so corner sleeve apertures read tighter
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -1720,7 +1720,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.18; // restore earlier trigger distance so pocket cams engage at the previous point
+const POCKET_CAM_EARLY_TRIGGER_DIST = POCKET_CAM.triggerDist * 1.28; // trigger pocket cams earlier so pot drops are framed slightly sooner
 const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
@@ -1798,7 +1798,9 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.98; // slightly stronger global spin so english/follow/draw feel closer to real-table response
+const SPIN_GLOBAL_SCALE = 1.176; // +20% global spin response for stronger overall english/follow/draw
+const STRAIGHT_TOPSPIN_BONUS_SCALE = 1.1; // add ~10% extra topspin when side english is near zero
+const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
 const SPIN_TABLE_REFERENCE_WIDTH = 2.627;
 const SPIN_TABLE_REFERENCE_HEIGHT = 1.07707;
@@ -2689,6 +2691,35 @@ function applyMonoMattePlasticSurface(material) {
   }
   if ('normalScale' in material && material.normalMap) {
     material.normalScale = new THREE.Vector2(LT_MATTE_NORMAL_SCALE, LT_MATTE_NORMAL_SCALE);
+  }
+  material.needsUpdate = true;
+}
+
+function applyMatteSurfacePropsOnly(material) {
+  if (!material) return;
+  if ('metalness' in material) {
+    material.metalness = 0;
+  }
+  if ('roughness' in material) {
+    material.roughness = 0.98;
+  }
+  if ('clearcoat' in material) {
+    material.clearcoat = 0;
+  }
+  if ('clearcoatRoughness' in material) {
+    material.clearcoatRoughness = 1;
+  }
+  if ('sheen' in material) {
+    material.sheen = 0;
+  }
+  if ('sheenRoughness' in material) {
+    material.sheenRoughness = 1;
+  }
+  if ('reflectivity' in material) {
+    material.reflectivity = 0;
+  }
+  if ('envMapIntensity' in material) {
+    material.envMapIntensity = 0.08;
   }
   material.needsUpdate = true;
 }
@@ -8618,7 +8649,11 @@ export function Table3D(
     applyTableFinishDulling(mat);
     applyTableWoodVisibilityTuning(mat);
     if (resolvedFinish?.surfaceStyle === 'matte') {
-      applyMonoMattePlasticSurface(mat);
+      if (resolvedFinish?.preserveFinishTintOnWood) {
+        applyMatteSurfacePropsOnly(mat);
+      } else {
+        applyMonoMattePlasticSurface(mat);
+      }
     }
     applyFinishWoodTint(mat, resolvedFinish);
   });
@@ -12837,8 +12872,13 @@ function applyTableFinishToTable(table, finish) {
     applyTableWoodVisibilityTuning(railMat);
     applyTableWoodVisibilityTuning(frameMat);
     if (resolvedFinish?.surfaceStyle === 'matte') {
-      applyMonoMattePlasticSurface(railMat);
-      applyMonoMattePlasticSurface(frameMat);
+      if (resolvedFinish?.preserveFinishTintOnWood) {
+        applyMatteSurfacePropsOnly(railMat);
+        applyMatteSurfacePropsOnly(frameMat);
+      } else {
+        applyMonoMattePlasticSurface(railMat);
+        applyMonoMattePlasticSurface(frameMat);
+      }
     }
     applyFinishWoodTint(railMat, resolvedFinish);
     applyFinishWoodTint(frameMat, resolvedFinish);
@@ -12868,7 +12908,11 @@ function applyTableFinishToTable(table, finish) {
       applyTableFinishDulling(mesh.material);
       applyTableWoodVisibilityTuning(mesh.material);
       if (resolvedFinish?.surfaceStyle === 'matte') {
-        applyMonoMattePlasticSurface(mesh.material);
+        if (resolvedFinish?.preserveFinishTintOnWood) {
+          applyMatteSurfacePropsOnly(mesh.material);
+        } else {
+          applyMonoMattePlasticSurface(mesh.material);
+        }
       }
       applyFinishWoodTint(mesh.material, resolvedFinish);
       if (mesh.material.color && sourceMaterial?.color) {
@@ -12893,7 +12937,11 @@ function applyTableFinishToTable(table, finish) {
     applyTableFinishDulling(legMat);
     applyTableWoodVisibilityTuning(legMat);
     if (resolvedFinish?.surfaceStyle === 'matte') {
-      applyMonoMattePlasticSurface(legMat);
+      if (resolvedFinish?.preserveFinishTintOnWood) {
+        applyMatteSurfacePropsOnly(legMat);
+      } else {
+        applyMonoMattePlasticSurface(legMat);
+      }
     }
     applyFinishWoodTint(legMat, resolvedFinish);
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
@@ -26390,6 +26438,9 @@ const powerRef = useRef(hud.power);
           const shouldForceImmediateRailOverhead =
             Boolean(shotPrediction?.railNormal) ||
             (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 2;
+          const shouldKeepRailOverheadOnly =
+            Boolean(shotPrediction?.railNormal) ||
+            (shotContextRef.current?.railContactCountAfterContact ?? 0) >= 1;
           if (shouldForceImmediateRailOverhead) {
             queuedPocketView = null;
             suspendedActionView = actionView ?? null;
@@ -26398,6 +26449,7 @@ const powerRef = useRef(hud.power);
           const earlyPocketView =
             !prioritizeRailOverheadCut &&
             !shouldForceImmediateRailOverhead &&
+            !shouldKeepRailOverheadOnly &&
             !suppressPocketCameras &&
             shotPrediction.ballId &&
             followView
@@ -26425,6 +26477,9 @@ const powerRef = useRef(hud.power);
           } else if (scaledSpin.y > 0) {
             spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
             spinTop *= TOPSPIN_MULTIPLIER;
+            if (Math.abs(baseSide) <= STRAIGHT_TOPSPIN_SIDE_THRESHOLD) {
+              spinTop *= STRAIGHT_TOPSPIN_BONUS_SCALE;
+            }
             if (Math.abs(baseSide) > 1e-6) {
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
@@ -31603,7 +31658,9 @@ const powerRef = useRef(hud.power);
                 pottedIds.add(b.id);
                 const shouldForceCornerPocketView =
                   !topViewRef.current &&
-                  pocketIndex < 4;
+                  pocketIndex < 4 &&
+                  !Boolean(shotContextRef.current?.cushionAfterContact) &&
+                  (shotContextRef.current?.railContactCountAfterContact ?? 0) < 1;
                 const shouldForceRailOverheadPocketView =
                   !topViewRef.current &&
                   pocketIndex >= 4;
@@ -31800,7 +31857,9 @@ const powerRef = useRef(hud.power);
               pottedIds.add(b.id);
               const shouldForceCornerPocketView =
                 !topViewRef.current &&
-                pocketIndex < 4;
+                pocketIndex < 4 &&
+                !Boolean(shotContextRef.current?.cushionAfterContact) &&
+                (shotContextRef.current?.railContactCountAfterContact ?? 0) < 1;
               const shouldForceRailOverheadPocketView =
                 !topViewRef.current &&
                 pocketIndex >= 4;
