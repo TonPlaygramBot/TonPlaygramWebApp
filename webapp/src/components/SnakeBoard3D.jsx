@@ -253,8 +253,6 @@ const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
-// Keep reserve token placement stable and tune weapon to sit on the opposite side
-// for bottom/side seats so both props are clearly separated.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, -1, -1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
@@ -264,20 +262,21 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.22,
-  -TILE_SIZE * 0.12,
-  0,
-  TILE_SIZE * 0.12
+  -TILE_SIZE * 0.02,
+  -TILE_SIZE * 0.02,
+  -TILE_SIZE * 0.02,
+  -TILE_SIZE * 0.02
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.14;
-// Pull parked weapons for bottom/side seats inward so they align with each player edge position.
+const WEAPON_PARKING_OUTWARD_OFFSET = 0;
+// Keep parked weapons anchored next to the player token with only a small visual gap.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 1.02,
-  -TILE_SIZE * 0.9,
   0,
-  -TILE_SIZE * 0.9
+  0,
+  0,
+  0
 ]);
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.06;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
   helicopter: TOKEN_HEIGHT * 1.82,
@@ -285,7 +284,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 2.02;
+const WEAPON_REST_HEIGHT_OFFSET = 0;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -4661,9 +4660,14 @@ function updateSeatWeaponDisplays(board, players = []) {
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+      const tokenSideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+      const tokenLateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+      const tokenSlotOffset = tokenSideSign * SEAT_RAIL_SLOT_OFFSET + tokenLateralNudge;
+      const weaponCenterOffset =
+        tokenSlotOffset + sideSign * (TOKEN_RADIUS * 2 + WEAPON_TOKEN_GAP) + lateralNudge;
       holder.position
         .copy(railLayout.railLocal)
-        .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge)
+        .addScaledVector(railLayout.lateral, weaponCenterOffset)
         .addScaledVector(
           railLayout.seatDirection,
           WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
