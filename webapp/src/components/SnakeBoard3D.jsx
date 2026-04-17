@@ -271,10 +271,10 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = 0;
 // Keep parked weapons anchored next to the player token with only a small visual gap.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
+  -TILE_SIZE * 0.26,
+  -TILE_SIZE * 0.2,
   0,
-  0,
-  0,
-  0
+  -TILE_SIZE * 0.2
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.06;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -285,6 +285,12 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   javelin: TOKEN_HEIGHT * 1.72
 });
 const WEAPON_REST_HEIGHT_OFFSET = 0;
+const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
+  -TOKEN_HEIGHT * 0.34,
+  -TOKEN_HEIGHT * 0.3,
+  0,
+  -TOKEN_HEIGHT * 0.3
+]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -4672,7 +4678,10 @@ function updateSeatWeaponDisplays(board, players = []) {
           railLayout.seatDirection,
           WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
         );
-      holder.position.y = railLayout.railHeightY + WEAPON_REST_HEIGHT_OFFSET;
+      holder.position.y =
+        railLayout.railHeightY +
+        WEAPON_REST_HEIGHT_OFFSET +
+        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0);
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
