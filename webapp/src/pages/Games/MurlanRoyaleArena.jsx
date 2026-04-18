@@ -106,9 +106,9 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.78; // Slightly smaller arena props so table/chairs/cards better match HDRI scale in portrait.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.8; // Portrait-space lift for the visual top player's avatar badge.
+const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
-const TABLE_RADIUS = 3.22 * MODEL_SCALE * ARENA_PROP_SCALE;
+const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -2280,7 +2280,7 @@ const TABLE_HEIGHT_SHORTEN_FACTOR = 0.7; // Keep the table ~30% shorter than the
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
-const CHAIR_INWARD_OFFSET = 0.18 * MODEL_SCALE;
+const CHAIR_INWARD_OFFSET = 0.24 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
@@ -2302,8 +2302,8 @@ const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.35 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.145 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.23 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.105 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
@@ -5348,13 +5348,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
-            const sideSeatTopLift = isSideSeat ? 12 : 0;
+            const sideSeatTopLift = isSideSeat ? 8 : 0;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(12rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(12.8rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5558,9 +5558,6 @@ export default function MurlanRoyaleArena({ search }) {
           <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
             <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
               <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
-              {uiState.tableSummary && (
-                <p className="mt-1 text-xs font-medium tracking-wide text-sky-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{uiState.tableSummary}</p>
-              )}
               {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
             </div>
           </div>

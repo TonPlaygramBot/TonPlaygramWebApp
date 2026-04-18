@@ -26,7 +26,15 @@ const AVATAR_ANCHOR_SELECTORS = [
 ];
 
 const FRAME_SCALE = 2;
-const ACTIVATION_TOUCH_PADDING = 8;
+const BLOCKING_OVERLAY_SELECTORS = [
+  '#configPanel.active',
+  '#chatModal.active',
+  '#giftModal.active',
+  '.modal-overlay.active',
+  '[role="dialog"][aria-hidden="false"]',
+  '#rules[style*="display: flex"]',
+  '#rules[style*="display:flex"]'
+];
 const AVATAR_FRAME_STYLES = Object.freeze({
   borderRadius: '999px',
   border: '2px solid rgba(255,255,255,.32)',
@@ -47,6 +55,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     width: 44,
     height: 44
   });
+  const [activationRect, setActivationRect] = useState({
+    top: 96,
+    left: 12,
+    width: 44,
+    height: 44
+  });
+  const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
 
   const displayName = useMemo(() => {
     if (typeof window === 'undefined') return 'Player';
@@ -178,6 +193,15 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         Math.round(rect.top - (height - rect.height) / 2),
         0
       );
+      const activationSize = Math.max(Math.round(avatarDiameter), 20);
+      const activationLeft = Math.max(
+        Math.round(rect.left + rect.width / 2 - activationSize / 2),
+        0
+      );
+      const activationTop = Math.max(
+        Math.round(rect.top + rect.height / 2 - activationSize / 2),
+        0
+      );
       setAnchorElement(node);
       setOverlayRect((prev) => {
         if (
@@ -189,6 +213,22 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           return prev;
         }
         return { top, left, width, height };
+      });
+      setActivationRect((prev) => {
+        if (
+          Math.abs(prev.top - activationTop) <= 1 &&
+          Math.abs(prev.left - activationLeft) <= 1 &&
+          Math.abs(prev.width - activationSize) <= 1 &&
+          Math.abs(prev.height - activationSize) <= 1
+        ) {
+          return prev;
+        }
+        return {
+          top: activationTop,
+          left: activationLeft,
+          width: activationSize,
+          height: activationSize
+        };
       });
     };
 
@@ -239,13 +279,35 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [gameSlug, search]);
 
-  const activationRect = useMemo(() => {
-    const width = overlayRect.width + ACTIVATION_TOUCH_PADDING * 2;
-    const height = overlayRect.height + ACTIVATION_TOUCH_PADDING * 2;
-    const left = Math.max(overlayRect.left - ACTIVATION_TOUCH_PADDING, 0);
-    const top = Math.max(overlayRect.top - ACTIVATION_TOUCH_PADDING, 0);
-    return { top, left, width, height };
-  }, [overlayRect]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const hasOpenOverlay = () =>
+      BLOCKING_OVERLAY_SELECTORS.some((selector) => {
+        const node = document.querySelector(selector);
+        if (!node) return false;
+        if (node.id === 'rules') {
+          const display = window.getComputedStyle(node).display;
+          return display !== 'none';
+        }
+        return true;
+      });
+    const syncOverlayState = () => setHasBlockingOverlay(hasOpenOverlay());
+    const observer = new MutationObserver(syncOverlayState);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'aria-hidden']
+    });
+    syncOverlayState();
+    window.addEventListener('resize', syncOverlayState);
+    window.addEventListener('orientationchange', syncOverlayState);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncOverlayState);
+      window.removeEventListener('orientationchange', syncOverlayState);
+    };
+  }, []);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
@@ -265,12 +327,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           type="button"
           aria-label="Turn on live avatar video"
           onClick={() => setLiveMode(true)}
-          className="fixed z-[64] rounded-full bg-transparent touch-manipulation"
+          className="fixed z-[18] rounded-full bg-transparent touch-manipulation"
           style={{
             top: `${activationRect.top}px`,
             left: `${activationRect.left}px`,
             width: `${activationRect.width}px`,
-            height: `${activationRect.height}px`
+            height: `${activationRect.height}px`,
+            pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
         />
       ) : null}
@@ -279,12 +342,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           type="button"
           aria-label="Turn off live avatar video"
           onClick={() => setLiveMode(false)}
-          className="fixed z-[65] overflow-hidden touch-manipulation"
+          className="fixed z-[18] overflow-hidden touch-manipulation"
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
             width: `${overlayRect.width}px`,
             height: `${overlayRect.height}px`,
+            pointerEvents: hasBlockingOverlay ? 'none' : 'auto',
             ...(gameSlug === 'domino-royal' ? AVATAR_FRAME_STYLES : {}),
             ...(gameSlug !== 'domino-royal'
               ? {
