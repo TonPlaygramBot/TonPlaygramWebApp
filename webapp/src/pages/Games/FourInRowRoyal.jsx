@@ -7,6 +7,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
@@ -87,7 +89,7 @@ const BOARD_AND_CHIPS_SCALE =
   TABLE_SET_SIZE_BOOST;
 const CAMERA_FRAME_MATCH_SCALE =
   ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
-const CAMERA_CLOSER_RADIUS_FACTOR = 0.9;
+const CAMERA_CLOSER_RADIUS_FACTOR = 0.82;
 const CAMERA_HEIGHT_MATCH_BOOST = 1.22;
 const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
@@ -114,7 +116,7 @@ const BOARD_FRAME_SIDE_WIDTH = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_TOP_RAIL_DEPTH = 0.046 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_CENTER_Z = 0;
 const TOKEN_THICKNESS = BOARD_SLOT_GAP * 0.9;
-const TOKEN_DOME_RADIUS = slotRadius => slotRadius * 0.88;
+const TOKEN_DOME_RADIUS = (slotRadius) => slotRadius * 0.88;
 const TOKEN_DOME_OFFSET = TOKEN_THICKNESS * 0.2;
 const TOKEN_RIM_RADIUS_FACTOR = 0.9;
 const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.14;
@@ -127,6 +129,8 @@ const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const KTX2_TRANSCODER_PATH =
+  'https://unpkg.com/three@0.164.0/examples/jsm/libs/basis/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_SCALE,
   1.9173749900311232 * CHAIR_SCALE,
@@ -135,22 +139,49 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
-    id: 'balanced',
-    label: 'Balanced',
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    hdriResolution: '1k',
+    pixelRatioCap: 1.35,
+    pixelRatioScale: 1,
+    shadowMapSize: 768
+  },
+  {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    hdriResolution: '2k',
+    pixelRatioCap: 1.5,
     pixelRatioScale: 1,
     shadowMapSize: 1024
   },
   {
-    id: 'performance',
-    label: 'Performance',
-    pixelRatioScale: 0.85,
-    shadowMapSize: 512
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    hdriResolution: '4k',
+    pixelRatioCap: 1.7,
+    pixelRatioScale: 1.08,
+    shadowMapSize: 1536
   },
   {
-    id: 'cinematic',
-    label: 'Cinematic',
-    pixelRatioScale: 1.4,
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    hdriResolution: '4k',
+    pixelRatioCap: 2,
+    pixelRatioScale: 1.15,
     shadowMapSize: 2048
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    hdriResolution: '8k',
+    pixelRatioCap: 2.2,
+    pixelRatioScale: 1.2,
+    shadowMapSize: 3072
   }
 ]);
 
@@ -372,8 +403,8 @@ const chooseAiMove = (board, aiToken, playerToken, depth) => {
   return Number.isInteger(col) ? col : ordered[0];
 };
 
-async function resolveHdriUrl(variant) {
-  const fallbackRes = variant?.maxResolution || '2k';
+async function resolveHdriUrl(variant, preferredResolution = '2k') {
+  const fallbackRes = variant?.maxResolution || preferredResolution || '2k';
   const fallback = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${variant?.assetId || 'colorful_studio'}_${fallbackRes}.hdr`;
   if (!variant?.assetId) return fallback;
   try {
@@ -382,20 +413,32 @@ async function resolveHdriUrl(variant) {
     );
     if (!res.ok) return fallback;
     const data = await res.json();
+    const requestedRes = preferredResolution || fallbackRes;
     return (
-      data?.exr?.[fallbackRes]?.url || data?.hdr?.[fallbackRes]?.url || fallback
+      data?.exr?.[requestedRes]?.url ||
+      data?.hdr?.[requestedRes]?.url ||
+      data?.exr?.[fallbackRes]?.url ||
+      data?.hdr?.[fallbackRes]?.url ||
+      fallback
     );
   } catch {
     return fallback;
   }
 }
 
-function createConfiguredGLTFLoader() {
+function createConfiguredGLTFLoader(renderer) {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  if (renderer) {
+    const ktx2 = new KTX2Loader();
+    ktx2.setTranscoderPath(KTX2_TRANSCODER_PATH);
+    ktx2.detectSupport(renderer);
+    loader.setKTX2Loader(ktx2);
+  }
   return loader;
 }
 
@@ -476,10 +519,12 @@ function buildPolyhavenModelUrls(assetId) {
   ];
 }
 
-async function createChairModel(chairTheme) {
-  const loader = createConfiguredGLTFLoader();
+async function createChairModel(chairTheme, renderer) {
+  const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
-  const candidateAssetIds = [chairTheme?.assetId, fallbackAssetId].filter(Boolean);
+  const candidateAssetIds = [chairTheme?.assetId, fallbackAssetId].filter(
+    Boolean
+  );
   let lastError = null;
 
   for (const assetId of candidateAssetIds) {
@@ -506,7 +551,10 @@ async function createChairModel(chairTheme) {
     }
   }
 
-  console.warn('Four in Row chair model failed to load; using empty chair fallback.', lastError);
+  console.warn(
+    'Four in Row chair model failed to load; using empty chair fallback.',
+    lastError
+  );
   return new THREE.Group();
 }
 
@@ -553,7 +601,12 @@ export default function FourInRowRoyal() {
   const controlsRef = useRef(null);
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
-  const envRef = useRef({ map: null, skybox: null, hdriId: null });
+  const envRef = useRef({
+    map: null,
+    skybox: null,
+    hdriId: null,
+    hdriResolution: null
+  });
   const arenaRootRef = useRef(null);
   const arenaYOffsetRef = useRef(
     getArenaYOffsetForHdri(POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -597,7 +650,8 @@ export default function FourInRowRoyal() {
     (1.08 + cols * 0.19) * BOARD_AND_CHIPS_SCALE * BOARD_VISUAL_SIZE_BOOST;
   const boardHeight =
     (0.92 + rows * 0.2) * BOARD_AND_CHIPS_SCALE * BOARD_VISUAL_SIZE_BOOST;
-  const boardBottomY = TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + BOARD_VERTICAL_LIFT;
+  const boardBottomY =
+    TABLE_HEIGHT + BOARD_TABLE_CLEARANCE + BOARD_VERTICAL_LIFT;
   const boardCenterY = boardBottomY + boardHeight / 2;
   const slotRadius = Math.min(boardWidth / cols, boardHeight / rows) * 0.285;
   const xStep = boardWidth / cols;
@@ -637,7 +691,9 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
-    graphics: GRAPHICS_PRESETS[0].id
+    graphics:
+      GRAPHICS_PRESETS.find((preset) => preset.id === 'uhd120')?.id ||
+      GRAPHICS_PRESETS[0].id
   }));
 
   const [board, setBoard] = useState(() => createBoard(rows, cols));
@@ -675,6 +731,13 @@ export default function FourInRowRoyal() {
     winningCellsRef.current = winningCells;
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
+  const graphicsPreset = useMemo(
+    () =>
+      GRAPHICS_PRESETS.find((preset) => preset.id === appearance.graphics) ||
+      GRAPHICS_PRESETS[2] ||
+      GRAPHICS_PRESETS[0],
+    [appearance.graphics]
+  );
 
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
@@ -898,7 +961,7 @@ export default function FourInRowRoyal() {
       chairMeshesRef.current.push(chair);
       arenaRoot.add(chair);
     });
-    createChairModel(chairTheme).then((template) => {
+    createChairModel(chairTheme, renderer).then((template) => {
       chairMeshesRef.current.forEach((chair) => {
         chair.clear();
         chair.add(template.clone(true));
@@ -1248,7 +1311,10 @@ export default function FourInRowRoyal() {
         GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) ||
         GRAPHICS_PRESETS[0];
       renderer.setPixelRatio(
-        Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2)
+        Math.min(
+          window.devicePixelRatio * preset.pixelRatioScale,
+          preset.pixelRatioCap ?? 2
+        )
       );
       renderer.setSize(width, height);
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1258,8 +1324,13 @@ export default function FourInRowRoyal() {
     animationClockRef.current.start();
 
     let raf;
+    let lastFrameAt = 0;
     const animate = () => {
       raf = requestAnimationFrame(animate);
+      const nowMs = performance.now();
+      const frameIntervalMs = 1000 / Math.max(30, graphicsPreset.fps || 60);
+      if (nowMs - lastFrameAt < frameIntervalMs) return;
+      lastFrameAt = nowMs;
       const delta = Math.min(animationClockRef.current.getDelta(), 1 / 60);
       const elapsed = animationClockRef.current.elapsedTime;
 
@@ -1289,6 +1360,7 @@ export default function FourInRowRoyal() {
         entry.mesh.position.z = entry.target.z + wobble;
         if (t >= 1) {
           entry.mesh.position.copy(entry.target);
+          playTone(230, 0.045, 'triangle', 0.017);
           fallingPiecesRef.current.splice(i, 1);
         }
       }
@@ -1332,19 +1404,29 @@ export default function FourInRowRoyal() {
     boardCenterY,
     slotRadius,
     xStep,
-    yStep
+    yStep,
+    graphicsPreset.fps,
+    appearance.graphics
   ]);
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || envRef.current.hdriId === appearance.hdriId) return;
+    if (
+      !scene ||
+      (envRef.current.hdriId === appearance.hdriId &&
+        envRef.current.hdriResolution === graphicsPreset.hdriResolution)
+    )
+      return;
     let cancelled = false;
     const apply = async () => {
       const variant =
         POOL_ROYALE_HDRI_VARIANT_MAP[appearance.hdriId] ||
         POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) ||
         POOL_ROYALE_HDRI_VARIANTS[0];
-      const url = await resolveHdriUrl(variant);
+      const url = await resolveHdriUrl(
+        variant,
+        graphicsPreset?.hdriResolution || variant?.maxResolution || '2k'
+      );
       const loader = url.toLowerCase().endsWith('.exr')
         ? new EXRLoader()
         : new RGBELoader();
@@ -1389,13 +1471,18 @@ export default function FourInRowRoyal() {
         if (key) key.position.y += yDelta;
         arenaYOffsetRef.current = nextArenaYOffset;
       }
-      envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
+      envRef.current = {
+        map: envMap,
+        skybox,
+        hdriId: appearance.hdriId,
+        hdriResolution: graphicsPreset.hdriResolution
+      };
     };
     void apply();
     return () => {
       cancelled = true;
     };
-  }, [appearance.hdriId]);
+  }, [appearance.hdriId, graphicsPreset.hdriResolution]);
 
   useEffect(() => {
     if (!winningCells.length) return;
@@ -1427,7 +1514,9 @@ export default function FourInRowRoyal() {
     if (winning) {
       setWinner(token);
       setWinningCells(winning);
-      playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
+      playTone(token === 'player' ? 640 : 250, 0.14, 'square', 0.028);
+      playTone(token === 'player' ? 880 : 320, 0.18, 'triangle', 0.022);
+      playTone(token === 'player' ? 1040 : 390, 0.22, 'sine', 0.018);
       return true;
     }
     if (isFull(next)) {
@@ -1552,7 +1641,10 @@ export default function FourInRowRoyal() {
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2)
+      Math.min(
+        window.devicePixelRatio * preset.pixelRatioScale,
+        preset.pixelRatioCap ?? 2
+      )
     );
     renderer.setSize(width, height);
     key.shadow.mapSize.setScalar(preset.shadowMapSize);
@@ -1572,7 +1664,7 @@ export default function FourInRowRoyal() {
         (item) => item.id === appearance.chairId
       ) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     let cancelled = false;
-    createChairModel(chairTheme).then((template) => {
+    createChairModel(chairTheme, rendererRef.current).then((template) => {
       if (cancelled) return;
       chairMeshesRef.current.forEach((chair) => {
         chair.clear();
@@ -1729,6 +1821,7 @@ export default function FourInRowRoyal() {
       options: GRAPHICS_PRESETS.map((item) => ({
         id: item.id,
         label: item.label,
+        description: `${item.hdriResolution?.toUpperCase?.() || '2K'} HDRI • ${item.fps} Hz`,
         thumbnail: '/assets/icons/four-in-row-royale.svg'
       }))
     }
@@ -1809,6 +1902,11 @@ export default function FourInRowRoyal() {
                         <p className="mt-1 truncate text-[10px] text-white/85">
                           {option.label}
                         </p>
+                        {option.description ? (
+                          <p className="mt-0.5 truncate text-[9px] text-white/60">
+                            {option.description}
+                          </p>
+                        ) : null}
                       </button>
                     ))}
                   </div>
