@@ -105,7 +105,7 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.72; // Rebalanced prop sizing so table/chairs/cards better match HDRI room scale in portrait.
+const ARENA_PROP_SCALE = 0.576; // 20% smaller arena props (table/chairs/cards) for tighter portrait framing.
 const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2265,7 +2265,7 @@ const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 0.96,
-  z: -TABLE_RADIUS * 0.18
+  z: -TABLE_RADIUS * 0.14
 });
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2299,19 +2299,19 @@ const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
-const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
+const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.34 * MODEL_SCALE; // Pull player cards closer toward table center.
+const HUMAN_HAND_CLOSER_OFFSET = -0.42 * MODEL_SCALE; // Pull all player hand cards closer toward table center.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.105 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
-const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
+const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
+const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
-const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
+const AI_HAND_FAN_ARC_LIFT = 0;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -3737,6 +3737,9 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
+    const loweredRightCombo =
+      state.tableCombo?.type === ComboType.STRAIGHT || state.tableCombo?.type === ComboType.FLUSH;
+    const comboRightDropStep = loweredRightCombo ? 0.0075 * MODEL_SCALE : 0;
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -3754,7 +3757,14 @@ export default function MurlanRoyaleArena({ search }) {
       } else {
         target.x += lateralOffset + COMMUNITY_CARD_LEFT_SHIFT;
       }
-      target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + COMMUNITY_CARD_FAN_ARC_LIFT + COMMUNITY_CARD_BOTTOM_SHIFT_Y + COMMUNITY_CARD_DIRECTIONAL_LIFT;
+      const rightDrop = comboRightDropStep * idx;
+      target.y +=
+        0.075 * MODEL_SCALE +
+        COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET +
+        COMMUNITY_CARD_FAN_ARC_LIFT +
+        COMMUNITY_CARD_BOTTOM_SHIFT_Y +
+        COMMUNITY_CARD_DIRECTIONAL_LIFT -
+        rightDrop;
       setMeshPosition(
         mesh,
         target,
@@ -3769,7 +3779,7 @@ export default function MurlanRoyaleArena({ search }) {
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.36)
+      .addScaledVector(pileForwardAxis, CARD_H * 1.44)
       .addScaledVector(pileRightAxis, CARD_W * 1.62)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
@@ -5555,16 +5565,13 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        {!isLandscapeViewport && (
-          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
-            <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
-              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
-              {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
-            </div>
-          </div>
-        )}
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
+            {actionError ? (
+              <div className="fixed bottom-[7.5rem] left-1/2 z-20 -translate-x-1/2 rounded-xl border border-red-300/50 bg-red-950/60 px-3 py-1.5 text-[11px] font-semibold text-red-200 shadow-lg backdrop-blur-sm">
+                {actionError}
+              </div>
+            ) : null}
             <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
