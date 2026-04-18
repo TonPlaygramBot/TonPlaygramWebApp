@@ -1826,7 +1826,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.89; // slight global boost so standard shots carry a bit more pace
+const SHOT_GLOBAL_POWER_SCALE = 1.068; // +20% shot pace so standard and power shots travel farther
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1918,7 +1918,7 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
-const CUE_PULL_RETURN_PUSH = 1.04; // make the cue drive forward a bit quicker/more decisively after pullback
+const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -6247,30 +6247,30 @@ const PLAYER_FORWARD_SLOWDOWN = 1.75;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const PLAYER_CUE_PULLBACK_DURATION_MS = 620;
-const PLAYER_CUE_RELEASE_DURATION_MS = 1320;
+const PLAYER_CUE_RELEASE_DURATION_MS = 1040;
 const PLAYER_CUE_IMPACT_HOLD_MS = 540;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
-const REPLAY_CUE_STROKE_LEAD_IN_MS = 0; // Snooker Royal does not shift replay start before the recorded cue timeline
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.35;
+const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // include visible cue pullback before impact in replay
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
-const REPLAY_CUE_STARTS_ON_STROKE = true; // replay opens on cue-ball strike instead of idling before the hit
+const REPLAY_CUE_STARTS_ON_STROKE = false; // replay starts before impact so pullback + push motion are visible
 const BREAK_DICE_ROLL_DELAY_MS = 560;
 const BREAK_DICE_RESULT_PAUSE_MS = 720;
 const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
-const REPLAY_CUE_MIN_PULLBACK_MS = 0; // defer to recorded cue pullback like Snooker Royal
-const REPLAY_CUE_MIN_RELEASE_MS = 0; // defer to recorded stroke durations like Snooker Royal
+const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee a readable pullback in replay/broadcast clips
+const REPLAY_CUE_MIN_RELEASE_MS = 180; // keep forward stroke visible while still feeling fast
 const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.82;
-const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 90; // shorten post-hit hold so rail-overhead broadcast can engage earlier
+const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 140; // hold broadcast cue angle a bit longer so forward push reads clearly
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
-const LIVE_CUE_FORWARD_DURATION_MS = 180;
+const LIVE_CUE_FORWARD_DURATION_MS = 140;
 const LIVE_CUE_IMPACT_HOLD_MS = 90;
 const CAMERA_SWITCH_MIN_HOLD_MS = 70; // cut mandatory lock further so rail-overhead camera switches in noticeably earlier
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
-const STROKE_CAMERA_MIN_HOLD_MS = 90; // lower minimum stroke hold to avoid delayed shot camera transitions
+const STROKE_CAMERA_MIN_HOLD_MS = 130; // keep broadcast camera on cue motion long enough to show pull + push
 const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
 const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
@@ -6530,6 +6530,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_CUE_SHADOW_DIR = new THREE.Vector3();
 const TMP_VEC2_OBSTRUCTION_OFFSET = new THREE.Vector2();
 const TMP_VEC2_OBSTRUCTION_DELTA = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
@@ -6609,7 +6610,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 1; // allow full topspin input so forward spin can match draw strength
+const MAX_TOPSPIN_INPUT = 0.85; // trim topspin cap by 15% to reduce excessive follow
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // increase straight follow transfer so follow-through remains visible
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed residual topspin faster so forward spin settles like a real table
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
@@ -25075,7 +25076,16 @@ const powerRef = useRef(hud.power);
             BALL_SHADOW_Y,
             cueStick.position.z
           );
-          cueShadow.rotation.y = cueStick.rotation.y + Math.PI / 2;
+          const shadowForward = TMP_CUE_SHADOW_DIR
+            .set(0, 0, 1)
+            .applyQuaternion(cueStick.quaternion);
+          shadowForward.y = 0;
+          if (shadowForward.lengthSq() > 1e-8) {
+            shadowForward.normalize();
+            cueShadow.rotation.y = Math.atan2(shadowForward.x, shadowForward.z) + Math.PI / 2;
+          } else {
+            cueShadow.rotation.y = cueStick.rotation.y + Math.PI / 2;
+          }
           if (cueShadow.material) {
             cueShadow.material.opacity = CUE_SHADOW_OPACITY;
           }
