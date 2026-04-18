@@ -1826,7 +1826,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.85; // reduce all shot output by an additional 15%
+const SHOT_GLOBAL_POWER_SCALE = 0.89; // slight global boost so standard shots carry a bit more pace
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -25556,17 +25556,14 @@ const powerRef = useRef(hud.power);
           return currentProjected;
         }
         if (previousScreen && previousPos) {
-          const screenDx = client.x - previousScreen.x;
-          const screenDy = client.y - previousScreen.y;
-          const activeCamera = cameraRef.current ?? activeRenderCameraRef.current ?? camera;
-          const cameraDistance = activeCamera?.position
-            ? activeCamera.position.distanceTo(new THREE.Vector3(previousPos.x, BALL_CENTER_Y, previousPos.y))
-            : TABLE.W;
-          const tableUnitsPerPixel = (TABLE.W * 0.85) / Math.max(dom.clientWidth || 1, 1);
-          const movementScale = tableUnitsPerPixel * THREE.MathUtils.clamp(cameraDistance / TABLE.W, 0.6, 1.7);
-          const dragDelta = new THREE.Vector2(screenDx * movementScale, -screenDy * movementScale);
+          const previousProjected = projectFromClient(previousScreen.x, previousScreen.y);
+          if (!previousProjected) {
+            inHandDrag.smoothedPos.copy(currentProjected);
+            return currentProjected;
+          }
+          const dragDelta = currentProjected.clone().sub(previousProjected);
           const dragTarget = previousPos.clone().add(dragDelta);
-          const blend = inHandDrag.source === 'icon' ? 0.5 : 0.58;
+          const blend = inHandDrag.source === 'icon' ? 0.88 : 0.92;
           inHandDrag.smoothedPos.lerp(dragTarget, blend);
           return inHandDrag.smoothedPos.clone();
         }
@@ -25575,7 +25572,7 @@ const powerRef = useRef(hud.power);
           inHandDrag.smoothedPos.copy(currentProjected);
           return currentProjected;
         }
-        const blend = inHandDrag.source === 'icon' ? 0.42 : 0.5;
+        const blend = inHandDrag.source === 'icon' ? 0.8 : 0.86;
         inHandDrag.smoothedPos.lerp(currentProjected, blend);
         return inHandDrag.smoothedPos.clone();
       };
@@ -27810,8 +27807,7 @@ const powerRef = useRef(hud.power);
           const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
-          const bestSafety =
-            easyAttackPot || (activeVariantId === 'uk' && bestPot) ? null : bestSafetyCandidate;
+          const bestSafety = bestPot ? null : bestSafetyCandidate;
           const relaxedSafety =
             !bestPot && !bestSafety
               ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
