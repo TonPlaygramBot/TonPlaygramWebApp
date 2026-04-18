@@ -1945,15 +1945,15 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.6;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.9;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 11.2;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 1.05;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6.6);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.18;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(7.4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
-const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.5;
+const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.32;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
-const CUE_OBSTRUCTION_SAMPLE_MAX = 22;
+const CUE_OBSTRUCTION_SAMPLE_MAX = 32;
 const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.46, CUE_TIP_RADIUS * 2.6);
 const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.44;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
@@ -1967,8 +1967,8 @@ const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536; // +20% overall spin response
 const SIDE_SPIN_MULTIPLIER = 1.96 * SPIN_GLOBAL_BOOST_MULTIPLIER; // boost side english so left/right cue-ball bend is easier to notice
-const BACKSPIN_MULTIPLIER = 2.84 * SPIN_GLOBAL_BOOST_MULTIPLIER; // slightly increase draw strength
-const TOPSPIN_MULTIPLIER = 2.56 * SPIN_GLOBAL_BOOST_MULTIPLIER; // reduce follow strength so topspin is softer than draw
+const BACKSPIN_MULTIPLIER = 2.98 * SPIN_GLOBAL_BOOST_MULTIPLIER; // slightly increase draw strength for more reliable pull-back control
+const TOPSPIN_MULTIPLIER = 2.42 * SPIN_GLOBAL_BOOST_MULTIPLIER; // reduce follow strength further so topspin stays a bit softer than draw
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -6615,8 +6615,8 @@ const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // once natural roll forms, bleed resi
 const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // cap follow acceleration toward natural rolling speed to avoid endless forward "motor" behavior
 const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_CUSHION_EPS = BALL_R * 0.6;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
+const SPIN_CUSHION_EPS = BALL_R * 0.42;
+const SPIN_VIEW_BLOCK_THRESHOLD = -0.2;
 
 const resolveTopspinPowerScale = (power) => {
   if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
@@ -6783,7 +6783,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
-  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.2;
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 0.85;
   const blockingRadiusSq = blockingRadius * blockingRadius;
   const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
@@ -7845,7 +7845,7 @@ function resolvePowerLineColor(powerStrength) {
 
 function resolveAimPreviewSpin(spin) {
   const normalized = normalizeSpinInput(spin);
-  return { x: -(normalized?.x ?? 0), y: normalized?.y ?? 0 };
+  return { x: normalized?.x ?? 0, y: normalized?.y ?? 0 };
 }
 
 function updatePowerLinePoints(geom, start, end, powerStrength) {
@@ -7855,6 +7855,7 @@ function updatePowerLinePoints(geom, start, end, powerStrength) {
   const fraction = Math.max(POWER_LINE_MIN_FRACTION, t);
   TMP_VEC3_POWER.copy(end).sub(start).multiplyScalar(fraction).add(start);
   geom.setFromPoints([start, TMP_VEC3_POWER]);
+  geom.computeBoundingSphere();
   return true;
 }
 
@@ -24570,6 +24571,8 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
+      aim.renderOrder = 8;
+      aim.frustumCulled = false;
       table.add(aim);
       const aimPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24587,6 +24590,8 @@ const powerRef = useRef(hud.power);
         })
       );
       aimPower.visible = false;
+      aimPower.renderOrder = 8;
+      aimPower.frustumCulled = false;
       table.add(aimPower);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24604,6 +24609,8 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfter.visible = false;
+      cueAfter.renderOrder = 8;
+      cueAfter.frustumCulled = false;
       table.add(cueAfter);
       const cueAfterPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24621,6 +24628,8 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfterPower.visible = false;
+      cueAfterPower.renderOrder = 8;
+      cueAfterPower.frustumCulled = false;
       table.add(cueAfterPower);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24636,6 +24645,8 @@ const powerRef = useRef(hud.power);
         })
       );
       tick.visible = false;
+      tick.renderOrder = 8;
+      tick.frustumCulled = false;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -24654,6 +24665,8 @@ const powerRef = useRef(hud.power);
         })
       );
       target.visible = false;
+      target.renderOrder = 8;
+      target.frustumCulled = false;
       table.add(target);
       const targetPowerGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -24671,6 +24684,8 @@ const powerRef = useRef(hud.power);
         })
       );
       targetPower.visible = false;
+      targetPower.renderOrder = 8;
+      targetPower.frustumCulled = false;
       table.add(targetPower);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -30294,6 +30309,7 @@ const powerRef = useRef(hud.power);
             liftStrength
           );
           aimGeom.setFromPoints(aimPoints);
+          aimGeom.computeBoundingSphere();
           aim.visible = true;
           const powerColor = resolvePowerLineColor(powerStrength);
           aimPower.material.color.copy(powerColor);
@@ -30381,6 +30397,7 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
+          tickGeom.computeBoundingSphere();
           tick.visible = true;
           if (lookModeRef.current) {
             const lookFocus = targetBall
@@ -30409,6 +30426,7 @@ const powerRef = useRef(hud.power);
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfterGeom.computeBoundingSphere();
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
@@ -30584,6 +30602,7 @@ const powerRef = useRef(hud.power);
               .clone()
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
@@ -30605,6 +30624,7 @@ const powerRef = useRef(hud.power);
               .clone()
               .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
@@ -30621,6 +30641,7 @@ const powerRef = useRef(hud.power);
             const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
             const fallbackEnd = end.clone().add(dir.clone().multiplyScalar(fallbackLength));
             targetGeom.setFromPoints([end, fallbackEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x9fd8ff);
             target.material.opacity = 0.35 + 0.22 * powerStrength;
             target.visible = true;
@@ -30696,6 +30717,7 @@ const powerRef = useRef(hud.power);
             remoteSwerveActive
           );
           aimGeom.setFromPoints(aimPoints);
+          aimGeom.computeBoundingSphere();
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
@@ -30712,6 +30734,7 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
+          tickGeom.computeBoundingSphere();
           tick.visible = true;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
@@ -30732,6 +30755,7 @@ const powerRef = useRef(hud.power);
             .clone()
             .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfterGeom.computeBoundingSphere();
           cueAfter.visible = true;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
@@ -30802,6 +30826,7 @@ const powerRef = useRef(hud.power);
               .clone()
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * targetPowerStrength;
             target.visible = true;
@@ -30823,6 +30848,7 @@ const powerRef = useRef(hud.power);
               .clone()
               .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
@@ -30841,6 +30867,7 @@ const powerRef = useRef(hud.power);
               .clone()
               .add(remoteGuideDir.clone().multiplyScalar(fallbackLength));
             targetGeom.setFromPoints([end, fallbackEnd]);
+            targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x9fd8ff);
             target.material.opacity = 0.35 + 0.22 * powerStrength;
             target.visible = true;

@@ -11,7 +11,7 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const SPIN_RESPONSE_EXPONENT = 1.32;
-export const SPIN_CENTER_TOPSPIN_BIAS = 0.19;
+export const SPIN_CENTER_TOPSPIN_BIAS = 0.13;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
