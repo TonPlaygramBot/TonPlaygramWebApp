@@ -2308,6 +2308,7 @@ const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
+const HUMAN_HAND_BOTTOM_EXTRA_INWARD_OFFSET = -0.34 * MODEL_SCALE; // Keep the bottom player's hand clearly between chair and table on portrait screens.
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
@@ -3673,6 +3674,9 @@ export default function MurlanRoyaleArena({ search }) {
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, HUMAN_HAND_CLOSER_OFFSET);
+        if (isHumanCard) {
+          target.addScaledVector(forward, HUMAN_HAND_BOTTOM_EXTRA_INWARD_OFFSET);
+        }
         target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
         target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
