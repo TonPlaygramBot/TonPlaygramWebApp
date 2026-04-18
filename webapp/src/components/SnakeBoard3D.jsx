@@ -244,10 +244,10 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT)
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 1.18,
-  -TILE_SIZE * 0.98,
-  TILE_SIZE * 0.68,
-  -TILE_SIZE * 0.98
+  -TILE_SIZE * 1.45,
+  -TILE_SIZE * 1.24,
+  TILE_SIZE * 1.18,
+  -TILE_SIZE * 1.08
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
@@ -271,12 +271,12 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = 0;
 // Keep parked weapons anchored next to the player token with only a small visual gap.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.26,
-  -TILE_SIZE * 0.2,
+  -TILE_SIZE * 0.18,
+  -TILE_SIZE * 0.14,
   0,
-  -TILE_SIZE * 0.2
+  -TILE_SIZE * 0.14
 ]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.06;
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.025;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
   helicopter: TOKEN_HEIGHT * 1.82,
@@ -286,10 +286,10 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
 });
 const WEAPON_REST_HEIGHT_OFFSET = 0;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  -TOKEN_HEIGHT * 0.34,
-  -TOKEN_HEIGHT * 0.3,
   0,
-  -TOKEN_HEIGHT * 0.3
+  0,
+  0,
+  0
 ]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
@@ -4128,19 +4128,32 @@ function createCaptureVehicleFallbackMesh(kind = 'fighter') {
     root.add(chassis, cabin, launcher);
   } else {
     const isJavelin = kind === 'javelin';
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.08, kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.09, isJavelin ? 1.2 : 1, 16),
-      bodyMat
-    );
-    body.rotation.z = Math.PI / 2;
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(isJavelin ? 0.07 : 0.095, isJavelin ? 0.34 : 0.24, 16), noseMat);
-    nose.position.set(isJavelin ? 0.72 : 0.6, 0, 0);
-    nose.rotation.z = -Math.PI / 2;
-    const finA = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.18 : 0.12, 0.02, kind === 'helicopter' ? 0.4 : isJavelin ? 0.2 : 0.24), finMat);
-    finA.position.set(kind === 'drone' ? 0 : isJavelin ? -0.32 : -0.25, 0, 0);
-    const finB = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.16 : 0.12, kind === 'drone' ? 0.12 : isJavelin ? 0.16 : 0.24, 0.02), finMat);
-    finB.position.set(-0.25, 0, 0);
-    root.add(body, nose, finA, finB);
+    if (isJavelin) {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.72, 16), bodyMat);
+      body.rotation.z = Math.PI / 2;
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 14), noseMat);
+      nose.position.set(0.45, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.16), finMat);
+      finA.position.set(-0.18, 0, 0);
+      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.02), finMat);
+      finB.position.set(-0.18, 0, 0);
+      const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.14, 14), finMat);
+      tail.position.set(-0.42, 0, 0);
+      tail.rotation.z = Math.PI / 2;
+      root.add(body, nose, finA, finB, tail);
+    } else {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16), bodyMat);
+      body.rotation.z = Math.PI / 2;
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+      nose.position.set(0.6, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
+      finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
+      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+      finB.position.set(-0.25, 0, 0);
+      root.add(body, nose, finA, finB);
+    }
   }
   root.traverse((obj) => {
     if (obj.isMesh) {
@@ -4630,6 +4643,9 @@ function updateSeatWeaponDisplays(board, players = []) {
   const anchors = board.seatAnchors;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return;
+  const reserveTokenByPlayer = new Map(
+    (board?.reserveTokensGroup?.children || []).map((child) => [child?.userData?.playerIndex, child])
+  );
   const keep = new Set();
   const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
   const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
@@ -4663,25 +4679,28 @@ function updateSeatWeaponDisplays(board, players = []) {
       TILE_SIZE * 0.08,
       Number.isFinite(weaponInset) ? weaponInset : null
     );
+    const reserveToken = reserveTokenByPlayer.get(index) || null;
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const tokenSideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const tokenLateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const tokenSlotOffset = tokenSideSign * SEAT_RAIL_SLOT_OFFSET + tokenLateralNudge;
-      const weaponCenterOffset =
-        tokenSlotOffset + sideSign * (TOKEN_RADIUS * 2 + WEAPON_TOKEN_GAP) + lateralNudge;
-      holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(railLayout.lateral, weaponCenterOffset)
-        .addScaledVector(
-          railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
-        );
-      holder.position.y =
-        railLayout.railHeightY +
-        WEAPON_REST_HEIGHT_OFFSET +
-        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0);
+      if (reserveToken?.position) {
+        holder.position.copy(reserveToken.position);
+        holder.position.addScaledVector(railLayout.lateral, sideSign * (TOKEN_RADIUS * 2 + WEAPON_TOKEN_GAP) + lateralNudge);
+      } else {
+        const tokenSideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+        const tokenLateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+        const tokenSlotOffset = tokenSideSign * SEAT_RAIL_SLOT_OFFSET + tokenLateralNudge;
+        const weaponCenterOffset =
+          tokenSlotOffset + sideSign * (TOKEN_RADIUS * 2 + WEAPON_TOKEN_GAP) + lateralNudge;
+        holder.position
+          .copy(railLayout.railLocal)
+          .addScaledVector(railLayout.lateral, weaponCenterOffset)
+          .addScaledVector(
+            railLayout.seatDirection,
+            WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+          );
+      }
+      holder.position.y = reserveToken?.position?.y ?? (railLayout.railHeightY + WEAPON_REST_HEIGHT_OFFSET + (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0));
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
