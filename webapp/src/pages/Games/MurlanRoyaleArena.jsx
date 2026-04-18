@@ -2312,9 +2312,6 @@ const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
-const HUMAN_HAND_RADIUS_RATIO = 0.44; // Keep player cards centered between chair and table after seat/table rescaling.
-const AI_HAND_RADIUS_RATIO = 0.45; // Maintain the same relative gap for AI seats.
-const HAND_RADIUS_TABLE_GAP = CARD_H * 0.72;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -4822,9 +4819,6 @@ export default function MurlanRoyaleArena({ search }) {
           .clone()
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-        const nearTableRadius = TABLE_RADIUS + HAND_RADIUS_TABLE_GAP;
-        const handRadiusRatio = isHumanSeat ? HUMAN_HAND_RADIUS_RATIO : AI_HAND_RADIUS_RATIO;
-        const cardHandRadius = THREE.MathUtils.lerp(nearTableRadius, seatRadius, handRadiusRatio);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
         stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
         const stoolHeight = stoolPosition.y + SEAT_THICKNESS / 2;
@@ -4834,7 +4828,7 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: cardHandRadius,
+          radius: (isHumanSeat ? 2.9 : 3.05) * MODEL_SCALE,
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
           stoolPosition,
