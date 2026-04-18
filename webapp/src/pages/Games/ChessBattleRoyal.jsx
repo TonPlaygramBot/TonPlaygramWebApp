@@ -99,7 +99,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 5.8; // slower loop so lift-off from parking spot is clearly visible
+const CAPTURE_JET_TOTAL = 6.45; // slower loop so lift-off from parking spot is clearly visible
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing and route behavior
@@ -108,7 +108,7 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.34; // quick ignition before short vertical strike
-const CAPTURE_GROUND_TRAVEL_TIME = 2.46; // slower short-pawn/javelin strike loop for clearer live tracking
+const CAPTURE_GROUND_TRAVEL_TIME = 2.92; // slower short-pawn/javelin strike loop for clearer live tracking
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.03; // tighter contact radius so impacts feel precise
 const CAPTURE_GROUND_DRONE_RESPAWN_DELAY = LUDO_CAPTURE_EXPLOSION_TIME; // park drone only after explosion completes
@@ -143,21 +143,21 @@ const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.34;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.015;
 const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.34;
 const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.16; // keep launch hop very close to parking position
-const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.42; // spend longer lifting before cruise
+const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.52; // spend longer lifting before cruise
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
-const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0.025; // pawn missile rises almost vertically from live piece
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.068; // lower vertical arc for short missiles
-const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.054; // shorter top point before vertical drop
+const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0.018; // pawn missile rises almost vertically from live piece
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.052; // lower vertical arc for short missiles
+const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.039; // shorter top point before vertical drop
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_PAD_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // keep jet/helicopter as low as short-pawn strike
-const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.14; // keep aircraft path tighter and closer to parking slot
-const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.34; // slower takeoff phase from the pad
+const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.09; // keep aircraft path tighter and closer to parking slot
+const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.46; // slower takeoff phase from the pad
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.62;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.9;
 const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.58; // launch after visible lift and short hover
-const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.28; // slower low-altitude strike path from side pads
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.86; // slower low-altitude strike path from side pads
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
-const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.006; // keep launch altitude low and close to aircraft body
+const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // guarantee explosion when missile reaches target end of path
 const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST = 1.75;
 const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME = 0.32;
@@ -2007,10 +2007,17 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.36; // move parked vehicles farther outside board edge
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.2; // keep pads slightly inboard so portrait framing holds the whole strike
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.18;
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.52; // four equal parking slots with wider gap between each spot
-const SIDE_PARKED_AIR_UNITS_LIVE_SLOT_BIAS = 0.85; // bias launch pads toward the live piece lane for precise side mapping
+const SIDE_PARKED_AIR_UNITS_LIVE_SLOT_BIAS = 1; // fully map live launch lane so side-pad launches stay precise
+const SIDE_PARKED_AIR_UNITS_CENTER_NUDGE_TILES = 0.075; // move a tiny bit toward center so launches remain in portrait frame
+const SIDE_PARKED_AIR_UNITS_KIND_Z_BIAS = Object.freeze({
+  jet: -0.28,
+  drone: -0.08,
+  helicopter: 0.1,
+  truck: 0.28
+});
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.2; // truck also gets the requested +20% size bump
 
 function getTableHeightForShape(shapeId) {
@@ -9414,14 +9421,26 @@ function Chess3D({
       addRoofLongMissiles(root, root);
       return { root };
     };
-    const resolveAirPadLaneFromZ = (zValue = 0) => {
+    const getAirPadLaneCenters = () => {
       const equalLaneStep = tile * SIDE_PARKED_AIR_UNITS_LANE_SPREAD;
-      const laneBase = 1.5 + zValue / Math.max(equalLaneStep, 0.001);
-      return THREE.MathUtils.clamp(Math.round(laneBase), 0, 3);
+      return [0, 1, 2, 3].map((lane) => (lane - 1.5) * equalLaneStep);
+    };
+    const resolveClosestAirPadLaneFromLiveZ = (zValue = 0) => {
+      const laneCenters = getAirPadLaneCenters();
+      let bestLane = 0;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      laneCenters.forEach((center, laneIdx) => {
+        const dist = Math.abs(center - zValue);
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestLane = laneIdx;
+        }
+      });
+      return bestLane;
     };
     const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0, referenceWorldPos = null) => {
-      const sideX =
-        (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
+      const sideMultiplier = isWhiteSide ? -1 : 1;
+      const sideX = sideMultiplier * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
       const equalLaneStep = tile * SIDE_PARKED_AIR_UNITS_LANE_SPREAD;
       const laneIndexMap = {
         jet: 0,
@@ -9431,18 +9450,25 @@ function Chess3D({
       };
       const defaultLaneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
       const liveLaneIndex = Number.isFinite(referenceWorldPos?.z)
-        ? resolveAirPadLaneFromZ(referenceWorldPos.z)
+        ? resolveClosestAirPadLaneFromLiveZ(referenceWorldPos.z)
         : defaultLaneIndex;
-      const laneIndex = Math.round(
+      const blendedLane = Math.round(
         THREE.MathUtils.lerp(defaultLaneIndex, liveLaneIndex, SIDE_PARKED_AIR_UNITS_LIVE_SLOT_BIAS)
       );
-      const slotOffset = Number.isFinite(slot) ? (slot - 0.5) * equalLaneStep * 0.1 : 0;
-      const zOffset = (laneIndex - 1.5) * equalLaneStep + slotOffset;
+      const laneIndex = THREE.MathUtils.clamp(blendedLane, 0, 3);
+      const slotOffset = Number.isFinite(slot) ? (slot - 0.5) * equalLaneStep * 0.09 : 0;
+      const liveZ = Number.isFinite(referenceWorldPos?.z) ? referenceWorldPos.z : null;
+      const laneCenterZ = (laneIndex - 1.5) * equalLaneStep;
+      const laneCaptureOffset =
+        liveZ == null ? 0 : THREE.MathUtils.clamp(liveZ - laneCenterZ, -equalLaneStep * 0.2, equalLaneStep * 0.2);
+      const kindZBias = tile * (SIDE_PARKED_AIR_UNITS_KIND_Z_BIAS[kind] ?? 0);
+      const zOffset = laneCenterZ + laneCaptureOffset + kindZBias + slotOffset;
+      const centerNudge = sideMultiplier * tile * SIDE_PARKED_AIR_UNITS_CENTER_NUDGE_TILES;
       const yOffset =
         currentPieceYOffset +
         SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT +
         (kind === 'truck' ? 0.02 : 0.04);
-      return new THREE.Vector3(sideX, yOffset, zOffset);
+      return new THREE.Vector3(sideX - centerNudge, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
       const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
@@ -9937,7 +9963,7 @@ function Chess3D({
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
         const launchBase = parkedTruck?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'truck', 0, liveLaunchPos);
         alignUnitToLaunchPad(parkedTruck, launchBase);
-        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.14, 0)));
+        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
@@ -9946,7 +9972,7 @@ function Chess3D({
           duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
-          launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.015, 0)),
           movingMesh,
           targetMesh,
           sourceUnit: parkedTruck,
