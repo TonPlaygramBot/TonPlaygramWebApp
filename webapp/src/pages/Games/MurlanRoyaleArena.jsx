@@ -105,7 +105,7 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.72; // Rebalanced prop sizing so table/chairs/cards better match HDRI room scale in portrait.
+const ARENA_PROP_SCALE = 0.576; // Shrink table/chairs/cards footprint by ~20% for tighter portrait composition.
 const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2298,16 +2298,16 @@ const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
-const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
-const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
+const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left/right seats.
+const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.34 * MODEL_SCALE; // Pull player cards closer toward table center.
+const HUMAN_HAND_CLOSER_OFFSET = -0.46 * MODEL_SCALE; // Pull every player's hand closer toward the table.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.105 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
-const HUMAN_HAND_DIRECTIONAL_LIFT = 0.05 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_INWARD_TILT_X = THREE.MathUtils.degToRad(5);
+const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
+const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
@@ -2323,6 +2323,7 @@ const COMMUNITY_CARD_BOTTOM_SHIFT_Y = 0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
+const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
@@ -2629,10 +2630,6 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
-  const [isLandscapeViewport, setIsLandscapeViewport] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth > window.innerHeight;
-  });
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2769,19 +2766,6 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const updateOrientation = () => {
-      setIsLandscapeViewport(window.innerWidth > window.innerHeight);
-    };
-    updateOrientation();
-    window.addEventListener('resize', updateOrientation);
-    window.addEventListener('orientationchange', updateOrientation);
-    return () => {
-      window.removeEventListener('resize', updateOrientation);
-      window.removeEventListener('orientationchange', updateOrientation);
-    };
-  }, []);
   const resolvedHdriResolution = useMemo(() => {
     return resolveHdriResolutionFromGraphics(activeFrameRateOption);
   }, [activeFrameRateOption]);
@@ -3737,6 +3721,10 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
+    const shouldSlopeCommunityCards =
+      state.tableCombo?.type === ComboType.STRAIGHT ||
+      state.tableCombo?.type === ComboType.FLUSH ||
+      state.tableCombo?.type === ComboType.STRAIGHT_FLUSH;
     state.tableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -3755,6 +3743,9 @@ export default function MurlanRoyaleArena({ search }) {
         target.x += lateralOffset + COMMUNITY_CARD_LEFT_SHIFT;
       }
       target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + COMMUNITY_CARD_FAN_ARC_LIFT + COMMUNITY_CARD_BOTTOM_SHIFT_Y + COMMUNITY_CARD_DIRECTIONAL_LIFT;
+      if (shouldSlopeCommunityCards) {
+        target.y += -normalizedOffset * COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP;
+      }
       setMeshPosition(
         mesh,
         target,
@@ -3769,7 +3760,7 @@ export default function MurlanRoyaleArena({ search }) {
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.36)
+      .addScaledVector(pileForwardAxis, CARD_H * 1.44)
       .addScaledVector(pileRightAxis, CARD_W * 1.62)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
@@ -5555,14 +5546,6 @@ export default function MurlanRoyaleArena({ search }) {
             onGift={() => setShowGift(true)}
           />
         </div>
-        {!isLandscapeViewport && (
-          <div className="pointer-events-none fixed bottom-[8.6rem] left-1/2 z-20 w-[min(88vw,26rem)] -translate-x-1/2 text-center">
-            <div className="rounded-2xl border border-sky-200/55 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.24),rgba(12,23,42,0.92)_60%)] px-3.5 py-2.5 shadow-[0_12px_34px_rgba(2,132,199,0.36),inset_0_1px_0_rgba(255,255,255,0.32)] backdrop-blur-[3px]">
-              <p className="text-sm font-semibold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">{uiState.message}</p>
-              {actionError && <p className="mt-1.5 text-[11px] font-semibold text-red-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">{actionError}</p>}
-            </div>
-          </div>
-        )}
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
             <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
