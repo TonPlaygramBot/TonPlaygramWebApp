@@ -244,9 +244,9 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT)
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 1.18,
-  -TILE_SIZE * 0.98,
-  TILE_SIZE * 0.68,
+  -TILE_SIZE * 1.34,
+  -TILE_SIZE * 1.12,
+  TILE_SIZE * 1.05,
   -TILE_SIZE * 0.98
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
@@ -254,7 +254,7 @@ const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
-const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, -1, -1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.06,
   0,
@@ -262,21 +262,21 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = 0;
 // Keep parked weapons anchored next to the player token with only a small visual gap.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.26,
-  -TILE_SIZE * 0.2,
   0,
-  -TILE_SIZE * 0.2
+  0,
+  0,
+  0
 ]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.06;
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.03;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.74,
   helicopter: TOKEN_HEIGHT * 1.82,
@@ -286,10 +286,10 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
 });
 const WEAPON_REST_HEIGHT_OFFSET = 0;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  -TOKEN_HEIGHT * 0.34,
-  -TOKEN_HEIGHT * 0.3,
   0,
-  -TOKEN_HEIGHT * 0.3
+  0,
+  0,
+  0
 ]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
@@ -4128,19 +4128,42 @@ function createCaptureVehicleFallbackMesh(kind = 'fighter') {
     root.add(chassis, cabin, launcher);
   } else {
     const isJavelin = kind === 'javelin';
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.08, kind === 'drone' ? 0.06 : isJavelin ? 0.05 : 0.09, isJavelin ? 1.2 : 1, 16),
-      bodyMat
-    );
-    body.rotation.z = Math.PI / 2;
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(isJavelin ? 0.07 : 0.095, isJavelin ? 0.34 : 0.24, 16), noseMat);
-    nose.position.set(isJavelin ? 0.72 : 0.6, 0, 0);
-    nose.rotation.z = -Math.PI / 2;
-    const finA = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.18 : 0.12, 0.02, kind === 'helicopter' ? 0.4 : isJavelin ? 0.2 : 0.24), finMat);
-    finA.position.set(kind === 'drone' ? 0 : isJavelin ? -0.32 : -0.25, 0, 0);
-    const finB = new THREE.Mesh(new THREE.BoxGeometry(isJavelin ? 0.16 : 0.12, kind === 'drone' ? 0.12 : isJavelin ? 0.16 : 0.24, 0.02), finMat);
-    finB.position.set(-0.25, 0, 0);
-    root.add(body, nose, finA, finB);
+    if (isJavelin) {
+      const javelinBodyMat = createCaptureVehicleMaterial('javelin');
+      const javelinNoseMat = createCaptureVehicleMaterial('javelin');
+      const javelinFinMat = createCaptureVehicleMaterial('javelin');
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.112, 1.16, 16), javelinBodyMat);
+      body.rotation.z = Math.PI / 2;
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.102, 0.28, 16), javelinNoseMat);
+      nose.position.set(0.72, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.026, 0.38), javelinFinMat);
+      finA.position.set(-0.16, 0, 0);
+      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.38, 0.026), javelinFinMat);
+      finB.position.set(-0.16, 0, 0);
+      const finTailA = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.024, 0.24), javelinFinMat);
+      finTailA.position.set(-0.44, 0, 0);
+      const finTailB = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.24, 0.024), javelinFinMat);
+      finTailB.position.set(-0.44, 0, 0);
+      const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.19, 16), finMat);
+      engine.rotation.z = Math.PI / 2;
+      engine.position.set(-0.66, 0, 0);
+      root.add(body, nose, finA, finB, finTailA, finTailB, engine);
+    } else {
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(kind === 'drone' ? 0.06 : 0.08, kind === 'drone' ? 0.06 : 0.09, 1, 16),
+        bodyMat
+      );
+      body.rotation.z = Math.PI / 2;
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.24, 16), noseMat);
+      nose.position.set(0.6, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      const finA = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, kind === 'helicopter' ? 0.4 : 0.24), finMat);
+      finA.position.set(kind === 'drone' ? 0 : -0.25, 0, 0);
+      const finB = new THREE.Mesh(new THREE.BoxGeometry(0.12, kind === 'drone' ? 0.12 : 0.24, 0.02), finMat);
+      finB.position.set(-0.25, 0, 0);
+      root.add(body, nose, finA, finB);
+    }
   }
   root.traverse((obj) => {
     if (obj.isMesh) {
@@ -4471,29 +4494,35 @@ function createCaptureVehicleRig(kind = 'fighter') {
   });
 
   root.add(createCaptureVehicleFallbackMesh(kind));
-  loadCaptureVehicleModel(kind)
-    .then((model) => {
-      if (!model) return;
-      applyCaptureVehicleLook(model, kind);
-      while (root.children.length > 0) {
-        const child = root.children[0];
-        if (child?.userData?.trailPuff) break;
-        root.remove(child);
-      }
-      root.add(model);
-      const rotors = collectRotorNodes(model, kind);
-      root.userData.rotorNodes = rotors.all;
-      root.userData.topRotor = rotors.topRotor;
-      root.userData.tailRotor = rotors.tailRotor;
-      root.traverse((obj) => {
-        if (obj?.userData?.trailPuff) return;
-        if (obj.isMesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
+  if (kind === 'javelin') {
+    root.userData.rotorNodes = [];
+    root.userData.topRotor = null;
+    root.userData.tailRotor = null;
+  } else {
+    loadCaptureVehicleModel(kind)
+      .then((model) => {
+        if (!model) return;
+        applyCaptureVehicleLook(model, kind);
+        while (root.children.length > 0) {
+          const child = root.children[0];
+          if (child?.userData?.trailPuff) break;
+          root.remove(child);
         }
-      });
-    })
-    .catch(() => {});
+        root.add(model);
+        const rotors = collectRotorNodes(model, kind);
+        root.userData.rotorNodes = rotors.all;
+        root.userData.topRotor = rotors.topRotor;
+        root.userData.tailRotor = rotors.tailRotor;
+        root.traverse((obj) => {
+          if (obj?.userData?.trailPuff) return;
+          if (obj.isMesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+          }
+        });
+      })
+      .catch(() => {});
+  }
 
   const trail = [];
   for (let i = 0; i < 4; i += 1) {
