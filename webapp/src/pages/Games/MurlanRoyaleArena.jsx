@@ -105,7 +105,7 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.576; // Shrink table/chairs/cards footprint by ~20% for tighter portrait composition.
+const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
 const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2289,8 +2289,8 @@ const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46 * ARENA_PROP_SCALE, landscape: 0.52 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.02 * ARENA_PROP_SCALE,
-  landscape: 0.86 * ARENA_PROP_SCALE
+  portrait: 1.08 * ARENA_PROP_SCALE,
+  landscape: 0.9 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.2 * MODEL_SCALE;
@@ -2302,7 +2302,7 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.46 * MODEL_SCALE; // Pull every player's hand closer toward the table.
+const HUMAN_HAND_CLOSER_OFFSET = -0.62 * MODEL_SCALE; // Pull every player's hand visibly closer toward the table edge.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.105 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
