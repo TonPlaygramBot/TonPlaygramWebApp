@@ -7,6 +7,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
@@ -87,7 +89,7 @@ const BOARD_AND_CHIPS_SCALE =
   TABLE_SET_SIZE_BOOST;
 const CAMERA_FRAME_MATCH_SCALE =
   ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
-const CAMERA_CLOSER_RADIUS_FACTOR = 0.9;
+const CAMERA_CLOSER_RADIUS_FACTOR = 0.82;
 const CAMERA_HEIGHT_MATCH_BOOST = 1.22;
 const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
@@ -127,6 +129,7 @@ const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/versioned/2021-04-15/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_SCALE,
   1.9173749900311232 * CHAIR_SCALE,
@@ -135,24 +138,57 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
-    id: 'balanced',
-    label: 'Balanced',
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
     pixelRatioScale: 1,
-    shadowMapSize: 1024
+    pixelRatioCap: 1.4,
+    shadowMapSize: 768,
+    preferredHdriResolutions: ['2k'],
+    description: 'Battery saver profile for 50–60 Hz devices.'
   },
   {
-    id: 'performance',
-    label: 'Performance',
-    pixelRatioScale: 0.85,
-    shadowMapSize: 512
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    pixelRatioScale: 1.05,
+    pixelRatioCap: 1.55,
+    shadowMapSize: 1024,
+    preferredHdriResolutions: ['4k', '2k'],
+    description: 'Balanced clarity and smoothness tuned for most phones.'
   },
   {
-    id: 'cinematic',
-    label: 'Cinematic',
-    pixelRatioScale: 1.4,
-    shadowMapSize: 2048
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    pixelRatioScale: 1.15,
+    pixelRatioCap: 1.75,
+    shadowMapSize: 1536,
+    preferredHdriResolutions: ['8k', '4k', '2k'],
+    description: 'Sharper board details with faster animation cadence.'
+  },
+  {
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    pixelRatioScale: 1.25,
+    pixelRatioCap: 2,
+    shadowMapSize: 2048,
+    preferredHdriResolutions: ['8k', '4k', '2k'],
+    description: 'High-fidelity preset for flagship mobile GPUs.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    pixelRatioScale: 1.35,
+    pixelRatioCap: 2.2,
+    shadowMapSize: 2048,
+    preferredHdriResolutions: ['8k', '4k'],
+    description: 'Maximum smoothness preset where thermals allow.'
   }
 ]);
+let sharedKtx2Loader = null;
 
 const createBoard = (rows, cols) =>
   Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -372,8 +408,12 @@ const chooseAiMove = (board, aiToken, playerToken, depth) => {
   return Number.isInteger(col) ? col : ordered[0];
 };
 
-async function resolveHdriUrl(variant) {
-  const fallbackRes = variant?.maxResolution || '2k';
+async function resolveHdriUrl(variant, preferredResolutions = []) {
+  const preferredStack =
+    Array.isArray(preferredResolutions) && preferredResolutions.length
+      ? preferredResolutions
+      : variant?.preferredResolutions || ['8k', '4k', '2k'];
+  const fallbackRes = variant?.fallbackResolution || preferredStack[0] || '2k';
   const fallback = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${variant?.assetId || 'colorful_studio'}_${fallbackRes}.hdr`;
   if (!variant?.assetId) return fallback;
   try {
@@ -382,20 +422,40 @@ async function resolveHdriUrl(variant) {
     );
     if (!res.ok) return fallback;
     const data = await res.json();
-    return (
-      data?.exr?.[fallbackRes]?.url || data?.hdr?.[fallbackRes]?.url || fallback
-    );
+    for (const resolution of preferredStack) {
+      const exrUrl = data?.exr?.[resolution]?.url;
+      const hdrUrl = data?.hdr?.[resolution]?.url;
+      if (exrUrl || hdrUrl) return exrUrl || hdrUrl;
+    }
+    return data?.exr?.[fallbackRes]?.url || data?.hdr?.[fallbackRes]?.url || fallback;
   } catch {
     return fallback;
   }
 }
 
-function createConfiguredGLTFLoader() {
+function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+  const supportRenderer =
+    renderer || (typeof document !== 'undefined' ? new THREE.WebGLRenderer() : null);
+  if (supportRenderer) {
+    try {
+      sharedKtx2Loader.detectSupport(supportRenderer);
+    } catch {
+      // ignore KTX2 support detection issues and proceed with regular textures
+    } finally {
+      if (!renderer) supportRenderer.dispose?.();
+    }
+  }
+  loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
 }
 
@@ -476,8 +536,8 @@ function buildPolyhavenModelUrls(assetId) {
   ];
 }
 
-async function createChairModel(chairTheme) {
-  const loader = createConfiguredGLTFLoader();
+async function createChairModel(chairTheme, renderer = null) {
+  const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
   const candidateAssetIds = [chairTheme?.assetId, fallbackAssetId].filter(Boolean);
   let lastError = null;
@@ -521,6 +581,9 @@ const safeThumbnail = (value) => {
   return '/assets/icons/four-in-row-royale.svg';
 };
 
+const getGraphicsPreset = (graphicsId) =>
+  GRAPHICS_PRESETS.find((g) => g.id === graphicsId) || GRAPHICS_PRESETS[1] || GRAPHICS_PRESETS[0];
+
 const getArenaYOffsetForHdri = (hdriId) => {
   const variant =
     POOL_ROYALE_HDRI_VARIANT_MAP[hdriId] ||
@@ -553,7 +616,7 @@ export default function FourInRowRoyal() {
   const controlsRef = useRef(null);
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
-  const envRef = useRef({ map: null, skybox: null, hdriId: null });
+  const envRef = useRef({ map: null, skybox: null, hdriId: null, qualityKey: null });
   const arenaRootRef = useRef(null);
   const arenaYOffsetRef = useRef(
     getArenaYOffsetForHdri(POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -567,6 +630,7 @@ export default function FourInRowRoyal() {
     holeRimMat: null
   });
   const keyLightRef = useRef(null);
+  const graphicsPresetRef = useRef(getGraphicsPreset(GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id));
   const audioCtxRef = useRef(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -637,7 +701,7 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
-    graphics: GRAPHICS_PRESETS[0].id
+    graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 
   const [board, setBoard] = useState(() => createBoard(rows, cols));
@@ -711,6 +775,19 @@ export default function FourInRowRoyal() {
     amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     osc.start(now);
     osc.stop(now + duration);
+  };
+
+  const playChipDropFx = (token) => {
+    const base = token === 'player' ? 440 : 330;
+    playTone(base, 0.045, 'triangle', 0.02);
+    window.setTimeout(() => playTone(base * 0.52, 0.06, 'sine', 0.015), 22);
+  };
+
+  const playConnectFourFx = (token) => {
+    const line = token === 'player' ? [600, 760, 980, 1200] : [260, 340, 420, 540];
+    line.forEach((freq, idx) => {
+      window.setTimeout(() => playTone(freq, 0.12, 'square', 0.028), idx * 70);
+    });
   };
 
   const createTokenMesh = (token) => {
@@ -898,7 +975,7 @@ export default function FourInRowRoyal() {
       chairMeshesRef.current.push(chair);
       arenaRoot.add(chair);
     });
-    createChairModel(chairTheme).then((template) => {
+    createChairModel(chairTheme, renderer).then((template) => {
       chairMeshesRef.current.forEach((chair) => {
         chair.clear();
         chair.add(template.clone(true));
@@ -1244,11 +1321,12 @@ export default function FourInRowRoyal() {
       const aspect = width / height;
       perspective.aspect = aspect;
       perspective.updateProjectionMatrix();
-      const preset =
-        GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) ||
-        GRAPHICS_PRESETS[0];
+      const preset = graphicsPresetRef.current;
       renderer.setPixelRatio(
-        Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2)
+        Math.min(
+          window.devicePixelRatio * preset.pixelRatioScale,
+          preset.pixelRatioCap || 2
+        )
       );
       renderer.setSize(width, height);
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1260,8 +1338,11 @@ export default function FourInRowRoyal() {
     let raf;
     const animate = () => {
       raf = requestAnimationFrame(animate);
-      const delta = Math.min(animationClockRef.current.getDelta(), 1 / 60);
+      const delta = Math.min(animationClockRef.current.getDelta(), 0.1);
       const elapsed = animationClockRef.current.elapsedTime;
+      const preset = graphicsPresetRef.current;
+      const frameBudget = 1 / Math.max(30, preset.fps || 60);
+      if (delta < frameBudget * 0.92) return;
 
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
@@ -1289,6 +1370,10 @@ export default function FourInRowRoyal() {
         entry.mesh.position.z = entry.target.z + wobble;
         if (t >= 1) {
           entry.mesh.position.copy(entry.target);
+          if (!entry.hasLandingSound) {
+            playChipDropFx(entry.token);
+            entry.hasLandingSound = true;
+          }
           fallingPiecesRef.current.splice(i, 1);
         }
       }
@@ -1337,14 +1422,22 @@ export default function FourInRowRoyal() {
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || envRef.current.hdriId === appearance.hdriId) return;
+    const graphicsPreset = getGraphicsPreset(appearance.graphics);
+    const qualityKey = (graphicsPreset.preferredHdriResolutions || []).join(',');
+    if (
+      !scene ||
+      (envRef.current.hdriId === appearance.hdriId &&
+        envRef.current.qualityKey === qualityKey)
+    ) {
+      return;
+    }
     let cancelled = false;
     const apply = async () => {
       const variant =
         POOL_ROYALE_HDRI_VARIANT_MAP[appearance.hdriId] ||
         POOL_ROYALE_HDRI_VARIANTS.find((h) => h.id === appearance.hdriId) ||
         POOL_ROYALE_HDRI_VARIANTS[0];
-      const url = await resolveHdriUrl(variant);
+      const url = await resolveHdriUrl(variant, graphicsPreset.preferredHdriResolutions);
       const loader = url.toLowerCase().endsWith('.exr')
         ? new EXRLoader()
         : new RGBELoader();
@@ -1389,13 +1482,18 @@ export default function FourInRowRoyal() {
         if (key) key.position.y += yDelta;
         arenaYOffsetRef.current = nextArenaYOffset;
       }
-      envRef.current = { map: envMap, skybox, hdriId: appearance.hdriId };
+      envRef.current = {
+        map: envMap,
+        skybox,
+        hdriId: appearance.hdriId,
+        qualityKey
+      };
     };
     void apply();
     return () => {
       cancelled = true;
     };
-  }, [appearance.hdriId]);
+  }, [appearance.hdriId, appearance.graphics]);
 
   useEffect(() => {
     if (!winningCells.length) return;
@@ -1421,13 +1519,12 @@ export default function FourInRowRoyal() {
     const next = cloneBoard(board);
     next[row][col] = token;
     setBoard(next);
-    playTone(token === 'player' ? 520 : 300, 0.09, 'triangle', 0.03);
 
     const winning = getWinningCells(next, token);
     if (winning) {
       setWinner(token);
       setWinningCells(winning);
-      playTone(token === 'player' ? 760 : 220, 0.2, 'square', 0.03);
+      playConnectFourFx(token);
       return true;
     }
     if (isFull(next)) {
@@ -1465,10 +1562,12 @@ export default function FourInRowRoyal() {
           fallingPiecesRef.current.push({
             mesh,
             key: `${r}-${c}`,
+            token: nextCell,
             columnTop,
             target,
             elapsed: 0,
             phase: 'preview',
+            hasLandingSound: false,
             previewDuration: DROP_PREVIEW_DELAY,
             dropDuration:
               DROP_BASE_DURATION + (rows - 1 - r) * DROP_ROW_DURATION_STEP
@@ -1546,13 +1645,15 @@ export default function FourInRowRoyal() {
     const renderer = rendererRef.current;
     const key = keyLightRef.current;
     if (!renderer || !key || !mountRef.current) return;
-    const preset =
-      GRAPHICS_PRESETS.find((g) => g.id === appearance.graphics) ||
-      GRAPHICS_PRESETS[0];
+    const preset = getGraphicsPreset(appearance.graphics);
+    graphicsPresetRef.current = preset;
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio * preset.pixelRatioScale, 2)
+      Math.min(
+        window.devicePixelRatio * preset.pixelRatioScale,
+        preset.pixelRatioCap || 2
+      )
     );
     renderer.setSize(width, height);
     key.shadow.mapSize.setScalar(preset.shadowMapSize);
@@ -1572,7 +1673,7 @@ export default function FourInRowRoyal() {
         (item) => item.id === appearance.chairId
       ) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     let cancelled = false;
-    createChairModel(chairTheme).then((template) => {
+    createChairModel(chairTheme, rendererRef.current).then((template) => {
       if (cancelled) return;
       chairMeshesRef.current.forEach((chair) => {
         chair.clear();
