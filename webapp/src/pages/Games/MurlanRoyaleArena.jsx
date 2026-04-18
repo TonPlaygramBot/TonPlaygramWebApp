@@ -105,7 +105,7 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.78; // Slightly smaller arena props so table/chairs/cards better match HDRI scale in portrait.
+const ARENA_PROP_SCALE = 0.72; // Rebalanced prop sizing so table/chairs/cards better match HDRI room scale in portrait.
 const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2302,7 +2302,7 @@ const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const HUMAN_HAND_FAN_ARC_LIFT = 0.06 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.23 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.34 * MODEL_SCALE; // Pull player cards closer toward table center.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.105 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
@@ -2327,8 +2327,8 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const CHAIR_GROUND_DROP = 0.035 * MODEL_SCALE;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.03 * MODEL_SCALE; // Push chairs visually lower on portrait screens without shifting table interaction anchors.
+const CHAIR_GROUND_DROP = 0.012 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.008 * MODEL_SCALE; // Keep chairs grounded to HDRI floor while preserving slight portrait framing bias.
 const TABLE_HEIGHT_LIFT = 0.02 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -2368,6 +2368,7 @@ const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.52;
 const HDRI_GROUND_FLOOR_Y = -0.015 * MODEL_SCALE;
+const ARENA_GROUND_Y = HDRI_GROUND_FLOOR_Y;
 const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
@@ -3844,7 +3845,7 @@ export default function MurlanRoyaleArena({ search }) {
             const tableGroup = new THREE.Group();
             tableGroup.add(model);
             const { surfaceY, radius } = fitTableModelToArena(tableGroup);
-            const groundedDelta = groundObjectToY(tableGroup, 0);
+            const groundedDelta = groundObjectToY(tableGroup, ARENA_GROUND_Y);
             three.arena.add(tableGroup);
             tableInfo = {
               group: tableGroup,
@@ -4721,7 +4722,7 @@ export default function MurlanRoyaleArena({ search }) {
         })
       );
       hdriGround.rotation.x = -Math.PI / 2;
-      hdriGround.position.y = HDRI_GROUND_FLOOR_Y;
+      hdriGround.position.y = ARENA_GROUND_Y;
       hdriGround.receiveShadow = true;
       hdriGround.renderOrder = -1;
       arenaGroup.add(hdriGround);
@@ -4816,7 +4817,7 @@ export default function MurlanRoyaleArena({ search }) {
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
         chair.position.set(x, chairBaseHeight, z);
-        groundObjectToY(chair, 0);
+        groundObjectToY(chair, ARENA_GROUND_Y);
         chair.position.y -= CHAIR_GROUND_DROP + CHAIR_SCREEN_LOWER_OFFSET;
         chair.lookAt(new THREE.Vector3(0, chair.position.y, 0));
         arenaGroup.add(chair);
