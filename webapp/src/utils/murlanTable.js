@@ -546,6 +546,7 @@ export function createMurlanStyleTable({
   renderer,
   tableRadius = 2.55,
   tableHeight = 0.81,
+  pedestalHeightScale = 1.08,
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
   baseOption = DEFAULT_TABLE_BASE_OPTION,
@@ -567,7 +568,10 @@ export function createMurlanStyleTable({
   const minBaseHeight = 0.2 * scaleFactor;
   const maxBaseHeight = Math.max(minBaseHeight, tableY + baseLift);
   // Keep table-top height unchanged while trimming the pedestal so the table reads shorter overall.
-  baseHeight = maxBaseHeight * 1.08;
+  const safePedestalScale = Number.isFinite(pedestalHeightScale)
+    ? Math.max(0.55, Math.min(1.25, pedestalHeightScale))
+    : 1.08;
+  baseHeight = maxBaseHeight * safePedestalScale;
 
   const baseMat = includeBase
     ? new ThreeNamespace.MeshPhysicalMaterial({

@@ -2280,8 +2280,8 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const TABLE_HEIGHT_SHORTEN_FACTOR = 0.58; // Shorten table profile further while preserving readability in portrait.
+const BASE_COLUMN_HEIGHT = 0.42 * MODEL_SCALE * STOOL_SCALE; // Trim chair legs so seating reads shorter/lower.
+const TABLE_HEIGHT_SHORTEN_FACTOR = 0.52; // Further shorten table profile while preserving portrait readability.
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
@@ -2339,9 +2339,9 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.052 * MODEL_SCALE; // Lower chairs so feet visually sit on the HDRI floor.
+const CHAIR_SCREEN_LOWER_OFFSET = 0.072 * MODEL_SCALE; // Lower chairs a bit more so feet visually touch the HDRI floor.
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
-const TABLE_HEIGHT_LIFT = 0.012 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
@@ -3888,6 +3888,7 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS * TABLE_SIDE_TRIM_SCALE,
           tableHeight: TABLE_HEIGHT,
+          pedestalHeightScale: 0.82,
           includeBase: true,
           shapeOption,
           woodOption: finish?.woodOption || undefined,
