@@ -9967,8 +9967,10 @@ function Chess3D({
           next = takeoffPoint.clone().lerp(targetPos, clamp01(su + 0.05));
         }
       }
-      constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
-      constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+      if (!verticalCrash) {
+        constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+        constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+      }
       return { pos, next };
     };
     const getCapturePadStrikePose = ({
@@ -10059,12 +10061,6 @@ function Chess3D({
         next: constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2)
       };
     };
-    const alignUnitToLaunchPad = (unit, launchBase) => {
-      if (!unit?.root || !launchBase) return;
-      unit.homePosition = launchBase.clone();
-      unit.root.position.copy(unit.homePosition);
-    };
-
     const playCaptureAnimation = ({
       fromPos,
       targetPos,
@@ -10122,9 +10118,11 @@ function Chess3D({
           const droneFx = parkedDrone || createFxDrone({ forceProcedural: true });
           droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
           const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-          const launchBase = liveLaunchPos?.clone?.() || fromPos.clone();
+          const launchBase =
+            parkedDrone?.homePosition?.clone?.() ||
+            getAirPadAnchor(isWhiteSide, 'drone', 0, liveLaunchPos).clone();
           if (!parkedDrone) {
-            droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.015, 0)));
+            droneFx.root.position.copy(launchBase.clone());
             captureFxGroup.add(droneFx.root);
           }
           playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
@@ -10134,14 +10132,14 @@ function Chess3D({
             duration: CAPTURE_GROUND_TOTAL,
             from: fromPos.clone(),
             to: targetPos.clone(),
-            launchPos: launchBase.add(new THREE.Vector3(0, 0.015, 0)),
+            launchPos: launchBase.clone(),
             movingMesh,
             targetMesh,
             returnToOrigin: false,
             sourceUnit: parkedDrone,
             droneFx,
             verticalStrike: true,
-            launchFromLivePiece: true
+            launchFromLivePiece: false
           });
           return {
             moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
@@ -10182,8 +10180,9 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
         const jetFx = parkedUnit || createFxJet();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = liveLaunchPos.clone();
-        alignUnitToLaunchPad(parkedUnit, launchBase);
+        const launchBase =
+          parkedUnit?.homePosition?.clone?.() ||
+          getAirPadAnchor(isWhiteSide, 'jet', 0, liveLaunchPos).clone();
         if (!parkedUnit) {
           jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
           const sideSkin = resolveSideVehicleSkin(isWhiteSide);
@@ -10231,8 +10230,9 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
         const helicopterFx = parkedUnit || createFxHelicopter();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = liveLaunchPos.clone();
-        alignUnitToLaunchPad(parkedUnit, launchBase);
+        const launchBase =
+          parkedUnit?.homePosition?.clone?.() ||
+          getAirPadAnchor(isWhiteSide, 'helicopter', 0, liveLaunchPos).clone();
         if (!parkedUnit) {
           helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
           const sideSkin = resolveSideVehicleSkin(isWhiteSide);
@@ -10285,8 +10285,9 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
         const jetFx = parkedUnit || createFxJet();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = liveLaunchPos.clone();
-        alignUnitToLaunchPad(parkedUnit, launchBase);
+        const launchBase =
+          parkedUnit?.homePosition?.clone?.() ||
+          getAirPadAnchor(isWhiteSide, 'jet', 0, liveLaunchPos).clone();
         if (!parkedUnit) {
           jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
           const sideSkin = resolveSideVehicleSkin(isWhiteSide);
@@ -12211,11 +12212,10 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin || fx.launchFromLivePiece) fx.launchPos.copy(launchPos);
-            const { pos: jetPos, next: jetNext } = getCaptureAirStrikePose({
+            const { pos: jetPos, next: jetNext } = getCapturePadStrikePose({
               launchPos,
               targetPos: fx.to,
-              progress: jetTimelineU,
-              returnToOrigin: Boolean(fx.returnToOrigin)
+              progress: jetTimelineU
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -12303,11 +12303,10 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin || fx.launchFromLivePiece) fx.launchPos.copy(launchPos);
-            const { pos: heliPos, next: heliNext } = getCaptureAirStrikePose({
+            const { pos: heliPos, next: heliNext } = getCapturePadStrikePose({
               launchPos,
               targetPos: fx.to,
-              progress: heliTimelineU,
-              returnToOrigin: Boolean(fx.returnToOrigin)
+              progress: heliTimelineU
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
