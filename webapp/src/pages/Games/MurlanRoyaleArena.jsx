@@ -2257,7 +2257,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.9; // Slightly smaller cards for cleaner mobile portrait framing.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.82; // Shrink cards a bit more for cleaner portrait readability.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -2287,22 +2287,22 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46 * ARENA_PROP_SCALE, landscape: 0.52 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.56 * ARENA_PROP_SCALE, landscape: 0.58 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.08 * ARENA_PROP_SCALE,
-  landscape: 0.9 * ARENA_PROP_SCALE
+  portrait: 1.16 * ARENA_PROP_SCALE,
+  landscape: 0.96 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.2 * MODEL_SCALE;
-const HUMAN_HAND_CARD_SCALE = 1.1;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
+const HUMAN_HAND_CARD_SCALE = 1.0;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.22;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left/right seats.
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.92 * MODEL_SCALE; // Move the bottom player's hand inward so cards sit between chair and table.
+const HUMAN_HAND_CLOSER_OFFSET = -0.78 * MODEL_SCALE; // Keep human cards in a straighter one-line row without collapsing into center.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0;
 const HUMAN_HAND_LEFT_SHIFT = 0;
@@ -4751,7 +4751,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.74 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.58 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
