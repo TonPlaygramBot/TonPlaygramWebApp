@@ -3661,7 +3661,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
-        mesh.renderOrder = isHumanCard ? 16 + cardIdx : 4 + cardIdx;
+        applyHandCardLayering(mesh, isHumanCard, cardIdx);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
@@ -6300,6 +6300,26 @@ function createCardMesh(card, geometry, cache, theme) {
   mesh.userData.backTexture = backTexture;
   mesh.userData.cardFace = 'front';
   return mesh;
+}
+
+function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
+  if (!mesh?.isMesh) return;
+  const orderBase = isHumanCard ? 16 : 4;
+  mesh.renderOrder = orderBase + stackOrder;
+
+  const shouldForceRenderOrder = Boolean(isHumanCard);
+  if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) {
+    return;
+  }
+  mesh.userData.forceHandRenderOrder = shouldForceRenderOrder;
+
+  const allMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  allMaterials.forEach((material) => {
+    if (!material) return;
+    material.depthTest = !shouldForceRenderOrder;
+    material.depthWrite = !shouldForceRenderOrder;
+    material.needsUpdate = true;
+  });
 }
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
