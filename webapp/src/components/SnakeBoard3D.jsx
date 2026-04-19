@@ -270,7 +270,8 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = 0;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 1.18;
+// Keep parked weapons visually paired with each reserve token (tight side-by-side spacing).
+const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.82;
 // Keep parked weapons anchored next to the player token with only a small visual gap.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -278,15 +279,15 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.03;
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.01;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 0.2,
-  helicopter: TOKEN_HEIGHT * 0.2,
-  drone: TOKEN_HEIGHT * 0.18,
-  supportTruck: TOKEN_HEIGHT * 0.22,
-  javelin: TOKEN_HEIGHT * 0.2
+  fighter: TOKEN_HEIGHT * 0.44,
+  helicopter: TOKEN_HEIGHT * 0.42,
+  drone: TOKEN_HEIGHT * 0.4,
+  supportTruck: TOKEN_HEIGHT * 0.46,
+  javelin: TOKEN_HEIGHT * 0.44
 });
-const WEAPON_REST_HEIGHT_OFFSET = 0;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.02;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   0,
   0,
