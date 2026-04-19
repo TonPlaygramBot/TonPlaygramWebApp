@@ -2287,7 +2287,7 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.06 * ARENA_PROP_SCALE;
+const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
@@ -2335,8 +2335,9 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const CHAIR_GROUND_DROP = 0.012 * MODEL_SCALE;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.008 * MODEL_SCALE; // Keep chairs grounded to HDRI floor while preserving slight portrait framing bias.
+const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.02 * MODEL_SCALE; // Push chairs lower so they visually touch the floor plane in portrait.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.2 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
 const TABLE_HEIGHT_LIFT = 0.02 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -4760,7 +4761,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.6 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.34 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4824,7 +4825,10 @@ export default function MurlanRoyaleArena({ search }) {
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
-        const seatRadius = (isHumanSeat ? chairRadius : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
+        const seatRadius =
+          (isHumanSeat
+            ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
+            : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
@@ -5358,7 +5362,8 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
-            const sideSeatTopLift = 1.35;
+            const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
+            const sideSeatTopLift = isSideSeat ? 2.05 : 1.35;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
@@ -5566,6 +5571,13 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
+            {uiState.message || uiState.tableSummary ? (
+              <div className="fixed bottom-[8rem] left-1/2 z-20 w-[min(92vw,34rem)] -translate-x-1/2 px-2">
+                <div className="rounded-2xl border border-white/20 bg-black/55 px-3 py-2 text-center text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-white shadow-[0_10px_22px_rgba(2,6,23,0.45)] backdrop-blur-sm">
+                  {uiState.message || uiState.tableSummary}
+                </div>
+              </div>
+            ) : null}
             <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
