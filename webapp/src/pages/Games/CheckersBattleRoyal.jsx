@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -175,6 +175,7 @@ const BEAUTIFUL_GAME_BOARD_URLS = Object.freeze([
 
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
+const CHAIR_TEMPLATE_CACHE = new Map();
 const resolveHdriVariant = (value) => {
   const customVariants = getCustomHdriVariantsForGame('checkersbattleroyal');
   const allVariants = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
@@ -290,6 +291,7 @@ const SHADOW_CATCHER_SIZE = CHECKERS_ROOM_HALF_SPAN * 2.9;
 const SHADOW_CATCHER_OPACITY = 0.26;
 const SHADOW_CATCHER_ELEVATION = 0.004;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
+const CAPTURE_SOUND_VOLUME_MULTIPLIER = 0.72;
 const TAP_MAX_DISTANCE_PX = 16;
 const TAP_MAX_DURATION_MS = 340;
 const TOUCH_TAP_MAX_DISTANCE_PX = 40;
@@ -632,7 +634,7 @@ const inferMoveFromBoardDelta = (beforeBoard, afterBoard) => {
     from: { r: source.r, c: source.c },
     to: { r: target.r, c: target.c },
     side: target.piece.side,
-    king: source.piece.king,
+    king: target.piece.king,
     capture: Math.abs(target.r - source.r) > 1 || removed.length > 1
   };
 };
@@ -1146,6 +1148,60 @@ async function buildChessMappedChairTemplate() {
   return model;
 }
 
+async function buildPolyhavenChairTemplate(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing PolyHaven chair asset id');
+  const cacheKey = `polyhaven:${assetId}`;
+  if (CHAIR_TEMPLATE_CACHE.has(cacheKey)) {
+    return CHAIR_TEMPLATE_CACHE.get(cacheKey).clone(true);
+  }
+  const urls = [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
+  ];
+  const loader = createConfiguredGLTFLoader(renderer);
+  let gltf = null;
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) throw lastError || new Error(`Failed to load PolyHaven chair ${assetId}`);
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error(`Missing PolyHaven chair scene for ${assetId}`);
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (mat?.map) applySRGBColorSpace(mat.map);
+      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+    });
+  });
+  fitChairModelToFootprint(model);
+  CHAIR_TEMPLATE_CACHE.set(cacheKey, model.clone(true));
+  return model;
+}
+
+async function buildChairTemplateForOption(chairOption, renderer = null) {
+  if (chairOption?.source === 'polyhaven' && chairOption?.assetId) {
+    return buildPolyhavenChairTemplate(chairOption.assetId, renderer);
+  }
+  const cacheKey = 'mapped-chair';
+  if (CHAIR_TEMPLATE_CACHE.has(cacheKey)) {
+    return CHAIR_TEMPLATE_CACHE.get(cacheKey).clone(true);
+  }
+  const template = await buildChessMappedChairTemplate();
+  CHAIR_TEMPLATE_CACHE.set(cacheKey, template.clone(true));
+  return template;
+}
+
 function createProceduralChairFallback(chairColor, legColor) {
   const seatMaterial = new THREE.MeshStandardMaterial({
     color: chairColor,
@@ -1470,6 +1526,8 @@ export default function CheckersBattleRoyal() {
   const controlsRef = useRef(null);
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
+  const chairLoadRequestRef = useRef(0);
+  const activeChairIdRef = useRef(null);
   const keyLightRef = useRef(null);
   const shadowCatcherRef = useRef(null);
   const envRef = useRef({ map: null, skybox: null });
@@ -1806,6 +1864,81 @@ export default function CheckersBattleRoyal() {
     appearance.tableId,
     resolvedAccountId
   ]);
+
+  const rebuildChairs = useCallback(
+    async ({ scene = sceneRef.current, chairId = appearance.chairId } = {}) => {
+      if (!scene) return;
+      const requestId = (chairLoadRequestRef.current += 1);
+      const chairOption =
+        CHESS_CHAIR_OPTIONS.find((c) => c.id === chairId) || CHESS_CHAIR_OPTIONS[0];
+      const chairColor = chairOption?.primary || chairOption?.seatColor || '#8b0000';
+      const legColor = chairOption?.legColor || '#111827';
+
+      chairsRef.current.forEach((chair) => {
+        chair?.parent?.remove?.(chair);
+        disposeGroupMeshes(chair);
+      });
+      chairsRef.current = [];
+
+      const makePlacedChair = (template, z, ry) => {
+        const g = template.clone(true);
+        const preserveOriginal = Boolean(
+          chairOption?.preserveMaterials || chairOption?.source === 'polyhaven'
+        );
+        if (!preserveOriginal) {
+          g.traverse((obj) => {
+            if (!obj?.isMesh) return;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach((mat) => {
+              if (!mat?.color) return;
+              const loweredName = `${obj.name || ''}`.toLowerCase();
+              const looksLikeLeg = /leg|base|foot|frame|metal|stand/.test(loweredName);
+              mat.color.set(looksLikeLeg ? legColor : chairColor);
+              mat.needsUpdate = true;
+            });
+          });
+        }
+        g.scale.setScalar(CHAIR_VISUAL_SCALE);
+        g.position.set(0, CHAIR_HEIGHT, z);
+        g.rotation.y = ry;
+        groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK);
+        scene.add(g);
+        return g;
+      };
+
+      try {
+        const chairTemplate = await buildChairTemplateForOption(
+          chairOption,
+          rendererRef.current
+        );
+        if (requestId !== chairLoadRequestRef.current) return;
+        chairsRef.current = [
+          makePlacedChair(chairTemplate, CHAIR_DISTANCE, Math.PI),
+          makePlacedChair(chairTemplate, -CHAIR_DISTANCE, 0)
+        ];
+        activeChairIdRef.current = chairOption?.id || null;
+      } catch (error) {
+        if (requestId !== chairLoadRequestRef.current) return;
+        console.error('Checkers chairs load failed, using fallback:', error);
+        const makeFallback = (z, ry) => {
+          const g = createProceduralChairFallback(chairColor, legColor);
+          g.scale.setScalar(CHAIR_VISUAL_SCALE);
+          g.position.set(0, CHAIR_HEIGHT, z);
+          g.rotation.y = ry;
+          groundGroupToFloor(g, -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK);
+          scene.add(g);
+          return g;
+        };
+        chairsRef.current = [
+          makeFallback(CHAIR_DISTANCE, Math.PI),
+          makeFallback(-CHAIR_DISTANCE, 0)
+        ];
+        activeChairIdRef.current = chairOption?.id || null;
+      }
+    },
+    [appearance.chairId]
+  );
+
   const playerName =
     getTelegramFirstName() || getTelegramUsername() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
@@ -2120,7 +2253,10 @@ export default function CheckersBattleRoyal() {
     moveSoundRef.current = new Audio(MOVE_SOUND_URL);
     moveSoundRef.current.volume = getGameVolume();
     captureSoundRef.current = new Audio(bombSound);
-    captureSoundRef.current.volume = getGameVolume();
+    captureSoundRef.current.volume = Math.max(
+      0,
+      Math.min(1, getGameVolume() * CAPTURE_SOUND_VOLUME_MULTIPLIER)
+    );
 
     const pickTiles = [];
     const raycaster = new THREE.Raycaster();
@@ -2204,7 +2340,7 @@ export default function CheckersBattleRoyal() {
           from: { ...selected },
           to: { r, c },
           side: movedPieceBefore.side,
-          king: movedPieceBefore.king,
+          king: applied.piece?.king ?? movedPieceBefore.king,
           capture: Array.isArray(move.capture)
         });
       }
@@ -2438,64 +2574,7 @@ export default function CheckersBattleRoyal() {
         console.error('Checkers table load failed:', error);
       }
 
-      try {
-        const chairOption =
-          CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-          CHESS_CHAIR_OPTIONS[0];
-        const chairColor =
-          chairOption?.primary || chairOption?.seatColor || '#8b0000';
-        const chairTemplate = await buildChessMappedChairTemplate();
-        const makeChair = (z, ry) => {
-          const g = chairTemplate.clone(true);
-          g.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mats = Array.isArray(obj.material)
-              ? obj.material
-              : [obj.material];
-            mats.forEach((mat) => {
-              if (mat?.color) mat.color.set(chairColor);
-              mat.needsUpdate = true;
-            });
-          });
-          g.scale.setScalar(CHAIR_VISUAL_SCALE);
-          g.position.set(0, CHAIR_HEIGHT, z);
-          g.rotation.y = ry;
-          groundGroupToFloor(
-            g,
-            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
-          );
-          scene.add(g);
-          return g;
-        };
-        chairsRef.current = [
-          makeChair(CHAIR_DISTANCE, Math.PI),
-          makeChair(-CHAIR_DISTANCE, 0)
-        ];
-      } catch (error) {
-        console.error('Checkers chairs load failed, using fallback:', error);
-        const chairOption =
-          CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-          CHESS_CHAIR_OPTIONS[0];
-        const chairColor =
-          chairOption?.primary || chairOption?.seatColor || '#8b0000';
-        const legColor = chairOption?.legColor || '#111827';
-        const makeFallback = (z, ry) => {
-          const g = createProceduralChairFallback(chairColor, legColor);
-          g.scale.setScalar(CHAIR_VISUAL_SCALE);
-          g.position.set(0, CHAIR_HEIGHT, z);
-          g.rotation.y = ry;
-          groundGroupToFloor(
-            g,
-            -CHAIR_GROUNDING_EPSILON - CHAIR_GROUND_SINK
-          );
-          scene.add(g);
-          return g;
-        };
-        chairsRef.current = [
-          makeFallback(CHAIR_DISTANCE, Math.PI),
-          makeFallback(-CHAIR_DISTANCE, 0)
-        ];
-      }
+      await rebuildChairs({ scene, chairId: appearance.chairId });
 
       const addVisibleBoardBase = () => {
         const boardBase = new THREE.Group();
@@ -2667,7 +2746,7 @@ export default function CheckersBattleRoyal() {
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [graphicsProfile]);
+  }, [graphicsProfile, rebuildChairs]);
 
   useEffect(() => {
     const isOnlineGame = mode === 'online';
@@ -2836,7 +2915,7 @@ export default function CheckersBattleRoyal() {
           from: { ...chosen.from },
           to: { r: chosen.r, c: chosen.c },
           side: movedPieceBefore.side,
-          king: movedPieceBefore.king,
+          king: applied.piece?.king ?? movedPieceBefore.king,
           capture: Array.isArray(chosen.capture)
         });
       }
@@ -2896,7 +2975,7 @@ export default function CheckersBattleRoyal() {
               from: { ...selectedChainMove.from },
               to: { r: selectedChainMove.r, c: selectedChainMove.c },
               side: chainPieceBefore.side,
-              king: chainPieceBefore.king,
+              king: nextChain.piece?.king ?? chainPieceBefore.king,
               capture: true
             });
           }
@@ -2976,20 +3055,17 @@ export default function CheckersBattleRoyal() {
       );
     }
 
-    const chairOption =
-      CHESS_CHAIR_OPTIONS.find((c) => c.id === appearance.chairId) ||
-      CHESS_CHAIR_OPTIONS[0];
-    const nextChairColor = new THREE.Color(
-      chairOption?.primary || chairOption?.seatColor || '#8b0000'
-    );
-    chairsRef.current.forEach((chairGroup) => {
-      chairGroup?.traverse?.((child) => {
-        if (child?.isMesh && child.material?.color) {
-          child.material.color.copy(nextChairColor);
-          child.material.needsUpdate = true;
-        }
+    if (activeChairIdRef.current !== appearance.chairId) {
+      void rebuildChairs({ scene, chairId: appearance.chairId }).then(() => {
+        alignArenaGroundArtifacts({
+          shadowCatcher: shadowCatcherRef.current,
+          skybox: envRef.current?.skybox,
+          table: tableRef.current,
+          board: gltfBoardRef.current,
+          chairs: chairsRef.current
+        });
       });
-    });
+    }
 
     const boardTheme =
       CHECKERS_BOARD_THEME_OPTIONS.find(
@@ -3087,7 +3163,7 @@ export default function CheckersBattleRoyal() {
     };
 
     void applyHdri();
-  }, [appearance, graphicsProfile]);
+  }, [appearance, graphicsProfile, rebuildChairs]);
 
   useEffect(() => {
     const camera = cameraRef.current;
