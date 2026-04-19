@@ -1911,9 +1911,13 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.9972;
-  const wallBounce = 1.24;
-  const minWallSpeed = 6.6;
+  const friction = 0.9978;
+  const wallBounce = 1.34;
+  const minWallSpeed = 7.2;
+  const paddleHitRestitution = 1.34;
+  const paddleVelocityTransfer = 0.34;
+  const userHitPowerBoost = 1.16;
+  const userHitMinSpeed = 12;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -2024,11 +2028,21 @@
         const tangential = relVX*(-ny) + relVY*nx;
         puck.spin += tangential * 0.005;
         if (relAlongNormal <= 0){
-          const restitution = 1.26;
+          const restitution = paddleHitRestitution;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
           puck.vy += impulse * ny;
-          puck.vx += p.vx*0.28; puck.vy += p.vy*0.28;
+          puck.vx += p.vx * paddleVelocityTransfer;
+          puck.vy += p.vy * paddleVelocityTransfer;
+          if (p === p1) {
+            const speed = Math.hypot(puck.vx, puck.vy);
+            if (speed > 0) {
+              const boosted = Math.max(userHitMinSpeed, speed * userHitPowerBoost);
+              const scale = boosted / speed;
+              puck.vx *= scale;
+              puck.vy *= scale;
+            }
+          }
 
           if (p === p1) {
             const shotPower = Math.hypot(p.vx, p.vy);
