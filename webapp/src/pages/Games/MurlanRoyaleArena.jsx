@@ -2313,10 +2313,6 @@ const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
-const HUMAN_HAND_TABLE_EDGE_INSET = 0.2 * MODEL_SCALE;
-const AI_HAND_TABLE_EDGE_INSET = 0.16 * MODEL_SCALE;
-const MIN_HAND_RADIUS = 1.55 * MODEL_SCALE;
-const MAX_HAND_RADIUS = 3.2 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2362,12 +2358,6 @@ function calcFanCardPose(cardCount, cardIdx) {
     centerWeight: 1 - Math.abs(normalizedOffset),
     leftWeight: (1 + normalizedOffset) * 0.5
   };
-}
-
-function resolveHandRadiusFromTable(tableRadius, isHumanSeat) {
-  const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
-  const inset = isHumanSeat ? HUMAN_HAND_TABLE_EDGE_INSET : AI_HAND_TABLE_EDGE_INSET;
-  return THREE.MathUtils.clamp(safeTableRadius - inset, MIN_HAND_RADIUS, MAX_HAND_RADIUS);
 }
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -4793,10 +4783,6 @@ export default function MurlanRoyaleArena({ search }) {
 
       const chairRadius = CHAIR_RADIUS;
       const seatThickness = SEAT_THICKNESS;
-      const currentTableRadius = Math.max(
-        CARD_W * 2.2,
-        threeStateRef.current.tableInfo?.radius ?? TABLE_RADIUS
-      );
 
       cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
 
@@ -4830,14 +4816,9 @@ export default function MurlanRoyaleArena({ search }) {
 
         const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
         const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-        const handRadius = resolveHandRadiusFromTable(currentTableRadius, isHumanSeat);
-        const focusDistance = Math.max(
-          CARD_W * 2.5,
-          handRadius - (isHumanSeat ? 0.42 * MODEL_SCALE : 0.28 * MODEL_SCALE)
-        );
         const focus = forward
           .clone()
-          .multiplyScalar(focusDistance);
+          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
         stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
@@ -4848,7 +4829,7 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: handRadius,
+          radius: (isHumanSeat ? 2.9 : 3.05) * MODEL_SCALE,
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
           stoolPosition,
