@@ -2289,7 +2289,7 @@ const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.24 * ARENA_PROP_SCALE,
+  portrait: 1.34 * ARENA_PROP_SCALE,
   landscape: 0.94 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
@@ -2315,7 +2315,7 @@ const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.34;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.48;
-const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
+const COMMUNITY_CARD_TOP_TILT = 0;
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
 const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
@@ -2326,7 +2326,7 @@ const COMMUNITY_CARD_BOTTOM_SHIFT_Y = 0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
-const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
+const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
@@ -2369,6 +2369,39 @@ function calcFanCardPose(cardCount, cardIdx) {
     leftWeight: (1 + normalizedOffset) * 0.5
   };
 }
+const CARD_VISUAL_ORDER = Object.freeze({
+  '3': 0,
+  '4': 1,
+  '5': 2,
+  '6': 3,
+  '7': 4,
+  '8': 5,
+  '9': 6,
+  '10': 7,
+  J: 8,
+  Q: 9,
+  K: 10,
+  A: 11,
+  '2': 12,
+  JB: 13,
+  JR: 14
+});
+
+function getCardVisualOrderValue(card) {
+  const rank = typeof card?.rank === 'string' ? card.rank.toUpperCase() : '';
+  return CARD_VISUAL_ORDER[rank] ?? Number.MAX_SAFE_INTEGER;
+}
+
+function sortCardsByVisualStrength(cards = []) {
+  return [...cards].sort((a, b) => {
+    const rankDiff = getCardVisualOrderValue(a) - getCardVisualOrderValue(b);
+    if (rankDiff !== 0) return rankDiff;
+    const suitA = typeof a?.suit === 'string' ? a.suit : '';
+    const suitB = typeof b?.suit === 'string' ? b.suit : '';
+    return suitA.localeCompare(suitB);
+  });
+}
+
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2600;
@@ -3716,7 +3749,8 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     const tableAnchor = three.tableAnchor.clone();
-    const tableCount = state.tableCards.length;
+    const visualTableCards = sortCardsByVisualStrength(state.tableCards);
+    const tableCount = visualTableCards.length;
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
     const bottomCardSpacing = Math.max(humanSeat?.spacing ?? 0, COMMUNITY_CARD_SPACING);
     const bottomCardMaxSpread = Math.max(humanSeat?.maxSpread ?? 0, COMMUNITY_CARD_MAX_SPREAD);
@@ -3736,7 +3770,7 @@ export default function MurlanRoyaleArena({ search }) {
       state.tableCombo?.type === ComboType.STRAIGHT ||
       state.tableCombo?.type === ComboType.FLUSH ||
       state.tableCombo?.type === ComboType.STRAIGHT_FLUSH;
-    state.tableCards.forEach((card, idx) => {
+    visualTableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
@@ -3771,7 +3805,7 @@ export default function MurlanRoyaleArena({ search }) {
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.44)
+      .addScaledVector(pileForwardAxis, CARD_H * 1.62)
       .addScaledVector(pileRightAxis, CARD_W * 1.62)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
@@ -4751,7 +4785,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.6 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -5357,7 +5391,7 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(11.9rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(10.8rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
