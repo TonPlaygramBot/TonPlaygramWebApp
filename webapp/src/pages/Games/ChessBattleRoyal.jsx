@@ -107,8 +107,8 @@ const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTA
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
-const CAPTURE_GROUND_FIRE_TIME = 0.18; // shorter ignition so short strikes launch quickly from the live piece
-const CAPTURE_GROUND_TRAVEL_TIME = 1.92; // slower short-strike travel so lift-and-drop remains readable on portrait screens
+const CAPTURE_GROUND_FIRE_TIME = 0.32; // slightly longer ignition so drone-style launches read cleaner
+const CAPTURE_GROUND_TRAVEL_TIME = 2.88; // keep short/long missile travel in sync with the slower drone pacing
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.004; // ultra-tight contact radius so missiles lock onto target precisely
 const CAPTURE_GROUND_DRONE_RESPAWN_DELAY = LUDO_CAPTURE_EXPLOSION_TIME; // park drone only after explosion completes
@@ -151,11 +151,13 @@ const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // keep a small apex before the
 const CAPTURE_VERTICAL_STRIKE_FINAL_LOCK_RATIO = 0.995; // keep final segment locked longer for pinpoint impacts
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_PAD_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // keep jet/helicopter as low as short-pawn strike
-const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.06; // keep aircraft very close to parking while still showing a forward firing pass
-const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.44; // complete vertical takeoff before missile release
-const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.66;
-const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.86;
-const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.62; // fire after liftoff during the forward pass, then return to the same parking spot
+const CAPTURE_PAD_STRIKE_CENTER_ENTRY_TILES = 1.08; // ingress from side parking into board center before orbit
+const CAPTURE_PAD_STRIKE_CENTER_ORBIT_RADIUS_TILES = 0.92; // keep jet/helicopter circle tight around board center
+const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.18; // quick lift from parking pad
+const CAPTURE_PAD_STRIKE_INGRESS_RATIO = 0.38; // reach center corridor before orbit
+const CAPTURE_PAD_STRIKE_ORBIT_RATIO = 0.74; // complete center circle before heading home
+const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.9; // finish return flight then descend onto the same parking spot
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.62; // release while over center orbit, then return to parking
 const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.25; // keep missile travel visible but still finish before aircraft complete landing
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
@@ -9978,7 +9980,7 @@ function Chess3D({
       targetPos,
       progress,
       altitude = CAPTURE_PAD_STRIKE_ALTITUDE,
-      forwardTiles = CAPTURE_PAD_STRIKE_FORWARD_TILES
+      forwardTiles = CAPTURE_PAD_STRIKE_CENTER_ENTRY_TILES
     }) => {
       const towardTarget = targetPos.clone().sub(launchPos);
       towardTarget.y = 0;
@@ -9987,9 +9989,18 @@ function Chess3D({
       } else {
         towardTarget.normalize();
       }
+      const toBoardCenter = new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0);
+      const cruiseHeight = launchPos.y + altitude;
       const liftTarget = launchPos.clone();
-      liftTarget.y = launchPos.y + altitude;
-      const forwardTarget = liftTarget.clone().addScaledVector(towardTarget, tile * forwardTiles);
+      liftTarget.y = cruiseHeight;
+      const centerEntry = liftTarget.clone().addScaledVector(toBoardCenter, tile * forwardTiles);
+      centerEntry.z = THREE.MathUtils.lerp(centerEntry.z, 0, 0.78);
+      constrainInsideBoardPerimeter(centerEntry, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
+      const orbitCenter = new THREE.Vector3(0, cruiseHeight, THREE.MathUtils.lerp(centerEntry.z, targetPos.z, 0.12));
+      const orbitRadius = tile * CAPTURE_PAD_STRIKE_CENTER_ORBIT_RADIUS_TILES;
+      const orbitStart = centerEntry.clone();
+      const orbitDirection = launchPos.z <= 0 ? 1 : -1;
+      const orbitBaseAngle = Math.atan2(orbitStart.z - orbitCenter.z, orbitStart.x - orbitCenter.x);
       const u = clamp01(progress);
       let pos = launchPos.clone();
       let next = launchPos.clone().add(new THREE.Vector3(0.04, 0, 0));
@@ -9997,20 +10008,37 @@ function Chess3D({
         const su = smoothEase(u / Math.max(0.001, CAPTURE_PAD_STRIKE_ASCEND_RATIO));
         pos = launchPos.clone().lerp(liftTarget, su);
         next = launchPos.clone().lerp(liftTarget, clamp01(su + 0.06));
-      } else if (u < CAPTURE_PAD_STRIKE_HOVER_RATIO) {
+      } else if (u < CAPTURE_PAD_STRIKE_INGRESS_RATIO) {
         const su = smoothEase(
           (u - CAPTURE_PAD_STRIKE_ASCEND_RATIO) /
-            Math.max(0.001, CAPTURE_PAD_STRIKE_HOVER_RATIO - CAPTURE_PAD_STRIKE_ASCEND_RATIO)
+            Math.max(0.001, CAPTURE_PAD_STRIKE_INGRESS_RATIO - CAPTURE_PAD_STRIKE_ASCEND_RATIO)
         );
-        pos = liftTarget.clone().lerp(forwardTarget, su);
-        next = liftTarget.clone().lerp(forwardTarget, clamp01(su + 0.06));
+        pos = liftTarget.clone().lerp(centerEntry, su);
+        next = liftTarget.clone().lerp(centerEntry, clamp01(su + 0.06));
+      } else if (u < CAPTURE_PAD_STRIKE_ORBIT_RATIO) {
+        const su = smoothEase(
+          (u - CAPTURE_PAD_STRIKE_INGRESS_RATIO) /
+            Math.max(0.001, CAPTURE_PAD_STRIKE_ORBIT_RATIO - CAPTURE_PAD_STRIKE_INGRESS_RATIO)
+        );
+        const angleNow = orbitBaseAngle + orbitDirection * su * Math.PI * 2;
+        const angleNext = orbitBaseAngle + orbitDirection * clamp01(su + 0.03) * Math.PI * 2;
+        pos = new THREE.Vector3(
+          orbitCenter.x + Math.cos(angleNow) * orbitRadius,
+          cruiseHeight,
+          orbitCenter.z + Math.sin(angleNow) * orbitRadius
+        );
+        next = new THREE.Vector3(
+          orbitCenter.x + Math.cos(angleNext) * orbitRadius,
+          cruiseHeight,
+          orbitCenter.z + Math.sin(angleNext) * orbitRadius
+        );
       } else if (u < CAPTURE_PAD_STRIKE_RETURN_RATIO) {
         const su = smoothEase(
-          (u - CAPTURE_PAD_STRIKE_HOVER_RATIO) /
-            Math.max(0.001, CAPTURE_PAD_STRIKE_RETURN_RATIO - CAPTURE_PAD_STRIKE_HOVER_RATIO)
+          (u - CAPTURE_PAD_STRIKE_ORBIT_RATIO) /
+            Math.max(0.001, CAPTURE_PAD_STRIKE_RETURN_RATIO - CAPTURE_PAD_STRIKE_ORBIT_RATIO)
         );
-        pos = forwardTarget.clone().lerp(liftTarget, su);
-        next = forwardTarget.clone().lerp(liftTarget, clamp01(su + 0.06));
+        pos = orbitStart.clone().lerp(liftTarget, su);
+        next = orbitStart.clone().lerp(liftTarget, clamp01(su + 0.06));
       } else {
         const su = smoothEase(
           (u - CAPTURE_PAD_STRIKE_RETURN_RATIO) / Math.max(0.001, 1 - CAPTURE_PAD_STRIKE_RETURN_RATIO)
@@ -10018,7 +10046,9 @@ function Chess3D({
         pos = liftTarget.clone().lerp(launchPos, su);
         next = liftTarget.clone().lerp(launchPos, clamp01(su + 0.06));
       }
-      return { pos, next, forward: towardTarget, strikeAnchor: forwardTarget };
+      constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
+      constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES);
+      return { pos, next, forward: towardTarget, strikeAnchor: orbitCenter };
     };
     const getCaptureShortMissilePose = ({ launchPos, targetPos, progress, altitude = CAPTURE_VERTICAL_STRIKE_ALTITUDE }) =>
       getCaptureDirectStrikePose({
@@ -10085,8 +10115,7 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
-        const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = liveLaunchPos?.clone?.() || fromPos.clone();
+        const launchBase = parkedTruck?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'truck', 0).clone();
         missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
@@ -10103,7 +10132,7 @@ function Chess3D({
           missileFx,
           directPath: false,
           verticalStrike: true,
-          launchFromLivePiece: true
+          launchFromLivePiece: false
         });
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
