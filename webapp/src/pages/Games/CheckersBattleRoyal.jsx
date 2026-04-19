@@ -458,21 +458,22 @@ const createCheckerMesh = ({
   if (king) {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(
-        tile * 0.16 * CHECKER_PIECE_SCALE,
-        tile * 0.038 * CHECKER_PIECE_SCALE,
-        12,
-        32
+        tile * 0.188 * CHECKER_PIECE_SCALE,
+        tile * 0.026 * CHECKER_PIECE_SCALE,
+        18,
+        48
       ),
       new THREE.MeshStandardMaterial({
         color: '#facc15',
         metalness: 0.94,
-        roughness: 0.14,
+        roughness: 0.18,
         emissive: '#9a6c00',
-        emissiveIntensity: 0.2
+        emissiveIntensity: 0.24
       })
     );
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = tile * 0.13 * CHECKER_PIECE_SCALE;
+    ring.position.y = tile * 0.198 * CHECKER_PIECE_SCALE;
+    ring.renderOrder = 6;
     pieceGroup.add(ring);
   }
 
@@ -1117,10 +1118,7 @@ function fitChairModelToFootprint(model) {
 }
 
 async function buildChessMappedChairTemplate() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
+  const loader = createConfiguredGLTFLoader();
   let gltf = null;
   let lastError = null;
   for (const url of CHAIR_MODEL_URLS) {
@@ -1155,10 +1153,13 @@ async function buildPolyhavenChairTemplate(assetId, renderer = null) {
     return CHAIR_TEMPLATE_CACHE.get(cacheKey).clone(true);
   }
   const urls = [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`,
     `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
     `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
     `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
   ];
   const loader = createConfiguredGLTFLoader(renderer);
   let gltf = null;
@@ -1176,12 +1177,23 @@ async function buildPolyhavenChairTemplate(assetId, renderer = null) {
   if (!model) throw new Error(`Missing PolyHaven chair scene for ${assetId}`);
   model.traverse((obj) => {
     if (!obj.isMesh) return;
+    obj.userData = {
+      ...(obj.userData || {}),
+      preserveGltfTextureMapping: true
+    };
     obj.castShadow = true;
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
-      if (mat?.map) applySRGBColorSpace(mat.map);
-      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      if (mat?.map) {
+        applySRGBColorSpace(mat.map);
+        mat.map.needsUpdate = true;
+      }
+      if (mat?.emissiveMap) {
+        applySRGBColorSpace(mat.emissiveMap);
+        mat.emissiveMap.needsUpdate = true;
+      }
+      mat.needsUpdate = true;
     });
   });
   fitChairModelToFootprint(model);
