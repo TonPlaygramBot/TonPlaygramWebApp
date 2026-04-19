@@ -107,8 +107,9 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.2; // Lift top avatar a bit higher in portrait so it clears card overlays better.
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.7; // Requested: 30% smaller table/chairs/cards while preserving the same framing.
+const TOP_SEAT_AVATAR_UP_LIFT = 3.45; // Keep top avatar aligned after shrinking arena props.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.7; // Requested: 30% smaller table/chairs while preserving the same framing.
+const CARD_VISUAL_TRIM = 0.92; // Additional slight card trim after table/chair shrink.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -1627,7 +1628,11 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     ? handCardsInput.slice(0, 5)
     : [{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }, { rank: 'Q', suit: '♣' }];
   const safeCount = Math.max(handCards.length, 2);
-  const cardGeometry = new THREE.BoxGeometry(0.22 * MODEL_SCALE, 0.32 * MODEL_SCALE, 0.012 * MODEL_SCALE);
+  const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
+    rounded: true,
+    cornerRadiusRatio: 0.2,
+    segments: 8
+  });
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
     roughness: 0.55,
@@ -2262,7 +2267,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * TABLE_AND_CHAIR_VISUAL_SHRINK; // Match cards to the same 30% visual shrink as table/chairs.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * TABLE_AND_CHAIR_VISUAL_SHRINK * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -2293,10 +2298,10 @@ const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
-const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.28 * ARENA_PROP_SCALE,
+  portrait: 1.34 * ARENA_PROP_SCALE,
   landscape: 0.9 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
@@ -4813,8 +4818,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.14,
-        segments: 6
+        cornerRadiusRatio: 0.2,
+        segments: 8
       });
 
       const seatConfigs = [];
@@ -6491,7 +6496,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme, w = 512, h = 720) {
+function makeCardBackTexture(theme, w = 1024, h = 1440) {
   return makeTonplaygramCardBackTexture(theme, w, h);
 }
 
