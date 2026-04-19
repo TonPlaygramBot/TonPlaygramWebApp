@@ -106,10 +106,8 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const BASELINE_ARENA_PROP_SCALE = 0.4896;
-const ARENA_PROP_SCALE = BASELINE_ARENA_PROP_SCALE * 0.8; // Requested: table/chairs 20% smaller than current sizing.
-const LAYOUT_FRAME_COMPENSATION = BASELINE_ARENA_PROP_SCALE / ARENA_PROP_SCALE; // Keep card/avatar/camera framing matched to prior composition.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.2 * LAYOUT_FRAME_COMPENSATION; // Preserve top-seat avatar screen height after arena prop shrink.
+const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
+const TOP_SEAT_AVATAR_UP_LIFT = 3.2; // Lift top avatar a bit higher in portrait so it clears card overlays better.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -2262,7 +2260,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * LAYOUT_FRAME_COMPENSATION; // Keep card framing equivalent while table/chairs are reduced.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.8; // Make cards a bit smaller for cleaner mobile portrait framing.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -4938,9 +4936,9 @@ export default function MurlanRoyaleArena({ search }) {
         target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + CAMERA_FOCUS_CENTER_LIFT, 0);
       } else {
         const humanSeatAngle = Math.PI / 2;
-        const cameraBackOffset = (isPortrait ? 1.65 : 1.05) * LAYOUT_FRAME_COMPENSATION;
-        const cameraForwardOffset = (isPortrait ? 0.18 : 0.35) * LAYOUT_FRAME_COMPENSATION;
-        const cameraHeightOffset = (isPortrait ? 1.16 : 0.88) * LAYOUT_FRAME_COMPENSATION;
+        const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+        const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+        const cameraHeightOffset = isPortrait ? 1.16 : 0.88;
         initialCameraPosition = new THREE.Vector3(
           Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
           TABLE_HEIGHT + cameraHeightOffset,
