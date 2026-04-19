@@ -108,7 +108,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
 const TOP_SEAT_AVATAR_UP_LIFT = 3.2; // Lift top avatar a bit higher in portrait so it clears card overlays better.
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.8; // Requested: 20% smaller table/chairs without changing screen framing.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.7; // Requested: 30% smaller table/chairs/cards while preserving the same framing.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -2262,7 +2262,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.8; // Make cards a bit smaller for cleaner mobile portrait framing.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * TABLE_AND_CHAIR_VISUAL_SHRINK; // Match cards to the same 30% visual shrink as table/chairs.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
