@@ -108,6 +108,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
 const TOP_SEAT_AVATAR_UP_LIFT = 3.2; // Lift top avatar a bit higher in portrait so it clears card overlays better.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.8; // Requested: 20% smaller table/chairs without changing screen framing.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -1428,7 +1429,8 @@ function fitTableModelToArena(model) {
   );
   return {
     surfaceY: targetHeight,
-    radius
+    // Preserve previous card/avatar/camera layout radius even after shrinking visuals.
+    radius: radius / TABLE_AND_CHAIR_VISUAL_SHRINK
   };
 }
 
@@ -2290,7 +2292,7 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE;
+const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
@@ -2344,8 +2346,8 @@ const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bot
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.036 * MODEL_SCALE;
