@@ -6145,20 +6145,13 @@ function pickMostPreciseCardAtPointer({
   event,
   rect,
   camera,
-  selectionTargets,
-  raycaster
+  selectionTargets
 }) {
-  if (!event || !rect || !camera || !Array.isArray(selectionTargets) || !selectionTargets.length || !raycaster) {
+  if (!event || !rect || !camera || !Array.isArray(selectionTargets) || !selectionTargets.length) {
     return null;
   }
   const pointerX = event.clientX - rect.left;
   const pointerY = event.clientY - rect.top;
-  const pointer = new THREE.Vector2((pointerX / rect.width) * 2 - 1, -(pointerY / rect.height) * 2 + 1);
-  raycaster.setFromCamera(pointer, camera);
-  const intersects = raycaster.intersectObjects(selectionTargets, false);
-  if (!intersects.length) {
-    return null;
-  }
 
   const screenCorners = [];
   const cardPlaneZ = CARD_D * 0.5;
@@ -6185,25 +6178,20 @@ function pickMostPreciseCardAtPointer({
     }
     return true;
   };
-  const pointToSegmentDistance = (px, py, a, b) => {
-    const abx = b.x - a.x;
-    const aby = b.y - a.y;
-    const lengthSq = abx * abx + aby * aby;
-    if (lengthSq < 1e-6) return Math.hypot(px - a.x, py - a.y);
-    const t = Math.max(0, Math.min(1, ((px - a.x) * abx + (py - a.y) * aby) / lengthSq));
-    const cx = a.x + abx * t;
-    const cy = a.y + aby * t;
+  const pointDistanceToQuadCentroid = (px, py, quad) => {
+    if (!quad?.length) return Number.POSITIVE_INFINITY;
+    const cx = quad.reduce((sum, point) => sum + point.x, 0) / quad.length;
+    const cy = quad.reduce((sum, point) => sum + point.y, 0) / quad.length;
     return Math.hypot(px - cx, py - cy);
   };
 
-  let bestInsideCardId = null;
-  let bestInsideDistance = Number.POSITIVE_INFINITY;
-  let bestEdgeCardId = null;
-  let bestEdgeDistance = Number.POSITIVE_INFINITY;
-  const maxEdgeDistance = detectCoarsePointer() ? 6 : 4;
+  let bestCardId = null;
+  let bestRenderOrder = Number.NEGATIVE_INFINITY;
+  let bestDistanceToCamera = Number.POSITIVE_INFINITY;
+  let bestCentroidDistance = Number.POSITIVE_INFINITY;
+  const meshWorldPosition = new THREE.Vector3();
 
-  intersects.forEach((hit) => {
-    const mesh = hit?.object;
+  selectionTargets.forEach((mesh) => {
     if (!mesh) return;
     const cardId = mesh.userData.cardId || mesh.parent?.userData.cardId;
     if (!cardId) return;
@@ -6218,31 +6206,34 @@ function pickMostPreciseCardAtPointer({
       });
     }
     const inside = isPointInsideQuad(pointerX, pointerY, screenCorners);
-    if (inside) {
-      if (hit.distance < bestInsideDistance) {
-        bestInsideDistance = hit.distance;
-        bestInsideCardId = cardId;
-      }
+    if (!inside) {
       return;
     }
-    let edgeDistance = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < screenCorners.length; i++) {
-      const a = screenCorners[i];
-      const b = screenCorners[(i + 1) % screenCorners.length];
-      const segDistance = pointToSegmentDistance(pointerX, pointerY, a, b);
-      if (segDistance < edgeDistance) {
-        edgeDistance = segDistance;
-      }
-    }
-    if (edgeDistance < bestEdgeDistance) {
-      bestEdgeDistance = edgeDistance;
-      bestEdgeCardId = cardId;
+
+    const meshRenderOrder = Number.isFinite(mesh.renderOrder) ? mesh.renderOrder : 0;
+    mesh.getWorldPosition(meshWorldPosition);
+    const distanceToCamera = meshWorldPosition.distanceTo(camera.position);
+    const centroidDistance = pointDistanceToQuadCentroid(pointerX, pointerY, screenCorners);
+
+    const isBetterRenderOrder = meshRenderOrder > bestRenderOrder;
+    const isTieRenderOrder = meshRenderOrder === bestRenderOrder;
+    const isBetterDepth = distanceToCamera < bestDistanceToCamera - 1e-4;
+    const isTieDepth = Math.abs(distanceToCamera - bestDistanceToCamera) <= 1e-4;
+    const isBetterCentroid = centroidDistance < bestCentroidDistance;
+
+    if (
+      isBetterRenderOrder ||
+      (isTieRenderOrder && isBetterDepth) ||
+      (isTieRenderOrder && isTieDepth && isBetterCentroid)
+    ) {
+      bestRenderOrder = meshRenderOrder;
+      bestDistanceToCamera = distanceToCamera;
+      bestCentroidDistance = centroidDistance;
+      bestCardId = cardId;
     }
   });
 
-  if (bestInsideCardId) return bestInsideCardId;
-  if (bestEdgeDistance <= maxEdgeDistance) return bestEdgeCardId;
-  return null;
+  return bestCardId;
 }
 
 function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations, delayMs = 0) {
