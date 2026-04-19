@@ -65,7 +65,7 @@ const TABLE_SIZE_REDUCTION_FACTOR = 0.74;
 const TABLE_HEIGHT_REDUCTION_FACTOR = 0.88;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
-const BOARD_VISUAL_SIZE_BOOST = 1.08;
+const BOARD_VISUAL_SIZE_BOOST = 1.14;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
   TABLE_BASE_SCALE *
@@ -105,7 +105,7 @@ const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
 const CHAIR_GAP = 1.08 * CHAIR_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
 const BOARD_TABLE_CLEARANCE = 0.015 * BOARD_AND_CHIPS_SCALE;
-const BOARD_VERTICAL_LIFT = 0;
+const BOARD_VERTICAL_LIFT = 0.055 * BOARD_AND_CHIPS_SCALE;
 const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FACE_THICKNESS = 0.028 * BOARD_AND_CHIPS_SCALE;
@@ -128,6 +128,8 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
+const WIN_HIGHLIGHT_COLOR = new THREE.Color('#fff3a0');
+const WIN_HIGHLIGHT_SPEED = 13;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/versioned/2021-04-15/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
@@ -509,6 +511,25 @@ function preserveOriginalGltfTextureMapping(model) {
   });
 }
 
+function modelUsesEmbeddedTextures(model) {
+  let textured = false;
+  model?.traverse((obj) => {
+    if (textured || !obj?.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    textured = mats.some((mat) => {
+      if (!mat) return false;
+      return Boolean(
+        mat.map ||
+          mat.normalMap ||
+          mat.roughnessMap ||
+          mat.metalnessMap ||
+          mat.emissiveMap
+      );
+    });
+  });
+  return textured;
+}
+
 function tintChairModel(model, chairTheme) {
   const seatColor = chairTheme?.seatColor || chairTheme?.primary || '#7f1d1d';
   const legColor = chairTheme?.legColor || '#111827';
@@ -520,6 +541,41 @@ function tintChairModel(model, chairTheme) {
       const targetColor = (mat.metalness ?? 0) > 0.35 ? legColor : seatColor;
       mat.color.set(targetColor);
       mat.needsUpdate = true;
+    });
+  });
+}
+
+function applyWinningTokenGlow(token, pulse, shimmer) {
+  if (!token) return;
+  token.scale.setScalar(pulse);
+  token.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if ('emissive' in mat && mat.emissive) {
+        mat.emissive.copy(WIN_HIGHLIGHT_COLOR);
+        mat.emissiveIntensity = shimmer;
+      }
+      if ('metalness' in mat) mat.metalness = Math.max(mat.metalness ?? 0, 0.22);
+      if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 0.4, 0.26);
+    });
+  });
+}
+
+function clearWinningTokenGlow(token) {
+  if (!token) return;
+  token.scale.setScalar(1);
+  token.rotation.z = 0;
+  token.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if ('emissive' in mat && mat.emissive) {
+        mat.emissive.set(0x000000);
+        mat.emissiveIntensity = 0;
+      }
     });
   });
 }
@@ -556,7 +612,7 @@ async function createChairModel(chairTheme, renderer = null) {
         });
         preserveOriginalGltfTextureMapping(root);
         fitChairModelToFootprint(root);
-        if (!chairTheme?.preserveMaterials) {
+        if (!chairTheme?.preserveMaterials && !modelUsesEmbeddedTextures(root)) {
           tintChairModel(root, chairTheme);
         }
         return root;
@@ -611,6 +667,7 @@ export default function FourInRowRoyal() {
   const turnRef = useRef('player');
   const winnerRef = useRef(null);
   const winningCellsRef = useRef([]);
+  const winAnimationStartRef = useRef(0);
   const rendererRef = useRef(null);
   const perspectiveCameraRef = useRef(null);
   const controlsRef = useRef(null);
@@ -1378,12 +1435,20 @@ export default function FourInRowRoyal() {
         }
       }
 
-      winningCellsRef.current.forEach(([r, c]) => {
-        const token = piecesMapRef.current.get(`${r}-${c}`);
-        if (!token) return;
-        const pulse = 1.08 + Math.sin(elapsed * 8) * 0.06;
-        token.scale.setScalar(pulse);
-      });
+      if (winningCellsRef.current.length) {
+        const winTime = Math.max(0, elapsed - winAnimationStartRef.current);
+        winningCellsRef.current.forEach(([r, c], index) => {
+          const token = piecesMapRef.current.get(`${r}-${c}`);
+          if (!token) return;
+          const waveDelay = index * 0.07;
+          const localT = Math.max(0, winTime - waveDelay);
+          const bounce = Math.sin(localT * WIN_HIGHLIGHT_SPEED) * 0.045;
+          const pulse = 1.16 + Math.sin(localT * (WIN_HIGHLIGHT_SPEED - 2.4)) * 0.1;
+          const shimmer = 0.65 + Math.sin(localT * (WIN_HIGHLIGHT_SPEED + 1.2)) * 0.25;
+          applyWinningTokenGlow(token, pulse, shimmer);
+          token.rotation.z = bounce;
+        });
+      }
 
       controls.update();
       if (
@@ -1496,18 +1561,16 @@ export default function FourInRowRoyal() {
   }, [appearance.hdriId, appearance.graphics]);
 
   useEffect(() => {
-    if (!winningCells.length) return;
-    winningCells.forEach(([r, c], index) => {
-      const piece = piecesMapRef.current.get(`${r}-${c}`);
-      if (!piece) return;
-      piece.scale.setScalar(1.1);
-      setTimeout(
-        () => {
-          if (piece) piece.scale.setScalar(1);
-        },
-        300 + index * 60
-      );
-    });
+    winAnimationStartRef.current = animationClockRef.current.elapsedTime || 0;
+    if (winningCells.length) {
+      winningCells.forEach(([r, c]) => {
+        const piece = piecesMapRef.current.get(`${r}-${c}`);
+        if (!piece) return;
+        applyWinningTokenGlow(piece, 1.2, 0.55);
+      });
+      return;
+    }
+    piecesMapRef.current.forEach((piece) => clearWinningTokenGlow(piece));
   }, [winningCells]);
 
   const playColumn = (col, token) => {
