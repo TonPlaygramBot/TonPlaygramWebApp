@@ -237,7 +237,7 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
-const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 0.08;
+const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 1.08;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_WEAPON_REST_RAIL_INSET));
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
@@ -270,7 +270,7 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = 0;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.92;
+const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.66;
 // Keep parked weapons anchored immediately next to the player token.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -280,11 +280,11 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.005;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 0.62,
-  helicopter: TOKEN_HEIGHT * 0.6,
-  drone: TOKEN_HEIGHT * 0.56,
-  supportTruck: TOKEN_HEIGHT * 0.64,
-  javelin: TOKEN_HEIGHT * 0.62
+  fighter: TOKEN_HEIGHT * 0.96,
+  helicopter: TOKEN_HEIGHT * 0.94,
+  drone: TOKEN_HEIGHT * 0.9,
+  supportTruck: TOKEN_HEIGHT * 0.98,
+  javelin: TOKEN_HEIGHT * 0.96
 });
 const WEAPON_REST_HEIGHT_OFFSET = 0;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
@@ -4687,7 +4687,7 @@ function updateSeatWeaponDisplays(board, players = []) {
     const railLayout = getSeatRailLayout(
       board,
       seatIndex,
-      TILE_SIZE * 0.08,
+      -TILE_SIZE * 0.12,
       Number.isFinite(weaponInset) ? weaponInset : null
     );
     if (railLayout) {
