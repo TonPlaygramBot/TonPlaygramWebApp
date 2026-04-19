@@ -631,6 +631,14 @@ const CAPTURE_ANIMATION_BY_PIECE = Object.freeze({
   Q: 'queenJetStrike',
   K: 'kingJetStrike'
 });
+const PIECE_MOVE_PROFILES = Object.freeze({
+  P: { lift: 0.06, easePower: 2.4, sway: 0.008, swaySpeed: 10 },
+  N: { lift: 0.22, easePower: 2.1, sway: 0.016, swaySpeed: 13 },
+  B: { lift: 0.11, easePower: 2.2, sway: 0.01, swaySpeed: 9 },
+  R: { lift: 0.08, easePower: 2.6, sway: 0.004, swaySpeed: 8 },
+  Q: { lift: 0.12, easePower: 2.05, sway: 0.012, swaySpeed: 11 },
+  K: { lift: 0.09, easePower: 2.25, sway: 0.009, swaySpeed: 8.5 }
+});
 const CAPTURE_PIECE_TYPE_ALIASES = Object.freeze({
   P: 'P',
   PAWN: 'P',
@@ -680,7 +688,11 @@ const resolveCaptureAnimationPieceType = (...values) => {
     const initial = normalized.charAt(0);
     if (CAPTURE_ANIMATION_BY_PIECE[initial]) return initial;
   }
-  return '';
+  return 'P';
+};
+const resolvePieceMoveProfile = (...values) => {
+  const pieceType = resolveCaptureAnimationPieceType(...values);
+  return PIECE_MOVE_PROFILES[pieceType] || PIECE_MOVE_PROFILES.P;
 };
 const FILE_LABELS = 'abcdefgh';
 const resolveChessSquare = (r, c) => `${FILE_LABELS[c] || '?'}${8 - r}`;
@@ -11155,6 +11167,7 @@ function Chess3D({
     let legal = [];
     let selectedMesh = null;
     const activePieceAnimations = [];
+    const pieceAnimScratch = new THREE.Vector3();
 
     const resetSelectedMeshElevation = () => {
       if (!selectedMesh) return;
@@ -11486,11 +11499,11 @@ function Chess3D({
             : -half - BOARD.rim - 1 - row * captureRowSpacing;
           cancelPieceAnimation(targetMesh);
           targetMesh.position.y = captureY;
-          animatePieceTo(
-            targetMesh,
-            new THREE.Vector3(capX, captureY, capZ),
-            0.35
-          );
+          animatePieceTo(targetMesh, new THREE.Vector3(capX, captureY, capZ), 0.35, null, {
+            pieceType: targetMesh?.userData?.t,
+            forceLift: 0.04,
+            forceSway: 0.003
+          });
         };
         if (captureResolveDelayMs > 0) {
           setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
@@ -11544,11 +11557,21 @@ function Chess3D({
         setTimeout(() => {
           syncMovedPieceMesh();
           cancelPieceAnimation(m);
-          animatePieceTo(m, targetPosition, 0.32);
+          animatePieceTo(m, targetPosition, 0.32, null, {
+            pieceType: movedPiece?.t,
+            deltaR: rr - sel.r,
+            deltaC: cc - sel.c,
+            isCapture: Boolean(capturedPiece)
+          });
           playMoveSound();
         }, moveDelayMs);
       } else {
-        animatePieceTo(m, targetPosition, 0.32);
+        animatePieceTo(m, targetPosition, 0.32, null, {
+          pieceType: movedPiece?.t,
+          deltaR: rr - sel.r,
+          deltaC: cc - sel.c,
+          isCapture: Boolean(capturedPiece)
+        });
         playMoveSound();
       }
       highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
@@ -11562,7 +11585,11 @@ function Chess3D({
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
         const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-        animatePieceTo(rookMesh, rookTarget, 0.32);
+        animatePieceTo(rookMesh, rookTarget, 0.32, null, {
+          pieceType: 'R',
+          deltaR: 0,
+          deltaC: rookToC - rookFromC
+        });
       }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
@@ -11766,15 +11793,42 @@ function Chess3D({
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
+    const animatePieceTo = (mesh, target, duration = 0.28, onComplete, options = {}) => {
       if (!mesh) return;
+      const profile = resolvePieceMoveProfile(
+        options?.pieceType,
+        mesh?.userData?.t,
+        mesh?.userData?.__pieceType
+      );
+      const planarDistance = Math.hypot(
+        target.x - mesh.position.x,
+        target.z - mesh.position.z
+      );
+      const directionalSign =
+        Math.sign(
+          (Number.isFinite(options?.deltaR) ? options.deltaR : 0) +
+            (Number.isFinite(options?.deltaC) ? options.deltaC : 0)
+        ) || 1;
+      const arcLift =
+        Math.max(
+          0.01,
+          Number.isFinite(options?.forceLift) ? options.forceLift : profile.lift
+        ) * Math.max(0.6, Math.min(1.45, planarDistance / Math.max(0.01, tile * 1.25)));
+      const swayAmount =
+        Math.max(0, Number.isFinite(options?.forceSway) ? options.forceSway : profile.sway) *
+        (options?.isCapture ? 1.15 : 1);
       const anim = {
         mesh,
         start: mesh.position.clone(),
         target: target.clone(),
         duration: Math.max(0.05, duration),
         elapsed: 0,
-        onComplete
+        onComplete,
+        arcLift,
+        swayAmount,
+        swaySpeed: profile.swaySpeed,
+        easePower: profile.easePower,
+        directionalSign
       };
       activePieceAnimations.push(anim);
     };
@@ -11804,7 +11858,7 @@ function Chess3D({
       animatePieceTo(pieceMesh, toPos, 0.45, () => {
         pieceMesh.position.copy(toPos);
         isReplayingRef.current = false;
-      });
+      }, { pieceType: pieceMesh?.userData?.t });
     };
 
     const pickTileFromPointer = (event) => {
@@ -12041,8 +12095,17 @@ function Chess3D({
           const anim = activePieceAnimations[i];
           anim.elapsed += animDt;
           const t = clamp01(anim.elapsed / anim.duration);
-          const eased = 1 - (1 - t) * (1 - t);
-          anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
+          const eased = 1 - (1 - t) ** (anim.easePower || 2);
+          const nextPos = pieceAnimScratch.lerpVectors(anim.start, anim.target, eased);
+          const arcPulse = Math.sin(Math.PI * eased);
+          nextPos.y += arcPulse * (anim.arcLift || 0);
+          if (anim.swayAmount) {
+            nextPos.x +=
+              Math.sin(eased * Math.PI * (anim.swaySpeed || 8)) *
+              anim.swayAmount *
+              (anim.directionalSign || 1);
+          }
+          anim.mesh.position.copy(nextPos);
           if (t >= 1) {
             anim.mesh.position.copy(anim.target);
             activePieceAnimations.splice(i, 1);
