@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.35; // Lift top avatar higher on portrait screens while keeping the bottom (human) avatar unchanged.
+const TOP_SEAT_AVATAR_UP_LIFT = 2.9; // Lift top avatar a bit higher in portrait so it clears card overlays better.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -1648,9 +1648,9 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
-      color: new THREE.Color('#ffffff'),
-      roughness: 0.36,
-      metalness: 0.06
+      color: new THREE.Color(idx === safeCount - 1 ? playerColor : cardTheme?.backColor || '#1d4ed8'),
+      roughness: 0.6,
+      metalness: 0.15
     });
     managedMaterials.push(frontMaterial, backMaterial);
     const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
@@ -2260,7 +2260,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.78; // Make cards a bit smaller for a cleaner portrait look.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.84; // Slightly smaller cards for cleaner mobile portrait framing.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -2281,7 +2281,7 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const TABLE_HEIGHT_SHORTEN_FACTOR = 0.64; // Make the table visibly shorter for portrait gameplay.
+const TABLE_HEIGHT_SHORTEN_FACTOR = 0.7; // Keep the table ~30% shorter than the previous baseline height.
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
@@ -2302,14 +2302,14 @@ const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.29;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
-const HUMAN_HAND_EXTRA_LIFT = 0.03 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left/right seats.
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = -0.92 * MODEL_SCALE; // Move the bottom player's hand inward so cards sit between chair and table.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.072 * MODEL_SCALE;
-const AI_HAND_BOTTOM_SHIFT_Y = -0.016 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = 0;
 const AI_HAND_CLOSER_OFFSET = 0;
 const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
 const AI_HAND_LEFT_SHIFT = 0;
@@ -2339,16 +2339,16 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.045 * MODEL_SCALE; // Lower chairs slightly more so they sit visibly lower after table changes.
+const CHAIR_SCREEN_LOWER_OFFSET = 0.02 * MODEL_SCALE; // Push chairs lower so they visually touch the floor plane in portrait.
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
-const TABLE_HEIGHT_LIFT = 0.012 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.02 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
-const AI_CARD_LIFT = 0.018 * MODEL_SCALE;
+const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
@@ -4760,11 +4760,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.74, 3.62 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.84, 4.08 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.08 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.34 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -5370,7 +5370,7 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 2.45 : 1.7;
+            const sideSeatTopLift = isSideSeat ? 2.05 : 1.35;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
@@ -6402,8 +6402,8 @@ function createCardMesh(card, geometry, cache, theme) {
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
     color: new THREE.Color('#ffffff'),
-    roughness: 0.34,
-    metalness: 0.06
+    roughness: 0.6,
+    metalness: 0.15
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
