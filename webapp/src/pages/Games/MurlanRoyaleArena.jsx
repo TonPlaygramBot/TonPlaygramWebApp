@@ -2289,7 +2289,7 @@ const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.16 * ARENA_PROP_SCALE,
+  portrait: 1.24 * ARENA_PROP_SCALE,
   landscape: 0.94 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
@@ -5351,14 +5351,13 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
-            const isSideSeat = Boolean(anchor) && (anchor.x <= 35 || anchor.x >= 65);
-            const sideSeatTopLift = isSideSeat ? 8 : 0;
+            const sideSeatTopLift = 0;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(12.8rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(11.9rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -6338,29 +6337,26 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const color = SUIT_COLORS[suit] || '#0f172a';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
 
-  // Match bottom hand cards: top-left rank+suit, center suit, bottom-right rotated rank.
+  // Keep rank/suit indicators visually at the top for portrait gameplay readability.
   g.fillStyle = color;
   g.textAlign = 'left';
   g.textBaseline = 'top';
   g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.065));
+  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.04));
 
   g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.205));
+  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.145));
+
+  g.textAlign = 'right';
+  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, Math.round(w * 0.905), Math.round(h * 0.04));
+  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, Math.round(w * 0.88), Math.round(h * 0.145));
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
   g.fillText(suit, w / 2, h / 2);
-
-  g.save();
-  g.translate(w - Math.round(w * 0.12), h - Math.round(h * 0.075));
-  g.rotate(Math.PI);
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, 0, 0);
-  g.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
