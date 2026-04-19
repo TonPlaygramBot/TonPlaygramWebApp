@@ -369,22 +369,55 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
+  const logoPanelWidth = w * 0.9;
+  const logoPanelHeight = h * 0.42;
+  const logoPanelX = (w - logoPanelWidth) / 2;
+  const logoPanelY = (h - logoPanelHeight) / 2;
+  const logoPanelRadius = Math.min(logoPanelWidth, logoPanelHeight) * 0.14;
+  const panelGradient = ctx.createLinearGradient(0, logoPanelY, 0, logoPanelY + logoPanelHeight);
+  panelGradient.addColorStop(0, 'rgba(10,18,34,0.72)');
+  panelGradient.addColorStop(1, 'rgba(15,28,52,0.86)');
+  ctx.fillStyle = panelGradient;
+  roundRect(ctx, logoPanelX, logoPanelY, logoPanelWidth, logoPanelHeight, logoPanelRadius);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+  ctx.lineWidth = Math.max(6, Math.round(w * 0.0028));
+  roundRect(
+    ctx,
+    logoPanelX + w * 0.01,
+    logoPanelY + w * 0.01,
+    logoPanelWidth - w * 0.02,
+    logoPanelHeight - w * 0.02,
+    logoPanelRadius * 0.92
+  );
+  ctx.stroke();
+
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.94;
-    const logoBoxHeight = h * 0.56;
+    const logoBoxWidth = w * 0.82;
+    const logoBoxHeight = h * 0.28;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
-    const logoY = h / 2 - drawHeight / 2;
+    const logoY = h / 2 - drawHeight / 2 - h * 0.02;
+    ctx.shadowColor = 'rgba(255,255,255,0.35)';
+    ctx.shadowBlur = Math.max(18, Math.round(w * 0.014));
     ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+    ctx.shadowBlur = 0;
   } else {
     ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '700 48px "Inter", system-ui, sans-serif';
-    ctx.fillText('TonPlaygram', w / 2, h / 2);
+    ctx.fillText('TonPlaygram', w / 2, h / 2 - h * 0.02);
   }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${Math.max(42, Math.round(w * 0.04))}px "Inter", system-ui, sans-serif`;
+  ctx.fillText('TonPlaygram', w / 2, h / 2 + h * 0.12);
 
   ctx.restore();
 }
