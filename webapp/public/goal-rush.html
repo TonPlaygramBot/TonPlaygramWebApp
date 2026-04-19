@@ -1911,9 +1911,9 @@
   }
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
-  const friction = 0.996;
-  const wallBounce = 1.19;
-  const minWallSpeed = 6.2;
+  const friction = 0.9972;
+  const wallBounce = 1.24;
+  const minWallSpeed = 6.6;
   function constrainPaddle(p, bottom){
     const margin=12;
     const minX = rink.x + margin + p.r;
@@ -2022,9 +2022,9 @@
         const relVY = puck.vy - p.vy;
         const relAlongNormal = relVX*nx + relVY*ny;
         const tangential = relVX*(-ny) + relVY*nx;
-        puck.spin += tangential * 0.008;
+        puck.spin += tangential * 0.005;
         if (relAlongNormal <= 0){
-          const restitution = 1.22;
+          const restitution = 1.26;
           const impulse = -(1+restitution) * relAlongNormal;
           puck.vx += impulse * nx;
           puck.vy += impulse * ny;
@@ -2184,7 +2184,7 @@
     if (shouldRunPhysics()) {
       puck.x += puck.vx * dt * 60;
       puck.y += puck.vy * dt * 60;
-      const mag = puck.spin * dt * 0.6;
+      const mag = puck.spin * dt * 0.35;
       const magVx = -puck.vy * mag;
       const magVy = puck.vx * mag;
       puck.vx += magVx;
@@ -2193,7 +2193,7 @@
       puck.vy *= Math.pow(friction, dt*60);
       puck.angle += Math.hypot(puck.vx, puck.vy) * dt * 0.1;
       puck.angle += puck.spin * dt * 10;
-      puck.spin *= Math.pow(0.985, dt*60);
+      puck.spin *= Math.pow(0.97, dt*60);
 
       handleCollisions();
       emitStateIfNeeded();
