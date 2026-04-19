@@ -2257,7 +2257,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.9; // Slightly smaller cards for cleaner mobile portrait framing.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.84; // Slightly smaller cards for cleaner mobile portrait framing.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -2287,10 +2287,10 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.46 * ARENA_PROP_SCALE, landscape: 0.52 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.08 * ARENA_PROP_SCALE,
-  landscape: 0.9 * ARENA_PROP_SCALE
+  portrait: 1.16 * ARENA_PROP_SCALE,
+  landscape: 0.94 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.2 * MODEL_SCALE;
@@ -2385,7 +2385,7 @@ const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.72 * ARENA_PROP_SCALE;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.76 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -3688,7 +3688,7 @@ export default function MurlanRoyaleArena({ search }) {
         target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
-        const handLookTarget = focus.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+        const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
@@ -4751,7 +4751,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.74 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.6 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
