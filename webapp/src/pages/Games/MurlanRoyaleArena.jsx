@@ -2313,6 +2313,8 @@ const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
+const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.34;
+const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.48;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2340,6 +2342,14 @@ const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
+
+function resolveSeatHandRadius(tableRadius, isHumanSeat) {
+  const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
+  if (isHumanSeat) {
+    return safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET;
+  }
+  return safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET;
+}
 
 function calcFanCardPose(cardCount, cardIdx) {
   if (cardCount <= 1) {
@@ -4782,6 +4792,7 @@ export default function MurlanRoyaleArena({ search }) {
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
       const chairRadius = CHAIR_RADIUS;
+      const activeTableRadius = threeStateRef.current.tableInfo?.radius ?? TABLE_RADIUS;
       const seatThickness = SEAT_THICKNESS;
 
       cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
@@ -4829,7 +4840,7 @@ export default function MurlanRoyaleArena({ search }) {
           forward,
           right,
           focus,
-          radius: (isHumanSeat ? 2.9 : 3.05) * MODEL_SCALE,
+          radius: resolveSeatHandRadius(activeTableRadius, isHumanSeat),
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
           stoolPosition,
