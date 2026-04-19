@@ -1932,7 +1932,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     renderer.domElement.addEventListener('mousemove', onMove);
 
     const SPEED_BOOST = 1.25;
-    const PUCK_SPEED_TUNING = 0.9;
+    const PUCK_SPEED_TUNING = 0.82;
     const HIT_FORCE = 0.5 * SPEED_SCALE * SPEED_BOOST * PUCK_SPEED_TUNING;
     const MAX_SPEED = 0.095 * SPEED_SCALE * SPEED_BOOST * PUCK_SPEED_TUNING;
     const SERVE_SPEED = 0.055 * SPEED_SCALE * SPEED_BOOST * PUCK_SPEED_TUNING;
