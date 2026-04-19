@@ -106,7 +106,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
-const TOP_SEAT_AVATAR_UP_LIFT = 2.9; // Lift top avatar a touch more for portrait readability.
+const TOP_SEAT_AVATAR_UP_LIFT = 2.4; // Keep top avatar slightly closer to table center in portrait.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const CHAIR_COUNT = 4;
@@ -2285,15 +2285,15 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.14 * 1.1 * ARENA_PROP_SCALE;
+const CHAIR_VISUAL_SCALE = 1.08 * 1.1 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.34 * ARENA_PROP_SCALE,
-  landscape: 1.0 * ARENA_PROP_SCALE
+  portrait: 1.24 * ARENA_PROP_SCALE,
+  landscape: 0.94 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.24 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.2 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -2306,7 +2306,7 @@ const HUMAN_HAND_CLOSER_OFFSET = -0.92 * MODEL_SCALE; // Move the bottom player'
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0;
 const HUMAN_HAND_LEFT_SHIFT = 0;
-const HUMAN_HAND_UP_SHIFT_Y = 0.01 * MODEL_SCALE;
+const HUMAN_HAND_UP_SHIFT_Y = 0.03 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
@@ -2340,7 +2340,7 @@ const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SC
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
-const AI_CARD_LIFT = 0.03 * MODEL_SCALE;
+const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
@@ -3417,17 +3417,16 @@ export default function MurlanRoyaleArena({ search }) {
       const shouldUseChairAnchor = !gameStateRef.current?.players?.[index]?.isHuman;
       if (shouldUseChairAnchor && seat?.chair) {
         seat.chair.getWorldPosition(anchorPoint);
-        anchorPoint.y += 0.38 * MODEL_SCALE;
+        anchorPoint.y += 0.32 * MODEL_SCALE;
       } else {
         const headBone = seat?.characterRig?.bones?.head;
         if (headBone) {
           headBone.getWorldPosition(anchorPoint);
-          anchorPoint.y += 0.14 * MODEL_SCALE;
+          anchorPoint.y += 0.08 * MODEL_SCALE;
         } else {
           const stool = seat.stoolPosition ? seat.stoolPosition.clone() : new THREE.Vector3();
           stool.y = seat.stoolHeight ?? CHAIR_BASE_HEIGHT;
           anchorPoint.copy(stool);
-          anchorPoint.y += 0.06 * MODEL_SCALE;
         }
       }
       const projected = anchorPoint.clone().project(camera);
@@ -3772,7 +3771,7 @@ export default function MurlanRoyaleArena({ search }) {
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.02)
+      .addScaledVector(pileForwardAxis, CARD_H * 1.44)
       .addScaledVector(pileRightAxis, CARD_W * 1.62)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
