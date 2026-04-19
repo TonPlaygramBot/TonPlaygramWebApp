@@ -2262,7 +2262,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
-const CARD_SCALE = ARENA_PROP_SCALE * 0.75 * TABLE_AND_CHAIR_VISUAL_SHRINK; // Keep cards a bit smaller than table/chairs for cleaner portrait readability.
+const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * TABLE_AND_CHAIR_VISUAL_SHRINK; // Match cards to the same 30% visual shrink as table/chairs.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -4813,8 +4813,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.2,
-        segments: 8
+        cornerRadiusRatio: 0.14,
+        segments: 6
       });
 
       const seatConfigs = [];
