@@ -65,7 +65,8 @@ const TABLE_SIZE_REDUCTION_FACTOR = 0.74;
 const TABLE_HEIGHT_REDUCTION_FACTOR = 0.88;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
-const BOARD_VISUAL_SIZE_BOOST = 1.16;
+const BOARD_VISUAL_SIZE_BOOST = 1.24;
+const TOKEN_SIZE_BOOST = 1.08;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
   TABLE_BASE_SCALE *
@@ -116,10 +117,10 @@ const BOARD_FRAME_SIDE_WIDTH = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_TOP_RAIL_DEPTH = 0.046 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_CENTER_Z = 0;
 const TOKEN_THICKNESS = BOARD_SLOT_GAP * 0.9;
-const TOKEN_DOME_RADIUS = slotRadius => slotRadius * 0.88;
+const TOKEN_DOME_RADIUS = slotRadius => slotRadius * 0.9 * TOKEN_SIZE_BOOST;
 const TOKEN_DOME_OFFSET = TOKEN_THICKNESS * 0.2;
-const TOKEN_RIM_RADIUS_FACTOR = 0.9;
-const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.14;
+const TOKEN_RIM_RADIUS_FACTOR = 0.9 * TOKEN_SIZE_BOOST;
+const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.145 * TOKEN_SIZE_BOOST;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -192,6 +193,7 @@ const GRAPHICS_PRESETS = Object.freeze([
   }
 ]);
 let sharedKtx2Loader = null;
+const polyhavenModelUrlCache = new Map();
 
 const createBoard = (rows, cols) =>
   Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -545,6 +547,34 @@ function buildPolyhavenModelUrls(assetId) {
   ];
 }
 
+async function resolvePolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  if (polyhavenModelUrlCache.has(assetId)) {
+    return polyhavenModelUrlCache.get(assetId);
+  }
+  const fallbackUrls = buildPolyhavenModelUrls(assetId);
+  try {
+    const response = await fetch(
+      `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+    );
+    if (!response.ok) {
+      polyhavenModelUrlCache.set(assetId, fallbackUrls);
+      return fallbackUrls;
+    }
+    const json = await response.json();
+    const preferred = ['2k', '1k', '4k'];
+    const fromApi = preferred
+      .map((res) => json?.gltf?.[res]?.gltf?.url)
+      .filter(Boolean);
+    const urls = fromApi.length ? fromApi : fallbackUrls;
+    polyhavenModelUrlCache.set(assetId, urls);
+    return urls;
+  } catch {
+    polyhavenModelUrlCache.set(assetId, fallbackUrls);
+    return fallbackUrls;
+  }
+}
+
 async function createChairModel(chairTheme, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
@@ -552,7 +582,7 @@ async function createChairModel(chairTheme, renderer = null) {
   let lastError = null;
 
   for (const assetId of candidateAssetIds) {
-    const urls = buildPolyhavenModelUrls(assetId);
+    const urls = await resolvePolyhavenModelUrls(assetId);
     for (const url of urls) {
       try {
         if (MeshoptDecoder?.ready) {
@@ -790,17 +820,53 @@ export default function FourInRowRoyal() {
     osc.stop(now + duration);
   };
 
+  const playNoiseHit = (duration = 0.07, gain = 0.012) => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const channel = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i += 1) {
+      channel[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 980;
+    filter.Q.value = 0.75;
+    const amp = ctx.createGain();
+    amp.gain.value = gain;
+    source.buffer = noiseBuffer;
+    source.connect(filter);
+    filter.connect(amp);
+    amp.connect(ctx.destination);
+    const now = ctx.currentTime;
+    amp.gain.setValueAtTime(gain, now);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    source.start(now);
+    source.stop(now + duration);
+  };
+
   const playChipDropFx = (token) => {
-    const base = token === 'player' ? 440 : 330;
-    playTone(base, 0.045, 'triangle', 0.02);
-    window.setTimeout(() => playTone(base * 0.52, 0.06, 'sine', 0.015), 22);
+    const base = token === 'player' ? 420 : 315;
+    playTone(base * 0.5, 0.08, 'triangle', 0.018);
+    playTone(base, 0.06, 'sine', 0.016);
+    window.setTimeout(() => playTone(base * 1.5, 0.042, 'triangle', 0.01), 18);
+    window.setTimeout(() => playNoiseHit(0.05, 0.01), 14);
   };
 
   const playConnectFourFx = (token) => {
-    const line = token === 'player' ? [600, 760, 980, 1200] : [260, 340, 420, 540];
+    const line =
+      token === 'player'
+        ? [523.25, 659.25, 783.99, 1046.5]
+        : [392, 493.88, 587.33, 783.99];
     line.forEach((freq, idx) => {
-      window.setTimeout(() => playTone(freq, 0.12, 'square', 0.028), idx * 70);
+      window.setTimeout(() => {
+        playTone(freq, 0.12, 'triangle', 0.024);
+        playTone(freq * 2, 0.09, 'sine', 0.008);
+      }, idx * 65);
     });
+    window.setTimeout(() => playNoiseHit(0.08, 0.009), 55);
   };
 
   const createTokenMesh = (token) => {
@@ -827,8 +893,8 @@ export default function FourInRowRoyal() {
     const domeRadius = TOKEN_DOME_RADIUS(slotRadius);
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(
-        slotRadius * 0.99,
-        slotRadius * 0.99,
+        slotRadius * 0.99 * TOKEN_SIZE_BOOST,
+        slotRadius * 0.99 * TOKEN_SIZE_BOOST,
         TOKEN_THICKNESS,
         42
       ),
