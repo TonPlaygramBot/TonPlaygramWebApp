@@ -623,6 +623,14 @@ const PIECE_LABELS = Object.freeze({
   Q: 'queen',
   K: 'king'
 });
+const CAPTURE_ANIMATION_BY_PIECE = Object.freeze({
+  P: 'pawnJavelin',
+  N: 'droneStrike',
+  B: 'helicopterStrike',
+  R: 'rookJavelin',
+  Q: 'queenJetStrike',
+  K: 'kingJetStrike'
+});
 const FILE_LABELS = 'abcdefgh';
 const resolveChessSquare = (r, c) => `${FILE_LABELS[c] || '?'}${8 - r}`;
 
@@ -9967,8 +9975,22 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
-      const pieceType = (movingType || '').toUpperCase();
-      if (pieceType === 'R') {
+      const resolveCapturePieceType = () => {
+        const candidates = [
+          movingType,
+          movingMesh?.userData?.t,
+          movingMesh?.userData?.__pieceType,
+          movingMesh?.userData?.type
+        ];
+        for (const value of candidates) {
+          const key = `${value || ''}`.trim().toUpperCase();
+          if (CAPTURE_ANIMATION_BY_PIECE[key]) return key;
+        }
+        return '';
+      };
+      const pieceType = resolveCapturePieceType();
+      const captureAnimationId = CAPTURE_ANIMATION_BY_PIECE[pieceType] || '';
+      if (captureAnimationId === 'rookJavelin') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
@@ -9999,8 +10021,8 @@ function Chess3D({
           captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         };
       }
-      if (pieceType === 'N' || pieceType === 'P') {
-        if (pieceType === 'N') {
+      if (captureAnimationId === 'droneStrike' || captureAnimationId === 'pawnJavelin') {
+        if (captureAnimationId === 'droneStrike') {
           suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
           const isWhiteSide = Boolean(movingMesh?.userData?.w);
           const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
@@ -10060,7 +10082,7 @@ function Chess3D({
           captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         };
       }
-      if (pieceType === 'K') {
+      if (captureAnimationId === 'kingJetStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
@@ -10109,7 +10131,7 @@ function Chess3D({
           captureResolveDelayMs: jetImpactDelayMs
         };
       }
-      if (pieceType === 'B') {
+      if (captureAnimationId === 'helicopterStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
@@ -10163,7 +10185,7 @@ function Chess3D({
           captureResolveDelayMs: helicopterImpactDelayMs
         };
       }
-      if (pieceType === 'Q') {
+      if (captureAnimationId === 'queenJetStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
