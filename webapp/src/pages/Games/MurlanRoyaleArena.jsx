@@ -2340,6 +2340,19 @@ const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.05 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
+const BASE_TABLE_LAYOUT_RADIUS = TABLE_RADIUS * TABLE_SIDE_TRIM_SCALE;
+const TABLE_LAYOUT_RADIUS_MIN = 0.72;
+const TABLE_LAYOUT_RADIUS_MAX = 1.12;
+
+function resolveTableLayoutRadiusScale(tableInfo) {
+  const measuredRadius = Number.isFinite(tableInfo?.radius) ? tableInfo.radius : BASE_TABLE_LAYOUT_RADIUS;
+  if (!(measuredRadius > 0)) return 1;
+  return THREE.MathUtils.clamp(
+    measuredRadius / BASE_TABLE_LAYOUT_RADIUS,
+    TABLE_LAYOUT_RADIUS_MIN,
+    TABLE_LAYOUT_RADIUS_MAX
+  );
+}
 
 function calcFanCardPose(cardCount, cardIdx) {
   if (cardCount <= 1) {
@@ -3642,6 +3655,7 @@ export default function MurlanRoyaleArena({ search }) {
       const forward = seat.forward;
       const right = seat.right;
       const radius = seat.radius;
+      const tableLayoutScale = resolveTableLayoutRadiusScale(three.tableInfo);
       const focus = seat.focus;
       const spacing = seat.spacing;
       const maxSpread = seat.maxSpread;
@@ -3660,7 +3674,7 @@ export default function MurlanRoyaleArena({ search }) {
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
         const lateral = humanLineOffset;
-        const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
+        const radial = (player.isHuman ? radius : radius + AI_CARD_OUTWARD) * tableLayoutScale;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
@@ -3673,7 +3687,10 @@ export default function MurlanRoyaleArena({ search }) {
           layoutAxis.set(1, 0, 0);
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
+        target.addScaledVector(
+          forward,
+          (isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET) * tableLayoutScale
+        );
         target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
         target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
@@ -3705,6 +3722,7 @@ export default function MurlanRoyaleArena({ search }) {
       });
     });
 
+    const tableLayoutScale = resolveTableLayoutRadiusScale(three.tableInfo);
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
@@ -3717,8 +3735,8 @@ export default function MurlanRoyaleArena({ search }) {
     const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
     if (humanSeat?.forward) {
-      tableAnchor.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN);
-      tableLookBase.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN);
+      tableAnchor.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN * tableLayoutScale);
+      tableLookBase.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN * tableLayoutScale);
     }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
@@ -3761,8 +3779,8 @@ export default function MurlanRoyaleArena({ search }) {
     const pileForwardAxis = humanSeat?.forward?.clone()?.normalize?.() ?? new THREE.Vector3(0, 0, 1);
     const discardAnchor = tableAnchor
       .clone()
-      .addScaledVector(pileForwardAxis, CARD_H * 1.44)
-      .addScaledVector(pileRightAxis, CARD_W * 1.62)
+      .addScaledVector(pileForwardAxis, CARD_H * 1.44 * tableLayoutScale)
+      .addScaledVector(pileRightAxis, CARD_W * 1.62 * tableLayoutScale)
       .add(new THREE.Vector3(0, DISCARD_PILE_OFFSET.y, 0));
     state.discardPile.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
@@ -3883,11 +3901,16 @@ export default function MurlanRoyaleArena({ search }) {
       three.tableShapeId = shapeOption?.id ?? TABLE_SHAPE_OPTIONS[DEFAULT_TABLE_SHAPE_INDEX]?.id ?? null;
       three.tableClothId = cloth?.id ?? null;
       three.tableFinishId = finish?.id ?? null;
-      three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, TABLE_CARD_AREA_FORWARD_SHIFT);
+      const tableLayoutScale = resolveTableLayoutRadiusScale(tableInfo);
+      three.tableAnchor = new THREE.Vector3(
+        0,
+        tableInfo.surfaceY + CARD_SURFACE_OFFSET,
+        TABLE_CARD_AREA_FORWARD_SHIFT * tableLayoutScale
+      );
       three.discardAnchor = new THREE.Vector3(
         DISCARD_PILE_OFFSET.x,
         tableInfo.surfaceY + DISCARD_PILE_OFFSET.y,
-        DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT
+        DISCARD_PILE_OFFSET.z + TABLE_CARD_AREA_FORWARD_SHIFT * tableLayoutScale
       );
       return tableInfo;
     },
