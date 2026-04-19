@@ -2267,7 +2267,7 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   y: CARD_H * 1.14,
   z: -TABLE_RADIUS * 0.18
 });
-const DISCARD_PILE_FORWARD_SHIFT = CARD_H * 1.74;
+const DISCARD_PILE_FORWARD_SHIFT = CARD_H * 0.52;
 const DISCARD_PILE_RIGHT_SHIFT = CARD_W * 1.48;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2287,15 +2287,15 @@ const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWA
 const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
-const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * ARENA_PROP_SCALE;
+const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.06 * ARENA_PROP_SCALE;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.12 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.54 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.3 * ARENA_PROP_SCALE,
+  portrait: 1.38 * ARENA_PROP_SCALE,
   landscape: 0.98 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.24 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -2305,9 +2305,11 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = -0.92 * MODEL_SCALE; // Move the bottom player's hand inward so cards sit between chair and table.
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.055 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.072 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = 0;
 const AI_HAND_CLOSER_OFFSET = 0;
-const HUMAN_HAND_LEFT_SHIFT = 0;
+const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
+const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.012 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
@@ -3686,8 +3688,13 @@ export default function MurlanRoyaleArena({ search }) {
         }
         const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
         target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
-        target.addScaledVector(layoutAxis, HUMAN_HAND_LEFT_SHIFT);
-        target.y = baseHeight + centerWeight * fanArcLift + HUMAN_HAND_BOTTOM_SHIFT_Y + HUMAN_HAND_UP_SHIFT_Y + leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
+        target.addScaledVector(layoutAxis, isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT);
+        target.y =
+          baseHeight +
+          centerWeight * fanArcLift +
+          (isHumanCard ? HUMAN_HAND_BOTTOM_SHIFT_Y : AI_HAND_BOTTOM_SHIFT_Y) +
+          HUMAN_HAND_UP_SHIFT_Y +
+          leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
         mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
@@ -4931,7 +4938,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.97;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.94;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
@@ -5060,15 +5067,13 @@ export default function MurlanRoyaleArena({ search }) {
       handlePointerDown = (event) => {
         if (!humanTurnRef.current) return;
         const rect = dom.getBoundingClientRect();
-        const pointer = new THREE.Vector2(
-          ((event.clientX - rect.left) / rect.width) * 2 - 1,
-          -((event.clientY - rect.top) / rect.height) * 2 + 1
-        );
-        threeStateRef.current.raycaster.setFromCamera(pointer, camera);
-        const intersects = threeStateRef.current.raycaster.intersectObjects(threeStateRef.current.selectionTargets, false);
-        if (!intersects.length) return;
-        const picked = intersects[0].object;
-        const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
+        const cardId = pickMostPreciseCardAtPointer({
+          event,
+          rect,
+          camera,
+          selectionTargets: threeStateRef.current.selectionTargets,
+          raycaster: threeStateRef.current.raycaster
+        });
         if (cardId) toggleSelection(cardId);
       };
       dom.addEventListener('pointerdown', handlePointerDown);
@@ -5353,13 +5358,13 @@ export default function MurlanRoyaleArena({ search }) {
             const activePlayer = gameState.players?.[idx] ?? player;
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
-            const sideSeatTopLift = 1.05;
+            const sideSeatTopLift = 1.35;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(11.9rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(11.4rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -6134,6 +6139,110 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.arcTo(x, y + height, x, y, r);
   ctx.arcTo(x, y, x + width, y, r);
   ctx.closePath();
+}
+
+function pickMostPreciseCardAtPointer({
+  event,
+  rect,
+  camera,
+  selectionTargets,
+  raycaster
+}) {
+  if (!event || !rect || !camera || !Array.isArray(selectionTargets) || !selectionTargets.length || !raycaster) {
+    return null;
+  }
+  const pointerX = event.clientX - rect.left;
+  const pointerY = event.clientY - rect.top;
+  const pointer = new THREE.Vector2((pointerX / rect.width) * 2 - 1, -(pointerY / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(selectionTargets, false);
+  if (!intersects.length) {
+    return null;
+  }
+
+  const screenCorners = [];
+  const cardPlaneZ = CARD_D * 0.5;
+  const localCorners = [
+    new THREE.Vector3(-CARD_W / 2, -CARD_H / 2, cardPlaneZ),
+    new THREE.Vector3(CARD_W / 2, -CARD_H / 2, cardPlaneZ),
+    new THREE.Vector3(CARD_W / 2, CARD_H / 2, cardPlaneZ),
+    new THREE.Vector3(-CARD_W / 2, CARD_H / 2, cardPlaneZ)
+  ];
+  const cross2d = (ax, ay, bx, by, px, py) => (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+  const isPointInsideQuad = (px, py, quad) => {
+    let sign = 0;
+    for (let i = 0; i < quad.length; i++) {
+      const a = quad[i];
+      const b = quad[(i + 1) % quad.length];
+      const cross = cross2d(a.x, a.y, b.x, b.y, px, py);
+      if (Math.abs(cross) < 0.0001) continue;
+      const nextSign = cross > 0 ? 1 : -1;
+      if (sign === 0) {
+        sign = nextSign;
+      } else if (sign !== nextSign) {
+        return false;
+      }
+    }
+    return true;
+  };
+  const pointToSegmentDistance = (px, py, a, b) => {
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const lengthSq = abx * abx + aby * aby;
+    if (lengthSq < 1e-6) return Math.hypot(px - a.x, py - a.y);
+    const t = Math.max(0, Math.min(1, ((px - a.x) * abx + (py - a.y) * aby) / lengthSq));
+    const cx = a.x + abx * t;
+    const cy = a.y + aby * t;
+    return Math.hypot(px - cx, py - cy);
+  };
+
+  let bestInsideCardId = null;
+  let bestInsideDistance = Number.POSITIVE_INFINITY;
+  let bestEdgeCardId = null;
+  let bestEdgeDistance = Number.POSITIVE_INFINITY;
+  const maxEdgeDistance = detectCoarsePointer() ? 6 : 4;
+
+  intersects.forEach((hit) => {
+    const mesh = hit?.object;
+    if (!mesh) return;
+    const cardId = mesh.userData.cardId || mesh.parent?.userData.cardId;
+    if (!cardId) return;
+    mesh.updateWorldMatrix(true, false);
+    screenCorners.length = 0;
+    for (const local of localCorners) {
+      const world = local.clone().applyMatrix4(mesh.matrixWorld);
+      const projected = world.project(camera);
+      screenCorners.push({
+        x: ((projected.x + 1) * 0.5) * rect.width,
+        y: ((1 - projected.y) * 0.5) * rect.height
+      });
+    }
+    const inside = isPointInsideQuad(pointerX, pointerY, screenCorners);
+    if (inside) {
+      if (hit.distance < bestInsideDistance) {
+        bestInsideDistance = hit.distance;
+        bestInsideCardId = cardId;
+      }
+      return;
+    }
+    let edgeDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < screenCorners.length; i++) {
+      const a = screenCorners[i];
+      const b = screenCorners[(i + 1) % screenCorners.length];
+      const segDistance = pointToSegmentDistance(pointerX, pointerY, a, b);
+      if (segDistance < edgeDistance) {
+        edgeDistance = segDistance;
+      }
+    }
+    if (edgeDistance < bestEdgeDistance) {
+      bestEdgeDistance = edgeDistance;
+      bestEdgeCardId = cardId;
+    }
+  });
+
+  if (bestInsideCardId) return bestInsideCardId;
+  if (bestEdgeDistance <= maxEdgeDistance) return bestEdgeCardId;
+  return null;
 }
 
 function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations, delayMs = 0) {
