@@ -65,7 +65,7 @@ const TABLE_SIZE_REDUCTION_FACTOR = 0.74;
 const TABLE_HEIGHT_REDUCTION_FACTOR = 0.88;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
-const BOARD_VISUAL_SIZE_BOOST = 1.08;
+const BOARD_VISUAL_SIZE_BOOST = 1.16;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
   TABLE_BASE_SCALE *
@@ -105,7 +105,7 @@ const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
 const CHAIR_GAP = 1.08 * CHAIR_SCALE;
 const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
 const BOARD_TABLE_CLEARANCE = 0.015 * BOARD_AND_CHIPS_SCALE;
-const BOARD_VERTICAL_LIFT = 0;
+const BOARD_VERTICAL_LIFT = 0.06 * BOARD_AND_CHIPS_SCALE;
 const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FACE_THICKNESS = 0.028 * BOARD_AND_CHIPS_SCALE;
@@ -128,6 +128,9 @@ const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
 const DROP_BASE_DURATION = 0.2;
 const DROP_ROW_DURATION_STEP = 0.03;
+const WIN_HIGHLIGHT_SCALE_BASE = 1.16;
+const WIN_HIGHLIGHT_SCALE_PULSE = 0.14;
+const WIN_HIGHLIGHT_BOUNCE = 0.032 * BOARD_AND_CHIPS_SCALE;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/versioned/2021-04-15/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
@@ -440,6 +443,9 @@ function createConfiguredGLTFLoader(renderer = null) {
   draco.setDecoderPath(DRACO_DECODER_PATH);
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder?.(MeshoptDecoder);
+  if (MeshoptDecoder?.ready?.catch) {
+    void MeshoptDecoder.ready.catch(() => {});
+  }
   if (!sharedKtx2Loader) {
     sharedKtx2Loader = new KTX2Loader();
     sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
@@ -502,6 +508,9 @@ function preserveOriginalGltfTextureMapping(model) {
         const tex = mat[slot];
         if (!tex) return;
         tex.flipY = false;
+        if (slot === 'map' || slot === 'emissiveMap') {
+          tex.colorSpace = THREE.SRGBColorSpace;
+        }
         tex.needsUpdate = true;
       });
       mat.needsUpdate = true;
@@ -546,6 +555,9 @@ async function createChairModel(chairTheme, renderer = null) {
     const urls = buildPolyhavenModelUrls(assetId);
     for (const url of urls) {
       try {
+        if (MeshoptDecoder?.ready) {
+          await MeshoptDecoder.ready;
+        }
         const gltf = await loader.loadAsync(url);
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) continue;
@@ -555,6 +567,7 @@ async function createChairModel(chairTheme, renderer = null) {
           obj.receiveShadow = true;
         });
         preserveOriginalGltfTextureMapping(root);
+        root.updateMatrixWorld(true);
         fitChairModelToFootprint(root);
         if (!chairTheme?.preserveMaterials) {
           tintChairModel(root, chairTheme);
@@ -808,6 +821,9 @@ export default function FourInRowRoyal() {
     });
     const tokenMesh = new THREE.Group();
     const material = token === 'player' ? playerMat : aiMat;
+    const highlightMaterials = [material, rimMat].filter(
+      (mat) => mat && 'emissive' in mat
+    );
     const domeRadius = TOKEN_DOME_RADIUS(slotRadius);
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(
@@ -846,6 +862,12 @@ export default function FourInRowRoyal() {
     rim.rotation.x = Math.PI / 2;
     tokenMesh.add(body, domeA, domeB, rim);
     tokenMesh.rotation.x = Math.PI / 2;
+    tokenMesh.userData = {
+      baseY: 0,
+      highlightPhase: Math.random() * Math.PI * 2,
+      highlightMaterials,
+      isWinning: false
+    };
     return tokenMesh;
   };
 
@@ -862,6 +884,7 @@ export default function FourInRowRoyal() {
         const [x, y, z] = worldFromCell(r, c);
         const token = createTokenMesh(boardState[r][c]);
         token.position.set(x, y, z);
+        token.userData.baseY = y;
         group.add(token);
         piecesMapRef.current.set(`${r}-${c}`, token);
       }
@@ -1381,8 +1404,35 @@ export default function FourInRowRoyal() {
       winningCellsRef.current.forEach(([r, c]) => {
         const token = piecesMapRef.current.get(`${r}-${c}`);
         if (!token) return;
-        const pulse = 1.08 + Math.sin(elapsed * 8) * 0.06;
+        token.userData.isWinning = true;
+        const phase = token.userData.highlightPhase || 0;
+        const pulse =
+          WIN_HIGHLIGHT_SCALE_BASE +
+          Math.sin(elapsed * 11 + phase) * WIN_HIGHLIGHT_SCALE_PULSE;
         token.scale.setScalar(pulse);
+        token.position.y =
+          (token.userData.baseY ?? token.position.y) +
+          Math.max(0, Math.sin(elapsed * 12 + phase)) * WIN_HIGHLIGHT_BOUNCE;
+        token.rotation.z = Math.sin(elapsed * 10 + phase) * 0.08;
+        const glow = 0.42 + Math.max(0, Math.sin(elapsed * 18 + phase)) * 0.8;
+        token.userData.highlightMaterials?.forEach((mat) => {
+          mat.emissive.copy(mat.color).multiplyScalar(glow);
+          mat.emissiveIntensity = 0.65 + glow * 0.65;
+        });
+      });
+
+      piecesMapRef.current.forEach((token) => {
+        if (token?.userData?.isWinning) {
+          token.userData.isWinning = false;
+          return;
+        }
+        token.scale.setScalar(1);
+        token.position.y = token.userData?.baseY ?? token.position.y;
+        token.rotation.z = 0;
+        token.userData?.highlightMaterials?.forEach((mat) => {
+          mat.emissive.set(0x000000);
+          mat.emissiveIntensity = 1;
+        });
       });
 
       controls.update();
@@ -1500,7 +1550,7 @@ export default function FourInRowRoyal() {
     winningCells.forEach(([r, c], index) => {
       const piece = piecesMapRef.current.get(`${r}-${c}`);
       if (!piece) return;
-      piece.scale.setScalar(1.1);
+      piece.scale.setScalar(1.18);
       setTimeout(
         () => {
           if (piece) piece.scale.setScalar(1);
@@ -1557,6 +1607,7 @@ export default function FourInRowRoyal() {
           const target = new THREE.Vector3(targetX, targetY, targetZ);
           const mesh = createTokenMesh(nextCell);
           mesh.position.copy(columnTop);
+          mesh.userData.baseY = targetY;
           group.add(mesh);
           piecesMapRef.current.set(`${r}-${c}`, mesh);
           fallingPiecesRef.current.push({
