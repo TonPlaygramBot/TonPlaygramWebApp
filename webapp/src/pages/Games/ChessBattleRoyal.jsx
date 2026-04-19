@@ -11463,15 +11463,22 @@ function Chess3D({
       syncMovedPieceMesh();
       cancelPieceAnimation(m);
       const targetPosition = toWorldPos;
+      const moveDistanceTiles = Math.hypot(rr - sel.r, cc - sel.c);
+      const moveDuration = THREE.MathUtils.clamp(0.2 + moveDistanceTiles * 0.1, 0.22, 0.48);
+      const moveArcHeight = Math.max(0.05, Math.min(0.2, moveDistanceTiles * tile * 0.22));
       if (moveDelayMs > 0) {
         setTimeout(() => {
           syncMovedPieceMesh();
           cancelPieceAnimation(m);
-          animatePieceTo(m, targetPosition, 0.32);
+          animatePieceTo(m, targetPosition, moveDuration, undefined, {
+            arcHeight: moveArcHeight
+          });
           playMoveSound();
         }, moveDelayMs);
       } else {
-        animatePieceTo(m, targetPosition, 0.32);
+        animatePieceTo(m, targetPosition, moveDuration, undefined, {
+          arcHeight: moveArcHeight
+        });
         playMoveSound();
       }
       highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
@@ -11485,7 +11492,7 @@ function Chess3D({
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
         const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-        animatePieceTo(rookMesh, rookTarget, 0.32);
+        animatePieceTo(rookMesh, rookTarget, 0.34, undefined, { arcHeight: 0.06 });
       }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
@@ -11689,15 +11696,54 @@ function Chess3D({
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
+    const boardPickPlane = new THREE.Plane();
+    const boardPickPlanePoint = new THREE.Vector3();
+    const boardPickPlaneNormal = new THREE.Vector3();
+    const boardPickWorldPoint = new THREE.Vector3();
+    const boardPickLocalPoint = new THREE.Vector3();
+    const boardForward = new THREE.Vector3(0, 0, 1);
+    const tempQuat = new THREE.Quaternion();
+
+    const resolveTileFromBoardLocalPoint = (localPoint) => {
+      if (!localPoint) return null;
+      const column = Math.floor((localPoint.x + half) / tile);
+      const row = Math.floor((localPoint.z + half) / tile);
+      if (row < 0 || row > 7 || column < 0 || column > 7) return null;
+      return { r: row, c: column };
+    };
+
+    const resolveTileFromPointerPlane = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      boardGroup.getWorldQuaternion(tempQuat);
+      boardPickPlaneNormal.set(0, 1, 0).applyQuaternion(tempQuat).normalize();
+      boardPickPlanePoint.set(0, currentPieceYOffset, 0);
+      boardGroup.localToWorld(boardPickPlanePoint);
+      boardPickPlane.setFromNormalAndCoplanarPoint(boardPickPlaneNormal, boardPickPlanePoint);
+      if (!ray.ray.intersectPlane(boardPickPlane, boardPickWorldPoint)) return null;
+      boardPickLocalPoint.copy(boardPickWorldPoint);
+      boardGroup.worldToLocal(boardPickLocalPoint);
+      return resolveTileFromBoardLocalPoint(boardPickLocalPoint);
+    };
+
+    const animatePieceTo = (mesh, target, duration = 0.28, onComplete, options = {}) => {
       if (!mesh) return;
+      const { arcHeight = 0, spinTurns = 0 } = options;
+      const turnAxis =
+        Math.abs(spinTurns) > 0.001
+          ? boardForward.clone().applyQuaternion(mesh.quaternion).normalize()
+          : null;
       const anim = {
         mesh,
         start: mesh.position.clone(),
         target: target.clone(),
         duration: Math.max(0.05, duration),
         elapsed: 0,
-        onComplete
+        onComplete,
+        arcHeight: Math.max(0, arcHeight),
+        spinTurns,
+        initialQuat: mesh.quaternion.clone(),
+        spinAxis: turnAxis
       };
       activePieceAnimations.push(anim);
     };
@@ -11724,13 +11770,21 @@ function Chess3D({
       highlightSelection(from.r, from.c, selectionColor);
       highlightMoves([[to.r, to.c]], highlightColor);
       pieceMesh.position.copy(fromPos);
-      animatePieceTo(pieceMesh, toPos, 0.45, () => {
-        pieceMesh.position.copy(toPos);
-        isReplayingRef.current = false;
-      });
+      animatePieceTo(
+        pieceMesh,
+        toPos,
+        0.45,
+        () => {
+          pieceMesh.position.copy(toPos);
+          isReplayingRef.current = false;
+        },
+        { arcHeight: 0.08 }
+      );
     };
 
     const pickTileFromPointer = (event) => {
+      const preciseHit = resolveTileFromPointerPlane(event);
+      if (preciseHit) return preciseHit;
       setPointer(event);
       ray.setFromCamera(pointer, camera);
       const hit = ray.intersectObjects(tiles, false)[0];
@@ -11784,8 +11838,11 @@ function Chess3D({
       if (!dragState.active || !dragState.mesh) return;
       const tileHit = pickTileFromPointer(event);
       if (!tileHit) return;
-      const target = piecePosition(tileHit.r, tileHit.c, currentPieceYOffset + 0.18);
-      dragState.mesh.position.lerp(target, 0.35);
+      const dragLift = currentPieceYOffset + 0.18;
+      const desired = piecePosition(tileHit.r, tileHit.c, dragLift);
+      const distance = dragState.mesh.position.distanceTo(desired);
+      const follow = THREE.MathUtils.clamp(0.22 + distance * 0.18, 0.22, 0.5);
+      dragState.mesh.position.lerp(desired, follow);
     };
 
     const onPointerUp = (event) => {
@@ -11966,8 +12023,20 @@ function Chess3D({
           const t = clamp01(anim.elapsed / anim.duration);
           const eased = 1 - (1 - t) * (1 - t);
           anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
+          if (anim.arcHeight > 0) {
+            anim.mesh.position.y += Math.sin(Math.PI * eased) * anim.arcHeight;
+          }
+          if (anim.spinAxis && Math.abs(anim.spinTurns) > 0.001) {
+            const spinAngle = eased * anim.spinTurns * Math.PI * 2;
+            anim.mesh.quaternion.copy(anim.initialQuat).multiply(
+              new THREE.Quaternion().setFromAxisAngle(anim.spinAxis, spinAngle)
+            );
+          }
           if (t >= 1) {
             anim.mesh.position.copy(anim.target);
+            if (anim.initialQuat) {
+              anim.mesh.quaternion.copy(anim.initialQuat);
+            }
             activePieceAnimations.splice(i, 1);
             if (typeof anim.onComplete === 'function') {
               try {
