@@ -152,11 +152,11 @@ const CAPTURE_VERTICAL_STRIKE_FINAL_LOCK_RATIO = 0.995; // keep final segment lo
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_PAD_STRIKE_ALTITUDE = CAPTURE_VERTICAL_STRIKE_ALTITUDE; // keep jet/helicopter as low as short-pawn strike
 const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.09; // keep aircraft path tighter and closer to parking slot
-const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.52; // lift from parking first, then do a short forward hop
-const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.64; // tiny movement toward target before launch
-const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.7; // return to parking soon after release
-const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.58; // fire right after the short forward movement
-const CAPTURE_PAD_MISSILE_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME; // keep jet/heli missile speed identical to pawn short missile
+const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.84; // much slower liftoff so aircraft visibly rise from parking spot
+const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.9;
+const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.95;
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.76; // launch only after a clearly visible lift + hover phase
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 3.2; // slower low-altitude strike path from side pads
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // trigger impact only at the very end of the precision strike
@@ -9566,38 +9566,6 @@ function Chess3D({
       }
       return { root, trail, rotor };
     };
-    const updateMissileTrailFx = ({
-      trail,
-      time = 0,
-      launchProgress = 1,
-      travelProgress = 0,
-      launchBoost = 1,
-      truckBoost = 1
-    }) => {
-      if (!Array.isArray(trail) || !trail.length) return;
-      const launchPhase = clamp01(launchProgress);
-      const travelPhase = clamp01(travelProgress);
-      trail.forEach((puff, idx) => {
-        if (!puff) return;
-        puff.position.set(-0.55 - idx * 0.16, Math.sin(time * 8.2 + idx * 0.9) * 0.02, 0);
-        const launchMix = clamp01(1 - travelPhase * 1.55);
-        const warmHex = idx < 2 ? '#ff522d' : '#ff8a3d';
-        const cruiseHex = idx < 2 ? '#4aa8ff' : '#dbe7f5';
-        const warmColor = new THREE.Color(warmHex);
-        const cruiseColor = new THREE.Color(cruiseHex);
-        const smokeColor = new THREE.Color('#f2f6fb');
-        const mixed = warmColor.clone().lerp(cruiseColor, travelPhase);
-        mixed.lerp(smokeColor, Math.max(0, travelPhase - 0.45) * 1.1);
-        const baseScale = 0.86 + idx * 0.17 + ((time * 1.55 + idx * 0.19) % 1) * 0.48;
-        const launchScale = THREE.MathUtils.lerp(1.85, 1, 1 - launchPhase);
-        const s = baseScale * THREE.MathUtils.lerp(launchScale, 1, travelPhase) * launchBoost * truckBoost;
-        puff.scale.setScalar(s);
-        if (puff.material) {
-          if (puff.material.color) puff.material.color.copy(mixed);
-          puff.material.opacity = THREE.MathUtils.lerp(0.92, 0.58, travelPhase) * THREE.MathUtils.lerp(1.2, 1, launchMix);
-        }
-      });
-    };
     const createFxExplosion = (position) => {
       const root = new THREE.Group();
       root.position.copy(position);
@@ -9620,17 +9588,17 @@ function Chess3D({
           )
         );
       }
-      for (let i = 0; i < 7; i += 1) {
+      for (let i = 0; i < 6; i += 1) {
         smoke.push(
           addFxSphere(
             root,
-            0.18 + i * 0.04,
-            [0, 0.16 + i * 0.07, 0],
-            '#2f3439',
+            0.17 + i * 0.037,
+            [0, 0.165 + i * 0.067, 0],
+            '#646b72',
             1,
             0,
             true,
-            0.44 - i * 0.038
+            0.34 - i * 0.035
           )
         );
       }
@@ -10068,7 +10036,7 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
-        const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0.04);
+        const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0.08);
         const launchBase = liveLaunchPos?.clone?.() || fromPos.clone();
         missileFx.root.position.copy(launchBase.clone());
         captureFxGroup.add(missileFx.root);
@@ -12132,12 +12100,6 @@ function Chess3D({
               missile.root.visible = true;
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              updateMissileTrailFx({
-                trail: missile.trail,
-                time: fx.t + idx * 0.07,
-                launchProgress: clamp01((fx.t - stagedReleaseTime) / 0.24),
-                travelProgress: missileU
-              });
               if (!fx.hasExploded && (missileU >= CAPTURE_SHORT_MISSILE_HIT_THRESHOLD || missilePos.distanceTo(fx.to) <= CAPTURE_GROUND_CONTACT_RADIUS)) {
                 fx.hasExploded = true;
                 launchExplosion(fx.to);
@@ -12230,12 +12192,6 @@ function Chess3D({
               missile.root.visible = true;
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              updateMissileTrailFx({
-                trail: missile.trail,
-                time: fx.t + idx * 0.07,
-                launchProgress: clamp01((fx.t - stagedReleaseTime) / 0.24),
-                travelProgress: missileU
-              });
               if (!fx.hasExploded && (missileU >= CAPTURE_SHORT_MISSILE_HIT_THRESHOLD || missilePos.distanceTo(fx.to) <= CAPTURE_GROUND_CONTACT_RADIUS)) {
                 fx.hasExploded = true;
                 launchExplosion(fx.to);
@@ -12258,24 +12214,26 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
-            const launchPos = fx.sourceUnit?.homePosition?.clone?.() || fx.launchPos.clone();
+            const launchPos = fx.sourceUnit?.homePosition?.clone?.() || getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            fx.launchPos.copy(launchPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
               fx.missileFx.root.visible = true;
               fx.missileFx.root.position.copy(launchPos);
-              updateMissileTrailFx({
-                trail: fx.missileFx.trail,
-                time: fx.t,
-                launchProgress: clamp01(fx.t / Math.max(0.001, CAPTURE_GROUND_FIRE_TIME)),
-                travelProgress: 0,
-                launchBoost: fx.sourceUnit
+              fx.missileFx.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
+                const launchBoost = fx.sourceUnit
                   ? THREE.MathUtils.lerp(
                       CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST,
                       1,
                       clamp01(fx.t / Math.max(0.001, CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME))
                     )
-                  : 1,
-                truckBoost: fx.sourceUnit ? 1.26 : 1
+                  : 1;
+                const truckSmokeBoost = fx.sourceUnit ? 1.22 : 1;
+                puff.scale.setScalar((0.92 + idx * 0.18) * launchBoost * truckSmokeBoost);
+                if (puff.material) {
+                  puff.material.opacity = THREE.MathUtils.lerp(0.98, 0.72, clamp01(fx.t / Math.max(0.001, CAPTURE_GROUND_FIRE_TIME)));
+                }
               });
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
@@ -12294,20 +12252,22 @@ function Chess3D({
               }
               captureDir.copy(missileNext).sub(missilePos).normalize();
               fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              updateMissileTrailFx({
-                trail: fx.missileFx.trail,
-                time: fx.t,
-                launchProgress: 1,
-                travelProgress: mu,
-                launchBoost:
+              fx.missileFx.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
+                const launchBoost =
                   fx.sourceUnit && fx.t < CAPTURE_GROUND_FIRE_TIME + CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME
                     ? THREE.MathUtils.lerp(
                         CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST,
                         1,
                         clamp01((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME)
                       )
-                    : 1,
-                truckBoost: fx.sourceUnit ? 1.16 : 1
+                    : 1;
+                const truckSmokeBoost = fx.sourceUnit ? 1.16 : 1;
+                const s = (0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52) * launchBoost * truckSmokeBoost;
+                puff.scale.setScalar(s);
+                if (puff.material) {
+                  puff.material.opacity = 0.7;
+                }
               });
             } else if (fx.reloading) {
               fx.missileFx.root.visible = true;
@@ -12341,11 +12301,8 @@ function Chess3D({
             fx.missileFx.root.position.copy(missilePos);
             captureDir.copy(missileNext).sub(missilePos).normalize();
             fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-            updateMissileTrailFx({
-              trail: fx.missileFx.trail,
-              time: fx.t,
-              launchProgress: clamp01(fx.t / 0.2),
-              travelProgress: u
+            fx.missileFx.trail?.forEach((puff, idx) => {
+              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.015, 0);
             });
             if (u >= 1) {
               launchExplosion(fx.to);
@@ -12379,13 +12336,6 @@ function Chess3D({
               );
               mesh.scale.setScalar(smokeGrow * (0.66 + idx * 0.12));
               mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
-              if (mesh.material?.color) {
-                mesh.material.color.lerpColors(
-                  new THREE.Color('#3d434a'),
-                  new THREE.Color('#111417'),
-                  clamp01(lifeSec / 0.9)
-                );
-              }
             });
             if (fx.t >= LUDO_CAPTURE_EXPLOSION_TIME) {
               captureFxGroup.remove(fx.explosion.root);
