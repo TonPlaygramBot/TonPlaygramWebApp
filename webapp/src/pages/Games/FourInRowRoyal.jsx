@@ -132,8 +132,8 @@ const DROP_ROW_DURATION_STEP = 0.03;
 const WIN_HIGHLIGHT_SCALE_BASE = 1.16;
 const WIN_HIGHLIGHT_SCALE_PULSE = 0.14;
 const WIN_HIGHLIGHT_BOUNCE = 0.032 * BOARD_AND_CHIPS_SCALE;
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/versioned/2021-04-15/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_SCALE,
   1.9173749900311232 * CHAIR_SCALE,
@@ -194,6 +194,7 @@ const GRAPHICS_PRESETS = Object.freeze([
 ]);
 let sharedKtx2Loader = null;
 const polyhavenModelUrlCache = new Map();
+const polyhavenFilesManifestCache = new Map();
 
 const createBoard = (rows, cols) =>
   Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -467,6 +468,49 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
+function createPolyhavenGltfLoader(renderer = null, includeUrlMap = null) {
+  const manager = new THREE.LoadingManager();
+  if (includeUrlMap?.size) {
+    manager.setURLModifier((requestUrl = '') => {
+      const cleanUrl = String(requestUrl || '').split('?')[0];
+      const normalized = cleanUrl.replace(/^\.\//, '');
+      const fileName = normalized.split('/').pop();
+      return (
+        includeUrlMap.get(cleanUrl) ||
+        includeUrlMap.get(normalized) ||
+        includeUrlMap.get(fileName) ||
+        requestUrl
+      );
+    });
+  }
+  const loader = new GLTFLoader(manager);
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+  if (MeshoptDecoder?.ready?.catch) {
+    void MeshoptDecoder.ready.catch(() => {});
+  }
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+  const supportRenderer =
+    renderer || (typeof document !== 'undefined' ? new THREE.WebGLRenderer() : null);
+  if (supportRenderer) {
+    try {
+      sharedKtx2Loader.detectSupport(supportRenderer);
+    } catch {
+      // ignore KTX2 support detection issues and proceed with regular textures
+    } finally {
+      if (!renderer) supportRenderer.dispose?.();
+    }
+  }
+  loader.setKTX2Loader(sharedKtx2Loader);
+  return loader;
+}
+
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -575,6 +619,64 @@ async function resolvePolyhavenModelUrls(assetId) {
   }
 }
 
+async function getPolyhavenFilesManifest(assetId) {
+  if (!assetId) return null;
+  const key = String(assetId).toLowerCase();
+  if (polyhavenFilesManifestCache.has(key)) {
+    return polyhavenFilesManifestCache.get(key);
+  }
+  const promise = (async () => {
+    try {
+      const response = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
+      );
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  })();
+  polyhavenFilesManifestCache.set(key, promise);
+  return promise;
+}
+
+function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
+  const include = manifest?.gltf?.[resolution]?.gltf?.include;
+  if (!include || typeof include !== 'object') return null;
+  const map = new Map();
+  Object.entries(include).forEach(([relativePath, entry]) => {
+    if (!relativePath || typeof relativePath !== 'string') return;
+    const fileUrl = entry?.url;
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    map.set(relativePath, fileUrl);
+    map.set(relativePath.replace(/^\.\//, ''), fileUrl);
+    map.set(relativePath.split('/').pop() || relativePath, fileUrl);
+  });
+  return map;
+}
+
+async function resolvePolyhavenModelCandidates(assetId) {
+  if (!assetId) return [];
+  const fallbackUrls = await resolvePolyhavenModelUrls(assetId);
+  const manifest = await getPolyhavenFilesManifest(assetId);
+  const preferred = ['2k', '1k', '4k'];
+  const fromManifest = preferred
+    .map((resolution) => {
+      const url = manifest?.gltf?.[resolution]?.gltf?.url;
+      if (!url) return null;
+      return {
+        url,
+        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
+      };
+    })
+    .filter(Boolean);
+  const fallback = fallbackUrls.map((url) => ({
+    url,
+    includeUrlMap: null
+  }));
+  return [...fromManifest, ...fallback];
+}
+
 async function createChairModel(chairTheme, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
@@ -582,13 +684,28 @@ async function createChairModel(chairTheme, renderer = null) {
   let lastError = null;
 
   for (const assetId of candidateAssetIds) {
-    const urls = await resolvePolyhavenModelUrls(assetId);
-    for (const url of urls) {
+    const candidates = await resolvePolyhavenModelCandidates(assetId);
+    for (const candidate of candidates) {
       try {
         if (MeshoptDecoder?.ready) {
           await MeshoptDecoder.ready;
         }
-        const gltf = await loader.loadAsync(url);
+        const candidateUrl = candidate?.url;
+        if (!candidateUrl) continue;
+        const activeLoader = candidate?.includeUrlMap
+          ? createPolyhavenGltfLoader(renderer, candidate.includeUrlMap)
+          : loader;
+        const resolvedUrl = new URL(
+          candidateUrl,
+          typeof window !== 'undefined' ? window.location?.href : candidateUrl
+        ).href;
+        const resourcePath = resolvedUrl.substring(
+          0,
+          resolvedUrl.lastIndexOf('/') + 1
+        );
+        activeLoader.setResourcePath(resourcePath);
+        activeLoader.setPath('');
+        const gltf = await activeLoader.loadAsync(resolvedUrl);
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) continue;
         root.traverse((obj) => {
