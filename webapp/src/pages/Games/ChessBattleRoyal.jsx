@@ -155,8 +155,8 @@ const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.09; // keep aircraft path tighter and
 const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.84; // much slower liftoff so aircraft visibly rise from parking spot
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.9;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.95;
-const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.76; // launch only after a clearly visible lift + hover phase
-const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 3.2; // slower low-altitude strike path from side pads
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.58; // release during forward pass so missiles clearly track from piece to target
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.8; // quicker travel to keep impact synced with fly-by
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // trigger impact only at the very end of the precision strike
@@ -10010,6 +10010,39 @@ function Chess3D({
         altitude,
         verticalCrash: true
       });
+    const getCaptureAirStrikePose = ({ launchPos, targetPos, progress, returnToOrigin = false }) =>
+      getCaptureLoopPose({
+        from: launchPos,
+        to: targetPos,
+        progress,
+        launchHeight: tile * 0.04,
+        orbitHeight: CAPTURE_FLIGHT_ALTITUDE * 0.68,
+        orbitRadiusMul: CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR,
+        minOrbitCycles: CAPTURE_DRONE_ORBIT_CYCLES,
+        orbitSplit: CAPTURE_DRONE_ORBIT_SPLIT,
+        returnToOrigin,
+        returnSplit: CAPTURE_DRONE_RETURN_SPLIT,
+        sideSign: Math.sign(targetPos.z - launchPos.z || 1)
+      });
+    const getCaptureAirMissilePose = ({ launchPos, targetPos, progress }) => {
+      const u = clamp01(progress);
+      const control = launchPos.clone().lerp(targetPos, CAPTURE_AIR_MISSILE_TOP_BLEND);
+      control.y = Math.max(
+        launchPos.y + CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT,
+        targetPos.y + CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN,
+        launchPos.y + tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL
+      );
+      const pos = qBezier(launchPos, control, targetPos, u);
+      const next = qBezier(launchPos, control, targetPos, clamp01(u + 0.04));
+      if (u >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
+        next.x = pos.x;
+        next.z = pos.z;
+      }
+      return {
+        pos: constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2),
+        next: constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2)
+      };
+    };
     const alignUnitToLaunchPad = (unit, launchBase) => {
       if (!unit?.root || !launchBase) return;
       unit.homePosition = launchBase.clone();
@@ -10132,7 +10165,7 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
         const jetFx = parkedUnit || createFxJet();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 0, liveLaunchPos);
+        const launchBase = liveLaunchPos.clone();
         alignUnitToLaunchPad(parkedUnit, launchBase);
         if (!parkedUnit) {
           jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
@@ -10164,7 +10197,7 @@ function Chess3D({
           movingMesh,
           targetMesh,
           returnToOrigin: true,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO,
           sourceUnit: parkedUnit,
           jetFx,
           missileFx
@@ -10181,7 +10214,7 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
         const helicopterFx = parkedUnit || createFxHelicopter();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'helicopter', 0, liveLaunchPos);
+        const launchBase = liveLaunchPos.clone();
         alignUnitToLaunchPad(parkedUnit, launchBase);
         if (!parkedUnit) {
           helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
@@ -10218,7 +10251,7 @@ function Chess3D({
           movingMesh,
           targetMesh,
           returnToOrigin: true,
-          missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO,
           sourceUnit: parkedUnit,
           helicopterFx,
           missileFx
@@ -10235,7 +10268,7 @@ function Chess3D({
         const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
         const jetFx = parkedUnit || createFxJet();
         const liveLaunchPos = getLiveLaunchPosition(fromPos, movingMesh, 0);
-        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 1, liveLaunchPos);
+        const launchBase = liveLaunchPos.clone();
         alignUnitToLaunchPad(parkedUnit, launchBase);
         if (!parkedUnit) {
           jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
@@ -10267,7 +10300,7 @@ function Chess3D({
           movingMesh,
           targetMesh,
           returnToOrigin: true,
-          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO,
           sourceUnit: parkedUnit,
           jetFx,
           missileFx
@@ -12106,10 +12139,11 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-            const { pos: jetPos, next: jetNext, forward: jetForward } = getCapturePadStrikePose({
+            const { pos: jetPos, next: jetNext } = getCaptureAirStrikePose({
               launchPos,
               targetPos: fx.to,
-              progress: jetTimelineU
+              progress: jetTimelineU,
+              returnToOrigin: Boolean(fx.returnToOrigin)
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -12126,7 +12160,7 @@ function Chess3D({
             });
 
             const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseTime = CAPTURE_JET_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
+            const releaseTime = fx.missileReleaseTime ?? CAPTURE_JET_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
             const missileTravel = CAPTURE_PAD_MISSILE_TRAVEL_TIME;
             let anyMissileVisible = false;
             jetMissiles.forEach((missile, idx) => {
@@ -12146,7 +12180,7 @@ function Chess3D({
                 playAudio(missileLaunchSoundRef);
               }
               const sideOffset = idx === 0 ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
-              const right = jetForward.clone().cross(WORLD_UP);
+              const right = captureDir.clone().cross(WORLD_UP);
               if (right.lengthSq() < 1e-6) {
                 right.set(0, 0, idx === 0 ? -1 : 1);
               } else {
@@ -12154,10 +12188,10 @@ function Chess3D({
               }
               const launchPos = fx.jetFx.root.position
                 .clone()
-                .addScaledVector(jetForward, CAPTURE_PAD_MISSILE_FORWARD_OFFSET)
+                .addScaledVector(captureDir, CAPTURE_PAD_MISSILE_FORWARD_OFFSET)
                 .add(right.multiplyScalar(sideOffset))
                 .setY(fx.jetFx.root.position.y + CAPTURE_PAD_MISSILE_LIFT_OFFSET);
-              const { pos: missilePos, next: missileNext } = getCaptureShortMissilePose({
+              const { pos: missilePos, next: missileNext } = getCaptureAirMissilePose({
                 launchPos,
                 targetPos: fx.to,
                 progress: missileU
@@ -12195,10 +12229,11 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-            const { pos: heliPos, next: heliNext, forward: heliForward } = getCapturePadStrikePose({
+            const { pos: heliPos, next: heliNext } = getCaptureAirStrikePose({
               launchPos,
               targetPos: fx.to,
-              progress: heliTimelineU
+              progress: heliTimelineU,
+              returnToOrigin: Boolean(fx.returnToOrigin)
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
@@ -12218,7 +12253,7 @@ function Chess3D({
             });
 
             const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
-            const releaseTime = CAPTURE_HELICOPTER_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
+            const releaseTime = fx.missileReleaseTime ?? CAPTURE_HELICOPTER_TOTAL * CAPTURE_PAD_MISSILE_RELEASE_RATIO;
             const missileTravel = CAPTURE_PAD_MISSILE_TRAVEL_TIME;
             let anyMissileVisible = false;
             heliMissiles.forEach((missile, idx) => {
@@ -12238,7 +12273,7 @@ function Chess3D({
                 playAudio(missileLaunchSoundRef);
               }
               const sideOffset = idx === 0 ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
-              const right = heliForward.clone().cross(WORLD_UP);
+              const right = captureDir.clone().cross(WORLD_UP);
               if (right.lengthSq() < 1e-6) {
                 right.set(0, 0, idx === 0 ? -1 : 1);
               } else {
@@ -12246,10 +12281,10 @@ function Chess3D({
               }
               const launchPos = fx.helicopterFx.root.position
                 .clone()
-                .addScaledVector(heliForward, CAPTURE_PAD_MISSILE_FORWARD_OFFSET)
+                .addScaledVector(captureDir, CAPTURE_PAD_MISSILE_FORWARD_OFFSET)
                 .add(right.multiplyScalar(sideOffset))
                 .setY(fx.helicopterFx.root.position.y + CAPTURE_PAD_MISSILE_LIFT_OFFSET);
-              const { pos: missilePos, next: missileNext } = getCaptureShortMissilePose({
+              const { pos: missilePos, next: missileNext } = getCaptureAirMissilePose({
                 launchPos,
                 targetPos: fx.to,
                 progress: missileU
