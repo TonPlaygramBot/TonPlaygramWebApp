@@ -296,7 +296,7 @@ const TOUCH_TAP_MAX_DISTANCE_PX = 40;
 const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
-const CHECKER_PIECE_SCALE = 0.88;
+const CHECKER_PIECE_SCALE = 1.02;
 // Keep chips seated directly on the board surface in portrait view.
 const CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER = 0.01;
 const CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET = 0.055;
@@ -345,6 +345,8 @@ const AI_SEARCH_DEPTH = 6;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
 const ONLINE_SOCKET_CONNECT_TIMEOUT_MS = 6000;
+const MOVE_JUMP_DURATION_MS = 340;
+const CAPTURE_JUMP_DURATION_MS = 430;
 
 async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIMEOUT_MS) {
   if (socket.connected) return true;
@@ -391,10 +393,10 @@ const createCheckerMesh = ({
   );
   const chip = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      tile * 0.352 * CHECKER_PIECE_SCALE,
-      tile * 0.332 * CHECKER_PIECE_SCALE,
-      tile * 0.176 * CHECKER_PIECE_SCALE,
-      56,
+      tile * 0.368 * CHECKER_PIECE_SCALE,
+      tile * 0.338 * CHECKER_PIECE_SCALE,
+      tile * 0.206 * CHECKER_PIECE_SCALE,
+      64,
       1,
       false
     ),
@@ -406,14 +408,14 @@ const createCheckerMesh = ({
 
   const topCap = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      tile * 0.264 * CHECKER_PIECE_SCALE,
-      tile * 0.292 * CHECKER_PIECE_SCALE,
-      tile * 0.064 * CHECKER_PIECE_SCALE,
-      48
+      tile * 0.274 * CHECKER_PIECE_SCALE,
+      tile * 0.304 * CHECKER_PIECE_SCALE,
+      tile * 0.084 * CHECKER_PIECE_SCALE,
+      56
     ),
     baseMaterial.clone()
   );
-  topCap.position.y = tile * 0.106 * CHECKER_PIECE_SCALE;
+  topCap.position.y = tile * 0.132 * CHECKER_PIECE_SCALE;
   topCap.castShadow = true;
   topCap.receiveShadow = true;
   pieceGroup.add(topCap);
@@ -434,8 +436,22 @@ const createCheckerMesh = ({
     })
   );
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = tile * 0.118 * CHECKER_PIECE_SCALE;
+  rim.position.y = tile * 0.145 * CHECKER_PIECE_SCALE;
   pieceGroup.add(rim);
+
+  const centerBadge = new THREE.Mesh(
+    new THREE.CircleGeometry(tile * 0.148 * CHECKER_PIECE_SCALE, 38),
+    new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      metalness: 0.86,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.8
+    })
+  );
+  centerBadge.rotation.x = -Math.PI / 2;
+  centerBadge.position.y = tile * 0.178 * CHECKER_PIECE_SCALE;
+  pieceGroup.add(centerBadge);
 
   if (king) {
     const ring = new THREE.Mesh(
@@ -459,6 +475,36 @@ const createCheckerMesh = ({
   }
 
   return pieceGroup;
+};
+
+const animateSmokePuff = (group, tile, position, activeAnimationsRef) => {
+  if (!group) return;
+  for (let i = 0; i < 7; i += 1) {
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(tile * (0.055 + Math.random() * 0.04), 12, 12),
+      new THREE.MeshStandardMaterial({
+        color: '#cbd5e1',
+        transparent: true,
+        opacity: 0.55,
+        roughness: 0.92,
+        metalness: 0.02
+      })
+    );
+    sphere.position.copy(position);
+    sphere.position.x += (Math.random() - 0.5) * tile * 0.28;
+    sphere.position.z += (Math.random() - 0.5) * tile * 0.28;
+    group.add(sphere);
+    activeAnimationsRef.current.push({
+      type: 'smoke',
+      object: sphere,
+      startedAt: performance.now(),
+      duration: 300 + Math.random() * 170,
+      driftX: (Math.random() - 0.5) * tile * 0.35,
+      driftZ: (Math.random() - 0.5) * tile * 0.35,
+      lift: tile * (0.22 + Math.random() * 0.18),
+      scale: 0.72 + Math.random() * 0.5
+    });
+  }
 };
 
 const disposeGroupMeshes = (group) => {
@@ -562,6 +608,32 @@ const applyMoveToBoard = (board, move) => {
     chainCaptures: move.capture
       ? getMoves(next, move.r, move.c).filter((m) => m.capture)
       : []
+  };
+};
+
+const inferMoveFromBoardDelta = (beforeBoard, afterBoard) => {
+  if (!Array.isArray(beforeBoard) || !Array.isArray(afterBoard)) return null;
+  const removed = [];
+  const added = [];
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      const before = beforeBoard[r]?.[c];
+      const after = afterBoard[r]?.[c];
+      if (before && !after) removed.push({ r, c, piece: before });
+      else if (!before && after) added.push({ r, c, piece: after });
+    }
+  }
+  if (added.length !== 1) return null;
+  const target = added[0];
+  const source =
+    removed.find((item) => item.piece.side === target.piece.side) || removed[0];
+  if (!source) return null;
+  return {
+    from: { r: source.r, c: source.c },
+    to: { r: target.r, c: target.c },
+    side: target.piece.side,
+    king: source.piece.king,
+    capture: Math.abs(target.r - source.r) > 1 || removed.length > 1
   };
 };
 
@@ -1382,6 +1454,8 @@ export default function CheckersBattleRoyal() {
   const selectedRef = useRef(null);
   const piecesGroupRef = useRef(null);
   const capturedPiecesGroupRef = useRef(null);
+  const effectsGroupRef = useRef(null);
+  const activeAnimationsRef = useRef([]);
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
   const replayStateRef = useRef(null);
   const highlightGroupRef = useRef(null);
@@ -1827,6 +1901,45 @@ export default function CheckersBattleRoyal() {
     [capturedBySide, checkerHeadPreset, piecePalette]
   );
 
+  const queueMoveAnimation = useMemo(
+    () =>
+      ({ from, to, side, king, capture = false }) => {
+        const group = effectsGroupRef.current;
+        if (!group || !from || !to) return;
+        const { x, y, z, tile } = boardOriginRef.current;
+        const fromPos = new THREE.Vector3(
+          x + (from.c - 3.5) * tile,
+          y + tile * CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER,
+          z + (from.r - 3.5) * tile
+        );
+        const toPos = new THREE.Vector3(
+          x + (to.c - 3.5) * tile,
+          y + tile * CHECKER_PIECE_SURFACE_OFFSET_MULTIPLIER,
+          z + (to.r - 3.5) * tile
+        );
+        const moving = createCheckerMesh({
+          tile,
+          side,
+          king,
+          chipSet: piecePalette,
+          checkerHeadPreset
+        });
+        moving.position.copy(fromPos);
+        moving.scale.setScalar(capture ? 1.05 : 1);
+        group.add(moving);
+        activeAnimationsRef.current.push({
+          type: 'move',
+          object: moving,
+          startedAt: performance.now(),
+          duration: capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS,
+          from: fromPos,
+          to: toPos,
+          arcHeight: tile * (capture ? 0.72 : 0.52)
+        });
+      },
+    [checkerHeadPreset, piecePalette]
+  );
+
   useEffect(() => {
     renderPieces();
   }, [renderPieces, turn]);
@@ -1851,21 +1964,6 @@ export default function CheckersBattleRoyal() {
           y + tile * 0.02,
           z + (r - 3.5) * tile
         );
-      const selection = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          tile * 0.3,
-          tile * 0.3,
-          Math.max(0.07, tile * 0.03),
-          20
-        ),
-        new THREE.MeshBasicMaterial({
-          color: CHECKERS_HIGHLIGHT_COLORS.selection,
-          transparent: true,
-          opacity: 0.9
-        })
-      );
-      selection.position.copy(toPosition(selected.r, selected.c));
-      group.add(selection);
       const sideMoves = getMovesForSide(board, turn);
       const forcedCaptures = sideMoves.filter((move) => move.capture);
       const allowedMoves = forcedCaptures.length
@@ -1874,7 +1972,11 @@ export default function CheckersBattleRoyal() {
               (move) => move.from.r === selected.r && move.from.c === selected.c
             )
             .map(({ r, c, capture }) => ({ r, c, capture }))
-        : getMoves(board, selected.r, selected.c);
+        : sideMoves
+            .filter(
+              (move) => move.from.r === selected.r && move.from.c === selected.c
+            )
+            .map(({ r, c, capture }) => ({ r, c, capture }));
       allowedMoves.forEach((move) => {
         const isCapture = Array.isArray(move.capture);
         const marker = new THREE.Mesh(
@@ -2008,6 +2110,9 @@ export default function CheckersBattleRoyal() {
     const capturedPiecesGroup = new THREE.Group();
     capturedPiecesGroupRef.current = capturedPiecesGroup;
     scene.add(capturedPiecesGroup);
+    const effectsGroup = new THREE.Group();
+    effectsGroupRef.current = effectsGroup;
+    scene.add(effectsGroup);
     const highlightGroup = new THREE.Group();
     highlightGroupRef.current = highlightGroup;
     scene.add(highlightGroup);
@@ -2093,6 +2198,16 @@ export default function CheckersBattleRoyal() {
         ...move
       });
       if (!applied) return;
+      const movedPieceBefore = beforeBoard[selected.r]?.[selected.c];
+      if (movedPieceBefore?.side) {
+        queueMoveAnimation({
+          from: { ...selected },
+          to: { r, c },
+          side: movedPieceBefore.side,
+          king: movedPieceBefore.king,
+          capture: Array.isArray(move.capture)
+        });
+      }
 
       if (Array.isArray(move.capture)) {
         const [captureR, captureC] = move.capture;
@@ -2482,6 +2597,44 @@ export default function CheckersBattleRoyal() {
       const maxFps = Math.max(30, graphicsProfile?.maxFps || 60);
       const minFrameMs = 1000 / maxFps;
       if (now - previousFrameAt < minFrameMs) return;
+      const animations = activeAnimationsRef.current;
+      if (animations.length) {
+        for (let i = animations.length - 1; i >= 0; i -= 1) {
+          const anim = animations[i];
+          const elapsed = now - anim.startedAt;
+          const t = Math.max(0, Math.min(1, elapsed / anim.duration));
+          if (anim.type === 'move') {
+            anim.object.position.lerpVectors(anim.from, anim.to, t);
+            anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
+            anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+            if (t >= 1) {
+              animateSmokePuff(
+                effectsGroupRef.current,
+                boardOriginRef.current.tile,
+                anim.to,
+                activeAnimationsRef
+              );
+              anim.object.parent?.remove(anim.object);
+              disposeGroupMeshes(anim.object);
+              animations.splice(i, 1);
+            }
+          } else if (anim.type === 'smoke') {
+            anim.object.position.y += (anim.lift / anim.duration) * minFrameMs;
+            anim.object.position.x += (anim.driftX / anim.duration) * minFrameMs;
+            anim.object.position.z += (anim.driftZ / anim.duration) * minFrameMs;
+            const scale = 1 + t * anim.scale;
+            anim.object.scale.setScalar(scale);
+            if (anim.object.material) {
+              anim.object.material.opacity = Math.max(0, 0.55 * (1 - t));
+            }
+            if (t >= 1) {
+              anim.object.parent?.remove(anim.object);
+              disposeGroupMeshes(anim.object);
+              animations.splice(i, 1);
+            }
+          }
+        }
+      }
       previousFrameAt = now;
       controls.update();
       renderer.render(scene, camera);
@@ -2498,6 +2651,9 @@ export default function CheckersBattleRoyal() {
       piecesGroupRef.current?.clear?.();
       disposeGroupMeshes(capturedPiecesGroupRef.current);
       capturedPiecesGroupRef.current?.clear?.();
+      disposeGroupMeshes(effectsGroupRef.current);
+      effectsGroupRef.current?.clear?.();
+      activeAnimationsRef.current = [];
       disposeGroupMeshes(highlightGroupRef.current);
       highlightGroupRef.current?.clear?.();
       renderer.dispose();
@@ -2547,7 +2703,11 @@ export default function CheckersBattleRoyal() {
     const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn } = {}) => {
       if (!eventTableId || eventTableId !== tableId) return;
       if (!Array.isArray(board)) return;
+      const inferredMove = inferMoveFromBoardDelta(boardRef.current, board);
       boardRef.current = copyBoard(board);
+      if (inferredMove) {
+        queueMoveAnimation(inferredMove);
+      }
       selectedRef.current = null;
       setTurn(remoteTurn === 'dark' ? 'dark' : 'light');
       setCanReplay(false);
@@ -2646,7 +2806,7 @@ export default function CheckersBattleRoyal() {
       socket.off('reconnect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });
     };
-  }, [accountId, mode, renderHighlights, renderPieces, tableId]);
+  }, [accountId, mode, queueMoveAnimation, renderHighlights, renderPieces, tableId]);
 
   useEffect(() => {
     if (onlineRef.current.enabled) return;
@@ -2670,6 +2830,16 @@ export default function CheckersBattleRoyal() {
         return;
       }
       const beforeBoard = copyBoard(board);
+      const movedPieceBefore = beforeBoard[chosen.from.r]?.[chosen.from.c];
+      if (movedPieceBefore?.side) {
+        queueMoveAnimation({
+          from: { ...chosen.from },
+          to: { r: chosen.r, c: chosen.c },
+          side: movedPieceBefore.side,
+          king: movedPieceBefore.king,
+          capture: Array.isArray(chosen.capture)
+        });
+      }
       if (Array.isArray(chosen.capture)) {
         const [captureR, captureC] = chosen.capture;
         const capturedPiece = beforeBoard[captureR]?.[captureC];
@@ -2719,6 +2889,17 @@ export default function CheckersBattleRoyal() {
           }
           const nextChain = applyMoveToBoard(chainBoard, selectedChainMove);
           if (!nextChain) break;
+          const chainPieceBefore =
+            chainBoard[selectedChainMove.from.r]?.[selectedChainMove.from.c];
+          if (chainPieceBefore?.side) {
+            queueMoveAnimation({
+              from: { ...selectedChainMove.from },
+              to: { r: selectedChainMove.r, c: selectedChainMove.c },
+              side: chainPieceBefore.side,
+              king: chainPieceBefore.king,
+              capture: true
+            });
+          }
           chainBoard = nextChain.board;
           currentFrom = { r: selectedChainMove.r, c: selectedChainMove.c };
           chainCaptureMoves = nextChain.chainCaptures;
@@ -2752,7 +2933,7 @@ export default function CheckersBattleRoyal() {
       window.clearTimeout(timer);
       aiBusyRef.current = false;
     };
-  }, [turn, renderHighlights, renderPieces, gameOver]);
+  }, [turn, queueMoveAnimation, renderHighlights, renderPieces, gameOver]);
 
   useEffect(() => {
     const scene = sceneRef.current;
