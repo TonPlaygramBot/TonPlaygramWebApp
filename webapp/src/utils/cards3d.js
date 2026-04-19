@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { applySRGBColorSpace } from './colorSpace.js';
 import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
@@ -16,8 +17,23 @@ function getTonplaygramLogoImage() {
   return tonplaygramLogoImage;
 }
 
-export function createCardGeometry(width, height, depth) {
-  return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
+export function createCardGeometry(width, height, depth, options = {}) {
+  const {
+    rounded = true,
+    cornerRadiusRatio = 0.08,
+    segments = 5
+  } = options;
+  if (!rounded) {
+    return new THREE.BoxGeometry(width, height, depth, 1, 1, 1);
+  }
+  const safeRadius = Math.max(
+    0.001,
+    Math.min(
+      Math.min(width, height) * cornerRadiusRatio,
+      Math.min(depth * 0.45, Math.min(width, height) * 0.12)
+    )
+  );
+  return new RoundedBoxGeometry(width, height, depth, segments, safeRadius);
 }
 
 export function createCardMesh(card, geometry, cache, theme = DEFAULT_CARD_THEME) {
@@ -108,15 +124,11 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   ctx.fillStyle = suitColor;
   const label = rank === 'T' ? 'Q' : String(rank);
   const padding = 36;
-  const topRankY = 96;
+  const topRankY = 104;
   const topSuitY = topRankY + 76;
   const bottomSuitY = h - 92;
   const bottomRankY = bottomSuitY - 76;
-  ctx.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
   ctx.textAlign = 'left';
-  ctx.fillText(label, padding, topRankY);
-  ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(convertSuit(suit), padding, topSuitY);
   ctx.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
   ctx.fillText(label, padding, bottomRankY);
   ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
@@ -126,10 +138,6 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   ctx.fillText(label, w - padding, topRankY);
   ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
   ctx.fillText(convertSuit(suit), w - padding, topSuitY);
-  ctx.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(label, w - padding, bottomRankY);
-  ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(convertSuit(suit), w - padding, bottomSuitY);
   if (theme.centerAccent) {
     ctx.fillStyle = theme.centerAccent;
     ctx.beginPath();

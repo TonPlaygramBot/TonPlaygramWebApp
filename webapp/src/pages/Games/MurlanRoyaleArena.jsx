@@ -19,6 +19,7 @@ import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arena
 import { applyTableMaterials, createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
+import { createCardGeometry } from '../../utils/cards3d.js';
 import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
   getMurlanInventory,
@@ -109,6 +110,7 @@ const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller 
 const TOP_SEAT_AVATAR_UP_LIFT = 2.9; // Lift top avatar a bit higher in portrait so it clears card overlays better.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
+const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
@@ -1404,6 +1406,7 @@ function fitTableModelToArena(model) {
       model.scale.z * scaleXZ
     );
   }
+  model.scale.x *= TABLE_HORIZONTAL_SHRINK;
 
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
@@ -2260,7 +2263,7 @@ const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE * ARENA_PROP_SCALE;
 const CARD_SCALE = ARENA_PROP_SCALE * 0.84; // Slightly smaller cards for cleaner mobile portrait framing.
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
-const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
+const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
 const CARD_SURFACE_OFFSET = CARD_D * 4;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
@@ -2297,7 +2300,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.05 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.29;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
 const HUMAN_HAND_EXTRA_LIFT = 0.07 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left/right seats.
@@ -2337,7 +2340,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.02 * MODEL_SCALE; // Push chairs lower so they visually touch the floor plane in portrait.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.2 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
 const TABLE_HEIGHT_LIFT = 0.02 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -4805,7 +4808,11 @@ export default function MurlanRoyaleArena({ search }) {
       const activeTableRadius = threeStateRef.current.tableInfo?.radius ?? TABLE_RADIUS;
       const seatThickness = SEAT_THICKNESS;
 
-      cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
+      cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
+        rounded: true,
+        cornerRadiusRatio: 0.14,
+        segments: 6
+      });
 
       const seatConfigs = [];
       threeStateRef.current.chairInstances = [];
@@ -4829,7 +4836,7 @@ export default function MurlanRoyaleArena({ search }) {
           (isHumanSeat
             ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
-        const x = Math.cos(angle) * seatRadius;
+        const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
         chair.position.set(x, chairBaseHeight, z);
@@ -4838,8 +4845,8 @@ export default function MurlanRoyaleArena({ search }) {
         chair.lookAt(new THREE.Vector3(0, chair.position.y, 0));
         arenaGroup.add(chair);
 
-        const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-        const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+        const forward = new THREE.Vector3(x, 0, z).normalize();
+        const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const focus = forward
           .clone()
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
