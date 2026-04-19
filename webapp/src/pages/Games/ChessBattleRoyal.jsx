@@ -631,6 +631,57 @@ const CAPTURE_ANIMATION_BY_PIECE = Object.freeze({
   Q: 'queenJetStrike',
   K: 'kingJetStrike'
 });
+const CAPTURE_PIECE_TYPE_ALIASES = Object.freeze({
+  P: 'P',
+  PAWN: 'P',
+  PAWNS: 'P',
+  '♙': 'P',
+  '♟': 'P',
+  N: 'N',
+  KNIGHT: 'N',
+  KNIGHTS: 'N',
+  HORSE: 'N',
+  HORSES: 'N',
+  '♘': 'N',
+  '♞': 'N',
+  B: 'B',
+  BISHOP: 'B',
+  BISHOPS: 'B',
+  '♗': 'B',
+  '♝': 'B',
+  R: 'R',
+  ROOK: 'R',
+  ROOKS: 'R',
+  CASTLE: 'R',
+  CASTLES: 'R',
+  '♖': 'R',
+  '♜': 'R',
+  Q: 'Q',
+  QUEEN: 'Q',
+  QUEENS: 'Q',
+  '♕': 'Q',
+  '♛': 'Q',
+  K: 'K',
+  KING: 'K',
+  KINGS: 'K',
+  '♔': 'K',
+  '♚': 'K'
+});
+const resolveCaptureAnimationPieceType = (...values) => {
+  for (const value of values) {
+    const raw = `${value || ''}`.trim();
+    if (!raw) continue;
+    const normalized = raw.toUpperCase();
+    const alias = CAPTURE_PIECE_TYPE_ALIASES[normalized];
+    if (alias && CAPTURE_ANIMATION_BY_PIECE[alias]) return alias;
+    const compact = normalized.replace(/[^A-Z♔♕♖♗♘♙♚♛♜♝♞♟]/g, '');
+    const compactAlias = CAPTURE_PIECE_TYPE_ALIASES[compact];
+    if (compactAlias && CAPTURE_ANIMATION_BY_PIECE[compactAlias]) return compactAlias;
+    const initial = normalized.charAt(0);
+    if (CAPTURE_ANIMATION_BY_PIECE[initial]) return initial;
+  }
+  return '';
+};
 const FILE_LABELS = 'abcdefgh';
 const resolveChessSquare = (r, c) => `${FILE_LABELS[c] || '?'}${8 - r}`;
 
@@ -9975,20 +10026,13 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
-      const resolveCapturePieceType = () => {
-        const candidates = [
-          movingType,
-          movingMesh?.userData?.t,
-          movingMesh?.userData?.__pieceType,
-          movingMesh?.userData?.type
-        ];
-        for (const value of candidates) {
-          const key = `${value || ''}`.trim().toUpperCase();
-          if (CAPTURE_ANIMATION_BY_PIECE[key]) return key;
-        }
-        return '';
-      };
-      const pieceType = resolveCapturePieceType();
+      const pieceType = resolveCaptureAnimationPieceType(
+        movingType,
+        movingMesh?.userData?.t,
+        movingMesh?.userData?.__pieceType,
+        movingMesh?.userData?.type,
+        movingMesh?.name
+      );
       const captureAnimationId = CAPTURE_ANIMATION_BY_PIECE[pieceType] || '';
       if (captureAnimationId === 'rookJavelin') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
