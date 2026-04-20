@@ -237,7 +237,9 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
+const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 1.44;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
+const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_WEAPON_REST_RAIL_INSET));
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
@@ -253,25 +255,30 @@ const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.06,
   0,
   0,
   0
 ]);
+const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
+  0,
+  0,
+  0,
+  0
+]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
+const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.26;
+const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.66;
 // Keep parked weapons anchored immediately next to the player token.
-// Snake & Ladder keeps its own parking profile (not shared with Ludo) so it can be tuned independently.
-const SNAKE_CAPTURE_PARK_SIDE_OFFSET = 0.19;
-const SNAKE_CAPTURE_PARK_OUTWARD_OFFSET = 0.03;
-const SNAKE_CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = Object.freeze({
-  fighter: 0.03,
-  helicopter: 0.03,
-  drone: 0.03,
-  supportTruck: 0.08,
-  javelin: 0.08
-});
-const SNAKE_CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
+  -TILE_SIZE * 0.14,
+  -TILE_SIZE * 0.1,
+  -TILE_SIZE * 0.18,
+  -TILE_SIZE * 0.1
+]);
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.005;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.3,
   helicopter: TOKEN_HEIGHT * 1.26,
@@ -279,6 +286,13 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.34,
   javelin: TOKEN_HEIGHT * 1.28
 });
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.22;
+const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
+  -TOKEN_HEIGHT * 0.03,
+  -TOKEN_HEIGHT * 0.01,
+  -TOKEN_HEIGHT * 0.04,
+  -TOKEN_HEIGHT * 0.01
+]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -426,14 +440,6 @@ const CAPTURE_CENTER_STAGE_LIFT = TOKEN_HEIGHT * 7.6;
 const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
-const SNAKE_CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
-const SNAKE_CAPTURE_ATTACK_TUNING = Object.freeze({
-  fighter: { speed: 1.2, height: 0.92, inward: 0.94 },
-  helicopter: { speed: 1.26, height: 0.84, inward: 0.88 },
-  drone: { speed: 1.14, height: 0.9, inward: 0.94 },
-  supportTruck: { speed: 1.12, height: 0.88, inward: 0.92 },
-  javelin: { speed: 1.12, height: 0.88, inward: 0.92 }
-});
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   fighter: 0,
   helicopter: 0,
@@ -4677,27 +4683,46 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
-    const liveToken =
-      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
-      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
-      null;
-    const tokenWorld = new THREE.Vector3();
-    if (liveToken?.getWorldPosition) {
-      liveToken.getWorldPosition(tokenWorld);
+    const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
+    const railLayout = getSeatRailLayout(
+      board,
+      seatIndex,
+      -TILE_SIZE * 0.12,
+      Number.isFinite(weaponInset) ? weaponInset : null
+    );
+    if (railLayout) {
+      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+      const tokenSideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
+      const tokenLateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+      const tokenSlotOffset = tokenSideSign * SEAT_RAIL_SLOT_OFFSET + tokenLateralNudge;
+      const weaponCenterOffset = tokenSlotOffset + sideSign * (WEAPON_FROM_TOKEN_CENTER_OFFSET + WEAPON_TOKEN_GAP) + lateralNudge;
+      holder.position
+        .copy(railLayout.railLocal)
+        .addScaledVector(railLayout.lateral, weaponCenterOffset)
+        .addScaledVector(
+          railLayout.seatDirection,
+          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+        );
+      holder.position.y =
+        railLayout.railHeightY +
+        WEAPON_REST_HEIGHT_OFFSET +
+        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0);
     } else {
-      anchor.getWorldPosition(tokenWorld);
+      const seatWorld = new THREE.Vector3();
+      anchor.getWorldPosition(seatWorld);
+      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+      if (seatDirection.lengthSq() < 1e-6) return;
+      seatDirection.normalize();
+      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
+      const markerPos = boardLookTarget
+        .clone()
+        .addScaledVector(seatDirection, radius)
+        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
+      holder.position.copy(markerPos);
+      holder.position.y = tableY + TOKEN_HEIGHT * 0.18;
     }
-    const inward = boardLookTarget.clone().sub(tokenWorld).setY(0);
-    if (inward.lengthSq() < 1e-6) return;
-    inward.normalize();
-    const leftSide = new THREE.Vector3().crossVectors(MISSILE_WORLD_UP, inward).normalize();
-    const forwardOffset = SNAKE_CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[weaponType] ?? 0.03;
-    holder.position
-      .copy(tokenWorld)
-      .addScaledVector(leftSide, SNAKE_CAPTURE_PARK_SIDE_OFFSET)
-      .addScaledVector(inward, forwardOffset)
-      .addScaledVector(inward, -SNAKE_CAPTURE_PARK_OUTWARD_OFFSET);
-    holder.position.y = tableY + SNAKE_CAPTURE_PARKED_LIFT_OFFSET_Y;
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
     holder.rotation.z = 0;
@@ -5814,13 +5839,9 @@ export default function SnakeBoard3D({
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
-    const captureTuning = SNAKE_CAPTURE_ATTACK_TUNING[vehicleKind] || SNAKE_CAPTURE_ATTACK_TUNING.javelin;
-    const centerStageBase = launch.clone().lerp(board.boardLookTarget, captureTuning.inward ?? 0.92);
-    const centerStage = centerStageBase.clone().setY(launch.y + CAPTURE_CENTER_STAGE_LIFT * (captureTuning.height ?? 1));
+    const centerStage = board.boardLookTarget.clone().setY(launch.y + CAPTURE_CENTER_STAGE_LIFT);
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
-    const impactTop = impact
-      .clone()
-      .add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT * (captureTuning.height ?? 1), 0));
+    const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
     const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
     if (attackerHolder) attackerHolder.visible = false;
@@ -5839,7 +5860,7 @@ export default function SnakeBoard3D({
     missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
 
     const startTime = performance.now();
-    const baseStageFlightDuration =
+    const stageFlightDuration =
       vehicleKind === 'drone'
         ? Math.max(520, CAPTURE_MISSILE_FLIGHT_MS - 120)
         : vehicleKind === 'helicopter'
@@ -5849,20 +5870,13 @@ export default function SnakeBoard3D({
         : vehicleKind === 'supportTruck'
         ? CAPTURE_MISSILE_FLIGHT_MS + 20
         : CAPTURE_MISSILE_FLIGHT_MS;
-    const stageFlightDuration = Math.round(
-      baseStageFlightDuration *
-        (vehicleKind === 'fighter' || vehicleKind === 'helicopter' || vehicleKind === 'drone'
-          ? SNAKE_CAPTURE_AIRCRAFT_SLOW_FACTOR
-          : 1) *
-        (captureTuning.speed ?? 1)
-    );
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
     const volleyCount = vehicleKind === 'fighter' || vehicleKind === 'helicopter' ? CAPTURE_MULTI_SHOT_COUNT : 1;
-    const perMissileFlight = Math.round(CAPTURE_MISSILE_FLIGHT_MS * (captureTuning.speed ?? 1));
+    const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
     const volleyDuration = volleyCount * perMissileFlight + Math.max(0, volleyCount - 1) * perMissileGap;
-    const droneAttackDuration = Math.round((CAPTURE_MISSILE_FLIGHT_MS + 160) * (captureTuning.speed ?? 1));
+    const droneAttackDuration = CAPTURE_MISSILE_FLIGHT_MS + 160;
     const returnDuration = CAPTURE_RETURN_MS;
     const camera = cameraRef.current;
     const controls = board.controls;
