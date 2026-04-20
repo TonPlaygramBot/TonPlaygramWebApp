@@ -106,10 +106,10 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.456; // Further shrink arena props so table/chairs/cards better match HDRI world scale.
+const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
 const TOP_SEAT_AVATAR_UP_LIFT = 3.45; // Keep top avatar aligned after shrinking arena props.
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.62; // Additional trim so table/chairs read grounded and proportionate to HDRI.
-const CARD_VISUAL_TRIM = 0.86; // Keep card scale aligned with the reduced table/chair footprint.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.7; // Requested: 30% smaller table/chairs while preserving the same framing.
+const CARD_VISUAL_TRIM = 0.92; // Additional slight card trim after table/chair shrink.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -2298,8 +2298,8 @@ const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
-const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.11 * ARENA_PROP_SCALE, landscape: 0.48 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.44 * ARENA_PROP_SCALE, landscape: 0.46 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.34 * ARENA_PROP_SCALE,
   landscape: 0.9 * ARENA_PROP_SCALE
@@ -2400,7 +2400,7 @@ const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.86 * ARENA_PROP_SCALE;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.76 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
