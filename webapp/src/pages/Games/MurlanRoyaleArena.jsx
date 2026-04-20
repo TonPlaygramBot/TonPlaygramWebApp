@@ -1380,6 +1380,15 @@ function groundObjectToY(object, targetY = 0) {
   return delta;
 }
 
+function centerObjectOnArenaXZ(object) {
+  if (!object) return;
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.x) || !Number.isFinite(box.min.z)) return;
+  const center = box.getCenter(new THREE.Vector3());
+  object.position.x -= center.x;
+  object.position.z -= center.z;
+}
+
 function fitModelToHeight(model, targetHeight) {
   const box = new THREE.Box3().setFromObject(model);
   const currentHeight = box.max.y - box.min.y;
@@ -2291,15 +2300,15 @@ const BASE_COLUMN_HEIGHT = 0.42 * MODEL_SCALE * STOOL_SCALE; // Trim chair legs 
 const TABLE_HEIGHT_SHORTEN_FACTOR = 0.52; // Further shorten table profile while preserving portrait readability.
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE;
-const CHAIR_INWARD_OFFSET = 0.24 * MODEL_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.02 * MODEL_SCALE;
+const CHAIR_INWARD_OFFSET = 0.42 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
-const AI_CHAIR_GAP = CARD_W * 0.2;
+const AI_CHAIR_GAP = CARD_W * 0.08;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
-const CHAIR_SEAT_INWARD_FACTOR = 0.92;
+const CHAIR_SEAT_INWARD_FACTOR = 0.84;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.5 * ARENA_PROP_SCALE, landscape: 0.48 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.34 * ARENA_PROP_SCALE, landscape: 0.32 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.34 * ARENA_PROP_SCALE,
   landscape: 0.9 * ARENA_PROP_SCALE
@@ -2314,7 +2323,7 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.92 * MODEL_SCALE; // Move the bottom player's hand inward so cards sit between chair and table.
+const HUMAN_HAND_CLOSER_OFFSET = -0.42 * MODEL_SCALE; // Move the bottom player's hand inward so cards sit tighter to the table.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.082 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = 0;
 const AI_HAND_CLOSER_OFFSET = 0;
@@ -2347,7 +2356,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.42 * MODEL_SCALE; // Pull only the bottom player's chair clearly closer to the table.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -3868,6 +3877,7 @@ export default function MurlanRoyaleArena({ search }) {
             tableGroup.add(model);
             const { surfaceY, radius } = fitTableModelToArena(tableGroup);
             const groundedDelta = groundObjectToY(tableGroup, ARENA_GROUND_Y);
+            centerObjectOnArenaXZ(tableGroup);
             three.arena.add(tableGroup);
             tableInfo = {
               group: tableGroup,
@@ -3902,6 +3912,10 @@ export default function MurlanRoyaleArena({ search }) {
           clothOption: cloth || undefined
         });
         tableInfo = { ...procedural, themeId: theme?.id || 'murlan-default' };
+        if (tableInfo?.group) {
+          centerObjectOnArenaXZ(tableInfo.group);
+          groundObjectToY(tableInfo.group, ARENA_GROUND_Y);
+        }
       }
 
       if (tableBuildTokenRef.current !== token) {
