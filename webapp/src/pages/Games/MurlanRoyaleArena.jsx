@@ -106,10 +106,10 @@ const CHARACTER_PROPORTION_SCALE = 2.0;
 const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
-const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller while preserving portrait composition.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.45; // Keep top avatar aligned after shrinking arena props.
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.7; // Requested: 30% smaller table/chairs while preserving the same framing.
-const CARD_VISUAL_TRIM = 0.92; // Additional slight card trim after table/chair shrink.
+const ARENA_PROP_SCALE = 0.44; // Stronger global prop downscale to better match HDRI environment proportions.
+const TOP_SEAT_AVATAR_UP_LIFT = 3.9; // Keep top-seat avatar screen alignment after the stronger arena shrink.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.56; // Make table/chairs clearly smaller versus HDRI while keeping seat/card layout framing.
+const CARD_VISUAL_TRIM = 0.9; // Keep cards proportionally trimmed with the smaller table/chair silhouette.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -2299,7 +2299,7 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.5 * ARENA_PROP_SCALE, landscape: 0.48 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.34 * ARENA_PROP_SCALE,
   landscape: 0.9 * ARENA_PROP_SCALE
@@ -2346,7 +2346,7 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MODEL_SCALE;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.072 * MODEL_SCALE; // Lower chairs a bit more so feet visually touch the HDRI floor.
+const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.26 * MODEL_SCALE; // Pull only the bottom player's chair slightly closer to the table.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
