@@ -269,16 +269,16 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.26;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.66;
+const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.18;
+const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 // Keep parked weapons anchored immediately next to the player token.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.14,
+  -TILE_SIZE * 0.08,
+  -TILE_SIZE * 0.07,
   -TILE_SIZE * 0.1,
-  -TILE_SIZE * 0.18,
-  -TILE_SIZE * 0.1
+  -TILE_SIZE * 0.07
 ]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.005;
+const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.3,
   helicopter: TOKEN_HEIGHT * 1.26,
@@ -440,6 +440,15 @@ const CAPTURE_CENTER_STAGE_LIFT = TOKEN_HEIGHT * 7.6;
 const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
+// Keep Snake & Ladder capture tuning aligned with Ludo Battle Royale flight behaviour,
+// while staying isolated in this file so changes here never alter other games.
+const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
+  fighter: Object.freeze({ speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 }),
+  helicopter: Object.freeze({ speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 }),
+  drone: Object.freeze({ speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  javelin: Object.freeze({ speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }),
+  supportTruck: Object.freeze({ speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 })
+});
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   fighter: 0,
   helicopter: 0,
@@ -1766,6 +1775,15 @@ function createStraightArmrest(side, material) {
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function remapTakeoffLandingProgress(progress, takeoff = 0.2, landing = 0.24) {
+  const clamped = clamp01(progress);
+  const safeTakeoff = clamp01(takeoff);
+  const safeLanding = clamp01(landing);
+  const core = Math.max(0.01, 1 - safeTakeoff - safeLanding);
+  const shifted = clamp01((clamped - safeTakeoff) / core);
+  return shifted;
+}
 
 function removeAnimationsByType(list, type) {
   if (!Array.isArray(list) || !type) return;
@@ -5839,7 +5857,12 @@ export default function SnakeBoard3D({
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
-    const centerStage = board.boardLookTarget.clone().setY(launch.y + CAPTURE_CENTER_STAGE_LIFT);
+    const captureTuning =
+      LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON[vehicleKind] || LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON.javelin;
+    const centerStage = launch
+      .clone()
+      .lerp(board.boardLookTarget, captureTuning.inward)
+      .setY(launch.y + CAPTURE_CENTER_STAGE_LIFT * captureTuning.height);
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
@@ -5860,16 +5883,7 @@ export default function SnakeBoard3D({
     missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
 
     const startTime = performance.now();
-    const stageFlightDuration =
-      vehicleKind === 'drone'
-        ? Math.max(520, CAPTURE_MISSILE_FLIGHT_MS - 120)
-        : vehicleKind === 'helicopter'
-        ? CAPTURE_MISSILE_FLIGHT_MS + 80
-        : vehicleKind === 'fighter'
-        ? CAPTURE_MISSILE_FLIGHT_MS + 40
-        : vehicleKind === 'supportTruck'
-        ? CAPTURE_MISSILE_FLIGHT_MS + 20
-        : CAPTURE_MISSILE_FLIGHT_MS;
+    const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.72, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
     const volleyCount = vehicleKind === 'fighter' || vehicleKind === 'helicopter' ? CAPTURE_MULTI_SHOT_COUNT : 1;
@@ -5901,14 +5915,14 @@ export default function SnakeBoard3D({
     const carrierPathAt = (uRaw) => {
       const u = clamp01(uRaw);
       const carrierControl = launch.clone().lerp(centerStage, 0.5);
-      carrierControl.y += vehicleKind === 'helicopter' ? TOKEN_HEIGHT * 3.6 : TOKEN_HEIGHT * 2.7;
+      carrierControl.y += (vehicleKind === 'helicopter' ? TOKEN_HEIGHT * 3.6 : TOKEN_HEIGHT * 2.7) * captureTuning.height;
       return quadraticBezier(launch, carrierControl, centerStage, u);
     };
     const droneStrikePathAt = (uRaw) => {
       const u = clamp01(uRaw);
       if (u <= 0.68) {
         const local = clamp01(u / 0.68);
-        const strikeControl = centerStage.clone().lerp(impactTop, 0.55).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.4, 0));
+        const strikeControl = centerStage.clone().lerp(impactTop, 0.55).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.4 * captureTuning.height, 0));
         return quadraticBezier(centerStage, strikeControl, impactTop, local);
       }
       const local = clamp01((u - 0.68) / 0.32);
@@ -5918,12 +5932,12 @@ export default function SnakeBoard3D({
       const u = clamp01(uRaw);
       if (u <= 0.55) {
         const local = clamp01(u / 0.55);
-        const control = fromPos.clone().lerp(centerStage, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+        const control = fromPos.clone().lerp(centerStage, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2 * captureTuning.height, 0));
         return quadraticBezier(fromPos, control, centerStage, local);
       }
       if (u <= 0.82) {
         const local = clamp01((u - 0.55) / 0.27);
-        const control = centerStage.clone().lerp(impactTop, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+        const control = centerStage.clone().lerp(impactTop, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6 * captureTuning.height, 0));
         return quadraticBezier(centerStage, control, impactTop, local);
       }
       const local = clamp01((u - 0.82) / 0.18);
@@ -5949,7 +5963,8 @@ export default function SnakeBoard3D({
         };
 
         if (elapsed <= stageFlightDuration) {
-          const u = easeInOut(clamp01(elapsed / stageFlightDuration));
+          const rawU = easeInOut(clamp01(elapsed / stageFlightDuration));
+          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
           const nextU = clamp01(u + 0.03);
           const pos = carrierPathAt(u);
           const next = carrierPathAt(nextU);
@@ -5970,7 +5985,8 @@ export default function SnakeBoard3D({
         }
         const attackElapsed = elapsed - stageFlightDuration;
         if (vehicleKind === 'drone' && attackElapsed <= droneAttackDuration) {
-          const u = easeInOut(clamp01(attackElapsed / droneAttackDuration));
+          const rawU = easeInOut(clamp01(attackElapsed / droneAttackDuration));
+          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
           const nextU = clamp01(u + 0.02);
           const pos = droneStrikePathAt(u);
           const next = droneStrikePathAt(nextU);
@@ -5996,7 +6012,8 @@ export default function SnakeBoard3D({
             spinCaptureRotors(primaryVehicle, 1 / 60);
           }
           if (missileActive) {
-            const u = easeInOut(clamp01(cycleElapsed / perMissileFlight));
+            const rawU = easeInOut(clamp01(cycleElapsed / perMissileFlight));
+            const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
             const from = vehicleKind === 'supportTruck' ? parkedTop : centerStage;
             const pos = missilePathAt(u, from);
             const next = missilePathAt(clamp01(u + 0.02), from);
