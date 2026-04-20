@@ -99,17 +99,18 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 2.9; // align jet full launch/attack/return cycle speed with drone strike timing
+const CAPTURE_GROUND_FIRE_TIME = 0.18; // shorter ignition so short strikes launch quickly from the live piece
+const CAPTURE_GROUND_TRAVEL_TIME = 2.95; // slow drone a bit more; pawn-javelin keeps identical travel speed
+const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+const CAPTURE_DRONE_STRIKE_TOTAL = CAPTURE_GROUND_TOTAL; // single source for drone + pawn missile timing
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_STRIKE_TOTAL; // keep jet full launch/attack/return cycle locked to drone strike speed
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
-const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing and route behavior
+const CAPTURE_HELICOPTER_TOTAL = CAPTURE_DRONE_STRIKE_TOTAL; // helicopter mirrors drone timing and route behavior
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
-const CAPTURE_GROUND_FIRE_TIME = 0.18; // shorter ignition so short strikes launch quickly from the live piece
-const CAPTURE_GROUND_TRAVEL_TIME = 2.72; // slightly slower drone + pawn-javelin travel for clearer readability in portrait
-const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.004; // ultra-tight contact radius so missiles lock onto target precisely
 const CAPTURE_GROUND_DRONE_RESPAWN_DELAY = LUDO_CAPTURE_EXPLOSION_TIME; // park drone only after explosion completes
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
@@ -123,16 +124,16 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
-const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.16; // tighten jet/helicopter loop so launch-return route stays short
-const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 4.15; // keep flight path concentrated toward board center
+const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.11; // shorter center-focused loop so jet/helicopter return quickly to side parking
+const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 4.45; // clamp flight arc deeper toward board center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.2; // keep drone loop tighter so it hugs the board area
 const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.14; // lower drone route to keep it close to board surface
 const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.09; // lower jet/helicopter route so aircraft feel closer to board
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT = 0.072; // align jet/helicopter flight height with short-missile altitude
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82; // keep jet/helicopter at same effective altitude as drone
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // baseline loop cadence shared by drone/jet/helicopter
-const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
-const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
+const CAPTURE_DRONE_ORBIT_SPLIT = 0.74; // shorten outbound leg so aircraft spend less time away from parking
+const CAPTURE_DRONE_RETURN_SPLIT = 0.64; // start return arc earlier for quicker side-pad recovery
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.4;
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.68;
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
@@ -9714,12 +9715,12 @@ function Chess3D({
     const getAirStrikeCenterFlightTarget = (from, to) => {
       const centerBias = THREE.MathUtils.clamp(
         (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-        0.86,
-        0.985
+        0.92,
+        0.992
       );
       const flightTarget = to.clone();
       flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.76);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.88);
       return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.9);
     };
     const getCaptureOrbitPose = ({
