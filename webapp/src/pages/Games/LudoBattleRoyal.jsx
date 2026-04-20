@@ -109,6 +109,8 @@ const CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE = {
   drone: 0.03,
   missile: 0.08
 };
+// Lift parked capture vehicles slightly so they read a bit higher on portrait screens.
+const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.15,
   helicopter: 1.2 * 1.15,
@@ -2705,7 +2707,7 @@ function getTableWidthScale(tableThemeId) {
   const id = String(tableThemeId || '').toLowerCase();
   if (!id) return 1;
   if (id.includes('octagon')) return 1;
-  return 1.06;
+  return 1.03;
 }
 
 function applyBoardGroupScale(boardGroup, tableInfo) {
@@ -4682,6 +4684,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       alignObjectBottomToY(droneFx.root, tableSurfaceY);
       alignObjectBottomToY(missileFx.root, tableSurfaceY);
       alignObjectBottomToY(droneTruckFx.root, tableSurfaceY);
+      jetFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      helicopterFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      droneFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      missileFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
+      droneTruckFx.root.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       orientCaptureVehicleTowardBoardCenter(jetFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(helicopterFx.root, arena.boardLookTarget);
       orientCaptureVehicleTowardBoardCenter(droneFx.root, arena.boardLookTarget);
@@ -7562,7 +7569,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (shouldLandAtPark && parkedLaunch) {
               const landingBlend = clamp((flyAwayT - 0.72) / 0.28, 0, 1);
               const landed = parkedLaunch.clone();
-              landed.y = tableSurfaceY + 0.002;
+              landed.y = tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
               primaryFx.root.position.lerp(landed, easeSmooth(landingBlend));
             }
           } else {
@@ -7600,7 +7607,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (parkedVehicleToRestore?.isObject3D && parkedLaunch?.isVector3) {
             parkedVehicleToRestore.visible = true;
             parkedVehicleToRestore.position.copy(parkedLaunch);
-            parkedVehicleToRestore.position.y = tableSurfaceY + 0.002;
+            parkedVehicleToRestore.position.y = tableSurfaceY + 0.002 + CAPTURE_PARKED_LIFT_OFFSET_Y;
             orientCaptureVehicleTowardBoardCenter(parkedVehicleToRestore, boardLookTargetRef.current ?? new THREE.Vector3());
           }
           if (isDroneAttack && parkedDronePayload?.isObject3D) {
