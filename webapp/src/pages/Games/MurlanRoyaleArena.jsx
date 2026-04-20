@@ -110,6 +110,8 @@ const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller 
 const TOP_SEAT_AVATAR_UP_LIFT = 3.45; // Keep top avatar aligned after shrinking arena props.
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.56; // Make table/chairs another ~20% smaller than current sizing.
 const CARD_VISUAL_TRIM = 0.92; // Additional slight card trim after table/chair shrink.
+const TABLE_ONLY_VISUAL_SCALE = 0.6; // Requested: table is ~40% smaller than current scene.
+const RING_LAYOUT_INWARD_SCALE = 0.62; // Pull chairs/cards/avatars/camera inward to keep portrait framing.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -2298,11 +2300,17 @@ const AI_CHAIR_GAP = CARD_W * 0.2;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.92;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
-const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.58 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({
+  portrait: 0.15 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE,
+  landscape: 0.56 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE
+});
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
+  portrait: 0.58 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE,
+  landscape: 0.56 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE
+});
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.34 * ARENA_PROP_SCALE,
-  landscape: 0.9 * ARENA_PROP_SCALE
+  portrait: 1.34 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE,
+  landscape: 0.9 * ARENA_PROP_SCALE * RING_LAYOUT_INWARD_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
@@ -2351,8 +2359,8 @@ const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.38 * MODEL_SCALE; // Pull only the bot
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK * TABLE_ONLY_VISUAL_SCALE;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK * TABLE_ONLY_VISUAL_SCALE;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.036 * MODEL_SCALE;
@@ -2361,9 +2369,9 @@ const AI_CARD_OUTWARD = 0;
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
   if (isHumanSeat) {
-    return safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET;
+    return (safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET) * RING_LAYOUT_INWARD_SCALE;
   }
-  return safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET;
+  return (safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET) * RING_LAYOUT_INWARD_SCALE;
 }
 
 function calcFanCardPose(cardCount, cardIdx) {
@@ -4843,7 +4851,7 @@ export default function MurlanRoyaleArena({ search }) {
         const seatRadius =
           (isHumanSeat
             ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
-            : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
+            : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR * RING_LAYOUT_INWARD_SCALE;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
@@ -4857,7 +4865,7 @@ export default function MurlanRoyaleArena({ search }) {
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const focus = forward
           .clone()
-          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
+          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE) * RING_LAYOUT_INWARD_SCALE);
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
         stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
@@ -4947,9 +4955,9 @@ export default function MurlanRoyaleArena({ search }) {
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
         const cameraHeightOffset = isPortrait ? 1.16 : 0.88;
         initialCameraPosition = new THREE.Vector3(
-          Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
+          Math.cos(humanSeatAngle) * (chairRadius * RING_LAYOUT_INWARD_SCALE + cameraBackOffset - cameraForwardOffset),
           TABLE_HEIGHT + cameraHeightOffset,
-          Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
+          Math.sin(humanSeatAngle) * (chairRadius * RING_LAYOUT_INWARD_SCALE + cameraBackOffset - cameraForwardOffset)
         );
       }
       const initialOffset = initialCameraPosition.clone().sub(target);
@@ -4957,7 +4965,8 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.94;
+      const desiredRadius =
+        Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.94 * RING_LAYOUT_INWARD_SCALE;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
