@@ -262,15 +262,17 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
-]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.26;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.66;
+const WEAPON_PARK_SIDE_OFFSET = TILE_SIZE * 0.19;
+const WEAPON_PARK_FORWARD_OFFSET_BY_KIND = Object.freeze({
+  fighter: TILE_SIZE * 0.03,
+  helicopter: TILE_SIZE * 0.03,
+  drone: TILE_SIZE * 0.03,
+  supportTruck: TILE_SIZE * 0.08,
+  javelin: TILE_SIZE * 0.08
+});
+const WEAPON_PARKED_LIFT_OFFSET_Y = TOKEN_HEIGHT * 0.1;
 // Keep parked weapons anchored immediately next to the player token.
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   -TILE_SIZE * 0.14,
@@ -278,7 +280,6 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   -TILE_SIZE * 0.18,
   -TILE_SIZE * 0.1
 ]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.005;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   fighter: TOKEN_HEIGHT * 1.3,
   helicopter: TOKEN_HEIGHT * 1.26,
@@ -440,6 +441,16 @@ const CAPTURE_CENTER_STAGE_LIFT = TOKEN_HEIGHT * 7.6;
 const CAPTURE_RETURN_MS = 620;
 const CAPTURE_VERTICAL_STRIKE_LIFT = TOKEN_HEIGHT * 8.8;
 const CAPTURE_MULTI_SHOT_COUNT = 2;
+const CAPTURE_AIRCRAFT_SLOW_FACTOR = 1.4;
+const CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR = 0.68;
+const CAPTURE_AIRCRAFT_ALTITUDE_FACTOR = 0.76;
+const CAPTURE_ATTACK_TUNING = Object.freeze({
+  fighter: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
+  helicopter: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
+  drone: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
+  supportTruck: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 },
+  javelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
+});
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   fighter: 0,
   helicopter: 0,
@@ -1766,6 +1777,27 @@ function createStraightArmrest(side, material) {
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+function resolveSnakeCaptureAttackTuning(kind) {
+  return CAPTURE_ATTACK_TUNING[kind] ?? CAPTURE_ATTACK_TUNING.javelin;
+}
+
+function remapCaptureTakeoffLandingProgress(rawProgress, takeoffRatio = 0.2, landingRatio = 0.22) {
+  const t = clamp01(rawProgress);
+  const startRatio = clamp(takeoffRatio, 0.08, 0.4);
+  const endRatio = clamp(landingRatio, 0.08, 0.4);
+  const cruiseRatio = Math.max(1 - startRatio - endRatio, 0.2);
+  if (t <= startRatio) {
+    const local = startRatio > 1e-4 ? t / startRatio : 1;
+    return easeInOut(local) * (startRatio * 0.88);
+  }
+  if (t >= 1 - endRatio) {
+    const local = endRatio > 1e-4 ? (t - (1 - endRatio)) / endRatio : 1;
+    return 1 - (1 - easeInOut(local)) * (endRatio * 0.88);
+  }
+  const local = (t - startRatio) / cruiseRatio;
+  return startRatio * 0.88 + local * cruiseRatio;
+}
 
 function removeAnimationsByType(list, type) {
   if (!Array.isArray(list) || !type) return;
@@ -4683,23 +4715,24 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
+    const tokenGroup =
+      board.boardTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
+      board.reserveTokensGroup?.children?.find((child) => child.userData?.playerIndex === index) ||
+      null;
+    const tokenWorld = tokenGroup?.getWorldPosition?.(new THREE.Vector3()) || null;
+    const railTokenPos = tokenWorld
+      ? board.boardGroup?.worldToLocal?.(tokenWorld.clone()) || tokenWorld.clone()
+      : null;
     const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
-    const railLayout = getSeatRailLayout(
-      board,
-      seatIndex,
-      -TILE_SIZE * 0.12,
-      Number.isFinite(weaponInset) ? weaponInset : null
-    );
+    const railLayout = getSeatRailLayout(board, seatIndex, -TILE_SIZE * 0.12, Number.isFinite(weaponInset) ? weaponInset : null);
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const tokenSideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const tokenLateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const tokenSlotOffset = tokenSideSign * SEAT_RAIL_SLOT_OFFSET + tokenLateralNudge;
-      const weaponCenterOffset = tokenSlotOffset + sideSign * (WEAPON_FROM_TOKEN_CENTER_OFFSET + WEAPON_TOKEN_GAP) + lateralNudge;
+      const vehicleForwardInset = WEAPON_PARK_FORWARD_OFFSET_BY_KIND[weaponType] ?? TILE_SIZE * 0.03;
+      const tokenAnchor = railTokenPos || railLayout.railLocal;
+      holder.position.copy(tokenAnchor);
       holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(railLayout.lateral, weaponCenterOffset)
+        .addScaledVector(railLayout.lateral, sideSign * WEAPON_PARK_SIDE_OFFSET)
+        .addScaledVector(railLayout.seatDirection, vehicleForwardInset)
         .addScaledVector(
           railLayout.seatDirection,
           WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
@@ -4707,7 +4740,8 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.y =
         railLayout.railHeightY +
         WEAPON_REST_HEIGHT_OFFSET +
-        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0);
+        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0) +
+        WEAPON_PARKED_LIFT_OFFSET_Y;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -5839,7 +5873,16 @@ export default function SnakeBoard3D({
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+    const captureTuning = resolveSnakeCaptureAttackTuning(vehicleKind);
     const centerStage = board.boardLookTarget.clone().setY(launch.y + CAPTURE_CENTER_STAGE_LIFT);
+    const launchToCenterPlanar = board.boardLookTarget.clone().sub(launchOrigin).setY(0);
+    if (launchToCenterPlanar.lengthSq() > 1e-6) {
+      launchToCenterPlanar.normalize();
+      centerStage.addScaledVector(
+        launchToCenterPlanar,
+        launchOrigin.distanceTo(board.boardLookTarget) * (1 - CAPTURE_AIRCRAFT_ORBIT_INWARD_FACTOR * captureTuning.inward)
+      );
+    }
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
@@ -5860,7 +5903,7 @@ export default function SnakeBoard3D({
     missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
 
     const startTime = performance.now();
-    const stageFlightDuration =
+    const baseStageFlightDuration =
       vehicleKind === 'drone'
         ? Math.max(520, CAPTURE_MISSILE_FLIGHT_MS - 120)
         : vehicleKind === 'helicopter'
@@ -5870,13 +5913,16 @@ export default function SnakeBoard3D({
         : vehicleKind === 'supportTruck'
         ? CAPTURE_MISSILE_FLIGHT_MS + 20
         : CAPTURE_MISSILE_FLIGHT_MS;
+    const airAttackSlowFactor =
+      vehicleKind === 'fighter' || vehicleKind === 'helicopter' || vehicleKind === 'drone' ? CAPTURE_AIRCRAFT_SLOW_FACTOR : 1;
+    const stageFlightDuration = baseStageFlightDuration * airAttackSlowFactor * captureTuning.speed;
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
     const volleyCount = vehicleKind === 'fighter' || vehicleKind === 'helicopter' ? CAPTURE_MULTI_SHOT_COUNT : 1;
     const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
     const volleyDuration = volleyCount * perMissileFlight + Math.max(0, volleyCount - 1) * perMissileGap;
-    const droneAttackDuration = CAPTURE_MISSILE_FLIGHT_MS + 160;
+    const droneAttackDuration = (CAPTURE_MISSILE_FLIGHT_MS + 160) * captureTuning.speed;
     const returnDuration = CAPTURE_RETURN_MS;
     const camera = cameraRef.current;
     const controls = board.controls;
@@ -5899,16 +5945,19 @@ export default function SnakeBoard3D({
       if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
     }
     const carrierPathAt = (uRaw) => {
-      const u = clamp01(uRaw);
+      const u = remapCaptureTakeoffLandingProgress(uRaw, captureTuning.takeoff, captureTuning.landing);
       const carrierControl = launch.clone().lerp(centerStage, 0.5);
-      carrierControl.y += vehicleKind === 'helicopter' ? TOKEN_HEIGHT * 3.6 : TOKEN_HEIGHT * 2.7;
+      carrierControl.y += (vehicleKind === 'helicopter' ? TOKEN_HEIGHT * 3.6 : TOKEN_HEIGHT * 2.7) * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR;
       return quadraticBezier(launch, carrierControl, centerStage, u);
     };
     const droneStrikePathAt = (uRaw) => {
       const u = clamp01(uRaw);
       if (u <= 0.68) {
         const local = clamp01(u / 0.68);
-        const strikeControl = centerStage.clone().lerp(impactTop, 0.55).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.4, 0));
+        const strikeControl = centerStage
+          .clone()
+          .lerp(impactTop, 0.55)
+          .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.4 * captureTuning.height * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR, 0));
         return quadraticBezier(centerStage, strikeControl, impactTop, local);
       }
       const local = clamp01((u - 0.68) / 0.32);
@@ -5918,12 +5967,18 @@ export default function SnakeBoard3D({
       const u = clamp01(uRaw);
       if (u <= 0.55) {
         const local = clamp01(u / 0.55);
-        const control = fromPos.clone().lerp(centerStage, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
+        const control = fromPos
+          .clone()
+          .lerp(centerStage, 0.5)
+          .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2 * captureTuning.height * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR, 0));
         return quadraticBezier(fromPos, control, centerStage, local);
       }
       if (u <= 0.82) {
         const local = clamp01((u - 0.55) / 0.27);
-        const control = centerStage.clone().lerp(impactTop, 0.5).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
+        const control = centerStage
+          .clone()
+          .lerp(impactTop, 0.5)
+          .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6 * captureTuning.height * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR, 0));
         return quadraticBezier(centerStage, control, impactTop, local);
       }
       const local = clamp01((u - 0.82) / 0.18);
