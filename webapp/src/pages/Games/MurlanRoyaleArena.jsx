@@ -110,6 +110,8 @@ const ARENA_PROP_SCALE = 0.4896; // Keep table/chairs/cards another 15% smaller 
 const TOP_SEAT_AVATAR_UP_LIFT = 3.45; // Keep top avatar aligned after shrinking arena props.
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.56; // Make table/chairs another ~20% smaller than current sizing.
 const CARD_VISUAL_TRIM = 0.92; // Additional slight card trim after table/chair shrink.
+const TABLE_VISUAL_SCALE = 0.6; // Requested: make the Murlan table ~40% smaller.
+const TABLE_LAYOUT_INWARD_FACTOR = 0.72; // Pull chairs/cards/avatars/camera inward to preserve framing.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
 const TABLE_HORIZONTAL_SHRINK = 0.94; // Trim only visual left/right footprint while keeping top/bottom depth.
@@ -1430,8 +1432,7 @@ function fitTableModelToArena(model) {
   );
   return {
     surfaceY: targetHeight,
-    // Preserve previous card/avatar/camera layout radius even after shrinking visuals.
-    radius: radius / TABLE_AND_CHAIR_VISUAL_SHRINK
+    radius
   };
 }
 
@@ -2351,8 +2352,9 @@ const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.38 * MODEL_SCALE; // Pull only the bot
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK;
+const TABLE_MODEL_TARGET_DIAMETER =
+  TABLE_RADIUS * 2 * 1.06 * TABLE_SIDE_TRIM_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK * TABLE_VISUAL_SCALE;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK * TABLE_VISUAL_SCALE;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.036 * MODEL_SCALE;
@@ -4843,7 +4845,7 @@ export default function MurlanRoyaleArena({ search }) {
         const seatRadius =
           (isHumanSeat
             ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
-            : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
+            : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR * TABLE_LAYOUT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
@@ -4957,7 +4959,11 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.94;
+      const desiredRadius =
+        Math.min(maxOrbitRadius, minOrbitRadius * 1.1) *
+        CAMERA_INWARD_RADIUS_FACTOR *
+        0.94 *
+        TABLE_LAYOUT_INWARD_FACTOR;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
