@@ -309,6 +309,7 @@ const CHECKERS_HIGHLIGHT_COLORS = Object.freeze({
 });
 const CHECKERS_PROCEDURAL_TABLE_IDS = new Set([
   'murlan-default',
+  'grandOval',
   'ovalTable',
   'diamondEdge',
   'hexagonTable'
@@ -316,9 +317,26 @@ const CHECKERS_PROCEDURAL_TABLE_IDS = new Set([
 const CHECKERS_TABLE_SHAPE_BY_ID = Object.freeze({
   'murlan-default': 'classicOctagon',
   ovalTable: 'grandOval',
+  grandOval: 'grandOval',
   diamondEdge: 'diamondEdge',
   hexagonTable: 'hexagonTable'
 });
+
+const CHECKERS_SUPPORTED_TABLE_IDS = new Set([
+  ...Object.keys(CHECKERS_TABLE_SHAPE_BY_ID),
+  ...CHESS_TABLE_OPTIONS.filter((option) => option?.source === 'procedural').map(
+    (option) => option.id
+  )
+]);
+
+function resolveCheckersTableShapeId(tableId) {
+  const selectedOption = CHESS_TABLE_OPTIONS.find((opt) => opt.id === tableId);
+  return (
+    selectedOption?.proceduralShapeId ||
+    CHECKERS_TABLE_SHAPE_BY_ID[tableId] ||
+    'classicOctagon'
+  );
+}
 
 const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
   marble: { id: 'marble', light: '#f5f5f5', dark: '#6b7280' },
@@ -1094,6 +1112,31 @@ function createConfiguredGLTFLoader(renderer = null) {
   return loader;
 }
 
+function normalizeMaterialTextures(
+  material,
+  maxAnisotropy = 8,
+  { preserveGltfTextureMapping = false } = {}
+) {
+  if (!material) return;
+  const normalizeTexture = (texture, isColor = false) => {
+    if (!texture) return;
+    if (isColor) applySRGBColorSpace(texture);
+    texture.flipY = false;
+    if (!preserveGltfTextureMapping) {
+      texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+      texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+    }
+    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+    texture.needsUpdate = true;
+  };
+  normalizeTexture(material.map, true);
+  normalizeTexture(material.emissiveMap, true);
+  normalizeTexture(material.normalMap, false);
+  normalizeTexture(material.roughnessMap, false);
+  normalizeTexture(material.metalnessMap, false);
+  normalizeTexture(material.aoMap, false);
+}
+
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -1123,7 +1166,14 @@ async function buildChessMappedChairTemplate() {
   let lastError = null;
   for (const url of CHAIR_MODEL_URLS) {
     try {
-      gltf = await loader.loadAsync(url);
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const resourcePath = resolvedUrl.substring(
+        0,
+        resolvedUrl.lastIndexOf('/') + 1
+      );
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
       lastError = error;
@@ -1138,8 +1188,8 @@ async function buildChessMappedChairTemplate() {
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
-      if (mat?.map) applySRGBColorSpace(mat.map);
-      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+      mat.needsUpdate = true;
     });
   });
   fitChairModelToFootprint(model);
@@ -1185,14 +1235,7 @@ async function buildPolyhavenChairTemplate(assetId, renderer = null) {
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
-      if (mat?.map) {
-        applySRGBColorSpace(mat.map);
-        mat.map.needsUpdate = true;
-      }
-      if (mat?.emissiveMap) {
-        applySRGBColorSpace(mat.emissiveMap);
-        mat.emissiveMap.needsUpdate = true;
-      }
+      normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
       mat.needsUpdate = true;
     });
   });
@@ -1606,6 +1649,7 @@ export default function CheckersBattleRoyal() {
   const unlockedTableOptions = useMemo(
     () => {
       const baseUnlocked = CHESS_TABLE_OPTIONS.filter((opt) =>
+        CHECKERS_SUPPORTED_TABLE_IDS.has(opt.id) &&
         isChessOptionUnlocked('tables', opt.id, inventory)
       );
       const specialProcedural = [
@@ -2553,8 +2597,7 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
-        const desiredShapeId =
-          CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
+        const desiredShapeId = resolveCheckersTableShapeId(appearance.tableId);
         const desiredShape =
           TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
           TABLE_SHAPE_OPTIONS[0];
@@ -3030,8 +3073,7 @@ export default function CheckersBattleRoyal() {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    const desiredShapeId =
-      CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
+    const desiredShapeId = resolveCheckersTableShapeId(appearance.tableId);
     const currentShapeId = tableRef.current?.shapeId || 'classicOctagon';
     if (tableRef.current && currentShapeId !== desiredShapeId) {
       const currentTable = tableRef.current;
