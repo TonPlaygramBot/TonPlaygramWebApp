@@ -2678,6 +2678,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [actionError, setActionError] = useState('');
   const [threeReady, setThreeReady] = useState(false);
   const [seatAnchors, setSeatAnchors] = useState([]);
+  const [discardHudAnchor, setDiscardHudAnchor] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -3436,7 +3437,7 @@ export default function MurlanRoyaleArena({ search }) {
 
   const updateSeatAnchors = useCallback(() => {
     const store = threeStateRef.current;
-    const { camera, seatConfigs } = store;
+    const { camera, seatConfigs, discardAnchor } = store;
     const mount = mountRef.current;
     if (!camera || !seatConfigs?.length || !mount) return;
     const rect = mount.getBoundingClientRect();
@@ -3467,6 +3468,33 @@ export default function MurlanRoyaleArena({ search }) {
     });
 
     setSeatAnchors(anchors);
+
+    if (discardAnchor) {
+      const projected = discardAnchor.clone().project(camera);
+      const x = clampValue(((projected.x + 1) / 2) * 100, 4, 96);
+      const y = clampValue(((1 - projected.y) / 2) * 100, 4, 96);
+      const depth = discardAnchor.distanceTo(camera.position);
+      setDiscardHudAnchor((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.x - x) < 0.8 &&
+          Math.abs(prev.y - y) < 0.8 &&
+          Math.abs(prev.depth - depth) < 0.15
+        ) {
+          return prev;
+        }
+        return { x, y, depth };
+      });
+    }
+  }, []);
+
+  const triggerLiveAvatarVideo = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new CustomEvent('tonplaygram:live-avatar:start', {
+        detail: { gameSlug: 'murlanroyale' }
+      })
+    );
   }, []);
 
   const stopCameraTurnAnimation = useCallback(() => {
@@ -4976,7 +5004,7 @@ export default function MurlanRoyaleArena({ search }) {
           .addScaledVector(humanSeatConfig.forward, -CAMERA_TARGET_TOP_PLAYER_BIAS);
       } else {
         const humanSeatAngle = Math.PI / 2;
-        const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+        const cameraBackOffset = isPortrait ? 1.9 : 1.18;
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
         const cameraHeightOffset = isPortrait ? 1.06 : 0.88;
         initialCameraPosition = new THREE.Vector3(
@@ -5417,7 +5445,7 @@ export default function MurlanRoyaleArena({ search }) {
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(11.4rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(8.7rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5443,6 +5471,7 @@ export default function MurlanRoyaleArena({ search }) {
                 key={activePlayer?.id ?? idx}
                 className="absolute pointer-events-auto flex flex-col items-center gap-1"
                 style={positionStyle}
+                data-self-player={idx === humanPlayerIndex ? 'true' : 'false'}
               >
                 <AvatarTimer
                   index={idx}
@@ -5454,6 +5483,7 @@ export default function MurlanRoyaleArena({ search }) {
                   color={color}
                   size={avatarSize}
                   frameScale={idx === humanPlayerIndex ? 2 : 1}
+                  onClick={idx === humanPlayerIndex ? triggerLiveAvatarVideo : undefined}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
@@ -5620,8 +5650,24 @@ export default function MurlanRoyaleArena({ search }) {
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
             {uiState.message || uiState.tableSummary ? (
-              <div className="fixed bottom-[8rem] left-1/2 z-20 w-[min(92vw,34rem)] -translate-x-1/2 px-2">
-                <div className="rounded-2xl border border-white/20 bg-black/55 px-3 py-2 text-center text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-white shadow-[0_10px_22px_rgba(2,6,23,0.45)] backdrop-blur-sm">
+              <div
+                className="fixed z-20 w-[min(64vw,17rem)] px-1"
+                style={
+                  discardHudAnchor
+                    ? {
+                        left: `${Math.min(discardHudAnchor.x + 5.4, 95)}%`,
+                        top: `${discardHudAnchor.y}%`,
+                        transform: 'translate(0,-50%)'
+                      }
+                    : {
+                        bottom: '8rem',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 'min(92vw,34rem)'
+                      }
+                }
+              >
+                <div className="rounded-xl border border-white/15 bg-black/50 px-2 py-1.5 text-left text-[0.62rem] font-semibold uppercase tracking-[0.06em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.42)] backdrop-blur-sm">
                   {uiState.message || uiState.tableSummary}
                 </div>
               </div>

@@ -319,6 +319,19 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     };
   }, [anchorElement, liveMode]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleStartEvent = (event) => {
+      const eventSlug = event?.detail?.gameSlug;
+      if (eventSlug && eventSlug !== gameSlug) return;
+      setLiveMode(true);
+    };
+    window.addEventListener('tonplaygram:live-avatar:start', handleStartEvent);
+    return () => {
+      window.removeEventListener('tonplaygram:live-avatar:start', handleStartEvent);
+    };
+  }, [gameSlug]);
+
   return (
     <>
       {children}
