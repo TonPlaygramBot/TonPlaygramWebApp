@@ -89,8 +89,8 @@ const clamp01 = (value, fallback = 0) => {
 const smoothEase = (t) => t * t * (3 - 2 * t);
 const FORWARD = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
-const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
+const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 1.35;
+const LUDO_CAPTURE_EXPLOSION_TIME = 1.05;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 1.36; // slower lift-off so takeoff remains readable in portrait
 const CAPTURE_DRONE_CRUISE_TIME = 4.92; // slower cruise to keep aircraft readable on-frame
@@ -99,7 +99,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 9.8; // extend loop further so jet/helicopter lift-off is clearly visible before firing
+const CAPTURE_JET_TOTAL = 4.2; // balanced pacing: readable impact without feeling slow
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing and route behavior
@@ -107,8 +107,8 @@ const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTA
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
-const CAPTURE_GROUND_FIRE_TIME = 0.34; // quick ignition before short vertical strike
-const CAPTURE_DRONE_STRIKE_TRAVEL_TIME = 3.28; // slightly slower so drone lift-off and approach are easier to read on mobile
+const CAPTURE_GROUND_FIRE_TIME = 0.22; // quick ignition before short vertical strike
+const CAPTURE_DRONE_STRIKE_TRAVEL_TIME = 1.24; // normal-speed strike pacing for readable but snappy impacts
 const CAPTURE_GROUND_TRAVEL_TIME = CAPTURE_DRONE_STRIKE_TRAVEL_TIME; // keep pawn javelin/truck missiles in sync with drone strike timing
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.004; // ultra-tight contact radius so missiles lock onto target precisely
@@ -117,9 +117,9 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.28; // lower flight path to keep aircraft closer to board
+const CAPTURE_DRONE_ALTITUDE = 0.36; // keep flight path above piece heads with a small visual gap
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
-const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
+const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.95; // keep cruise path on-board and above head level
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
@@ -157,7 +157,7 @@ const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.84; // much slower liftoff so aircraft
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.9;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.95;
 const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.64; // fire near shared strike latitude, then return to parking side instead of dive-crashing
-const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.8; // quicker travel to keep impact synced with fly-by
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 1.2; // normal-speed travel synced with fly-by
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // trigger impact only at the very end of the precision strike
@@ -10067,6 +10067,14 @@ function Chess3D({
       deltaR = 0,
       deltaC = 0
     }) => {
+      const afterExplosionDelayMs = LUDO_CAPTURE_EXPLOSION_TIME * 1000;
+      const waitForExplosion = (impactDelayMs) => {
+        const totalDelay = Math.max(0, impactDelayMs) + afterExplosionDelayMs;
+        return {
+          moveDelayMs: totalDelay,
+          captureResolveDelayMs: totalDelay
+        };
+      };
       const pieceType = resolveCaptureAnimationPieceType(
         movingType,
         movingMesh?.userData?.t,
@@ -10102,10 +10110,7 @@ function Chess3D({
           verticalStrike: true,
           launchFromLivePiece: false
         });
-        return {
-          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-        };
+        return waitForExplosion(CAPTURE_GROUND_TOTAL * 1000);
       }
       if (captureAnimationId === 'droneStrike' || captureAnimationId === 'pawnJavelin') {
         if (captureAnimationId === 'droneStrike') {
@@ -10138,10 +10143,7 @@ function Chess3D({
             verticalStrike: true,
             launchFromLivePiece: false
           });
-          return {
-            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-          };
+          return waitForExplosion(CAPTURE_GROUND_TOTAL * 1000);
         }
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -10166,10 +10168,7 @@ function Chess3D({
           verticalStrike: true,
           launchFromLivePiece: true
         });
-        return {
-          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-        };
+        return waitForExplosion(CAPTURE_GROUND_TOTAL * 1000);
       }
       if (captureAnimationId === 'kingJetStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
@@ -10217,10 +10216,7 @@ function Chess3D({
           missileFx
         });
         const jetImpactDelayMs = CAPTURE_JET_TOTAL * 0.96 * 1000;
-        return {
-          moveDelayMs: jetImpactDelayMs,
-          captureResolveDelayMs: jetImpactDelayMs
-        };
+        return waitForExplosion(jetImpactDelayMs);
       }
       if (captureAnimationId === 'helicopterStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
@@ -10273,10 +10269,7 @@ function Chess3D({
           missileFx
         });
         const helicopterImpactDelayMs = CAPTURE_HELICOPTER_TOTAL * 0.96 * 1000;
-        return {
-          moveDelayMs: helicopterImpactDelayMs,
-          captureResolveDelayMs: helicopterImpactDelayMs
-        };
+        return waitForExplosion(helicopterImpactDelayMs);
       }
       if (captureAnimationId === 'queenJetStrike') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
@@ -10324,10 +10317,7 @@ function Chess3D({
           missileFx
         });
         const jetImpactDelayMs = CAPTURE_JET_TOTAL * 0.96 * 1000;
-        return {
-          moveDelayMs: jetImpactDelayMs,
-          captureResolveDelayMs: jetImpactDelayMs
-        };
+        return waitForExplosion(jetImpactDelayMs);
       }
       if (distance <= 1.5) {
         playAudio(swordSoundRef);
@@ -10341,7 +10331,7 @@ function Chess3D({
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         captureFxGroup.add(missileFx.root);
         activeCaptureFx.push({ type: 'missile', t: 0, duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME, from: fromPos.clone(), to: targetPos.clone(), missileFx });
-        return { moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 };
+        return waitForExplosion(LUDO_CAPTURE_MISSILE_TRAVEL_TIME * 1000);
       }
       launchExplosion(targetPos.clone());
       return { moveDelayMs: 280 };
