@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 2.25;
+const TOP_SEAT_AVATAR_UP_LIFT = 2.85;
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2298,7 +2298,7 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
-const CHAIR_GAP = 0.152 * MODEL_SCALE;
+const CHAIR_GAP = 0.11 * MODEL_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
@@ -2306,8 +2306,8 @@ const CHAIR_SEAT_INWARD_FACTOR = 0.965;
 const CHAIR_VISUAL_SCALE = 1.3;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
-  portrait: 0.8,
-  landscape: 0.64
+  portrait: 0.98,
+  landscape: 0.74
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.7,
@@ -2328,7 +2328,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = 0;
+const HUMAN_HAND_LEFT_SHIFT = -0.11 * MODEL_SCALE;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.078 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -5439,13 +5439,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 6.0 : 4.2;
+            const sideSeatTopLift = isSideSeat ? 7.1 : 4.6;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(8.7rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(4.2rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5649,30 +5649,7 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            {uiState.message || uiState.tableSummary ? (
-              <div
-                className="fixed z-20 w-[min(64vw,17rem)] px-1"
-                style={
-                  discardHudAnchor
-                    ? {
-                        left: `${Math.min(discardHudAnchor.x + 5.4, 95)}%`,
-                        top: `${discardHudAnchor.y}%`,
-                        transform: 'translate(0,-50%)'
-                      }
-                    : {
-                        bottom: '8rem',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: 'min(92vw,34rem)'
-                      }
-                }
-              >
-                <div className="rounded-xl border border-white/15 bg-black/50 px-2 py-1.5 text-left text-[0.62rem] font-semibold uppercase tracking-[0.06em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.42)] backdrop-blur-sm">
-                  {uiState.message || uiState.tableSummary}
-                </div>
-              </div>
-            ) : null}
-            <div className="fixed bottom-[4.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[8.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
