@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.44; // Stronger global prop downscale to better match HDRI environment proportions.
-const TOP_SEAT_AVATAR_UP_LIFT = 3.9; // Keep top-seat avatar screen alignment after the stronger arena shrink.
+const TOP_SEAT_AVATAR_UP_LIFT = 2.8; // Keep top-seat avatar closer to the table after the stronger arena shrink.
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.56; // Make table/chairs clearly smaller versus HDRI while keeping seat/card layout framing.
 const CARD_VISUAL_TRIM = 0.9; // Keep cards proportionally trimmed with the smaller table/chair silhouette.
 
@@ -2301,20 +2301,20 @@ const TABLE_HEIGHT_SHORTEN_FACTOR = 0.52; // Further shorten table profile while
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.02 * MODEL_SCALE;
-const CHAIR_INWARD_OFFSET = 0.54 * MODEL_SCALE;
+const CHAIR_INWARD_OFFSET = 0.74 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
-const AI_CHAIR_GAP = CARD_W * 0.02;
+const AI_CHAIR_GAP = CARD_W * 0;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.24 * ARENA_PROP_SCALE, landscape: 0.24 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.34 * ARENA_PROP_SCALE, landscape: 0.34 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.34 * ARENA_PROP_SCALE,
-  landscape: 0.9 * ARENA_PROP_SCALE
+  portrait: 1.14 * ARENA_PROP_SCALE,
+  landscape: 0.78 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = -0.34 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.29;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -2323,10 +2323,10 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.24 * MODEL_SCALE; // Bring the bottom player's hand/cards closer to the table without changing card size.
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.082 * MODEL_SCALE;
-const AI_HAND_BOTTOM_SHIFT_Y = 0;
-const AI_HAND_CLOSER_OFFSET = 0.06 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.3 * MODEL_SCALE; // Bring the bottom player's hand/cards closer to the table without changing card size.
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.135 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
+const AI_HAND_CLOSER_OFFSET = -0.01 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.012 * MODEL_SCALE;
@@ -2356,7 +2356,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.54 * MODEL_SCALE; // Pull only the bottom player's chair closer to the table while preserving chair size.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.74 * MODEL_SCALE; // Pull only the bottom player's chair closer to the table while preserving chair size.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -2409,7 +2409,7 @@ const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.76 * ARENA_PROP_SCALE;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.68 * ARENA_PROP_SCALE;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
