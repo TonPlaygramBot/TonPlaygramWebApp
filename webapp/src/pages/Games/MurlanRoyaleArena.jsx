@@ -2308,9 +2308,9 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.0 * ARENA_PROP_SCALE, landscape: 0.04 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: -0.2 * ARENA_PROP_SCALE, landscape: 0.02 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 0.66 * ARENA_PROP_SCALE,
+  portrait: 0.48 * ARENA_PROP_SCALE,
   landscape: 0.5 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
@@ -2339,6 +2339,7 @@ const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.36 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.24;
+const HAND_CARDS_INWARD_BIAS = 0.2 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2357,7 +2358,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 2.35 * MODEL_SCALE; // Pull only the bottom player's chair further inward so it sits closer to the table edge.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 1.15 * MODEL_SCALE; // Keep human chair near the same table distance as AI chairs.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -2371,9 +2372,9 @@ const AI_CARD_OUTWARD = 0;
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
   if (isHumanSeat) {
-    return safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET;
+    return safeTableRadius + HUMAN_HAND_TABLE_EDGE_MARGIN - HUMAN_HAND_CLOSER_OFFSET - HAND_CARDS_INWARD_BIAS;
   }
-  return safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET;
+  return safeTableRadius + AI_HAND_TABLE_EDGE_MARGIN - AI_HAND_CLOSER_OFFSET - HAND_CARDS_INWARD_BIAS;
 }
 
 function calcFanCardPose(cardCount, cardIdx) {
