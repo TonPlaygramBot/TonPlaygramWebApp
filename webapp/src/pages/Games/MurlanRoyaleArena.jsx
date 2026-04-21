@@ -2308,10 +2308,10 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: -0.2 * ARENA_PROP_SCALE, landscape: 0.02 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: -0.36 * ARENA_PROP_SCALE, landscape: -0.06 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 0.48 * ARENA_PROP_SCALE,
-  landscape: 0.5 * ARENA_PROP_SCALE
+  portrait: 0.34 * ARENA_PROP_SCALE,
+  landscape: 0.4 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.32 * MODEL_SCALE;
@@ -2323,7 +2323,7 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = 0.42 * MODEL_SCALE; // Pull bottom-seat hand/cards much closer to table center for tighter portrait framing.
+const HUMAN_HAND_CLOSER_OFFSET = 0.12 * MODEL_SCALE; // Keep bottom-seat cards between chair and table edge instead of deep toward table center.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.46 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.2 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = -0.2 * MODEL_SCALE;
@@ -2358,7 +2358,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 1.15 * MODEL_SCALE; // Keep human chair near the same table distance as AI chairs.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -4861,7 +4861,7 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanSeat = Boolean(player?.isHuman);
         const seatRadius =
           (isHumanSeat
-            ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
+            ? AI_CHAIR_RADIUS - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
