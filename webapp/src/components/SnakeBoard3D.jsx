@@ -236,25 +236,20 @@ const FIRST_LEVEL_PLATFORM_EXTRA = TILE_SIZE * 0.9;
 const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKEN_SCALE_MULTIPLIER;
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
-const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
-const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 1.62;
+const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.12;
+const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 0.22;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
-  TOP_SEAT_WEAPON_REST_RAIL_INSET + TILE_SIZE * 1.08,
+  TOP_SEAT_WEAPON_REST_RAIL_INSET,
   TOP_SEAT_WEAPON_REST_RAIL_INSET
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
-// Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
-const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 1.52,
-  -TILE_SIZE * 1.3,
-  TILE_SIZE * 1.42,
-  -TILE_SIZE * 0.98
-]);
+// Keep all reserve slots symmetric so they form a clear "+" around the table.
+const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
@@ -262,25 +257,25 @@ const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, 1, -1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.22,
-  TILE_SIZE * 0.12,
-  TILE_SIZE * 0.2,
-  TILE_SIZE * 0.12
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.2,
-  -TILE_SIZE * 0.12,
-  -TILE_SIZE * 0.24,
-  -TILE_SIZE * 0.12
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
+const WEAPON_PARKING_OUTWARD_OFFSET = 0;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.08,
-  -TILE_SIZE * 0.34,
-  TILE_SIZE * 0.24,
-  -TILE_SIZE * 0.34
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -290,12 +285,12 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
+const WEAPON_REST_HEIGHT_OFFSET = 0;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  -TOKEN_HEIGHT * 0.12,
-  -TOKEN_HEIGHT * 0.36,
-  -TOKEN_HEIGHT * 1.32,
-  -TOKEN_HEIGHT * 0.36
+  0,
+  0,
+  0,
+  0
 ]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
@@ -3503,30 +3498,26 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
   );
 
   const tableInfo = board?.tableInfo;
+  const tableSurfaceY = Number.isFinite(tableInfo?.surfaceY) ? tableInfo.surfaceY : boardLookTarget.y;
   if (tableInfo?.getInnerRadius) {
     const inner = tableInfo.getInnerRadius(seatDirection);
     if (Number.isFinite(inner) && inner > 0) {
       const outer = tableInfo.getOuterRadius?.(seatDirection) ?? inner;
       const rimInner = Math.min(inner, outer);
       const rimOuter = Math.max(inner, outer);
-      const rimMid = rimInner + (rimOuter - rimInner) * 0.35;
-      restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.05, rimOuter - 0.08));
+      const rimMid = rimInner + (rimOuter - rimInner) * 0.58;
+      restRadius = Math.max(restRadius, THREE.MathUtils.clamp(rimMid, rimInner + 0.06, rimOuter - 0.06));
       restRadius = Math.max(restRadius, BOARD_RADIUS + TILE_SIZE * 1.1);
       if (Number.isFinite(rimOuter)) {
-        restRadius = Math.min(restRadius, rimOuter - 0.12);
+        restRadius = Math.min(restRadius, rimOuter - 0.06);
       }
     }
   }
   if (tableInfo?.getOuterRadius) {
     const outer = tableInfo.getOuterRadius(seatDirection);
     if (Number.isFinite(outer) && outer > 0) {
-      restRadius = Math.min(restRadius, outer - 0.14);
+      restRadius = Math.min(restRadius, outer - 0.06);
     }
-  }
-  if (seatDirection.z < -0.2) {
-    restRadius += TILE_SIZE * 0.74;
-  } else if (seatDirection.z > 0.2) {
-    restRadius -= TILE_SIZE * 0.68;
   }
   restRadius += TOKEN_REST_EXTRA_RADIAL_BY_SEAT[seatIndex] ?? 0;
   restRadius = Math.max(restRadius + fallbackRadiusOffset, TOKEN_REST_MIN_RADIUS);
@@ -3537,10 +3528,10 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
     .addScaledVector(seatDirection, restRadius)
     .addScaledVector(lateral, railSpread)
     .addScaledVector(seatDirection, -SEAT_RAIL_FORWARD_BIAS);
+  railWorld.y = tableSurfaceY;
   const railLocal = railWorld.clone();
   boardRoot.worldToLocal(railLocal);
-  const railHeightY = TOKEN_HEIGHT * 0.44;
-  railLocal.y = railHeightY;
+  const railHeightY = railLocal.y;
   return { railLocal, railHeightY, seatDirection, lateral };
 }
 
