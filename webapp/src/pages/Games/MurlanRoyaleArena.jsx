@@ -2302,7 +2302,7 @@ const CHAIR_GAP = 0.152 * MODEL_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
-const CHAIR_SEAT_INWARD_FACTOR = 1;
+const CHAIR_SEAT_INWARD_FACTOR = 0.965;
 const CHAIR_VISUAL_SCALE = 1.3;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
@@ -2310,11 +2310,12 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.38,
-  landscape: 1.05
+  portrait: 2.3,
+  landscape: 0.98
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
+const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.16 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.29;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -2324,12 +2325,12 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = 0.03 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.255 * MODEL_SCALE;
-const AI_HAND_BOTTOM_SHIFT_Y = -0.1 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.235 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = -0.082 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = -0.05 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
-const HUMAN_HAND_UP_SHIFT_Y = 0.024 * MODEL_SCALE;
+const HUMAN_HAND_UP_SHIFT_Y = 0.038 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
@@ -2339,7 +2340,7 @@ const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.275 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
-const HAND_CARDS_INWARD_BIAS = 0.065 * MODEL_SCALE;
+const HAND_CARDS_INWARD_BIAS = 0.085 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -4971,7 +4972,8 @@ export default function MurlanRoyaleArena({ search }) {
           .addScaledVector(humanSeatConfig.forward, -retreatOffset)
           .addScaledVector(humanSeatConfig.right, lateralOffset);
         initialCameraPosition.y = stoolHeight + elevation;
-        target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + CAMERA_FOCUS_CENTER_LIFT, 0);
+        target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + CAMERA_FOCUS_CENTER_LIFT, 0)
+          .addScaledVector(humanSeatConfig.forward, -CAMERA_TARGET_TOP_PLAYER_BIAS);
       } else {
         const humanSeatAngle = Math.PI / 2;
         const cameraBackOffset = isPortrait ? 1.65 : 1.05;
