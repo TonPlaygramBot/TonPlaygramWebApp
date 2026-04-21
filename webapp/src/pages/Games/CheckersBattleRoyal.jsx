@@ -176,6 +176,7 @@ const BEAUTIFUL_GAME_BOARD_URLS = Object.freeze([
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const CHAIR_TEMPLATE_CACHE = new Map();
+const TABLE_TEMPLATE_CACHE = new Map();
 const resolveHdriVariant = (value) => {
   const customVariants = getCustomHdriVariantsForGame('checkersbattleroyal');
   const allVariants = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
@@ -1218,6 +1219,87 @@ async function buildChairTemplateForOption(chairOption, renderer = null) {
   return template;
 }
 
+function fitTableModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetSpan = TABLE_RADIUS * 2.05;
+  const horizontalSpan = Math.max(size.x, size.z);
+  if (horizontalSpan > 0) {
+    model.scale.multiplyScalar(targetSpan / horizontalSpan);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledSize = scaledBox.getSize(new THREE.Vector3());
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  const targetTopY = TABLE_HEIGHT;
+  const currentTopY = scaledBox.max.y;
+  model.position.add(
+    new THREE.Vector3(
+      -center.x,
+      targetTopY - currentTopY,
+      -center.z
+    )
+  );
+  // Ensure very short/flat assets still visibly occupy arena volume.
+  if (scaledSize.y < BOARD_TILE_SIZE * 0.5) {
+    model.scale.multiplyScalar(1.2);
+  }
+}
+
+async function buildPolyhavenTableTemplate(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing PolyHaven table asset id');
+  const cacheKey = `polyhaven-table:${assetId}`;
+  if (TABLE_TEMPLATE_CACHE.has(cacheKey)) {
+    return TABLE_TEMPLATE_CACHE.get(cacheKey).clone(true);
+  }
+  const urls = [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
+  ];
+  const loader = createConfiguredGLTFLoader(renderer);
+  let gltf = null;
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) throw lastError || new Error(`Failed to load PolyHaven table ${assetId}`);
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error(`Missing PolyHaven table scene for ${assetId}`);
+  model.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.userData = {
+      ...(obj.userData || {}),
+      preserveGltfTextureMapping: true
+    };
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (mat?.map) {
+        applySRGBColorSpace(mat.map);
+        mat.map.needsUpdate = true;
+      }
+      if (mat?.emissiveMap) {
+        applySRGBColorSpace(mat.emissiveMap);
+        mat.emissiveMap.needsUpdate = true;
+      }
+      mat.needsUpdate = true;
+    });
+  });
+  fitTableModelToFootprint(model);
+  TABLE_TEMPLATE_CACHE.set(cacheKey, model.clone(true));
+  return model;
+}
+
 function createProceduralChairFallback(chairColor, legColor) {
   const seatMaterial = new THREE.MeshStandardMaterial({
     color: chairColor,
@@ -1614,7 +1696,7 @@ export default function CheckersBattleRoyal() {
       );
       const specialProcedural = [
         {
-          id: 'ovalTable',
+          id: 'grandOval',
           label: 'Oval Table',
           thumbnail:
             TABLE_SHAPE_OPTIONS.find((option) => option.id === 'grandOval')
@@ -2560,35 +2642,61 @@ export default function CheckersBattleRoyal() {
       };
 
       try {
-        const desiredShapeId =
-          CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
-        const desiredShape =
-          TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
-          TABLE_SHAPE_OPTIONS[0];
-        const table = createMurlanStyleTable({
-          arena: scene,
-          renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT,
-          shapeOption: desiredShape
-        });
-        table.userData = { selectedTableId: appearance.tableId };
-        const finish =
-          MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-          MURLAN_TABLE_FINISHES[0];
-        const cloth =
-          TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
-          TABLE_CLOTH_OPTIONS[0];
-        applyTableMaterials(
-          table.materials,
-          {
-            woodOption: finish?.woodOption,
-            clothOption: cloth
-          },
-          renderer
-        );
-        reduceCheckersTableBase(table.group);
-        tableRef.current = table;
+        const selectedTableOption =
+          CHESS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId) ||
+          CHESS_TABLE_OPTIONS[0];
+        if (
+          selectedTableOption?.source === 'polyhaven' &&
+          selectedTableOption?.assetId
+        ) {
+          const tableModel = await buildPolyhavenTableTemplate(
+            selectedTableOption.assetId,
+            renderer
+          );
+          scene.add(tableModel);
+          tableRef.current = {
+            group: tableModel,
+            shapeId: `polyhaven:${selectedTableOption.assetId}`,
+            userData: { selectedTableId: appearance.tableId },
+            dispose: () => {
+              tableModel.parent?.remove?.(tableModel);
+              disposeGroupMeshes(tableModel, {
+                disposeGeometry: false,
+                disposeMaterials: false
+              });
+            }
+          };
+        } else {
+          const desiredShapeId =
+            CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
+          const desiredShape =
+            TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
+            TABLE_SHAPE_OPTIONS[0];
+          const table = createMurlanStyleTable({
+            arena: scene,
+            renderer,
+            tableRadius: TABLE_RADIUS,
+            tableHeight: TABLE_HEIGHT,
+            shapeOption: desiredShape
+          });
+          table.userData = { selectedTableId: appearance.tableId };
+          const finish =
+            MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+            MURLAN_TABLE_FINISHES[0];
+          const cloth =
+            TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
+            TABLE_CLOTH_OPTIONS[0];
+          applyTableMaterials(
+            table.materials,
+            {
+              woodOption: finish?.woodOption,
+              clothOption: cloth
+            },
+            renderer
+          );
+          reduceCheckersTableBase(table.group);
+          tableRef.current = table;
+        }
       } catch (error) {
         console.error('Checkers table load failed:', error);
       }
@@ -3037,25 +3145,64 @@ export default function CheckersBattleRoyal() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    const selectedTableOption =
+      CHESS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId) ||
+      CHESS_TABLE_OPTIONS[0];
+    const selectedIsPolyhaven =
+      selectedTableOption?.source === 'polyhaven' && selectedTableOption?.assetId;
     const desiredShapeId =
       CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
     const currentShapeId = tableRef.current?.shapeId || 'classicOctagon';
-    if (tableRef.current && currentShapeId !== desiredShapeId) {
+    const desiredTableIdentity = selectedIsPolyhaven
+      ? `polyhaven:${selectedTableOption.assetId}`
+      : desiredShapeId;
+
+    const rebuildSelectedTable = async () => {
       const currentTable = tableRef.current;
       currentTable.dispose?.();
-      const shapeOption =
-        TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
-        TABLE_SHAPE_OPTIONS[0];
-      const rebuilt = createMurlanStyleTable({
-        arena: scene,
-        renderer: rendererRef.current,
-        tableRadius: TABLE_RADIUS,
-        tableHeight: TABLE_HEIGHT,
-        shapeOption
+      if (selectedIsPolyhaven) {
+        const tableModel = await buildPolyhavenTableTemplate(
+          selectedTableOption.assetId,
+          rendererRef.current
+        );
+        scene.add(tableModel);
+        tableRef.current = {
+          group: tableModel,
+          shapeId: `polyhaven:${selectedTableOption.assetId}`,
+          userData: { selectedTableId: appearance.tableId },
+          dispose: () => {
+            tableModel.parent?.remove?.(tableModel);
+            disposeGroupMeshes(tableModel, {
+              disposeGeometry: false,
+              disposeMaterials: false
+            });
+          }
+        };
+      } else {
+        const shapeOption =
+          TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
+          TABLE_SHAPE_OPTIONS[0];
+        const rebuilt = createMurlanStyleTable({
+          arena: scene,
+          renderer: rendererRef.current,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT,
+          shapeOption
+        });
+        rebuilt.userData = { selectedTableId: appearance.tableId };
+        reduceCheckersTableBase(rebuilt.group);
+        tableRef.current = rebuilt;
+      }
+      alignArenaGroundArtifacts({
+        shadowCatcher: shadowCatcherRef.current,
+        skybox: envRef.current?.skybox,
+        table: tableRef.current,
+        board: gltfBoardRef.current,
+        chairs: chairsRef.current
       });
-      rebuilt.userData = { selectedTableId: appearance.tableId };
-      reduceCheckersTableBase(rebuilt.group);
-      tableRef.current = rebuilt;
+    };
+    if (tableRef.current && currentShapeId !== desiredTableIdentity) {
+      void rebuildSelectedTable();
     }
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
@@ -3063,7 +3210,7 @@ export default function CheckersBattleRoyal() {
     const cloth =
       TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
       TABLE_CLOTH_OPTIONS[0];
-    if (tableRef.current?.materials) {
+    if (!selectedIsPolyhaven && tableRef.current?.materials) {
       applyTableMaterials(
         tableRef.current.materials,
         {
