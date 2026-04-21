@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 2.85;
+const TOP_SEAT_AVATAR_UP_LIFT = 3.35;
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2412,7 +2412,7 @@ const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 1;
+const CAMERA_INWARD_RADIUS_FACTOR = 1.06;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -5439,13 +5439,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 7.1 : 4.6;
+            const sideSeatTopLift = isSideSeat ? 7.85 : 5.2;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(4.2rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(3.75rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5649,7 +5649,7 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="fixed bottom-[8.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[8.55rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
@@ -6552,7 +6552,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme, w = 1024, h = 1440) {
+function makeCardBackTexture(theme, w = 3072, h = 4320) {
   return makeTonplaygramCardBackTexture(theme, w, h);
 }
 
