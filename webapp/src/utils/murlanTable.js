@@ -423,6 +423,34 @@ export function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   return texture;
 }
 
+function createTonPlaygramBrandingTexture(ThreeNamespace = THREE) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grad.addColorStop(0, '#0f172a');
+  grad.addColorStop(0.5, '#1e293b');
+  grad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(148,163,184,0.75)';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '700 120px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TonPlaygram', canvas.width / 2, canvas.height / 2);
+
+  const texture = new ThreeNamespace.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function resolveWoodComponents(option) {
   const fallbackPreset = WOOD_FINISH_PRESETS.find((preset) => preset.id === 'walnut') || WOOD_FINISH_PRESETS[0];
   const preset = (option?.presetId && WOOD_FINISH_PRESETS.find((p) => p.id === option.presetId)) || fallbackPreset;
@@ -675,6 +703,26 @@ export function createMurlanStyleTable({
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
 
+  const brandingTexture = createTonPlaygramBrandingTexture(ThreeNamespace);
+  const brandingPlateMat = new ThreeNamespace.MeshStandardMaterial({
+    color: new ThreeNamespace.Color('#dbe1ea'),
+    metalness: 0.72,
+    roughness: 0.34,
+    map: brandingTexture
+  });
+  const brandingPlate = new ThreeNamespace.Mesh(
+    new ThreeNamespace.BoxGeometry(
+      tableRadius * 0.42,
+      tableRadius * 0.082,
+      Math.max(0.018 * scaleFactor, 0.01)
+    ),
+    brandingPlateMat
+  );
+  brandingPlate.position.set(0, tableY + clothRise * 0.22, tableRadius * 0.84);
+  brandingPlate.castShadow = true;
+  brandingPlate.receiveShadow = true;
+  tableGroup.add(brandingPlate);
+
   if (includeBase) {
     const baseGeometry = new ThreeNamespace.CylinderGeometry(
       0.62 * scaleFactor,
@@ -742,6 +790,8 @@ export function createMurlanStyleTable({
     velvetTexture: null,
     topWoodMat,
     rimWoodMat,
+    brandingPlateMat,
+    brandingTexture,
     group: tableGroup
   };
 
@@ -755,6 +805,9 @@ export function createMurlanStyleTable({
     tableParts.trimMat?.dispose?.();
     tableParts.surfaceMat?.map?.dispose?.();
     tableParts.surfaceMat?.dispose?.();
+    tableParts.brandingPlateMat?.map?.dispose?.();
+    tableParts.brandingPlateMat?.dispose?.();
+    tableParts.brandingTexture?.dispose?.();
     if (tableGroup.parent) {
       tableGroup.parent.remove(tableGroup);
     }
