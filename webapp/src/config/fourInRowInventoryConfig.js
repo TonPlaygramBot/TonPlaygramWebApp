@@ -2,12 +2,10 @@ import { MURLAN_TABLE_THEMES } from './murlanThemes.js'
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js'
 import { swatchThumbnail } from './storeThumbnails.js'
 import { MURLAN_STOOL_THEMES } from './murlanThemes.js'
-import { MURLAN_TABLE_CLOTHS } from './murlanTableCloths.js'
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id
 
@@ -34,55 +32,6 @@ export const FOUR_IN_ROW_BOARD_THEMES = Object.freeze([
 
 export const FOUR_IN_ROW_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
 export const FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
-export const FOUR_IN_ROW_TABLE_CLOTH_OPTIONS = Object.freeze([...MURLAN_TABLE_CLOTHS])
-
-const POOL_ROYALE_LT_TABLE_FINISH_IDS = new Set([
-  'carbonFiberChalk',
-  'carbonFiberChalkGrey',
-  'carbonFiberChalkBeige',
-  'carbonFiberChalkDarkBlue',
-  'carbonFiberChalkWhite',
-  'carbonFiberChalkDarkGreen',
-  'carbonFiberChalkDarkYellow',
-  'carbonFiberChalkDarkBrown',
-  'carbonFiberChalkDarkRed',
-  'carbonFiberSnakeChalk',
-  'carbonFiberSnakeChalkGrey',
-  'carbonFiberSnakeChalkBeige',
-  'carbonFiberSnakeChalkDarkBlue',
-  'carbonFiberSnakeChalkWhite',
-  'carbonFiberSnakeChalkDarkGreen',
-  'carbonFiberAlligatorOlive',
-  'carbonFiberAlligatorSwamp',
-  'carbonFiberAlligatorClay',
-  'carbonFiberAlligatorSand',
-  'carbonFiberAlligatorMoss',
-  'carbonFiberAlligatorNight'
-])
-
-const FOUR_IN_ROW_LT_TABLE_FINISHES = Object.freeze(
-  POOL_ROYALE_STORE_ITEMS.filter(
-    (item) => item.type === 'tableFinish' && POOL_ROYALE_LT_TABLE_FINISH_IDS.has(item.optionId)
-  ).map((item) => ({
-    id: item.optionId,
-    label: item.name.replace(/\s*Finish$/i, ''),
-    description: item.description,
-    price: item.price,
-    swatches: item.swatches,
-    thumbnail: item.thumbnail,
-    woodOption: Object.freeze({
-      id: item.optionId,
-      label: item.name.replace(/\s*Finish$/i, ''),
-      presetId: 'smokedOak',
-      grainId: 'dark_wood'
-    })
-  }))
-)
-
-export const FOUR_IN_ROW_TABLE_FINISH_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_FINISHES,
-  ...FOUR_IN_ROW_LT_TABLE_FINISHES
-])
 
 export const FOUR_IN_ROW_RING_FINISH_OPTIONS = Object.freeze([
   {
@@ -138,8 +87,7 @@ export const FOUR_IN_ROW_STONE_STYLES = Object.freeze([
 export const FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [FOUR_IN_ROW_CHAIR_OPTIONS[0]?.id],
   tables: [FOUR_IN_ROW_TABLE_OPTIONS[0]?.id],
-  tableFinish: [FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0]?.id],
-  tableCloth: [FOUR_IN_ROW_TABLE_CLOTH_OPTIONS[0]?.id],
+  tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
   boardFinish: [FOUR_IN_ROW_BOARD_FINISH_OPTIONS[0]?.id],
   boardFrameFinish: [FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS[0]?.id],
   ringFinish: [FOUR_IN_ROW_RING_FINISH_OPTIONS[0]?.id],
@@ -152,8 +100,7 @@ export const FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
 export const FOUR_IN_ROW_BATTLE_OPTION_LABELS = Object.freeze({
   chairColor: Object.freeze(FOUR_IN_ROW_CHAIR_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tables: Object.freeze(FOUR_IN_ROW_TABLE_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  tableFinish: Object.freeze(FOUR_IN_ROW_TABLE_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  tableCloth: Object.freeze(FOUR_IN_ROW_TABLE_CLOTH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
+  tableFinish: Object.freeze(MURLAN_TABLE_FINISHES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFinish: Object.freeze(FOUR_IN_ROW_BOARD_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFrameFinish: Object.freeze(FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   ringFinish: Object.freeze(FOUR_IN_ROW_RING_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
@@ -166,7 +113,7 @@ export const FOUR_IN_ROW_BATTLE_OPTION_LABELS = Object.freeze({
 export const FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT = FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS
 
 export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
-  ...FOUR_IN_ROW_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
+  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `fourinrow-table-finish-${finish.id}`,
     type: 'tableFinish',
     optionId: finish.id,
@@ -175,17 +122,6 @@ export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
     description: finish.description,
     swatches: finish.swatches,
     thumbnail: finish.thumbnail,
-    previewShape: 'table'
-  })),
-  ...FOUR_IN_ROW_TABLE_CLOTH_OPTIONS.slice(1).map((cloth, idx) => ({
-    id: `fourinrow-table-cloth-${cloth.id}`,
-    type: 'tableCloth',
-    optionId: cloth.id,
-    name: cloth.label,
-    price: cloth.price ?? 620 + idx * 20,
-    description: cloth.description || `Poly Haven ${cloth.label} table cloth.`,
-    swatches: cloth.swatches,
-    thumbnail: cloth.thumbnail,
     previewShape: 'table'
   })),
   ...FOUR_IN_ROW_BOARD_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
