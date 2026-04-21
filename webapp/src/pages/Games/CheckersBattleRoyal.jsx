@@ -177,6 +177,7 @@ let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const CHAIR_TEMPLATE_CACHE = new Map();
 const TABLE_TEMPLATE_CACHE = new Map();
+const POLYHAVEN_FILES_MANIFEST_CACHE = new Map();
 const resolveHdriVariant = (value) => {
   const customVariants = getCustomHdriVariantsForGame('checkersbattleroyal');
   const allVariants = [...POOL_ROYALE_HDRI_VARIANTS, ...customVariants];
@@ -1071,8 +1072,8 @@ function ensureKtx2SupportDetection(renderer = null) {
   }
 }
 
-function createConfiguredGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
+function createConfiguredGLTFLoader(renderer = null, manager = null) {
+  const loader = manager ? new GLTFLoader(manager) : new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath(DRACO_DECODER_PATH);
@@ -1097,6 +1098,103 @@ function createConfiguredGLTFLoader(renderer = null) {
   ensureKtx2SupportDetection(renderer);
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
+}
+
+async function getPolyhavenFilesManifest(assetId) {
+  if (!assetId || typeof fetch !== 'function') return null;
+  const key = String(assetId).toLowerCase();
+  if (POLYHAVEN_FILES_MANIFEST_CACHE.has(key)) {
+    return POLYHAVEN_FILES_MANIFEST_CACHE.get(key);
+  }
+  const request = (async () => {
+    try {
+      const response = await fetch(
+        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`,
+        { mode: 'cors', credentials: 'omit' }
+      );
+      if (!response.ok) {
+        throw new Error(`Poly Haven files API ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('Checkers Battle Royal: failed Poly Haven manifest load', assetId, error);
+      return null;
+    }
+  })();
+  POLYHAVEN_FILES_MANIFEST_CACHE.set(key, request);
+  return request;
+}
+
+function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
+  const include = manifest?.gltf?.[resolution]?.gltf?.include;
+  if (!include || typeof include !== 'object') return null;
+  const map = new Map();
+  Object.entries(include).forEach(([relativePath, entry]) => {
+    if (!relativePath || typeof relativePath !== 'string') return;
+    const fileUrl = entry?.url;
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    map.set(relativePath, fileUrl);
+    map.set(relativePath.replace(/^\.\//, ''), fileUrl);
+    map.set(relativePath.split('/').pop() || relativePath, fileUrl);
+  });
+  return map;
+}
+
+function buildPolyhavenManifestCandidates(manifest, resolutionOrder = ['2k', '1k']) {
+  if (!manifest?.gltf || typeof manifest.gltf !== 'object') return [];
+  const availableResolutions = Object.keys(manifest.gltf);
+  const orderedResolutions = Array.from(
+    new Set([...resolutionOrder, ...availableResolutions])
+  );
+  return orderedResolutions
+    .map((resolution) => {
+      const url = manifest?.gltf?.[resolution]?.gltf?.url;
+      if (!url || typeof url !== 'string') return null;
+      return {
+        url,
+        resolution: String(resolution).toLowerCase(),
+        includeUrlMap: extractPolyhavenIncludeUrlMap(manifest, resolution)
+      };
+    })
+    .filter(Boolean);
+}
+
+function createPolyhavenGltfLoader(renderer = null, includeUrlMap = null) {
+  const manager = new THREE.LoadingManager();
+  if (includeUrlMap?.size) {
+    manager.setURLModifier((requestUrl = '') => {
+      const cleanUrl = String(requestUrl || '').split('?')[0];
+      const normalized = cleanUrl.replace(/^\.\//, '');
+      const fileName = normalized.split('/').pop();
+      return (
+        includeUrlMap.get(cleanUrl) ||
+        includeUrlMap.get(normalized) ||
+        includeUrlMap.get(fileName) ||
+        requestUrl
+      );
+    });
+  }
+  return createConfiguredGLTFLoader(renderer, manager);
+}
+
+function buildPolyhavenModelUrls(assetId, resolutionOrder = ['2k', '1k']) {
+  const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
+  const urls = [];
+  ids.forEach((id) => {
+    if (!id) return;
+    resolutionOrder.forEach((resolution) => {
+      urls.push(
+        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${resolution}/${id}/${id}_${resolution}.gltf`
+      );
+    });
+  });
+  urls.push(
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
+  );
+  return urls;
 }
 
 function fitChairModelToFootprint(model) {
@@ -1157,21 +1255,39 @@ async function buildPolyhavenChairTemplate(assetId, renderer = null) {
   if (CHAIR_TEMPLATE_CACHE.has(cacheKey)) {
     return CHAIR_TEMPLATE_CACHE.get(cacheKey).clone(true);
   }
-  const urls = [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
-  ];
-  const loader = createConfiguredGLTFLoader(renderer);
+  const preferredResolutions = ['4k', '2k', '1k'];
+  const filesManifest = await getPolyhavenFilesManifest(assetId);
+  const manifestCandidates = buildPolyhavenManifestCandidates(
+    filesManifest,
+    preferredResolutions
+  );
+  const fallbackCandidates = buildPolyhavenModelUrls(
+    assetId,
+    preferredResolutions
+  ).map((url) => ({
+    url,
+    resolution: url.match(/\/(1k|2k|4k|8k)\//i)?.[1]?.toLowerCase?.() || '2k',
+    includeUrlMap: null
+  }));
+  const candidates = [...manifestCandidates, ...fallbackCandidates];
   let gltf = null;
   let lastError = null;
-  for (const url of urls) {
+  for (const candidate of candidates) {
     try {
-      gltf = await loader.loadAsync(url);
+      const candidateUrl = candidate?.url;
+      if (!candidateUrl) continue;
+      const includeUrlMap =
+        candidate?.includeUrlMap ||
+        extractPolyhavenIncludeUrlMap(filesManifest, candidate?.resolution || '2k');
+      const loader = createPolyhavenGltfLoader(renderer, includeUrlMap);
+      const resolvedUrl = new URL(
+        candidateUrl,
+        typeof window !== 'undefined' ? window.location?.href : candidateUrl
+      ).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
       lastError = error;
@@ -1251,21 +1367,39 @@ async function buildPolyhavenTableTemplate(assetId, renderer = null) {
   if (TABLE_TEMPLATE_CACHE.has(cacheKey)) {
     return TABLE_TEMPLATE_CACHE.get(cacheKey).clone(true);
   }
-  const urls = [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/${assetId}/${assetId}_4k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}/${assetId}.glb`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
-  ];
-  const loader = createConfiguredGLTFLoader(renderer);
+  const preferredResolutions = ['4k', '2k', '1k'];
+  const filesManifest = await getPolyhavenFilesManifest(assetId);
+  const manifestCandidates = buildPolyhavenManifestCandidates(
+    filesManifest,
+    preferredResolutions
+  );
+  const fallbackCandidates = buildPolyhavenModelUrls(
+    assetId,
+    preferredResolutions
+  ).map((url) => ({
+    url,
+    resolution: url.match(/\/(1k|2k|4k|8k)\//i)?.[1]?.toLowerCase?.() || '2k',
+    includeUrlMap: null
+  }));
+  const candidates = [...manifestCandidates, ...fallbackCandidates];
   let gltf = null;
   let lastError = null;
-  for (const url of urls) {
+  for (const candidate of candidates) {
     try {
-      gltf = await loader.loadAsync(url);
+      const candidateUrl = candidate?.url;
+      if (!candidateUrl) continue;
+      const includeUrlMap =
+        candidate?.includeUrlMap ||
+        extractPolyhavenIncludeUrlMap(filesManifest, candidate?.resolution || '2k');
+      const loader = createPolyhavenGltfLoader(renderer, includeUrlMap);
+      const resolvedUrl = new URL(
+        candidateUrl,
+        typeof window !== 'undefined' ? window.location?.href : candidateUrl
+      ).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setResourcePath(resourcePath);
+      loader.setPath('');
+      gltf = await loader.loadAsync(resolvedUrl);
       break;
     } catch (error) {
       lastError = error;
