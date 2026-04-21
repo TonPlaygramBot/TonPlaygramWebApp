@@ -2332,7 +2332,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.08 * MODEL_SCALE; // Negative nudges the bottom hand a bit right (toward the gift icon on portrait).
+const HUMAN_HAND_LEFT_SHIFT = 0.2 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -6494,10 +6494,9 @@ function createCardMesh(card, geometry, cache, theme) {
 function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   if (!mesh?.isMesh) return;
   const orderBase = isHumanCard ? 16 : 4;
-  const orderOffset = isHumanCard ? stackOrder : -stackOrder;
-  mesh.renderOrder = orderBase + orderOffset;
+  mesh.renderOrder = orderBase + stackOrder;
 
-  const shouldForceRenderOrder = true;
+  const shouldForceRenderOrder = Boolean(isHumanCard);
   if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) {
     return;
   }
@@ -6554,6 +6553,13 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   g.fillText(suit, 0, Math.round(h * 0.035));
   g.restore();
 
+  g.textAlign = 'right';
+  g.textBaseline = 'top';
+  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, Math.round(w * 0.905), Math.round(h * 0.04));
+  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, Math.round(w * 0.88), Math.round(h * 0.145));
+
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
@@ -6569,10 +6575,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 }
 
 function makeCardBackTexture(theme) {
-  return makeTonplaygramCardBackTexture(theme, undefined, undefined, {
-    logoScale: 1.16,
-    rotateLogoDegrees: 180
-  });
+  return makeTonplaygramCardBackTexture(theme);
 }
 
 function applyChairThemeMaterials(three, theme) {
