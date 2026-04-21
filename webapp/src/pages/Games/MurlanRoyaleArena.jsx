@@ -2308,11 +2308,14 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: -0.36 * ARENA_PROP_SCALE, landscape: -0.06 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
+  portrait: -0.18 * ARENA_PROP_SCALE,
+  landscape: 0.04 * ARENA_PROP_SCALE
+}); // Bring camera closer to the table from seated view.
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 0.34 * ARENA_PROP_SCALE,
-  landscape: 0.4 * ARENA_PROP_SCALE
-});
+  portrait: 0.28 * ARENA_PROP_SCALE,
+  landscape: 0.34 * ARENA_PROP_SCALE
+}); // Slightly lower camera framing on both portrait and landscape.
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.32 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
@@ -2337,9 +2340,9 @@ const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
-const HUMAN_HAND_EXTRA_INWARD_PULL = 0.36 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_INWARD_PULL = 0.44 * MODEL_SCALE; // Pull cards inward so they sit between chair edge and table lip.
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.24;
-const HAND_CARDS_INWARD_BIAS = 0.2 * MODEL_SCALE;
+const HAND_CARDS_INWARD_BIAS = 0.26 * MODEL_SCALE; // Keep all hands a touch closer to table center.
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
