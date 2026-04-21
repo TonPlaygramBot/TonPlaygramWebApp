@@ -92,14 +92,14 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 1.52; // slower lift-off so takeoff remains readable in portrait
-const CAPTURE_DRONE_CRUISE_TIME = 5.36; // slower cruise to keep aircraft readable on-frame
-const CAPTURE_DRONE_DIVE_TIME = 2.08;
+const CAPTURE_DRONE_LIFT_TIME = 0.82; // shorter lift-off so launch stays visible without long hang-time
+const CAPTURE_DRONE_CRUISE_TIME = 1.74; // shorter cruise path so aircraft stays close to board action
+const CAPTURE_DRONE_DIVE_TIME = 0.88; // quick final dive keeps strike readable and compact
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 1.4; // slower aircraft but shorter loop so takeoff/fire/landing stays readable
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 0.58; // shorter jet loop: visible takeoff, short pass, then return to pad
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -130,28 +130,28 @@ const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.09; // lower jet/helicopter route 
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.18; // shorter loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.84;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
-const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.4;
-const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.68;
+const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.28; // release earlier so aircraft is clearly visible when firing
+const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.5; // compact release window to keep pass short
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
-const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.82;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.11;
-const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.34;
-const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.015;
-const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.34;
+const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.02;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.5; // lower missile arc so strike reads closer to board
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.07;
+const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.22;
+const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.008;
+const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.18;
 const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.16; // keep launch hop very close to parking position
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.42; // spend longer lifting before cruise
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.1; // low vertical arc
-const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.09; // short top point before vertical drop
-const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.36; // after liftoff, keep a clear top-flight pass before vertical crash
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.072; // lower pawn/drone missile arc
+const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.052; // shorter top point before vertical drop
+const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.28; // shorter top-flight pass before crash
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.3; // extend lift phase so takeoff/landing is visible before cruise
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
-const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
+const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.58; // shorter pawn missile silhouette
 const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.04; // make rook javelin read as a heavy drone-sized strike
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
@@ -9917,7 +9917,7 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
-        const launchBase = fromPos.clone().add(new THREE.Vector3(0, 0.11, 0));
+        const launchBase = getLiveLaunchPosition(fromPos, movingMesh, 0.11);
         missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
@@ -9933,7 +9933,7 @@ function Chess3D({
           missileFx,
           directPath: false,
           verticalStrike: true,
-          fixedLaunch: true
+          fixedLaunch: false
         });
         return {
           moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
@@ -9982,7 +9982,11 @@ function Chess3D({
           jetFx,
           missileFx
         });
-        const jetImpactDelayMs = CAPTURE_JET_TOTAL * 0.96 * 1000;
+        const jetMissileTravel = Math.max(
+          0.28,
+          CAPTURE_JET_TOTAL * (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO - CAPTURE_AIR_MISSILE_RELEASE_START_RATIO) - 0.1
+        );
+        const jetImpactDelayMs = (CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO + jetMissileTravel) * 1000;
         return {
           moveDelayMs: jetImpactDelayMs,
           captureResolveDelayMs: jetImpactDelayMs
@@ -10035,7 +10039,12 @@ function Chess3D({
           helicopterFx,
           missileFx
         });
-        const helicopterImpactDelayMs = CAPTURE_HELICOPTER_TOTAL * 0.96 * 1000;
+        const helicopterMissileTravel = Math.max(
+          0.28,
+          CAPTURE_HELICOPTER_TOTAL * (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO - CAPTURE_AIR_MISSILE_RELEASE_START_RATIO) - 0.1
+        );
+        const helicopterImpactDelayMs =
+          (CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO + helicopterMissileTravel) * 1000;
         return {
           moveDelayMs: helicopterImpactDelayMs,
           captureResolveDelayMs: helicopterImpactDelayMs
@@ -10083,7 +10092,12 @@ function Chess3D({
           jetFx,
           missileFx
         });
-        const jetImpactDelayMs = CAPTURE_JET_TOTAL * 0.96 * 1000;
+        const queenJetMissileTravel = Math.max(
+          0.28,
+          CAPTURE_JET_TOTAL * (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO - CAPTURE_AIR_MISSILE_RELEASE_START_RATIO) - 0.1
+        );
+        const jetImpactDelayMs =
+          (CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO + queenJetMissileTravel) * 1000;
         return {
           moveDelayMs: jetImpactDelayMs,
           captureResolveDelayMs: jetImpactDelayMs
@@ -11931,8 +11945,9 @@ function Chess3D({
             const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
             const hitTop = fx.to
               .clone()
-              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.12), 0));
             let anyMissileVisible = false;
+            let missileTouchedTarget = false;
             jetMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
               if (fx.t < releaseTime) {
@@ -11940,7 +11955,12 @@ function Chess3D({
                 return;
               }
               const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
+              if (missileU >= 1) {
+                missileTouchedTarget = true;
+                missile.root.visible = false;
+                return;
+              }
+              if (missileU <= 0) {
                 missile.root.visible = false;
                 return;
               }
@@ -11992,14 +12012,13 @@ function Chess3D({
               missile.root.position.copy(missilePos);
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             });
-            if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
+            if (missileTouchedTarget && !fx.hasExploded) {
+              fx.hasExploded = true;
+              launchExplosion(fx.to);
+            } else if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
               jetMissiles.forEach((missile) => {
                 missile.root.visible = false;
               });
-              if (!fx.hasExploded) {
-                fx.hasExploded = true;
-                launchExplosion(fx.to);
-              }
             }
 
             if (jetTimelineU >= 1) {
@@ -12057,8 +12076,9 @@ function Chess3D({
             const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
             const hitTop = fx.to
               .clone()
-              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.12), 0));
             let anyMissileVisible = false;
+            let missileTouchedTarget = false;
             heliMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
               if (fx.t < releaseTime) {
@@ -12066,7 +12086,12 @@ function Chess3D({
                 return;
               }
               const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
+              if (missileU >= 1) {
+                missileTouchedTarget = true;
+                missile.root.visible = false;
+                return;
+              }
+              if (missileU <= 0) {
                 missile.root.visible = false;
                 return;
               }
@@ -12118,14 +12143,13 @@ function Chess3D({
               missile.root.position.copy(missilePos);
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
             });
-            if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
+            if (missileTouchedTarget && !fx.hasExploded) {
+              fx.hasExploded = true;
+              launchExplosion(fx.to);
+            } else if (!anyMissileVisible && fx.t > releaseEnd + missileTravel) {
               heliMissiles.forEach((missile) => {
                 missile.root.visible = false;
               });
-              if (!fx.hasExploded) {
-                fx.hasExploded = true;
-                launchExplosion(fx.to);
-              }
             }
             if (heliTimelineU >= 1) {
               if (fx.sourceUnit) {
