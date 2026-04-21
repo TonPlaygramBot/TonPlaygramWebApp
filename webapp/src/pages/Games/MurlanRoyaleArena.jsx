@@ -2325,8 +2325,8 @@ const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = 0.42 * MODEL_SCALE; // Pull bottom-seat hand/cards much closer to table center for tighter portrait framing.
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.32 * MODEL_SCALE;
-const AI_HAND_BOTTOM_SHIFT_Y = -0.08 * MODEL_SCALE;
-const AI_HAND_CLOSER_OFFSET = 0.12 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = -0.18 * MODEL_SCALE;
+const AI_HAND_CLOSER_OFFSET = -0.04 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.012 * MODEL_SCALE;
@@ -2338,7 +2338,7 @@ const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.36 * MODEL_SCALE;
-const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.38;
+const AI_HAND_TABLE_EDGE_MARGIN = -CARD_H * 0.22;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2357,7 +2357,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 1.9 * MODEL_SCALE; // Pull only the bottom player's chair further inward so it sits closer to the table edge.
+const HUMAN_CHAIR_RADIUS = AI_CHAIR_RADIUS - 0.06 * MODEL_SCALE; // Keep bottom chair depth aligned with other chairs, but slightly closer to the table.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -2366,7 +2366,7 @@ const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.036 * MODEL_SCALE;
-const AI_CARD_OUTWARD = 0;
+const AI_CARD_OUTWARD = -0.09 * MODEL_SCALE;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
   const safeTableRadius = Number.isFinite(tableRadius) ? tableRadius : TABLE_RADIUS;
@@ -4860,7 +4860,7 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanSeat = Boolean(player?.isHuman);
         const seatRadius =
           (isHumanSeat
-            ? chairRadius - HUMAN_CHAIR_EXTRA_INWARD_OFFSET
+            ? HUMAN_CHAIR_RADIUS
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
