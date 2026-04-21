@@ -33,7 +33,6 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { MURLAN_TABLE_CLOTHS } from '../../config/murlanTableCloths.js';
 import {
   applyWoodTextures,
   DEFAULT_WOOD_GRAIN_ID,
@@ -182,6 +181,16 @@ const GRAPHICS_PRESETS = Object.freeze([
     preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'High-fidelity preset for flagship mobile GPUs.'
   },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    pixelRatioScale: 1.35,
+    pixelRatioCap: 2.2,
+    shadowMapSize: 2048,
+    preferredHdriResolutions: ['8k', '4k'],
+    description: 'Maximum smoothness preset where thermals allow.'
+  }
 ]);
 let sharedKtx2Loader = null;
 const polyhavenModelUrlCache = new Map();
@@ -820,7 +829,6 @@ export default function FourInRowRoyal() {
 
   const [appearance, setAppearance] = useState(() => ({
     tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
-    clothColor: inventory.clothColor?.[0] || MURLAN_TABLE_CLOTHS[0]?.id,
     tableId:
       inventory.tables?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.tables?.[0] ||
@@ -1149,15 +1157,8 @@ export default function FourInRowRoyal() {
     tablePartsRef.current = table.parts;
     applyTableMaterials(
       table.parts,
-      {
-        woodOption:
-          MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish)
-            ?.woodOption || MURLAN_TABLE_FINISHES[0]?.woodOption,
-        clothOption:
-          MURLAN_TABLE_CLOTHS.find((c) => c.id === appearance.clothColor) ||
-          MURLAN_TABLE_CLOTHS[0]
-      },
-      renderer
+      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+        MURLAN_TABLE_FINISHES[0]
     );
 
     const chairTheme =
@@ -1894,19 +1895,11 @@ export default function FourInRowRoyal() {
 
   useEffect(() => {
     if (!tablePartsRef.current) return;
-    applyTableMaterials(
-      tablePartsRef.current,
-      {
-        woodOption:
-          MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish)
-            ?.woodOption || MURLAN_TABLE_FINISHES[0]?.woodOption,
-        clothOption:
-          MURLAN_TABLE_CLOTHS.find((c) => c.id === appearance.clothColor) ||
-          MURLAN_TABLE_CLOTHS[0]
-      },
-      rendererRef.current
-    );
-  }, [appearance.tableFinish, appearance.clothColor]);
+    const finish =
+      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+      MURLAN_TABLE_FINISHES[0];
+    applyTableMaterials(tablePartsRef.current, finish);
+  }, [appearance.tableFinish]);
 
   useEffect(() => {
     const chairTheme =
@@ -2004,17 +1997,8 @@ export default function FourInRowRoyal() {
     },
     {
       key: 'tableFinish',
-      label: 'Table Finish',
-      options: MURLAN_TABLE_FINISHES.map((item) => ({
-        id: item.id,
-        label: item.label,
-        thumbnail: item.thumbnail
-      }))
-    },
-    {
-      key: 'clothColor',
       label: 'Table Cloth',
-      options: MURLAN_TABLE_CLOTHS.map((item) => ({
+      options: MURLAN_TABLE_FINISHES.map((item) => ({
         id: item.id,
         label: item.label,
         thumbnail: item.thumbnail
@@ -2103,6 +2087,9 @@ export default function FourInRowRoyal() {
             </span>
             <span className="leading-none">Menu</span>
           </button>
+          <h1 className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
+            4 in a Row
+          </h1>
         </div>
 
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
@@ -2168,7 +2155,7 @@ export default function FourInRowRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[18%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
           <AvatarTimer
             photoUrl="🤖"
             name="AI Rival"
