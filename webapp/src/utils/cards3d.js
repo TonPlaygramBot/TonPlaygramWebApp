@@ -154,34 +154,17 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-function resolveSafeCardBackTextureSize() {
-  if (typeof navigator === 'undefined') {
-    return { width: 1536, height: 2160 };
-  }
-  const ua = navigator.userAgent ?? '';
-  const isAndroid = /Android/i.test(ua);
-  const isWebView = /\bwv\b|Version\/[\d.]+\s+Chrome\/[\d.]+\s+Mobile/i.test(ua);
-  const memory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
-  if (isAndroid || isWebView || (memory !== null && memory <= 4)) {
-    return { width: 1024, height: 1440 };
-  }
-  return { width: 1536, height: 2160 };
-}
-
-export function makeTonplaygramCardBackTexture(theme, w, h) {
-  const safeSize = resolveSafeCardBackTextureSize();
-  const resolvedWidth = Number.isFinite(w) ? Math.max(512, Math.round(w)) : safeSize.width;
-  const resolvedHeight = Number.isFinite(h) ? Math.max(720, Math.round(h)) : safeSize.height;
+export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
   const canvas = document.createElement('canvas');
-  canvas.width = resolvedWidth;
-  canvas.height = resolvedHeight;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   const drawBack = () => {
     const cardBackPattern = ctx.createPattern(makeLuckyCardBackPatternCanvas(), 'repeat');
     ctx.fillStyle = cardBackPattern || '#112233';
-    ctx.fillRect(0, 0, resolvedWidth, resolvedHeight);
+    ctx.fillRect(0, 0, w, h);
 
-    drawLogoFrame(ctx, resolvedWidth, resolvedHeight, theme);
+    drawLogoFrame(ctx, w, h, theme);
   };
 
   drawBack();
@@ -191,7 +174,7 @@ export function makeTonplaygramCardBackTexture(theme, w, h) {
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = 8;
+  texture.anisotropy = 16;
 
   const logoImage = getTonplaygramLogoImage();
   if (logoImage && !(logoImage.complete && logoImage.naturalWidth > 0)) {
@@ -386,8 +369,8 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
-  const plateWidth = w * 0.92;
-  const plateHeight = h * 0.4;
+  const plateWidth = w * 0.88;
+  const plateHeight = h * 0.34;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
@@ -403,27 +386,19 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.88;
-    const logoBoxHeight = h * 0.36;
+    const logoBoxWidth = w * 0.82;
+    const logoBoxHeight = h * 0.3;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.rotate(Math.PI);
-    ctx.drawImage(logoImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-    ctx.restore();
+    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
   } else {
     ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '700 48px "Inter", system-ui, sans-serif';
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.rotate(Math.PI);
-    ctx.fillText('TonPlaygram', 0, 0);
-    ctx.restore();
+    ctx.fillText('TonPlaygram', w / 2, h / 2);
   }
 
   ctx.restore();

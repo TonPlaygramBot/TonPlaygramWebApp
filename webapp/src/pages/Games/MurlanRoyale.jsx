@@ -10,7 +10,7 @@ export default function MurlanRoyale() {
   useOnlineRoomSync(search, 'Murlan Player');
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#050812]">
+    <div className="relative w-full h-screen bg-[#050812]">
       <MurlanRoyaleArena search={search} />
     </div>
   );
