@@ -262,11 +262,7 @@ const TAVULL_TYPE_LABELS = {
 const FOUR_IN_ROW_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
-  clothColor: 'Table Cloth',
   chairColor: 'Chairs',
-  boardFinish: 'Board Finish',
-  boardFrameFinish: 'Board Frame',
-  ringFinish: 'Ring Finish',
   boardTheme: 'Board Skins',
   boardLayout: 'Board Sizes',
   stoneStyle: 'Stone Sets',
