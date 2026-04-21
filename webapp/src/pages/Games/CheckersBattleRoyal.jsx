@@ -315,7 +315,7 @@ const CHECKERS_PROCEDURAL_TABLE_IDS = new Set([
 ]);
 const CHECKERS_TABLE_SHAPE_BY_ID = Object.freeze({
   'murlan-default': 'classicOctagon',
-  ovalTable: 'grandOval',
+  grandOval: 'grandOval',
   diamondEdge: 'diamondEdge',
   hexagonTable: 'hexagonTable'
 });
@@ -510,11 +510,15 @@ const animateSmokePuff = (group, tile, position, activeAnimationsRef) => {
   }
 };
 
-const disposeGroupMeshes = (group) => {
+const disposeGroupMeshes = (
+  group,
+  { disposeGeometry = true, disposeMaterials = true } = {}
+) => {
   if (!group) return;
   group.traverse((child) => {
     if (!child?.isMesh) return;
-    child.geometry?.dispose?.();
+    if (disposeGeometry) child.geometry?.dispose?.();
+    if (!disposeMaterials) return;
     if (Array.isArray(child.material)) {
       child.material.forEach((mat) => mat?.dispose?.());
       return;
@@ -1888,7 +1892,10 @@ export default function CheckersBattleRoyal() {
 
       chairsRef.current.forEach((chair) => {
         chair?.parent?.remove?.(chair);
-        disposeGroupMeshes(chair);
+        disposeGroupMeshes(chair, {
+          disposeGeometry: false,
+          disposeMaterials: false
+        });
       });
       chairsRef.current = [];
 
