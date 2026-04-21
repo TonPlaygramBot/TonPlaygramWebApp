@@ -1066,10 +1066,10 @@ const storeMeta = {
   },
   checkersbattleroyal: {
     name: 'Checkers Battle Royal',
-    items: CHESS_BATTLE_STORE_ITEMS,
+    items: CHECKERS_BATTLE_STORE_ITEMS,
     defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
     labels: CHESS_BATTLE_OPTION_LABELS,
-    typeLabels: CHESS_TYPE_LABELS,
+    typeLabels: CHECKERS_BATTLE_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
   fourinrowroyale: {

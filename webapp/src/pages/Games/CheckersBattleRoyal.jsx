@@ -34,6 +34,7 @@ import {
   CHESS_BATTLE_OPTION_LABELS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_CHAIR_OPTIONS,
+  CHESS_TABLE_FINISH_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
@@ -41,7 +42,6 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { bombSound } from '../../assets/soundData.js';
 import coinConfetti from '../../utils/coinConfetti';
 import { getGameVolume } from '../../utils/sound.js';
@@ -320,6 +320,10 @@ const CHECKERS_TABLE_SHAPE_BY_ID = Object.freeze({
   grandOval: 'grandOval',
   diamondEdge: 'diamondEdge',
   hexagonTable: 'hexagonTable'
+});
+const CHECKERS_BRANDING_TEXTURE_SIZE = Object.freeze({
+  width: 1024,
+  height: 384
 });
 
 const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
@@ -1594,6 +1598,109 @@ function reduceCheckersTableBase(tableGroup) {
   });
 }
 
+function disposeCheckersBrandPlate(tableGroup) {
+  const plate = tableGroup?.userData?.checkersBrandPlate;
+  if (!plate) return;
+  const mesh = plate.mesh;
+  if (mesh?.parent) mesh.parent.remove(mesh);
+  mesh?.geometry?.dispose?.();
+  if (Array.isArray(mesh?.material)) {
+    mesh.material.forEach((mat) => mat?.dispose?.());
+  } else {
+    mesh?.material?.dispose?.();
+  }
+  plate.texture?.dispose?.();
+  if (tableGroup?.userData) {
+    delete tableGroup.userData.checkersBrandPlate;
+  }
+}
+
+function createCheckersBrandPlateTexture() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = CHECKERS_BRANDING_TEXTURE_SIZE.width;
+  canvas.height = CHECKERS_BRANDING_TEXTURE_SIZE.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const plateGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  plateGradient.addColorStop(0, '#151b23');
+  plateGradient.addColorStop(1, '#090d12');
+  ctx.fillStyle = plateGradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(121, 148, 176, 0.78)';
+  ctx.lineWidth = Math.round(canvas.height * 0.05);
+  ctx.strokeRect(
+    ctx.lineWidth * 0.5,
+    ctx.lineWidth * 0.5,
+    canvas.width - ctx.lineWidth,
+    canvas.height - ctx.lineWidth
+  );
+
+  ctx.fillStyle = '#d8e8f8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${Math.round(canvas.height * 0.35)}px "Inter", "Arial", sans-serif`;
+  ctx.fillText('TonPlaygram', canvas.width * 0.5, canvas.height * 0.53);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function attachCheckersBrandPlate(table) {
+  const tableGroup = table?.group;
+  if (!tableGroup) return;
+  disposeCheckersBrandPlate(tableGroup);
+
+  const outerRadius = table.getOuterRadius?.(new THREE.Vector2(0, 1)) || TABLE_RADIUS;
+  const innerRadius = table.getInnerRadius?.(new THREE.Vector2(0, 1)) || outerRadius * 0.84;
+  const ringWidth = Math.max(outerRadius - innerRadius, outerRadius * 0.11);
+  const plateWidth = Math.max(outerRadius * 0.5, 1.25);
+  const plateDepth = Math.max(ringWidth * 0.64, 0.22);
+  const plateThickness = Math.max(TABLE_HEIGHT * 0.014, 0.016);
+  const texture = createCheckersBrandPlateTexture();
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: '#111827',
+    metalness: 0.72,
+    roughness: 0.28
+  });
+  const topMaterial = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    map: texture,
+    metalness: 0.2,
+    roughness: 0.38
+  });
+  const materials = [bodyMaterial, bodyMaterial, topMaterial, bodyMaterial, bodyMaterial, bodyMaterial];
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(plateWidth, plateThickness, plateDepth),
+    materials
+  );
+  plate.position.set(0, table.surfaceY + plateThickness * 0.54, innerRadius + ringWidth * 0.54);
+  plate.castShadow = true;
+  plate.receiveShadow = true;
+  tableGroup.add(plate);
+  tableGroup.userData = {
+    ...(tableGroup.userData || {}),
+    checkersBrandPlate: { mesh: plate, texture }
+  };
+  if (!table.userData?.checkersBrandDisposeWrapped) {
+    const baseDispose = typeof table.dispose === 'function' ? table.dispose.bind(table) : null;
+    table.dispose = () => {
+      disposeCheckersBrandPlate(tableGroup);
+      baseDispose?.();
+    };
+    table.userData = {
+      ...(table.userData || {}),
+      checkersBrandDisposeWrapped: true
+    };
+  }
+}
+
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions =
@@ -1867,7 +1974,7 @@ export default function CheckersBattleRoyal() {
   );
   const unlockedTableFinishes = useMemo(
     () =>
-      MURLAN_TABLE_FINISHES.filter((opt) =>
+      CHESS_TABLE_FINISH_OPTIONS.filter((opt) =>
         isChessOptionUnlocked('tableFinish', opt.id, inventory)
       ),
     [inventory]
@@ -1905,7 +2012,7 @@ export default function CheckersBattleRoyal() {
     () => ({
       tableId: inventory.tables?.[0] || CHESS_TABLE_OPTIONS[0]?.id,
       chairId: inventory.chairColor?.[0] || CHESS_CHAIR_OPTIONS[0]?.id,
-      tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
+      tableFinish: inventory.tableFinish?.[0] || CHESS_TABLE_FINISH_OPTIONS[0]?.id,
       tableCloth: inventory.tableCloth?.[0] || TABLE_CLOTH_OPTIONS[0]?.id,
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
@@ -2039,7 +2146,7 @@ export default function CheckersBattleRoyal() {
       tableFinish:
         unlockedTableFinishes.find((opt) => opt.id === prev.tableFinish)?.id ||
         unlockedTableFinishes[0]?.id ||
-        MURLAN_TABLE_FINISHES[0]?.id,
+        CHESS_TABLE_FINISH_OPTIONS[0]?.id,
       tableCloth:
         unlockedTableCloths.find((opt) => opt.id === prev.tableCloth)?.id ||
         unlockedTableCloths[0]?.id ||
@@ -2815,8 +2922,8 @@ export default function CheckersBattleRoyal() {
           });
           table.userData = { selectedTableId: appearance.tableId };
           const finish =
-            MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-            MURLAN_TABLE_FINISHES[0];
+            CHESS_TABLE_FINISH_OPTIONS.find((f) => f.id === appearance.tableFinish) ||
+            CHESS_TABLE_FINISH_OPTIONS[0];
           const cloth =
             TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
             TABLE_CLOTH_OPTIONS[0];
@@ -2829,6 +2936,7 @@ export default function CheckersBattleRoyal() {
             renderer
           );
           reduceCheckersTableBase(table.group);
+          attachCheckersBrandPlate(table);
           tableRef.current = table;
         }
       } catch (error) {
@@ -3325,6 +3433,7 @@ export default function CheckersBattleRoyal() {
         });
         rebuilt.userData = { selectedTableId: appearance.tableId };
         reduceCheckersTableBase(rebuilt.group);
+        attachCheckersBrandPlate(rebuilt);
         tableRef.current = rebuilt;
       }
       alignArenaGroundArtifacts({
@@ -3339,8 +3448,8 @@ export default function CheckersBattleRoyal() {
       void rebuildSelectedTable();
     }
     const finish =
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-      MURLAN_TABLE_FINISHES[0];
+      CHESS_TABLE_FINISH_OPTIONS.find((f) => f.id === appearance.tableFinish) ||
+      CHESS_TABLE_FINISH_OPTIONS[0];
     const cloth =
       TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
       TABLE_CLOTH_OPTIONS[0];
