@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 0;
+const TOP_SEAT_AVATAR_UP_LIFT = 1.1;
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2306,28 +2306,28 @@ const CHAIR_SEAT_INWARD_FACTOR = 0.965;
 const CHAIR_VISUAL_SCALE = 1.3;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
-  portrait: 0.92,
+  portrait: 0.84,
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.3,
+  portrait: 2.12,
   landscape: 0.98
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
-const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.16 * MODEL_SCALE;
+const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.24 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.1;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.29;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
-const HUMAN_HAND_EXTRA_LIFT = 0.042 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left/right seats.
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = 0.03 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.235 * MODEL_SCALE;
-const AI_HAND_BOTTOM_SHIFT_Y = -0.082 * MODEL_SCALE;
-const AI_HAND_CLOSER_OFFSET = -0.05 * MODEL_SCALE;
+const AI_HAND_BOTTOM_SHIFT_Y = -0.056 * MODEL_SCALE;
+const AI_HAND_CLOSER_OFFSET = -0.014 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.038 * MODEL_SCALE;
@@ -2338,9 +2338,9 @@ const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
-const HUMAN_HAND_EXTRA_INWARD_PULL = 0.275 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_INWARD_PULL = 0.315 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
-const HAND_CARDS_INWARD_BIAS = 0.085 * MODEL_SCALE;
+const HAND_CARDS_INWARD_BIAS = 0.118 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -2367,7 +2367,7 @@ const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2.04;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
-const AI_CARD_LIFT = 0.036 * MODEL_SCALE;
+const AI_CARD_LIFT = 0.056 * MODEL_SCALE;
 const AI_CARD_OUTWARD = 0;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
@@ -5411,7 +5411,7 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 2.25 : 1.45;
+            const sideSeatTopLift = isSideSeat ? 3.05 : 2.1;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
