@@ -286,6 +286,11 @@ function detectPreferredFrameRateId() {
   const lowRefresh = detectLowRefreshDisplay();
   const refreshTier = detectDisplayRefreshTier();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
+  const isAndroidWebView = /Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/[\d.]+/i.test(ua));
+
+  if (isAndroidWebView) {
+    return 'fhd60';
+  }
 
   if (lowRefresh) {
     return 'fhd60';
@@ -2317,8 +2322,8 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.7,
   landscape: 0.82
 });
-const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.16 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = 0.14 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.27;
@@ -6509,7 +6514,7 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   });
 }
 
-function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
+function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -6560,7 +6565,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
-  tex.anisotropy = 12;
+  tex.anisotropy = 6;
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
