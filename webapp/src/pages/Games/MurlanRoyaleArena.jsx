@@ -107,7 +107,9 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 4.3;
+const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
+const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
+const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(3.15rem + env(safe-area-inset-bottom, 0px))';
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2288,7 +2290,7 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   y: CARD_H * 1.14,
   z: -TABLE_RADIUS * 0.18
 });
-const DISCARD_PILE_FORWARD_SHIFT = CARD_H * 0.52;
+const DISCARD_PILE_FORWARD_SHIFT = CARD_H * 0.34;
 const DISCARD_PILE_RIGHT_SHIFT = CARD_W * 1.48;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -2332,7 +2334,7 @@ const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.18 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
 const AI_HAND_LEFT_SHIFT = 0;
-const HUMAN_HAND_UP_SHIFT_Y = 0.078 * MODEL_SCALE;
+const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
@@ -2340,7 +2342,7 @@ const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
-const HUMAN_HAND_EXTRA_INWARD_PULL = 0.4 * MODEL_SCALE;
+const HUMAN_HAND_EXTRA_INWARD_PULL = 0.46 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
 const HAND_CARDS_INWARD_BIAS = 0.18 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
@@ -4830,11 +4832,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.78, 3.78 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.72, 3.45 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 0.86 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.02 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -5441,13 +5443,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 9.1 : 5.9;
+            const sideSeatTopLift = (isSideSeat ? 9.1 : 5.9) + NON_HUMAN_SEAT_AVATAR_UP_LIFT;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(3.35rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: HUMAN_AVATAR_BOTTOM_OFFSET,
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
