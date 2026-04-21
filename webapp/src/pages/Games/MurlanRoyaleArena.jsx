@@ -2332,7 +2332,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = 0.18 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
+const HUMAN_HAND_LEFT_SHIFT = 0.2 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2409,13 +2409,13 @@ const CAMERA_PLAY_FOLLOW_HOLD_MS = 420;
 const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
-const CAMERA_PLAYER_TARGET_WEIGHT = 0.52;
+const CAMERA_PLAYER_TARGET_WEIGHT = 0.6;
 const HDRI_GROUND_FLOOR_Y = -0.015 * MODEL_SCALE;
 const ARENA_GROUND_Y = HDRI_GROUND_FLOOR_Y;
 const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
-const CAMERA_SIDE_LOOK_EXTRA = 0.34 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 1;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
@@ -5022,7 +5022,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.84;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.88;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
@@ -6392,13 +6392,12 @@ function orientMesh(mesh, lookTarget, options = {}) {
 
 function updateCardFace(mesh, mode) {
   if (!mesh?.material) return;
-  const { frontMaterial, backMaterial, hiddenMaterial, cardFace } = mesh.userData ?? {};
+  const { frontMaterial, backMaterial, cardFace } = mesh.userData ?? {};
   if (!frontMaterial || !backMaterial) return;
   if (mode === cardFace) return;
   if (mode === 'back') {
-    const mat = hiddenMaterial ?? backMaterial;
-    mesh.material[4] = mat;
-    mesh.material[5] = mat;
+    mesh.material[4] = backMaterial;
+    mesh.material[5] = backMaterial;
     mesh.userData.cardFace = 'back';
     return;
   }
@@ -6527,18 +6526,35 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 
   const color = SUIT_COLORS[suit] || '#0f172a';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
+  const cornerRankSize = Math.round(w * 0.18);
+  const cornerSuitSize = Math.round(w * 0.16);
+  const diagonalTilt = THREE.MathUtils.degToRad(-13);
 
-  // Keep rank/suit indicators visually at the top for portrait gameplay readability.
   g.fillStyle = color;
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, Math.round(w * 0.095), Math.round(h * 0.04));
+  g.save();
+  g.translate(Math.round(w * 0.14), Math.round(h * 0.115));
+  g.rotate(diagonalTilt);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, 0, -Math.round(h * 0.03));
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, 0, Math.round(h * 0.035));
+  g.restore();
 
-  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, Math.round(w * 0.12), Math.round(h * 0.145));
+  g.save();
+  g.translate(Math.round(w * 0.14), Math.round(h * 0.87));
+  g.rotate(diagonalTilt);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, 0, -Math.round(h * 0.03));
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, 0, Math.round(h * 0.035));
+  g.restore();
 
   g.textAlign = 'right';
+  g.textBaseline = 'top';
   g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
   g.fillText(label, Math.round(w * 0.905), Math.round(h * 0.04));
   g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
