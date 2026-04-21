@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 3.4;
+const TOP_SEAT_AVATAR_UP_LIFT = 4.3;
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -1666,7 +1666,9 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
       map: backTexture,
       color: new THREE.Color('#ffffff'),
       roughness: 0.6,
-      metalness: 0.15
+      metalness: 0.15,
+      emissive: new THREE.Color('#0f172a'),
+      emissiveIntensity: 0.08
     });
     managedMaterials.push(frontMaterial, backMaterial);
     const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
@@ -2306,8 +2308,8 @@ const CHAIR_SEAT_INWARD_FACTOR = 0.965;
 const CHAIR_VISUAL_SCALE = 1.3;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
-  portrait: 0.98,
-  landscape: 0.74
+  portrait: 1.12,
+  landscape: 0.84
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   portrait: 1.7,
@@ -5439,13 +5441,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 7.9 : 5.1;
+            const sideSeatTopLift = isSideSeat ? 9.1 : 5.9;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(3.8rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(3.35rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5649,7 +5651,7 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="fixed bottom-[8.55rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[8.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
