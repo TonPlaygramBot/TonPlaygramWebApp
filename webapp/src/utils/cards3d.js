@@ -369,8 +369,8 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
-  const plateWidth = w * 0.88;
-  const plateHeight = h * 0.34;
+  const plateWidth = w * 0.8;
+  const plateHeight = h * 0.28;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
@@ -386,8 +386,8 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.82;
-    const logoBoxHeight = h * 0.3;
+    const logoBoxWidth = w * 0.72;
+    const logoBoxHeight = h * 0.24;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
