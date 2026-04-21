@@ -26,7 +26,7 @@ describe('chess battle inventory config', () => {
       CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableFinish').map((item) => item.optionId)
     );
 
-    ['carbonFiberChalk', 'carbonFiberSnakeChalk', 'carbonFiberAlligatorNight'].forEach((id) => {
+    ['carbonFiberChalk', 'carbonFiberChalkGrey', 'carbonFiberAlligatorNight'].forEach((id) => {
       expect(finishIds.has(id)).toBe(true);
       expect(storeFinishIds.has(id)).toBe(true);
     });
