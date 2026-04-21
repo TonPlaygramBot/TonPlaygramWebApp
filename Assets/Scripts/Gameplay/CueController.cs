@@ -35,6 +35,16 @@ namespace Aiming
         [Header("Strike feel")]
         public float strikeDuration = 0.12f;
         public float strikeHoldDuration = 0.05f;
+        [Tooltip("Extra forward travel after impact so the cue tip visibly drives through the cue ball.")]
+        [Min(0f)] public float followThroughDistance = 0.016f;
+        [Tooltip("How long the follow-through drive lasts after impact.")]
+        [Min(0.01f)] public float followThroughDuration = 0.05f;
+        [Tooltip("Small recoil pullback after follow-through before returning to idle.")]
+        [Min(0f)] public float recoilDistance = 0.012f;
+        [Tooltip("Duration of the recoil pullback phase.")]
+        [Min(0.01f)] public float recoilDuration = 0.045f;
+        [Tooltip("Duration of the final settle from recoil back to idle resting depth.")]
+        [Min(0.01f)] public float returnToIdleDuration = 0.06f;
         [Tooltip("Minimum impulse used whenever a valid shot is released.")]
         [Min(0f)] public float minStrikeImpulse = 0.25f;
         [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
@@ -341,17 +351,21 @@ namespace Aiming
             float topspin = Mathf.Max(0f, _latchedShotSpin.y * shotPower);
             float extraFollow = Mathf.Min(0.018f, topspin * 0.016f);
             float contactDepth = contactTipGap - extraFollow;
+            float followThrough = Mathf.Max(0f, followThroughDistance) * Mathf.Lerp(0.8f, 1.15f, shotPower);
+            float followThroughDepth = Mathf.Max(-0.03f, contactDepth - followThrough);
+            float recoilDepth = idleTipGap + Mathf.Max(0f, recoilDistance) * Mathf.Lerp(1f, 0.65f, shotPower);
             float elapsed = 0f;
             bool didStrike = false;
             float hitT = Mathf.Clamp01(hitProgress);
             _currentCueDepth = startDepth;
             UpdateCuePose();
 
-            while (elapsed < strikeDuration)
+            float driveDuration = Mathf.Max(strikeDuration, 0.001f);
+            while (elapsed < driveDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / Mathf.Max(strikeDuration, 0.001f));
-                _currentCueDepth = Mathf.Lerp(startDepth, contactDepth, EaseOutCubic(t));
+                float t = Mathf.Clamp01(elapsed / driveDuration);
+                _currentCueDepth = Mathf.Lerp(startDepth, contactDepth, EaseOutQuart(t));
                 UpdateCuePose();
 
                 if (!didStrike && t >= hitT)
@@ -371,6 +385,39 @@ namespace Aiming
             _currentCueDepth = contactDepth;
             UpdateCuePose();
             yield return new WaitForSeconds(strikeHoldDuration);
+
+            elapsed = 0f;
+            float followDuration = Mathf.Max(0.001f, followThroughDuration);
+            while (elapsed < followDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / followDuration);
+                _currentCueDepth = Mathf.Lerp(contactDepth, followThroughDepth, EaseOutCubic(t));
+                UpdateCuePose();
+                yield return null;
+            }
+
+            elapsed = 0f;
+            float recoilPhaseDuration = Mathf.Max(0.001f, recoilDuration);
+            while (elapsed < recoilPhaseDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / recoilPhaseDuration);
+                _currentCueDepth = Mathf.Lerp(followThroughDepth, recoilDepth, EaseInOutQuad(t));
+                UpdateCuePose();
+                yield return null;
+            }
+
+            elapsed = 0f;
+            float returnDuration = Mathf.Max(0.001f, returnToIdleDuration);
+            while (elapsed < returnDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / returnDuration);
+                _currentCueDepth = Mathf.Lerp(recoilDepth, idleTipGap, EaseOutCubic(t));
+                UpdateCuePose();
+                yield return null;
+            }
 
             _currentCueDepth = idleTipGap;
             _power = 0f;
@@ -429,6 +476,19 @@ namespace Aiming
             t = Mathf.Clamp01(t);
             float inv = 1f - t;
             return 1f - (inv * inv * inv);
+        }
+
+        static float EaseOutQuart(float t)
+        {
+            t = Mathf.Clamp01(t);
+            float inv = 1f - t;
+            return 1f - (inv * inv * inv * inv);
+        }
+
+        static float EaseInOutQuad(float t)
+        {
+            t = Mathf.Clamp01(t);
+            return t < 0.5f ? 2f * t * t : 1f - (Mathf.Pow(-2f * t + 2f, 2f) * 0.5f);
         }
 
         float RecoverPowerFromCueDepth(float cueDepth)
