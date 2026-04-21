@@ -108,7 +108,7 @@ const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 0.44; // Stronger global prop downscale to better match HDRI environment proportions.
 const TOP_SEAT_AVATAR_UP_LIFT = 3.9; // Keep top-seat avatar screen alignment after the stronger arena shrink.
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.56; // Make table/chairs clearly smaller versus HDRI while keeping seat/card layout framing.
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.6; // Slightly enlarge table/chairs while keeping HDRI proportion and seat/card framing.
 const CARD_VISUAL_TRIM = 0.9; // Keep cards proportionally trimmed with the smaller table/chair silhouette.
 
 const TABLE_RADIUS = 3.08 * MODEL_SCALE * ARENA_PROP_SCALE;
@@ -2280,7 +2280,7 @@ const CARD_SCALE = ARENA_PROP_SCALE * 0.8 * TABLE_AND_CHAIR_VISUAL_SHRINK * CARD
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
-const CARD_SURFACE_OFFSET = CARD_D * 4;
+const CARD_SURFACE_OFFSET = CARD_D * 3;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
   y: CARD_H * 1.14,
@@ -2308,10 +2308,10 @@ const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INW
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.14 * ARENA_PROP_SCALE, landscape: 0.16 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.08 * ARENA_PROP_SCALE, landscape: 0.12 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.06 * ARENA_PROP_SCALE,
-  landscape: 0.72 * ARENA_PROP_SCALE
+  portrait: 0.94 * ARENA_PROP_SCALE,
+  landscape: 0.64 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
@@ -2323,8 +2323,8 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.34 * MODEL_SCALE; // Bring the bottom player's hand/cards closer to the table without changing card size.
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.14 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.18 * MODEL_SCALE; // Pull the bottom player's hand/cards slightly closer to table center without changing card size.
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.18 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = 0;
 const AI_HAND_CLOSER_OFFSET = -0.01 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
@@ -2345,7 +2345,7 @@ const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
 const COMMUNITY_CARD_CLOSER_TO_HUMAN = 0;
-const COMMUNITY_CARD_BOTTOM_SHIFT_Y = 0.008 * MODEL_SCALE;
+const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
@@ -4786,7 +4786,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.2 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 0.86 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4971,7 +4971,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.88;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.84;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
