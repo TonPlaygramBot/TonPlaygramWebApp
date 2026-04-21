@@ -442,11 +442,12 @@ const CAPTURE_MULTI_SHOT_COUNT = 2;
 // Keep Snake & Ladder capture tuning aligned with Ludo Battle Royale flight behaviour,
 // while staying isolated in this file so changes here never alter other games.
 const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
-  fighter: Object.freeze({ speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 }),
-  helicopter: Object.freeze({ speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 }),
-  drone: Object.freeze({ speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  javelin: Object.freeze({ speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }),
-  supportTruck: Object.freeze({ speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 })
+  fighter: Object.freeze({ speed: 0.92, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  helicopter: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  drone: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
+  javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
 });
 const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   fighter: 0,
@@ -5877,15 +5878,21 @@ export default function SnakeBoard3D({
     missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
 
     const startTime = performance.now();
-    const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.72, captureTuning.speed || 1);
+    const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
-    const volleyCount = vehicleKind === 'fighter' || vehicleKind === 'helicopter' ? CAPTURE_MULTI_SHOT_COUNT : 1;
+    const isDroneLikeAircraft = vehicleKind === 'drone' || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const isReturningAircraft = vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const volleyCount = vehicleKind === 'supportTruck' ? 1 : (isReturningAircraft ? 1 : CAPTURE_MULTI_SHOT_COUNT);
     const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
     const volleyDuration = volleyCount * perMissileFlight + Math.max(0, volleyCount - 1) * perMissileGap;
-    const droneAttackDuration = CAPTURE_MISSILE_FLIGHT_MS + 160;
+    const droneAttackDuration = Math.round(CAPTURE_MISSILE_FLIGHT_MS * 1.45);
+    const droneLaunchProgress = 0.68;
+    const aircraftLaunchDuration = Math.round(droneAttackDuration * droneLaunchProgress);
     const returnDuration = CAPTURE_RETURN_MS;
+    let aircraftMissileLaunchStartedAt = null;
+    let aircraftMissileLaunchFrom = null;
     const camera = cameraRef.current;
     const controls = board.controls;
     if (cameraViewMode !== '2d' && camera && controls) {
@@ -5993,7 +6000,81 @@ export default function SnakeBoard3D({
           updateCaptureExplosionRig(explosion, -1);
           return false;
         }
-        if (attackElapsed <= volleyDuration && vehicleKind !== 'drone') {
+        if (isReturningAircraft && attackElapsed <= aircraftLaunchDuration) {
+          const rawU = easeInOut(clamp01(attackElapsed / aircraftLaunchDuration));
+          const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing) * droneLaunchProgress;
+          const nextU = clamp01(u + 0.02);
+          const pos = droneStrikePathAt(u);
+          const next = droneStrikePathAt(nextU);
+          const dir = next.clone().sub(pos).normalize();
+          primaryVehicle.root.visible = true;
+          primaryVehicle.root.position.copy(pos);
+          primaryVehicle.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          spinCaptureRotors(primaryVehicle, 1 / 60);
+          if (!aircraftMissileLaunchFrom || attackElapsed >= aircraftLaunchDuration - 20) {
+            aircraftMissileLaunchFrom = pos.clone();
+          }
+          setCameraTrack(primaryVehicle.root.position);
+          updateCaptureExplosionRig(explosion, -1);
+          return false;
+        }
+        if (isReturningAircraft && aircraftMissileLaunchStartedAt == null) {
+          aircraftMissileLaunchStartedAt = attackElapsed;
+          aircraftMissileLaunchFrom ||= droneStrikePathAt(droneLaunchProgress);
+        }
+        if (isReturningAircraft && aircraftMissileLaunchStartedAt != null) {
+          const missileElapsed = attackElapsed - aircraftMissileLaunchStartedAt;
+          if (missileElapsed <= perMissileFlight) {
+            const rawU = easeInOut(clamp01(missileElapsed / perMissileFlight));
+            const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
+            const from = aircraftMissileLaunchFrom || centerStage;
+            const pos = missilePathAt(u, from);
+            const next = missilePathAt(clamp01(u + 0.02), from);
+            const dir = next.clone().sub(pos).normalize();
+            missileProjectile.root.visible = true;
+            missileProjectile.root.position.copy(pos);
+            missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+          } else {
+            missileProjectile.root.visible = false;
+          }
+          const returnElapsed = attackElapsed - aircraftMissileLaunchStartedAt;
+          if (returnElapsed <= returnDuration) {
+            const returnT = easeInOut(clamp01(returnElapsed / returnDuration));
+            const pos = returnPathAt(returnT);
+            primaryVehicle.root.visible = true;
+            primaryVehicle.root.position.copy(pos);
+            setCameraTrack(missileProjectile.root.visible ? missileProjectile.root.position : pos);
+            updateCaptureExplosionRig(explosion, -1);
+            return false;
+          }
+          primaryVehicle.root.visible = false;
+          const impactElapsed = Math.max(0, missileElapsed - perMissileFlight);
+          if (impactElapsed <= impactDuration) {
+            explosion.root.position.copy(impact);
+            updateCaptureExplosionRig(explosion, impactElapsed / 1000);
+            setCameraTrack(impact);
+            return false;
+          }
+          updateCaptureExplosionRig(explosion, -1);
+          const advanceElapsed = impactElapsed - impactDuration;
+          const t = clamp01(advanceElapsed / advanceDuration);
+          const lift = TOKEN_HEIGHT * 1.2;
+          const arc = Math.sin(t * Math.PI) * lift;
+          const nextPos = startPos.clone().lerp(targetPos, easeInOut(t));
+          nextPos.y += arc;
+          attacker.position.copy(nextPos);
+          if (t >= 1) {
+            attacker.userData.isSliding = false;
+            attacker.position.copy(targetPos);
+            primaryVehicle.root.visible = false;
+            missileProjectile.root.visible = false;
+            if (attackerHolder) attackerHolder.visible = true;
+            onCaptureAnimationComplete?.(captureEvent.id);
+            return true;
+          }
+          return false;
+        }
+        if (attackElapsed <= volleyDuration && !isDroneLikeAircraft) {
           const cycleDuration = perMissileFlight + perMissileGap;
           const cycleIndex = Math.min(volleyCount - 1, Math.floor(attackElapsed / cycleDuration));
           const cycleElapsed = attackElapsed - cycleIndex * cycleDuration;
