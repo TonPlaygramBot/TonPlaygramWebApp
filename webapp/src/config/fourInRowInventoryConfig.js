@@ -1,5 +1,6 @@
 import { MURLAN_TABLE_THEMES } from './murlanThemes.js'
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
+import { MURLAN_TABLE_CLOTHS } from './murlanTableCloths.js'
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -88,6 +89,7 @@ export const FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [FOUR_IN_ROW_CHAIR_OPTIONS[0]?.id],
   tables: [FOUR_IN_ROW_TABLE_OPTIONS[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
+  clothColor: [MURLAN_TABLE_CLOTHS[0]?.id],
   boardFinish: [FOUR_IN_ROW_BOARD_FINISH_OPTIONS[0]?.id],
   boardFrameFinish: [FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS[0]?.id],
   ringFinish: [FOUR_IN_ROW_RING_FINISH_OPTIONS[0]?.id],
@@ -101,6 +103,7 @@ export const FOUR_IN_ROW_BATTLE_OPTION_LABELS = Object.freeze({
   chairColor: Object.freeze(FOUR_IN_ROW_CHAIR_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tables: Object.freeze(FOUR_IN_ROW_TABLE_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tableFinish: Object.freeze(MURLAN_TABLE_FINISHES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
+  clothColor: Object.freeze(MURLAN_TABLE_CLOTHS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFinish: Object.freeze(FOUR_IN_ROW_BOARD_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFrameFinish: Object.freeze(FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   ringFinish: Object.freeze(FOUR_IN_ROW_RING_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
@@ -122,6 +125,17 @@ export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
     description: finish.description,
     swatches: finish.swatches,
     thumbnail: finish.thumbnail,
+    previewShape: 'table'
+  })),
+  ...MURLAN_TABLE_CLOTHS.slice(1).map((cloth, idx) => ({
+    id: `fourinrow-cloth-${cloth.id}`,
+    type: 'clothColor',
+    optionId: cloth.id,
+    name: cloth.label,
+    price: cloth.price ?? 620 + idx * 20,
+    description: cloth.description,
+    swatches: cloth.swatches,
+    thumbnail: cloth.thumbnail,
     previewShape: 'table'
   })),
   ...FOUR_IN_ROW_BOARD_FINISH_OPTIONS.slice(1).map((finish, idx) => ({
