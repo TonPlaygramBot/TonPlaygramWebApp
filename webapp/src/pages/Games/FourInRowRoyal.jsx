@@ -25,14 +25,15 @@ import {
   FOUR_IN_ROW_TABLE_OPTIONS,
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
   FOUR_IN_ROW_BOARD_LAYOUTS,
-  FOUR_IN_ROW_BATTLE_OPTION_LABELS
+  FOUR_IN_ROW_BATTLE_OPTION_LABELS,
+  FOUR_IN_ROW_TABLE_FINISH_OPTIONS,
+  FOUR_IN_ROW_TABLE_CLOTH_OPTIONS
 } from '../../config/fourInRowInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
   applyWoodTextures,
   DEFAULT_WOOD_GRAIN_ID,
@@ -180,16 +181,6 @@ const GRAPHICS_PRESETS = Object.freeze([
     shadowMapSize: 2048,
     preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'High-fidelity preset for flagship mobile GPUs.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    pixelRatioScale: 1.35,
-    pixelRatioCap: 2.2,
-    shadowMapSize: 2048,
-    preferredHdriResolutions: ['8k', '4k'],
-    description: 'Maximum smoothness preset where thermals allow.'
   }
 ]);
 let sharedKtx2Loader = null;
@@ -744,6 +735,44 @@ const safeThumbnail = (value) => {
 const getGraphicsPreset = (graphicsId) =>
   GRAPHICS_PRESETS.find((g) => g.id === graphicsId) || GRAPHICS_PRESETS[1] || GRAPHICS_PRESETS[0];
 
+const createTonplaygramBrandingPlate = (tableRadius) => {
+  const width = Math.max(0.18, tableRadius * 0.24);
+  const height = Math.max(0.065, tableRadius * 0.082);
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    new THREE.MeshStandardMaterial({
+      color: '#10161f',
+      metalness: 0.78,
+      roughness: 0.28,
+      emissive: '#06090f',
+      emissiveIntensity: 0.32
+    })
+  );
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 192;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+    ctx.fillStyle = '#e5edf8';
+    ctx.font = '700 72px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TonPlaygram', canvas.width / 2, canvas.height / 2);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  plate.material.map = texture;
+  plate.material.needsUpdate = true;
+  plate.castShadow = true;
+  return plate;
+};
+
 const getArenaYOffsetForHdri = (hdriId) => {
   const variant =
     POOL_ROYALE_HDRI_VARIANT_MAP[hdriId] ||
@@ -828,7 +857,10 @@ export default function FourInRowRoyal() {
   const yStep = boardHeight / rows;
 
   const [appearance, setAppearance] = useState(() => ({
-    tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
+    tableFinish:
+      inventory.tableFinish?.[0] || FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0]?.id,
+    tableCloth:
+      inventory.tableCloth?.[0] || FOUR_IN_ROW_TABLE_CLOTH_OPTIONS[0]?.id,
     tableId:
       inventory.tables?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.tables?.[0] ||
@@ -1147,19 +1179,42 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
+    const tableClothOption =
+      FOUR_IN_ROW_TABLE_CLOTH_OPTIONS.find(
+        (item) => item.id === appearance.tableCloth
+      ) || FOUR_IN_ROW_TABLE_CLOTH_OPTIONS[0];
+    const tableFinishOption =
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS.find(
+        (f) => f.id === appearance.tableFinish
+      ) || FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0];
     const table = createMurlanStyleTable({
       arena: arenaRoot,
       renderer,
       tableRadius: TABLE_RADIUS,
       tableHeight: TABLE_HEIGHT,
-      tableThemeId: appearance.tableId
+      clothOption: {
+        ...tableClothOption,
+        preferredTextureResolutions: getGraphicsPreset(appearance.graphics)
+          .preferredHdriResolutions
+      }
     });
     tablePartsRef.current = table.parts;
     applyTableMaterials(
       table.parts,
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-        MURLAN_TABLE_FINISHES[0]
+      {
+        woodOption: tableFinishOption,
+        clothOption: {
+          ...tableClothOption,
+          preferredTextureResolutions: getGraphicsPreset(appearance.graphics)
+            .preferredHdriResolutions
+        }
+      },
+      renderer
     );
+    const brandingPlate = createTonplaygramBrandingPlate(TABLE_RADIUS);
+    brandingPlate.position.set(0, TABLE_HEIGHT - 0.1, TABLE_RADIUS * 0.88);
+    brandingPlate.rotation.y = Math.PI;
+    table.group.add(brandingPlate);
 
     const chairTheme =
       FOUR_IN_ROW_CHAIR_OPTIONS.find(
@@ -1896,10 +1951,24 @@ export default function FourInRowRoyal() {
   useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish =
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-      MURLAN_TABLE_FINISHES[0];
-    applyTableMaterials(tablePartsRef.current, finish);
-  }, [appearance.tableFinish]);
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS.find((f) => f.id === appearance.tableFinish) ||
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0];
+    const cloth =
+      FOUR_IN_ROW_TABLE_CLOTH_OPTIONS.find((item) => item.id === appearance.tableCloth) ||
+      FOUR_IN_ROW_TABLE_CLOTH_OPTIONS[0];
+    applyTableMaterials(
+      tablePartsRef.current,
+      {
+        woodOption: finish,
+        clothOption: {
+          ...cloth,
+          preferredTextureResolutions: getGraphicsPreset(appearance.graphics)
+            .preferredHdriResolutions
+        }
+      },
+      rendererRef.current
+    );
+  }, [appearance.tableFinish, appearance.tableCloth, appearance.graphics]);
 
   useEffect(() => {
     const chairTheme =
@@ -1997,8 +2066,17 @@ export default function FourInRowRoyal() {
     },
     {
       key: 'tableFinish',
+      label: 'Table Finish',
+      options: FOUR_IN_ROW_TABLE_FINISH_OPTIONS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        thumbnail: item.thumbnail
+      }))
+    },
+    {
+      key: 'tableCloth',
       label: 'Table Cloth',
-      options: MURLAN_TABLE_FINISHES.map((item) => ({
+      options: FOUR_IN_ROW_TABLE_CLOTH_OPTIONS.map((item) => ({
         id: item.id,
         label: item.label,
         thumbnail: item.thumbnail
@@ -2087,9 +2165,6 @@ export default function FourInRowRoyal() {
             </span>
             <span className="leading-none">Menu</span>
           </button>
-          <h1 className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
-            4 in a Row
-          </h1>
         </div>
 
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
@@ -2110,7 +2185,7 @@ export default function FourInRowRoyal() {
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-[min(90vw,32rem)] max-h-[72vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
-                4 in a Row Customization
+                Customization
               </p>
               <p className="mt-2 text-white/70">
                 Layout:{' '}
@@ -2155,7 +2230,7 @@ export default function FourInRowRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[22%] -translate-x-1/2">
           <AvatarTimer
             photoUrl="🤖"
             name="AI Rival"
@@ -2166,7 +2241,7 @@ export default function FourInRowRoyal() {
         </div>
         <div
           data-self-player="true"
-          className="absolute left-1/2 top-[91.5%] -translate-x-1/2"
+          className="absolute left-1/2 top-[79%] -translate-x-1/2"
         >
           <AvatarTimer
             photoUrl={avatar}

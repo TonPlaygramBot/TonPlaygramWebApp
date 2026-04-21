@@ -92,9 +92,14 @@ function pickBestTextureUrls(apiJson, preferredSizes = POLYHAVEN_PREFERRED_SIZES
   };
 }
 
-async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1) {
+async function loadPolyhavenTextureSet(
+  assetId,
+  textureLoader,
+  maxAnisotropy = 1,
+  preferredSizes = POLYHAVEN_PREFERRED_SIZES
+) {
   if (!assetId || !textureLoader) return null;
-  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}|${preferredSizes.join(',')}`;
   if (CLOTH_TEXTURE_CACHE.has(key)) {
     return CLOTH_TEXTURE_CACHE.get(key);
   }
@@ -104,7 +109,7 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
       const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
       if (!response.ok) return null;
       const json = await response.json();
-      const urls = pickBestTextureUrls(json, POLYHAVEN_PREFERRED_SIZES);
+      const urls = pickBestTextureUrls(json, preferredSizes);
       if (!urls.diffuse) return null;
       const load = (url, isColor) =>
         new Promise((resolve, reject) => {
@@ -151,13 +156,19 @@ async function applyPolyhavenClothTexture(parts, clothOption, renderer) {
   const clothMat = parts?.surfaceMat;
   if (!clothMat || !clothOption?.sourceId) return;
   const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+  const preferredResolutions =
+    Array.isArray(clothOption?.preferredTextureResolutions) &&
+    clothOption.preferredTextureResolutions.length
+      ? clothOption.preferredTextureResolutions
+      : POLYHAVEN_PREFERRED_SIZES;
   const requestId = `${clothOption.sourceId}-${Date.now()}`;
   clothMat.userData = { ...(clothMat.userData || {}), polyhavenRequestId: requestId, sourceId: clothOption.sourceId };
 
   const textures = await loadPolyhavenTextureSet(
     clothOption.sourceId,
     SHARED_TEXTURE_LOADER,
-    maxAnisotropy
+    maxAnisotropy,
+    preferredResolutions
   );
   if (!textures) return;
   if (clothMat.userData?.polyhavenRequestId !== requestId) return;
