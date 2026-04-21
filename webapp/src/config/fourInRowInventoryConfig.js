@@ -1,12 +1,11 @@
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
+import { MURLAN_TABLE_THEMES } from './murlanThemes.js'
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_CLOTH_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS
+  POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js'
 import { swatchThumbnail } from './storeThumbnails.js'
+import { MURLAN_STOOL_THEMES } from './murlanThemes.js'
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id
 
@@ -33,94 +32,6 @@ export const FOUR_IN_ROW_BOARD_THEMES = Object.freeze([
 
 export const FOUR_IN_ROW_BOARD_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
 export const FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES])
-const LT_TABLE_FINISH_OPTIONS = Object.freeze([
-  {
-    id: 'carbonFiberChalk',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalk,
-    description: 'Black LT carbon-fiber weave finish with a brighter charcoal tone.',
-    price: 1160,
-    swatches: ['#1f242b', '#4f5a68'],
-    thumbnail: swatchThumbnail(['#1f242b', '#4f5a68']),
-    woodOption: { id: 'carbonFiberChalk', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalk, presetId: 'oak', grainId: 'plastic_monoblock_lt_black' }
-  },
-  {
-    id: 'carbonFiberChalkGrey',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkGrey,
-    description: 'Grey LT carbon-fiber weave finish tuned a touch brighter for clarity.',
-    price: 1170,
-    swatches: ['#727d8b', '#a4adbb'],
-    thumbnail: swatchThumbnail(['#727d8b', '#a4adbb']),
-    woodOption: { id: 'carbonFiberChalkGrey', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkGrey, presetId: 'oak', grainId: 'plastic_monoblock_lt_grey' }
-  },
-  {
-    id: 'carbonFiberChalkBeige',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkBeige,
-    description: 'Dark-grey LT carbon-fiber weave finish with a slightly brighter lift.',
-    price: 1180,
-    swatches: ['#3f4956', '#6a7788'],
-    thumbnail: swatchThumbnail(['#3f4956', '#6a7788']),
-    woodOption: { id: 'carbonFiberChalkBeige', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkBeige, presetId: 'oak', grainId: 'plastic_monoblock_lt_dark_grey' }
-  },
-  {
-    id: 'carbonFiberChalkDarkBlue',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkBlue,
-    description: 'Burgundy LT finish shifted to rosewood-brown warmth.',
-    price: 1190,
-    swatches: ['#6a3233', '#a55c5d'],
-    thumbnail: swatchThumbnail(['#6a3233', '#a55c5d']),
-    woodOption: { id: 'carbonFiberChalkDarkBlue', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkBlue, presetId: 'oak', grainId: 'plastic_monoblock_lt_burgundy' }
-  },
-  {
-    id: 'carbonFiberChalkWhite',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkWhite,
-    description: 'Milk-cream LT carbon-fiber weave finish with a deeper cream tone.',
-    price: 1200,
-    swatches: ['#d8ccb9', '#ece3d3'],
-    thumbnail: swatchThumbnail(['#d8ccb9', '#ece3d3']),
-    woodOption: { id: 'carbonFiberChalkWhite', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkWhite, presetId: 'oak', grainId: 'plastic_monoblock_lt_milk_cream' }
-  },
-  {
-    id: 'carbonFiberChalkDarkGreen',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkGreen,
-    description: 'Dark-green LT carbon-fiber weave finish with rich forest depth.',
-    price: 1210,
-    swatches: ['#314d39', '#588365'],
-    thumbnail: swatchThumbnail(['#314d39', '#588365']),
-    woodOption: { id: 'carbonFiberChalkDarkGreen', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkGreen, presetId: 'oak', grainId: 'plastic_monoblock_lt_dark_green' }
-  },
-  {
-    id: 'carbonFiberChalkDarkYellow',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkYellow,
-    description: 'Dark-yellow LT carbon-fiber weave finish with mustard-gold warmth.',
-    price: 1220,
-    swatches: ['#8d6b2c', '#c79d52'],
-    thumbnail: swatchThumbnail(['#8d6b2c', '#c79d52']),
-    woodOption: { id: 'carbonFiberChalkDarkYellow', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkYellow, presetId: 'oak', grainId: 'plastic_monoblock_lt_dark_yellow' }
-  },
-  {
-    id: 'carbonFiberChalkDarkBrown',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkBrown,
-    description: 'Dark-brown LT carbon-fiber weave finish with earthy depth.',
-    price: 1230,
-    swatches: ['#5f3f30', '#95664f'],
-    thumbnail: swatchThumbnail(['#5f3f30', '#95664f']),
-    woodOption: { id: 'carbonFiberChalkDarkBrown', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkBrown, presetId: 'oak', grainId: 'plastic_monoblock_lt_dark_brown' }
-  },
-  {
-    id: 'carbonFiberChalkDarkRed',
-    label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkRed,
-    description: 'Dark-red LT carbon-fiber weave finish with deep crimson character.',
-    price: 1240,
-    swatches: ['#803a36', '#bd615e'],
-    thumbnail: swatchThumbnail(['#803a36', '#bd615e']),
-    woodOption: { id: 'carbonFiberChalkDarkRed', label: POOL_ROYALE_OPTION_LABELS.tableFinish.carbonFiberChalkDarkRed, presetId: 'oak', grainId: 'plastic_monoblock_lt_dark_red' }
-  }
-])
-export const FOUR_IN_ROW_TABLE_FINISH_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_FINISHES,
-  ...LT_TABLE_FINISH_OPTIONS
-])
-export const FOUR_IN_ROW_CLOTH_OPTIONS = Object.freeze([...POOL_ROYALE_CLOTH_VARIANTS])
 
 export const FOUR_IN_ROW_RING_FINISH_OPTIONS = Object.freeze([
   {
@@ -183,28 +94,26 @@ export const FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   boardTheme: [FOUR_IN_ROW_BOARD_THEMES[0]?.id],
   boardLayout: [FOUR_IN_ROW_BOARD_LAYOUTS[0]?.id],
   stoneStyle: [FOUR_IN_ROW_STONE_STYLES[0]?.id],
-  clothColor: [FOUR_IN_ROW_CLOTH_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID]
 })
 
 export const FOUR_IN_ROW_BATTLE_OPTION_LABELS = Object.freeze({
   chairColor: Object.freeze(FOUR_IN_ROW_CHAIR_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   tables: Object.freeze(FOUR_IN_ROW_TABLE_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  tableFinish: Object.freeze(FOUR_IN_ROW_TABLE_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
+  tableFinish: Object.freeze(MURLAN_TABLE_FINISHES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFinish: Object.freeze(FOUR_IN_ROW_BOARD_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardFrameFinish: Object.freeze(FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   ringFinish: Object.freeze(FOUR_IN_ROW_RING_FINISH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardTheme: Object.freeze(FOUR_IN_ROW_BOARD_THEMES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardLayout: Object.freeze(FOUR_IN_ROW_BOARD_LAYOUTS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   stoneStyle: Object.freeze(FOUR_IN_ROW_STONE_STYLES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
-  clothColor: Object.freeze(FOUR_IN_ROW_CLOTH_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.name }), {})),
   environmentHdri: Object.freeze(POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => ({ ...acc, [variant.id]: `${variant.name} HDRI` }), {}))
 })
 
 export const FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT = FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS
 
 export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
-  ...FOUR_IN_ROW_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
+  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `fourinrow-table-finish-${finish.id}`,
     type: 'tableFinish',
     optionId: finish.id,
@@ -299,16 +208,6 @@ export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
     thumbnail: style.thumbnail,
     swatches: [style.black, style.white],
     previewShape: 'piece'
-  })),
-  ...FOUR_IN_ROW_CLOTH_OPTIONS.slice(1).map((variant, idx) => ({
-    id: `fourinrow-cloth-${variant.id}`,
-    type: 'clothColor',
-    optionId: variant.id,
-    name: `${variant.name} Cloth`,
-    price: 620 + idx * 45,
-    description: `Poly Haven ${variant.name} cloth finish for all 4 in a Row board tables.`,
-    thumbnail: variant.thumbnail || swatchThumbnail(variant.swatches || ['#1f2937', '#0f172a']),
-    swatches: variant.swatches
   })),
   ...POOL_ROYALE_HDRI_VARIANTS.slice(1).map((variant, idx) => ({
     id: `fourinrow-hdri-${variant.id}`,
