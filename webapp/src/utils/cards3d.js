@@ -386,13 +386,16 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.82;
-    const logoBoxHeight = h * 0.3;
+    const logoBoxWidth = w * 0.9;
+    const logoBoxHeight = h * 0.36;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
-    const logoX = w / 2 - drawWidth / 2;
-    const logoY = h / 2 - drawHeight / 2;
-    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    // Back-face UVs are mirrored in gameplay, so rotate here to keep logo upright on-screen.
+    ctx.rotate(Math.PI);
+    ctx.drawImage(logoImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
   } else {
     ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
