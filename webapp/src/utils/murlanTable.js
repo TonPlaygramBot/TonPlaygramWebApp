@@ -39,6 +39,7 @@ const POLYHAVEN_PREFERRED_SIZES = ['4k', '2k', '1k'];
 const CLOTH_TEXTURE_CACHE = new Map();
 const SHARED_TEXTURE_LOADER = new THREE.TextureLoader();
 SHARED_TEXTURE_LOADER.setCrossOrigin?.('anonymous');
+let BRAND_PLATE_TEXTURE = null;
 
 function pickBestTextureUrls(apiJson, preferredSizes = POLYHAVEN_PREFERRED_SIZES) {
   if (!apiJson || typeof apiJson !== 'object') {
@@ -471,6 +472,52 @@ function applyWoodSelectionToMaterials(topMat, rimMat, option) {
   }
 }
 
+function makeBrandPlateTexture() {
+  if (BRAND_PLATE_TEXTURE) return BRAND_PLATE_TEXTURE;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const pattern = document.createElement('canvas');
+  pattern.width = 64;
+  pattern.height = 64;
+  const pctx = pattern.getContext('2d');
+  pctx.fillStyle = '#0d1117';
+  pctx.fillRect(0, 0, 64, 64);
+  pctx.fillStyle = '#141a22';
+  pctx.fillRect(0, 0, 32, 32);
+  pctx.fillRect(32, 32, 32, 32);
+  pctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  pctx.lineWidth = 2;
+  pctx.beginPath();
+  pctx.moveTo(0, 32);
+  pctx.lineTo(32, 0);
+  pctx.lineTo(64, 32);
+  pctx.lineTo(32, 64);
+  pctx.closePath();
+  pctx.stroke();
+  const bgPattern = ctx.createPattern(pattern, 'repeat');
+  ctx.fillStyle = bgPattern || '#111827';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 96px "Inter", "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TonPlaygram', canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  applySRGBColorSpace(texture);
+  texture.needsUpdate = true;
+  BRAND_PLATE_TEXTURE = texture;
+  return texture;
+}
+
 export function applyTableMaterials(parts, { woodOption, clothOption, baseOption }, renderer) {
   if (!parts) return;
 
@@ -675,6 +722,34 @@ export function createMurlanStyleTable({
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
 
+  const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
+  const brandPlateGeometry = new ThreeNamespace.BoxGeometry(rimSize.width, 0.018 * scaleFactor, rimSize.depth);
+  const brandPlateMaterialTop = new ThreeNamespace.MeshStandardMaterial({
+    map: makeBrandPlateTexture(),
+    color: '#ffffff',
+    roughness: 0.35,
+    metalness: 0.28
+  });
+  const brandPlateMaterialSide = new ThreeNamespace.MeshStandardMaterial({
+    color: '#0f172a',
+    roughness: 0.42,
+    metalness: 0.66
+  });
+  const brandPlate = new ThreeNamespace.Mesh(brandPlateGeometry, [
+    brandPlateMaterialSide,
+    brandPlateMaterialSide,
+    brandPlateMaterialTop,
+    brandPlateMaterialSide,
+    brandPlateMaterialSide,
+    brandPlateMaterialSide
+  ]);
+  const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
+  brandPlate.position.set(0, tableY + clothRise * 0.63, frontRadius - rimSize.depth * 0.65);
+  brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
+  brandPlate.castShadow = true;
+  brandPlate.receiveShadow = true;
+  tableGroup.add(brandPlate);
+
   if (includeBase) {
     const baseGeometry = new ThreeNamespace.CylinderGeometry(
       0.62 * scaleFactor,
@@ -742,7 +817,8 @@ export function createMurlanStyleTable({
     velvetTexture: null,
     topWoodMat,
     rimWoodMat,
-    group: tableGroup
+    group: tableGroup,
+    brandPlateMaterials: [brandPlateMaterialTop, brandPlateMaterialSide]
   };
 
   applyTableMaterials(tableParts, { woodOption, clothOption, baseOption }, renderer);
@@ -755,6 +831,7 @@ export function createMurlanStyleTable({
     tableParts.trimMat?.dispose?.();
     tableParts.surfaceMat?.map?.dispose?.();
     tableParts.surfaceMat?.dispose?.();
+    tableParts.brandPlateMaterials?.forEach((material) => material?.dispose?.());
     if (tableGroup.parent) {
       tableGroup.parent.remove(tableGroup);
     }

@@ -107,7 +107,7 @@ const ENABLE_3D_HUMAN_CHARACTERS = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
-const TOP_SEAT_AVATAR_UP_LIFT = 2.85;
+const TOP_SEAT_AVATAR_UP_LIFT = 3.4;
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -5004,7 +5004,7 @@ export default function MurlanRoyaleArena({ search }) {
           .addScaledVector(humanSeatConfig.forward, -CAMERA_TARGET_TOP_PLAYER_BIAS);
       } else {
         const humanSeatAngle = Math.PI / 2;
-        const cameraBackOffset = isPortrait ? 1.9 : 1.18;
+        const cameraBackOffset = isPortrait ? 2.05 : 1.18;
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
         const cameraHeightOffset = isPortrait ? 1.06 : 0.88;
         initialCameraPosition = new THREE.Vector3(
@@ -5439,13 +5439,13 @@ export default function MurlanRoyaleArena({ search }) {
             const anchor = seatAnchorMap.get(idx);
             const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
             const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
-            const sideSeatTopLift = isSideSeat ? 7.1 : 4.6;
+            const sideSeatTopLift = isSideSeat ? 7.9 : 5.1;
             const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
             const positionStyle = idx === humanPlayerIndex
               ? {
                   position: 'fixed',
                   left: '50%',
-                  bottom: 'calc(4.2rem + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(3.8rem + env(safe-area-inset-bottom, 0px))',
                   transform: 'translateX(-50%)',
                   zIndex: 24
                 }
@@ -5649,7 +5649,7 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="mt-auto px-3 pb-2 pointer-events-none">
           <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="fixed bottom-[8.2rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
+            <div className="fixed bottom-[8.55rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={handlePass}
@@ -6467,7 +6467,9 @@ function createCardMesh(card, geometry, cache, theme) {
     map: backTexture,
     color: new THREE.Color('#ffffff'),
     roughness: 0.6,
-    metalness: 0.15
+    metalness: 0.15,
+    emissive: new THREE.Color('#0f172a'),
+    emissiveIntensity: 0.08
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
@@ -6552,8 +6554,8 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme, w = 1024, h = 1440) {
-  return makeTonplaygramCardBackTexture(theme, w, h);
+function makeCardBackTexture(theme) {
+  return makeTonplaygramCardBackTexture(theme);
 }
 
 function applyChairThemeMaterials(three, theme) {
