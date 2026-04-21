@@ -99,7 +99,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = 9.8; // extend loop further so jet/helicopter lift-off is clearly visible before firing
+const CAPTURE_JET_TOTAL = CAPTURE_GROUND_TOTAL * 1.08; // keep jet almost as slow as the drone strike cycle, but still distinct
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing and route behavior
@@ -108,7 +108,7 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.34; // quick ignition before short vertical strike
-const CAPTURE_GROUND_TRAVEL_TIME = 2.92; // slower short-pawn/javelin strike loop for clearer live tracking
+const CAPTURE_GROUND_TRAVEL_TIME = 3.24; // slightly slower so drone lift + lock-on remains clearly visible in portrait
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.004; // ultra-tight contact radius so missiles lock onto target precisely
 const CAPTURE_GROUND_DRONE_RESPAWN_DELAY = LUDO_CAPTURE_EXPLOSION_TIME; // park drone only after explosion completes
@@ -155,8 +155,8 @@ const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.09; // keep aircraft path tighter and
 const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.84; // much slower liftoff so aircraft visibly rise from parking spot
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.9;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.95;
-const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.58; // release during forward pass so missiles clearly track from piece to target
-const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.8; // quicker travel to keep impact synced with fly-by
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = CAPTURE_PAD_STRIKE_HOVER_RATIO; // fire once aircraft reach drone-like cruising latitude
+const CAPTURE_PAD_MISSILE_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME; // match pawn/truck/drone missile pacing
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // trigger impact only at the very end of the precision strike
@@ -12210,12 +12210,12 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin || fx.launchFromLivePiece) fx.launchPos.copy(launchPos);
-            const { pos: jetPos, next: jetNext } = getCaptureAirStrikePose({
+            const { pos: jetPos, next: jetNext } = getCapturePadStrikePose({
               launchPos,
               targetPos: fx.to,
               progress: jetTimelineU,
-              returnToOrigin: true,
-              sideSign: fx.sideSign ?? 1
+              altitude: CAPTURE_PAD_STRIKE_ALTITUDE,
+              forwardTiles: CAPTURE_PAD_STRIKE_FORWARD_TILES
             });
             fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
             captureDir.copy(jetNext).sub(jetPos).normalize();
@@ -12303,12 +12303,12 @@ function Chess3D({
               ? fx.launchPos.clone()
               : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             if (!fx.returnToOrigin || fx.launchFromLivePiece) fx.launchPos.copy(launchPos);
-            const { pos: heliPos, next: heliNext } = getCaptureAirStrikePose({
+            const { pos: heliPos, next: heliNext } = getCapturePadStrikePose({
               launchPos,
               targetPos: fx.to,
               progress: heliTimelineU,
-              returnToOrigin: true,
-              sideSign: fx.sideSign ?? 1
+              altitude: CAPTURE_PAD_STRIKE_ALTITUDE,
+              forwardTiles: CAPTURE_PAD_STRIKE_FORWARD_TILES
             });
             fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
             captureDir.copy(heliNext).sub(heliPos).normalize();
