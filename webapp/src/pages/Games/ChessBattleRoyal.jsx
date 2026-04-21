@@ -108,7 +108,8 @@ const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.34; // quick ignition before short vertical strike
-const CAPTURE_GROUND_TRAVEL_TIME = 2.92; // slower short-pawn/javelin strike loop for clearer live tracking
+const CAPTURE_DRONE_STRIKE_TRAVEL_TIME = 3.28; // slightly slower so drone lift-off and approach are easier to read on mobile
+const CAPTURE_GROUND_TRAVEL_TIME = CAPTURE_DRONE_STRIKE_TRAVEL_TIME; // keep pawn javelin/truck missiles in sync with drone strike timing
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_GROUND_CONTACT_RADIUS = 0.004; // ultra-tight contact radius so missiles lock onto target precisely
 const CAPTURE_GROUND_DRONE_RESPAWN_DELAY = LUDO_CAPTURE_EXPLOSION_TIME; // park drone only after explosion completes
@@ -155,14 +156,15 @@ const CAPTURE_PAD_STRIKE_FORWARD_TILES = 0.09; // keep aircraft path tighter and
 const CAPTURE_PAD_STRIKE_ASCEND_RATIO = 0.84; // much slower liftoff so aircraft visibly rise from parking spot
 const CAPTURE_PAD_STRIKE_HOVER_RATIO = 0.9;
 const CAPTURE_PAD_STRIKE_RETURN_RATIO = 0.95;
-const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.58; // release during forward pass so missiles clearly track from piece to target
+const CAPTURE_PAD_MISSILE_RELEASE_RATIO = 0.64; // fire near shared strike latitude, then return to parking side instead of dive-crashing
 const CAPTURE_PAD_MISSILE_TRAVEL_TIME = 2.8; // quicker travel to keep impact synced with fly-by
 const CAPTURE_PAD_MISSILE_FORWARD_OFFSET = 0.03; // fire a bit ahead of aircraft center
 const CAPTURE_PAD_MISSILE_LIFT_OFFSET = 0.003; // keep launch altitude low and close to aircraft body
 const CAPTURE_SHORT_MISSILE_HIT_THRESHOLD = 0.995; // trigger impact only at the very end of the precision strike
 const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST = 2.9;
 const CAPTURE_TRUCK_LAUNCH_SMOKE_BOOST_TIME = 0.66;
-const CAPTURE_LONG_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82; // shared truck/drone altitude profile
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82; // shared altitude reference for drone, pawn javelin, and truck missiles
+const CAPTURE_LONG_STRIKE_ALTITUDE = CAPTURE_DRONE_STRIKE_ALTITUDE; // keep truck/drone/javelin strike height identical
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
@@ -12156,7 +12158,7 @@ function Chess3D({
                 launchPos,
                 targetPos: fx.to,
                 progress: mu,
-                altitude: CAPTURE_LONG_STRIKE_ALTITUDE,
+                altitude: CAPTURE_DRONE_STRIKE_ALTITUDE,
                 verticalCrash: Boolean(fx.verticalStrike)
               });
             }
@@ -12419,7 +12421,7 @@ function Chess3D({
                 launchPos,
                 targetPos: fx.to,
                 progress: mu,
-                altitude: CAPTURE_LONG_STRIKE_ALTITUDE,
+                altitude: CAPTURE_DRONE_STRIKE_ALTITUDE,
                 verticalCrash: Boolean(fx.verticalStrike)
               });
 
