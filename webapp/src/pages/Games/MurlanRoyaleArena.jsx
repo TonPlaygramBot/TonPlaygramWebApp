@@ -2332,7 +2332,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = 0.2 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
+const HUMAN_HAND_LEFT_SHIFT = 0.14 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -6497,9 +6497,7 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   mesh.renderOrder = orderBase + stackOrder;
 
   const shouldForceRenderOrder = Boolean(isHumanCard);
-  if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) {
-    return;
-  }
+  if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) return;
   mesh.userData.forceHandRenderOrder = shouldForceRenderOrder;
 
   const allMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -6528,37 +6526,32 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const cornerRankSize = Math.round(w * 0.18);
   const cornerSuitSize = Math.round(w * 0.16);
-  const diagonalTilt = THREE.MathUtils.degToRad(-13);
+  const cornerLeftX = Math.round(w * 0.115);
+  const cornerRightX = Math.round(w * 0.895);
+  const topRankY = Math.round(h * 0.1);
+  const topSuitY = Math.round(h * 0.2);
+  const bottomRankY = Math.round(h * 0.76);
+  const bottomSuitY = Math.round(h * 0.86);
 
   g.fillStyle = color;
-  g.save();
-  g.translate(Math.round(w * 0.14), Math.round(h * 0.115));
-  g.rotate(diagonalTilt);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
   g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, 0, -Math.round(h * 0.03));
+  g.fillText(label, cornerLeftX, topRankY);
   g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, 0, Math.round(h * 0.035));
-  g.restore();
+  g.fillText(suit, cornerLeftX, topSuitY);
 
-  g.save();
-  g.translate(Math.round(w * 0.14), Math.round(h * 0.87));
-  g.rotate(diagonalTilt);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
   g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, 0, -Math.round(h * 0.03));
+  g.fillText(label, cornerLeftX, bottomRankY);
   g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, 0, Math.round(h * 0.035));
-  g.restore();
+  g.fillText(suit, cornerLeftX, bottomSuitY);
 
   g.textAlign = 'right';
   g.textBaseline = 'top';
-  g.font = `900 ${Math.round(w * 0.19)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, Math.round(w * 0.905), Math.round(h * 0.04));
-  g.font = `${Math.round(w * 0.18)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, Math.round(w * 0.88), Math.round(h * 0.145));
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, cornerRightX, topRankY);
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, cornerRightX, topSuitY);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
