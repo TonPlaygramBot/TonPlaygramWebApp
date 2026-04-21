@@ -237,12 +237,13 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
-const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 1.62;
+// Keep parked weapons on the same front rail as player tokens (table edge near each seat).
+const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 0.04;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
-  TOP_SEAT_WEAPON_REST_RAIL_INSET + TILE_SIZE * 1.08,
+  TOP_SEAT_WEAPON_REST_RAIL_INSET,
   TOP_SEAT_WEAPON_REST_RAIL_INSET
 ]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
@@ -250,10 +251,10 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT)
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 1.52,
-  -TILE_SIZE * 1.3,
-  TILE_SIZE * 1.42,
-  -TILE_SIZE * 0.98
+  -TILE_SIZE * 0.84,
+  -TILE_SIZE * 0.72,
+  -TILE_SIZE * 0.58,
+  -TILE_SIZE * 0.72
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
@@ -262,25 +263,25 @@ const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, 1, -1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.22,
-  TILE_SIZE * 0.12,
-  TILE_SIZE * 0.2,
-  TILE_SIZE * 0.12
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.08
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.2,
-  -TILE_SIZE * 0.12,
-  -TILE_SIZE * 0.24,
-  -TILE_SIZE * 0.12
+  -TILE_SIZE * 0.08,
+  -TILE_SIZE * 0.08,
+  -TILE_SIZE * 0.08,
+  -TILE_SIZE * 0.08
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.02;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.08,
-  -TILE_SIZE * 0.34,
-  TILE_SIZE * 0.24,
-  -TILE_SIZE * 0.34
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -290,12 +291,12 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 1.78,
   javelin: TOKEN_HEIGHT * 1.72
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.76;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  -TOKEN_HEIGHT * 0.12,
-  -TOKEN_HEIGHT * 0.36,
-  -TOKEN_HEIGHT * 1.32,
-  -TOKEN_HEIGHT * 0.36
+  0,
+  0,
+  0,
+  0
 ]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
