@@ -2332,7 +2332,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = 0.14 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
+const HUMAN_HAND_LEFT_SHIFT = 0.2 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -6496,17 +6496,8 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   const orderBase = isHumanCard ? 16 : 4;
   mesh.renderOrder = orderBase + stackOrder;
 
-  const shouldForceRenderOrder = true;
+  const shouldForceRenderOrder = Boolean(isHumanCard);
   if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) {
-    if (!isHumanCard) {
-      const allMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      allMaterials.forEach((material) => {
-        if (!material) return;
-        material.polygonOffset = true;
-        material.polygonOffsetFactor = -1 - stackOrder * 0.08;
-        material.polygonOffsetUnits = -1;
-      });
-    }
     return;
   }
   mesh.userData.forceHandRenderOrder = shouldForceRenderOrder;
@@ -6514,11 +6505,8 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   const allMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   allMaterials.forEach((material) => {
     if (!material) return;
-    material.depthTest = isHumanCard ? false : true;
+    material.depthTest = !shouldForceRenderOrder;
     material.depthWrite = !shouldForceRenderOrder;
-    material.polygonOffset = !isHumanCard;
-    material.polygonOffsetFactor = !isHumanCard ? -1 - stackOrder * 0.08 : 0;
-    material.polygonOffsetUnits = !isHumanCard ? -1 : 0;
     material.needsUpdate = true;
   });
 }
@@ -6543,6 +6531,17 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const diagonalTilt = THREE.MathUtils.degToRad(-13);
 
   g.fillStyle = color;
+  g.save();
+  g.translate(Math.round(w * 0.14), Math.round(h * 0.115));
+  g.rotate(diagonalTilt);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, 0, -Math.round(h * 0.03));
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, 0, Math.round(h * 0.035));
+  g.restore();
+
   g.save();
   g.translate(Math.round(w * 0.14), Math.round(h * 0.87));
   g.rotate(diagonalTilt);
@@ -6576,11 +6575,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 }
 
 function makeCardBackTexture(theme) {
-  const texture = makeTonplaygramCardBackTexture(theme);
-  texture.center.set(0.5, 0.5);
-  texture.rotation = Math.PI;
-  texture.needsUpdate = true;
-  return texture;
+  return makeTonplaygramCardBackTexture(theme);
 }
 
 function applyChairThemeMaterials(three, theme) {
