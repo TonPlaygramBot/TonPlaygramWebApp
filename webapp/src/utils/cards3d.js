@@ -154,7 +154,11 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   return texture;
 }
 
-export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
+export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320, options = {}) {
+  const {
+    logoScale = 1,
+    rotateLogoDegrees = 0
+  } = options ?? {};
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -164,7 +168,7 @@ export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
     ctx.fillStyle = cardBackPattern || '#112233';
     ctx.fillRect(0, 0, w, h);
 
-    drawLogoFrame(ctx, w, h, theme);
+    drawLogoFrame(ctx, w, h, theme, { logoScale, rotateLogoDegrees });
   };
 
   drawBack();
@@ -350,7 +354,11 @@ function drawBackPattern(ctx, w, h, theme) {
   ctx.restore();
 }
 
-function drawLogoFrame(ctx, w, h, theme) {
+function drawLogoFrame(ctx, w, h, theme, options = {}) {
+  const {
+    logoScale = 1,
+    rotateLogoDegrees = 0
+  } = options ?? {};
   const frameInset = Math.min(w, h) * 0.045;
   const frameRadius = Math.min(w, h) * 0.04;
   const frameWidth = w - frameInset * 2;
@@ -386,13 +394,16 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.72;
-    const logoBoxHeight = h * 0.24;
+    const logoBoxWidth = w * 0.72 * logoScale;
+    const logoBoxHeight = h * 0.24 * logoScale;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
-    const logoX = w / 2 - drawWidth / 2;
-    const logoY = h / 2 - drawHeight / 2;
-    ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
+    const rotation = THREE.MathUtils.degToRad(rotateLogoDegrees);
+    ctx.translate(w / 2, h / 2);
+    if (Math.abs(rotation) > 1e-6) {
+      ctx.rotate(rotation);
+    }
+    ctx.drawImage(logoImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   } else {
     ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
