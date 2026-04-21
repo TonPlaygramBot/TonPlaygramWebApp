@@ -26017,22 +26017,19 @@ const powerRef = useRef(hud.power);
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
         const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
-        const strikeDuration = THREE.MathUtils.lerp(105, 145, p);
-        const holdDuration = THREE.MathUtils.lerp(46, 76, p);
-        const recoverDuration = THREE.MathUtils.lerp(85, 145, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration,
-          holdDuration,
+          strikeDuration: 120,
+          holdDuration: 50,
           pullbackDuration,
-          recoverDuration,
-          impactThreshold: 0.78,
+          recoverDuration: 0,
+          impactThreshold: 0.9,
           forwardOnly: false,
-          cameraExtraHoldMs: 260,
+          cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
       };
@@ -26657,49 +26654,42 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          const shotImpactState = {
-            applied: false
-          };
-          const applyShotImpactNow = () => {
-            if (shotImpactState.applied) return;
-            shotImpactState.applied = true;
-            cue.vel.copy(base);
-            cue.maxRailSpeed = Math.max(cue.vel.length(), 0);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
-            if (cue.omega) {
-              cue.omega.set(0, 0, 0);
-              TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-              if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-              TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-              if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-              TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-              TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-              const impulseMag = BALL_MASS * base.length();
-              TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-              TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-              cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-            }
-            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-            cue.spinMode = 'standard';
-            cue.swerveStrength = 0;
-            cue.swervePowerStrength = 0;
-            resetSpinRef.current?.();
-            cueLiftRef.current.lift = 0;
-            cueLiftRef.current.startLift = 0;
-            cue.impacted = false;
-            cue.launchDir = shotAimDir.clone().normalize();
-            maxPowerLiftTriggered = false;
-            cue.lift = 0;
-            cue.liftVel = 0;
-            playCueHit(clampedPower * 0.6);
-            spawnCueImpactDust({
-              origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
-              direction: new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y),
-              power: clampedPower
-            });
-          };
+          cue.vel.copy(base);
+          cue.maxRailSpeed = Math.max(cue.vel.length(), 0);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.omega) {
+            cue.omega.set(0, 0, 0);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
+            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
+            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
+            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
+            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
+            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
+            const impulseMag = BALL_MASS * base.length();
+            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
+            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
+            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = shotAimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
+          spawnCueImpactDust({
+            origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
+            direction: new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y),
+            power: clampedPower
+          });
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -26814,8 +26804,6 @@ const powerRef = useRef(hud.power);
             .addScaledVector(dir, followDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
-          const shotImpactTime =
-            startTime + Math.max(14, Math.floor((strikeDuration ?? 120) * 0.56));
           const forwardPreviewHold =
             startTime +
             Math.max(
@@ -26937,21 +26925,14 @@ const powerRef = useRef(hud.power);
               forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true,
-              onImpact: applyShotImpactNow
-            };
-            pendingImpactRef.current = {
-              time: shotImpactTime,
-              apply: applyShotImpactNow
+              releaseStartsFromCurrentPull: true
             };
           } else {
-            applyShotImpactNow();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
             cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
               topViewRef.current = false;
               topViewLockedRef.current = false;
