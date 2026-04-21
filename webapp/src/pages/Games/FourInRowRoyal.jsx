@@ -18,10 +18,12 @@ import {
 import {
   FOUR_IN_ROW_CHAIR_OPTIONS,
   FOUR_IN_ROW_BOARD_THEMES,
+  FOUR_IN_ROW_CLOTH_OPTIONS,
   FOUR_IN_ROW_BOARD_FINISH_OPTIONS,
   FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS,
   FOUR_IN_ROW_RING_FINISH_OPTIONS,
   FOUR_IN_ROW_STONE_STYLES,
+  FOUR_IN_ROW_TABLE_FINISH_OPTIONS,
   FOUR_IN_ROW_TABLE_OPTIONS,
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
   FOUR_IN_ROW_BOARD_LAYOUTS,
@@ -32,7 +34,6 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
-import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
   applyWoodTextures,
   DEFAULT_WOOD_GRAIN_ID,
@@ -180,16 +181,6 @@ const GRAPHICS_PRESETS = Object.freeze([
     shadowMapSize: 2048,
     preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'High-fidelity preset for flagship mobile GPUs.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    pixelRatioScale: 1.35,
-    pixelRatioCap: 2.2,
-    shadowMapSize: 2048,
-    preferredHdriResolutions: ['8k', '4k'],
-    description: 'Maximum smoothness preset where thermals allow.'
   }
 ]);
 let sharedKtx2Loader = null;
@@ -789,6 +780,7 @@ export default function FourInRowRoyal() {
     trimMat: null,
     holeRimMat: null
   });
+  const tableBrandPlateRef = useRef(null);
   const keyLightRef = useRef(null);
   const graphicsPresetRef = useRef(getGraphicsPreset(GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id));
   const audioCtxRef = useRef(null);
@@ -828,7 +820,8 @@ export default function FourInRowRoyal() {
   const yStep = boardHeight / rows;
 
   const [appearance, setAppearance] = useState(() => ({
-    tableFinish: inventory.tableFinish?.[0] || MURLAN_TABLE_FINISHES[0]?.id,
+    tableFinish:
+      inventory.tableFinish?.[0] || FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0]?.id,
     tableId:
       inventory.tables?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.tables?.[0] ||
@@ -857,6 +850,10 @@ export default function FourInRowRoyal() {
       inventory.stoneStyle?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] ||
       FOUR_IN_ROW_STONE_STYLES[0]?.id,
+    clothColor:
+      inventory.clothColor?.[0] ||
+      FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.clothColor?.[0] ||
+      FOUR_IN_ROW_CLOTH_OPTIONS[0]?.id,
     hdriId:
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
@@ -1155,11 +1152,56 @@ export default function FourInRowRoyal() {
       tableThemeId: appearance.tableId
     });
     tablePartsRef.current = table.parts;
-    applyTableMaterials(
-      table.parts,
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-        MURLAN_TABLE_FINISHES[0]
+    const selectedTableFinish =
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS.find((f) => f.id === appearance.tableFinish) ||
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0];
+    const selectedCloth =
+      FOUR_IN_ROW_CLOTH_OPTIONS.find((item) => item.id === appearance.clothColor) ||
+      FOUR_IN_ROW_CLOTH_OPTIONS[0];
+    applyTableMaterials(table.parts, {
+      woodOption: selectedTableFinish?.woodOption,
+      clothOption: selectedCloth
+    });
+    const plateGeometry = new THREE.BoxGeometry(
+      TABLE_RADIUS * 0.34,
+      TABLE_HEIGHT * 0.065,
+      TABLE_RADIUS * 0.024
     );
+    const plateMaterial = new THREE.MeshStandardMaterial({
+      color: '#1f2937',
+      metalness: 0.88,
+      roughness: 0.24,
+      emissive: '#020617',
+      emissiveIntensity: 0.2
+    });
+    const brandPlate = new THREE.Mesh(plateGeometry, plateMaterial);
+    brandPlate.position.set(0, TABLE_HEIGHT * 0.79, TABLE_RADIUS * 0.89);
+    brandPlate.castShadow = true;
+    brandPlate.receiveShadow = true;
+    const brandTextCanvas = document.createElement('canvas');
+    brandTextCanvas.width = 1024;
+    brandTextCanvas.height = 256;
+    const brandTextCtx = brandTextCanvas.getContext('2d');
+    if (brandTextCtx) {
+      brandTextCtx.clearRect(0, 0, brandTextCanvas.width, brandTextCanvas.height);
+      brandTextCtx.fillStyle = '#e2e8f0';
+      brandTextCtx.font = '700 124px Inter, Arial, sans-serif';
+      brandTextCtx.textAlign = 'center';
+      brandTextCtx.textBaseline = 'middle';
+      brandTextCtx.fillText('TonPlaygram', brandTextCanvas.width / 2, brandTextCanvas.height / 2);
+    }
+    const brandTextTexture = new THREE.CanvasTexture(brandTextCanvas);
+    brandTextTexture.needsUpdate = true;
+    const brandText = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: brandTextTexture,
+        transparent: true
+      })
+    );
+    brandText.scale.set(TABLE_RADIUS * 0.3, TABLE_HEIGHT * 0.14, 1);
+    brandText.position.set(0, TABLE_HEIGHT * 0.83, TABLE_RADIUS * 0.904);
+    table.group.add(brandPlate, brandText);
+    tableBrandPlateRef.current = { brandPlate, brandText, brandTextTexture };
 
     const chairTheme =
       FOUR_IN_ROW_CHAIR_OPTIONS.find(
@@ -1639,6 +1681,10 @@ export default function FourInRowRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      tableBrandPlateRef.current?.brandTextTexture?.dispose?.();
+      tableBrandPlateRef.current?.brandText?.material?.dispose?.();
+      tableBrandPlateRef.current?.brandPlate?.geometry?.dispose?.();
+      tableBrandPlateRef.current?.brandPlate?.material?.dispose?.();
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
@@ -1896,10 +1942,16 @@ export default function FourInRowRoyal() {
   useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish =
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-      MURLAN_TABLE_FINISHES[0];
-    applyTableMaterials(tablePartsRef.current, finish);
-  }, [appearance.tableFinish]);
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS.find((f) => f.id === appearance.tableFinish) ||
+      FOUR_IN_ROW_TABLE_FINISH_OPTIONS[0];
+    const clothOption =
+      FOUR_IN_ROW_CLOTH_OPTIONS.find((item) => item.id === appearance.clothColor) ||
+      FOUR_IN_ROW_CLOTH_OPTIONS[0];
+    applyTableMaterials(tablePartsRef.current, {
+      woodOption: finish?.woodOption,
+      clothOption
+    });
+  }, [appearance.tableFinish, appearance.clothColor]);
 
   useEffect(() => {
     const chairTheme =
@@ -1998,9 +2050,18 @@ export default function FourInRowRoyal() {
     {
       key: 'tableFinish',
       label: 'Table Cloth',
-      options: MURLAN_TABLE_FINISHES.map((item) => ({
+      options: FOUR_IN_ROW_TABLE_FINISH_OPTIONS.map((item) => ({
         id: item.id,
         label: item.label,
+        thumbnail: item.thumbnail
+      }))
+    },
+    {
+      key: 'clothColor',
+      label: 'Table Felt',
+      options: FOUR_IN_ROW_CLOTH_OPTIONS.map((item) => ({
+        id: item.id,
+        label: item.name,
         thumbnail: item.thumbnail
       }))
     },
@@ -2087,9 +2148,6 @@ export default function FourInRowRoyal() {
             </span>
             <span className="leading-none">Menu</span>
           </button>
-          <h1 className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
-            4 in a Row
-          </h1>
         </div>
 
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
@@ -2155,7 +2213,7 @@ export default function FourInRowRoyal() {
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
+        <div className="absolute left-1/2 top-[16%] -translate-x-1/2">
           <AvatarTimer
             photoUrl="🤖"
             name="AI Rival"
