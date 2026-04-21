@@ -6608,7 +6608,6 @@ const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.065;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 0.04;
 const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 0.145;
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
-const HUMAN_BOTTOM_HAND_LEFT_SHIFT = -DOMINO_WIDTH * 0.42;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
 const DOMINO_OPENING_DOUBLE_SIDE_GAP = DOMINO_LENGTH * 0.11;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE * DOMINO_HEIGHT_ADJUST;
@@ -8291,7 +8290,7 @@ function computeHandSlotPosition(
     const humanExtraOutwardX = (x0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
     const humanExtraOutwardZ = (z0 / seatLength) * HUMAN_BOTTOM_EXTRA_OUTWARD;
     return new THREE.Vector3(
-      x0 + outwardX + humanExtraOutwardX + offset + HUMAN_BOTTOM_HAND_LEFT_SHIFT,
+      x0 + outwardX + humanExtraOutwardX + offset,
       handY - HUMAN_HAND_VERTICAL_OFFSET + HUMAN_BOTTOM_EXTRA_RAISE,
       handAnchorZ + outwardZ + humanExtraOutwardZ
     );
@@ -8299,8 +8298,7 @@ function computeHandSlotPosition(
   if (isSide) {
     return new THREE.Vector3(x0 + outwardX, handY, z0 + outwardZ + offset);
   }
-  const humanLeftShift = isHuman ? HUMAN_BOTTOM_HAND_LEFT_SHIFT : 0;
-  return new THREE.Vector3(x0 + outwardX + offset + humanLeftShift, handY, z0 + outwardZ);
+  return new THREE.Vector3(x0 + outwardX + offset, handY, z0 + outwardZ);
 }
 
 function renderHands() {
