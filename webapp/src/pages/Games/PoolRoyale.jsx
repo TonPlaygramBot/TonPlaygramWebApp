@@ -1396,7 +1396,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1; // lock ball size to the official 57.15mm reference diameter
+const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1967,8 +1967,8 @@ const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.35;
 const SPIN_GLOBAL_BOOST_MULTIPLIER = 1.536; // +20% overall spin response
 const SIDE_SPIN_MULTIPLIER = 1.96 * SPIN_GLOBAL_BOOST_MULTIPLIER; // boost side english so left/right cue-ball bend is easier to notice
-const BACKSPIN_MULTIPLIER = 2.98 * SPIN_GLOBAL_BOOST_MULTIPLIER; // slightly increase draw strength for more reliable pull-back control
-const TOPSPIN_MULTIPLIER = 2.42 * SPIN_GLOBAL_BOOST_MULTIPLIER; // reduce follow strength further so topspin stays a bit softer than draw
+const BACKSPIN_MULTIPLIER = 3.1 * SPIN_GLOBAL_BOOST_MULTIPLIER; // nudge draw slightly stronger for better pull-back feedback
+const TOPSPIN_MULTIPLIER = 2.28 * SPIN_GLOBAL_BOOST_MULTIPLIER; // soften follow a touch so topspin does not overrun position play
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -15380,6 +15380,7 @@ function PoolRoyaleGame({
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
   const lastCueIdlePoseRef = useRef(null);
+  const cueImpactDustRef = useRef([]);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -26120,6 +26121,81 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
+      const spawnCueImpactDust = ({
+        origin,
+        direction,
+        power
+      }) => {
+        if (!scene || !origin || !Number.isFinite(power) || power < 0.72) return;
+        const forward = direction?.clone?.() ?? new THREE.Vector3(0, 0, 1);
+        if (forward.lengthSq() < 1e-8) forward.set(0, 0, 1);
+        forward.normalize();
+        const lateral = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
+        const burstCount = Math.max(8, Math.round(10 + power * 16));
+        for (let i = 0; i < burstCount; i += 1) {
+          const sprite = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              color: 0xd8e7ff,
+              transparent: true,
+              opacity: THREE.MathUtils.lerp(0.16, 0.34, power),
+              depthWrite: false
+            })
+          );
+          const spread = BALL_R * THREE.MathUtils.lerp(0.04, 0.18, Math.random());
+          const push = THREE.MathUtils.lerp(BALL_R * 2.8, BALL_R * 6.2, power);
+          const speed = THREE.MathUtils.lerp(BALL_R * 3.2, BALL_R * 8.8, power);
+          const upKick = THREE.MathUtils.lerp(BALL_R * 2.2, BALL_R * 5.4, power);
+          const sideJitter = (Math.random() - 0.5) * spread;
+          const localOrigin = origin
+            .clone()
+            .addScaledVector(lateral, sideJitter)
+            .addScaledVector(forward, BALL_R * 0.02)
+            .addScaledVector(new THREE.Vector3(0, 1, 0), BALL_R * 0.02);
+          const velocity = forward
+            .clone()
+            .multiplyScalar(speed + Math.random() * push)
+            .addScaledVector(lateral, (Math.random() - 0.5) * speed * 0.28)
+            .addScaledVector(new THREE.Vector3(0, 1, 0), upKick * (0.72 + Math.random() * 0.5));
+          sprite.position.copy(localOrigin);
+          const baseSize = BALL_R * THREE.MathUtils.lerp(0.22, 0.42, Math.random());
+          sprite.scale.set(baseSize, baseSize, baseSize);
+          scene.add(sprite);
+          cueImpactDustRef.current.push({
+            sprite,
+            velocity,
+            life: THREE.MathUtils.lerp(180, 330, Math.random()),
+            age: 0
+          });
+        }
+      };
+      const updateCueImpactDust = (dtMs) => {
+        const particles = cueImpactDustRef.current;
+        if (!Array.isArray(particles) || particles.length === 0) return;
+        const dt = Math.max(0.001, dtMs / 1000);
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const particle = particles[i];
+          if (!particle?.sprite) {
+            particles.splice(i, 1);
+            continue;
+          }
+          particle.age += dtMs;
+          const lifeT = THREE.MathUtils.clamp(particle.age / Math.max(1, particle.life), 0, 1);
+          particle.velocity.multiplyScalar(Math.pow(0.78, dt * 60));
+          particle.velocity.y -= BALL_R * 10.5 * dt;
+          particle.sprite.position.addScaledVector(particle.velocity, dt);
+          const scaleBoost = 1 + lifeT * 0.85;
+          particle.sprite.scale.multiplyScalar(1 + dt * 0.85);
+          particle.sprite.material.opacity = (1 - lifeT) * 0.34;
+          particle.sprite.scale.setScalar(
+            Math.max(BALL_R * 0.06, (particle.sprite.scale.x / scaleBoost) * (1 + lifeT * 0.15))
+          );
+          if (lifeT >= 1 || particle.sprite.material.opacity <= 0.01) {
+            if (particle.sprite.parent) particle.sprite.parent.remove(particle.sprite);
+            particle.sprite.material?.dispose?.();
+            particles.splice(i, 1);
+          }
+        }
+      };
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
@@ -26162,6 +26238,11 @@ const powerRef = useRef(hud.power);
         cue.lift = 0;
         cue.liftVel = 0;
         playCueHit(clampedPower * 0.6);
+        spawnCueImpactDust({
+          origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
+          direction: new THREE.Vector3(aimDir.x, 0, aimDir.y),
+          power: clampedPower
+        });
       };
 
       // Fire (slider triggers on release)
@@ -26571,6 +26652,11 @@ const powerRef = useRef(hud.power);
           cue.lift = 0;
           cue.liftVel = 0;
           playCueHit(clampedPower * 0.6);
+          spawnCueImpactDust({
+            origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
+            direction: new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y),
+            power: clampedPower
+          });
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -26667,7 +26753,14 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const followPos = impactPos.clone();
+          const followDistance = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            clampedPower
+          );
+          const followPos = impactPos
+            .clone()
+            .addScaledVector(dir, followDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -26781,8 +26874,8 @@ const powerRef = useRef(hud.power);
               recoverDuration,
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
-              strikeDip: 0.003,
-              wobbleAmount: 0.0012,
+              strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
+              wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
               strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
@@ -28104,8 +28197,11 @@ const powerRef = useRef(hud.power);
               result.bestPot = advancedPlan;
               if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
             } else {
-              result.bestSafety = advancedPlan;
               if (!result.bestPot) result.bestPot = baseline.bestPot;
+              result.bestSafety = advancedPlan;
+            }
+            if (!result.bestPot && baseline.bestPot) {
+              result.bestPot = baseline.bestPot;
             }
             return result;
           } catch (err) {
@@ -28866,22 +28962,59 @@ const powerRef = useRef(hud.power);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
+            let plan = normalizeAiPlanAim(options.bestPot ?? null);
+            if (!plan) {
+              const liveBalls = ballsList.filter(
+                (ball) => ball?.active && String(ball.id).toLowerCase() !== 'cue'
+              );
+              const frameSnapshot = frameRef.current ?? frameState;
+              const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+              const targetOrder = resolveTargetPriorities(
+                frameSnapshot,
+                activeVariantId,
+                liveBalls
+              );
+              const legalTargets = targetOrder.length > 0 ? targetOrder : ['RED'];
+              const cuePos = cue?.pos ? cue.pos.clone() : null;
+              const targetBall = cuePos
+                ? pickPreferredBall(legalTargets, liveBalls, cuePos, () => true)
+                : null;
+              if (targetBall && cuePos) {
+                const candidatePockets = pocketEntranceCenters()
+                  .map((center, idx) => ({
+                    id: POCKET_IDS[idx] ?? `P${idx}`,
+                    center: center.clone(),
+                    distance: targetBall.pos.distanceTo(center)
+                  }))
+                  .sort((a, b) => a.distance - b.distance);
+                const chosenPocket = candidatePockets[0] ?? null;
+                const rawAim = targetBall.pos.clone().sub(cuePos);
+                const aimDir = rawAim.lengthSq() > 1e-6 ? rawAim.normalize() : new THREE.Vector2(0, 1);
+                plan = {
+                  type: 'pot',
+                  aimDir,
+                  power: computePowerFromDistance(
+                    cuePos.distanceTo(targetBall.pos) +
+                      (chosenPocket ? targetBall.pos.distanceTo(chosenPocket.center) : BALL_R * 14)
+                  ),
+                  target: toBallColorId(targetBall.id) ?? 'fallback',
+                  targetBall,
+                  pocketId: chosenPocket?.id ?? 'TL',
+                  pocketCenter: chosenPocket?.center ?? null,
+                  spin: { x: 0, y: -0.08 }
+                };
+              }
+            }
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
-              let fallbackDir = resolveAutoAimDirection();
-              if (!fallbackDir) {
-                fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
-                if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
-                fallbackDir.normalize();
-              }
+              const fallbackDir = new THREE.Vector2(0, 1);
               plan = {
-                type: 'safety',
+                type: 'pot',
                 aimDir: fallbackDir,
-                power: computePowerFromDistance(BALL_R * 18),
+                power: computePowerFromDistance(BALL_R * 20),
                 target: 'fallback',
-                spin: { x: 0, y: 0 }
+                spin: { x: 0, y: -0.08 }
               };
             }
             plan = refineAiPotAimLine(plan);
@@ -29937,6 +30070,7 @@ const powerRef = useRef(hud.power);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
+        updateCueImpactDust(appliedDeltaMs);
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
