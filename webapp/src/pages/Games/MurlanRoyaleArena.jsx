@@ -2310,7 +2310,7 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.78,
+  portrait: 2.62,
   landscape: 1.12
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -2615,6 +2615,7 @@ const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
+const HDRI_RESOLUTION_RANK = Object.freeze({ '1k': 1, '2k': 2, '4k': 3, '8k': 4 });
 
 function resolveHdriPolicyForFps(fps) {
   const safeFps = Number.isFinite(fps) ? fps : 60;
@@ -2627,10 +2628,12 @@ function resolveHdriPolicyForFps(fps) {
 function buildHdriResolutionChain(primaryResolution, policy = null) {
   const base = Array.isArray(policy?.preferredResolutions) ? policy.preferredResolutions : [];
   const fallbackLadder = ['8k', '4k', '2k', '1k'];
+  const safePrimary = typeof primaryResolution === 'string' ? primaryResolution : '2k';
+  const maxRank = HDRI_RESOLUTION_RANK[safePrimary] ?? HDRI_RESOLUTION_RANK['2k'];
   const ordered = [primaryResolution, ...base, ...fallbackLadder].filter(
     (value) => typeof value === 'string' && value.length
   );
-  return [...new Set(ordered)];
+  return [...new Set(ordered)].filter((resolution) => (HDRI_RESOLUTION_RANK[resolution] ?? 0) <= maxRank);
 }
 
 const DEFAULT_FRAME_RATE_OPTION =
@@ -4067,8 +4070,17 @@ export default function MurlanRoyaleArena({ search }) {
       const prevBackground = three.environmentTexture || null;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.backgroundMap || envResult.envMap;
-      const rotationY = Number.isFinite(activeVariant?.rotationY) ? activeVariant.rotationY : 0;
-      const rotationX = Number.isFinite(activeVariant?.rotationX) ? activeVariant.rotationX : HDRI_BACKGROUND_PITCH;
+      const keepOriginalHdriMapping = activeVariant?.preserveOriginalMapping !== false;
+      const rotationY = keepOriginalHdriMapping
+        ? 0
+        : Number.isFinite(activeVariant?.rotationY)
+          ? activeVariant.rotationY
+          : 0;
+      const rotationX = keepOriginalHdriMapping
+        ? 0
+        : Number.isFinite(activeVariant?.rotationX)
+          ? activeVariant.rotationX
+          : HDRI_BACKGROUND_PITCH;
       if ('backgroundRotation' in three.scene) {
         three.scene.backgroundRotation.set(rotationX, rotationY, 0);
       }
@@ -4964,7 +4976,7 @@ export default function MurlanRoyaleArena({ search }) {
         const humanSeatAngle = Math.PI / 2;
         const cameraBackOffset = isPortrait ? 1.65 : 1.05;
         const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-        const cameraHeightOffset = isPortrait ? 1.16 : 0.88;
+        const cameraHeightOffset = isPortrait ? 1.06 : 0.88;
         initialCameraPosition = new THREE.Vector3(
           Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
           TABLE_HEIGHT + cameraHeightOffset,
