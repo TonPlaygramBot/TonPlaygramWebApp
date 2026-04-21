@@ -308,9 +308,9 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
-      const octagonSideStretch = 1.06;
-      const topShape = scaleShape2D(createRegularPolygonShape(8, radius), octagonSideStretch, 1);
-      const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), octagonSideStretch, 1);
+      const sideStretch = 1.06;
+      const topShape = scaleShape2D(createRegularPolygonShape(8, radius), sideStretch, 1);
+      const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), sideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
       return { topShape, feltShape, rimInnerShape };
     }
@@ -346,10 +346,10 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
       const octagonHalfHeight = radius;
       const outerWidth = octagonHalfWidth * 2;
       const outerHeight = octagonHalfHeight * 2;
-      const feltWidth = outerWidth * 0.74;
-      const feltHeight = outerHeight * 0.74;
-      const innerWidth = feltWidth * 1.08;
-      const innerHeight = feltHeight * 1.08;
+      const feltWidth = outerWidth * 0.8;
+      const feltHeight = outerHeight * 0.8;
+      const innerWidth = feltWidth * 1.04;
+      const innerHeight = feltHeight * 1.04;
       const topShape = createRoundedRectangleShape(outerWidth, outerHeight, 0.12 * factor);
       const feltShape = createRoundedRectangleShape(feltWidth, feltHeight, 0.08 * factor);
       const rimInnerShape = createRoundedRectangleShape(innerWidth, innerHeight, 0.1 * factor);
@@ -364,7 +364,7 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     },
     thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee']),
     createShapes: ({ radius }) => {
-      const sideStretch = 1.08;
+      const sideStretch = 1.06;
       const topShape = scaleShape2D(createRegularPolygonShape(6, radius), sideStretch, 1);
       const feltShape = scaleShape2D(createRegularPolygonShape(6, radius * 0.8), sideStretch, 1);
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
