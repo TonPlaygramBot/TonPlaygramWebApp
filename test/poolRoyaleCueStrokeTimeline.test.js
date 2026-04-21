@@ -13,13 +13,16 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(sample.t).toBeCloseTo(0.2, 2);
   });
 
-  it('arms impact exactly when release reaches the start contact position', () => {
-    const preHit = sampleCueStrokeTimeline({ elapsed: 299, ...options });
-    const atHit = sampleCueStrokeTimeline({ elapsed: 300, ...options });
-    expect(preHit.phase).toBe('release');
-    expect(preHit.hitArmed).toBe(false);
-    expect(atHit.phase).toBe('release');
-    expect(atHit.hitArmed).toBe(true);
+  it('arms impact during the dedicated strike window before hold begins', () => {
+    const preStrike = sampleCueStrokeTimeline({ elapsed: 277, ...options });
+    const strikeStart = sampleCueStrokeTimeline({ elapsed: 278, ...options });
+    const armedStrike = sampleCueStrokeTimeline({ elapsed: 282, ...options });
+    expect(preStrike.phase).toBe('release');
+    expect(preStrike.hitArmed).toBe(false);
+    expect(strikeStart.phase).toBe('strike');
+    expect(strikeStart.hitArmed).toBe(false);
+    expect(armedStrike.phase).toBe('strike');
+    expect(armedStrike.hitArmed).toBe(true);
   });
 
   it('keeps spring release monotonic so cue does not snap backward mid-push', () => {
@@ -28,7 +31,7 @@ describe('Pool Royale cue stroke timeline', () => {
     const late = sampleCueStrokeTimeline({ elapsed: 295, ...options, animationStyle: 'spring' });
     expect(early.phase).toBe('release');
     expect(middle.phase).toBe('release');
-    expect(late.phase).toBe('release');
+    expect(late.phase).toBe('strike');
     expect(early.t).toBeLessThanOrEqual(middle.t + 1e-9);
     expect(middle.t).toBeLessThanOrEqual(late.t + 1e-9);
   });

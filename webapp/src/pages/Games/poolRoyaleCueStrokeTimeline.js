@@ -6,7 +6,9 @@ export const sampleCueStrokeTimeline = ({
   strikeDuration = 120,
   holdDuration = 50,
   recoverDuration = 0,
-  animationStyle = 'classic'
+  animationStyle = 'classic',
+  strikeWindowRatio = 0.22,
+  hitArmRatio = 0.82
 } = {}) => {
   const pullback = Math.max(0, pullbackDuration ?? 0)
   const release = Math.max(0, strikeDuration ?? 120)
@@ -25,6 +27,9 @@ export const sampleCueStrokeTimeline = ({
   if (safeElapsed <= releaseEnd && release > 0) {
     const releaseElapsed = safeElapsed - pullEnd
     const baseT = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1)
+    const strikeShare = THREE.MathUtils.clamp(strikeWindowRatio, 0.05, 0.45)
+    const strikeStartT = 1 - strikeShare
+    const hitT = THREE.MathUtils.clamp(hitArmRatio, strikeStartT, 0.98)
     const styleT = (() => {
       switch (animationStyle) {
         case 'linear':
@@ -44,11 +49,21 @@ export const sampleCueStrokeTimeline = ({
           return 1 - Math.pow(1 - baseT, 3)
       }
     })()
+    if (baseT < strikeStartT) {
+      const releaseT = THREE.MathUtils.clamp(baseT / Math.max(strikeStartT, 1e-6), 0, 1)
+      const easedReleaseT = 1 - Math.pow(1 - releaseT, 2)
+      return {
+        phase: 'release',
+        t: easedReleaseT,
+        hitArmed: false,
+        done: false
+      }
+    }
+    const strikeT = THREE.MathUtils.clamp((baseT - strikeStartT) / Math.max(strikeShare, 1e-6), 0, 1)
     return {
-      phase: 'release',
-      t: styleT,
-      // Cue-ball movement starts only after the cue returns to the start contact point.
-      hitArmed: safeElapsed >= pullEnd + release,
+      phase: 'strike',
+      t: Math.max(styleT, strikeT),
+      hitArmed: baseT >= hitT,
       done: false
     }
   }
