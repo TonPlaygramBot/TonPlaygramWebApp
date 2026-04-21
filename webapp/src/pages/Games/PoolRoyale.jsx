@@ -22790,8 +22790,6 @@ const powerRef = useRef(hud.power);
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
-            const pushT = THREE.MathUtils.clamp(elapsed / safeStrikeDuration, 0, 1);
-            const easedPush = easeOutCubic(pushT);
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? impactPos,
               impactPos: impactPos ?? pullPos,
@@ -22799,27 +22797,62 @@ const powerRef = useRef(hud.power);
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
             const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const strikeTargetPos = tmpCueStrokeA.copy(resolvedImpactPos);
-            const strikeWobbleScale = Math.max(0, 1 - pushT);
+            const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos;
+            const resolvedFollowPos = followPos ?? resolvedContactPos ?? resolvedImpactPos;
+            const contactWindow = THREE.MathUtils.clamp(
+              safeStrikeDuration * 0.24,
+              24,
+              Math.max(24, safeStrikeDuration * 0.45)
+            );
+            const releaseWindow = Math.max(1, safeStrikeDuration - contactWindow);
+            const strikeWobbleScale = Math.max(
+              0,
+              1 - THREE.MathUtils.clamp(elapsed / Math.max(safeStrikeDuration, 1e-6), 0, 1)
+            );
 
             cueStick.visible = true;
-            cueStick.position.lerpVectors(resolvedPullPos, strikeTargetPos, easedPush);
-            cueStick.position.y -= (strikeDip ?? 0.003) * pushT;
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y =
-              (baseRotationY ?? cueStick.rotation.y) +
-              Math.sin(pushT * Math.PI) * 0.0012 * strikeWobbleScale;
-            if (!stroke.shotApplied && pushT >= 0.9) {
-              stroke.shotApplied = true;
-              stroke.onImpact?.();
+            if (elapsed < releaseWindow) {
+              const releaseT = THREE.MathUtils.clamp(elapsed / Math.max(releaseWindow, 1e-6), 0, 1);
+              const easedRelease = easeOutCubic(releaseT);
+              cueStick.position.lerpVectors(resolvedPullPos, resolvedImpactPos, easedRelease);
+              cueStick.position.y -= (strikeDip ?? 0.003) * easedRelease * 0.75;
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y =
+                (baseRotationY ?? cueStick.rotation.y) +
+                Math.sin(releaseT * Math.PI) * 0.0012 * strikeWobbleScale;
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
             }
             if (elapsed < safeStrikeDuration) {
+              const contactT = THREE.MathUtils.clamp(
+                (elapsed - releaseWindow) / Math.max(contactWindow, 1e-6),
+                0,
+                1
+              );
+              const punchT = 1 - Math.pow(1 - contactT, 4);
+              cueStick.position.lerpVectors(resolvedImpactPos, resolvedContactPos, punchT);
+              cueStick.position.y -= (strikeDip ?? 0.003) * (0.7 + punchT * 0.45);
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y =
+                (baseRotationY ?? cueStick.rotation.y) +
+                Math.sin(contactT * Math.PI) * 0.0008 * strikeWobbleScale;
+              if (!stroke.shotApplied && contactT >= 0.2) {
+                stroke.shotApplied = true;
+                stroke.onImpact?.();
+              }
               cueAnimating = true;
               syncCueShadow();
               return true;
             }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              cueStick.position.copy(resolvedImpactPos);
+              const followT = THREE.MathUtils.clamp(
+                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
+                0,
+                1
+              );
+              const easedFollow = easeOutCubic(followT);
+              cueStick.position.lerpVectors(resolvedContactPos, resolvedFollowPos, easedFollow);
               cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
               cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
@@ -22837,7 +22870,7 @@ const powerRef = useRef(hud.power);
               const eased = easeInOutCubic(t);
               cueStick.visible = true;
               cueStick.position.lerpVectors(
-                followPos ?? impactPos ?? pullPos,
+                resolvedFollowPos,
                 idlePos ?? impactPos ?? pullPos,
                 eased
               );
@@ -26753,12 +26786,20 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
+          const contactAdvance = THREE.MathUtils.lerp(
+            0.0035,
+            0.009,
+            clampedPower
+          );
+          const contactPos = impactPos
+            .clone()
+            .addScaledVector(dir, contactAdvance);
           const followDistance = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
             clampedPower
           );
-          const followPos = impactPos
+          const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
           const followDurationResolved = strikeHoldDuration;
@@ -26843,7 +26884,7 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               idle: serializeVector3Snapshot(idlePos),
               pull: serializeVector3Snapshot(releaseStartPos),
-              impact: serializeVector3Snapshot(impactPos),
+              impact: serializeVector3Snapshot(contactPos),
               follow: serializeVector3Snapshot(followPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
@@ -26867,6 +26908,7 @@ const powerRef = useRef(hud.power);
               idlePos: idlePos.clone(),
               pullPos: releaseStartPos.clone(),
               impactPos: impactPos.clone(),
+              contactPos: contactPos.clone(),
               followPos: followPos.clone(),
               pullbackDuration,
               strikeDuration,
