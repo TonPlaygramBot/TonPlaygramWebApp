@@ -22946,14 +22946,26 @@ const powerRef = useRef(hud.power);
             })();
             const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
             cueStick.position.lerpVectors(pullPos, impactPos, eased);
-            cueStick.position.y -= (strikeDip ?? 0.003) * eased;
+            cueStick.position.y -= (strikeDip ?? 0.003) * eased * 0.72;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
             syncCueShadow();
             return true;
           }
+          if (sample.phase === 'strike') {
+            const punchT = 1 - Math.pow(1 - THREE.MathUtils.clamp(sample.t, 0, 1), 4);
+            const contactPos = stroke.contactPos ?? impactPos;
+            cueStick.position.lerpVectors(impactPos, contactPos, punchT);
+            cueStick.position.y -= (strikeDip ?? 0.003) * (0.72 + punchT * 0.38);
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y =
+              (baseRotationY ?? cueStick.rotation.y) +
+              Math.sin(punchT * Math.PI) * (wobbleAmount ?? 0.0018) * 0.48;
+            syncCueShadow();
+            return true;
+          }
           if (sample.phase === 'hold') {
-            cueStick.position.copy(followPos ?? impactPos);
+            cueStick.position.copy(followPos ?? stroke.contactPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             syncCueShadow();
@@ -26787,8 +26799,8 @@ const powerRef = useRef(hud.power);
           const startTime = performance.now();
           const impactPos = idlePos.clone();
           const contactAdvance = THREE.MathUtils.lerp(
-            0.0035,
-            0.009,
+            BALL_R * 0.28,
+            BALL_R * 0.62,
             clampedPower
           );
           const contactPos = impactPos
