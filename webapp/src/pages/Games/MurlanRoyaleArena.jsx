@@ -2301,17 +2301,17 @@ const TABLE_HEIGHT_SHORTEN_FACTOR = 0.52; // Further shorten table profile while
 const BASE_TABLE_HEIGHT = 0.96 * MODEL_SCALE * TABLE_HEIGHT_SHORTEN_FACTOR;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.02 * MODEL_SCALE;
-const CHAIR_INWARD_OFFSET = 0.54 * MODEL_SCALE;
+const CHAIR_INWARD_OFFSET = 0.74 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK - CHAIR_INWARD_OFFSET;
 const AI_CHAIR_GAP = CARD_W * 0.02;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP - CHAIR_INWARD_OFFSET * 0.45;
 const CHAIR_SEAT_INWARD_FACTOR = 0.78;
 const CHAIR_VISUAL_SCALE = 1.08 * 1.16 * 1.12 * ARENA_PROP_SCALE * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0.15 * ARENA_PROP_SCALE, landscape: 0.56 * ARENA_PROP_SCALE });
-const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.24 * ARENA_PROP_SCALE, landscape: 0.24 * ARENA_PROP_SCALE });
+const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({ portrait: 0.14 * ARENA_PROP_SCALE, landscape: 0.16 * ARENA_PROP_SCALE });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.34 * ARENA_PROP_SCALE,
-  landscape: 0.9 * ARENA_PROP_SCALE
+  portrait: 1.06 * ARENA_PROP_SCALE,
+  landscape: 0.72 * ARENA_PROP_SCALE
 });
 const CAMERA_TARGET_LIFT = 0.036 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = -0.28 * MODEL_SCALE;
@@ -2323,10 +2323,10 @@ const HUMAN_HAND_FAN_MAX_YAW = 0; // Keep hands in a single line, including left
 const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
-const HUMAN_HAND_CLOSER_OFFSET = -0.24 * MODEL_SCALE; // Bring the bottom player's hand/cards closer to the table without changing card size.
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.082 * MODEL_SCALE;
+const HUMAN_HAND_CLOSER_OFFSET = -0.34 * MODEL_SCALE; // Bring the bottom player's hand/cards closer to the table without changing card size.
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.14 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = 0;
-const AI_HAND_CLOSER_OFFSET = 0.06 * MODEL_SCALE;
+const AI_HAND_CLOSER_OFFSET = -0.01 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.06 * MODEL_SCALE;
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.012 * MODEL_SCALE;
@@ -2356,7 +2356,7 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85 - 0.06 * MOD
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0.092 * MODEL_SCALE; // Extra grounding so chair legs stay visually planted on the HDRI floor.
-const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.54 * MODEL_SCALE; // Pull only the bottom player's chair closer to the table while preserving chair size.
+const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0.72 * MODEL_SCALE; // Pull only the bottom player's chair closer to the table while preserving chair size.
 const TABLE_HEIGHT_LIFT = 0.008 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_SIDE_TRIM_SCALE = 0.86;
@@ -4971,7 +4971,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.94;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.88;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
