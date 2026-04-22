@@ -452,7 +452,7 @@ function resolveInitialFrameRateId() {
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
     case 'uhd120':
-      return IS_HIGH_REFRESH_MOBILE ? '4k' : '8k';
+      return '8k';
     case 'qhd90':
       return '8k';
     case 'fhd60':
@@ -4247,7 +4247,7 @@ function resolveHdriPolicyForFrameRate(qualityId = DEFAULT_FRAME_RATE_ID, fps = 
   if (qualityId === 'uhd120') {
     return Object.freeze({
       preferredResolutions: Object.freeze(
-        IS_HIGH_REFRESH_MOBILE ? ['4k', '2k'] : ['8k', '6k', '4k']
+        ['8k', '6k', '4k']
       )
     });
   }
