@@ -109,7 +109,7 @@ const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
-const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(3.15rem + env(safe-area-inset-bottom, 0px))';
+const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2346,6 +2346,9 @@ const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.46 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
 const HAND_CARDS_INWARD_BIAS = 0.18 * MODEL_SCALE;
+const TOP_SEAT_HAND_CARD_SPACING_MULTIPLIER = 1.1;
+const TOP_SEAT_HAND_CARD_SCALE = 1.04;
+const TOP_SEAT_HAND_VERTICAL_LIFT = 0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
 const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
@@ -3701,6 +3704,21 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
+    let topOpponentSeatIndex = -1;
+    if (three.camera && seatConfigs?.length) {
+      let smallestScreenY = Number.POSITIVE_INFINITY;
+      seatConfigs.forEach((seat, seatIdx) => {
+        const player = state.players?.[seatIdx];
+        if (!player || player.isHuman || !seat?.focus) return;
+        const projected = seat.focus.clone().project(three.camera);
+        const screenY = (1 - projected.y) / 2;
+        if (Number.isFinite(screenY) && screenY < smallestScreenY) {
+          smallestScreenY = screenY;
+          topOpponentSeatIndex = seatIdx;
+        }
+      });
+    }
+
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3718,13 +3736,15 @@ export default function MurlanRoyaleArena({ search }) {
       const focus = seat.focus;
       const spacing = seat.spacing;
       const maxSpread = seat.maxSpread;
-      const spread = cards.length > 1 ? Math.min((cards.length - 1) * spacing, maxSpread) : 0;
+      const isTopOpponentSeat = !player.isHuman && idx === topOpponentSeatIndex;
+      const topSeatSpacing = isTopOpponentSeat ? spacing * TOP_SEAT_HAND_CARD_SPACING_MULTIPLIER : spacing;
+      const spread = cards.length > 1 ? Math.min((cards.length - 1) * topSeatSpacing, maxSpread) : 0;
       cards.forEach((card, cardIdx) => {
         const entry = cardMap.get(card.id);
         if (!entry) return;
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
-        applyHandCardLayering(mesh, isHumanCard, cardIdx);
+        applyHandCardLayering(mesh, isHumanCard, cardIdx, true);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
@@ -3758,8 +3778,12 @@ export default function MurlanRoyaleArena({ search }) {
           HUMAN_HAND_UP_SHIFT_Y +
           leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT;
         if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        mesh.scale.setScalar(HUMAN_HAND_CARD_SCALE);
+        const cardScale = isTopOpponentSeat ? HUMAN_HAND_CARD_SCALE * TOP_SEAT_HAND_CARD_SCALE : HUMAN_HAND_CARD_SCALE;
+        mesh.scale.setScalar(cardScale);
         const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+        if (isTopOpponentSeat) {
+          target.y += TOP_SEAT_HAND_VERTICAL_LIFT;
+        }
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
@@ -6492,12 +6516,12 @@ function createCardMesh(card, geometry, cache, theme) {
   return mesh;
 }
 
-function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
+function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0, keepOrderedBackCards = false) {
   if (!mesh?.isMesh) return;
   const orderBase = isHumanCard ? 16 : 4;
   mesh.renderOrder = orderBase + stackOrder;
 
-  const shouldForceRenderOrder = Boolean(isHumanCard);
+  const shouldForceRenderOrder = Boolean(isHumanCard || keepOrderedBackCards);
   if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) return;
   mesh.userData.forceHandRenderOrder = shouldForceRenderOrder;
 
