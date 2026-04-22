@@ -2296,7 +2296,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 0.92 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 0.98 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -6507,7 +6507,9 @@ function setCommunityCardLegibility(mesh, highlighted) {
       metalness: frontMaterial.metalness,
       emissiveIntensity: frontMaterial.emissiveIntensity ?? 0,
       envMapIntensity: frontMaterial.envMapIntensity ?? 1,
-      toneMapped: frontMaterial.toneMapped ?? true
+      toneMapped: frontMaterial.toneMapped ?? true,
+      color: frontMaterial.color?.clone?.() ?? new THREE.Color('#ffffff'),
+      emissive: frontMaterial.emissive?.clone?.() ?? new THREE.Color('#000000')
     };
   }
   const defaults = mesh.userData.frontMaterialDefaults;
@@ -6515,18 +6517,20 @@ function setCommunityCardLegibility(mesh, highlighted) {
     frontMaterial.emissive = new THREE.Color('#000000');
   }
   if (highlighted) {
-    frontMaterial.roughness = 0.96;
+    frontMaterial.roughness = 1;
     frontMaterial.metalness = 0;
     frontMaterial.envMapIntensity = 0;
     frontMaterial.toneMapped = false;
-    frontMaterial.emissive.set('#000000');
-    frontMaterial.emissiveIntensity = 0;
+    frontMaterial.color?.set?.('#f2f5f9');
+    frontMaterial.emissive.set('#0b1220');
+    frontMaterial.emissiveIntensity = 0.028;
   } else {
     frontMaterial.roughness = defaults.roughness;
     frontMaterial.metalness = defaults.metalness;
     frontMaterial.envMapIntensity = defaults.envMapIntensity;
     frontMaterial.toneMapped = defaults.toneMapped;
-    frontMaterial.emissive.set('#000000');
+    frontMaterial.color?.copy?.(defaults.color);
+    frontMaterial.emissive.copy(defaults.emissive);
     frontMaterial.emissiveIntensity = defaults.emissiveIntensity;
   }
   frontMaterial.needsUpdate = true;
@@ -6906,13 +6910,56 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const svg = svgMarkupFromOpenSourceDeck(rank, suit);
-  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  const tex = new THREE.TextureLoader().load(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(256, Math.round(w));
+  canvas.height = Math.max(360, Math.round(h));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallbackTex = new THREE.TextureLoader().load(
+      `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    );
+    applySRGBColorSpace(fallbackTex);
+    fallbackTex.anisotropy = 12;
+    fallbackTex.magFilter = THREE.LinearFilter;
+    fallbackTex.minFilter = THREE.LinearMipmapLinearFilter;
+    fallbackTex.generateMipmaps = true;
+    return fallbackTex;
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
   tex.anisotropy = 12;
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
+
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    // Slightly thicken rank/suit glyph edges for better mobile readability.
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.12;
+    ctx.drawImage(canvas, -0.65, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0.65, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, -0.65, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, 0.65, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Slight front-face matte layer to reduce glare on community cards.
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.035)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    tex.needsUpdate = true;
+  };
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  tex.needsUpdate = true;
   return tex;
 }
 
