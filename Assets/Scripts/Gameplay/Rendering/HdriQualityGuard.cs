@@ -20,7 +20,6 @@ namespace Aiming.Gameplay.Rendering
         [Header("Mobile HDRI Maps")]
         [SerializeField] private Cubemap mobileHdri2K;
         [SerializeField] private Cubemap mobileHdri4K;
-        [SerializeField] private Cubemap mobileHdri8K;
 
         [SerializeField] private Material[] skyboxTargets;
 
@@ -60,9 +59,7 @@ namespace Aiming.Gameplay.Rendering
             {
                 if (isMobileDevice)
                 {
-                    Cubemap mobilePrimary = mobileHdri8K != null ? mobileHdri8K : mobileHdri4K;
-                    Cubemap mobileFallback = mobileHdri4K != null ? mobileHdri4K : mobileHdri2K;
-                    return new HdriProfile(mobilePrimary, mobileFallback, 8192, 4096);
+                    return new HdriProfile(mobileHdri4K, mobileHdri2K, 4096, 2048);
                 }
 
                 return new HdriProfile(desktopHdri8K, desktopHdri4K, 8192, 4096);
