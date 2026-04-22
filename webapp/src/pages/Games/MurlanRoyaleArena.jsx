@@ -303,7 +303,7 @@ function detectPreferredFrameRateId() {
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'smooth90';
     }
     return 'fhd60';
   }
@@ -313,7 +313,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (refreshTier === '90' || rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return 'smooth90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -2590,39 +2590,39 @@ const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'fhd60',
-    label: '2K (60 Hz)',
+    label: 'Performance (60 Hz)',
     fps: 60,
     renderScale: 1,
-    pixelRatioCap: 1,
-    resolution: '2K assets • optimized DPR cap',
+    pixelRatioCap: 1.4,
+    resolution: '2K texture pack • 60 FPS',
     hdriResolution: '2k',
     preferredTextureSizes: ['2k', '1k'],
     cardTextureScale: 1,
-    description: '2K profile for 60 Hz displays.'
+    description: 'Balanced profile with Poly Haven 2K HDRI assets.'
   },
   {
-    id: 'qhd90',
-    label: '4K (90 Hz)',
+    id: 'smooth90',
+    label: 'Smooth (90 Hz)',
     fps: 90,
-    renderScale: 1,
-    pixelRatioCap: 1.5,
-    resolution: '4K assets',
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: '4K texture pack • 90 FPS',
     hdriResolution: '4k',
     preferredTextureSizes: ['4k', '2k', '1k'],
     cardTextureScale: 1.18,
-    description: '4K profile for 90 Hz displays.'
+    description: 'Poly Haven 4K HDRI target with fallback to 2K.'
   },
   {
     id: 'uhd120',
-    label: '8K (120 Hz)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1,
-    pixelRatioCap: 2,
-    resolution: '8K assets',
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: '8K texture pack • 120 FPS',
     hdriResolution: '8k',
     preferredTextureSizes: ['8k', '4k', '2k', '1k'],
     cardTextureScale: 1.36,
-    description: '8K profile for 120 Hz displays.'
+    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
   }
 ]);
 
