@@ -4850,7 +4850,8 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.02 * MODEL_SCALE;
+        // Lift results frame higher on portrait/mobile so it matches requested visual placement.
+        const scoreboardY = TABLE_HEIGHT + 1.24 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6549,8 +6550,13 @@ function setTopSeatBackLogoAdjustments(mesh, enabled) {
 
   if (!mesh.userData.topSeatBackTexture) {
     const tunedTexture = baseTexture.clone();
-    tunedTexture.repeat.set(1, 0.92);
-    tunedTexture.offset.set(0, 0.04);
+    // Keep the top opponent card-back logo visually face-up on portrait screens.
+    // Flip UVs on both axes for this seat-specific clone so the badge no longer
+    // appears upside-down / mirrored to the local player camera.
+    tunedTexture.repeat.set(-1, -0.92);
+    tunedTexture.offset.set(1, 0.96);
+    tunedTexture.center.set(0.5, 0.5);
+    tunedTexture.rotation = 0;
     tunedTexture.needsUpdate = true;
     mesh.userData.topSeatBackTexture = tunedTexture;
     mesh.userData.topSeatBackTextureSource = baseTexture;
@@ -6583,8 +6589,8 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const cornerRightX = Math.round(w * 0.895);
   const topRankY = Math.round(h * 0.1);
   const topSuitY = Math.round(h * 0.2);
-  const bottomRankY = Math.round(h * 0.76);
-  const bottomSuitY = Math.round(h * 0.86);
+  const bottomSuitY = Math.round(h * 0.91);
+  const bottomRankY = Math.round(h * 0.81);
 
   g.fillStyle = color;
   g.textAlign = 'left';
@@ -6594,6 +6600,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
   g.fillText(suit, cornerLeftX, topSuitY);
 
+  g.textBaseline = 'alphabetic';
   g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
   g.fillText(label, cornerLeftX, bottomRankY);
   g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
@@ -6605,6 +6612,13 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   g.fillText(label, cornerRightX, topRankY);
   g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
   g.fillText(suit, cornerRightX, topSuitY);
+
+  g.textAlign = 'right';
+  g.textBaseline = 'alphabetic';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, cornerRightX, bottomRankY);
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, cornerRightX, bottomSuitY);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
