@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.015 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.018 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -3759,10 +3759,9 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
-        const isGiftSideSeat = seat?.handVariant === 'giftSide';
         const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
         const backLogoVariant = !isHumanCard
-          ? (isGiftSideSeat ? 'sideGift' : isSideSeatOnScreen ? 'side' : 'top')
+          ? (isSideSeatOnScreen ? 'side' : 'top')
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -6628,11 +6627,6 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     } else if (desiredVariant === 'side') {
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideGift') {
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = Math.PI;
       tunedTexture.center.set(0.5, 0.5);
     }
