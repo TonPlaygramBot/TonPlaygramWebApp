@@ -397,8 +397,8 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.88;
-    const logoBoxHeight = h * 0.34;
+    const logoBoxWidth = w * 0.94;
+    const logoBoxHeight = h * 0.4;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;

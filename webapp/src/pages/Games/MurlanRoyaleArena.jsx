@@ -109,7 +109,7 @@ const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
-const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(3.15rem + env(safe-area-inset-bottom, 0px))';
+const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = 1;
 
@@ -2338,8 +2338,8 @@ const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
-const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
-const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
+const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.5;
+const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 14;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -3701,6 +3701,18 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
+    const topNonHumanSeatIndex = state.players.reduce(
+      (best, player, idx) => {
+        if (player?.isHuman) return best;
+        const seat = seatConfigs[idx];
+        const anchorPoint = seat?.focus ?? seat?.stoolPosition;
+        if (!anchorPoint || !three?.camera) return best;
+        const projected = anchorPoint.clone().project(three.camera);
+        if (!Number.isFinite(projected.y)) return best;
+        return projected.y > best.y ? { index: idx, y: projected.y } : best;
+      },
+      { index: -1, y: Number.NEGATIVE_INFINITY }
+    ).index;
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3725,6 +3737,7 @@ export default function MurlanRoyaleArena({ search }) {
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
         applyHandCardLayering(mesh, isHumanCard, cardIdx);
+        setTopSeatBackLogoAdjustments(mesh, !isHumanCard && idx === topNonHumanSeatIndex);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
@@ -6497,7 +6510,7 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   const orderBase = isHumanCard ? 16 : 4;
   mesh.renderOrder = orderBase + stackOrder;
 
-  const shouldForceRenderOrder = Boolean(isHumanCard);
+  const shouldForceRenderOrder = true;
   if (mesh.userData?.forceHandRenderOrder === shouldForceRenderOrder) return;
   mesh.userData.forceHandRenderOrder = shouldForceRenderOrder;
 
@@ -6508,6 +6521,45 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
     material.depthWrite = !shouldForceRenderOrder;
     material.needsUpdate = true;
   });
+}
+
+function setTopSeatBackLogoAdjustments(mesh, enabled) {
+  const backMaterial = mesh?.userData?.backMaterial;
+  const baseTexture = mesh?.userData?.backTexture;
+  if (!backMaterial || !baseTexture) return;
+
+  if (!enabled) {
+    if (mesh.userData.topSeatBackTexture) {
+      mesh.userData.topSeatBackTexture.dispose?.();
+      mesh.userData.topSeatBackTexture = null;
+      mesh.userData.topSeatBackTextureSource = null;
+    }
+    if (backMaterial.map !== baseTexture) {
+      backMaterial.map = baseTexture;
+      backMaterial.needsUpdate = true;
+    }
+    return;
+  }
+
+  if (mesh.userData.topSeatBackTexture && mesh.userData.topSeatBackTextureSource !== baseTexture) {
+    mesh.userData.topSeatBackTexture.dispose?.();
+    mesh.userData.topSeatBackTexture = null;
+    mesh.userData.topSeatBackTextureSource = null;
+  }
+
+  if (!mesh.userData.topSeatBackTexture) {
+    const tunedTexture = baseTexture.clone();
+    tunedTexture.repeat.set(1, 0.92);
+    tunedTexture.offset.set(0, 0.04);
+    tunedTexture.needsUpdate = true;
+    mesh.userData.topSeatBackTexture = tunedTexture;
+    mesh.userData.topSeatBackTextureSource = baseTexture;
+  }
+
+  if (backMaterial.map !== mesh.userData.topSeatBackTexture) {
+    backMaterial.map = mesh.userData.topSeatBackTexture;
+    backMaterial.needsUpdate = true;
+  }
 }
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
