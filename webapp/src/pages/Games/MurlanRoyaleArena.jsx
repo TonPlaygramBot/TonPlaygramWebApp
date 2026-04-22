@@ -2340,6 +2340,8 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.5;
 const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 14;
+const AI_SIDE_HAND_SPACING_FACTOR = 0.82;
+const AI_SIDE_HAND_MAX_SPREAD_FACTOR = 0.82;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -3730,7 +3732,12 @@ export default function MurlanRoyaleArena({ search }) {
       const focus = seat.focus;
       const spacing = seat.spacing;
       const maxSpread = seat.maxSpread;
-      const spread = cards.length > 1 ? Math.min((cards.length - 1) * spacing, maxSpread) : 0;
+      const sideSeatSpreadFactor = !player.isHuman && idx !== topNonHumanSeatIndex
+        ? AI_SIDE_HAND_MAX_SPREAD_FACTOR
+        : 1;
+      const spread = cards.length > 1
+        ? Math.min((cards.length - 1) * spacing, maxSpread * sideSeatSpreadFactor)
+        : 0;
       cards.forEach((card, cardIdx) => {
         const entry = cardMap.get(card.id);
         if (!entry) return;
@@ -3740,7 +3747,9 @@ export default function MurlanRoyaleArena({ search }) {
         const backLogoVariant = !isHumanCard
           ? idx === topNonHumanSeatIndex
             ? 'top'
-            : 'side'
+            : (seat?.forward?.x ?? 0) >= 0
+              ? 'right'
+              : 'left'
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -3750,7 +3759,10 @@ export default function MurlanRoyaleArena({ search }) {
         const humanLineOffset = cards.length > 1
           ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
           : 0;
-        const lateral = humanLineOffset;
+        const sideSeatSpacingFactor = !isHumanCard && idx !== topNonHumanSeatIndex
+          ? AI_SIDE_HAND_SPACING_FACTOR
+          : 1;
+        const lateral = humanLineOffset * sideSeatSpacingFactor;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = HUMAN_HAND_FAN_DIRECTION;
@@ -3870,7 +3882,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'top');
+      setBackLogoOrientation(mesh, 'pile');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -6566,10 +6578,21 @@ function setBackLogoOrientation(mesh, variant = 'default') {
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = 0;
-    } else if (desiredVariant === 'side') {
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'left') {
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'right') {
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.rotation = 0;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'pile') {
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = 0;
       tunedTexture.center.set(0.5, 0.5);
     }
     tunedTexture.needsUpdate = true;
@@ -6621,8 +6644,8 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   };
 
   g.fillStyle = color;
-  drawCorner(cornerPaddingX, cornerTopY, 'left');
-  drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
+  drawCorner(w - cornerPaddingX, cornerTopY, 'right');
+  drawCorner(cornerPaddingX, cornerBottomY, 'right', true);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
