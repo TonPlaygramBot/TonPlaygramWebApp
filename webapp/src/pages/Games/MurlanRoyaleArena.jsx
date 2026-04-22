@@ -2338,7 +2338,7 @@ const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
-const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.38;
+const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.5;
 const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 14;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
@@ -3740,11 +3740,7 @@ export default function MurlanRoyaleArena({ search }) {
         const backLogoVariant = !isHumanCard
           ? idx === topNonHumanSeatIndex
             ? 'top'
-            : (seat?.forward?.x ?? 0) > 0.01
-              ? 'sideRight'
-              : (seat?.forward?.x ?? 0) < -0.01
-                ? 'sideLeft'
-                : 'side'
+            : 'side'
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -3874,7 +3870,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'discard');
+      setBackLogoOrientation(mesh, 'top');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -6575,21 +6571,6 @@ function setBackLogoOrientation(mesh, variant = 'default') {
       tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = Math.PI;
       tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideLeft') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI / 2;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideRight') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = -Math.PI / 2;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'discard') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = 0;
-      tunedTexture.center.set(0.5, 0.5);
     }
     tunedTexture.needsUpdate = true;
     mesh.userData.backLogoOrientedTexture = tunedTexture;
@@ -6640,8 +6621,8 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   };
 
   g.fillStyle = color;
-  drawCorner(w - cornerPaddingX, cornerTopY, 'right');
-  drawCorner(cornerPaddingX, cornerBottomY, 'right', true);
+  drawCorner(cornerPaddingX, cornerTopY, 'left');
+  drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
