@@ -2342,6 +2342,10 @@ const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.3;
 const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 11;
 const AI_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(6.5);
 const AI_HAND_FAN_ARC_LIFT = 0.012 * MODEL_SCALE;
+const TOP_SEAT_HAND_SPACING_MULTIPLIER = 1.24;
+const TOP_SEAT_HAND_MAX_SPREAD_MULTIPLIER = 1.24;
+const BOTTOM_HUMAN_HAND_SPACING_MULTIPLIER = 0.86;
+const BOTTOM_HUMAN_HAND_MAX_SPREAD_MULTIPLIER = 0.86;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
 const HUMAN_HAND_EXTRA_INWARD_PULL = 0.46 * MODEL_SCALE;
 const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
@@ -2402,6 +2406,29 @@ function calcFanCardPose(cardCount, cardIdx) {
     leftWeight: (1 + normalizedOffset) * 0.5
   };
 }
+
+function resolveSeatHandSpreadConfig({ seatIndex = 0, isHumanSeat = false } = {}) {
+  if (isHumanSeat) {
+    return {
+      spacing: HUMAN_HAND_CARD_SPACING * BOTTOM_HUMAN_HAND_SPACING_MULTIPLIER,
+      maxSpread: HUMAN_HAND_CARD_MAX_SPREAD * BOTTOM_HUMAN_HAND_MAX_SPREAD_MULTIPLIER
+    };
+  }
+
+  const isTopSeat = seatIndex === 2;
+  if (isTopSeat) {
+    return {
+      spacing: AI_HAND_CARD_SPACING * TOP_SEAT_HAND_SPACING_MULTIPLIER,
+      maxSpread: AI_HAND_CARD_MAX_SPREAD * TOP_SEAT_HAND_MAX_SPREAD_MULTIPLIER
+    };
+  }
+
+  return {
+    spacing: AI_HAND_CARD_SPACING,
+    maxSpread: AI_HAND_CARD_MAX_SPREAD
+  };
+}
+
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2600;
@@ -4939,6 +4966,7 @@ export default function MurlanRoyaleArena({ search }) {
         const stoolPosition = forward.clone().multiplyScalar(seatRadius);
         stoolPosition.y = chair.position.y + SEAT_THICKNESS / 2;
         const stoolHeight = stoolPosition.y + SEAT_THICKNESS / 2;
+        const handSpread = resolveSeatHandSpreadConfig({ seatIndex: i, isHumanSeat });
         seatConfigs.push({
           seatIndex: i,
           chair,
@@ -4946,8 +4974,8 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: resolveSeatHandRadius(activeTableRadius, isHumanSeat),
-          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
-          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
+          spacing: handSpread.spacing,
+          maxSpread: handSpread.maxSpread,
           stoolPosition,
           stoolHeight
         });
