@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.015 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.022 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2370,7 +2370,7 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.03 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -6648,6 +6648,139 @@ function setBackLogoOrientation(mesh, variant = 'default') {
   }
 }
 
+function buildStandardPipLayout(rank) {
+  const numericRank = Number.parseInt(String(rank), 10);
+  if (Number.isNaN(numericRank) || numericRank < 2 || numericRank > 10) {
+    if (String(rank) === 'A') return [{ x: 0, y: 0, flip: false }];
+    return [];
+  }
+  const layouts = {
+    2: [{ x: 0, y: -0.64, flip: false }, { x: 0, y: 0.64, flip: true }],
+    3: [{ x: 0, y: -0.64, flip: false }, { x: 0, y: 0, flip: false }, { x: 0, y: 0.64, flip: true }],
+    4: [
+      { x: -0.45, y: -0.62, flip: false },
+      { x: 0.45, y: -0.62, flip: false },
+      { x: -0.45, y: 0.62, flip: true },
+      { x: 0.45, y: 0.62, flip: true }
+    ],
+    5: [
+      { x: -0.45, y: -0.62, flip: false },
+      { x: 0.45, y: -0.62, flip: false },
+      { x: 0, y: 0, flip: false },
+      { x: -0.45, y: 0.62, flip: true },
+      { x: 0.45, y: 0.62, flip: true }
+    ],
+    6: [
+      { x: -0.45, y: -0.7, flip: false },
+      { x: 0.45, y: -0.7, flip: false },
+      { x: -0.45, y: 0, flip: false },
+      { x: 0.45, y: 0, flip: false },
+      { x: -0.45, y: 0.7, flip: true },
+      { x: 0.45, y: 0.7, flip: true }
+    ],
+    7: [
+      { x: -0.45, y: -0.72, flip: false },
+      { x: 0.45, y: -0.72, flip: false },
+      { x: 0, y: -0.28, flip: false },
+      { x: -0.45, y: 0.12, flip: false },
+      { x: 0.45, y: 0.12, flip: false },
+      { x: -0.45, y: 0.72, flip: true },
+      { x: 0.45, y: 0.72, flip: true }
+    ],
+    8: [
+      { x: -0.45, y: -0.72, flip: false },
+      { x: 0.45, y: -0.72, flip: false },
+      { x: -0.45, y: -0.24, flip: false },
+      { x: 0.45, y: -0.24, flip: false },
+      { x: -0.45, y: 0.24, flip: true },
+      { x: 0.45, y: 0.24, flip: true },
+      { x: -0.45, y: 0.72, flip: true },
+      { x: 0.45, y: 0.72, flip: true }
+    ],
+    9: [
+      { x: -0.45, y: -0.72, flip: false },
+      { x: 0.45, y: -0.72, flip: false },
+      { x: -0.45, y: -0.24, flip: false },
+      { x: 0.45, y: -0.24, flip: false },
+      { x: 0, y: 0, flip: false },
+      { x: -0.45, y: 0.24, flip: true },
+      { x: 0.45, y: 0.24, flip: true },
+      { x: -0.45, y: 0.72, flip: true },
+      { x: 0.45, y: 0.72, flip: true }
+    ],
+    10: [
+      { x: -0.45, y: -0.74, flip: false },
+      { x: 0.45, y: -0.74, flip: false },
+      { x: -0.45, y: -0.34, flip: false },
+      { x: 0.45, y: -0.34, flip: false },
+      { x: 0, y: -0.02, flip: false },
+      { x: -0.45, y: 0.34, flip: true },
+      { x: 0.45, y: 0.34, flip: true },
+      { x: -0.45, y: 0.74, flip: true },
+      { x: 0.45, y: 0.74, flip: true },
+      { x: 0, y: 0.45, flip: true }
+    ]
+  };
+  return layouts[numericRank] ?? [];
+}
+
+function drawCourtFigure(g, rank, suit, color, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.5;
+  const frameW = w * 0.5;
+  const frameH = h * 0.58;
+  const left = cx - frameW / 2;
+  const top = cy - frameH / 2;
+  const isQueen = rank === 'Q';
+  const isKing = rank === 'K';
+
+  g.save();
+  g.lineWidth = Math.max(2, Math.round(w * 0.01));
+  g.strokeStyle = '#1f2937';
+  g.fillStyle = '#f8fafc';
+  roundRect(g, left, top, frameW, frameH, Math.round(w * 0.06));
+  g.fill();
+  g.stroke();
+
+  g.fillStyle = '#fef08a';
+  g.beginPath();
+  g.moveTo(cx - frameW * 0.14, top + frameH * 0.2);
+  g.lineTo(cx - frameW * 0.08, top + frameH * 0.1);
+  g.lineTo(cx, top + frameH * 0.19);
+  g.lineTo(cx + frameW * 0.08, top + frameH * 0.1);
+  g.lineTo(cx + frameW * 0.14, top + frameH * 0.2);
+  g.lineTo(cx, top + frameH * 0.28);
+  g.closePath();
+  g.fill();
+  g.stroke();
+
+  g.fillStyle = '#0f172a';
+  g.beginPath();
+  g.arc(cx, top + frameH * 0.36, frameW * 0.12, 0, Math.PI * 2);
+  g.fill();
+
+  g.fillStyle = isQueen ? '#f472b6' : '#60a5fa';
+  g.fillRect(cx - frameW * 0.16, top + frameH * 0.46, frameW * 0.32, frameH * 0.24);
+
+  g.fillStyle = isKing ? '#fde047' : '#93c5fd';
+  g.fillRect(cx - frameW * 0.1, top + frameH * 0.7, frameW * 0.2, frameH * 0.14);
+
+  g.fillStyle = color;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 ${Math.round(w * 0.16)}px "Inter", "Segoe UI Symbol", sans-serif`;
+  g.fillText(suit, cx, top + frameH * 0.83);
+
+  g.fillStyle = '#111827';
+  g.font = `800 ${Math.round(w * 0.09)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(rank, cx, top + frameH * 0.12);
+  if (rank === 'J') {
+    g.fillStyle = '#fb7185';
+    g.fillRect(cx - frameW * 0.02, top + frameH * 0.15, frameW * 0.04, frameH * 0.08);
+  }
+  g.restore();
+}
+
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -6688,10 +6821,37 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   drawCorner(cornerPaddingX, cornerTopY, 'left');
   drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, w / 2, h / 2);
+  const rankLabel = String(rank);
+  const isCourtCard = rankLabel === 'J' || rankLabel === 'Q' || rankLabel === 'K';
+  const isJoker = rankLabel === 'JB' || rankLabel === 'JR';
+
+  if (isCourtCard) {
+    drawCourtFigure(g, rankLabel, suit, color, w, h);
+  } else if (isJoker) {
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `700 ${Math.round(w * 0.2)}px "Inter", "Segoe UI", sans-serif`;
+    g.fillText(label, w / 2, h * 0.42);
+    g.font = `700 ${Math.round(w * 0.26)}px "Inter", "Segoe UI Symbol", sans-serif`;
+    g.fillText(suit, w / 2, h * 0.62);
+  } else {
+    const pipLayout = buildStandardPipLayout(rankLabel);
+    const pipFont = Math.round(w * 0.17);
+    g.font = `700 ${pipFont}px "Inter", "Segoe UI Symbol", sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const centerX = w * 0.5;
+    const centerY = h * 0.5;
+    const pipSpreadX = w * 0.26;
+    const pipSpreadY = h * 0.28;
+    pipLayout.forEach(({ x, y, flip }) => {
+      g.save();
+      g.translate(centerX + x * pipSpreadX, centerY + y * pipSpreadY);
+      if (flip) g.rotate(Math.PI);
+      g.fillText(suit, 0, 0);
+      g.restore();
+    });
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
