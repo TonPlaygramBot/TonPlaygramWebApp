@@ -22799,34 +22799,45 @@ const powerRef = useRef(hud.power);
             const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
             const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos;
             const resolvedFollowPos = followPos ?? resolvedContactPos ?? resolvedImpactPos;
-            const strikeProgress = THREE.MathUtils.clamp(
-              elapsed / Math.max(safeStrikeDuration, 1e-6),
-              0,
-              1
+            const contactWindow = THREE.MathUtils.clamp(
+              safeStrikeDuration * 0.24,
+              24,
+              Math.max(24, safeStrikeDuration * 0.45)
             );
-            const easedStrike = easeOutCubic(strikeProgress);
-            const strikeWobbleScale = Math.max(0, 1 - strikeProgress);
-            const impactThreshold = THREE.MathUtils.clamp(
-              stroke.strikeImpactThreshold ?? 0.9,
-              0.5,
-              0.98
+            const releaseWindow = Math.max(1, safeStrikeDuration - contactWindow);
+            const strikeWobbleScale = Math.max(
+              0,
+              1 - THREE.MathUtils.clamp(elapsed / Math.max(safeStrikeDuration, 1e-6), 0, 1)
             );
 
             cueStick.visible = true;
-            if (elapsed < safeStrikeDuration) {
-              cueStick.position.lerpVectors(
-                resolvedPullPos,
-                resolvedContactPos,
-                easedStrike
-              );
-              cueStick.position.y -= (strikeDip ?? 0.003) * easedStrike;
+            if (elapsed < releaseWindow) {
+              const releaseT = THREE.MathUtils.clamp(elapsed / Math.max(releaseWindow, 1e-6), 0, 1);
+              const easedRelease = easeOutCubic(releaseT);
+              cueStick.position.lerpVectors(resolvedPullPos, resolvedImpactPos, easedRelease);
+              cueStick.position.y -= (strikeDip ?? 0.003) * easedRelease * 0.75;
               cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
               cueStick.rotation.y =
                 (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(strikeProgress * Math.PI) *
-                  Math.max(wobbleAmount ?? 0.0018, 0.0012) *
-                  strikeWobbleScale;
-              if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
+                Math.sin(releaseT * Math.PI) * 0.0012 * strikeWobbleScale;
+              cueAnimating = true;
+              syncCueShadow();
+              return true;
+            }
+            if (elapsed < safeStrikeDuration) {
+              const contactT = THREE.MathUtils.clamp(
+                (elapsed - releaseWindow) / Math.max(contactWindow, 1e-6),
+                0,
+                1
+              );
+              const punchT = 1 - Math.pow(1 - contactT, 4);
+              cueStick.position.lerpVectors(resolvedImpactPos, resolvedContactPos, punchT);
+              cueStick.position.y -= (strikeDip ?? 0.003) * (0.7 + punchT * 0.45);
+              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+              cueStick.rotation.y =
+                (baseRotationY ?? cueStick.rotation.y) +
+                Math.sin(contactT * Math.PI) * 0.0008 * strikeWobbleScale;
+              if (!stroke.shotApplied && contactT >= 0.2) {
                 stroke.shotApplied = true;
                 stroke.onImpact?.();
               }
