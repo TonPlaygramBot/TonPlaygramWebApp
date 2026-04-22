@@ -123,22 +123,29 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   ctx.stroke();
   const suitColor = getSuitColor(suit);
   ctx.fillStyle = suitColor;
-  const label = rank === 'T' ? 'Q' : String(rank);
-  const padding = 36;
-  const topRankY = 104;
-  const topSuitY = topRankY + 76;
-  const bottomSuitY = h - 92;
-  const bottomRankY = bottomSuitY - 76;
-  ctx.textAlign = 'left';
-  ctx.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(label, padding, bottomRankY);
-  ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(convertSuit(suit), padding, bottomSuitY);
-  ctx.textAlign = 'right';
-  ctx.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(label, w - padding, topRankY);
-  ctx.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.fillText(convertSuit(suit), w - padding, topSuitY);
+  const label = rank === 'T' ? '10' : String(rank);
+  const padding = 34;
+  const rankFontSize = 88;
+  const suitFontSize = 72;
+  const cornerGap = 66;
+  const drawCorner = (x, y, align = 'left', flipped = false) => {
+    ctx.save();
+    ctx.translate(x, y);
+    if (flipped) {
+      ctx.rotate(Math.PI);
+    }
+    ctx.textAlign = align;
+    ctx.textBaseline = 'top';
+    ctx.font = `bold ${rankFontSize}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
+    ctx.fillText(label, 0, 0);
+    ctx.font = `bold ${suitFontSize}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
+    ctx.fillText(convertSuit(suit), 0, cornerGap);
+    ctx.restore();
+  };
+  drawCorner(padding, 48, 'left');
+  drawCorner(w - padding, 48, 'right');
+  drawCorner(padding, h - 48, 'right', true);
+  drawCorner(w - padding, h - 48, 'left', true);
   if (theme.centerAccent) {
     ctx.fillStyle = theme.centerAccent;
     ctx.beginPath();
@@ -182,8 +189,6 @@ export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
   texture.anisotropy = 16;
-  texture.center.set(0.5, 0.5);
-  texture.rotation = Math.PI;
   texture.flipY = false;
 
   const logoImage = getTonplaygramLogoImage();
