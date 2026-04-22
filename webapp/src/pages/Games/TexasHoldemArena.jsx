@@ -852,8 +852,10 @@ function getEffectiveShapeConfig(shapeIndex, playerCount) {
   const option = forcedOption ?? requested ?? fallback;
   const forced = option?.id !== requested?.id;
   let rotationY = 0;
-  if (option?.id === HEXAGON_SHAPE_ID) rotationY = Math.PI / 6;
-  if (option?.id === OCTAGON_SHAPE_ID) rotationY = Math.PI / 8;
+  // Keep Texas Hold'em on its legacy visual orientation after shared Murlan
+  // shape adjustments for hexagon/octagon tables.
+  if (option?.id === HEXAGON_SHAPE_ID) rotationY = 0;
+  if (option?.id === OCTAGON_SHAPE_ID) rotationY = 0;
   if (option?.id === DIAMOND_SHAPE_ID && playerCount <= 4) rotationY = Math.PI / 4;
   return { option, rotationY, forced };
 }
