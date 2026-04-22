@@ -1633,7 +1633,7 @@ async function loadCharacterModel(theme, renderer = null) {
   return promise;
 }
 
-function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8' } = {}) {
+function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme = CARD_THEMES[0], playerColor = '#1d4ed8', cardTextureSize = null } = {}) {
   const cardsGroup = new THREE.Group();
   const handCards = Array.isArray(handCardsInput) && handCardsInput.length
     ? handCardsInput.slice(0, 5)
@@ -1656,7 +1656,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const spread = 0.12 * MODEL_SCALE;
   for (let idx = 0; idx < safeCount; idx++) {
     const handCard = handCards[idx] || handCards[handCards.length - 1];
-    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, 256, 360);
+    const faceTexture = makeCardFace(handCard.rank, handCard.suit, cardTheme, cardTextureSize?.heldW, cardTextureSize?.heldH);
     managedTextures.push(faceTexture);
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: faceTexture,
@@ -1727,7 +1727,7 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme) {
+function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
   const head = findBoneByHints(instance, ['head', 'neck', 'headjoint', 'head_joint']);
@@ -1746,7 +1746,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     handLift: characterTheme.handLift ?? 0.94,
     handCardsInput: player?.hand ?? [],
     cardTheme,
-    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8'
+    playerColor: PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8',
+    cardTextureSize
   });
 
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
@@ -1836,7 +1837,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   return rig;
 }
 
-function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
+function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTextureSize = null) {
   if (!rig) return;
   const safeCards = Array.isArray(handCardsInput) && handCardsInput.length ? handCardsInput.slice(0, 5) : [];
   const currentCount = rig.heldCards?.children?.length ?? 0;
@@ -1853,7 +1854,8 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme) {
     handLift: 0.94,
     handCardsInput: safeCards,
     cardTheme,
-    playerColor
+    playerColor,
+    cardTextureSize
   });
   nextCards.userData.playerColor = playerColor;
   nextCards.userData.cardsSignature = cardsSignature;
@@ -1913,7 +1915,7 @@ function createThrownCardMesh(color = '#f8fafc') {
   return card;
 }
 
-function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme }) {
+function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme, cardTextureSize = null }) {
   if (!template || !seatConfig?.chair) return;
   const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
@@ -1942,7 +1944,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     rig?.heldCards?.userData?.dispose?.();
   };
 
-  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme);
+  const rig = createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize);
   seatConfig.characterRig = rig;
   seatConfig.characterRoot = seatRoot;
   if (!store.characterRigs) store.characterRigs = new Map();
@@ -2322,7 +2324,7 @@ const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.23;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.26;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
@@ -2342,6 +2344,8 @@ const AI_HAND_CARD_SPACING = HUMAN_HAND_CARD_SPACING;
 const AI_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_MAX_SPREAD;
 const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1;
 const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1;
+const GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER = 1.06;
+const GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.08;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -2593,6 +2597,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     resolution: '2K texture pack • 60 FPS',
     hdriResolution: '2k',
     preferredTextureSizes: ['2k', '1k'],
+    cardTextureScale: 1,
     description: 'Balanced profile with Poly Haven 2K HDRI assets.'
   },
   {
@@ -2604,6 +2609,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     resolution: '4K texture pack • 90 FPS',
     hdriResolution: '4k',
     preferredTextureSizes: ['4k', '2k', '1k'],
+    cardTextureScale: 1.18,
     description: 'Poly Haven 4K HDRI target with fallback to 2K.'
   },
   {
@@ -2615,6 +2621,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     resolution: '8K texture pack • 120 FPS',
     hdriResolution: '8k',
     preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    cardTextureScale: 1.36,
     description: 'Poly Haven 8K HDRI target with fallback to 4K.'
   }
 ]);
@@ -2654,6 +2661,19 @@ function resolveHdriResolutionFromGraphics(frameOption) {
     return targetFromGraphics;
   }
   return '2k';
+}
+
+function resolveCardTextureSize(frameOption) {
+  const scale = Number.isFinite(frameOption?.cardTextureScale)
+    ? THREE.MathUtils.clamp(frameOption.cardTextureScale, 1, 1.5)
+    : 1;
+  return {
+    w: Math.round(768 * scale),
+    h: Math.round(1080 * scale),
+    heldW: Math.round(256 * scale),
+    heldH: Math.round(360 * scale),
+    id: `${frameOption?.id || DEFAULT_FRAME_RATE_ID}-${scale.toFixed(2)}`
+  };
 }
 
 const GAME_CONFIG = { ...BASE_CONFIG };
@@ -2812,6 +2832,14 @@ export default function MurlanRoyaleArena({ search }) {
     const clean = configured.filter((entry) => typeof entry === 'string' && entry.length);
     return clean.length ? clean : PREFERRED_TEXTURE_SIZES;
   }, [activeFrameRateOption]);
+  const cardTextureQuality = useMemo(
+    () => resolveCardTextureSize(activeFrameRateOption),
+    [activeFrameRateOption]
+  );
+  const cardTextureQualityRef = useRef(cardTextureQuality);
+  useEffect(() => {
+    cardTextureQualityRef.current = cardTextureQuality;
+  }, [cardTextureQuality]);
   const frameQualityRef = useRef(frameQualityProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
@@ -3359,6 +3387,7 @@ export default function MurlanRoyaleArena({ search }) {
     decorGroup: null,
     outfitParts: [],
     cardThemeId: '',
+    cardTextureQualityId: resolveCardTextureSize(DEFAULT_FRAME_RATE_OPTION).id,
     appearance: { ...DEFAULT_APPEARANCE },
     environmentHdri: DEFAULT_HDRI_VARIANT,
     disposeEnvironment: null,
@@ -3435,7 +3464,7 @@ export default function MurlanRoyaleArena({ search }) {
     three.cardThemeId = theme.id;
     state.allCards.forEach((card) => {
       if (three.cardMap.has(card.id)) return;
-      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache, theme);
+      const mesh = createCardMesh(card, three.cardGeometry, three.faceTextureCache, theme, cardTextureQualityRef.current);
       mesh.visible = false;
       mesh.position.set(0, -10, 0);
       three.arena.add(mesh);
@@ -3711,7 +3740,8 @@ export default function MurlanRoyaleArena({ search }) {
         seat.characterRig,
         player.hand ?? [],
         PLAYER_COLORS[idx % PLAYER_COLORS.length] ?? '#1d4ed8',
-        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0]
+        CARD_THEMES[appearanceRef.current.cards] ?? CARD_THEMES[0],
+        cardTextureQualityRef.current
       );
       const cards = player.hand;
       const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + (player.isHuman ? HUMAN_HAND_EXTRA_LIFT : 0);
@@ -3729,9 +3759,10 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
+        const isGiftSideSeat = seat?.handVariant === 'giftSide';
         const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
         const backLogoVariant = !isHumanCard
-          ? (isSideSeatOnScreen ? 'side' : 'top')
+          ? (isGiftSideSeat ? 'sideGift' : isSideSeatOnScreen ? 'side' : 'top')
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -3746,9 +3777,11 @@ export default function MurlanRoyaleArena({ search }) {
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard
           ? HUMAN_HAND_FAN_DIRECTION
-          : (forward?.x ?? 0) < -0.45
+          : isGiftSideSeat
             ? -HUMAN_HAND_FAN_DIRECTION
-            : HUMAN_HAND_FAN_DIRECTION;
+            : (forward?.x ?? 0) < -0.45
+              ? -HUMAN_HAND_FAN_DIRECTION
+              : HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
@@ -4240,8 +4273,14 @@ export default function MurlanRoyaleArena({ search }) {
         }
         applyOutfitThemeMaterials(three, outfitTheme);
 
-        const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
-        applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
+        const shouldRefreshCards =
+          refreshCards ||
+          three.appearance?.cards !== safe.cards ||
+          three.cardTextureQualityId !== cardTextureQualityRef.current.id;
+        if (shouldRefreshCards) {
+          three.cardTextureQualityId = cardTextureQualityRef.current.id;
+        }
+        applyCardThemeMaterials(three, cardTheme, shouldRefreshCards, cardTextureQualityRef.current);
         void applyHdriEnvironment(environmentVariant);
 
         three.appearance = { ...safe };
@@ -4940,8 +4979,17 @@ export default function MurlanRoyaleArena({ search }) {
         const forward = new THREE.Vector3(x, 0, z).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const isTopSeatOnScreen = forward.z < -0.45;
-        const aiSeatSpacingMultiplier = isTopSeatOnScreen ? TOP_AI_HAND_CARD_SPACING_MULTIPLIER : 1;
-        const aiSeatMaxSpreadMultiplier = isTopSeatOnScreen ? TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER : 1;
+        const isGiftSideSeatOnScreen = !isHumanSeat && forward.x > 0.45;
+        const aiSeatSpacingMultiplier = isGiftSideSeatOnScreen
+          ? GIFT_SIDE_AI_HAND_CARD_SPACING_MULTIPLIER
+          : isTopSeatOnScreen
+            ? TOP_AI_HAND_CARD_SPACING_MULTIPLIER
+            : 1;
+        const aiSeatMaxSpreadMultiplier = isGiftSideSeatOnScreen
+          ? GIFT_SIDE_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER
+          : isTopSeatOnScreen
+            ? TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER
+            : 1;
         const focus = forward
           .clone()
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
@@ -4959,7 +5007,8 @@ export default function MurlanRoyaleArena({ search }) {
           spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING * aiSeatSpacingMultiplier,
           maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
           stoolPosition,
-          stoolHeight
+          stoolHeight,
+          handVariant: isGiftSideSeatOnScreen ? 'giftSide' : isTopSeatOnScreen ? 'top' : 'default'
         });
 
       }
@@ -4980,7 +5029,8 @@ export default function MurlanRoyaleArena({ search }) {
               store: threeStateRef.current,
               player,
               playerIndex: i,
-              cardTheme
+              cardTheme,
+              cardTextureSize: cardTextureQualityRef.current
             });
           }
         } catch (error) {
@@ -5354,6 +5404,7 @@ export default function MurlanRoyaleArena({ search }) {
         decorGroup: null,
         outfitParts: [],
         cardThemeId: '',
+        cardTextureQualityId: resolveCardTextureSize(DEFAULT_FRAME_RATE_OPTION).id,
         appearance: { ...DEFAULT_APPEARANCE }
       };
       setThreeReady(false);
@@ -6477,11 +6528,12 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function createCardMesh(card, geometry, cache, theme) {
-  const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
+function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
+  const textureKey = textureQuality?.id || 'default';
+  const faceKey = `${theme.id}-${card.rank}-${card.suit}-${textureKey}`;
   let faceTexture = cache.get(faceKey);
   if (!faceTexture) {
-    faceTexture = makeCardFace(card.rank, card.suit, theme);
+    faceTexture = makeCardFace(card.rank, card.suit, theme, textureQuality?.w, textureQuality?.h);
     cache.set(faceKey, faceTexture);
   }
   const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
@@ -6576,6 +6628,11 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     } else if (desiredVariant === 'side') {
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'sideGift') {
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = Math.PI;
       tunedTexture.center.set(0.5, 0.5);
     }
@@ -6695,7 +6752,7 @@ function applyOutfitThemeMaterials(three, theme) {
   });
 }
 
-function applyCardThemeMaterials(three, theme, force = false) {
+function applyCardThemeMaterials(three, theme, force = false, textureQuality = null) {
   if (!three?.cardMap) return;
   if (!force && three.cardThemeId === theme.id) return;
   const frontTextures = new Set();
@@ -6712,10 +6769,11 @@ function applyCardThemeMaterials(three, theme, force = false) {
   three.cardMap.forEach(({ mesh }) => {
     const { frontMaterial, backMaterial, hiddenMaterial, edgeMaterials, card } = mesh.userData ?? {};
     if (!frontMaterial || !backMaterial || !edgeMaterials || !card) return;
-    const faceKey = `${theme.id}-${card.rank}-${card.suit}`;
+    const textureKey = textureQuality?.id || 'default';
+    const faceKey = `${theme.id}-${card.rank}-${card.suit}-${textureKey}`;
     let faceTexture = three.faceTextureCache.get(faceKey);
     if (!faceTexture) {
-      faceTexture = makeCardFace(card.rank, card.suit, theme);
+      faceTexture = makeCardFace(card.rank, card.suit, theme, textureQuality?.w, textureQuality?.h);
       three.faceTextureCache.set(faceKey, faceTexture);
     }
     frontMaterial.map = faceTexture;
