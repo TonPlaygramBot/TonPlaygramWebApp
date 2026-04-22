@@ -272,6 +272,53 @@ function resolveDefaultPixelRatioCap() {
   return window.innerWidth <= 1366 ? 1.5 : 2;
 }
 
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return DEFAULT_FRAME_RATE_ID;
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const refreshTier = detectDisplayRefreshTier();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (lowRefresh) {
+    return 'fhd60';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'fhd60';
+    }
+    if (refreshTier === '120' && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'uhd120';
+    }
+    if (
+      refreshTier === '90' ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'smooth90';
+    }
+    return 'fhd60';
+  }
+
+  if (refreshTier === '120' && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
+    return 'uhd120';
+  }
+
+  if (refreshTier === '90' || rendererTier === 'desktopMid') {
+    return 'smooth90';
+  }
+
+  return DEFAULT_FRAME_RATE_ID;
+}
+
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -2571,16 +2618,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: '4K texture pack • 120 FPS',
-    hdriResolution: '4k',
-    preferredTextureSizes: ['4k', '2k', '1k'],
-    cardTextureScale: 1.24,
-    description: 'High-refresh profile with stable 4K HDRI assets.'
+    resolution: '8K texture pack • 120 FPS',
+    hdriResolution: '8k',
+    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    cardTextureScale: 1.36,
+    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
   }
 ]);
 
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['4k', '2k', '1k']), fallbackResolution: '2k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
@@ -2742,6 +2789,10 @@ export default function MurlanRoyaleArena({ search }) {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
       }
     }
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
