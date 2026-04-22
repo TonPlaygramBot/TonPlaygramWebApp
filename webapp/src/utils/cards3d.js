@@ -7,6 +7,7 @@ export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 let tonplaygramLogoImage = null;
+const cardBackTextureCache = new Map();
 
 function getTonplaygramLogoImage() {
   if (!tonplaygramLogoImage && typeof Image !== 'undefined') {
@@ -155,16 +156,22 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
 }
 
 export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
+  const safeWidth = Math.max(512, Math.round(Math.min(w, 1024)));
+  const safeHeight = Math.max(768, Math.round(Math.min(h, 1536)));
+  const cacheKey = `${theme?.id || 'default'}:${safeWidth}x${safeHeight}`;
+  const cachedTexture = cardBackTextureCache.get(cacheKey);
+  if (cachedTexture) return cachedTexture;
+
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = safeWidth;
+  canvas.height = safeHeight;
   const ctx = canvas.getContext('2d');
   const drawBack = () => {
     const cardBackPattern = ctx.createPattern(makeLuckyCardBackPatternCanvas(), 'repeat');
     ctx.fillStyle = cardBackPattern || '#112233';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, safeWidth, safeHeight);
 
-    drawLogoFrame(ctx, w, h, theme);
+    drawLogoFrame(ctx, safeWidth, safeHeight, theme);
   };
 
   drawBack();
@@ -175,6 +182,9 @@ export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
   texture.anisotropy = 16;
+  texture.center.set(0.5, 0.5);
+  texture.rotation = Math.PI;
+  texture.flipY = false;
 
   const logoImage = getTonplaygramLogoImage();
   if (logoImage && !(logoImage.complete && logoImage.naturalWidth > 0)) {
@@ -188,6 +198,7 @@ export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
     );
   }
 
+  cardBackTextureCache.set(cacheKey, texture);
   return texture;
 }
 
@@ -369,8 +380,8 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
-  const plateWidth = w * 0.88;
-  const plateHeight = h * 0.34;
+  const plateWidth = w * 0.92;
+  const plateHeight = h * 0.38;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
@@ -386,8 +397,8 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.82;
-    const logoBoxHeight = h * 0.3;
+    const logoBoxWidth = w * 0.88;
+    const logoBoxHeight = h * 0.34;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;

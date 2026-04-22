@@ -2320,6 +2320,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
+const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.27;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 12;
@@ -4979,7 +4980,7 @@ export default function MurlanRoyaleArena({ search }) {
         camConfig.near,
         camConfig.far
       );
-      const targetHeightOffset = CAMERA_TARGET_LIFT + 0.03 * MODEL_SCALE;
+      const targetHeightOffset = CAMERA_TARGET_LIFT + 0.03 * MODEL_SCALE + CAMERA_SCREEN_DOWN_SHIFT;
       let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
       let initialCameraPosition;
       if (humanSeatConfig) {
