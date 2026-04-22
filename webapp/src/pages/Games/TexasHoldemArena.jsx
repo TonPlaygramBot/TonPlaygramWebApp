@@ -852,8 +852,8 @@ function getEffectiveShapeConfig(shapeIndex, playerCount) {
   const option = forcedOption ?? requested ?? fallback;
   const forced = option?.id !== requested?.id;
   let rotationY = 0;
-  if (option?.id === HEXAGON_SHAPE_ID) rotationY = Math.PI / 6;
-  if (option?.id === OCTAGON_SHAPE_ID) rotationY = Math.PI / 8;
+  // Keep Texas Hold'em table orientation aligned to its prior baseline.
+  // Hexagon and octagon auto-rotation remains enabled for other games only.
   if (option?.id === DIAMOND_SHAPE_ID && playerCount <= 4) rotationY = Math.PI / 4;
   return { option, rotationY, forced };
 }
