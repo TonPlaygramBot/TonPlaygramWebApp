@@ -3736,7 +3736,8 @@ export default function MurlanRoyaleArena({ search }) {
         if (!entry) return;
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
-        applyHandCardLayering(mesh, isHumanCard, cardIdx);
+        const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
+        applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const backLogoVariant = !isHumanCard
           ? idx === topNonHumanSeatIndex
             ? 'top'
