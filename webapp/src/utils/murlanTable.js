@@ -723,7 +723,16 @@ export function createMurlanStyleTable({
   tableGroup.add(rimMesh);
 
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
-  const brandPlateGeometry = new ThreeNamespace.BoxGeometry(rimSize.width, 0.018 * scaleFactor, rimSize.depth);
+  const brandPlateSize = {
+    width: rimSize.width * 0.9,
+    depth: rimSize.depth * 0.86,
+    thickness: 0.013 * scaleFactor
+  };
+  const brandPlateGeometry = new ThreeNamespace.BoxGeometry(
+    brandPlateSize.width,
+    brandPlateSize.thickness,
+    brandPlateSize.depth
+  );
   const brandPlateMaterialTop = new ThreeNamespace.MeshStandardMaterial({
     map: makeBrandPlateTexture(),
     color: '#ffffff',
@@ -744,7 +753,11 @@ export function createMurlanStyleTable({
     brandPlateMaterialSide
   ]);
   const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
-  brandPlate.position.set(0, tableY + clothRise * 0.63, frontRadius - rimSize.depth * 0.65);
+  brandPlate.position.set(
+    0,
+    tableY + clothRise * 0.84,
+    frontRadius - brandPlateSize.depth * 1.08
+  );
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
