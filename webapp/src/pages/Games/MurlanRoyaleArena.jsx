@@ -1641,7 +1641,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const safeCount = Math.max(handCards.length, 2);
   const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
-    cornerRadiusRatio: 0.2,
+    cornerRadiusRatio: 0.12,
     segments: 8
   });
   const edgeMaterial = new THREE.MeshStandardMaterial({
@@ -3737,7 +3737,12 @@ export default function MurlanRoyaleArena({ search }) {
         const mesh = entry.mesh;
         const isHumanCard = player.isHuman;
         applyHandCardLayering(mesh, isHumanCard, cardIdx);
-        setTopSeatBackLogoAdjustments(mesh, !isHumanCard && idx === topNonHumanSeatIndex);
+        const backLogoVariant = !isHumanCard
+          ? idx === topNonHumanSeatIndex
+            ? 'top'
+            : 'side'
+          : 'default';
+        setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
@@ -3865,6 +3870,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
+      setBackLogoOrientation(mesh, 'top');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -4850,7 +4856,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.02 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -4896,7 +4902,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.2,
+        cornerRadiusRatio: 0.12,
         segments: 8
       });
 
@@ -6523,16 +6529,18 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   });
 }
 
-function setTopSeatBackLogoAdjustments(mesh, enabled) {
+function setBackLogoOrientation(mesh, variant = 'default') {
   const backMaterial = mesh?.userData?.backMaterial;
   const baseTexture = mesh?.userData?.backTexture;
   if (!backMaterial || !baseTexture) return;
 
-  if (!enabled) {
-    if (mesh.userData.topSeatBackTexture) {
-      mesh.userData.topSeatBackTexture.dispose?.();
-      mesh.userData.topSeatBackTexture = null;
-      mesh.userData.topSeatBackTextureSource = null;
+  const desiredVariant = variant || 'default';
+  if (desiredVariant === 'default') {
+    if (mesh.userData.backLogoOrientedTexture) {
+      mesh.userData.backLogoOrientedTexture.dispose?.();
+      mesh.userData.backLogoOrientedTexture = null;
+      mesh.userData.backLogoOrientedTextureSource = null;
+      mesh.userData.backLogoOrientedVariant = null;
     }
     if (backMaterial.map !== baseTexture) {
       backMaterial.map = baseTexture;
@@ -6541,23 +6549,37 @@ function setTopSeatBackLogoAdjustments(mesh, enabled) {
     return;
   }
 
-  if (mesh.userData.topSeatBackTexture && mesh.userData.topSeatBackTextureSource !== baseTexture) {
-    mesh.userData.topSeatBackTexture.dispose?.();
-    mesh.userData.topSeatBackTexture = null;
-    mesh.userData.topSeatBackTextureSource = null;
+  if (
+    mesh.userData.backLogoOrientedTexture &&
+    (mesh.userData.backLogoOrientedTextureSource !== baseTexture ||
+      mesh.userData.backLogoOrientedVariant !== desiredVariant)
+  ) {
+    mesh.userData.backLogoOrientedTexture.dispose?.();
+    mesh.userData.backLogoOrientedTexture = null;
+    mesh.userData.backLogoOrientedTextureSource = null;
+    mesh.userData.backLogoOrientedVariant = null;
   }
 
-  if (!mesh.userData.topSeatBackTexture) {
+  if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
-    tunedTexture.repeat.set(1, 0.92);
-    tunedTexture.offset.set(0, 0.04);
+    if (desiredVariant === 'top') {
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
+    } else if (desiredVariant === 'side') {
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI;
+      tunedTexture.center.set(0.5, 0.5);
+    }
     tunedTexture.needsUpdate = true;
-    mesh.userData.topSeatBackTexture = tunedTexture;
-    mesh.userData.topSeatBackTextureSource = baseTexture;
+    mesh.userData.backLogoOrientedTexture = tunedTexture;
+    mesh.userData.backLogoOrientedTextureSource = baseTexture;
+    mesh.userData.backLogoOrientedVariant = desiredVariant;
   }
 
-  if (backMaterial.map !== mesh.userData.topSeatBackTexture) {
-    backMaterial.map = mesh.userData.topSeatBackTexture;
+  if (backMaterial.map !== mesh.userData.backLogoOrientedTexture) {
+    backMaterial.map = mesh.userData.backLogoOrientedTexture;
     backMaterial.needsUpdate = true;
   }
 }
@@ -6579,32 +6601,28 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const cornerRankSize = Math.round(w * 0.18);
   const cornerSuitSize = Math.round(w * 0.16);
-  const cornerLeftX = Math.round(w * 0.115);
-  const cornerRightX = Math.round(w * 0.895);
-  const topRankY = Math.round(h * 0.1);
-  const topSuitY = Math.round(h * 0.2);
-  const bottomRankY = Math.round(h * 0.76);
-  const bottomSuitY = Math.round(h * 0.86);
+  const cornerPaddingX = Math.round(w * 0.11);
+  const cornerTopY = Math.round(h * 0.1);
+  const cornerBottomY = Math.round(h * 0.9);
+  const cornerGapY = Math.round(h * 0.1);
+  const drawCorner = (x, y, align = 'left', flipped = false) => {
+    g.save();
+    g.translate(x, y);
+    if (flipped) {
+      g.rotate(Math.PI);
+    }
+    g.textAlign = align;
+    g.textBaseline = 'top';
+    g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+    g.fillText(label, 0, 0);
+    g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+    g.fillText(suit, 0, cornerGapY);
+    g.restore();
+  };
 
   g.fillStyle = color;
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, cornerLeftX, topRankY);
-  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, cornerLeftX, topSuitY);
-
-  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, cornerLeftX, bottomRankY);
-  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, cornerLeftX, bottomSuitY);
-
-  g.textAlign = 'right';
-  g.textBaseline = 'top';
-  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(label, cornerRightX, topRankY);
-  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(suit, cornerRightX, topSuitY);
+  drawCorner(cornerPaddingX, cornerTopY, 'left');
+  drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
