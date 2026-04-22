@@ -820,6 +820,8 @@ const NON_DIAMOND_SHAPE_INDEX = (() => {
 
 const HEXAGON_SHAPE_ID = 'hexagonTable';
 const OCTAGON_SHAPE_ID = 'classicOctagon';
+const LOWERED_TABLE_SHAPE_IDS = new Set([OCTAGON_SHAPE_ID, HEXAGON_SHAPE_ID, 'grandOval']);
+const TABLE_HEIGHT_LOWERING = 0.025 * MODEL_SCALE;
 const HEXAGON_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id === HEXAGON_SHAPE_ID);
   return index >= 0 ? index : 0;
@@ -856,6 +858,14 @@ function getEffectiveShapeConfig(shapeIndex, playerCount) {
   // Hexagon and octagon auto-rotation remains enabled for other games only.
   if (option?.id === DIAMOND_SHAPE_ID && playerCount <= 4) rotationY = Math.PI / 4;
   return { option, rotationY, forced };
+}
+
+function resolveTexasProceduralTableHeight(shapeOption) {
+  const shapeId = shapeOption?.id;
+  if (!LOWERED_TABLE_SHAPE_IDS.has(shapeId)) {
+    return TABLE_HEIGHT;
+  }
+  return TABLE_HEIGHT - TABLE_HEIGHT_LOWERING;
 }
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
@@ -1450,7 +1460,7 @@ async function buildTableForTheme({
       arena,
       renderer,
       tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
+      tableHeight: resolveTexasProceduralTableHeight(shapeOption),
       woodOption,
       clothOption,
       baseOption,
@@ -4658,7 +4668,7 @@ function TexasHoldemArena({ search }) {
       arena: arenaGroup,
       renderer,
       tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
+      tableHeight: resolveTexasProceduralTableHeight(initialShape),
       woodOption: initialWood,
       clothOption: initialCloth,
       baseOption: initialBase,
