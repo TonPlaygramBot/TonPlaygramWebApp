@@ -726,7 +726,7 @@ export function createMurlanStyleTable({
   const brandPlateSize = {
     width: rimSize.width * 0.9,
     depth: rimSize.depth * 0.86,
-    thickness: 0.0075 * scaleFactor
+    thickness: 0.013 * scaleFactor
   };
   const brandPlateGeometry = new ThreeNamespace.BoxGeometry(
     brandPlateSize.width,
@@ -752,27 +752,13 @@ export function createMurlanStyleTable({
     brandPlateMaterialSide,
     brandPlateMaterialSide
   ]);
-  const isClassicOctagon = shapeOption?.id === 'classicOctagon';
-  const brandLiftY = tableY + clothRise * 0.93;
-  if (isClassicOctagon) {
-    const octagonRailDirection = new ThreeNamespace.Vector2(0.46, 1).normalize();
-    const octagonRailRadius = outerRadiusSampler(octagonRailDirection);
-    brandPlate.position.set(
-      octagonRailDirection.x * (octagonRailRadius - brandPlateSize.depth * 0.62),
-      brandLiftY,
-      octagonRailDirection.y * (octagonRailRadius - brandPlateSize.depth * 0.62)
-    );
-    brandPlate.rotation.y =
-      Math.atan2(octagonRailDirection.x, octagonRailDirection.y) + Math.PI / 2;
-  } else {
-    const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
-    brandPlate.position.set(
-      0,
-      brandLiftY,
-      frontRadius - brandPlateSize.depth * 1.08
-    );
-  }
-  brandPlate.rotation.x = THREE.MathUtils.degToRad(-1.2);
+  const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
+  brandPlate.position.set(
+    0,
+    tableY + clothRise * 0.84,
+    frontRadius - brandPlateSize.depth * 1.08
+  );
+  brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
   tableGroup.add(brandPlate);
