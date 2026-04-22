@@ -6,7 +6,9 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as OpenSourceDeck from '@letele/playing-cards';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
@@ -124,6 +126,18 @@ const CUSTOM_SEAT_ANGLES = [
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
+const OPEN_SOURCE_SUIT_CODES = Object.freeze({
+  '♠': 'S',
+  '♥': 'H',
+  '♦': 'D',
+  '♣': 'C'
+});
+const OPEN_SOURCE_RANK_CODES = Object.freeze({
+  A: 'a',
+  K: 'k',
+  Q: 'q',
+  J: 'j'
+});
 const SUIT_COLORS = {
   '♠': '#111111',
   '♣': '#111111',
@@ -6848,79 +6862,44 @@ function drawCourtFigure(g, rank, suit, color, w, h) {
   g.restore();
 }
 
+function createFallbackOpenSourceCardSvg(cardKey) {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400" viewBox="0 0 1000 1400">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="100%" stop-color="#efe9dc" />
+        </linearGradient>
+      </defs>
+      <rect x="18" y="18" rx="42" ry="42" width="964" height="1364" fill="url(#bg)" stroke="rgba(0,0,0,0.14)" stroke-width="8" />
+      <rect x="46" y="46" rx="28" ry="28" width="908" height="1308" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="3" />
+      <text x="500" y="660" text-anchor="middle" font-size="170" font-family="Georgia, serif" fill="#111">${cardKey}</text>
+      <text x="500" y="840" text-anchor="middle" font-size="64" font-family="Georgia, serif" fill="#666">Open source card</text>
+    </svg>
+  `;
+}
+
+function toOpenSourceDeckKey(rank, suit) {
+  if (rank === 'JR') return 'J1';
+  if (rank === 'JB') return 'J2';
+  const suitCode = OPEN_SOURCE_SUIT_CODES[suit];
+  if (!suitCode) return null;
+  const rankCode = OPEN_SOURCE_RANK_CODES[rank] || String(rank).toLowerCase();
+  return `${suitCode}${rankCode}`;
+}
+
+function svgMarkupFromOpenSourceDeck(rank, suit) {
+  const cardKey = toOpenSourceDeckKey(rank, suit);
+  if (!cardKey) return createFallbackOpenSourceCardSvg(`${rank}${suit ?? ''}`);
+  const CardComponent = OpenSourceDeck?.[cardKey];
+  if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
+  return renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
+}
+
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const g = canvas.getContext('2d');
-
-  g.fillStyle = theme.frontBackground || '#ffffff';
-  g.fillRect(0, 0, w, h);
-  g.strokeStyle = theme.frontBorder || '#d1d5db';
-  g.lineWidth = Math.max(4, Math.round(w * 0.012));
-  roundRect(g, g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth, Math.round(w * 0.12));
-  g.stroke();
-
-  const color = SUIT_COLORS[suit] || '#0f172a';
-  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-  const cornerRankSize = Math.round(w * 0.18);
-  const cornerSuitSize = Math.round(w * 0.16);
-  const cornerPaddingX = Math.round(w * 0.11);
-  const cornerTopY = Math.round(h * 0.1);
-  const cornerBottomY = Math.round(h * 0.9);
-  const cornerGapY = Math.round(h * 0.1);
-  const drawCorner = (x, y, align = 'left', flipped = false) => {
-    g.save();
-    g.translate(x, y);
-    if (flipped) {
-      g.rotate(Math.PI);
-    }
-    g.textAlign = align;
-    g.textBaseline = 'top';
-    g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(label, 0, 0);
-    g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(suit, 0, cornerGapY);
-    g.restore();
-  };
-
-  g.fillStyle = color;
-  drawCorner(cornerPaddingX, cornerTopY, 'left');
-  drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
-
-  const rankLabel = String(rank);
-  const isCourtCard = rankLabel === 'J' || rankLabel === 'Q' || rankLabel === 'K';
-  const isJoker = rankLabel === 'JB' || rankLabel === 'JR';
-
-  if (isCourtCard) {
-    drawCourtFigure(g, rankLabel, suit, color, w, h);
-  } else if (isJoker) {
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.font = `700 ${Math.round(w * 0.2)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(label, w / 2, h * 0.42);
-    g.font = `700 ${Math.round(w * 0.26)}px "Inter", "Segoe UI Symbol", sans-serif`;
-    g.fillText(suit, w / 2, h * 0.62);
-  } else {
-    const pipLayout = buildStandardPipLayout(rankLabel);
-    const pipFont = Math.round(w * 0.17);
-    g.font = `700 ${pipFont}px "Inter", "Segoe UI Symbol", sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    const centerX = w * 0.5;
-    const centerY = h * 0.5;
-    const pipSpreadX = w * 0.26;
-    const pipSpreadY = h * 0.28;
-    pipLayout.forEach(({ x, y, flip }) => {
-      g.save();
-      g.translate(centerX + x * pipSpreadX, centerY + y * pipSpreadY);
-      if (flip) g.rotate(Math.PI);
-      g.fillText(suit, 0, 0);
-      g.restore();
-    });
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
+  const svg = svgMarkupFromOpenSourceDeck(rank, suit);
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const tex = new THREE.TextureLoader().load(dataUrl);
   applySRGBColorSpace(tex);
   tex.anisotropy = 12;
   tex.magFilter = THREE.LinearFilter;
