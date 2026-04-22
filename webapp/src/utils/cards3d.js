@@ -1,5 +1,8 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import * as OpenSourceDeck from '@letele/playing-cards';
 import { applySRGBColorSpace } from './colorSpace.js';
 import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
@@ -8,6 +11,72 @@ export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 let tonplaygramLogoImage = null;
 const cardBackTextureCache = new Map();
+
+
+const OPEN_SOURCE_CARD_MODULE = OpenSourceDeck;
+const openSourceSvgCache = new Map();
+
+function normalizeRankForOpenSource(rank) {
+  const normalized = String(rank || '').trim().toLowerCase();
+  if (normalized === '1') return 'a';
+  if (normalized === 't') return '10';
+  if (normalized === '11') return 'j';
+  if (normalized === '12') return 'q';
+  if (normalized === '13') return 'k';
+  return normalized;
+}
+
+function normalizeSuitForOpenSource(suit) {
+  const normalized = String(suit || '').trim().toUpperCase();
+  if (normalized === '♠') return 'S';
+  if (normalized === '♥') return 'H';
+  if (normalized === '♦') return 'D';
+  if (normalized === '♣') return 'C';
+  return normalized;
+}
+
+function resolveOpenSourceDeckKey(rank, suit) {
+  const normalizedRank = normalizeRankForOpenSource(rank);
+  const normalizedSuit = normalizeSuitForOpenSource(suit);
+  if (!normalizedRank || !normalizedSuit) return null;
+  const key = `${normalizedSuit}${normalizedRank}`;
+  return OPEN_SOURCE_CARD_MODULE[key] ? key : null;
+}
+
+function createFallbackOpenSourceSvg(rank, suit) {
+  const rankLabel = rank === 'T' ? '10' : String(rank || '?').toUpperCase();
+  const suitLabel = convertSuit(String(suit || '?').toUpperCase());
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400" viewBox="0 0 1000 1400">
+      <rect x="18" y="18" rx="42" ry="42" width="964" height="1364" fill="#ffffff" stroke="rgba(0,0,0,0.12)" stroke-width="8" />
+      <text x="500" y="680" text-anchor="middle" font-size="210" font-family="Georgia, serif" fill="#111111">${rankLabel}${suitLabel}</text>
+    </svg>
+  `;
+}
+
+function cardSvgMarkup(rank, suit) {
+  const key = resolveOpenSourceDeckKey(rank, suit);
+  if (!key) return createFallbackOpenSourceSvg(rank, suit);
+  if (openSourceSvgCache.has(key)) return openSourceSvgCache.get(key);
+  const CardComponent = OPEN_SOURCE_CARD_MODULE[key];
+  const svg = renderToStaticMarkup(React.createElement(CardComponent, { width: 1000, height: 1400 }));
+  openSourceSvgCache.set(key, svg);
+  return svg;
+}
+
+function drawOpenSourceCardFront(ctx, canvas, rank, suit, onLoad = null) {
+  if (typeof Image === 'undefined') return;
+  const svg = cardSvgMarkup(rank, suit);
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (typeof onLoad === 'function') onLoad();
+  };
+  image.src = dataUrl;
+}
 
 function getTonplaygramLogoImage() {
   if (!tonplaygramLogoImage && typeof Image !== 'undefined') {
@@ -115,48 +184,27 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const texture = new THREE.CanvasTexture(canvas);
+    applySRGBColorSpace(texture);
+    return texture;
+  }
+
   ctx.fillStyle = theme.frontBackground || '#ffffff';
   ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = theme.frontBorder || '#e5e7eb';
-  ctx.lineWidth = 8;
-  roundRect(ctx, 6, 6, w - 12, h - 12, 32);
-  ctx.stroke();
-  const suitColor = getSuitColor(suit);
-  ctx.fillStyle = suitColor;
-  const label = rank === 'T' ? '10' : String(rank);
-  const padding = 34;
-  const rankFontSize = 88;
-  const suitFontSize = 72;
-  const cornerGap = 66;
-  const drawCorner = (x, y, align = 'left', flipped = false) => {
-    ctx.save();
-    ctx.translate(x, y);
-    if (flipped) {
-      ctx.rotate(Math.PI);
-    }
-    ctx.textAlign = align;
-    ctx.textBaseline = 'top';
-    ctx.font = `bold ${rankFontSize}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
-    ctx.fillText(label, 0, 0);
-    ctx.font = `bold ${suitFontSize}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
-    ctx.fillText(convertSuit(suit), 0, cornerGap);
-    ctx.restore();
-  };
-  drawCorner(padding, 48, 'left');
-  drawCorner(w - padding, h - 48, 'left', true);
-  if (theme.centerAccent) {
-    ctx.fillStyle = theme.centerAccent;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.fillStyle = suitColor;
-  ctx.font = 'bold 160px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.textAlign = 'center';
-  ctx.fillText(convertSuit(suit), w / 2, h / 2 + 56);
+
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+
+  texture.needsUpdate = true;
+  drawOpenSourceCardFront(ctx, canvas, rank, suit, () => {
+    texture.needsUpdate = true;
+  });
+
   return texture;
 }
 
@@ -431,11 +479,6 @@ function convertSuit(suit) {
     default:
       return suit;
   }
-}
-
-function getSuitColor(suit) {
-  if (suit === 'H' || suit === 'D') return '#cc2233';
-  return '#111111';
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
