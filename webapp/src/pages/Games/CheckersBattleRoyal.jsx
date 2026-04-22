@@ -101,10 +101,10 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.72;
-const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
-const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.66;
-const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
+const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
+const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
+const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 // Lower chairs toward the floor for stronger downward screen placement.
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
@@ -2843,6 +2843,7 @@ export default function CheckersBattleRoyal() {
             renderer,
             tableRadius: TABLE_RADIUS,
             tableHeight: TABLE_HEIGHT,
+            pedestalHeightScale: 1.24,
             shapeOption: desiredShape
           });
           table.userData = { selectedTableId: appearance.tableId };
@@ -2908,13 +2909,19 @@ export default function CheckersBattleRoyal() {
 
       const proceduralBoard = addVisibleBoardBase();
 
-      try {
-        const boardRoot = await loadCheckersBoardModel(renderer);
-        scene.add(boardRoot);
-        gltfBoardRef.current = boardRoot;
-        applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
-        proceduralBoard.visible = false;
-      } catch {
+      const shouldForceProceduralBoard = appearance.tableId === 'diamondEdge';
+
+      if (!shouldForceProceduralBoard) {
+        try {
+          const boardRoot = await loadCheckersBoardModel(renderer);
+          scene.add(boardRoot);
+          gltfBoardRef.current = boardRoot;
+          applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
+          proceduralBoard.visible = false;
+        } catch {
+          proceduralBoard.visible = true;
+        }
+      } else {
         proceduralBoard.visible = true;
       }
 
