@@ -2322,11 +2322,11 @@ const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.21;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.17;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
-const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(11);
-const HUMAN_HAND_FAN_ARC_LIFT = 0.022 * MODEL_SCALE;
+const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
+const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
@@ -2340,6 +2340,8 @@ const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
 const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.3;
 const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 11;
+const TOP_AI_HAND_CARD_SPACING_MULTIPLIER = 1.28;
+const TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER = 1.28;
 const AI_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(6.5);
 const AI_HAND_FAN_ARC_LIFT = 0.012 * MODEL_SCALE;
 const HUMAN_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.04;
@@ -4932,6 +4934,9 @@ export default function MurlanRoyaleArena({ search }) {
 
         const forward = new THREE.Vector3(x, 0, z).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
+        const isTopSeatOnScreen = forward.z < -0.45;
+        const aiSeatSpacingMultiplier = isTopSeatOnScreen ? TOP_AI_HAND_CARD_SPACING_MULTIPLIER : 1;
+        const aiSeatMaxSpreadMultiplier = isTopSeatOnScreen ? TOP_AI_HAND_CARD_MAX_SPREAD_MULTIPLIER : 1;
         const focus = forward
           .clone()
           .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
@@ -4946,8 +4951,8 @@ export default function MurlanRoyaleArena({ search }) {
           right,
           focus,
           radius: resolveSeatHandRadius(activeTableRadius, isHumanSeat),
-          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING,
-          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD,
+          spacing: isHumanSeat ? HUMAN_HAND_CARD_SPACING : AI_HAND_CARD_SPACING * aiSeatSpacingMultiplier,
+          maxSpread: isHumanSeat ? HUMAN_HAND_CARD_MAX_SPREAD : AI_HAND_CARD_MAX_SPREAD * aiSeatMaxSpreadMultiplier,
           stoolPosition,
           stoolHeight
         });
