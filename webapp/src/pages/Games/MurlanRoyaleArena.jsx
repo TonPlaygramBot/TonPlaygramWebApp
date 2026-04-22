@@ -197,18 +197,6 @@ function detectDisplayRefreshTier() {
   return '60';
 }
 
-function detectAndroidWebView() {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-  const ua = navigator.userAgent ?? '';
-  const isAndroid = /Android/i.test(ua);
-  if (!isAndroid) {
-    return false;
-  }
-  return /;\s*wv\)/i.test(ua) || /Version\/[\d.]+/i.test(ua);
-}
-
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
 
@@ -287,9 +275,6 @@ function resolveDefaultPixelRatioCap() {
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return DEFAULT_FRAME_RATE_ID;
-  }
-  if (detectAndroidWebView()) {
-    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -2434,7 +2419,6 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 1;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
-const ARENA_SCREEN_DOWN_SHIFT = '2.2vh';
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2674,7 +2658,6 @@ const START_CARD = { rank: '3', suit: '♠' };
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
-  const androidWebView = useMemo(() => detectAndroidWebView(), []);
 
   const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
 
@@ -2793,10 +2776,6 @@ export default function MurlanRoyaleArena({ search }) {
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
-  );
-  const frameRateOptions = useMemo(
-    () => (androidWebView ? FRAME_RATE_OPTIONS.filter((option) => option.id === 'fhd60') : FRAME_RATE_OPTIONS),
-    [androidWebView]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -3320,12 +3299,6 @@ export default function MurlanRoyaleArena({ search }) {
   ]);
 
   useEffect(() => {
-    if (!androidWebView) return;
-    if (frameRateId === 'fhd60') return;
-    setFrameRateId('fhd60');
-  }, [androidWebView, frameRateId]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -3612,17 +3585,15 @@ export default function MurlanRoyaleArena({ search }) {
     const pixelRatioCap =
       quality?.pixelRatioCap ??
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
-    const safePixelRatioCap = androidWebView ? Math.min(pixelRatioCap, 1.1) : pixelRatioCap;
     const renderScale =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
         ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
         : 1;
-    const safeRenderScale = androidWebView ? Math.min(renderScale, 1) : renderScale;
-    renderer.setPixelRatio(Math.min(safePixelRatioCap, dpr));
-    renderer.setSize(host.clientWidth * safeRenderScale, host.clientHeight * safeRenderScale, false);
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-  }, [androidWebView]);
+  }, []);
 
   useEffect(() => {
     applyRendererQuality();
@@ -5449,7 +5420,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, [humanPlayerIndex, players, seatAnchorMap]);
 
   return (
-    <div className="absolute inset-0" style={{ top: ARENA_SCREEN_DOWN_SHIFT, bottom: `calc(-1 * ${ARENA_SCREEN_DOWN_SHIFT})` }}>
+    <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
         {uiState.scoreboard?.length ? (
@@ -5615,7 +5586,7 @@ export default function MurlanRoyaleArena({ search }) {
                       </p>
                     </div>
                     <div className="grid gap-2">
-                      {frameRateOptions.map((option) => {
+                      {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
                         return (
                           <button
