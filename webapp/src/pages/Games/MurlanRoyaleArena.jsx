@@ -4850,7 +4850,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.02 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6579,30 +6579,32 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const cornerRankSize = Math.round(w * 0.18);
   const cornerSuitSize = Math.round(w * 0.16);
-  const cornerPaddingX = Math.round(w * 0.11);
-  const cornerTopY = Math.round(h * 0.1);
-  const cornerBottomY = Math.round(h * 0.9);
-  const cornerGapY = Math.round(h * 0.1);
-  const drawCorner = (x, y, align = 'left', flipped = false) => {
-    g.save();
-    g.translate(x, y);
-    if (flipped) {
-      g.rotate(Math.PI);
-    }
-    g.textAlign = align;
-    g.textBaseline = 'top';
-    g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(label, 0, 0);
-    g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(suit, 0, cornerGapY);
-    g.restore();
-  };
+  const cornerLeftX = Math.round(w * 0.115);
+  const cornerRightX = Math.round(w * 0.895);
+  const topRankY = Math.round(h * 0.1);
+  const topSuitY = Math.round(h * 0.2);
+  const bottomRankY = Math.round(h * 0.76);
+  const bottomSuitY = Math.round(h * 0.86);
 
   g.fillStyle = color;
-  drawCorner(cornerPaddingX, cornerTopY, 'left');
-  drawCorner(w - cornerPaddingX, cornerTopY, 'right');
-  drawCorner(cornerPaddingX, cornerBottomY, 'right', true);
-  drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, cornerLeftX, topRankY);
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, cornerLeftX, topSuitY);
+
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, cornerLeftX, bottomRankY);
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, cornerLeftX, bottomSuitY);
+
+  g.textAlign = 'right';
+  g.textBaseline = 'top';
+  g.font = `900 ${cornerRankSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(label, cornerRightX, topRankY);
+  g.font = `${cornerSuitSize}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, cornerRightX, topSuitY);
 
   g.textAlign = 'center';
   g.textBaseline = 'middle';
