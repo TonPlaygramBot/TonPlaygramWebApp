@@ -76,7 +76,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const LUDO_BATTLE_ROYAL_TOKEN_URLS = [
+const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
@@ -86,23 +86,23 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
-const CHESS_PIECE_CACHE = { promise: null, pieces: null };
-const CAPTURE_VEHICLE_MODEL_CACHE = new Map();
-const CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE = new Map();
-const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
-const CAPTURE_VEHICLE_MODEL_HOSTS = [
+const SNAKE_TOKEN_PROTOTYPE_CACHE = { promise: null, pieces: null };
+const SNAKE_CAPTURE_VEHICLE_MODEL_CACHE = new Map();
+const SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE = new Map();
+const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
+const SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS = [
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
   'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
 ];
-const CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
+const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   drone: ['drone.glb'],
   helicopter: ['helicopter.glb'],
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
   javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
 });
-const CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
+const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
   fighter: 'green_metal_rust',
   helicopter: 'green_metal_rust',
@@ -238,7 +238,7 @@ const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
 // Keep parked weapons on the same front rail as player tokens (table edge near each seat).
-const TOP_SEAT_WEAPON_REST_RAIL_INSET = TILE_SIZE * 0.32;
+const TOP_SEAT_WEAPON_REST_RAIL_INSET = -TILE_SIZE * 0.08;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
   TOP_SEAT_WEAPON_REST_RAIL_INSET,
@@ -251,13 +251,13 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT)
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.84,
-  -TILE_SIZE * 0.72,
-  -TILE_SIZE * 0.58,
-  -TILE_SIZE * 0.72
+  -TILE_SIZE * 0.2,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.46,
+  TILE_SIZE * 0.08
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
-const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.5;
+const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.22;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
@@ -269,19 +269,19 @@ const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02,
-  -TILE_SIZE * 0.02
-]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.22;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
-const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
   0,
   0,
   0
+]);
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
+const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
+const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.1,
+  TILE_SIZE * 0.24,
+  TILE_SIZE * 0.1
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -291,14 +291,35 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   supportTruck: TOKEN_HEIGHT * 2.32,
   javelin: TOKEN_HEIGHT * 2.26
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.34;
-const WEAPON_SLOT_CLUSTER_SCALE = 0.34;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.92;
+const WEAPON_SLOT_CLUSTER_SCALE = 0.08;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   0,
   0,
   0,
   0
 ]);
+// Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
+// Positive radial moves items visually toward each chair/edge on screen.
+const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
+  Object.freeze({ radial: TILE_SIZE * 0.22, lateral: 0, y: -TOKEN_HEIGHT * 0.22 }),
+  Object.freeze({ radial: TILE_SIZE * 0.16, lateral: 0, y: -TOKEN_HEIGHT * 0.18 }),
+  Object.freeze({ radial: TILE_SIZE * 0.54, lateral: 0, y: -TOKEN_HEIGHT * 0.25 }),
+  Object.freeze({ radial: TILE_SIZE * 0.16, lateral: 0, y: -TOKEN_HEIGHT * 0.18 })
+]);
+const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
+  Object.freeze({ radial: TILE_SIZE * 0.28, lateral: 0, y: -TOKEN_HEIGHT * 0.34 }),
+  Object.freeze({ radial: TILE_SIZE * 0.2, lateral: 0, y: -TOKEN_HEIGHT * 0.3 }),
+  Object.freeze({ radial: TILE_SIZE * 0.62, lateral: 0, y: -TOKEN_HEIGHT * 0.42 }),
+  Object.freeze({ radial: TILE_SIZE * 0.2, lateral: 0, y: -TOKEN_HEIGHT * 0.3 })
+]);
+const RIM_PARKING_RADIUS_BIAS_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.05,
+  TILE_SIZE * 0.2,
+  TILE_SIZE * 0.05
+]);
+const RIM_PARKING_PAIR_HALF_GAP = TILE_SIZE * 0.3;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -720,8 +741,8 @@ function applyTextureSetToMaterial(material, textureSet, repeat = 1) {
 }
 
 function createCaptureVehicleTexture(kind = 'fighter') {
-  if (CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.has(kind)) {
-    return CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.get(kind);
+  if (SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.has(kind)) {
+    return SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.get(kind);
   }
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -729,7 +750,7 @@ function createCaptureVehicleTexture(kind = 'fighter') {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     const fallback = new THREE.CanvasTexture(canvas);
-    CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, fallback);
+    SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, fallback);
     return fallback;
   }
   const palettes = {
@@ -766,12 +787,12 @@ function createCaptureVehicleTexture(kind = 'fighter') {
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(2.4, 2.4);
   texture.anisotropy = 4;
-  CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, texture);
+  SNAKE_CAPTURE_VEHICLE_TEXTURE_MATERIAL_CACHE.set(kind, texture);
   return texture;
 }
 
 function createCaptureVehicleMaterial(kind = 'fighter') {
-  const textureSet = CAPTURE_POLYHAVEN_TEXTURE_SETS.get(kind) || null;
+  const textureSet = SNAKE_CAPTURE_POLYHAVEN_TEXTURE_SETS.get(kind) || null;
   return new THREE.MeshStandardMaterial({
     map: textureSet?.map || createCaptureVehicleTexture(kind),
     normalMap: textureSet?.normalMap || null,
@@ -783,16 +804,16 @@ function createCaptureVehicleMaterial(kind = 'fighter') {
 
 async function primeCaptureVehicleTextureSets(renderer = null) {
   const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 6;
-  const entries = Object.entries(CAPTURE_POLYHAVEN_TEXTURE_ASSETS);
+  const entries = Object.entries(SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS);
   await Promise.all(
     entries.map(async ([kind, assetId]) => {
-      if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
+      if (!assetId || SNAKE_CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
       const set = await loadPolyhavenTextureSet(assetId, renderer);
       if (!set) return;
       if (set.map) set.map.anisotropy = maxAnisotropy;
       if (set.roughnessMap) set.roughnessMap.anisotropy = maxAnisotropy;
       if (set.normalMap) set.normalMap.anisotropy = maxAnisotropy;
-      CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
+      SNAKE_CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
     })
   );
 }
@@ -923,12 +944,12 @@ function buildChessPiecePrototypes(scene) {
 }
 
 async function loadChessPiecePrototypes(renderer = null) {
-  if (CHESS_PIECE_CACHE.pieces) return CHESS_PIECE_CACHE.pieces;
-  if (!CHESS_PIECE_CACHE.promise) {
+  if (SNAKE_TOKEN_PROTOTYPE_CACHE.pieces) return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
+  if (!SNAKE_TOKEN_PROTOTYPE_CACHE.promise) {
     const loader = createConfiguredGLTFLoader(renderer);
-    CHESS_PIECE_CACHE.promise = (async () => {
+    SNAKE_TOKEN_PROTOTYPE_CACHE.promise = (async () => {
       let gltf = null;
-      for (const url of LUDO_BATTLE_ROYAL_TOKEN_URLS) {
+      for (const url of SNAKE_TOKEN_MODEL_URLS) {
         try {
           gltf = await loader.loadAsync(url);
           break;
@@ -942,8 +963,8 @@ async function loadChessPiecePrototypes(renderer = null) {
       return prototypes;
     })();
   }
-  CHESS_PIECE_CACHE.pieces = await CHESS_PIECE_CACHE.promise;
-  return CHESS_PIECE_CACHE.pieces;
+  SNAKE_TOKEN_PROTOTYPE_CACHE.pieces = await SNAKE_TOKEN_PROTOTYPE_CACHE.promise;
+  return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
 }
 
 function scaleChessPieceToToken(piece, targetHeight) {
@@ -3546,6 +3567,40 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
   return { railLocal, railHeightY, seatDirection, lateral };
 }
 
+function getSeatRimParkingLayout(board, seatIndex) {
+  const anchor = board?.seatAnchors?.[seatIndex];
+  const boardLookTarget = board?.boardLookTarget;
+  const boardRoot = board?.boardRoot;
+  const tableInfo = board?.tableInfo;
+  if (!anchor || !boardLookTarget || !boardRoot) return null;
+
+  const seatWorld = new THREE.Vector3();
+  anchor.getWorldPosition(seatWorld);
+  const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
+  if (seatDirection.lengthSq() < 1e-6) return null;
+  seatDirection.normalize();
+  const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+
+  let rimRadius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.4;
+  if (tableInfo?.getInnerRadius) {
+    const inner = tableInfo.getInnerRadius(seatDirection);
+    const outer = tableInfo.getOuterRadius?.(seatDirection) ?? inner;
+    if (Number.isFinite(inner) && Number.isFinite(outer)) {
+      const rimInner = Math.min(inner, outer);
+      const rimOuter = Math.max(inner, outer);
+      rimRadius = rimInner + (rimOuter - rimInner) * 0.62;
+    }
+  }
+  rimRadius += RIM_PARKING_RADIUS_BIAS_BY_SEAT[seatIndex] ?? 0;
+
+  const centerWorld = boardLookTarget.clone().addScaledVector(seatDirection, rimRadius);
+  const centerLocal = centerWorld.clone();
+  boardRoot.worldToLocal(centerLocal);
+  const baseY = TOKEN_HEIGHT * 0.02;
+  centerLocal.y = baseY;
+  return { centerLocal, baseY, seatDirection, lateral };
+}
+
 function updateTokens(
   boardTokensGroup,
   reserveTokensGroup,
@@ -3825,17 +3880,27 @@ function updateTokens(
       worldPos = baseVector;
     } else {
       if (Number.isFinite(seatIndex)) {
-        const railLayout = getSeatRailLayout(
-          { seatAnchors, boardLookTarget, boardRoot, tableInfo },
-          seatIndex
-        );
+        const rimLayout =
+          getSeatRimParkingLayout({ seatAnchors, boardLookTarget, boardRoot, tableInfo }, seatIndex) || null;
+        const railLayout =
+          rimLayout ||
+          getSeatRailLayout({ seatAnchors, boardLookTarget, boardRoot, tableInfo }, seatIndex);
         if (railLayout) {
           const sideSign = TOKEN_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
           const lateralNudge = TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-          worldPos = railLayout.railLocal
+          const portraitShift = TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
+          worldPos = (rimLayout ? rimLayout.centerLocal : railLayout.railLocal)
             .clone()
-            .addScaledVector(railLayout.lateral, sideSign * SEAT_RAIL_SLOT_OFFSET + lateralNudge);
-          worldPos.y = railLayout.railHeightY;
+            .addScaledVector(
+              railLayout.lateral,
+              sideSign * (rimLayout ? RIM_PARKING_PAIR_HALF_GAP : SEAT_RAIL_SLOT_OFFSET) + lateralNudge
+            );
+          if (portraitShift) {
+            worldPos
+              .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
+              .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+          }
+          worldPos.y = (rimLayout?.baseY ?? railLayout.railHeightY) + (portraitShift?.y ?? 0);
         }
       }
       if (!worldPos) {
@@ -4456,18 +4521,18 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
 }
 
 async function loadCaptureVehicleModel(kind = 'fighter') {
-  const files = CAPTURE_VEHICLE_MODEL_FILES[kind] || CAPTURE_VEHICLE_MODEL_FILES.fighter;
+  const files = SNAKE_CAPTURE_VEHICLE_MODEL_FILES[kind] || SNAKE_CAPTURE_VEHICLE_MODEL_FILES.fighter;
   const fileList = Array.isArray(files) ? files : [files];
   const cacheKey = `${kind}:${fileList.join('|')}`;
-  if (!CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
-    CAPTURE_VEHICLE_MODEL_CACHE.set(
+  if (!SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
+    SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(
       cacheKey,
       (async () => {
         const loader = createConfiguredGLTFLoader();
         const imageCache = new Map();
 
         for (const file of fileList) {
-          const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
+          const urls = SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
           for (const url of urls) {
             try {
               // eslint-disable-next-line no-await-in-loop
@@ -4502,7 +4567,7 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
       })()
     );
   }
-  const model = await CAPTURE_VEHICLE_MODEL_CACHE.get(cacheKey);
+  const model = await SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.get(cacheKey);
   return model?.clone?.(true) ?? null;
 }
 
@@ -4709,29 +4774,35 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.userData.weaponType = weaponType;
     }
     const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
-    const railLayout = getSeatRailLayout(
-      board,
-      seatIndex,
-      TILE_SIZE * 0.08,
-      Number.isFinite(weaponInset) ? weaponInset : null
-    );
+    const rimLayout = getSeatRimParkingLayout(board, seatIndex) || null;
+    const railLayout =
+      rimLayout ||
+      getSeatRailLayout(board, seatIndex, TILE_SIZE * 0.08, Number.isFinite(weaponInset) ? weaponInset : null);
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
+      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
       holder.position
-        .copy(railLayout.railLocal)
+        .copy(rimLayout ? rimLayout.centerLocal : railLayout.railLocal)
         .addScaledVector(
           railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
+          sideSign * (rimLayout ? RIM_PARKING_PAIR_HALF_GAP * WEAPON_SLOT_CLUSTER_SCALE : SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE) +
+            lateralNudge
         )
         .addScaledVector(
           railLayout.seatDirection,
           WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
         );
+      if (portraitShift) {
+        holder.position
+          .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
+          .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+      }
       holder.position.y =
-        railLayout.railHeightY +
+        (rimLayout?.baseY ?? railLayout.railHeightY) +
         WEAPON_REST_HEIGHT_OFFSET +
-        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0);
+        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0) +
+        (portraitShift?.y ?? 0);
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
