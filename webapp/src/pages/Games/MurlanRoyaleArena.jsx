@@ -2330,7 +2330,7 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = true;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = 0.0 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = 0.14 * MODEL_SCALE; // Positive value shifts the bottom human hand visually left on portrait camera.
@@ -2338,7 +2338,7 @@ const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.092 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
 const HUMAN_HAND_BOTTOM_INWARD_TILT_X = 0;
-const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.5;
+const AI_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.42;
 const AI_HAND_CARD_MAX_SPREAD = AI_HAND_CARD_SPACING * 14;
 const AI_HAND_FAN_MAX_YAW = HUMAN_HAND_FAN_MAX_YAW;
 const AI_HAND_FAN_ARC_LIFT = HUMAN_HAND_FAN_ARC_LIFT;
@@ -2358,6 +2358,7 @@ const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
 const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
+const TABLE_PLAY_LIFT_ARC = 0.058 * MODEL_SCALE;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
@@ -3701,18 +3702,6 @@ export default function MurlanRoyaleArena({ search }) {
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     humanTurnRef.current = humanTurn;
-    const topNonHumanSeatIndex = state.players.reduce(
-      (best, player, idx) => {
-        if (player?.isHuman) return best;
-        const seat = seatConfigs[idx];
-        const anchorPoint = seat?.focus ?? seat?.stoolPosition;
-        if (!anchorPoint || !three?.camera) return best;
-        const projected = anchorPoint.clone().project(three.camera);
-        if (!Number.isFinite(projected.y)) return best;
-        return projected.y > best.y ? { index: idx, y: projected.y } : best;
-      },
-      { index: -1, y: Number.NEGATIVE_INFINITY }
-    ).index;
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
       if (!seat) return;
@@ -3739,9 +3728,7 @@ export default function MurlanRoyaleArena({ search }) {
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const backLogoVariant = !isHumanCard
-          ? idx === topNonHumanSeatIndex
-            ? 'top'
-            : 'side'
+          ? 'top'
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -3822,11 +3809,9 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
-    const shouldSlopeCommunityCards =
-      state.tableCombo?.type === ComboType.STRAIGHT ||
-      state.tableCombo?.type === ComboType.FLUSH ||
-      state.tableCombo?.type === ComboType.STRAIGHT_FLUSH;
-    state.tableCards.forEach((card, idx) => {
+    const shouldSlopeCommunityCards = false;
+    const orderedTableCards = [...state.tableCards].reverse();
+    orderedTableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
       const mesh = entry.mesh;
@@ -3847,13 +3832,20 @@ export default function MurlanRoyaleArena({ search }) {
       if (shouldSlopeCommunityCards) {
         target.y += -normalizedOffset * COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP;
       }
+      const wasInAnyHand = previous?.players?.some((prevPlayer) =>
+        prevPlayer?.hand?.some((prevCard) => prevCard.id === card.id)
+      );
       setMeshPosition(
         mesh,
         target,
         communityLookTarget,
         { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: communityFanYaw },
         immediate,
-        three.animations
+        three.animations,
+        0,
+        {
+          liftArc: !immediate && wasInAnyHand ? TABLE_PLAY_LIFT_ARC : 0
+        }
       );
     });
 
@@ -5123,6 +5115,9 @@ export default function MurlanRoyaleArena({ search }) {
             const clampedProgress = Math.min(1, progress);
             const eased = easeOutCubic(clampedProgress);
             anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
+            if (anim.liftArc > 0) {
+              anim.mesh.position.y += Math.sin(clampedProgress * Math.PI) * anim.liftArc;
+            }
             orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
             if (clampedProgress >= 1) {
               anim.mesh.position.copy(anim.to);
@@ -6344,7 +6339,7 @@ function pickMostPreciseCardAtPointer({
   return bestCardId;
 }
 
-function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations, delayMs = 0) {
+function setMeshPosition(mesh, target, lookTarget, orientation, immediate, animations, delayMs = 0, motion = {}) {
   if (!mesh) return;
   const orientTarget = lookTarget.clone();
   const orientOptions =
@@ -6382,6 +6377,7 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
     orientation: orientOptions,
     start: performance.now() + Math.max(0, delayMs),
     duration: CARD_ANIMATION_DURATION,
+    liftArc: Math.max(0, Number(motion?.liftArc) || 0),
     cancelled: false
   };
   mesh.userData.animation = animation;
