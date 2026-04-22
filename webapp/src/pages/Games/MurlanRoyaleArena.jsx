@@ -2618,16 +2618,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: '8K texture pack • 120 FPS',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
-    cardTextureScale: 1.36,
-    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
+    resolution: '4K texture pack • 120 FPS',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
+    cardTextureScale: 1.18,
+    description: 'Poly Haven 4K HDRI target with fallback to 2K.'
   }
 ]);
 
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);
