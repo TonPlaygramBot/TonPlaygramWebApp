@@ -21,6 +21,7 @@
     "@capacitor/ios": "6.1.2",
     "@capacitor/preferences": "^6.0.0",
     "@capacitor/push-notifications": "6.0.5",
+    "@letele/playing-cards": "^0.1.0",
     "@github/webauthn-json": "^2.0.2",
     "@tonconnect/sdk": "^3.4.1",
     "@tonconnect/ui-react": "^2.4.1",
