@@ -787,10 +787,11 @@ export function createMurlanStyleTable({
 
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
   const brandPlateSize = {
-    width: rimSize.width * 0.9,
-    depth: rimSize.depth * 0.86,
-    // Keep the brand plate slimmer so it sits cleaner on the top rail across all table shapes.
-    thickness: 0.0095 * scaleFactor
+    // Slightly smaller footprint for a cleaner front rail read on portrait screens.
+    width: rimSize.width * 0.86,
+    depth: rimSize.depth * 0.82,
+    // Make the branding plate a bit thinner.
+    thickness: 0.0072 * scaleFactor
   };
   const brandPlateGeometry = new ThreeNamespace.BoxGeometry(
     brandPlateSize.width,
@@ -819,7 +820,7 @@ export function createMurlanStyleTable({
   const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
   brandPlate.position.set(
     0,
-    tableY + clothRise * 1.14,
+    tableY + clothRise * 1.28,
     frontRadius - brandPlateSize.depth * 1.08
   );
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);

@@ -101,7 +101,7 @@ const MIN_HDRI_RADIUS = 28;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN = CHAIR_DISTANCE + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.5;
+const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 0.72;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 0.56;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.66;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.74;
@@ -289,6 +289,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 const TARGET_CHAIR_MIN_Y = -CHAIR_BASE_HEIGHT;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const CHAIR_GROUNDING_EPSILON = 0.012 * MODEL_SCALE;
+const CHECKERS_TABLE_BASE_FLOOR_Y = -CHAIR_GROUND_SINK - CHAIR_GROUNDING_EPSILON;
 const SHADOW_CATCHER_SIZE = CHECKERS_ROOM_HALF_SPAN * 2.9;
 const SHADOW_CATCHER_OPACITY = 0.26;
 const SHADOW_CATCHER_ELEVATION = 0.004;
@@ -1536,6 +1537,15 @@ function alignArenaGroundArtifacts({ shadowCatcher, skybox, table, board, chairs
 
 function reduceCheckersTableBase(tableGroup) {
   if (!tableGroup) return;
+  const supportedShapeIds = new Set([
+    'murlan-default',
+    'ovalTable',
+    'grandOval',
+    'diamondEdge',
+    'hexagonTable'
+  ]);
+  const selectedTableId = tableGroup?.userData?.selectedTableId;
+  if (selectedTableId && !supportedShapeIds.has(selectedTableId)) return;
   tableGroup.traverse((node) => {
     if (!node?.isMesh || node.geometry?.type !== 'CylinderGeometry') return;
     const isBelowTop = node.position.y < TABLE_HEIGHT - 0.06;
@@ -1584,6 +1594,28 @@ function reduceCheckersTableBase(tableGroup) {
           Number.isFinite(beforeBox.min.y)
         ) {
           node.position.y += beforeBox.min.y - realignedBox.min.y;
+          node.updateMatrixWorld(true);
+        }
+      }
+      const groundedBox = new THREE.Box3().setFromObject(node);
+      if (
+        Number.isFinite(groundedBox.min.y) &&
+        Number.isFinite(groundedBox.max.y) &&
+        groundedBox.max.y - groundedBox.min.y > 1e-5 &&
+        groundedBox.min.y > CHECKERS_TABLE_BASE_FLOOR_Y
+      ) {
+        const currentHeight = groundedBox.max.y - groundedBox.min.y;
+        const targetHeight = groundedBox.max.y - CHECKERS_TABLE_BASE_FLOOR_Y;
+        const floorReachScale = THREE.MathUtils.clamp(
+          targetHeight / currentHeight,
+          1,
+          2.2
+        );
+        node.scale.y *= floorReachScale;
+        node.updateMatrixWorld(true);
+        const floorAlignedBox = new THREE.Box3().setFromObject(node);
+        if (Number.isFinite(floorAlignedBox.max.y)) {
+          node.position.y += groundedBox.max.y - floorAlignedBox.max.y;
           node.updateMatrixWorld(true);
         }
       }
