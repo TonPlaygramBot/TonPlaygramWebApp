@@ -656,7 +656,7 @@ export function createMurlanStyleTable({
   renderer,
   tableRadius = 2.55,
   tableHeight = 0.81,
-  pedestalHeightScale = 1.08,
+  pedestalHeightScale = 1.14,
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
   baseOption = DEFAULT_TABLE_BASE_OPTION,
@@ -788,10 +788,10 @@ export function createMurlanStyleTable({
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
   const brandPlateSize = {
     // Slightly smaller footprint for a cleaner front rail read on portrait screens.
-    width: rimSize.width * 0.86,
-    depth: rimSize.depth * 0.82,
+    width: rimSize.width * 0.8,
+    depth: rimSize.depth * 0.78,
     // Make the branding plate a bit thinner.
-    thickness: 0.0072 * scaleFactor
+    thickness: 0.0054 * scaleFactor
   };
   const brandPlateGeometry = new ThreeNamespace.BoxGeometry(
     brandPlateSize.width,
@@ -820,10 +820,10 @@ export function createMurlanStyleTable({
   const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
   brandPlate.position.set(
     0,
-    tableY + clothRise * 1.28,
+    tableY + clothRise * 1.56,
     frontRadius - brandPlateSize.depth * 1.08
   );
-  brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
+  brandPlate.rotation.x = THREE.MathUtils.degToRad(-1.4);
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
   tableGroup.add(brandPlate);
