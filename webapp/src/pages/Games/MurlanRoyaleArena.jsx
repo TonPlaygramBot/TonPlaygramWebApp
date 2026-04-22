@@ -2322,7 +2322,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
-const CAMERA_SCREEN_DOWN_SHIFT = 0.18 * MODEL_SCALE;
+const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.31;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.028 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.018 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2370,7 +2370,7 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.022 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -3902,7 +3902,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'side');
+      setBackLogoOrientation(mesh, 'top');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -4890,11 +4890,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.64, 3.05 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.72, 3.45 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.54 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6657,19 +6657,6 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 
   const color = SUIT_COLORS[suit] || '#0f172a';
   const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
-  const isFaceCard = rank === 'J' || rank === 'Q' || rank === 'K';
-  const rankToPipCount = {
-    A: 1,
-    '2': 2,
-    '3': 3,
-    '4': 4,
-    '5': 5,
-    '6': 6,
-    '7': 7,
-    '8': 8,
-    '9': 9,
-    '10': 10
-  };
   const cornerRankSize = Math.round(w * 0.18);
   const cornerSuitSize = Math.round(w * 0.16);
   const cornerPaddingX = Math.round(w * 0.11);
@@ -6695,138 +6682,10 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   drawCorner(cornerPaddingX, cornerTopY, 'left');
   drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
-  const drawPip = (x, y, upsideDown = false) => {
-    g.save();
-    g.translate(x, y);
-    if (upsideDown) g.rotate(Math.PI);
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.font = `700 ${Math.round(w * 0.175)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(suit, 0, 0);
-    g.restore();
-  };
-  const drawFaceArt = () => {
-    const cx = w / 2;
-    const cy = h / 2;
-    const boxW = w * 0.48;
-    const boxH = h * 0.58;
-    const halfBoxW = boxW / 2;
-    const halfBoxH = boxH / 2;
-    const accent = suit === '♥' || suit === '♦' ? '#f43f5e' : '#2563eb';
-    g.save();
-    g.fillStyle = '#ffffff';
-    g.strokeStyle = '#1f2937';
-    g.lineWidth = Math.max(2, Math.round(w * 0.006));
-    roundRect(g, cx - halfBoxW, cy - halfBoxH, boxW, boxH, Math.round(w * 0.05));
-    g.fill();
-    g.stroke();
-    const drawHalfPortrait = (flip = false) => {
-      g.save();
-      g.translate(cx, cy);
-      if (flip) g.rotate(Math.PI);
-      g.translate(0, -boxH * 0.22);
-      g.fillStyle = accent;
-      g.beginPath();
-      g.moveTo(-w * 0.13, -h * 0.04);
-      g.lineTo(0, -h * 0.14);
-      g.lineTo(w * 0.13, -h * 0.04);
-      g.lineTo(w * 0.11, h * 0.05);
-      g.lineTo(-w * 0.11, h * 0.05);
-      g.closePath();
-      g.fill();
-      g.fillStyle = '#fde68a';
-      g.beginPath();
-      g.arc(0, -h * 0.015, w * 0.055, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#1f2937';
-      g.fillRect(-w * 0.05, h * 0.05, w * 0.1, h * 0.15);
-      g.fillStyle = accent;
-      g.fillRect(-w * 0.11, h * 0.09, w * 0.22, h * 0.13);
-      g.strokeStyle = '#ffffff';
-      g.lineWidth = Math.max(2, Math.round(w * 0.004));
-      g.beginPath();
-      g.moveTo(-w * 0.07, h * 0.11);
-      g.lineTo(w * 0.07, h * 0.20);
-      g.stroke();
-      g.fillStyle = color;
-      g.font = `700 ${Math.round(w * 0.12)}px "Inter", "Segoe UI", sans-serif`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(suit, 0, h * 0.285);
-      g.restore();
-    };
-    drawHalfPortrait(false);
-    drawHalfPortrait(true);
-    g.fillStyle = '#0f172a';
-    g.fillRect(cx - boxW * 0.45, cy - 2, boxW * 0.9, 4);
-    g.restore();
-  };
-  const pipLayouts = {
-    1: [{ x: 0, y: 0, flip: false }],
-    2: [{ x: 0, y: -0.26, flip: false }, { x: 0, y: 0.26, flip: true }],
-    3: [{ x: 0, y: -0.3, flip: false }, { x: 0, y: 0, flip: false }, { x: 0, y: 0.3, flip: true }],
-    4: [
-      { x: -0.2, y: -0.27, flip: false }, { x: 0.2, y: -0.27, flip: false },
-      { x: -0.2, y: 0.27, flip: true }, { x: 0.2, y: 0.27, flip: true }
-    ],
-    5: [
-      { x: -0.2, y: -0.27, flip: false }, { x: 0.2, y: -0.27, flip: false },
-      { x: 0, y: 0, flip: false },
-      { x: -0.2, y: 0.27, flip: true }, { x: 0.2, y: 0.27, flip: true }
-    ],
-    6: [
-      { x: -0.2, y: -0.3, flip: false }, { x: 0.2, y: -0.3, flip: false },
-      { x: -0.2, y: 0, flip: false }, { x: 0.2, y: 0, flip: false },
-      { x: -0.2, y: 0.3, flip: true }, { x: 0.2, y: 0.3, flip: true }
-    ],
-    7: [
-      { x: -0.2, y: -0.31, flip: false }, { x: 0.2, y: -0.31, flip: false },
-      { x: 0, y: -0.12, flip: false },
-      { x: -0.2, y: 0.08, flip: false }, { x: 0.2, y: 0.08, flip: false },
-      { x: -0.2, y: 0.31, flip: true }, { x: 0.2, y: 0.31, flip: true }
-    ],
-    8: [
-      { x: -0.2, y: -0.31, flip: false }, { x: 0.2, y: -0.31, flip: false },
-      { x: 0, y: -0.12, flip: false }, { x: 0, y: 0.12, flip: true },
-      { x: -0.2, y: 0.08, flip: false }, { x: 0.2, y: 0.08, flip: false },
-      { x: -0.2, y: 0.31, flip: true }, { x: 0.2, y: 0.31, flip: true }
-    ],
-    9: [
-      { x: -0.2, y: -0.31, flip: false }, { x: 0.2, y: -0.31, flip: false },
-      { x: -0.2, y: -0.11, flip: false }, { x: 0.2, y: -0.11, flip: false },
-      { x: 0, y: 0, flip: false },
-      { x: -0.2, y: 0.11, flip: true }, { x: 0.2, y: 0.11, flip: true },
-      { x: -0.2, y: 0.31, flip: true }, { x: 0.2, y: 0.31, flip: true }
-    ],
-    10: [
-      { x: -0.2, y: -0.33, flip: false }, { x: 0.2, y: -0.33, flip: false },
-      { x: -0.2, y: -0.13, flip: false }, { x: 0.2, y: -0.13, flip: false },
-      { x: 0, y: -0.02, flip: false }, { x: 0, y: 0.2, flip: true },
-      { x: -0.2, y: 0.13, flip: true }, { x: 0.2, y: 0.13, flip: true },
-      { x: -0.2, y: 0.33, flip: true }, { x: 0.2, y: 0.33, flip: true }
-    ]
-  };
-  if (isFaceCard) {
-    drawFaceArt();
-  } else if (rank === 'JR' || rank === 'JB') {
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillStyle = rank === 'JR' ? '#dc2626' : '#111827';
-    g.font = `800 ${Math.round(w * 0.26)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText('JOKER', w / 2, h * 0.46);
-    g.font = `700 ${Math.round(w * 0.24)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(rank === 'JR' ? '🃏' : '♟', w / 2, h * 0.62);
-  } else {
-    const pipCount = rankToPipCount[rank] ?? 1;
-    const layout = pipLayouts[pipCount] ?? pipLayouts[1];
-    const centerX = w / 2;
-    const centerY = h / 2;
-    const spreadX = w * 0.5;
-    const spreadY = h * 0.62;
-    layout.forEach(({ x, y, flip }) => {
-      drawPip(centerX + x * spreadX, centerY + y * spreadY, flip);
-    });
-  }
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, w / 2, h / 2);
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
