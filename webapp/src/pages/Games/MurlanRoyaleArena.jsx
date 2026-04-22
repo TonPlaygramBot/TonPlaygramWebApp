@@ -2322,7 +2322,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
-const CAMERA_SCREEN_DOWN_SHIFT = 0.165 * MODEL_SCALE;
+const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.31;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.028 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.018 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2369,7 +2369,7 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
+const CHAIR_GROUND_DROP = 0;
 const CHAIR_SCREEN_LOWER_OFFSET = 0;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
@@ -3902,7 +3902,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'bottom');
+      setBackLogoOrientation(mesh, 'top');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -4890,11 +4890,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.62, 3.05 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.72, 3.45 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.5 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6624,10 +6624,6 @@ function setBackLogoOrientation(mesh, variant = 'default') {
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = 0;
-    } else if (desiredVariant === 'bottom') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'side') {
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
@@ -6646,111 +6642,6 @@ function setBackLogoOrientation(mesh, variant = 'default') {
   }
 }
 
-const NUMBER_CARD_PIP_ROWS = Object.freeze({
-  A: [{ y: 0, cols: [0] }],
-  '2': [{ y: -0.32, cols: [0] }, { y: 0.32, cols: [0] }],
-  '3': [{ y: -0.34, cols: [0] }, { y: 0, cols: [0] }, { y: 0.34, cols: [0] }],
-  '4': [{ y: -0.32, cols: [-0.48, 0.48] }, { y: 0.32, cols: [-0.48, 0.48] }],
-  '5': [{ y: -0.33, cols: [-0.48, 0.48] }, { y: 0, cols: [0] }, { y: 0.33, cols: [-0.48, 0.48] }],
-  '6': [{ y: -0.36, cols: [-0.48, 0.48] }, { y: 0, cols: [-0.48, 0.48] }, { y: 0.36, cols: [-0.48, 0.48] }],
-  '7': [{ y: -0.42, cols: [0] }, { y: -0.2, cols: [-0.48, 0.48] }, { y: 0.12, cols: [-0.48, 0.48] }, { y: 0.42, cols: [-0.48, 0.48] }],
-  '8': [{ y: -0.42, cols: [-0.48, 0.48] }, { y: -0.14, cols: [-0.48, 0.48] }, { y: 0.14, cols: [-0.48, 0.48] }, { y: 0.42, cols: [-0.48, 0.48] }],
-  '9': [{ y: -0.44, cols: [-0.48, 0.48] }, { y: -0.2, cols: [-0.48, 0.48] }, { y: 0, cols: [0] }, { y: 0.2, cols: [-0.48, 0.48] }, { y: 0.44, cols: [-0.48, 0.48] }],
-  '10': [{ y: -0.45, cols: [-0.48, 0.48] }, { y: -0.23, cols: [-0.48, 0.48] }, { y: 0, cols: [-0.48, 0.48] }, { y: 0.23, cols: [-0.48, 0.48] }, { y: 0.45, cols: [-0.48, 0.48] }]
-});
-
-function drawNumberCardPips(g, rank, suit, w, h, color) {
-  const rows = NUMBER_CARD_PIP_ROWS[rank];
-  if (!rows?.length) return;
-  const centerX = w / 2;
-  const centerY = h / 2;
-  const pipSize = Math.round(w * 0.165);
-  g.save();
-  g.fillStyle = color;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `700 ${pipSize}px "Inter", "Segoe UI Symbol", sans-serif`;
-  rows.forEach((row) => {
-    const y = centerY + row.y * h * 0.31;
-    row.cols.forEach((col) => {
-      const x = centerX + col * w * 0.23;
-      g.fillText(suit, x, y);
-    });
-  });
-  g.restore();
-}
-
-function drawFaceCardArt(g, rank, suit, w, h, color) {
-  const panelX = w * 0.19;
-  const panelY = h * 0.22;
-  const panelW = w * 0.62;
-  const panelH = h * 0.56;
-  const accent = rank === 'K' ? '#c026d3' : rank === 'Q' ? '#0ea5e9' : '#f59e0b';
-  g.save();
-  g.fillStyle = '#f8fafc';
-  g.strokeStyle = '#94a3b8';
-  g.lineWidth = Math.max(4, Math.round(w * 0.008));
-  roundRect(g, panelX, panelY, panelW, panelH, Math.round(w * 0.05));
-  g.fill();
-  g.stroke();
-
-  const drawHalf = (flipped = false) => {
-    g.save();
-    g.translate(w / 2, h / 2);
-    if (flipped) g.rotate(Math.PI);
-    g.translate(-w / 2, -h / 2);
-
-    const cx = w / 2;
-    const headY = h * 0.39;
-    const crownY = h * 0.315;
-    const shoulderY = h * 0.475;
-
-    g.fillStyle = accent;
-    g.beginPath();
-    g.moveTo(cx - w * 0.09, crownY + h * 0.01);
-    g.lineTo(cx - w * 0.045, crownY - h * 0.05);
-    g.lineTo(cx, crownY + h * 0.01);
-    g.lineTo(cx + w * 0.045, crownY - h * 0.05);
-    g.lineTo(cx + w * 0.09, crownY + h * 0.01);
-    g.closePath();
-    g.fill();
-
-    g.fillStyle = '#fde68a';
-    g.beginPath();
-    g.arc(cx, headY, w * 0.055, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = '#1f2937';
-    g.lineWidth = Math.max(2, Math.round(w * 0.005));
-    g.stroke();
-
-    g.fillStyle = color;
-    g.beginPath();
-    g.moveTo(cx - w * 0.13, shoulderY);
-    g.lineTo(cx + w * 0.13, shoulderY);
-    g.lineTo(cx + w * 0.08, h * 0.61);
-    g.lineTo(cx - w * 0.08, h * 0.61);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = '#1e293b';
-    g.stroke();
-
-    g.fillStyle = accent;
-    g.font = `700 ${Math.round(w * 0.11)}px "Inter", "Segoe UI", sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(rank, cx, h * 0.55);
-
-    g.fillStyle = color;
-    g.font = `700 ${Math.round(w * 0.09)}px "Inter", "Segoe UI Symbol", sans-serif`;
-    g.fillText(suit, cx, h * 0.61);
-    g.restore();
-  };
-
-  drawHalf(false);
-  drawHalf(true);
-  g.restore();
-}
-
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -6765,7 +6656,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   g.stroke();
 
   const color = SUIT_COLORS[suit] || '#0f172a';
-  const label = rank === 'JB' ? 'J' : rank === 'JR' ? 'J' : String(rank);
+  const label = rank === 'JB' ? 'JB' : rank === 'JR' ? 'JR' : String(rank);
   const cornerRankSize = Math.round(w * 0.18);
   const cornerSuitSize = Math.round(w * 0.16);
   const cornerPaddingX = Math.round(w * 0.11);
@@ -6791,18 +6682,10 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   drawCorner(cornerPaddingX, cornerTopY, 'left');
   drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
-  if (rank === 'JR' || rank === 'JB') {
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.font = `700 ${Math.round(w * 0.34)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(rank, w / 2, h * 0.5);
-    g.font = `700 ${Math.round(w * 0.2)}px "Inter", "Segoe UI Symbol", sans-serif`;
-    g.fillText('🃏', w / 2, h * 0.63);
-  } else if (rank === 'J' || rank === 'Q' || rank === 'K') {
-    drawFaceCardArt(g, rank, suit, w, h, color);
-  } else {
-    drawNumberCardPips(g, rank, suit, w, h, color);
-  }
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, w / 2, h / 2);
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
