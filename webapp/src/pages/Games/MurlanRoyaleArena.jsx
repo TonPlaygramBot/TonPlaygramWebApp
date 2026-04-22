@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.018 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.028 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2369,7 +2369,7 @@ const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const CHAIR_GROUND_DROP = 0;
+const CHAIR_GROUND_DROP = 0.018 * MODEL_SCALE;
 const CHAIR_SCREEN_LOWER_OFFSET = 0;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
@@ -2618,16 +2618,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.22,
     pixelRatioCap: 1.72,
-    resolution: '8K texture pack • 120 FPS',
-    hdriResolution: '8k',
-    preferredTextureSizes: ['8k', '4k', '2k', '1k'],
+    resolution: '4K texture pack • 120 FPS',
+    hdriResolution: '4k',
+    preferredTextureSizes: ['4k', '2k', '1k'],
     cardTextureScale: 1.36,
-    description: 'Poly Haven 8K HDRI target with fallback to 4K.'
+    description: 'Poly Haven 4K HDRI target with fallback to 2K.'
   }
 ]);
 
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k', '2k']), fallbackResolution: '4k' },
+  { minFps: 120, preferredResolutions: Object.freeze(['4k', '2k', '1k']), fallbackResolution: '2k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
 ]);

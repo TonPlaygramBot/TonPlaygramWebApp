@@ -150,14 +150,133 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
     ctx.ellipse(w / 2, h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.fillStyle = suitColor;
-  ctx.font = 'bold 160px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
-  ctx.textAlign = 'center';
-  ctx.fillText(convertSuit(suit), w / 2, h / 2 + 56);
+  drawCenterGlyphs(ctx, {
+    rank: label,
+    suit,
+    suitColor,
+    w,
+    h
+  });
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = 8;
   return texture;
+}
+
+function drawCenterGlyphs(ctx, { rank, suit, suitColor, w, h }) {
+  const faceRanks = new Set(['J', 'Q', 'K']);
+  if (faceRanks.has(rank)) {
+    drawFaceCardIllustration(ctx, { rank, suit, suitColor, w, h });
+    return;
+  }
+  const pipCount = rank === 'A' ? 1 : Number.parseInt(rank, 10);
+  if (!Number.isFinite(pipCount) || pipCount <= 0) {
+    drawSingleSuitGlyph(ctx, suit, suitColor, w, h, 160);
+    return;
+  }
+  drawPipLayout(ctx, pipCount, suit, suitColor, w, h);
+}
+
+function drawSingleSuitGlyph(ctx, suit, suitColor, w, h, size = 150) {
+  ctx.fillStyle = suitColor;
+  ctx.font = `bold ${size}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(convertSuit(suit), w / 2, h / 2);
+}
+
+function drawPipLayout(ctx, pipCount, suit, suitColor, w, h) {
+  const layouts = {
+    1: [[0, 0]],
+    2: [[0, -0.34], [0, 0.34]],
+    3: [[0, -0.36], [0, 0], [0, 0.36]],
+    4: [[-0.22, -0.34], [0.22, -0.34], [-0.22, 0.34], [0.22, 0.34]],
+    5: [[-0.22, -0.34], [0.22, -0.34], [0, 0], [-0.22, 0.34], [0.22, 0.34]],
+    6: [[-0.24, -0.36], [0.24, -0.36], [-0.24, 0], [0.24, 0], [-0.24, 0.36], [0.24, 0.36]],
+    7: [[-0.24, -0.36], [0.24, -0.36], [-0.24, -0.06], [0.24, -0.06], [0, 0.16], [-0.24, 0.36], [0.24, 0.36]],
+    8: [[-0.24, -0.38], [0.24, -0.38], [-0.24, -0.12], [0.24, -0.12], [-0.24, 0.12], [0.24, 0.12], [-0.24, 0.38], [0.24, 0.38]],
+    9: [[-0.24, -0.38], [0.24, -0.38], [-0.24, -0.14], [0.24, -0.14], [0, 0], [-0.24, 0.14], [0.24, 0.14], [-0.24, 0.38], [0.24, 0.38]],
+    10: [[-0.24, -0.4], [0.24, -0.4], [-0.24, -0.18], [0.24, -0.18], [-0.24, 0.04], [0.24, 0.04], [-0.24, 0.26], [0.24, 0.26], [-0.24, 0.44], [0.24, 0.44]]
+  };
+  const points = layouts[pipCount] ?? layouts[1];
+  const fontSize = pipCount >= 9 ? 78 : pipCount >= 6 ? 88 : 98;
+  ctx.fillStyle = suitColor;
+  ctx.font = `bold ${fontSize}px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const [dx, dy] of points) {
+    ctx.fillText(convertSuit(suit), w / 2 + dx * w, h / 2 + dy * h);
+  }
+}
+
+function drawFaceCardIllustration(ctx, { rank, suit, suitColor, w, h }) {
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const frameW = w * 0.58;
+  const frameH = h * 0.5;
+  const frameX = centerX - frameW / 2;
+  const frameY = centerY - frameH / 2;
+  const bodyColor = suitColor === '#cc2233' ? '#f5d0d0' : '#d9dde7';
+  const accent = suitColor === '#cc2233' ? '#b91c1c' : '#1f2937';
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.08)';
+  roundRect(ctx, frameX + 5, frameY + 8, frameW, frameH, 36);
+  ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.18)';
+  ctx.lineWidth = 5;
+  roundRect(ctx, frameX, frameY, frameW, frameH, 36);
+  ctx.fill();
+  ctx.stroke();
+
+  // Head
+  ctx.fillStyle = '#f6d4b8';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - frameH * 0.22, frameW * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  // Crown/hat
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.moveTo(centerX - frameW * 0.16, centerY - frameH * 0.33);
+  ctx.lineTo(centerX - frameW * 0.08, centerY - frameH * 0.44);
+  ctx.lineTo(centerX, centerY - frameH * 0.35);
+  ctx.lineTo(centerX + frameW * 0.08, centerY - frameH * 0.44);
+  ctx.lineTo(centerX + frameW * 0.16, centerY - frameH * 0.33);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = bodyColor;
+  roundRect(ctx, centerX - frameW * 0.18, centerY - frameH * 0.09, frameW * 0.36, frameH * 0.36, 30);
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Scepter / sword cue for face cards
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = rank === 'J' ? 6 : 5;
+  ctx.beginPath();
+  if (rank === 'J') {
+    ctx.moveTo(centerX - frameW * 0.2, centerY + frameH * 0.2);
+    ctx.lineTo(centerX + frameW * 0.2, centerY - frameH * 0.02);
+  } else if (rank === 'Q') {
+    ctx.moveTo(centerX, centerY + frameH * 0.22);
+    ctx.lineTo(centerX, centerY - frameH * 0.04);
+  } else {
+    ctx.moveTo(centerX + frameW * 0.18, centerY + frameH * 0.2);
+    ctx.lineTo(centerX - frameW * 0.18, centerY - frameH * 0.02);
+  }
+  ctx.stroke();
+
+  drawSingleSuitGlyph(ctx, suit, suitColor, w, h, 86);
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 72px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(rank, centerX, frameY + frameH - 42);
+  ctx.restore();
 }
 
 export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
