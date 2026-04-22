@@ -409,13 +409,14 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.66;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.62;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.5;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
 const AI_CARD_INWARD_SHIFT = CARD_W * -2.28;
-const AI_CHIP_INWARD_SHIFT = CARD_W * -0.1;
+const AI_CHIP_INWARD_SHIFT = CARD_W * -0.2;
 const AI_CARD_LATERAL_SHIFT = CARD_W * 0.48;
 const AI_CHIP_LATERAL_SHIFT = CARD_W * -0.22;
+const CHIP_STACK_VERTICAL_LIFT = CARD_H * 0.06;
 const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
@@ -2134,7 +2135,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipAnchor.y = railSurfaceY - seatLayerDrop;
+    chipAnchor.y = railSurfaceY - seatLayerDrop + CHIP_STACK_VERTICAL_LIFT;
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
@@ -2144,7 +2145,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipRailAnchor.y = railSurfaceY - seatLayerDrop;
+    chipRailAnchor.y = railSurfaceY - seatLayerDrop + CHIP_STACK_VERTICAL_LIFT;
     const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
