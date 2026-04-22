@@ -1655,13 +1655,13 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const safeCount = Math.max(handCards.length, 2);
   const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
-    cornerRadiusRatio: 0.12,
-    segments: 8
+    cornerRadiusRatio: 0.14,
+    segments: 10
   });
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
-    roughness: 0.55,
-    metalness: 0.1
+    roughness: 0.72,
+    metalness: 0.04
   });
   const backTexture = makeCardBackTexture(cardTheme);
   const managedTextures = [backTexture];
@@ -1675,16 +1675,16 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: faceTexture,
       color: new THREE.Color('#ffffff'),
-      roughness: 0.36,
-      metalness: 0.08
+      roughness: 0.68,
+      metalness: 0.03
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
       color: new THREE.Color('#ffffff'),
-      roughness: 0.6,
-      metalness: 0.15,
+      roughness: 0.78,
+      metalness: 0.04,
       emissive: new THREE.Color('#0f172a'),
-      emissiveIntensity: 0.08
+      emissiveIntensity: 0.05
     });
     managedMaterials.push(frontMaterial, backMaterial);
     const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
@@ -2330,8 +2330,8 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.84
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.7,
-  landscape: 0.82
+  portrait: 1.78,
+  landscape: 0.9
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
@@ -4955,8 +4955,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.12,
-        segments: 8
+        cornerRadiusRatio: 0.14,
+        segments: 10
       });
 
       const seatConfigs = [];
@@ -5109,7 +5109,7 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.58);
-      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.88;
+      const desiredRadius = Math.min(maxOrbitRadius, minOrbitRadius * 1.1) * CAMERA_INWARD_RADIUS_FACTOR * 0.92;
       spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
@@ -6552,14 +6552,14 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   }
   const edgeMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.edgeColor),
-    roughness: 0.82,
+    roughness: 0.9,
     metalness: 0,
     envMapIntensity: 0
   });
   const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTexture,
-    roughness: 0.96,
+    roughness: 0.985,
     metalness: 0,
     envMapIntensity: 0,
     color: new THREE.Color('#ffffff')
@@ -6568,15 +6568,15 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
     color: new THREE.Color('#ffffff'),
-    roughness: 0.98,
+    roughness: 0.995,
     metalness: 0,
     envMapIntensity: 0,
     emissive: new THREE.Color('#0f172a'),
-    emissiveIntensity: 0.02
+    emissiveIntensity: 0.01
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
-    roughness: 0.95,
+    roughness: 0.98,
     metalness: 0,
     envMapIntensity: 0
   });
@@ -7000,11 +7000,11 @@ function applyCardThemeMaterials(three, theme, force = false, textureQuality = n
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
     backMaterial.color?.set?.('#ffffff');
-    backMaterial.roughness = 0.98;
+    backMaterial.roughness = 0.995;
     backMaterial.metalness = 0;
     backMaterial.envMapIntensity = 0;
     backMaterial.needsUpdate = true;
-    frontMaterial.roughness = 0.96;
+    frontMaterial.roughness = 0.985;
     frontMaterial.metalness = 0;
     frontMaterial.envMapIntensity = 0;
     if (hiddenMaterial?.color) {
