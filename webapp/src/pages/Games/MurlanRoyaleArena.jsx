@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.015 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.017 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -3762,7 +3762,7 @@ export default function MurlanRoyaleArena({ search }) {
         const isGiftSideSeat = seat?.handVariant === 'giftSide';
         const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
         const backLogoVariant = !isHumanCard
-          ? (isGiftSideSeat ? 'sideGift' : isSideSeatOnScreen ? 'side' : 'top')
+          ? (isSideSeatOnScreen ? 'side' : 'top')
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
