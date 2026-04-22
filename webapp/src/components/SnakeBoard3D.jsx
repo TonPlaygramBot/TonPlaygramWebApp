@@ -302,16 +302,22 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
+  // Bottom seat: pull token closer to the table rail on portrait screens.
+  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
+  // Top seat: push token farther from the table edge (visually away from table).
+  Object.freeze({ radial: TILE_SIZE * 0.12, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 })
+  // Bottom seat: pull weapon farther inward than token so it sits next to it.
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  // Right seat: move weapon closer to table edge where the token rests.
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 }),
+  // Top seat: lower weapon so it rests on/touches the table surface like token.
+  Object.freeze({ radial: 0, lateral: 0, y: -TOKEN_HEIGHT * 0.28 }),
+  // Left seat: move weapon closer to table edge where the token rests.
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 })
 ]);
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
