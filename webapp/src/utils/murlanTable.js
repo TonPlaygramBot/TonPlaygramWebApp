@@ -723,10 +723,12 @@ export function createMurlanStyleTable({
   tableGroup.add(rimMesh);
 
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
+  const isClassicOctagon = shapeOption?.id === 'classicOctagon';
   const brandPlateSize = {
     width: rimSize.width * 0.9,
     depth: rimSize.depth * 0.86,
-    thickness: 0.013 * scaleFactor
+    // Keep the brand plate slimmer so it sits cleaner on the top rail across all table shapes.
+    thickness: 0.0095 * scaleFactor
   };
   const brandPlateGeometry = new ThreeNamespace.BoxGeometry(
     brandPlateSize.width,
@@ -755,10 +757,14 @@ export function createMurlanStyleTable({
   const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
   brandPlate.position.set(
     0,
-    tableY + clothRise * 0.84,
+    tableY + clothRise * (isClassicOctagon ? 1.01 : 0.92),
     frontRadius - brandPlateSize.depth * 1.08
   );
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
+  if (isClassicOctagon) {
+    // Match the front rail direction on the octagon variant so the branding follows the same slant.
+    brandPlate.rotation.y = THREE.MathUtils.degToRad(22.5);
+  }
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
   tableGroup.add(brandPlate);
