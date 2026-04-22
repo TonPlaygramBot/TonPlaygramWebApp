@@ -2322,7 +2322,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
-const CAMERA_SCREEN_DOWN_SHIFT = 0.18 * MODEL_SCALE;
+const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.31;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
@@ -2335,7 +2335,7 @@ const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
 const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.028 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.018 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2370,7 +2370,7 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.022 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -3902,7 +3902,7 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.visible = true;
       mesh.scale.setScalar(1);
       updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'default');
+      setBackLogoOrientation(mesh, 'top');
       setCommunityCardLegibility(mesh, false);
       const target = discardAnchor.clone();
       target.y += idx * 0.0015;
@@ -4890,11 +4890,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(innerHalfWidth * 0.6, 3.05 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.72, 3.45 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.5 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6642,54 +6642,6 @@ function setBackLogoOrientation(mesh, variant = 'default') {
   }
 }
 
-const STANDARD_PIP_LAYOUTS = Object.freeze({
-  A: [[0.5, 0.5]],
-  2: [[0.5, 0.2], [0.5, 0.8]],
-  3: [[0.5, 0.2], [0.5, 0.5], [0.5, 0.8]],
-  4: [[0.3, 0.22], [0.7, 0.22], [0.3, 0.78], [0.7, 0.78]],
-  5: [[0.3, 0.22], [0.7, 0.22], [0.5, 0.5], [0.3, 0.78], [0.7, 0.78]],
-  6: [[0.3, 0.2], [0.7, 0.2], [0.3, 0.5], [0.7, 0.5], [0.3, 0.8], [0.7, 0.8]],
-  7: [[0.3, 0.18], [0.7, 0.18], [0.5, 0.34], [0.3, 0.5], [0.7, 0.5], [0.3, 0.8], [0.7, 0.8]],
-  8: [[0.3, 0.18], [0.7, 0.18], [0.3, 0.38], [0.7, 0.38], [0.3, 0.62], [0.7, 0.62], [0.3, 0.82], [0.7, 0.82]],
-  9: [[0.3, 0.16], [0.7, 0.16], [0.3, 0.33], [0.7, 0.33], [0.5, 0.5], [0.3, 0.67], [0.7, 0.67], [0.3, 0.84], [0.7, 0.84]],
-  10: [[0.3, 0.15], [0.7, 0.15], [0.3, 0.31], [0.7, 0.31], [0.3, 0.5], [0.7, 0.5], [0.3, 0.69], [0.7, 0.69], [0.3, 0.85], [0.7, 0.85]]
-});
-
-const FACE_CARD_GLYPHS = Object.freeze({
-  '♠': { J: '🂫', Q: '🂭', K: '🂮' },
-  '♥': { J: '🂻', Q: '🂽', K: '🂾' },
-  '♦': { J: '🃋', Q: '🃍', K: '🃎' },
-  '♣': { J: '🃛', Q: '🃝', K: '🃞' }
-});
-
-function drawPipLayout(g, rank, suit, w, h, color) {
-  const layout = STANDARD_PIP_LAYOUTS[String(rank)];
-  if (!layout?.length) return false;
-  g.save();
-  g.fillStyle = color;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `900 ${Math.round(w * 0.17)}px "Noto Sans Symbols 2", "Segoe UI Symbol", "Apple Symbols", sans-serif`;
-  layout.forEach(([x, y]) => {
-    g.fillText(suit, x * w, y * h);
-  });
-  g.restore();
-  return true;
-}
-
-function drawFaceCardFigure(g, rank, suit, w, h, color) {
-  const glyph = FACE_CARD_GLYPHS?.[suit]?.[String(rank)];
-  if (!glyph) return false;
-  g.save();
-  g.fillStyle = color;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = `900 ${Math.round(w * 0.56)}px "Noto Sans Symbols 2", "Segoe UI Symbol", "Apple Symbols", sans-serif`;
-  g.fillText(glyph, w / 2, h / 2);
-  g.restore();
-  return true;
-}
-
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -6730,20 +6682,10 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   drawCorner(cornerPaddingX, cornerTopY, 'left');
   drawCorner(w - cornerPaddingX, cornerBottomY, 'left', true);
 
-  const isJoker = rank === 'JB' || rank === 'JR';
-  let paintedCenter = false;
-  if (!isJoker && ['J', 'Q', 'K'].includes(String(rank))) {
-    paintedCenter = drawFaceCardFigure(g, String(rank), suit, w, h, color);
-  }
-  if (!paintedCenter && !isJoker) {
-    paintedCenter = drawPipLayout(g, rank, suit, w, h, color);
-  }
-  if (!paintedCenter) {
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
-    g.fillText(suit, w / 2, h / 2);
-  }
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 ${Math.round(w * 0.36)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(suit, w / 2, h / 2);
 
   const tex = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(tex);
