@@ -618,6 +618,7 @@ const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.44;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
 const RAIL_SURFACE_LIFT = CARD_D * 0.8;
+const PLAYER_CHIP_RAIL_HEIGHT_LIFT = CARD_D * 1.35;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.42;
 
 const CHIP_SCATTER_LAYOUT = Object.freeze({
@@ -2124,7 +2125,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipAnchor.y = railSurfaceY - seatLayerDrop;
+    chipAnchor.y = railSurfaceY - seatLayerDrop + PLAYER_CHIP_RAIL_HEIGHT_LIFT;
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, cardInwardShift)
@@ -2134,7 +2135,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, chipInwardShift)
       .addScaledVector(right, chipLateralShift);
-    chipRailAnchor.y = railSurfaceY - seatLayerDrop;
+    chipRailAnchor.y = railSurfaceY - seatLayerDrop + PLAYER_CHIP_RAIL_HEIGHT_LIFT;
     const humanBetForwardOffset = isHuman ? HUMAN_BET_FORWARD_OFFSET : BET_FORWARD_OFFSET;
     const betAnchor = forward
       .clone()
