@@ -26666,42 +26666,19 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          cue.vel.copy(base);
-          cue.maxRailSpeed = Math.max(cue.vel.length(), 0);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
+          const impactPayload = {
+            base: base.clone(),
+            aimDir: shotAimDir.clone(),
+            physicsSpin: { x: spinSide, y: spinTop },
+            clampedPower,
+            liftStrength,
+            applied: false
+          };
+          cue.maxRailSpeed = Math.max(base.length(), 0);
+
+          if (!ENABLE_CUE_STROKE_ANIMATION) {
+            applyShotAtImpact(impactPayload);
           }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
-          spawnCueImpactDust({
-            origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
-            direction: new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y),
-            power: clampedPower
-          });
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -26937,7 +26914,8 @@ const powerRef = useRef(hud.power);
               forwardOnly: true,
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: true,
+              onImpact: () => applyShotAtImpact(impactPayload)
             };
           } else {
             cueStick.visible = false;
