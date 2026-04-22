@@ -266,6 +266,24 @@ function scaleShape2D(shape, scaleX, scaleY, divisions = 64) {
   return scaledShape;
 }
 
+function rotateShape2D(shape, angle = 0, divisions = 96) {
+  if (!shape || !Number.isFinite(angle) || Math.abs(angle) < 1e-6) return shape;
+  const pointsData = shape.extractPoints(divisions);
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const rotatePoint = (point) =>
+    new THREE.Vector2(
+      point.x * cosA - point.y * sinA,
+      point.x * sinA + point.y * cosA
+    );
+  const rotatedShape = new THREE.Shape(pointsData.shape.map(rotatePoint));
+  pointsData.holes?.forEach((holePoints) => {
+    const hole = new THREE.Path(holePoints.map(rotatePoint));
+    rotatedShape.holes.push(hole);
+  });
+  return rotatedShape;
+}
+
 function getShapeOutlinePoints(shape, divisions = 128) {
   if (!shape?.extractPoints) return [];
   const pointsData = shape.extractPoints(divisions);
@@ -310,8 +328,14 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     thumbnail: swatchThumbnail(['#0f172a', '#1f2937', '#38bdf8']),
     createShapes: ({ radius }) => {
       const sideStretch = 1.06;
-      const topShape = scaleShape2D(createRegularPolygonShape(8, radius), sideStretch, 1);
-      const feltShape = scaleShape2D(createRegularPolygonShape(8, radius * 0.8), sideStretch, 1);
+      const topShape = rotateShape2D(
+        scaleShape2D(createRegularPolygonShape(8, radius), sideStretch, 1),
+        Math.PI / 8
+      );
+      const feltShape = rotateShape2D(
+        scaleShape2D(createRegularPolygonShape(8, radius * 0.8), sideStretch, 1),
+        Math.PI / 8
+      );
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
       return { topShape, feltShape, rimInnerShape };
     }
@@ -366,8 +390,14 @@ export const TABLE_SHAPE_OPTIONS = Object.freeze([
     thumbnail: swatchThumbnail(['#0f172a', '#111827', '#22d3ee']),
     createShapes: ({ radius }) => {
       const sideStretch = 1.06;
-      const topShape = scaleShape2D(createRegularPolygonShape(6, radius), sideStretch, 1);
-      const feltShape = scaleShape2D(createRegularPolygonShape(6, radius * 0.8), sideStretch, 1);
+      const topShape = rotateShape2D(
+        scaleShape2D(createRegularPolygonShape(6, radius), sideStretch, 1),
+        Math.PI / 6
+      );
+      const feltShape = rotateShape2D(
+        scaleShape2D(createRegularPolygonShape(6, radius * 0.8), sideStretch, 1),
+        Math.PI / 6
+      );
       const rimInnerShape = scaleShape2D(feltShape, 0.96, 0.96);
       return { topShape, feltShape, rimInnerShape };
     }
@@ -499,10 +529,43 @@ function makeBrandPlateTexture() {
   const bgPattern = ctx.createPattern(pattern, 'repeat');
   ctx.fillStyle = bgPattern || '#111827';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-  ctx.fillStyle = '#e2e8f0';
+  const goldFill = '#e6c56a';
+  const goldStroke = '#f2d783';
+  const frameX = 12;
+  const frameY = 12;
+  const frameW = canvas.width - 24;
+  const frameH = canvas.height - 24;
+  const radius = 24;
+  ctx.strokeStyle = goldStroke;
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(frameX + radius, frameY);
+  ctx.lineTo(frameX + frameW - radius, frameY);
+  ctx.quadraticCurveTo(frameX + frameW, frameY, frameX + frameW, frameY + radius);
+  ctx.lineTo(frameX + frameW, frameY + frameH - radius);
+  ctx.quadraticCurveTo(frameX + frameW, frameY + frameH, frameX + frameW - radius, frameY + frameH);
+  ctx.lineTo(frameX + radius, frameY + frameH);
+  ctx.quadraticCurveTo(frameX, frameY + frameH, frameX, frameY + frameH - radius);
+  ctx.lineTo(frameX, frameY + radius);
+  ctx.quadraticCurveTo(frameX, frameY, frameX + radius, frameY);
+  ctx.closePath();
+  ctx.stroke();
+
+  const dotRadius = 8;
+  const dotOffset = 34;
+  [
+    [frameX + dotOffset, frameY + dotOffset],
+    [frameX + frameW - dotOffset, frameY + dotOffset],
+    [frameX + dotOffset, frameY + frameH - dotOffset],
+    [frameX + frameW - dotOffset, frameY + frameH - dotOffset]
+  ].forEach(([x, y]) => {
+    ctx.fillStyle = goldFill;
+    ctx.beginPath();
+    ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = goldFill;
   ctx.font = '700 96px "Inter", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -723,7 +786,6 @@ export function createMurlanStyleTable({
   tableGroup.add(rimMesh);
 
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
-  const isClassicOctagon = shapeOption?.id === 'classicOctagon';
   const brandPlateSize = {
     width: rimSize.width * 0.9,
     depth: rimSize.depth * 0.86,
@@ -757,32 +819,58 @@ export function createMurlanStyleTable({
   const frontRadius = outerRadiusSampler(new ThreeNamespace.Vector2(0, 1));
   brandPlate.position.set(
     0,
-    tableY + clothRise * (isClassicOctagon ? 1.01 : 0.92),
+    tableY + clothRise * 1.14,
     frontRadius - brandPlateSize.depth * 1.08
   );
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-2.2);
-  if (isClassicOctagon) {
-    // Match the front rail direction on the octagon variant so the branding follows the same slant.
-    brandPlate.rotation.y = THREE.MathUtils.degToRad(22.5);
-  }
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
   tableGroup.add(brandPlate);
 
   if (includeBase) {
+    const baseRadialSegments =
+      shapeOption?.id === 'hexagonTable'
+        ? 6
+        : shapeOption?.id === 'diamondEdge'
+          ? 4
+          : shapeOption?.id === 'classicOctagon'
+            ? 8
+            : 32;
+    const baseRadiusTop =
+      shapeOption?.id === 'diamondEdge' ? 0.56 * scaleFactor : 0.62 * scaleFactor;
+    const baseRadiusBottom =
+      shapeOption?.id === 'diamondEdge' ? 0.78 * scaleFactor : 0.84 * scaleFactor;
     const baseGeometry = new ThreeNamespace.CylinderGeometry(
-      0.62 * scaleFactor,
-      0.84 * scaleFactor,
+      baseRadiusTop,
+      baseRadiusBottom,
       baseHeight,
-      8,
+      baseRadialSegments,
       1,
       false
     );
     const baseMesh = new ThreeNamespace.Mesh(baseGeometry, baseMat);
+    if (shapeOption?.id === 'diamondEdge') {
+      baseMesh.rotation.y = Math.PI / 4;
+    }
     baseMesh.position.y = tableY - baseHeight / 2 + baseLift;
     baseMesh.castShadow = true;
     baseMesh.receiveShadow = true;
     tableGroup.add(baseMesh);
+
+    const pedestalFoot = new ThreeNamespace.Mesh(
+      new ThreeNamespace.CylinderGeometry(
+        tableRadius * 0.31,
+        tableRadius * 0.4,
+        0.1 * scaleFactor,
+        Math.max(16, baseRadialSegments * 2)
+      ),
+      trimMat
+    );
+    pedestalFoot.position.y =
+      baseMesh.position.y - baseHeight / 2 + 0.05 * scaleFactor;
+    pedestalFoot.castShadow = true;
+    pedestalFoot.receiveShadow = true;
+    tableGroup.add(pedestalFoot);
 
     const trimGeometry = new ThreeNamespace.CylinderGeometry(
       tableRadius * 0.985,
