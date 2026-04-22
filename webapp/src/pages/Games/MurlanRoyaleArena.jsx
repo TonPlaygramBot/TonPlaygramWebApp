@@ -2322,7 +2322,7 @@ const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.2;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.23;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
@@ -3729,8 +3729,9 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
+        const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
         const backLogoVariant = !isHumanCard
-          ? 'top'
+          ? (isSideSeatOnScreen ? 'side' : 'top')
           : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
@@ -3743,7 +3744,11 @@ export default function MurlanRoyaleArena({ search }) {
         const lateral = humanLineOffset;
         const radial = player.isHuman ? radius : radius + AI_CARD_OUTWARD;
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
-        const fanDirection = HUMAN_HAND_FAN_DIRECTION;
+        const fanDirection = isHumanCard
+          ? HUMAN_HAND_FAN_DIRECTION
+          : (forward?.x ?? 0) < -0.45
+            ? -HUMAN_HAND_FAN_DIRECTION
+            : HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
