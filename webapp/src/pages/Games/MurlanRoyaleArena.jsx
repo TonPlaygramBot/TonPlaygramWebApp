@@ -6550,27 +6550,35 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
     faceTexture = makeCardFace(card.rank, card.suit, theme, textureQuality?.w, textureQuality?.h);
     cache.set(faceKey, faceTexture);
   }
-  const edgeMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.edgeColor), roughness: 0.55, metalness: 0.1 });
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme.edgeColor),
+    roughness: 0.82,
+    metalness: 0,
+    envMapIntensity: 0
+  });
   const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTexture,
-    roughness: 0.35,
-    metalness: 0.08,
+    roughness: 0.96,
+    metalness: 0,
+    envMapIntensity: 0,
     color: new THREE.Color('#ffffff')
   });
-  const backTexture = makeCardBackTexture(theme);
+  const backTexture = makeCardBackTexture(theme, textureQuality);
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
     color: new THREE.Color('#ffffff'),
-    roughness: 0.6,
-    metalness: 0.15,
+    roughness: 0.98,
+    metalness: 0,
+    envMapIntensity: 0,
     emissive: new THREE.Color('#0f172a'),
-    emissiveIntensity: 0.08
+    emissiveIntensity: 0.02
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
-    roughness: 0.7,
-    metalness: 0.12
+    roughness: 0.95,
+    metalness: 0,
+    envMapIntensity: 0
   });
   const mesh = new THREE.Mesh(geometry, [...edgeMats, frontMat, backMat]);
   mesh.userData.cardId = card.id;
@@ -6908,8 +6916,11 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   return tex;
 }
 
-function makeCardBackTexture(theme) {
-  return makeTonplaygramCardBackTexture(theme);
+function makeCardBackTexture(theme, textureQuality = null) {
+  const safeQualityScale = Number.isFinite(textureQuality?.w) ? THREE.MathUtils.clamp(textureQuality.w / 768, 1, 1.5) : 1;
+  const width = Math.round(1024 * safeQualityScale);
+  const height = Math.round(1536 * safeQualityScale);
+  return makeTonplaygramCardBackTexture(theme, width, height);
 }
 
 function applyChairThemeMaterials(three, theme) {
@@ -6985,17 +6996,29 @@ function applyCardThemeMaterials(three, theme, force = false, textureQuality = n
     frontMaterial.map = faceTexture;
     frontMaterial.color?.set?.('#ffffff');
     frontMaterial.needsUpdate = true;
-    const backTexture = makeCardBackTexture(theme);
+    const backTexture = makeCardBackTexture(theme, textureQuality);
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
     backMaterial.color?.set?.('#ffffff');
+    backMaterial.roughness = 0.98;
+    backMaterial.metalness = 0;
+    backMaterial.envMapIntensity = 0;
     backMaterial.needsUpdate = true;
+    frontMaterial.roughness = 0.96;
+    frontMaterial.metalness = 0;
+    frontMaterial.envMapIntensity = 0;
     if (hiddenMaterial?.color) {
       hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
+      hiddenMaterial.roughness = 0.95;
+      hiddenMaterial.metalness = 0;
+      hiddenMaterial.envMapIntensity = 0;
       hiddenMaterial.needsUpdate = true;
     }
     edgeMaterials.forEach((mat) => {
       mat.color?.set?.(theme.edgeColor);
+      mat.roughness = 0.82;
+      mat.metalness = 0;
+      mat.envMapIntensity = 0;
       mat.needsUpdate = true;
     });
   });
