@@ -420,6 +420,8 @@ const HUMAN_CARD_CHIP_BLEND = 0;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
+const PLAYER_CHIP_STACK_INWARD_NUDGE = CARD_W * -0.16;
+const PLAYER_CHIP_STACK_VERTICAL_LIFT = CARD_D * 0.4;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_DROP = CARD_H * 0.16;
@@ -2059,6 +2061,19 @@ function hasSeatAvatar(state, index) {
   if (!state?.players || typeof index !== 'number' || index < 0) return false;
   const player = state.players[index];
   return Boolean(player && player.avatar);
+}
+
+function getSeatChipStackAnchor(seat) {
+  const base =
+    seat?.chipRailAnchor?.clone()
+    ?? seat?.chipAnchor?.clone()
+    ?? seat?.seatPos?.clone()
+    ?? new THREE.Vector3();
+  if (seat?.forward) {
+    base.addScaledVector(seat.forward, PLAYER_CHIP_STACK_INWARD_NUDGE);
+  }
+  base.y += PLAYER_CHIP_STACK_VERTICAL_LIFT;
+  return base;
 }
 
 function createSeatLayout(count, tableInfo = null, options = {}) {
@@ -4950,7 +4965,7 @@ function TexasHoldemArena({ search }) {
         };
 
         const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
-        chipStack.position.copy(seat.chipRailAnchor);
+        chipStack.position.copy(getSeatChipStackAnchor(seat));
         arenaGroup.add(chipStack);
 
         const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
@@ -5070,7 +5085,7 @@ function TexasHoldemArena({ search }) {
           seatGroup.showRailChips = !player.isHuman;
           if (player.isHuman) {
             chipStack.visible = false;
-            cameraTarget.copy((seat.chipRailAnchor ?? seat.chipAnchor ?? seat.seatPos).clone().add(new THREE.Vector3(0, CARD_LOOK_LIFT * 0.3, 0)));
+            cameraTarget.copy(getSeatChipStackAnchor(seat).add(new THREE.Vector3(0, CARD_LOOK_LIFT * 0.3, 0)));
           }
         }
       });
@@ -5850,6 +5865,7 @@ function TexasHoldemArena({ search }) {
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
       seat.chipStack.visible = seat.showRailChips !== false;
+      seat.chipStack.position.copy(getSeatChipStackAnchor(seat));
       chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
@@ -5899,7 +5915,7 @@ function TexasHoldemArena({ search }) {
           applyPotGain(betDelta);
         } else {
           const chipHeight = chipFactory.chipHeight;
-          const startBase = seat.chipRailAnchor.clone();
+          const startBase = getSeatChipStackAnchor(seat);
           startBase.y -= chipHeight / 2;
           const endBase = (potSeatStacks?.[idx]?.position ?? potStack.position).clone();
           endBase.y -= chipHeight / 2;
