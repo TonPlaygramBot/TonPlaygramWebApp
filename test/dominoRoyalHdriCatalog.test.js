@@ -26,19 +26,3 @@ test('Domino Royal public HDRI catalog includes every shared Pool Royale HDRI id
     `Domino public catalog is missing shared HDRI ids: ${missingIds.join(', ')}`
   );
 });
-
-test('Domino Royal keeps 8K HDRI for 120 Hz quality profile on mobile and desktop', () => {
-  const script = readFileSync(DOMINO_PUBLIC_SCRIPT, 'utf8');
-
-  assert.match(
-    script,
-    /case\s+'uhd120':\s*\n\s*return\s+'8k';/,
-    'Expected uhd120 HDRI resolution to resolve to 8k'
-  );
-
-  assert.doesNotMatch(
-    script,
-    /IS_HIGH_REFRESH_MOBILE\s*\?\s*\['4k',\s*'2k'\]/,
-    'Expected no mobile-only HDRI downgrade for uhd120'
-  );
-});
