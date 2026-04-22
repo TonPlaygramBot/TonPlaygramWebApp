@@ -2324,7 +2324,7 @@ const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.26;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.28;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
@@ -6727,57 +6727,124 @@ function buildStandardPipLayout(rank) {
 function drawCourtFigure(g, rank, suit, color, w, h) {
   const cx = w * 0.5;
   const cy = h * 0.5;
-  const frameW = w * 0.5;
-  const frameH = h * 0.58;
+  const frameW = w * 0.54;
+  const frameH = h * 0.62;
   const left = cx - frameW / 2;
   const top = cy - frameH / 2;
+  const isJack = rank === 'J';
   const isQueen = rank === 'Q';
   const isKing = rank === 'K';
+  const skinTone = isQueen ? '#f7d7c3' : isKing ? '#e8c3a5' : '#efc9ab';
+  const robeTop = isQueen ? '#7c3aed' : isKing ? '#0f4c81' : '#14532d';
+  const robeBottom = isQueen ? '#c084fc' : isKing ? '#60a5fa' : '#4ade80';
+  const accent = isQueen ? '#f9a8d4' : isKing ? '#facc15' : '#fb7185';
+  const hair = isQueen ? '#5b3b1c' : isKing ? '#3f2b1d' : '#2b1a0f';
 
   g.save();
-  g.lineWidth = Math.max(2, Math.round(w * 0.01));
-  g.strokeStyle = '#1f2937';
-  g.fillStyle = '#f8fafc';
+  g.lineWidth = Math.max(2, Math.round(w * 0.008));
+  g.strokeStyle = '#334155';
+  const frameGradient = g.createLinearGradient(left, top, left, top + frameH);
+  frameGradient.addColorStop(0, '#fefefe');
+  frameGradient.addColorStop(1, '#e2e8f0');
+  g.fillStyle = frameGradient;
   roundRect(g, left, top, frameW, frameH, Math.round(w * 0.06));
   g.fill();
   g.stroke();
 
+  const vignette = g.createRadialGradient(cx, cy, frameW * 0.12, cx, cy, frameW * 0.62);
+  vignette.addColorStop(0, 'rgba(255,255,255,0)');
+  vignette.addColorStop(1, 'rgba(15,23,42,0.18)');
+  g.fillStyle = vignette;
+  roundRect(g, left, top, frameW, frameH, Math.round(w * 0.06));
+  g.fill();
+
   g.fillStyle = '#fef08a';
+  g.strokeStyle = '#a16207';
+  g.lineWidth = Math.max(1.6, Math.round(w * 0.005));
+  const crownY = top + frameH * 0.14;
+  const crownW = frameW * (isKing ? 0.42 : isQueen ? 0.38 : 0.34);
+  const crownH = frameH * (isKing ? 0.2 : 0.16);
   g.beginPath();
-  g.moveTo(cx - frameW * 0.14, top + frameH * 0.2);
-  g.lineTo(cx - frameW * 0.08, top + frameH * 0.1);
-  g.lineTo(cx, top + frameH * 0.19);
-  g.lineTo(cx + frameW * 0.08, top + frameH * 0.1);
-  g.lineTo(cx + frameW * 0.14, top + frameH * 0.2);
-  g.lineTo(cx, top + frameH * 0.28);
+  g.moveTo(cx - crownW * 0.5, crownY + crownH * 0.82);
+  g.lineTo(cx - crownW * 0.33, crownY + crownH * 0.22);
+  g.lineTo(cx - crownW * 0.07, crownY + crownH * 0.58);
+  g.lineTo(cx + crownW * 0.07, crownY + crownH * 0.12);
+  g.lineTo(cx + crownW * 0.31, crownY + crownH * 0.52);
+  g.lineTo(cx + crownW * 0.5, crownY + crownH * 0.82);
   g.closePath();
   g.fill();
   g.stroke();
 
-  g.fillStyle = '#0f172a';
+  g.fillStyle = hair;
   g.beginPath();
-  g.arc(cx, top + frameH * 0.36, frameW * 0.12, 0, Math.PI * 2);
+  g.ellipse(cx, top + frameH * 0.34, frameW * 0.16, frameH * 0.12, 0, 0, Math.PI * 2);
   g.fill();
 
-  g.fillStyle = isQueen ? '#f472b6' : '#60a5fa';
-  g.fillRect(cx - frameW * 0.16, top + frameH * 0.46, frameW * 0.32, frameH * 0.24);
+  g.fillStyle = skinTone;
+  g.beginPath();
+  g.ellipse(cx, top + frameH * 0.37, frameW * 0.11, frameH * 0.09, 0, 0, Math.PI * 2);
+  g.fill();
 
-  g.fillStyle = isKing ? '#fde047' : '#93c5fd';
-  g.fillRect(cx - frameW * 0.1, top + frameH * 0.7, frameW * 0.2, frameH * 0.14);
+  g.fillStyle = '#111827';
+  g.beginPath();
+  g.arc(cx - frameW * 0.035, top + frameH * 0.36, frameW * 0.01, 0, Math.PI * 2);
+  g.arc(cx + frameW * 0.035, top + frameH * 0.36, frameW * 0.01, 0, Math.PI * 2);
+  g.fill();
+
+  g.strokeStyle = '#7f1d1d';
+  g.lineWidth = Math.max(1.2, Math.round(w * 0.0035));
+  g.beginPath();
+  g.arc(cx, top + frameH * 0.405, frameW * 0.035, 0.15 * Math.PI, 0.85 * Math.PI, false);
+  g.stroke();
+
+  const robeGradient = g.createLinearGradient(cx, top + frameH * 0.5, cx, top + frameH * 0.9);
+  robeGradient.addColorStop(0, robeTop);
+  robeGradient.addColorStop(1, robeBottom);
+  g.fillStyle = robeGradient;
+  g.beginPath();
+  g.moveTo(cx - frameW * 0.24, top + frameH * 0.54);
+  g.quadraticCurveTo(cx, top + frameH * 0.46, cx + frameW * 0.24, top + frameH * 0.54);
+  g.lineTo(cx + frameW * 0.2, top + frameH * 0.89);
+  g.lineTo(cx - frameW * 0.2, top + frameH * 0.89);
+  g.closePath();
+  g.fill();
+
+  g.fillStyle = accent;
+  g.beginPath();
+  g.moveTo(cx, top + frameH * 0.54);
+  g.lineTo(cx + frameW * 0.06, top + frameH * 0.84);
+  g.lineTo(cx - frameW * 0.06, top + frameH * 0.84);
+  g.closePath();
+  g.fill();
+
+  if (isKing) {
+    g.fillStyle = '#fde68a';
+    g.beginPath();
+    g.arc(cx, top + frameH * 0.66, frameW * 0.032, 0, Math.PI * 2);
+    g.fill();
+  }
+  if (isQueen) {
+    g.strokeStyle = '#be185d';
+    g.lineWidth = Math.max(1.2, Math.round(w * 0.003));
+    g.beginPath();
+    g.moveTo(cx - frameW * 0.09, top + frameH * 0.72);
+    g.lineTo(cx + frameW * 0.09, top + frameH * 0.72);
+    g.stroke();
+  }
+  if (isJack) {
+    g.fillStyle = '#fca5a5';
+    g.fillRect(cx - frameW * 0.015, top + frameH * 0.67, frameW * 0.03, frameH * 0.13);
+  }
 
   g.fillStyle = color;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = `700 ${Math.round(w * 0.16)}px "Inter", "Segoe UI Symbol", sans-serif`;
-  g.fillText(suit, cx, top + frameH * 0.83);
+  g.font = `700 ${Math.round(w * 0.13)}px "Inter", "Segoe UI Symbol", sans-serif`;
+  g.fillText(suit, cx, top + frameH * 0.93);
 
   g.fillStyle = '#111827';
-  g.font = `800 ${Math.round(w * 0.09)}px "Inter", "Segoe UI", sans-serif`;
-  g.fillText(rank, cx, top + frameH * 0.12);
-  if (rank === 'J') {
-    g.fillStyle = '#fb7185';
-    g.fillRect(cx - frameW * 0.02, top + frameH * 0.15, frameW * 0.04, frameH * 0.08);
-  }
+  g.font = `900 ${Math.round(w * 0.085)}px "Inter", "Segoe UI", sans-serif`;
+  g.fillText(rank, cx, top + frameH * 0.08);
   g.restore();
 }
 
