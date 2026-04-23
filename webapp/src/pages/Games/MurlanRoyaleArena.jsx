@@ -1674,19 +1674,19 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     managedTextures.push(faceTexture);
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: faceTexture,
-      color: new THREE.Color('#ffffff'),
-      roughness: 0.96,
+      color: new THREE.Color(CARD_FRONT_BASE_COLOR),
+      roughness: 1,
       metalness: 0,
       envMapIntensity: 0
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
-      color: new THREE.Color('#ffffff'),
-      roughness: 0.98,
+      color: new THREE.Color(CARD_BACK_BASE_COLOR),
+      roughness: 1,
       metalness: 0,
       envMapIntensity: 0,
       emissive: new THREE.Color('#0f172a'),
-      emissiveIntensity: 0.05
+      emissiveIntensity: 0
     });
     managedMaterials.push(frontMaterial, backMaterial);
     const sideMaterials = [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, frontMaterial, backMaterial];
@@ -6547,6 +6547,9 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+const CARD_FRONT_BASE_COLOR = '#e9eef5';
+const CARD_BACK_BASE_COLOR = '#dce5f0';
+
 function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   const textureKey = textureQuality?.id || 'default';
   const faceKey = `${theme.id}-${card.rank}-${card.suit}-${textureKey}`;
@@ -6567,17 +6570,17 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
     roughness: 1,
     metalness: 0,
     envMapIntensity: 0,
-    color: new THREE.Color('#ffffff')
+    color: new THREE.Color(CARD_FRONT_BASE_COLOR)
   });
   const backTexture = makeCardBackTexture(theme, textureQuality);
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
-    color: new THREE.Color('#ffffff'),
+    color: new THREE.Color(CARD_BACK_BASE_COLOR),
     roughness: 1,
     metalness: 0,
     envMapIntensity: 0,
     emissive: new THREE.Color('#0f172a'),
-    emissiveIntensity: 0.01
+    emissiveIntensity: 0
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
@@ -6998,7 +7001,7 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 
     // Slightly darker front-face matte layer for less glare and reduced overall brightness.
     ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.12)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.2)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
@@ -7087,12 +7090,12 @@ function applyCardThemeMaterials(three, theme, force = false, textureQuality = n
       three.faceTextureCache.set(faceKey, faceTexture);
     }
     frontMaterial.map = faceTexture;
-    frontMaterial.color?.set?.('#ffffff');
+    frontMaterial.color?.set?.(CARD_FRONT_BASE_COLOR);
     frontMaterial.needsUpdate = true;
     const backTexture = makeCardBackTexture(theme, textureQuality);
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
-    backMaterial.color?.set?.('#ffffff');
+    backMaterial.color?.set?.(CARD_BACK_BASE_COLOR);
     backMaterial.roughness = 1;
     backMaterial.metalness = 0;
     backMaterial.envMapIntensity = 0;
