@@ -114,7 +114,7 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.34; // keep flight at low piece-head height
+const CAPTURE_DRONE_ALTITUDE = 0.42; // lift drone/air-strike lane above piece heads on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -126,13 +126,13 @@ const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.14; // shorten drone route further
 const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.09; // lower drone route further to sit near pieces
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.118; // lift jet/helicopter path higher on screen for clearer over-board orbit
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.22; // lift jet/helicopter path a bit higher for a clearer full-board round
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.12; // shorter loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
-const CAPTURE_DRONE_CIRCLE_RATIO = 0.75; // drone completes 75% of yellow loop before vertical strike
-const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.56; // fire later so jet/heli complete more of the round before launch
-const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.72;
+const CAPTURE_DRONE_CIRCLE_RATIO = 0.88; // keep drone in the loop longer before the dive
+const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.62; // launch later so missiles clearly fire after the longer round
+const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.8;
 const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.32; // missiles travel faster after launch
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
@@ -142,8 +142,8 @@ const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.05;
 const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.22;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.004;
 const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.2;
-const CAPTURE_MISSILE_LAUNCH_FLARE_BOOST = 1.2; // larger fiery launch puff that settles back to normal size
-const CAPTURE_MISSILE_LAUNCH_FLARE_DECAY = 0.36; // make flare shrink gradually instead of instantly
+const CAPTURE_MISSILE_LAUNCH_FLARE_BOOST = 1.58; // make launch fire/smoke visibly larger at ignition
+const CAPTURE_MISSILE_LAUNCH_FLARE_DECAY = 0.62; // shrink from big launch flare more gradually to normal size
 const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line toward target
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
@@ -156,7 +156,7 @@ const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal dr
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.68; // slightly higher pawn javelin lane
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE * 1.08; // drone flies just above pawn javelin
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
-const CAPTURE_AIR_APPROACH_RATIO = 0.7; // keep jet/heli in the around-board approach longer before return
+const CAPTURE_AIR_APPROACH_RATIO = 0.78; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
@@ -9389,7 +9389,11 @@ function Chess3D({
         rack.rotation.z = -Math.PI * 0.05;
         rack.rotation.y = Math.PI; // keep forward orientation aligned with parked truck heading
         rack.position.set(center.x - Math.max(size.x * 0.08, 0.14), rackY, center.z);
-        missileLaunchAnchor.position.set(center.x + Math.max(size.x * 0.2, 0.3), rackY + 0.08, center.z);
+        missileLaunchAnchor.position.set(
+          center.x - missileLength * 0.48,
+          rackY + Math.max(size.y * 0.2, 0.16),
+          center.z
+        );
         missileLaunchAnchor.rotation.copy(rack.rotation);
         target.add(missileLaunchAnchor);
         target.add(rack);
@@ -9471,7 +9475,7 @@ function Chess3D({
         truck.missileLaunchAnchor.getWorldPosition(launchWorld);
         return launchWorld;
       }
-      const launchOffset = new THREE.Vector3(0.8, 0.26, 0);
+      const launchOffset = new THREE.Vector3(-0.72, 0.46, 0);
       const direction = truck.isWhite ? 1 : -1;
       launchOffset.x *= direction;
       return truck.root.localToWorld(launchOffset);
@@ -12216,8 +12220,9 @@ function Chess3D({
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
               const flareProgress = clamp01(missileU / CAPTURE_MISSILE_LAUNCH_FLARE_DECAY, 1);
-              const launchFlareScale = 1 + (1 - flareProgress) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
-              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareProgress);
+              const flareEase = smoothEase(flareProgress);
+              const launchFlareScale = 1 + (1 - flareEase) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
+              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareEase);
               missile.trail?.forEach((puff, trailIdx) => {
                 puff.position.set(-0.7 - trailIdx * 0.16, Math.sin(fx.t * 7.8 + trailIdx + idx) * 0.02, 0);
                 const baseScale = 0.88 + trailIdx * 0.15 + missileU * 0.46;
@@ -12342,8 +12347,9 @@ function Chess3D({
               missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
               missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
               const flareProgress = clamp01(missileU / CAPTURE_MISSILE_LAUNCH_FLARE_DECAY, 1);
-              const launchFlareScale = 1 + (1 - flareProgress) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
-              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareProgress);
+              const flareEase = smoothEase(flareProgress);
+              const launchFlareScale = 1 + (1 - flareEase) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
+              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareEase);
               missile.trail?.forEach((puff, trailIdx) => {
                 puff.position.set(-0.7 - trailIdx * 0.16, Math.sin(fx.t * 7.4 + trailIdx + idx) * 0.02, 0);
                 const baseScale = 0.88 + trailIdx * 0.15 + missileU * 0.46;
@@ -12426,8 +12432,9 @@ function Chess3D({
               captureDir.copy(missileNext).sub(missilePos).normalize();
               fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
               const flareProgress = clamp01(mu / CAPTURE_MISSILE_LAUNCH_FLARE_DECAY, 1);
-              const launchFlareScale = 1 + (1 - flareProgress) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
-              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareProgress);
+              const flareEase = smoothEase(flareProgress);
+              const launchFlareScale = 1 + (1 - flareEase) * CAPTURE_MISSILE_LAUNCH_FLARE_BOOST;
+              const settleScale = THREE.MathUtils.lerp(launchFlareScale, 1, flareEase);
               fx.missileFx.trail?.forEach((puff, idx) => {
                 puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
                 const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
