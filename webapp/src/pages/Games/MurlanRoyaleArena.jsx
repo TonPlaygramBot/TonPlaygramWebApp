@@ -3824,14 +3824,7 @@ export default function MurlanRoyaleArena({ search }) {
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const isGiftSideSeat = seat?.handVariant === 'giftSide';
-        const isTopSeat = seat?.handVariant === 'top';
-        const backLogoVariant = isHumanCard
-          ? 'default'
-          : isTopSeat
-            ? 'top'
-            : isGiftSideSeat
-              ? 'sideGift'
-              : 'side';
+        const backLogoVariant = !isHumanCard ? 'top' : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
@@ -6887,12 +6880,12 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
-      // Top seat cards face the opposite direction, so rotate logo 180° for an upright read on screen.
+      // Keep top seat logo fully visible and upright.
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'side') {
-      // Left side seat: mirror horizontally so branding reads naturally from portrait camera view.
+      // Left side seat: mirror horizontally so branding reads naturally from camera.
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = 0;
