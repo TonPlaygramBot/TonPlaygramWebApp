@@ -2451,6 +2451,7 @@ const CAMERA_TURN_DURATION_MS = 360;
 const CAMERA_PLAY_FOLLOW_HOLD_MS = 420;
 const CAMERA_PLAY_NEXT_TURN_DELAY_MS = 520;
 const CAMERA_PLAY_TURN_DURATION_MS = 300;
+const CAMERA_PLAY_CARD_FOCUS_DELAY_MS = 170;
 const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.6;
 const HDRI_GROUND_FLOOR_Y = -0.015 * MODEL_SCALE;
@@ -2462,8 +2463,9 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
-const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = false;
+const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
 const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
+const PASS_BUBBLE_DURATION_MS = 1700;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2748,6 +2750,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [passBubbles, setPassBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -3452,8 +3455,10 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraTurnHoldTimeoutRef = useRef(null);
   const cameraTurnSuppressUntilRef = useRef(0);
   const cameraPlayFollowTimeoutRef = useRef(null);
+  const cameraPlayCardFocusTimeoutRef = useRef(null);
   const cameraPlayTrackAnimationRef = useRef(null);
   const cameraDisableForwardDriftUntilRef = useRef(0);
+  const passBubbleTimeoutsRef = useRef(new Map());
 
   const enforceRotationOnlyCamera = useCallback(() => {
     const { camera, controls } = threeStateRef.current;
@@ -3597,6 +3602,13 @@ export default function MurlanRoyaleArena({ search }) {
     if (cameraPlayFollowTimeoutRef.current != null) {
       clearTimeout(cameraPlayFollowTimeoutRef.current);
       cameraPlayFollowTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearCameraPlayCardFocusTimeout = useCallback(() => {
+    if (cameraPlayCardFocusTimeoutRef.current != null) {
+      clearTimeout(cameraPlayCardFocusTimeoutRef.current);
+      cameraPlayCardFocusTimeoutRef.current = null;
     }
   }, []);
 
@@ -4662,6 +4674,30 @@ export default function MurlanRoyaleArena({ search }) {
   }, [gameState, muted]);
 
   useEffect(() => {
+    const action = gameState?.lastAction;
+    const actionId = gameState?.lastActionId ?? 0;
+    if (!actionId || action?.type !== 'PASS' || !Number.isInteger(action?.playerIndex)) return;
+    const bubbleId = `pass-${actionId}-${action.playerIndex}`;
+    setPassBubbles((prev) => [...prev.filter((entry) => entry.id !== bubbleId), { id: bubbleId, playerIndex: action.playerIndex }]);
+    const activeTimeout = passBubbleTimeoutsRef.current.get(bubbleId);
+    if (activeTimeout != null) {
+      clearTimeout(activeTimeout);
+    }
+    const timeoutId = setTimeout(() => {
+      setPassBubbles((prev) => prev.filter((entry) => entry.id !== bubbleId));
+      passBubbleTimeoutsRef.current.delete(bubbleId);
+    }, PASS_BUBBLE_DURATION_MS);
+    passBubbleTimeoutsRef.current.set(bubbleId, timeoutId);
+  }, [gameState?.lastAction, gameState?.lastActionId]);
+
+  useEffect(() => {
+    return () => {
+      passBubbleTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      passBubbleTimeoutsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!threeReady) return;
     const now =
       typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -4730,13 +4766,16 @@ export default function MurlanRoyaleArena({ search }) {
     if (!action || action.type !== 'PLAY') return;
     clearCameraTurnHoldTimeout();
     clearCameraPlayFollowTimeout();
+    clearCameraPlayCardFocusTimeout();
     stopCameraPlayTrackAnimation();
 
     const store = threeStateRef.current;
-    const playedCardId = action.cards?.[0]?.id;
-    const playedCardMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
-    const centerTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
-    turnCameraTowardTarget(centerTarget, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
+    const centerTarget = store.discardAnchor?.clone?.() ?? store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
+    turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
+    cameraPlayCardFocusTimeoutRef.current = setTimeout(() => {
+      turnCameraTowardTarget(centerTarget, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
+      cameraPlayCardFocusTimeoutRef.current = null;
+    }, CAMERA_PLAY_CARD_FOCUS_DELAY_MS);
 
     const start =
       typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -4744,8 +4783,7 @@ export default function MurlanRoyaleArena({ search }) {
         : Date.now();
     const trackUntil = start + CAMERA_PLAY_FOLLOW_HOLD_MS;
     const trackCardDuringFlight = (time) => {
-      const cardTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? centerTarget.clone();
-      turnCameraTowardTarget(cardTarget, { animate: false });
+      turnCameraTowardTarget(centerTarget, { animate: false });
       if (time < trackUntil) {
         cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
       } else {
@@ -4779,9 +4817,11 @@ export default function MurlanRoyaleArena({ search }) {
 
     return () => {
       clearCameraPlayFollowTimeout();
+      clearCameraPlayCardFocusTimeout();
       stopCameraPlayTrackAnimation();
     };
   }, [
+    clearCameraPlayCardFocusTimeout,
     clearCameraPlayFollowTimeout,
     clearCameraTurnHoldTimeout,
     gameState?.lastAction,
@@ -5357,6 +5397,8 @@ export default function MurlanRoyaleArena({ search }) {
         cancelAnimationFrame(frameId);
       }
       clearCameraPlayFollowTimeout();
+      clearCameraPlayCardFocusTimeout();
+      stopCameraPlayTrackAnimation();
       stopCameraTurnAnimation();
       observer?.disconnect?.();
       controls?.dispose?.();
@@ -5519,7 +5561,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [activeTextureResolutionOrder, applyHdriEnvironment, applyRendererQuality, applyStateToScene, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [activeTextureResolutionOrder, applyHdriEnvironment, applyRendererQuality, applyStateToScene, clearCameraPlayCardFocusTimeout, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraPlayTrackAnimation, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -5679,6 +5721,41 @@ export default function MurlanRoyaleArena({ search }) {
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
                   {handCount} cards
                 </span>
+              </div>
+            );
+          })}
+          {passBubbles.map((bubble) => {
+            const idx = bubble.playerIndex;
+            const anchor = seatAnchorMap.get(idx);
+            const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+            const isHumanBubble = idx === humanPlayerIndex;
+            const style = isHumanBubble
+              ? {
+                  position: 'fixed',
+                  left: '50%',
+                  bottom: 'calc(8.2rem + env(safe-area-inset-bottom, 0px))',
+                  transform: 'translateX(-50%)'
+                }
+              : anchor
+                ? {
+                    position: 'absolute',
+                    left: `${anchor.x}%`,
+                    top: `${clampValue(anchor.y - 15.5, -10, 110)}%`,
+                    transform: 'translate(-50%, -50%)'
+                  }
+                : {
+                    position: 'absolute',
+                    left: fallback.left,
+                    top: `${clampValue(Number.parseFloat(fallback.top) - 15.5, -10, 110)}%`,
+                    transform: 'translate(-50%, -50%)'
+                  };
+            return (
+              <div
+                key={bubble.id}
+                className="absolute rounded-full border border-red-300/75 bg-gradient-to-r from-red-700/95 via-red-600/95 to-red-500/95 px-3 py-1 text-[0.62rem] font-extrabold uppercase tracking-[0.24em] text-white shadow-[0_10px_24px_rgba(239,68,68,0.5)] animate-[ping_1.2s_ease-out_1]"
+                style={style}
+              >
+                PASS
               </div>
             );
           })}
