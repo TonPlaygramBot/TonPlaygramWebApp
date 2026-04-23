@@ -3453,6 +3453,7 @@ export default function MurlanRoyaleArena({ search }) {
   const cameraTurnSuppressUntilRef = useRef(0);
   const cameraPlayFollowTimeoutRef = useRef(null);
   const cameraPlayTrackAnimationRef = useRef(null);
+  const cameraDisableForwardDriftUntilRef = useRef(0);
 
   const enforceRotationOnlyCamera = useCallback(() => {
     const { camera, controls } = threeStateRef.current;
@@ -3466,8 +3467,15 @@ export default function MurlanRoyaleArena({ search }) {
     const phiMin = Number.isFinite(orbit.phiMin) ? orbit.phiMin : controls.minPolarAngle;
     const phiMax = Number.isFinite(orbit.phiMax) ? orbit.phiMax : controls.maxPolarAngle;
     const basePhi = Number.isFinite(orbit.phi) ? orbit.phi : currentSpherical.phi;
+    const now =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    const disableForwardDrift = now < cameraDisableForwardDriftUntilRef.current;
     const upTiltRange = Math.max(1e-4, basePhi - phiMin);
-    const upTiltRatio = THREE.MathUtils.clamp((basePhi - currentSpherical.phi) / upTiltRange, 0, 1);
+    const upTiltRatio = disableForwardDrift
+      ? 0
+      : THREE.MathUtils.clamp((basePhi - currentSpherical.phi) / upTiltRange, 0, 1);
     const forwardOffset = cameraForwardOffsetScratchRef.current
       .copy(defaultTarget)
       .sub(basePosition)
@@ -4746,6 +4754,8 @@ export default function MurlanRoyaleArena({ search }) {
     };
     cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
     cameraTurnSuppressUntilRef.current = start + CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS;
+    cameraDisableForwardDriftUntilRef.current =
+      start + CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS;
 
     cameraPlayFollowTimeoutRef.current = setTimeout(() => {
       const liveState = gameStateRef.current;
