@@ -1,17 +1,38 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import AirHockey3D from '../../components/AirHockey3D.jsx';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { avatarToName } from '../../utils/avatarUtils.js';
 import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
+
 export default function GoalRush() {
   useTelegramBackButton();
   const { search } = useLocation();
+  const params = new URLSearchParams(search);
   useOnlineRoomSync(search, 'Goal Rush Player');
+  const target = Number(params.get('target')) || 11;
+  const playType = params.get('type') || 'regular';
+  const playerFlagParam = params.get('flag');
+  const aiFlagParam = params.get('aiFlag');
+  const accountId = params.get('accountId') || undefined;
+  const aiFlag = aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
+  const player = {
+    name: params.get('name') || 'You',
+    avatar: params.get('avatar') ||
+      (playerFlagParam && FLAG_EMOJIS.includes(playerFlagParam) ? playerFlagParam : '') ||
+      '/assets/icons/profile.svg'
+  };
+  const randomAiFlag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  const chosenAiFlag = aiFlag || randomAiFlag;
+  const ai = { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
   return (
-    <div className="relative w-full h-[100dvh]">
-      <iframe
-        src={`/goal-rush.html${search}`}
-        title="Goal Rush"
-        className="w-full h-full border-0"
-      />
-    </div>
+    <AirHockey3D
+      player={player}
+      ai={ai}
+      target={target}
+      playType={playType}
+      accountId={accountId}
+      variant="goalrush"
+    />
   );
 }

@@ -196,6 +196,30 @@ const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
 const CAMERA_LIFT_STEP = 0.2;
 const CAMERA_LIFT_MIN = 0.45;
 const CAMERA_LIFT_MAX = 1.85;
+const GAME_VARIANTS = Object.freeze({
+  airhockey: {
+    id: 'airhockey',
+    roomPrefix: 'air-hockey',
+    lobbyPath: '/games/airhockey/lobby',
+    lobbyLabel: 'Air Hockey',
+    arenaLabel: 'Air Hockey arena',
+    optionLabels: {
+      puck: 'Puck',
+      mallet: 'Mallets'
+    }
+  },
+  goalrush: {
+    id: 'goalrush',
+    roomPrefix: 'goal-rush',
+    lobbyPath: '/games/goalrush/lobby',
+    lobbyLabel: 'Goal Rush',
+    arenaLabel: 'Goal Rush arena',
+    optionLabels: {
+      puck: 'Football',
+      mallet: 'Strikers'
+    }
+  }
+});
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -540,7 +564,16 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
  * • Scoreboard with avatars
  */
 
-export default function AirHockey3D({ player, ai, target = 11, playType = 'regular', accountId }) {
+export default function AirHockey3D({
+  player,
+  ai,
+  target = 11,
+  playType = 'regular',
+  accountId,
+  variant = 'airhockey'
+}) {
+  const gameVariant = GAME_VARIANTS[variant] || GAME_VARIANTS.airhockey;
+  const isGoalRushVariant = gameVariant.id === 'goalrush';
   const targetValue = Number(target) || 11;
   const hostRef = useRef(null);
   const raf = useRef(0);
@@ -683,8 +716,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const chatAvatar = useMemo(() => getAvatarUrl(player.avatar), [player.avatar]);
   const liveChatRoomId = useMemo(() => {
     const params = new URLSearchParams(window.location.search || '');
-    return params.get('tableId') || params.get('table') || `air-hockey-${playType || 'regular'}`;
-  }, [playType]);
+    return (
+      params.get('tableId') ||
+      params.get('table') ||
+      `${gameVariant.roomPrefix}-${playType || 'regular'}`
+    );
+  }, [gameVariant.roomPrefix, playType]);
   const liveChat = useLiveVideoChat({
     roomId: liveChatRoomId,
     displayName: player?.name || 'Player',
@@ -813,13 +850,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     setRedirecting(true);
     redirectTimeoutRef.current = setTimeout(() => {
-      window.location.href = '/games/airhockey/lobby';
+      window.location.href = gameVariant.lobbyPath;
     }, 2000);
 
     return () => {
       clearTimeout(redirectTimeoutRef.current);
     };
-  }, [gameOver]);
+  }, [gameOver, gameVariant.lobbyPath]);
 
   useEffect(() => () => {
     clearTimeout(goalTimeoutRef.current);
@@ -955,7 +992,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         speaker,
         language: activeCommentaryPreset?.language ?? commentaryPresetId,
         context: {
-          arena: 'Air Hockey arena',
+          arena: gameVariant.arenaLabel,
           targetScore: targetRef.current ?? targetValue,
           ...context
         }
@@ -1282,6 +1319,40 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       const ctx = canvas.getContext('2d');
       const cx = size / 2;
       const cy = size / 2;
+      if (isGoalRushVariant) {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, size, size);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = size * 0.03;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - size * 0.14);
+        ctx.lineTo(cx + size * 0.11, cy - size * 0.03);
+        ctx.lineTo(cx + size * 0.07, cy + size * 0.12);
+        ctx.lineTo(cx - size * 0.07, cy + size * 0.12);
+        ctx.lineTo(cx - size * 0.11, cy - size * 0.03);
+        ctx.closePath();
+        ctx.fill();
+        const patchPositions = [
+          [-0.19, -0.18],
+          [0.19, -0.18],
+          [-0.26, 0.12],
+          [0.26, 0.12]
+        ];
+        patchPositions.forEach(([x, y]) => {
+          ctx.beginPath();
+          ctx.arc(cx + size * x, cy + size * y, size * 0.06, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.needsUpdate = true;
+        return texture;
+      }
 
       ctx.fillStyle = '#0b0c0f';
       ctx.fillRect(0, 0, size, size);
@@ -1420,7 +1491,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       knobHeight: MALLET_KNOB_HEIGHT
     };
     const PUCK_RADIUS = PLAYFIELD.w * 0.0285;
-    const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
+    const PUCK_HEIGHT = isGoalRushVariant ? PUCK_RADIUS * 2 : PUCK_RADIUS * 1.05;
     const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
     const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
     const cornerPocketCenters = [
@@ -1726,6 +1797,39 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     circleMesh.rotation.x = -Math.PI / 2;
     circleMesh.position.set(0, markingLift, 0);
     tableGroup.add(circleMesh);
+    if (isGoalRushVariant) {
+      const boxDepth = PLAYFIELD.h * 0.165;
+      const boxThickness = markingThickness;
+      const boxWidth = PLAYFIELD.w * 0.52;
+      const addBoxMarking = (direction) => {
+        const baseZ = direction * (PLAYFIELD.h / 2 - boxDepth / 2);
+        const longA = new THREE.Mesh(
+          new THREE.PlaneGeometry(boxWidth, boxThickness),
+          lineMaterial.clone()
+        );
+        longA.rotation.x = -Math.PI / 2;
+        longA.position.set(0, markingLift, baseZ + direction * boxDepth * 0.5);
+        tableGroup.add(longA);
+        const longB = new THREE.Mesh(
+          new THREE.PlaneGeometry(boxWidth, boxThickness),
+          lineMaterial.clone()
+        );
+        longB.rotation.x = -Math.PI / 2;
+        longB.position.set(0, markingLift, baseZ - direction * boxDepth * 0.5);
+        tableGroup.add(longB);
+        [-1, 1].forEach((xDirection) => {
+          const side = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxThickness, boxDepth),
+            lineMaterial.clone()
+          );
+          side.rotation.x = -Math.PI / 2;
+          side.position.set(xDirection * boxWidth * 0.5, markingLift, baseZ);
+          tableGroup.add(side);
+        });
+      };
+      addBoxMarking(1);
+      addBoxMarking(-1);
+    }
 
     materialsRef.current.line = lineMaterial;
     materialsRef.current.rings = [circleMaterial];
@@ -1782,17 +1886,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const puckTexture = createPuckTexture();
     const puck = new THREE.Mesh(
-      new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
+      isGoalRushVariant
+        ? new THREE.SphereGeometry(PUCK_RADIUS, 48, 48)
+        : new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
       new THREE.MeshStandardMaterial({
-        color: 0x111111,
+        color: isGoalRushVariant ? 0xfafafa : 0x111111,
         map: puckTexture,
-        roughness: 0.34,
+        roughness: isGoalRushVariant ? 0.26 : 0.34,
         metalness: 0.22,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.28
+        clearcoat: isGoalRushVariant ? 0.55 : 0.35,
+        clearcoatRoughness: isGoalRushVariant ? 0.16 : 0.28
       })
     );
-    puck.position.y = PUCK_HEIGHT / 2;
+    puck.position.y = isGoalRushVariant ? PUCK_RADIUS : PUCK_HEIGHT / 2;
     tableGroup.add(puck);
     materialsRef.current.puck = puck.material;
 
@@ -2905,8 +3011,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             {renderOptionRow('Table Finish', 'table')}
             {renderOptionRow('Table Base', 'tableBase')}
             {renderOptionRow('HDRI Environment', 'environmentHdri')}
-            {renderOptionRow('Puck', 'puck')}
-            {renderOptionRow('Mallets', 'mallet')}
+            {renderOptionRow(gameVariant.optionLabels.puck, 'puck')}
+            {renderOptionRow(gameVariant.optionLabels.mallet, 'mallet')}
             {renderOptionRow('Goals', 'goals')}
           </div>
         )}
@@ -3081,11 +3187,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             <div className="text-sm font-medium">Winner: {winner}</div>
             <div className="text-xs text-white/80">Final Score: {scoreRef.current.left} - {scoreRef.current.right}</div>
             <div className="text-[11px] text-white/70">
-              {redirecting ? 'Redirecting to the Air Hockey lobby...' : 'Preparing lobby return...'}
+              {redirecting ? `Redirecting to the ${gameVariant.lobbyLabel} lobby...` : 'Preparing lobby return...'}
             </div>
             <div className="pt-2">
               <button
-                onClick={() => (window.location.href = '/games/airhockey/lobby')}
+                onClick={() => (window.location.href = gameVariant.lobbyPath)}
                 className="w-full rounded bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold py-2 text-sm"
               >
                 Go to Lobby
