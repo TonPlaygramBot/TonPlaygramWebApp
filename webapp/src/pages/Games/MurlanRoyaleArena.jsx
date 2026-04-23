@@ -2338,16 +2338,22 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
   landscape: 1.12
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
-  portrait: THREE.MathUtils.degToRad(5.5),
-  landscape: THREE.MathUtils.degToRad(4.5)
+  portrait: THREE.MathUtils.degToRad(7.5),
+  landscape: THREE.MathUtils.degToRad(6)
+});
+const CAMERA_LOOK_UP_ALLOWANCE = Object.freeze({
+  portrait: THREE.MathUtils.degToRad(2.2),
+  landscape: THREE.MathUtils.degToRad(1.5)
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
-  portrait: 0.19 * MODEL_SCALE,
-  landscape: 0.05 * MODEL_SCALE
+  portrait: 0.22 * MODEL_SCALE,
+  landscape: 0.07 * MODEL_SCALE
 });
+const CAMERA_HUMAN_TURN_FOCUS_DOWN = 0.11 * MODEL_SCALE;
+const CAMERA_HUMAN_TURN_FOCUS_TOWARD_HAND = 0.16 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
@@ -3667,6 +3673,15 @@ export default function MurlanRoyaleArena({ search }) {
     [stopCameraTurnAnimation, updateSeatAnchors]
   );
 
+  const resolveHumanTurnCameraTarget = useCallback((seat = null) => {
+    const base = cameraDefaultTargetRef.current.clone();
+    base.y -= CAMERA_HUMAN_TURN_FOCUS_DOWN;
+    if (seat?.forward) {
+      base.addScaledVector(seat.forward, CAMERA_HUMAN_TURN_FOCUS_TOWARD_HAND);
+    }
+    return base;
+  }, []);
+
   const applyRendererQuality = useCallback(() => {
     const renderer = threeStateRef.current.renderer;
     const host = mountRef.current;
@@ -4731,7 +4746,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (activePlayer?.isHuman) {
       if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+        turnCameraTowardTarget(resolveHumanTurnCameraTarget(activeSeat), { animate: true });
       }
       return;
     }
@@ -4758,6 +4773,7 @@ export default function MurlanRoyaleArena({ search }) {
     gameState.activePlayer,
     gameState.players,
     gameState.status,
+    resolveHumanTurnCameraTarget,
     threeReady,
     turnCameraTowardTarget
   ]);
@@ -4804,7 +4820,10 @@ export default function MurlanRoyaleArena({ search }) {
       const activeSeat = Number.isInteger(activeIndex) ? store.seatConfigs?.[activeIndex] : null;
       const activePlayer = Number.isInteger(activeIndex) ? liveState?.players?.[activeIndex] : null;
       if (liveState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+        const focusTarget = activePlayer?.isHuman
+          ? resolveHumanTurnCameraTarget(activeSeat)
+          : cameraDefaultTargetRef.current;
+        turnCameraTowardTarget(focusTarget, { animate: true });
       } else {
         const blendedFocus = cameraDefaultTargetRef.current
           .clone()
@@ -4829,6 +4848,7 @@ export default function MurlanRoyaleArena({ search }) {
     clearCameraTurnHoldTimeout,
     gameState?.lastAction,
     gameState?.lastActionId,
+    resolveHumanTurnCameraTarget,
     stopCameraPlayTrackAnimation,
     threeReady,
     turnCameraTowardTarget
@@ -5252,8 +5272,11 @@ export default function MurlanRoyaleArena({ search }) {
       const verticalAllowance = isPortrait
         ? CAMERA_LOOK_VERTICAL_ALLOWANCE.portrait
         : CAMERA_LOOK_VERTICAL_ALLOWANCE.landscape;
+      const lookUpAllowance = isPortrait
+        ? CAMERA_LOOK_UP_ALLOWANCE.portrait
+        : CAMERA_LOOK_UP_ALLOWANCE.landscape;
       controls.minPolarAngle = THREE.MathUtils.clamp(
-        lockedPolarAngle - verticalAllowance,
+        lockedPolarAngle - verticalAllowance - lookUpAllowance,
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
@@ -6863,20 +6886,22 @@ function setBackLogoOrientation(mesh, variant = 'default') {
 
   if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
+    tunedTexture.wrapS = THREE.RepeatWrapping;
+    tunedTexture.wrapT = THREE.RepeatWrapping;
     if (desiredVariant === 'top') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
       tunedTexture.center.set(0.5, 0.5);
     } else if (desiredVariant === 'side') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideGift') {
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = Math.PI;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'sideGift') {
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = 0;
       tunedTexture.center.set(0.5, 0.5);
     }
     tunedTexture.needsUpdate = true;
