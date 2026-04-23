@@ -3983,15 +3983,13 @@ export default function MurlanRoyaleArena({ search }) {
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = discardAnchor.clone();
-      // Keep the discard pile at the same table location but make card placement look naturally messy.
-      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.34;
-      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.26;
+      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.05;
+      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.04;
       target.addScaledVector(pileRightAxis, scatterX);
       target.addScaledVector(pileForwardAxis, scatterZ);
-      const layerJitter = (cardIdNoise(card.id, 19) - 0.5) * 0.0034;
-      target.y += idx * 0.0014 + layerJitter;
-      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(20);
-      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(3.2);
+      target.y += idx * 0.0022;
+      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(2);
+      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(0.8);
       setMeshPosition(
         mesh,
         target,
