@@ -144,8 +144,9 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 520;
-const DICE_SETTLE_DURATION = 180;
+// Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
+const DICE_ROLL_DURATION = 1100;
+const DICE_SETTLE_DURATION = 260;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -204,9 +205,9 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
-const DICE_CAMERA_LOOK_IN_DURATION = 180;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 380;
-const DICE_CAMERA_LOOK_OUT_DURATION = 180;
+const DICE_CAMERA_LOOK_IN_DURATION = 220;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
+const DICE_CAMERA_LOOK_OUT_DURATION = 220;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
 const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
@@ -285,11 +286,12 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 1.72,
-  helicopter: TOKEN_HEIGHT * 1.8,
-  drone: TOKEN_HEIGHT * 1.68,
-  supportTruck: TOKEN_HEIGHT * 1.76,
-  javelin: TOKEN_HEIGHT * 1.7
+  // Lift parked weapons so they sit around bishop-height instead of under-table.
+  fighter: TOKEN_HEIGHT * 0.96,
+  helicopter: TOKEN_HEIGHT * 1.02,
+  drone: TOKEN_HEIGHT * 0.9,
+  supportTruck: TOKEN_HEIGHT * 0.98,
+  javelin: TOKEN_HEIGHT * 0.94
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -303,10 +305,10 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: pull token closer to the table rail on portrait screens.
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push token farther from the table edge (visually away from table).
-  Object.freeze({ radial: TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.34, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
