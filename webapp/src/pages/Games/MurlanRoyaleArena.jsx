@@ -6896,8 +6896,8 @@ function createFallbackOpenSourceCardSvg(cardKey) {
 }
 
 function toOpenSourceDeckKey(rank, suit) {
-  if (rank === 'JR') return null;
-  if (rank === 'JB') return null;
+  if (rank === 'JR') return 'J1';
+  if (rank === 'JB') return 'J2';
   const suitCode = OPEN_SOURCE_SUIT_CODES[suit];
   if (!suitCode) return null;
   const rankCode = OPEN_SOURCE_RANK_CODES[rank] || String(rank).toLowerCase();
@@ -6905,40 +6905,11 @@ function toOpenSourceDeckKey(rank, suit) {
 }
 
 function svgMarkupFromOpenSourceDeck(rank, suit) {
-  if (rank === 'JR' || rank === 'JB') {
-    return createLegacyJokerSvg(rank);
-  }
   const cardKey = toOpenSourceDeckKey(rank, suit);
   if (!cardKey) return createFallbackOpenSourceCardSvg(`${rank}${suit ?? ''}`);
   const CardComponent = OpenSourceDeck?.[cardKey];
   if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
   return renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
-}
-
-function createLegacyJokerSvg(rank) {
-  const isRedJoker = rank === 'JR';
-  const accent = isRedJoker ? '#d62828' : '#111111';
-  const accentSoft = isRedJoker ? '#fff1f2' : '#f3f4f6';
-  const label = isRedJoker ? 'COLOR JOKER' : 'BLACK JOKER';
-  const emojiFont = isRedJoker
-    ? '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
-    : '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400" viewBox="0 0 1000 1400">
-      <defs>
-        <linearGradient id="joker-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#ffffff" />
-          <stop offset="100%" stop-color="${accentSoft}" />
-        </linearGradient>
-      </defs>
-      <rect x="16" y="16" rx="90" ry="90" width="968" height="1368" fill="url(#joker-bg)" stroke="rgba(15,23,42,0.14)" stroke-width="8"/>
-      <rect x="52" y="52" rx="66" ry="66" width="896" height="1296" fill="none" stroke="rgba(15,23,42,0.08)" stroke-width="4"/>
-      <text x="96" y="168" fill="${accent}" font-family="${emojiFont}" font-size="112" font-weight="800">🃏</text>
-      <text x="904" y="1246" fill="${accent}" font-family="${emojiFont}" font-size="112" font-weight="800" text-anchor="end">🃏</text>
-      <text x="500" y="760" fill="${accent}" font-family="${emojiFont}" font-size="390" text-anchor="middle" dominant-baseline="middle">🃏</text>
-      <text x="500" y="1170" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="88" font-weight="900" text-anchor="middle" letter-spacing="4">${label}</text>
-    </svg>
-  `;
 }
 
 
