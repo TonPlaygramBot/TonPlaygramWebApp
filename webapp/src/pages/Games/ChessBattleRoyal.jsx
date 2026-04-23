@@ -9581,7 +9581,14 @@ function Chess3D({
     const getLiveLaunchPosition = (fallback, movingMesh = null, lift = 0.08) => {
       const launchPos = fallback.clone();
       if (movingMesh?.parent) {
-        movingMesh.getWorldPosition(launchPos);
+        const worldBounds = new THREE.Box3().setFromObject(movingMesh);
+        if (!worldBounds.isEmpty()) {
+          launchPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
+          launchPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
+          launchPos.y = worldBounds.min.y;
+        } else {
+          movingMesh.getWorldPosition(launchPos);
+        }
       }
       launchPos.y += lift;
       return launchPos;
@@ -9906,9 +9913,8 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
-        const launchBase = parkedTruck?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'truck', 0);
+        const parkedTruck = acquireParkedSupportUnit(Boolean(movingMesh?.userData?.w));
+        const launchBase = getLiveLaunchPosition(fromPos.clone(), movingMesh, 0.11);
         missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.14, 0)));
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
@@ -9920,6 +9926,7 @@ function Chess3D({
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
+          launchFromLivePiece: true,
           sourceUnit: parkedTruck,
           missileFx,
           directPath: false
@@ -9975,6 +9982,7 @@ function Chess3D({
           to: targetPos.clone(),
           launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
           movingMesh,
+          launchFromLivePiece: true,
           sourceUnit: null,
           missileFx,
           directPath: false,
@@ -12164,8 +12172,9 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'javelin') {
-            const launchPos = fx.sourceUnit?.homePosition?.clone?.()
-              || getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            const launchPos = fx.launchFromLivePiece
+              ? getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0)
+              : fx.sourceUnit?.homePosition?.clone?.() || getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
             fx.launchPos.copy(launchPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
             if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
