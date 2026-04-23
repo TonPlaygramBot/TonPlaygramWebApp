@@ -26040,17 +26040,18 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
+        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: 110,
-          holdDuration: 45,
-          pullbackDuration: 0,
+          strikeDuration: 120,
+          holdDuration: 50,
+          pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.88,
+          impactThreshold: 0.9,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -26132,8 +26133,14 @@ const shotPowerRef = useRef(0);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
+        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        return effectiveMax * easeOutCubic(ratio);
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
+        const target =
+          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+        return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
@@ -26480,25 +26487,11 @@ const shotPowerRef = useRef(0);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const shotSpeedScale = isBreakShot ? SHOT_BREAK_MULTIPLIER : 1;
-          const speedMin =
-            SHOT_BASE_SPEED * SHOT_MIN_FACTOR * shotSpeedScale;
-          const speedRange =
-            SHOT_BASE_SPEED * SHOT_POWER_RANGE * shotSpeedScale;
-          const baseSpeed =
-            speedMin + speedRange * Math.pow(clampedPower, 1.08);
-          const sideDir = new THREE.Vector2(shotAimDir.y, -shotAimDir.x).normalize();
-          const referenceSide = (rawSpin?.x ?? 0) * clampedPower * 0.24;
-          const referenceTopspin = Math.max(0, rawSpin?.y ?? 0);
-          const referenceBackspin = Math.max(0, -(rawSpin?.y ?? 0));
-          const finalSpeed =
-            baseSpeed +
-            referenceTopspin * clampedPower * speedRange * 0.9 -
-            referenceBackspin * clampedPower * speedRange * 0.65;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
-            .multiplyScalar(finalSpeed)
-            .add(sideDir.multiplyScalar(referenceSide * speedRange));
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
