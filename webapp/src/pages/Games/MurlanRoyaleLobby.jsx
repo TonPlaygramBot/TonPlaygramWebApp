@@ -35,6 +35,7 @@ export default function MurlanRoyaleLobby() {
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [gameType, setGameType] = useState('single');
+  const [opponentCount, setOpponentCount] = useState(2);
   const [targetPoints, setTargetPoints] = useState(11);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState(() => pickRandomFlags(4));
@@ -42,7 +43,8 @@ export default function MurlanRoyaleLobby() {
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
 
-  const flagPickerCount = mode === 'local' ? 4 : 1;
+  const totalPlayers = opponentCount + 1;
+  const flagPickerCount = mode === 'local' ? opponentCount : 1;
 
   const openAiFlagPicker = () => {
     setShowFlagPicker(true);
@@ -71,7 +73,7 @@ export default function MurlanRoyaleLobby() {
       await runSimpleOnlineFlow({
         gameType: 'murlanroyale',
         stake,
-        maxPlayers: 2,
+        maxPlayers: totalPlayers,
         avatar,
         playerName: getTelegramFirstName() || 'Player',
         state: { setMatching, setMatchStatus, setMatchError },
@@ -82,6 +84,7 @@ export default function MurlanRoyaleLobby() {
           params.set('tableId', tableId);
           params.set('accountId', accountId);
           params.set('game', gameType);
+          params.set('players', String(totalPlayers));
           if (gameType === 'points') params.set('points', String(targetPoints));
           if (stake.token) params.set('token', stake.token);
           if (stake.amount) params.set('amount', String(stake.amount));
@@ -115,6 +118,7 @@ export default function MurlanRoyaleLobby() {
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('game', gameType);
+    params.set('players', String(totalPlayers));
     if (gameType === 'points') params.set('points', targetPoints);
     if (mode !== 'local' && stake.token) params.set('token', stake.token);
     if (mode !== 'local' && stake.amount) params.set('amount', stake.amount);
@@ -232,6 +236,46 @@ export default function MurlanRoyaleLobby() {
           <p className="text-xs text-white/60 text-center">
             AI matches stay offline while the arena preloads. Online mode launches when staking is ready.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Players</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Table size</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { opponents: 1, label: '1v1', desc: 'You vs 1 player', icon: '🆚' },
+              { opponents: 2, label: '1v2', desc: 'You vs 2 players', icon: '👥' }
+            ].map(({ opponents, label, desc, icon }) => {
+              const active = opponentCount === opponents;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setOpponentCount(opponents)}
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-cyan-400/30 via-sky-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('murlanroyale', `players-${opponents}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {mode === 'local' ? (
