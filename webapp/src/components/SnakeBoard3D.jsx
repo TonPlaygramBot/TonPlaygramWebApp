@@ -303,19 +303,19 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: pull token closer to the table rail on portrait screens.
-  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.2, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push token farther from the table edge (visually away from table).
-  Object.freeze({ radial: TILE_SIZE * 0.12, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.22, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 })
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: TILE_SIZE * 0.1 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.1 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: TILE_SIZE * 0.1 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.1 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.08;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.2;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.65;
 
@@ -4769,6 +4769,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         holder.position
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+        holder.position.y += portraitShift.y ?? 0;
       }
     } else {
       const seatWorld = new THREE.Vector3();
