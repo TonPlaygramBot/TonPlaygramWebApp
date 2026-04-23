@@ -2462,8 +2462,9 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
-const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = false;
+const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
 const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
+const PASS_POPUP_TTL_MS = 1600;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -2748,6 +2749,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [passPopups, setPassPopups] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -3437,6 +3439,7 @@ export default function MurlanRoyaleArena({ search }) {
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
   const characterActionRef = useRef({ lastActionId: 0 });
+  const passPopupTimersRef = useRef(new Map());
   const cameraDefaultTargetRef = useRef(new THREE.Vector3(0, TABLE_HEIGHT, 0));
   const cameraLookBasisRef = useRef({
     position: new THREE.Vector3(),
@@ -4736,6 +4739,7 @@ export default function MurlanRoyaleArena({ search }) {
     const playedCardId = action.cards?.[0]?.id;
     const playedCardMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
     const centerTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
+    turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: false });
     turnCameraTowardTarget(centerTarget, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
 
     const start =
@@ -4804,6 +4808,33 @@ export default function MurlanRoyaleArena({ search }) {
     if (!rig) return;
     runCharacterAction(store, rig, action);
   }, [gameState?.lastAction, gameState?.lastActionId, threeReady]);
+
+  useEffect(() => {
+    const lastActionId = gameState?.lastActionId ?? 0;
+    const action = gameState?.lastAction;
+    if (!lastActionId || action?.type !== 'PASS' || !Number.isInteger(action.playerIndex)) return;
+
+    const popupId = `${lastActionId}-${action.playerIndex}`;
+    setPassPopups((prev) => [...prev.filter((entry) => entry.playerIndex !== action.playerIndex), { id: popupId, playerIndex: action.playerIndex }]);
+
+    const existingTimer = passPopupTimersRef.current.get(action.playerIndex);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    const timer = setTimeout(() => {
+      setPassPopups((prev) => prev.filter((entry) => entry.id !== popupId));
+      passPopupTimersRef.current.delete(action.playerIndex);
+    }, PASS_POPUP_TTL_MS);
+    passPopupTimersRef.current.set(action.playerIndex, timer);
+  }, [gameState?.lastAction, gameState?.lastActionId]);
+
+  useEffect(
+    () => () => {
+      passPopupTimersRef.current.forEach((timer) => clearTimeout(timer));
+      passPopupTimersRef.current.clear();
+    },
+    []
+  );
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -5869,6 +5900,43 @@ export default function MurlanRoyaleArena({ search }) {
           </div>
         </div>
       </div>
+      {passPopups.map((popup) => {
+        const idx = popup.playerIndex;
+        const anchor = seatAnchorMap.get(idx);
+        const fallback = FALLBACK_SEAT_POSITIONS[idx % FALLBACK_SEAT_POSITIONS.length];
+        const isSideSeat = idx !== humanPlayerIndex && idx !== topSeatIndex;
+        const sideSeatTopLift = (isSideSeat ? 9.1 : 5.9) + NON_HUMAN_SEAT_AVATAR_UP_LIFT;
+        const topSeatLift = idx === topSeatIndex ? TOP_SEAT_AVATAR_UP_LIFT : 0;
+        const style = idx === humanPlayerIndex
+          ? {
+              position: 'fixed',
+              left: '50%',
+              bottom: 'calc(7.5rem + env(safe-area-inset-bottom, 0px))',
+              transform: 'translate(-50%, -100%)'
+            }
+          : anchor
+            ? {
+                position: 'absolute',
+                left: `${anchor.x}%`,
+                top: `${clampValue(anchor.y - sideSeatTopLift - topSeatLift - 2.4, -12, 108)}%`,
+                transform: 'translate(-50%, -100%)'
+              }
+            : {
+                position: 'absolute',
+                left: fallback.left,
+                top: `${clampValue(Number.parseFloat(fallback.top) - sideSeatTopLift - topSeatLift - 2.4, -12, 108)}%`,
+                transform: 'translate(-50%, -100%)'
+              };
+        return (
+          <div
+            key={popup.id}
+            className="pointer-events-none z-30 rounded-full border border-rose-200/85 bg-gradient-to-br from-red-600/95 to-red-900/95 px-3 py-1 text-[0.78rem] font-black uppercase tracking-[0.22em] text-rose-50 shadow-[0_12px_28px_rgba(127,29,29,0.5),inset_0_1px_0_rgba(255,255,255,0.22)]"
+            style={style}
+          >
+            Pass
+          </div>
+        );
+      })}
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
           <span>{bubble.text}</span>
