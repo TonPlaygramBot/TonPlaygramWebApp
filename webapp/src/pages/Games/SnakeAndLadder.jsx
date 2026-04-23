@@ -2717,6 +2717,10 @@ export default function SnakeAndLadder() {
       }
       const extraPred = diceCells[predicted] || rolledSix;
       const nextPlayer = extraPred ? currentTurn : getPreviousTurn(currentTurn);
+      if (!gameOver) {
+        setCurrentTurn(nextPlayer);
+        setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
+      }
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -2843,12 +2847,6 @@ export default function SnakeAndLadder() {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 1);
             if (next === 0) setRollCooldown(0);
-          } else {
-            const next = getPreviousTurn(currentTurn);
-            setTimeout(() => {
-              setCurrentTurn(next);
-              setDiceCount(playerDiceCounts[next] ?? 1);
-            }, TURN_ADVANCE_AFTER_DICE_MS);
           }
         }
       };
@@ -2941,6 +2939,8 @@ export default function SnakeAndLadder() {
     }
     const extraPred = diceCells[predicted] || rolledSix;
     const nextPlayer = extraPred ? index : getPreviousTurn(index);
+    setCurrentTurn(nextPlayer);
+    setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
 
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
@@ -3046,11 +3046,6 @@ export default function SnakeAndLadder() {
       if (extraTurn) {
         setCurrentTurn(next);
         setDiceCount(playerDiceCounts[next] ?? 1);
-      } else {
-        setTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 1);
-        }, TURN_ADVANCE_AFTER_DICE_MS);
       }
       setDiceVisible(true);
       setMoving(false);
