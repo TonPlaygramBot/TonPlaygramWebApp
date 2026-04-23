@@ -67,7 +67,7 @@ import {
   resolveMurlanLanguageKey
 } from '../../utils/murlanRoyaleCommentary.js';
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['2k']);
 const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
 const DEFAULT_HDRI_ID = 'neon_photostudio';
 const DEFAULT_HDRI_INDEX = Math.max(
@@ -2337,7 +2337,7 @@ const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
-const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
+const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.5 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.28;
@@ -2348,7 +2348,7 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.018 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = -0.022 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
@@ -2386,7 +2386,7 @@ const DEAL_CARD_STEP_DELAY_MS = 60;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.085 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.03 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -2436,11 +2436,11 @@ const CAMERA_TARGET_TURN_SNAP_DISTANCE = 0.018 * MODEL_SCALE;
 const CAMERA_PLAYER_TARGET_WEIGHT = 0.6;
 const HDRI_GROUND_FLOOR_Y = -0.015 * MODEL_SCALE;
 const ARENA_GROUND_Y = HDRI_GROUND_FLOOR_Y;
-const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.76;
+const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.52;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.97;
+const CAMERA_INWARD_RADIUS_FACTOR = 1;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -4957,7 +4957,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.31,
+        cornerRadiusRatio: 0.24,
         segments: 14
       });
 
@@ -6942,36 +6942,6 @@ function createLegacyJokerSvg(rank) {
   `;
 }
 
-function drawCornerRankSuit(ctx, canvas, rank, suit, suitColor) {
-  const safeRank = rank === '10' ? '10' : String(rank ?? '');
-  const safeSuit = String(suit ?? '');
-  const cornerInsetX = Math.round(canvas.width * 0.07);
-  const cornerInsetY = Math.round(canvas.height * 0.092);
-  const rankSize = Math.round(canvas.width * 0.118);
-  const suitSize = Math.round(canvas.width * 0.092);
-  const lineGap = Math.round(canvas.height * 0.074);
-  const shadowBlur = Math.max(2, Math.round(canvas.width * 0.0042));
-
-  const drawLabel = (x, y, rotate) => {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotate);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(2, 6, 23, 0.22)';
-    ctx.shadowBlur = shadowBlur;
-    ctx.fillStyle = suitColor;
-    ctx.font = `900 ${rankSize}px "Inter", "Segoe UI", sans-serif`;
-    ctx.fillText(safeRank, 0, 0);
-    ctx.font = `900 ${suitSize}px "Inter", "Segoe UI Symbol", sans-serif`;
-    ctx.fillText(safeSuit, 0, lineGap);
-    ctx.restore();
-  };
-
-  drawLabel(cornerInsetX, cornerInsetY, 0);
-  drawLabel(canvas.width - cornerInsetX, canvas.height - cornerInsetY, Math.PI);
-}
-
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const svg = svgMarkupFromOpenSourceDeck(rank, suit);
   const canvas = document.createElement('canvas');
@@ -7017,26 +6987,21 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     ctx.drawImage(canvas, 0.65, -0.65, canvas.width, canvas.height);
     ctx.restore();
 
-    // Slightly darker front-face matte layer for less glare and reduced overall brightness.
+    // Slight front-face matte layer to reduce glare on community cards.
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.12)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.06)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
     // Clip all card faces with stronger rounded corners to hide dark corner wedges/triangles.
-    const cornerRadius = Math.round(Math.min(canvas.width, canvas.height) * 0.092);
+    const cornerRadius = Math.round(Math.min(canvas.width, canvas.height) * 0.07);
     ctx.save();
     ctx.globalCompositeOperation = 'destination-in';
     roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.restore();
-
-    // Repaint corner rank/suit with heavier weight to improve readability on mobile portrait view.
-    if (rank !== 'JR' && rank !== 'JB') {
-      drawCornerRankSuit(ctx, canvas, rank, suit, SUIT_COLORS[suit] || '#111111');
-    }
 
     tex.needsUpdate = true;
   };
