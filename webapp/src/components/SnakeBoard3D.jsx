@@ -135,7 +135,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.675 * 1.16;
+const DICE_SIZE = TILE_SIZE * 0.675 * 1.04;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -305,17 +305,17 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.46, lateral: 0, y: TILE_SIZE * 0.04 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.72, lateral: 0, y: TILE_SIZE * 0.05 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.46, lateral: 0, y: TILE_SIZE * 0.05 }),
+  Object.freeze({ radial: TILE_SIZE * 1.72, lateral: 0, y: TILE_SIZE * 0.07 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: 0, y: TILE_SIZE * 0.44 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.66, lateral: -TILE_SIZE * 0.28, y: TILE_SIZE * 0.44 }),
-  Object.freeze({ radial: TILE_SIZE * 1.14, lateral: 0, y: TILE_SIZE * 0.46 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.66, lateral: TILE_SIZE * 0.28, y: TILE_SIZE * 0.44 })
+  Object.freeze({ radial: -TILE_SIZE * 1.36, lateral: 0, y: TILE_SIZE * 0.56 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.82, lateral: -TILE_SIZE * 0.36, y: TILE_SIZE * 0.54 }),
+  Object.freeze({ radial: TILE_SIZE * 1.34, lateral: 0, y: TILE_SIZE * 0.58 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.82, lateral: TILE_SIZE * 0.36, y: TILE_SIZE * 0.54 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -4917,6 +4917,32 @@ export default function SnakeBoard3D({
       returnTarget: focusState.target
     });
     if (turnAnimation) animationsRef.current.push(turnAnimation);
+
+    // Keep dice handoff synchronized with turn camera focus so both move together.
+    if (diceStateRef.current?.currentId == null) {
+      const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
+      if (seatCount > 0) {
+        const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
+        const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
+        if (visibleDice.length) {
+          const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
+          const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
+          if (basePositions.length) {
+            removeAnimationsByType(animationsRef.current, 'diceHandoff');
+            const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
+              basePositions,
+              baseY: board.diceBaseY ?? 0,
+              duration: TURN_CAMERA_TURN_IN_DURATION
+            });
+            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
+            diceStateRef.current = {
+              ...(diceStateRef.current || {}),
+              lastSeatIndex: seatIndex
+            };
+          }
+        }
+      }
+    }
   }, [currentTurn, cameraViewMode]);
 
   useEffect(() => {
@@ -5749,30 +5775,6 @@ export default function SnakeBoard3D({
       }
     });
   }, [slide, onSlideComplete, cameraViewMode]);
-
-  useEffect(() => {
-    const board = boardRef.current;
-    if (!board || !Number.isInteger(currentTurn) || currentTurn < 0) return;
-    if (diceStateRef.current?.currentId != null) return;
-    const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-    if (seatCount <= 0) return;
-    const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
-    const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
-    if (!visibleDice.length) return;
-    const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
-    const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
-    if (!basePositions.length) return;
-    removeAnimationsByType(animationsRef.current, 'diceHandoff');
-    const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
-      basePositions,
-      baseY: board.diceBaseY ?? 0
-    });
-    if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-    diceStateRef.current = {
-      ...(diceStateRef.current || {}),
-      lastSeatIndex: seatIndex
-    };
-  }, [currentTurn]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
