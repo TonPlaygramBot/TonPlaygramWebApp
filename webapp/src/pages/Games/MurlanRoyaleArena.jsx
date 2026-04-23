@@ -2334,12 +2334,12 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.46,
-  landscape: 1.12
+  portrait: 2.3,
+  landscape: 1.04
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
-  portrait: THREE.MathUtils.degToRad(5.5),
-  landscape: THREE.MathUtils.degToRad(4.5)
+  portrait: THREE.MathUtils.degToRad(8.5),
+  landscape: THREE.MathUtils.degToRad(6.5)
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
@@ -2469,6 +2469,8 @@ const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
 const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
+const CAMERA_HUMAN_TURN_TARGET_DOWN_SHIFT = 0.1 * MODEL_SCALE;
+const CAMERA_HUMAN_TURN_TARGET_INWARD_PULL = 0.06 * MODEL_SCALE;
 const PASS_BUBBLE_DURATION_MS = 1700;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
@@ -4717,6 +4719,19 @@ export default function MurlanRoyaleArena({ search }) {
     const activeSeat = Number.isInteger(activeIndex) ? three.seatConfigs?.[activeIndex] : null;
     const activePlayer = Number.isInteger(activeIndex) ? gameState?.players?.[activeIndex] : null;
     const basis = cameraLookBasisRef.current;
+    const resolveHumanTurnTarget = () => {
+      const humanSeat = three.seatConfigs?.find((seat) => {
+        if (!Number.isInteger(seat?.seatIndex)) return false;
+        return gameState?.players?.[seat.seatIndex]?.isHuman;
+      });
+      if (!humanSeat?.focus) {
+        return cameraDefaultTargetRef.current.clone();
+      }
+      const target = cameraDefaultTargetRef.current.clone().lerp(humanSeat.focus, 0.42);
+      target.addScaledVector(humanSeat.forward ?? new THREE.Vector3(0, 0, 1), -CAMERA_HUMAN_TURN_TARGET_INWARD_PULL);
+      target.y -= CAMERA_HUMAN_TURN_TARGET_DOWN_SHIFT;
+      return target;
+    };
 
     if (!basis?.position || !basis?.direction) return;
 
@@ -4724,14 +4739,14 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (gameState?.status !== 'PLAYING') {
       if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+        turnCameraTowardTarget(resolveHumanTurnTarget(), { animate: true });
       }
       return;
     }
 
     if (activePlayer?.isHuman) {
       if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+        turnCameraTowardTarget(resolveHumanTurnTarget(), { animate: true });
       }
       return;
     }
@@ -6864,19 +6879,22 @@ function setBackLogoOrientation(mesh, variant = 'default') {
   if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
     if (desiredVariant === 'top') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'side') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideGift') {
+      // Top seat was appearing mirrored on mobile portrait; mirror X once to restore logo direction.
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.rotation = 0;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'side') {
+      // Chat-side seat was upside-down+mirrored; keep upright with single horizontal correction.
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
+      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'sideGift') {
+      // Gift-side seat was losing logo with prior rotation+mirror combo; keep texture in visible upright mapping.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = 0;
       tunedTexture.center.set(0.5, 0.5);
     }
     tunedTexture.needsUpdate = true;
