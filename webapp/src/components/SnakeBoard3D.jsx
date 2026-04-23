@@ -276,13 +276,13 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.34;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.46;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
+  TILE_SIZE * 0.05,
+  TILE_SIZE * 0.03,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.03
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -296,26 +296,26 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
+  TILE_SIZE * 0.04,
+  TILE_SIZE * 0.03,
+  TILE_SIZE * 0.05,
+  TILE_SIZE * 0.03
 ]);
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 0.92, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.08, lateral: 0, y: TILE_SIZE * 0.02 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 0.92, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 1.08, lateral: 0, y: TILE_SIZE * 0.03 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.72, lateral: 0, y: TILE_SIZE * 0.2 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.28, lateral: -TILE_SIZE * 0.18, y: TILE_SIZE * 0.2 }),
-  Object.freeze({ radial: TILE_SIZE * 0.62, lateral: 0, y: TILE_SIZE * 0.2 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.28, lateral: TILE_SIZE * 0.18, y: TILE_SIZE * 0.2 })
+  Object.freeze({ radial: -TILE_SIZE * 0.84, lateral: 0, y: TILE_SIZE * 0.28 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: -TILE_SIZE * 0.2, y: TILE_SIZE * 0.28 }),
+  Object.freeze({ radial: TILE_SIZE * 0.78, lateral: 0, y: TILE_SIZE * 0.3 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: TILE_SIZE * 0.2, y: TILE_SIZE * 0.28 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
