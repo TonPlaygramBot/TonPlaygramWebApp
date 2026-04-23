@@ -22783,8 +22783,7 @@ const powerRef = useRef(hud.power);
             baseRotationX,
             baseRotationY,
             strikeDip,
-            forwardOnly,
-            strikeImpactThreshold
+            forwardOnly
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
@@ -22806,19 +22805,9 @@ const powerRef = useRef(hud.power);
               Math.max(24, safeStrikeDuration * 0.45)
             );
             const releaseWindow = Math.max(1, safeStrikeDuration - contactWindow);
-            const strikeProgress = THREE.MathUtils.clamp(
-              elapsed / Math.max(safeStrikeDuration, 1e-6),
-              0,
-              1
-            );
-            const impactThreshold = THREE.MathUtils.clamp(
-              strikeImpactThreshold ?? 0.9,
-              0.05,
-              0.995
-            );
             const strikeWobbleScale = Math.max(
               0,
-              1 - strikeProgress
+              1 - THREE.MathUtils.clamp(elapsed / Math.max(safeStrikeDuration, 1e-6), 0, 1)
             );
 
             cueStick.visible = true;
@@ -22848,7 +22837,7 @@ const powerRef = useRef(hud.power);
               cueStick.rotation.y =
                 (baseRotationY ?? cueStick.rotation.y) +
                 Math.sin(contactT * Math.PI) * 0.0008 * strikeWobbleScale;
-              if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
+              if (!stroke.shotApplied && contactT >= 0.2) {
                 stroke.shotApplied = true;
                 stroke.onImpact?.();
               }
