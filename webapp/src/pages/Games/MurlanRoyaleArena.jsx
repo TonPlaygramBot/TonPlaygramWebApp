@@ -6183,8 +6183,7 @@ function describeSimpleCombo(combo, cards) {
 
 function cardLabel(card) {
   if (!card) return '';
-  if (card.rank === 'JR') return '🃏R';
-  if (card.rank === 'JB') return '🃏B';
+  if (card.rank === 'JR' || card.rank === 'JB') return '🃏';
   return `${card.rank}${card.suit || ''}`;
 }
 
@@ -6914,33 +6913,31 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
 }
 
 function createLegacyJokerSvg(rank) {
-  const accent = rank === 'JR' ? '#d62828' : '#111827';
-  const accentSoft = rank === 'JR' ? '#fca5a5' : '#9ca3af';
-  const label = rank === 'JR' ? 'RED JOKER' : 'BLACK JOKER';
+  const isRedJoker = rank === 'JR';
+  const accent = isRedJoker ? '#d62828' : '#111111';
+  const accentSoft = isRedJoker ? '#fff1f2' : '#f3f4f6';
+  const label = isRedJoker ? 'COLOR JOKER' : 'BLACK JOKER';
+  const emojiFont = isRedJoker
+    ? '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
+    : '"Segoe UI Symbol", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400" viewBox="0 0 1000 1400">
       <defs>
         <linearGradient id="joker-bg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#ffffff" />
-          <stop offset="100%" stop-color="#f3f4f6" />
+          <stop offset="100%" stop-color="${accentSoft}" />
         </linearGradient>
       </defs>
       <rect x="16" y="16" rx="90" ry="90" width="968" height="1368" fill="url(#joker-bg)" stroke="rgba(15,23,42,0.14)" stroke-width="8"/>
       <rect x="52" y="52" rx="66" ry="66" width="896" height="1296" fill="none" stroke="rgba(15,23,42,0.08)" stroke-width="4"/>
-      <text x="98" y="154" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="108" font-weight="900">J</text>
-      <text x="902" y="1248" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="108" font-weight="900" text-anchor="end">J</text>
-      <g transform="translate(500 710)">
-        <circle r="270" fill="${accentSoft}" opacity="0.35" />
-        <path d="M-172 84C-128-48-22-132 0-198C22-132 128-48 172 84" fill="none" stroke="${accent}" stroke-width="30" stroke-linecap="round"/>
-        <circle cx="-88" cy="26" r="42" fill="${accent}"/>
-        <circle cx="0" cy="-60" r="48" fill="${accent}"/>
-        <circle cx="88" cy="26" r="42" fill="${accent}"/>
-        <rect x="-126" y="56" width="252" height="170" rx="42" fill="${accent}" />
-      </g>
-      <text x="500" y="1170" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="92" font-weight="900" text-anchor="middle" letter-spacing="6">${label}</text>
+      <text x="96" y="168" fill="${accent}" font-family="${emojiFont}" font-size="112" font-weight="800">🃏</text>
+      <text x="904" y="1246" fill="${accent}" font-family="${emojiFont}" font-size="112" font-weight="800" text-anchor="end">🃏</text>
+      <text x="500" y="760" fill="${accent}" font-family="${emojiFont}" font-size="390" text-anchor="middle" dominant-baseline="middle">🃏</text>
+      <text x="500" y="1170" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="88" font-weight="900" text-anchor="middle" letter-spacing="4">${label}</text>
     </svg>
   `;
 }
+
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const svg = svgMarkupFromOpenSourceDeck(rank, suit);
@@ -6971,15 +6968,23 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   image.crossOrigin = 'anonymous';
   image.onload = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     const faceZoom = 1.045;
     const zoomedWidth = canvas.width * faceZoom;
     const zoomedHeight = canvas.height * faceZoom;
     const offsetX = (canvas.width - zoomedWidth) * 0.5;
     const offsetY = (canvas.height - zoomedHeight) * 0.5;
+
+    // Draw card art clipped to rounded corners but keep opaque white corners to avoid black wedges.
+    const cornerRadius = Math.round(Math.min(canvas.width, canvas.height) * 0.092);
+    ctx.save();
+    roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
+    ctx.clip();
     ctx.drawImage(image, offsetX, offsetY, zoomedWidth, zoomedHeight);
 
     // Slightly thicken rank/suit glyph edges for better mobile readability.
-    ctx.save();
     ctx.globalCompositeOperation = 'multiply';
     ctx.globalAlpha = 0.2;
     ctx.drawImage(canvas, -0.9, 0, canvas.width, canvas.height);
@@ -6990,22 +6995,11 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     ctx.drawImage(canvas, 0.65, 0.65, canvas.width, canvas.height);
     ctx.drawImage(canvas, -0.65, 0.65, canvas.width, canvas.height);
     ctx.drawImage(canvas, 0.65, -0.65, canvas.width, canvas.height);
-    ctx.restore();
 
     // Slightly darker front-face matte layer for less glare and reduced overall brightness.
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(15, 23, 42, 0.12)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-
-    // Clip all card faces with stronger rounded corners to hide dark corner wedges/triangles.
-    const cornerRadius = Math.round(Math.min(canvas.width, canvas.height) * 0.092);
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-in';
-    roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
     ctx.restore();
 
     tex.needsUpdate = true;
