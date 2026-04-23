@@ -135,7 +135,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.675 * 1.04;
+const DICE_SIZE = TILE_SIZE * 0.675 * 0.94;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -279,10 +279,10 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.64;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.22,
-  TILE_SIZE * 0.2,
-  TILE_SIZE * 0.26,
-  TILE_SIZE * 0.2
+  TILE_SIZE * 0.32,
+  TILE_SIZE * 0.32,
+  TILE_SIZE * 0.38,
+  TILE_SIZE * 0.32
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -296,26 +296,26 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.04,
-  TILE_SIZE * 0.03,
-  TILE_SIZE * 0.05,
-  TILE_SIZE * 0.03
+  TILE_SIZE * 0.07,
+  TILE_SIZE * 0.06,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.06
 ]);
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.72, lateral: 0, y: TILE_SIZE * 0.05 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.94, lateral: 0, y: TILE_SIZE * 0.1 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.72, lateral: 0, y: TILE_SIZE * 0.07 }),
+  Object.freeze({ radial: TILE_SIZE * 1.98, lateral: 0, y: TILE_SIZE * 0.12 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 1.36, lateral: 0, y: TILE_SIZE * 0.56 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.82, lateral: -TILE_SIZE * 0.36, y: TILE_SIZE * 0.54 }),
-  Object.freeze({ radial: TILE_SIZE * 1.34, lateral: 0, y: TILE_SIZE * 0.58 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.82, lateral: TILE_SIZE * 0.36, y: TILE_SIZE * 0.54 })
+  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: 0, y: TILE_SIZE * 0.66 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.98, lateral: -TILE_SIZE * 0.52, y: TILE_SIZE * 0.64 }),
+  Object.freeze({ radial: TILE_SIZE * 1.56, lateral: 0, y: TILE_SIZE * 0.7 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.98, lateral: TILE_SIZE * 0.52, y: TILE_SIZE * 0.64 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -5900,6 +5900,42 @@ export default function SnakeBoard3D({
         });
         if (settleAnimation) animationsRef.current.push(settleAnimation);
 
+        const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
+        if (seatCount > 0) {
+          const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn || 0));
+          const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
+          const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
+          if (handoffBases.length) {
+            removeAnimationsByType(animationsRef.current, 'diceHandoff');
+            const handoffAnimation = createDiceHandoffAnimation(active, {
+              basePositions: handoffBases,
+              baseY: board.diceBaseY ?? 0,
+              duration: TURN_CAMERA_TURN_IN_DURATION
+            });
+            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
+            const camera = cameraRef.current;
+            const controls = board?.controls;
+            if (camera && controls && cameraViewMode !== '2d') {
+              const focusState = computeTurnCameraFocusState(board, camera, seatIndex, players);
+              if (focusState) {
+                removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+                removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+                const turnAnimation = createCameraTransitionAnimation(camera, controls, {
+                  toPosition: focusState.position,
+                  toTarget: focusState.target,
+                  durationIn: TURN_CAMERA_TURN_IN_DURATION,
+                  hold: 0,
+                  durationOut: 0,
+                  type: 'cameraTurnFocus',
+                  lockPosition: true,
+                  returnPosition: focusState.position,
+                  returnTarget: focusState.target
+                });
+                if (turnAnimation) animationsRef.current.push(turnAnimation);
+              }
+            }
+          }
+        }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
@@ -5910,7 +5946,7 @@ export default function SnakeBoard3D({
         lastSeatIndex
       };
     }
-  }, [diceEvent, cameraViewMode]);
+  }, [diceEvent, cameraViewMode, currentTurn, players]);
 
   useEffect(() => {
     if (!captureEvent || !boardRef.current) return;

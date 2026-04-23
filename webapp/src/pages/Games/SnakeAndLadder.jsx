@@ -89,7 +89,7 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
-import { playLudoDiceRollSfx } from "../../utils/ludoSfx.js";
+import { playLudoDiceRollSfx, playLudoTokenStepSfx } from "../../utils/ludoSfx.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -2740,6 +2740,11 @@ export default function SnakeAndLadder() {
         ladderSoundRef,
         badLuckSoundRef,
         muted,
+        onStepSfx: () =>
+          playLudoTokenStepSfx({
+            muted,
+            volume: getGameVolume()
+          }),
         FINAL_TILE,
         playerIndex: 0,
         startSlide: ({ from, to, type, onComplete }) =>
