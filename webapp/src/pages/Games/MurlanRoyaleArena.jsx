@@ -2396,7 +2396,7 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.1 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -7224,10 +7224,6 @@ function recolorBlackJokerFigure(ctx, width, height) {
     top: Math.floor(height * 0.12),
     bottom: Math.ceil(height * 0.9)
   };
-  const faceCenterX = width * 0.5;
-  const faceCenterY = height * 0.39;
-  const faceRadiusX = width * 0.12;
-  const faceRadiusY = height * 0.09;
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
@@ -7240,18 +7236,6 @@ function recolorBlackJokerFigure(ctx, width, height) {
     const b = data[i + 2];
     const a = data[i + 3];
     if (a < 12) continue;
-    const dx = (x - faceCenterX) / Math.max(faceRadiusX, 1);
-    const dy = (y - faceCenterY) / Math.max(faceRadiusY, 1);
-    const isInsideFace = dx * dx + dy * dy <= 1;
-    if (isInsideFace) {
-      // Keep the joker's rounded face area aligned with the yellow/red joker tone.
-      if (r > 140 && g > 95 && b < 130) {
-        data[i] = 246;
-        data[i + 1] = 206;
-        data[i + 2] = 126;
-      }
-      continue;
-    }
     const dominantRed = r > 96 && r > g + 18 && r > b + 18;
     if (!dominantRed) continue;
     data[i] = 17;
