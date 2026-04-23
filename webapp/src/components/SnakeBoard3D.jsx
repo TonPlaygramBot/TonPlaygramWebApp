@@ -278,10 +278,10 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.08,
-  TILE_SIZE * 0.1,
-  TILE_SIZE * 0.24,
-  TILE_SIZE * 0.1
+  0,
+  0,
+  0,
+  0
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -310,15 +310,12 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom seat: pull weapon farther inward than token so it sits next to it.
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
-  // Right seat: move weapon closer to table edge where the token rests.
-  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 }),
-  // Top seat: lower weapon so it rests on/touches the table surface like token.
-  Object.freeze({ radial: 0, lateral: 0, y: -TOKEN_HEIGHT * 0.28 }),
-  // Left seat: move weapon closer to table edge where the token rests.
-  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 })
+  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 })
 ]);
+const WEAPON_TABLE_SURFACE_Y_OFFSET = 0;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -4694,21 +4691,29 @@ function updateSeatWeaponDisplays(board, players = []) {
   const keep = new Set();
   const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
   const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
-
+  const playersBySeat = new Map();
   players.forEach((player, index) => {
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    if (!Number.isFinite(seatIndex)) return;
+    if (seatIndex < 0 || seatIndex >= anchors.length) return;
+    if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, player);
+  });
+
+  for (let seatIndex = 0; seatIndex < anchors.length; seatIndex += 1) {
+    const player = playersBySeat.get(seatIndex) ?? null;
     const anchor = anchors[seatIndex];
-    if (!anchor) return;
-    keep.add(index);
-    let holder = board.weaponDisplayGroup.userData.byPlayer?.get(index);
+    if (!anchor) continue;
+    const holderKey = `seat-${seatIndex}`;
+    keep.add(holderKey);
+    let holder = board.weaponDisplayGroup.userData.byPlayer?.get(holderKey);
     if (!holder) {
       holder = new THREE.Group();
       holder.userData.weaponType = null;
       board.weaponDisplayGroup.add(holder);
       if (!board.weaponDisplayGroup.userData.byPlayer) board.weaponDisplayGroup.userData.byPlayer = new Map();
-      board.weaponDisplayGroup.userData.byPlayer.set(index, holder);
+      board.weaponDisplayGroup.userData.byPlayer.set(holderKey, holder);
     }
-    const weaponType = player?.weaponType || fallbackOrder[index % fallbackOrder.length];
+    const weaponType = player?.weaponType || fallbackOrder[seatIndex % fallbackOrder.length];
     if (holder.userData.weaponType !== weaponType) {
       while (holder.children.length) {
         const child = holder.children.pop();
@@ -4743,16 +4748,12 @@ function updateSeatWeaponDisplays(board, players = []) {
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
       }
-      holder.position.y =
-        railLayout.railHeightY +
-        WEAPON_REST_HEIGHT_OFFSET +
-        (WEAPON_REST_HEIGHT_OFFSET_BY_SEAT[seatIndex] ?? 0) +
-        (portraitShift?.y ?? 0);
+      holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
       const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-      if (seatDirection.lengthSq() < 1e-6) return;
+      if (seatDirection.lengthSq() < 1e-6) continue;
       seatDirection.normalize();
       const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
       const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
@@ -4761,19 +4762,19 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = tableY + TOKEN_HEIGHT * 0.18;
+      holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
     holder.rotation.z = 0;
-  });
+  }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
   if (!(byPlayer instanceof Map)) return;
-  byPlayer.forEach((group, index) => {
-    if (!keep.has(index)) {
+  byPlayer.forEach((group, key) => {
+    if (!keep.has(key)) {
       group.parent?.remove(group);
-      byPlayer.delete(index);
+      byPlayer.delete(key);
     }
   });
 }
