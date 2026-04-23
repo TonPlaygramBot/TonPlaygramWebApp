@@ -3823,9 +3823,16 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
-        const isGiftSideSeat = seat?.handVariant === 'giftSide';
-        const backLogoVariant = !isHumanCard ? 'top' : 'default';
+        const seatHandVariant = seat?.handVariant;
+        const backLogoVariant = !isHumanCard
+          ? (seatHandVariant === 'top'
+            ? 'top'
+            : seatHandVariant === 'giftSide'
+              ? 'sideGift'
+              : 'side')
+          : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
+        const isGiftSideSeat = seatHandVariant === 'giftSide';
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
@@ -6880,19 +6887,19 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
-      // Keep top seat logo fully visible and upright.
+      // Top seat cards are physically rotated toward the center, so counter-rotate the texture.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI;
+    } else if (desiredVariant === 'side') {
+      // Left side seat should keep the logo readable without horizontal mirroring.
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
-    } else if (desiredVariant === 'side') {
-      // Left side seat: mirror horizontally so branding reads naturally from camera.
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
-      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'sideGift') {
-      // Right side seat: avoid 180° rotation that made the logo upside down.
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
+      // Right side seat should also stay unmirrored and upright.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
     }
     tunedTexture.needsUpdate = true;
