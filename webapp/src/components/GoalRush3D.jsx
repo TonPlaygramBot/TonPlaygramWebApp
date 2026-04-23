@@ -652,7 +652,8 @@ export default function AirHockey3D({
     hit: null,
     goal: null,
     whistle: null,
-    post: null
+    post: null,
+    crowd: null
   });
   const audioStartedRef = useRef(false);
   const hahaSoundRef = useRef(null);
@@ -1077,6 +1078,19 @@ export default function AirHockey3D({
   }, []);
 
   useEffect(() => {
+    const crowd = audioRef.current.crowd;
+    if (!crowd) return;
+    if (muted) {
+      crowd.pause();
+      return;
+    }
+    if (audioStartedRef.current) {
+      crowd.volume = Math.min(1, getGameVolume() * 0.5);
+      crowd.play().catch(() => {});
+    }
+  }, [muted]);
+
+  useEffect(() => {
     const handleMute = () => {
       if (!isGameMuted()) return;
       const synth = getSpeechSynthesis();
@@ -1109,6 +1123,9 @@ export default function AirHockey3D({
     audioRef.current.goal = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
     audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
     audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
+    audioRef.current.crowd = new Audio('/assets/sounds/football-crowd-3-69245.mp3');
+    audioRef.current.crowd.loop = true;
+    audioRef.current.crowd.volume = Math.min(1, getGameVolume() * 0.5);
 
     const primeAudio = () => {
       const audios = Object.values(audioRef.current).filter(Boolean);
@@ -1128,6 +1145,14 @@ export default function AirHockey3D({
           pending -= 1;
           if (pending === 0) {
             audioStartedRef.current = unlocked;
+            if (unlocked && !isGameMuted()) {
+              const crowd = audioRef.current.crowd;
+              if (crowd) {
+                crowd.volume = Math.min(1, getGameVolume() * 0.5);
+                crowd.currentTime = 0;
+                crowd.play().catch(() => {});
+              }
+            }
           }
         };
 
@@ -1211,6 +1236,7 @@ export default function AirHockey3D({
         goal.pause();
         goal.currentTime = 0;
       }, 2000);
+      playWhistle();
     };
 
     const recordGoal = (playerScored) => {
