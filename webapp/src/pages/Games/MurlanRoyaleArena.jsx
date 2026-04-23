@@ -3607,31 +3607,48 @@ export default function MurlanRoyaleArena({ search }) {
       if (!controls || !camera || !basis?.targetDistance) return;
 
       const fallbackTarget = cameraDefaultTargetRef.current;
+      const lockedPosition = cameraLockedPositionRef.current;
       const desiredPoint = targetPoint?.clone?.() ?? fallbackTarget.clone();
-      const aimDirection = desiredPoint.sub(camera.position);
-      if (aimDirection.lengthSq() <= 1e-6) return;
-      aimDirection.normalize();
-      const desiredTarget = camera.position.clone().addScaledVector(aimDirection, basis.targetDistance);
-      const snapDistance = controls.target.distanceTo(desiredTarget);
+      const desiredDirection = desiredPoint.sub(lockedPosition);
+      if (desiredDirection.lengthSq() <= 1e-6) return;
+      desiredDirection.normalize();
+
+      const applyDirection = (direction) => {
+        camera.position.copy(lockedPosition);
+        controls.target.copy(lockedPosition).addScaledVector(direction, basis.targetDistance);
+        camera.lookAt(controls.target);
+        updateSeatAnchors();
+      };
+
+      const currentDirection = cameraForwardScratchRef.current;
+      camera.getWorldDirection(currentDirection);
+      if (currentDirection.lengthSq() <= 1e-8) {
+        applyDirection(desiredDirection);
+        return;
+      }
+      currentDirection.normalize();
+      const snapDistance = currentDirection.distanceTo(desiredDirection);
 
       if (snapDistance <= CAMERA_TARGET_TURN_SNAP_DISTANCE || options.animate === false) {
         stopCameraTurnAnimation();
-        controls.target.copy(desiredTarget);
-        controls.update();
-        updateSeatAnchors();
+        applyDirection(desiredDirection);
         return;
       }
 
       stopCameraTurnAnimation();
       const durationMs = options.durationMs ?? CAMERA_TURN_DURATION_MS;
       const startTime = performance.now();
-      const startTarget = controls.target.clone();
+      const startQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), currentDirection);
+      const endQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), desiredDirection);
+      const tmpQuat = new THREE.Quaternion();
+      const tmpDirection = new THREE.Vector3();
+
       const animateStep = (now) => {
         const t = Math.min(1, (now - startTime) / Math.max(1, durationMs));
         const eased = t * (2 - t);
-        controls.target.lerpVectors(startTarget, desiredTarget, eased);
-        controls.update();
-        updateSeatAnchors();
+        tmpQuat.slerpQuaternions(startQuat, endQuat, eased);
+        tmpDirection.set(0, 0, -1).applyQuaternion(tmpQuat).normalize();
+        applyDirection(tmpDirection);
         if (t < 1) {
           cameraTurnAnimationRef.current = requestAnimationFrame(animateStep);
         } else {
