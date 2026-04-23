@@ -1,0 +1,734 @@
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { khronosThumb, polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+
+const GOAL_RUSH_HDRI_PLACEMENTS = Object.freeze({
+  neonPhotostudio: {
+    cameraHeightM: 1.52,
+    groundRadiusMultiplier: 3.8,
+    groundResolution: 120,
+    arenaScale: 1.1
+  },
+  colorfulStudio: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 4,
+    groundResolution: 120,
+    arenaScale: 1.15,
+    rotationY: Math.PI / 2
+  },
+  dancingHall: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.3
+  },
+  abandonedHall: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.2,
+    groundResolution: 112,
+    arenaScale: 1.25
+  },
+  mirroredHall: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.25
+  },
+  musicHall02: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.2,
+    groundResolution: 112,
+    arenaScale: 1.3
+  },
+  oldHall: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.22
+  },
+  blockyPhotoStudio: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.14,
+    rotationY: -Math.PI / 2
+  },
+  cycloramaHardLight: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.8,
+    groundResolution: 120,
+    arenaScale: 1.15
+  },
+  abandonedGarage: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26,
+    rotationY: Math.PI / 2
+  },
+  vestibule: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.7,
+    groundResolution: 112,
+    arenaScale: 1.2,
+    rotationY: 0
+  },
+  countryClub: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.24,
+    rotationY: Math.PI
+  },
+  sepulchralChapelRotunda: {
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.6,
+    groundResolution: 112,
+    arenaScale: 1.32
+  },
+  squashCourt: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 4.1,
+    groundResolution: 120,
+    arenaScale: 1.18,
+    rotationY: Math.PI / 2
+  }
+});
+
+const RAW_GOAL_RUSH_HDRI_VARIANTS = [
+  {
+    id: 'neonPhotostudio',
+    name: 'Neon Photo Studio',
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 1420,
+    exposure: 1.18,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06,
+    swatches: ['#0ea5e9', '#8b5cf6'],
+    description: 'Vibrant cyber studio wrap with strong rim accents.'
+  },
+  {
+    id: 'colorfulStudio',
+    name: 'Colorful Studio',
+    assetId: 'colorful_studio',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 0,
+    exposure: 1.02,
+    environmentIntensity: 0.92,
+    backgroundIntensity: 0.92,
+    swatches: ['#ec4899', '#a855f7'],
+    description: 'Playful multi-hue studio for glossy highlight variety.'
+  },
+  {
+    id: 'dancingHall',
+    name: 'Dancing Hall',
+    assetId: 'dancing_hall',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 1840,
+    exposure: 1.12,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.04,
+    swatches: ['#22c55e', '#f97316'],
+    description: 'Spacious dance hall bounce light for soft, even sheen.'
+  },
+  {
+    id: 'abandonedHall',
+    name: 'Abandoned Hall',
+    assetId: 'abandoned_hall_01',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 1860,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 0.98,
+    swatches: ['#64748b', '#0f172a'],
+    description: 'Moody derelict hall with soft overhead spill and cool shadows.'
+  },
+  {
+    id: 'mirroredHall',
+    name: 'Mirrored Hall',
+    assetId: 'mirrored_hall',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2020,
+    exposure: 1.15,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06,
+    swatches: ['#22c55e', '#10b981'],
+    description: 'Reflective hall with bright symmetrical highlights for chrome polish.'
+  },
+  {
+    id: 'musicHall02',
+    name: 'Music Hall 02',
+    assetId: 'music_hall_02',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2060,
+    exposure: 1.11,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.04,
+    swatches: ['#a855f7', '#2563eb'],
+    description: 'Alternate music hall mood with richer purple-blue spill and soft roof glow.'
+  },
+  {
+    id: 'oldHall',
+    name: 'Old Hall',
+    assetId: 'old_hall',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2080,
+    exposure: 1.08,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 0.99,
+    swatches: ['#78350f', '#fbbf24'],
+    description: 'Vintage hall ambience with warm wood bounce and subtle window fill.'
+  },
+  {
+    id: 'blockyPhotoStudio',
+    name: 'Blocky Photo Studio',
+    assetId: 'blocky_photo_studio',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2200,
+    exposure: 1.12,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05,
+    swatches: ['#60a5fa', '#a855f7'],
+    description: 'Graphic studio blocks with crisp edges and balanced bounce.'
+  },
+  {
+    id: 'cycloramaHardLight',
+    name: 'Cyclorama Hard Light',
+    assetId: 'cyclorama_hard_light',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.16,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.08,
+    swatches: ['#f8fafc', '#94a3b8'],
+    description: 'Studio cyc with punchy hard light and sharp specular falloff.'
+  },
+  {
+    id: 'abandonedGarage',
+    name: 'Abandoned Garage',
+    assetId: 'abandoned_garage',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2340,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.98,
+    swatches: ['#334155', '#94a3b8'],
+    description: 'Gritty garage mood with diffused skylight and cool steel reflections.'
+  },
+  {
+    id: 'vestibule',
+    name: 'Vestibule',
+    assetId: 'vestibule',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2360,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#e2e8f0', '#64748b'],
+    description: 'Elegant entry lighting with neutral stone bounce and soft fill.'
+  },
+  {
+    id: 'countryClub',
+    name: 'Country Club',
+    assetId: 'country_club',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2380,
+    exposure: 1.11,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.03,
+    swatches: ['#f8fafc', '#22c55e'],
+    description: 'Upscale lounge ambience with bright daylight and warm interiors.'
+  },
+  {
+    id: 'sepulchralChapelRotunda',
+    name: 'Sepulchral Chapel Rotunda',
+    assetId: 'sepulchral_chapel_rotunda',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2480,
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98,
+    swatches: ['#1f2937', '#6b7280'],
+    description: 'Stone rotunda with dramatic overhead light and deep shadows.'
+  },
+  {
+    id: 'squashCourt',
+    name: 'Squash Court',
+    assetId: 'squash_court',
+    preferredResolutions: ['4k'],
+    fallbackResolution: '4k',
+    price: 2440,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#f8fafc', '#f97316'],
+    description: 'Bright court lighting with clean white walls and strong bounce.'
+  }
+];
+
+const HDRI_RESOLUTION_STACK = Object.freeze(['4k']);
+
+const GOAL_RUSH_HDRI_VARIANTS = Object.freeze(
+  RAW_GOAL_RUSH_HDRI_VARIANTS.map((variant) => ({
+    ...variant,
+    preferredResolutions: HDRI_RESOLUTION_STACK,
+    thumbnail: polyHavenThumb(variant.assetId),
+    ...(GOAL_RUSH_HDRI_PLACEMENTS[variant.id] || {})
+  }))
+);
+
+const TABLE_FINISH_THUMBNAILS = Object.freeze({
+  peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
+  oakVeneer01: polyHavenThumb('oak_veneer_01'),
+  woodTable001: polyHavenThumb('wood_table_001'),
+  darkWood: polyHavenThumb('dark_wood'),
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
+});
+
+const TABLE_BASE_THUMBNAILS = Object.freeze({
+  classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
+  openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
+  coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
+  gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
+  woodenTable02Alt: polyHavenThumb('wooden_table_02')
+});
+
+const FIELD_THUMBNAILS = Object.freeze({
+  'bust-marble': polyHavenThumb('marble_bust_01'),
+  'bust-onyx': polyHavenThumb('marble_bust_01'),
+  'clearcoat-ruby': khronosThumb('ClearCoatCarPaint'),
+  'clearcoat-azure': khronosThumb('ClearCoatCarPaint')
+});
+
+const GOAL_RUSH_TABLE_FINISHES = Object.freeze([
+  Object.freeze({
+    id: 'peelingPaintWeathered',
+    name: 'Wood Peeling Paint Weathered',
+    wood: '#b8b3aa',
+    trim: '#d6d0c7',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    swatches: ['#a89f95', '#b8b3aa'],
+    price: 980,
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
+  }),
+  Object.freeze({
+    id: 'oakVeneer01',
+    name: 'Oak Veneer 01',
+    wood: '#c89a64',
+    trim: '#e0bb7a',
+    woodTextureId: 'oak_veneer_01',
+    swatches: ['#b9854e', '#c89a64'],
+    price: 990,
+    description: 'Warm oak veneer rails with smooth satin polish.'
+  }),
+  Object.freeze({
+    id: 'woodTable001',
+    name: 'Wood Table 001',
+    wood: '#a4724f',
+    trim: '#c89a64',
+    woodTextureId: 'wood_table_001',
+    swatches: ['#8f6243', '#a4724f'],
+    price: 1000,
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
+  }),
+  Object.freeze({
+    id: 'darkWood',
+    name: 'Dark Wood',
+    wood: '#3d2f2a',
+    trim: '#6a5a52',
+    woodTextureId: 'dark_wood',
+    swatches: ['#2f241f', '#3d2f2a'],
+    price: 1010,
+    description: 'Deep espresso rails with strong grain contrast.'
+  }),
+  Object.freeze({
+    id: 'rosewoodVeneer01',
+    name: 'Rosewood Veneer 01',
+    wood: '#6f3a2f',
+    trim: '#9b5a44',
+    woodTextureId: 'rosewood_veneer_01',
+    swatches: ['#5b2f26', '#6f3a2f'],
+    price: 1020,
+    description: 'Rosewood veneer rails with rich, reddish undertones.'
+  })
+]);
+
+const GOAL_RUSH_TABLE_BASES = Object.freeze([
+  Object.freeze({
+    id: 'classicCylinders',
+    name: 'Classic Cylinders',
+    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
+    base: '#8f6243',
+    accent: '#6f3a2f',
+    swatches: ['#8f6243', '#6f3a2f']
+  }),
+  Object.freeze({
+    id: 'openPortal',
+    name: 'Open Portal',
+    description: 'Twin portal legs with angled sides and negative space.',
+    base: '#f8fafc',
+    accent: '#e5e7eb',
+    swatches: ['#f8fafc', '#e5e7eb']
+  }),
+  Object.freeze({
+    id: 'coffeeTableRound01',
+    name: 'Coffee Table Round 01 Base',
+    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
+    base: '#c5a47e',
+    accent: '#7a5534',
+    swatches: ['#c5a47e', '#7a5534']
+  }),
+  Object.freeze({
+    id: 'gothicCoffeeTable',
+    name: 'Gothic Coffee Table Base',
+    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
+    base: '#8f4a2b',
+    accent: '#3b2a1f',
+    swatches: ['#8f4a2b', '#3b2a1f']
+  }),
+  Object.freeze({
+    id: 'woodenTable02Alt',
+    name: 'Wooden Table 02 Alt Base',
+    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
+    base: '#6f5140',
+    accent: '#caa07a',
+    swatches: ['#6f5140', '#caa07a']
+  })
+].map((variant) => ({
+  ...variant,
+  thumbnail: TABLE_BASE_THUMBNAILS[variant.id]
+})));
+
+const createPolyHavenGltfUrls = (assetId, size = '2k') =>
+  Object.freeze([
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/${size}/${assetId}/${assetId}_${size}.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
+  ]);
+
+const createKhronosGltfUrls = (assetId) =>
+  Object.freeze([
+    `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/${assetId}/glTF-Binary/${assetId}.glb`,
+    `https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/${assetId}/glTF-Binary/${assetId}.glb`
+  ]);
+
+const GOAL_RUSH_MARBLE_FIELDS = Object.freeze([
+  Object.freeze({
+    id: 'poolRoyalGreenCloth',
+    name: 'Pool Royal Green Cloth',
+    color: '#47a35d',
+    swatches: ['#47a35d', '#66ce78', '#347b4b'],
+    lineColor: '#d1fae5',
+    roughness: 0.86,
+    metalness: 0.04,
+    clearcoat: 0.1,
+    clearcoatRoughness: 0.72,
+    description: 'Goal Rush field cloth aligned to the Pool Royal green cloth finish.'
+  }),
+  Object.freeze({
+    id: 'bust-marble',
+    name: 'Marble Bust',
+    gltfUrls: createPolyHavenGltfUrls('marble_bust_01'),
+    swatches: ['#f5f5f4', '#d6d3d1'],
+    repeat: 1,
+    lineColor: '#f8fafc',
+    roughness: 0.26,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.2,
+    description: 'CC0 Poly Haven marble bust model re-used as a surface material with authentic stone textures.'
+  }),
+  Object.freeze({
+    id: 'bust-onyx',
+    name: 'Onyx Bust',
+    gltfUrls: createPolyHavenGltfUrls('marble_bust_01'),
+    swatches: ['#111827', '#374151'],
+    color: '#0f172a',
+    repeat: 1,
+    lineColor: '#e5e7eb',
+    roughness: 0.3,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.22,
+    description: 'Deep onyx tint based on the open-source Poly Haven marble bust materials.'
+  }),
+  Object.freeze({
+    id: 'clearcoat-ruby',
+    name: 'Clearcoat Ruby',
+    gltfUrls: createKhronosGltfUrls('ClearCoatCarPaint'),
+    swatches: ['#7f1d1d', '#dc2626'],
+    color: '#7f1d1d',
+    repeat: 1,
+    lineColor: '#fee2e2',
+    metalness: 0.9,
+    roughness: 0.18,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    description: 'Open-source Khronos clearcoat car paint material with metallic sparkle.'
+  }),
+  Object.freeze({
+    id: 'clearcoat-azure',
+    name: 'Clearcoat Azure',
+    gltfUrls: createKhronosGltfUrls('ClearCoatCarPaint'),
+    swatches: ['#0ea5e9', '#38bdf8'],
+    color: '#0284c7',
+    repeat: 1,
+    lineColor: '#bae6fd',
+    metalness: 0.9,
+    roughness: 0.2,
+    clearcoat: 1,
+    clearcoatRoughness: 0.09,
+    description: 'Metallic blue clearcoat paint inspired by Khronos glTF Sample Assets.'
+  })
+]);
+
+const GOAL_RUSH_CUSHION_CLOTH_OPTIONS = Object.freeze(
+  POOL_ROYALE_CLOTH_VARIANTS.map((variant) =>
+    Object.freeze({
+      id: variant.id,
+      name: variant.name,
+      palette: variant.palette,
+      detail: variant.detail,
+      swatches: variant.swatches,
+      thumbnail: variant.thumbnail,
+      price: variant.price,
+      sourceId: variant.sourceId,
+      description: variant.description
+    })
+  )
+);
+
+export const GOAL_RUSH_CUSTOMIZATION = Object.freeze({
+  field: GOAL_RUSH_MARBLE_FIELDS,
+  cushionCloth: GOAL_RUSH_CUSHION_CLOTH_OPTIONS,
+  table: GOAL_RUSH_TABLE_FINISHES,
+  tableBase: GOAL_RUSH_TABLE_BASES,
+  environmentHdri: GOAL_RUSH_HDRI_VARIANTS,
+  puck: Object.freeze([
+    Object.freeze({ id: 'classicBall', name: 'Classic WebGL Ball', color: '#f8fafc', emissive: '#1e293b' }),
+    Object.freeze({ id: 'plasmaBall', name: 'Plasma WebGL Ball', color: '#38bdf8', emissive: '#0369a1' }),
+    Object.freeze({ id: 'emeraldBall', name: 'Emerald WebGL Ball', color: '#22c55e', emissive: '#166534' }),
+    Object.freeze({ id: 'lavaBall', name: 'Lava WebGL Ball', color: '#fb7185', emissive: '#9f1239' }),
+    Object.freeze({ id: 'chromeBall', name: 'Chrome WebGL Ball', color: '#e5e7eb', emissive: '#6b7280' })
+  ]),
+  mallet: Object.freeze([
+    Object.freeze({ id: 'crimson', name: 'Crimson', color: '#ff5577', knob: '#1f2937' }),
+    Object.freeze({ id: 'cyan', name: 'Cyan', color: '#22d3ee', knob: '#0f172a' }),
+    Object.freeze({ id: 'amber', name: 'Amber', color: '#f59e0b', knob: '#451a03' }),
+    Object.freeze({ id: 'violet', name: 'Violet', color: '#a855f7', knob: '#312e81' }),
+    Object.freeze({ id: 'lime', name: 'Lime', color: '#84cc16', knob: '#1a2e05' })
+  ]),
+  goals: Object.freeze([
+    Object.freeze({ id: 'mintNet', name: 'Mint Net', color: '#99ffd6', emissive: '#1aaf80' }),
+    Object.freeze({ id: 'crimsonNet', name: 'Crimson Net', color: '#ef4444', emissive: '#7f1d1d' }),
+    Object.freeze({ id: 'cobaltNet', name: 'Cobalt Net', color: '#60a5fa', emissive: '#1d4ed8' }),
+    Object.freeze({ id: 'amberNet', name: 'Amber Net', color: '#f59e0b', emissive: '#92400e' }),
+    Object.freeze({ id: 'ghostNet', name: 'Ghost Net', color: '#e5e7eb', emissive: '#6b7280' })
+  ])
+});
+
+const firstIds = Object.fromEntries(
+  Object.entries(GOAL_RUSH_CUSTOMIZATION).map(([key, options]) => [key, options?.[0]?.id])
+);
+
+export const GOAL_RUSH_DEFAULT_UNLOCKS = Object.freeze(
+  Object.entries(firstIds).reduce((acc, [key, id]) => {
+    acc[key] = id ? [id] : [];
+    return acc;
+  }, {})
+);
+
+export const GOAL_RUSH_OPTION_LABELS = Object.freeze(
+  Object.entries(GOAL_RUSH_CUSTOMIZATION).reduce((acc, [key, options]) => {
+    acc[key] = Object.freeze(
+      options.reduce((map, option) => {
+        map[option.id] = option.name;
+        return map;
+      }, {})
+    );
+    return acc;
+  }, {})
+);
+
+export const GOAL_RUSH_STORE_ITEMS = [
+  ...GOAL_RUSH_MARBLE_FIELDS.map((field, idx) => ({
+    id: `field-${field.id}`,
+    type: 'field',
+    optionId: field.id,
+    name: `${field.name} Surface`,
+    price: 520 + idx * 20,
+    description: field.description,
+    swatches: field.swatches,
+    thumbnail: FIELD_THUMBNAILS[field.id] || swatchThumbnail(field.swatches)
+  })),
+  ...GOAL_RUSH_TABLE_FINISHES.map((finish) => ({
+    id: `finish-${finish.id}`,
+    type: 'table',
+    optionId: finish.id,
+    name: `${finish.name} Finish`,
+    price: finish.price,
+    description: finish.description,
+    thumbnail: TABLE_FINISH_THUMBNAILS[finish.id]
+  })),
+  {
+    id: 'ball-plasma',
+    type: 'puck',
+    optionId: 'plasmaBall',
+    name: 'Plasma WebGL Ball',
+    price: 220,
+    description: 'High-voltage yellow puck glow.',
+    thumbnail: swatchThumbnail(['#eab308', '#854d0e', '#fef08a'])
+  },
+  {
+    id: 'ball-emerald',
+    type: 'puck',
+    optionId: 'emeraldBall',
+    name: 'Emerald WebGL Ball',
+    price: 240,
+    description: 'Magenta puck with vivid emissive edge.',
+    thumbnail: swatchThumbnail(['#be185d', '#9f1239', '#fda4af'])
+  },
+  {
+    id: 'ball-lava',
+    type: 'puck',
+    optionId: 'lavaBall',
+    name: 'Lava WebGL Ball',
+    price: 260,
+    description: 'Frost-white puck with cyan glow.',
+    thumbnail: swatchThumbnail(['#e0f2fe', '#0ea5e9', '#bae6fd'])
+  },
+  {
+    id: 'ball-chrome',
+    type: 'puck',
+    optionId: 'chromeBall',
+    name: 'Chrome WebGL Ball',
+    price: 280,
+    description: 'Deep jade puck with emerald shine.',
+    thumbnail: swatchThumbnail(['#064e3b', '#10b981', '#6ee7b7'])
+  },
+  {
+    id: 'mallet-cyan',
+    type: 'mallet',
+    optionId: 'cyan',
+    name: 'Cyan Mallets',
+    price: 260,
+    description: 'Cyan mallets with midnight knobs.',
+    thumbnail: swatchThumbnail(['#22d3ee', '#0f172a', '#cffafe'])
+  },
+  {
+    id: 'mallet-amber',
+    type: 'mallet',
+    optionId: 'amber',
+    name: 'Amber Mallets',
+    price: 280,
+    description: 'Amber mallets with dark wood knobs.',
+    thumbnail: swatchThumbnail(['#f59e0b', '#451a03', '#fde68a'])
+  },
+  {
+    id: 'mallet-violet',
+    type: 'mallet',
+    optionId: 'violet',
+    name: 'Violet Mallets',
+    price: 300,
+    description: 'Violet mallets with indigo knobs.',
+    thumbnail: swatchThumbnail(['#a855f7', '#312e81', '#e9d5ff'])
+  },
+  {
+    id: 'mallet-lime',
+    type: 'mallet',
+    optionId: 'lime',
+    name: 'Lime Mallets',
+    price: 320,
+    description: 'Lime mallets with forest knobs.',
+    thumbnail: swatchThumbnail(['#84cc16', '#1a2e05', '#ecfccb'])
+  },
+  {
+    id: 'goal-crimson',
+    type: 'goals',
+    optionId: 'crimsonNet',
+    name: 'Crimson Net Goals',
+    price: 330,
+    description: 'Crimson goal nets with deep ember glow.',
+    thumbnail: swatchThumbnail(['#ef4444', '#7f1d1d', '#fecaca'])
+  },
+  {
+    id: 'goal-cobalt',
+    type: 'goals',
+    optionId: 'cobaltNet',
+    name: 'Cobalt Net Goals',
+    price: 360,
+    description: 'Cobalt nets with electric blue emissive.',
+    thumbnail: swatchThumbnail(['#60a5fa', '#1d4ed8', '#bfdbfe'])
+  },
+  {
+    id: 'goal-amber',
+    type: 'goals',
+    optionId: 'amberNet',
+    name: 'Amber Net Goals',
+    price: 390,
+    description: 'Amber nets with warm metallic shine.',
+    thumbnail: swatchThumbnail(['#f59e0b', '#92400e', '#fde68a'])
+  },
+  {
+    id: 'goal-ghost',
+    type: 'goals',
+    optionId: 'ghostNet',
+    name: 'Ghost Net Goals',
+    price: 420,
+    description: 'Ghostly pale nets with steel glow.',
+    thumbnail: swatchThumbnail(['#e5e7eb', '#6b7280', '#f8fafc'])
+  },
+  ...GOAL_RUSH_CUSHION_CLOTH_OPTIONS.map((variant, idx) => ({
+    id: `cushion-cloth-${variant.id}`,
+    type: 'cushionCloth',
+    optionId: variant.id,
+    name: variant.name,
+    price: variant.price ?? 680 + idx * 8,
+    description: variant.description,
+    swatches: variant.swatches,
+    thumbnail: variant.thumbnail
+  })),
+  ...GOAL_RUSH_TABLE_BASES.map((variant) => ({
+    id: `base-${variant.id}`,
+    type: 'tableBase',
+    optionId: variant.id,
+    name: `${variant.name} Base`,
+    price: 0,
+    description: variant.description,
+    thumbnail: TABLE_BASE_THUMBNAILS[variant.id]
+  })),
+  ...GOAL_RUSH_HDRI_VARIANTS.map((variant) => ({
+    id: `hdri-${variant.id}`,
+    type: 'environmentHdri',
+    optionId: variant.id,
+    name: `${variant.name} HDRI`,
+    price: variant.price,
+    description: variant.description,
+    thumbnail: variant.thumbnail
+  }))
+];
+
+export const GOAL_RUSH_DEFAULT_LOADOUT = [
+  { type: 'field', optionId: GOAL_RUSH_CUSTOMIZATION.field[0].id, label: GOAL_RUSH_CUSTOMIZATION.field[0].name },
+  {
+    type: 'cushionCloth',
+    optionId: GOAL_RUSH_CUSTOMIZATION.cushionCloth[0].id,
+    label: GOAL_RUSH_CUSTOMIZATION.cushionCloth[0].name
+  },
+  { type: 'table', optionId: GOAL_RUSH_CUSTOMIZATION.table[0].id, label: GOAL_RUSH_CUSTOMIZATION.table[0].name },
+  { type: 'tableBase', optionId: GOAL_RUSH_CUSTOMIZATION.tableBase[0].id, label: GOAL_RUSH_CUSTOMIZATION.tableBase[0].name },
+  { type: 'environmentHdri', optionId: GOAL_RUSH_CUSTOMIZATION.environmentHdri[0].id, label: GOAL_RUSH_CUSTOMIZATION.environmentHdri[0].name },
+  { type: 'puck', optionId: GOAL_RUSH_CUSTOMIZATION.puck[0].id, label: GOAL_RUSH_CUSTOMIZATION.puck[0].name },
+  { type: 'mallet', optionId: GOAL_RUSH_CUSTOMIZATION.mallet[0].id, label: GOAL_RUSH_CUSTOMIZATION.mallet[0].name },
+  { type: 'goals', optionId: GOAL_RUSH_CUSTOMIZATION.goals[0].id, label: GOAL_RUSH_CUSTOMIZATION.goals[0].name }
+];

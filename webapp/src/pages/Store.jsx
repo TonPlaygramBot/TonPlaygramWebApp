@@ -24,6 +24,11 @@ import {
   AIR_HOCKEY_STORE_ITEMS
 } from '../config/airHockeyInventoryConfig.js';
 import {
+  GOAL_RUSH_DEFAULT_LOADOUT,
+  GOAL_RUSH_OPTION_LABELS,
+  GOAL_RUSH_STORE_ITEMS
+} from '../config/goalRushInventoryConfig.js';
+import {
   addPoolRoyalUnlock,
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -46,6 +51,13 @@ import {
   isAirHockeyOptionUnlocked,
   listOwnedAirHockeyOptions
 } from '../utils/airHockeyInventory.js';
+import {
+  addGoalRushUnlock,
+  goalRushAccountId,
+  getGoalRushInventory,
+  isGoalRushOptionUnlocked,
+  listOwnedGoalRushOptions
+} from '../utils/goalRushInventory.js';
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
   CHESS_BATTLE_OPTION_LABELS,
@@ -179,6 +191,18 @@ const AIR_HOCKEY_TYPE_LABELS = {
   mallet: 'Mallets',
   rails: 'Rails',
   goals: 'Goals'
+};
+
+const GOAL_RUSH_TYPE_LABELS = {
+  field: 'Pitch Surface',
+  cushionCloth: 'Cushion Cloth',
+  table: 'Table Finish',
+  tableBase: 'Table Bases',
+  environmentHdri: 'HDR Environments',
+  puck: 'WebGL Balls',
+  mallet: 'Strikers',
+  rails: 'Rails',
+  goals: 'Goal Nets'
 };
 
 const CHESS_TYPE_LABELS = {
@@ -353,6 +377,8 @@ const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID =
   import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
+const GOAL_RUSH_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_GOAL_RUSH_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TAVULL_STORE_ACCOUNT_ID =
@@ -1052,6 +1078,14 @@ const storeMeta = {
     typeLabels: AIR_HOCKEY_TYPE_LABELS,
     accountId: AIR_HOCKEY_STORE_ACCOUNT_ID
   },
+  goalrush: {
+    name: 'Goal Rush',
+    items: GOAL_RUSH_STORE_ITEMS,
+    defaults: GOAL_RUSH_DEFAULT_LOADOUT,
+    labels: GOAL_RUSH_OPTION_LABELS,
+    typeLabels: GOAL_RUSH_TYPE_LABELS,
+    accountId: GOAL_RUSH_STORE_ACCOUNT_ID
+  },
   chessbattleroyal: {
     name: 'Chess Battle Royal',
     items: CHESS_BATTLE_ROYAL_STORE_ITEMS,
@@ -1139,6 +1173,9 @@ export default function Store() {
   );
   const [airOwned, setAirOwned] = useState(() =>
     getAirHockeyInventory(airHockeyAccountId(accountId))
+  );
+  const [goalRushOwned, setGoalRushOwned] = useState(() =>
+    getGoalRushInventory(goalRushAccountId(accountId))
   );
   const [chessOwned, setChessOwned] = useState(() =>
     getChessBattleInventory(chessBattleAccountId(accountId))
@@ -1282,6 +1319,7 @@ export default function Store() {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
     setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
+    setGoalRushOwned(getGoalRushInventory(goalRushAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -1595,6 +1633,7 @@ export default function Store() {
           if (slug === 'poolroyale') return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
           if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
+          if (slug === 'goalrush') return addGoalRushUnlock('environmentHdri', optionId, accountId);
           if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal') {
             return addChessBattleUnlock('environmentHdri', optionId, accountId);
           }
@@ -1673,6 +1712,11 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'airhockey'
       })),
+      goalrush: GOAL_RUSH_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'goalrush'
+      })),
       chessbattleroyal: CHESS_BATTLE_ROYAL_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1730,6 +1774,8 @@ export default function Store() {
         isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) =>
         isAirHockeyOptionUnlocked(type, optionId, airOwned),
+      goalrush: (type, optionId) =>
+        isGoalRushOptionUnlocked(type, optionId, goalRushOwned),
       chessbattleroyal: (type, optionId) =>
         isChessOptionUnlocked(type, optionId, chessOwned),
       checkersbattleroyal: (type, optionId) =>
@@ -1751,6 +1797,7 @@ export default function Store() {
     }),
     [
       airOwned,
+      goalRushOwned,
       poolOwned,
       snookerOwned,
       chessOwned,
@@ -1772,6 +1819,8 @@ export default function Store() {
         SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) =>
         AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      goalrush: (item) =>
+        GOAL_RUSH_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) =>
         CHESS_BATTLE_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) =>
@@ -1799,6 +1848,7 @@ export default function Store() {
     () => ({
       poolroyale: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
+      goalrush: GOAL_RUSH_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHECKERS_BATTLE_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
