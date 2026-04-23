@@ -112,8 +112,9 @@ const ARENA_PROP_SCALE = 1;
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.95;
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.92;
 const CARD_VISUAL_TRIM = TABLE_AND_CHAIR_VISUAL_SHRINK;
+const AVATAR_VISUAL_SCALE = 0.95;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * 0.83 * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HORIZONTAL_SHRINK = 1;
@@ -2352,7 +2353,7 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.04 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.052 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = -0.022 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
@@ -2391,7 +2392,7 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.11 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -2458,7 +2459,7 @@ const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.76;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
-const CAMERA_INWARD_RADIUS_FACTOR = 0.97;
+const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 
@@ -5625,7 +5626,8 @@ export default function MurlanRoyaleArena({ search }) {
                     top: `${clampValue(Number.parseFloat(fallback.top) - sideSeatTopLift - topSeatLift, -10, 110)}%`,
                     transform: 'translate(-50%, -50%)'
                   };
-            const avatarSize = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
+            const avatarSizeBase = anchor ? clampValue(1.25 - (anchor.depth - 2.4) * 0.12, 0.85, 1.25) : 1;
+            const avatarSize = avatarSizeBase * AVATAR_VISUAL_SCALE;
             const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isTurn = gameState.activePlayer === idx;
             const handCount = activePlayer?.hand?.length ?? 0;
@@ -5645,7 +5647,7 @@ export default function MurlanRoyaleArena({ search }) {
                   name={activePlayer?.name}
                   color={color}
                   size={avatarSize}
-                  frameScale={idx === humanPlayerIndex ? 2 : 1}
+                  frameScale={(idx === humanPlayerIndex ? 2 : 1) * AVATAR_VISUAL_SCALE}
                   onClick={idx === humanPlayerIndex ? triggerLiveAvatarVideo : undefined}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
