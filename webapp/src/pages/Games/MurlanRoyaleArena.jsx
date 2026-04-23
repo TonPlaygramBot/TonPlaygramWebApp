@@ -2310,8 +2310,8 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   y: CARD_H * 1.14,
   z: -TABLE_RADIUS * 0.18
 });
-const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.34;
-const DISCARD_PILE_RIGHT_SHIFT = -CARD_W * 0.42;
+const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.14;
+const DISCARD_PILE_RIGHT_SHIFT = 0;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -3824,10 +3824,7 @@ export default function MurlanRoyaleArena({ search }) {
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const isGiftSideSeat = seat?.handVariant === 'giftSide';
-        const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
-        const backLogoVariant = !isHumanCard
-          ? (isGiftSideSeat ? 'sideGift' : isSideSeatOnScreen ? 'side' : 'top')
-          : 'default';
+        const backLogoVariant = !isHumanCard ? 'top' : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
@@ -3986,13 +3983,13 @@ export default function MurlanRoyaleArena({ search }) {
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = discardAnchor.clone();
-      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.34;
-      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.3;
+      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.05;
+      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.04;
       target.addScaledVector(pileRightAxis, scatterX);
       target.addScaledVector(pileForwardAxis, scatterZ);
       target.y += idx * 0.0022;
-      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(14);
-      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(3.2);
+      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(2);
+      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(0.8);
       setMeshPosition(
         mesh,
         target,
@@ -7137,7 +7134,7 @@ function toOpenSourceDeckKey(rank, suit) {
 }
 
 function svgMarkupFromOpenSourceDeck(rank, suit) {
-  const cardKey = rank === 'JB' ? 'J1' : toOpenSourceDeckKey(rank, suit);
+  const cardKey = toOpenSourceDeckKey(rank, suit);
   if (!cardKey) return createFallbackOpenSourceCardSvg(`${rank}${suit ?? ''}`);
   const CardComponent = OpenSourceDeck?.[cardKey];
   if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
@@ -7146,6 +7143,10 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
     return svg;
   }
   return svg
+    .replace(/#ff[0-9a-f]{4}/gi, '#111111')
+    .replace(/#f0[0-9a-f]{4}/gi, '#111111')
+    .replace(/#e0[0-9a-f]{4}/gi, '#111111')
+    .replace(/#d0[0-9a-f]{4}/gi, '#111111')
     .replace(/#d[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
     .replace(/#e[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
     .replace(/#f[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
