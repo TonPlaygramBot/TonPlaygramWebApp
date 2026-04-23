@@ -112,10 +112,10 @@ const ARENA_PROP_SCALE = 1;
 const TOP_SEAT_AVATAR_UP_LIFT = 4.9;
 const NON_HUMAN_SEAT_AVATAR_UP_LIFT = 1.0;
 const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0px))';
-const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
-const CARD_VISUAL_TRIM = 1;
+const TABLE_AND_CHAIR_VISUAL_SHRINK = 0.95;
+const CARD_VISUAL_TRIM = TABLE_AND_CHAIR_VISUAL_SHRINK;
 
-const TABLE_RADIUS = 3.4 * MODEL_SCALE * 0.83;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * 0.83 * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HORIZONTAL_SHRINK = 1;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
@@ -2325,15 +2325,19 @@ const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
 const CHAIR_SEAT_INWARD_FACTOR = 0.965;
-const CHAIR_VISUAL_SCALE = 1.3;
+const CHAIR_VISUAL_SCALE = 1.24;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   portrait: 1.18,
   landscape: 0.84
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 1.78,
-  landscape: 0.9
+  portrait: 1.7,
+  landscape: 0.86
+});
+const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
+  portrait: THREE.MathUtils.degToRad(5.5),
+  landscape: THREE.MathUtils.degToRad(4.5)
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
@@ -2383,10 +2387,11 @@ const COMMUNITY_CARD_STRAIGHT_FLUSH_RIGHT_DROP = 0.048 * MODEL_SCALE;
 const TABLE_PLAY_LIFT_ARC = 0.058 * MODEL_SCALE;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const DEAL_CARD_STEP_DELAY_MS = 60;
+const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.085 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.11 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -2396,6 +2401,8 @@ const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const AI_CARD_LIFT = 0.076 * MODEL_SCALE;
+const AI_CARD_PRE_LIFT = 0.058 * MODEL_SCALE;
+const AI_CARD_PRE_LIFT_PORTION = 0.32;
 const AI_CARD_OUTWARD = 0;
 
 function resolveSeatHandRadius(tableRadius, isHumanSeat) {
@@ -2424,6 +2431,17 @@ function calcFanCardPose(cardCount, cardIdx) {
     leftWeight: (1 + normalizedOffset) * 0.5
   };
 }
+
+function cardIdNoise(cardId, seed = 0) {
+  const text = String(cardId ?? '');
+  let hash = (2166136261 ^ seed) >>> 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 999;
+}
+
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const AI_TURN_DELAY = 2600;
@@ -3748,6 +3766,7 @@ export default function MurlanRoyaleArena({ search }) {
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
+    const isInitialDealAnimation = !previous && (state.lastActionId ?? 0) === 0;
     humanTurnRef.current = humanTurn;
     state.players.forEach((player, idx) => {
       const seat = seatConfigs[idx];
@@ -3825,8 +3844,14 @@ export default function MurlanRoyaleArena({ search }) {
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
+        let handDealDelay = isNewHandCard ? (cardIdx * state.players.length + idx) * DEAL_CARD_STEP_DELAY_MS : 0;
         if (isNewHandCard && !immediate && three.deckAnchor) {
-          mesh.position.copy(three.deckAnchor);
+          const shuffleSpreadX = (cardIdNoise(card.id, 11) - 0.5) * CARD_W * 0.22;
+          const shuffleSpreadZ = (cardIdNoise(card.id, 29) - 0.5) * CARD_H * 0.22;
+          mesh.position.copy(three.deckAnchor).add(new THREE.Vector3(shuffleSpreadX, 0, shuffleSpreadZ));
+          if (isInitialDealAnimation) {
+            handDealDelay += DEAL_SHUFFLE_LEAD_IN_MS;
+          }
         }
         setMeshPosition(
           mesh,
@@ -3839,7 +3864,7 @@ export default function MurlanRoyaleArena({ search }) {
           },
           immediate,
           three.animations,
-          isNewHandCard ? (cardIdx * state.players.length + idx) * DEAL_CARD_STEP_DELAY_MS : 0
+          handDealDelay
         );
         mesh.userData.cardId = card.id;
         if (isHumanCard && humanTurn) {
@@ -3867,6 +3892,10 @@ export default function MurlanRoyaleArena({ search }) {
       ?? tableLookBase.clone();
     const shouldSlopeCommunityCards = false;
     const orderedTableCards = [...state.tableCards].reverse();
+    const actionPlayerIndex = Number.isInteger(state.lastAction?.playerIndex) ? state.lastAction.playerIndex : null;
+    const actionPlayer = actionPlayerIndex != null ? state.players[actionPlayerIndex] : null;
+    const isAiPlayAction = state.lastAction?.type === 'PLAY' && actionPlayer && !actionPlayer.isHuman;
+    const actionCardIdSet = new Set((state.lastAction?.cards ?? []).map((played) => played?.id).filter(Boolean));
     orderedTableCards.forEach((card, idx) => {
       const entry = cardMap.get(card.id);
       if (!entry) return;
@@ -3891,6 +3920,8 @@ export default function MurlanRoyaleArena({ search }) {
       const wasInAnyHand = previous?.players?.some((prevPlayer) =>
         prevPlayer?.hand?.some((prevCard) => prevCard.id === card.id)
       );
+      const shouldPreLiftForAiPlay =
+        !immediate && isAiPlayAction && actionCardIdSet.has(card.id) && wasInAnyHand;
       setMeshPosition(
         mesh,
         target,
@@ -3900,7 +3931,9 @@ export default function MurlanRoyaleArena({ search }) {
         three.animations,
         0,
         {
-          liftArc: !immediate && wasInAnyHand ? TABLE_PLAY_LIFT_ARC : 0
+          liftArc: !immediate && wasInAnyHand ? TABLE_PLAY_LIFT_ARC : 0,
+          preLift: shouldPreLiftForAiPlay ? AI_CARD_PRE_LIFT : 0,
+          preLiftPortion: shouldPreLiftForAiPlay ? AI_CARD_PRE_LIFT_PORTION : 0
         }
       );
     });
@@ -3918,16 +3951,22 @@ export default function MurlanRoyaleArena({ search }) {
       const mesh = entry.mesh;
       mesh.visible = true;
       mesh.scale.setScalar(1);
-      updateCardFace(mesh, 'back');
-      setBackLogoOrientation(mesh, 'top');
-      setCommunityCardLegibility(mesh, false);
+      updateCardFace(mesh, 'front');
+      setCommunityCardLegibility(mesh, true);
       const target = discardAnchor.clone();
-      target.y += idx * 0.0015;
+      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.34;
+      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.3;
+      target.addScaledVector(pileRightAxis, scatterX);
+      target.addScaledVector(pileForwardAxis, scatterZ);
+      target.y += idx * 0.0022;
+      mesh.renderOrder = 1800 + idx;
+      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(14);
+      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(3.2);
       setMeshPosition(
         mesh,
         target,
         tableLookBase,
-        { face: 'back', flat: true },
+        { face: 'front', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT + discardTilt, flatYawY: discardYaw },
         immediate,
         three.animations
       );
@@ -5137,8 +5176,19 @@ export default function MurlanRoyaleArena({ search }) {
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
-      controls.minPolarAngle = lockedPolarAngle;
-      controls.maxPolarAngle = lockedPolarAngle;
+      const verticalAllowance = isPortrait
+        ? CAMERA_LOOK_VERTICAL_ALLOWANCE.portrait
+        : CAMERA_LOOK_VERTICAL_ALLOWANCE.landscape;
+      controls.minPolarAngle = THREE.MathUtils.clamp(
+        lockedPolarAngle - verticalAllowance,
+        ARENA_CAMERA_DEFAULTS.phiMin,
+        ARENA_CAMERA_DEFAULTS.phiMax
+      );
+      controls.maxPolarAngle = THREE.MathUtils.clamp(
+        lockedPolarAngle + verticalAllowance,
+        ARENA_CAMERA_DEFAULTS.phiMin,
+        ARENA_CAMERA_DEFAULTS.phiMax
+      );
       controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
       controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
       controls.minDistance = desiredRadius;
@@ -5190,7 +5240,23 @@ export default function MurlanRoyaleArena({ search }) {
             }
             const clampedProgress = Math.min(1, progress);
             const eased = easeOutCubic(clampedProgress);
-            anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
+            if (anim.preLift > 0) {
+              const liftCutoff = anim.preLiftPortion ?? 0.3;
+              if (clampedProgress < liftCutoff) {
+                const liftT = easeOutCubic(clampedProgress / liftCutoff);
+                anim.mesh.position.lerpVectors(
+                  anim.from,
+                  anim.from.clone().add(new THREE.Vector3(0, anim.preLift, 0)),
+                  liftT
+                );
+              } else {
+                const moveT = easeOutCubic((clampedProgress - liftCutoff) / Math.max(1e-6, 1 - liftCutoff));
+                const liftedFrom = anim.from.clone().add(new THREE.Vector3(0, anim.preLift, 0));
+                anim.mesh.position.lerpVectors(liftedFrom, anim.to, moveT);
+              }
+            } else {
+              anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
+            }
             if (anim.liftArc > 0) {
               anim.mesh.position.y += Math.sin(clampedProgress * Math.PI) * anim.liftArc;
             }
@@ -5236,7 +5302,7 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.seatConfigs = seatConfigs;
 
       ensureCardMeshes(gameStateRef.current);
-      applyStateToScene(gameStateRef.current, selectedRef.current, true);
+      applyStateToScene(gameStateRef.current, selectedRef.current, false);
       updateSeatAnchors();
       setThreeReady(true);
 
@@ -6454,6 +6520,12 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
     start: performance.now() + Math.max(0, delayMs),
     duration: CARD_ANIMATION_DURATION,
     liftArc: Math.max(0, Number(motion?.liftArc) || 0),
+    preLift: Math.max(0, Number(motion?.preLift) || 0),
+    preLiftPortion: THREE.MathUtils.clamp(
+      Number.isFinite(Number(motion?.preLiftPortion)) ? Number(motion.preLiftPortion) : 0.3,
+      0.1,
+      0.8
+    ),
     cancelled: false
   };
   mesh.userData.animation = animation;
