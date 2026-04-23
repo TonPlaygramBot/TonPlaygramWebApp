@@ -2298,10 +2298,10 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 0.98 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 1.04 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
-const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
+const CARD_D = 0.01 * MODEL_SCALE * CARD_SCALE; // Extra-trimmed thickness to avoid dark edge wedges.
 const CARD_SURFACE_OFFSET = CARD_D * 3;
 const DISCARD_PILE_OFFSET = Object.freeze({
   x: 0,
@@ -4957,7 +4957,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.18,
+        cornerRadiusRatio: 0.24,
         segments: 14
       });
 
@@ -6894,8 +6894,8 @@ function createFallbackOpenSourceCardSvg(cardKey) {
 }
 
 function toOpenSourceDeckKey(rank, suit) {
-  if (rank === 'JR') return 'J1';
-  if (rank === 'JB') return 'J2';
+  if (rank === 'JR') return null;
+  if (rank === 'JB') return null;
   const suitCode = OPEN_SOURCE_SUIT_CODES[suit];
   if (!suitCode) return null;
   const rankCode = OPEN_SOURCE_RANK_CODES[rank] || String(rank).toLowerCase();
@@ -6903,11 +6903,43 @@ function toOpenSourceDeckKey(rank, suit) {
 }
 
 function svgMarkupFromOpenSourceDeck(rank, suit) {
+  if (rank === 'JR' || rank === 'JB') {
+    return createLegacyJokerSvg(rank);
+  }
   const cardKey = toOpenSourceDeckKey(rank, suit);
   if (!cardKey) return createFallbackOpenSourceCardSvg(`${rank}${suit ?? ''}`);
   const CardComponent = OpenSourceDeck?.[cardKey];
   if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
   return renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
+}
+
+function createLegacyJokerSvg(rank) {
+  const accent = rank === 'JR' ? '#d62828' : '#111827';
+  const accentSoft = rank === 'JR' ? '#fca5a5' : '#9ca3af';
+  const label = rank === 'JR' ? 'RED JOKER' : 'BLACK JOKER';
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400" viewBox="0 0 1000 1400">
+      <defs>
+        <linearGradient id="joker-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="100%" stop-color="#f3f4f6" />
+        </linearGradient>
+      </defs>
+      <rect x="16" y="16" rx="90" ry="90" width="968" height="1368" fill="url(#joker-bg)" stroke="rgba(15,23,42,0.14)" stroke-width="8"/>
+      <rect x="52" y="52" rx="66" ry="66" width="896" height="1296" fill="none" stroke="rgba(15,23,42,0.08)" stroke-width="4"/>
+      <text x="98" y="154" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="108" font-weight="900">J</text>
+      <text x="902" y="1248" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="108" font-weight="900" text-anchor="end">J</text>
+      <g transform="translate(500 710)">
+        <circle r="270" fill="${accentSoft}" opacity="0.35" />
+        <path d="M-172 84C-128-48-22-132 0-198C22-132 128-48 172 84" fill="none" stroke="${accent}" stroke-width="30" stroke-linecap="round"/>
+        <circle cx="-88" cy="26" r="42" fill="${accent}"/>
+        <circle cx="0" cy="-60" r="48" fill="${accent}"/>
+        <circle cx="88" cy="26" r="42" fill="${accent}"/>
+        <rect x="-126" y="56" width="252" height="170" rx="42" fill="${accent}" />
+      </g>
+      <text x="500" y="1170" fill="${accent}" font-family="Inter, Segoe UI, sans-serif" font-size="92" font-weight="900" text-anchor="middle" letter-spacing="6">${label}</text>
+    </svg>
+  `;
 }
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
@@ -6944,18 +6976,31 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     // Slightly thicken rank/suit glyph edges for better mobile readability.
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.12;
-    ctx.drawImage(canvas, -0.65, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 0.65, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 0, -0.65, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 0, 0.65, canvas.width, canvas.height);
+    ctx.globalAlpha = 0.2;
+    ctx.drawImage(canvas, -0.9, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0.9, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, -0.9, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, 0.9, canvas.width, canvas.height);
+    ctx.drawImage(canvas, -0.65, -0.65, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0.65, 0.65, canvas.width, canvas.height);
+    ctx.drawImage(canvas, -0.65, 0.65, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0.65, -0.65, canvas.width, canvas.height);
     ctx.restore();
 
     // Slight front-face matte layer to reduce glare on community cards.
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.035)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.06)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Clip all card faces with stronger rounded corners to hide dark corner wedges/triangles.
+    const cornerRadius = Math.round(Math.min(canvas.width, canvas.height) * 0.07);
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
     ctx.restore();
 
     tex.needsUpdate = true;
