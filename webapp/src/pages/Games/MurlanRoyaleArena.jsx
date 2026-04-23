@@ -2309,8 +2309,8 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   y: CARD_H * 1.14,
   z: -TABLE_RADIUS * 0.18
 });
-const DISCARD_PILE_FORWARD_SHIFT = CARD_H * 0.34;
-const DISCARD_PILE_RIGHT_SHIFT = CARD_W * 1.48;
+const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.12;
+const DISCARD_PILE_RIGHT_SHIFT = -CARD_W * 0.28;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -2353,10 +2353,10 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.052 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.066 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
-const HUMAN_HAND_LEFT_SHIFT = -0.022 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
+const HUMAN_HAND_LEFT_SHIFT = -0.032 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
 const AI_HAND_LEFT_SHIFT = 0;
 const HUMAN_HAND_UP_SHIFT_Y = 0.108 * MODEL_SCALE;
 const HUMAN_HAND_DIRECTIONAL_LIFT = 0;
@@ -2379,7 +2379,7 @@ const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
 const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
-const COMMUNITY_CARD_CLOSER_TO_HUMAN = 0;
+const COMMUNITY_CARD_CLOSER_TO_HUMAN = -0.08 * MODEL_SCALE;
 const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.028 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
@@ -6979,11 +6979,19 @@ function toOpenSourceDeckKey(rank, suit) {
 }
 
 function svgMarkupFromOpenSourceDeck(rank, suit) {
-  const cardKey = toOpenSourceDeckKey(rank, suit);
+  const cardKey = rank === 'JB' ? 'J1' : toOpenSourceDeckKey(rank, suit);
   if (!cardKey) return createFallbackOpenSourceCardSvg(`${rank}${suit ?? ''}`);
   const CardComponent = OpenSourceDeck?.[cardKey];
   if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
-  return renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
+  const svg = renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
+  if (rank !== 'JB') {
+    return svg;
+  }
+  return svg
+    .replace(/#d[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
+    .replace(/#e[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
+    .replace(/#f[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
+    .replace(/rgb\(\s*2(?:0[0-9]|1[0-9]|2[0-5])\s*,\s*[0-9]{1,3}\s*,\s*[0-9]{1,3}\s*\)/gi, 'rgb(17,17,17)');
 }
 
 
@@ -7044,9 +7052,9 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     ctx.drawImage(canvas, -0.65, 0.65, canvas.width, canvas.height);
     ctx.drawImage(canvas, 0.65, -0.65, canvas.width, canvas.height);
 
-    // Slightly darker front-face matte layer for less glare and reduced overall brightness.
+    // Darker front-face matte layer for less glare and reduced overall brightness on mobile screens.
     ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.2)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.26)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
