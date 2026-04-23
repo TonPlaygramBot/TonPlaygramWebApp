@@ -92,14 +92,14 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
-const CAPTURE_DRONE_LIFT_TIME = 1.08; // shorter launch while still clearly visible from the parking pad
-const CAPTURE_DRONE_CRUISE_TIME = 4.3; // trim path duration so the strike stays close to the board action
-const CAPTURE_DRONE_DIVE_TIME = 1.84;
+const CAPTURE_DRONE_LIFT_TIME = 0.96; // tuned to Ludo Battle Royal pacing
+const CAPTURE_DRONE_CRUISE_TIME = 2.56; // 75% circular pass happens in this mid segment
+const CAPTURE_DRONE_DIVE_TIME = 1.6;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 1.4; // slower aircraft but shorter loop so takeoff/fire/landing stays readable
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL; // keep jet timing aligned with Ludo capture pacing
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -130,6 +130,7 @@ const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.06; // lower jet/helicopter route 
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.12; // shorter loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
+const CAPTURE_DRONE_CIRCLE_RATIO = 0.75; // drone completes 75% of yellow loop before vertical strike
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.48; // fire only after jet/heli reach near-target run
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.62;
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
@@ -9427,6 +9428,7 @@ function Chess3D({
       const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
       if (!preferred?.root) return null;
       preferred.busy = true;
+      preferred.rotorsActive = kind === 'helicopter';
       preferred.root.visible = true;
       return preferred;
     };
@@ -9440,6 +9442,7 @@ function Chess3D({
         unit.root.parent?.remove(unit.root);
         airPadGroup.add(unit.root);
       }
+      unit.rotorsActive = false;
       unit.busy = false;
     };
     const acquireParkedSupportUnit = (isWhiteSide) => {
@@ -9823,10 +9826,20 @@ function Chess3D({
       const launchPos = from.clone();
       const liftTop = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const toVec = to.clone();
-      const approachPoint = liftTop.clone().lerp(toVec, 0.42);
-      approachPoint.y = Math.max(liftTop.y + tile * 0.02, toVec.y + cruiseHeight);
-      const nearTargetPoint = toVec.clone();
-      nearTargetPoint.y = Math.max(toVec.y + cruiseHeight * 0.9, liftTop.y + tile * 0.015);
+      const centerClearanceY = Math.max(toVec.y + cruiseHeight, liftTop.y + tile * 0.02);
+      const boardLoopHalf = Math.max(tile * 2.85, tile * 2.55);
+      const launchSign = Math.sign(from.x || 1) || 1;
+      const enterLane = new THREE.Vector3(
+        launchSign * boardLoopHalf,
+        centerClearanceY,
+        THREE.MathUtils.clamp(from.z, -tile * 2.6, tile * 2.6)
+      );
+      const firePoint = new THREE.Vector3(
+        0,
+        centerClearanceY,
+        THREE.MathUtils.clamp(toVec.z, -tile * 2.85, tile * 2.85)
+      );
+      const nearTargetPoint = firePoint.clone();
       const u = clamp01(progress);
       const takeoffSplit = Math.min(CAPTURE_LOOP_TAKEOFF_RATIO, CAPTURE_AIR_APPROACH_RATIO * 0.4);
       if (u < takeoffSplit) {
@@ -9837,8 +9850,15 @@ function Chess3D({
       }
       if (u < CAPTURE_AIR_APPROACH_RATIO) {
         const su = smoothEase((u - takeoffSplit) / Math.max(0.001, CAPTURE_AIR_APPROACH_RATIO - takeoffSplit));
-        const pos = liftTop.clone().lerp(approachPoint, su);
-        const next = liftTop.clone().lerp(approachPoint, clamp01(su + 0.05));
+        const split = 0.56;
+        const pos =
+          su < split
+            ? liftTop.clone().lerp(enterLane, su / split)
+            : enterLane.clone().lerp(firePoint, (su - split) / Math.max(0.001, 1 - split));
+        const next =
+          su < split
+            ? liftTop.clone().lerp(enterLane, clamp01(su / split + 0.06))
+            : enterLane.clone().lerp(firePoint, clamp01((su - split) / Math.max(0.001, 1 - split) + 0.06));
         return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
       }
       if (returnToOrigin) {
@@ -9849,6 +9869,59 @@ function Chess3D({
         return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
       }
       return { pos: nearTargetPoint, next: toVec.clone() };
+    };
+    const getCaptureDroneStrikePose = ({
+      launchPos,
+      targetPos,
+      progress,
+      strikeAltitude = CAPTURE_SHORT_STRIKE_ALTITUDE
+    }) => {
+      const u = clamp01(progress);
+      const cruiseY = Math.max(launchPos.y + strikeAltitude, targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET);
+      const orbitCenter = new THREE.Vector3(
+        THREE.MathUtils.lerp(launchPos.x, 0, 0.72),
+        cruiseY,
+        THREE.MathUtils.lerp(launchPos.z, targetPos.z, 0.36)
+      );
+      const startOffset = launchPos.clone().setY(cruiseY).sub(orbitCenter);
+      if (startOffset.lengthSq() < 1e-5) startOffset.set(tile * 0.45, 0, 0);
+      const baseRadius = THREE.MathUtils.clamp(
+        Math.max(
+          startOffset.length(),
+          new THREE.Vector2(targetPos.x - orbitCenter.x, targetPos.z - orbitCenter.z).length()
+        ),
+        tile * 0.48,
+        tile * 2.95
+      );
+      const startAngle = Math.atan2(startOffset.z, startOffset.x);
+      const spinSign = launchPos.x <= 0 ? 1 : -1;
+      const endAngle = startAngle + spinSign * (Math.PI * 2 * CAPTURE_DRONE_CIRCLE_RATIO);
+      const orbitSplit = CAPTURE_DRONE_CIRCLE_RATIO;
+      if (u <= orbitSplit) {
+        const ou = smoothEase(u / Math.max(0.001, orbitSplit));
+        const angle = THREE.MathUtils.lerp(startAngle, endAngle, ou);
+        const nextAngle = THREE.MathUtils.lerp(startAngle, endAngle, clamp01(ou + 0.03));
+        const radiusPulse = 1 + Math.sin(ou * Math.PI * 2) * 0.03;
+        const pos = new THREE.Vector3(
+          orbitCenter.x + Math.cos(angle) * baseRadius * radiusPulse,
+          cruiseY,
+          orbitCenter.z + Math.sin(angle) * baseRadius * radiusPulse
+        );
+        const next = new THREE.Vector3(
+          orbitCenter.x + Math.cos(nextAngle) * baseRadius,
+          cruiseY,
+          orbitCenter.z + Math.sin(nextAngle) * baseRadius
+        );
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      }
+      const du = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
+      const topStrike = targetPos.clone();
+      topStrike.y = cruiseY;
+      const pos = topStrike.clone().lerp(targetPos, du);
+      const next = topStrike.clone().lerp(targetPos, clamp01(du + 0.08));
+      next.x = pos.x;
+      next.z = pos.z;
+      return { pos, next };
     };
     const getCaptureDirectStrikePose = ({
       launchPos,
@@ -10676,6 +10749,7 @@ function Chess3D({
             isWhite,
             slot,
             busy: false,
+            rotorsActive: false,
             homePosition: jetPad.clone(),
             homeRotation: jetHomeRotation,
             ...jet,
@@ -10700,6 +10774,7 @@ function Chess3D({
             isWhite,
             slot,
             busy: false,
+            rotorsActive: false,
             homePosition: heliPad.clone(),
             homeRotation: heliHomeRotation,
             ...helicopter,
@@ -10720,6 +10795,7 @@ function Chess3D({
           isWhite,
           slot: 0,
           busy: false,
+          rotorsActive: false,
           homePosition: dronePad.clone(),
           homeRotation: droneHomeRotation,
           ...sideDrone,
@@ -10751,6 +10827,7 @@ function Chess3D({
           isWhite,
           slot: 0,
           busy: false,
+          rotorsActive: false,
           homePosition: truckPad.clone(),
           homeRotation: truckHomeRotation,
           ...supportTruck,
@@ -11913,13 +11990,13 @@ function Chess3D({
 
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        if (unit.topRotor && unit.topRotorAxis) {
+        if (unit.rotorsActive && unit.topRotor && unit.topRotorAxis) {
           unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
         }
-        if (unit.tailRotor && unit.tailRotorAxis) {
+        if (unit.rotorsActive && unit.tailRotor && unit.tailRotorAxis) {
           unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 24);
         }
-        unit.rotorNodes?.forEach((rotorNode) => {
+        unit.rotorsActive && unit.rotorNodes?.forEach((rotorNode) => {
           if (!rotorNode || rotorNode === unit.topRotor || rotorNode === unit.tailRotor) return;
           rotorNode.rotation.y += dt * 24;
         });
@@ -11965,7 +12042,7 @@ function Chess3D({
               pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
             } else if (fx.t < impactTime) {
               const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
-              pose = getCapturePrecisionVerticalStrikePose({
+              pose = getCaptureDroneStrikePose({
                 launchPos,
                 targetPos: liveTargetPos,
                 progress: mu,
