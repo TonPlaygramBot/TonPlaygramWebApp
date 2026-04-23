@@ -2,11 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { AmericanBilliards } from '../lib/americanBilliards.js'
 
-test('open table: first contact cannot be the 8-ball', () => {
+test('first contact must be lowest ball (including break shot)', () => {
   const game = new AmericanBilliards()
-  game.state.breakInProgress = false
   const res = game.shotTaken({
-    contactOrder: [2],
+    contactOrder: [3],
     potted: [],
     cueOffTable: false
   })
@@ -30,6 +29,23 @@ test('legal break pots score by ball value and keep shooter at table', () => {
   assert.equal(game.state.breakInProgress, false)
   assert.equal(game.state.scores.A, 3)
   assert.equal(breakShot.nextPlayer, 'A')
+})
+
+test('potting 9-ball legally scores points but does not auto-win before 61', () => {
+  const game = new AmericanBilliards()
+  game.state.breakInProgress = false
+  game.state.ballsOnTable = new Set([1, 9])
+
+  const res = game.shotTaken({
+    contactOrder: [1],
+    potted: [9],
+    cueOffTable: false
+  })
+
+  assert.equal(res.foul, false)
+  assert.equal(res.frameOver, false)
+  assert.equal(res.winner, null)
+  assert.equal(res.scores.A, 9)
 })
 
 
@@ -99,20 +115,18 @@ test('reaching 61 points wins the frame immediately', () => {
   assert.equal(res.scores.A, 61)
 })
 
-test('if all balls are gone before 61, higher score wins', () => {
+test('on foul, potted 9 is spotted back up', () => {
   const game = new AmericanBilliards()
   game.state.breakInProgress = false
-  game.state.currentPlayer = 'B'
-  game.state.scores = { A: 40, B: 50 }
-  game.state.ballsOnTable = new Set([15])
+  game.state.ballsOnTable = new Set([1, 9])
 
   const res = game.shotTaken({
-    contactOrder: [15],
-    potted: [15],
+    contactOrder: [1],
+    potted: [9, 0],
     cueOffTable: false
   })
 
-  assert.equal(res.foul, false)
-  assert.equal(res.frameOver, true)
-  assert.equal(res.winner, 'B')
+  assert.equal(res.foul, true)
+  assert.equal(res.reason, 'scratch')
+  assert.equal(game.state.ballsOnTable.has(9), true)
 })
