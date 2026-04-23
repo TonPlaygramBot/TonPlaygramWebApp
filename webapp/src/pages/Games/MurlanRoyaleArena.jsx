@@ -3824,7 +3824,13 @@ export default function MurlanRoyaleArena({ search }) {
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const isGiftSideSeat = seat?.handVariant === 'giftSide';
-        const backLogoVariant = !isHumanCard ? 'top' : 'default';
+        const backLogoVariant = !isHumanCard
+          ? seat?.handVariant === 'giftSide'
+            ? 'sideGift'
+            : seat?.handVariant === 'top'
+              ? 'top'
+              : 'side'
+          : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
@@ -6882,19 +6888,19 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
-      // Keep top seat logo fully visible and upright.
+      // Top seat cards face opposite direction on screen, so rotate logo to keep it upright.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI;
+    } else if (desiredVariant === 'side') {
+      // Left side seat: avoid mirroring so branding reads normally.
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
-    } else if (desiredVariant === 'side') {
-      // Left side seat: mirror horizontally so branding reads naturally from camera.
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
-      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'sideGift') {
-      // Right side seat: avoid 180° rotation that made the logo upside down.
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
+      // Right side seat: avoid mirroring so branding reads normally.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
     }
     tunedTexture.needsUpdate = true;
