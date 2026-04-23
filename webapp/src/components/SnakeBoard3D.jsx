@@ -285,13 +285,13 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 2.04,
-  helicopter: TOKEN_HEIGHT * 2.12,
-  drone: TOKEN_HEIGHT * 1.96,
-  supportTruck: TOKEN_HEIGHT * 2.08,
-  javelin: TOKEN_HEIGHT * 2.02
+  fighter: TOKEN_HEIGHT * 1.72,
+  helicopter: TOKEN_HEIGHT * 1.8,
+  drone: TOKEN_HEIGHT * 1.68,
+  supportTruck: TOKEN_HEIGHT * 1.76,
+  javelin: TOKEN_HEIGHT * 1.7
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.92;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -303,21 +303,21 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: pull token closer to the table rail on portrait screens.
-  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push token farther from the table edge (visually away from table).
-  Object.freeze({ radial: TILE_SIZE * 0.12, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.24, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 })
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: TILE_SIZE * 0.08 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.08 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: TILE_SIZE * 0.08 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.08 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.08;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.14;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
-const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.65;
+const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.9;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
