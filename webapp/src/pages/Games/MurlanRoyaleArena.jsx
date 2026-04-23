@@ -1655,13 +1655,13 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const safeCount = Math.max(handCards.length, 2);
   const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
-    cornerRadiusRatio: 0.14,
-    segments: 10
+    cornerRadiusRatio: 0.18,
+    segments: 14
   });
   const edgeMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(cardTheme?.edgeColor || '#cbd5e1'),
-    roughness: 0.72,
-    metalness: 0.04
+    color: new THREE.Color(cardTheme?.edgeColor || '#f5f7fb'),
+    roughness: 0.96,
+    metalness: 0
   });
   const backTexture = makeCardBackTexture(cardTheme);
   const managedTextures = [backTexture];
@@ -1675,14 +1675,16 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: faceTexture,
       color: new THREE.Color('#ffffff'),
-      roughness: 0.68,
-      metalness: 0.03
+      roughness: 0.96,
+      metalness: 0,
+      envMapIntensity: 0
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backTexture,
       color: new THREE.Color('#ffffff'),
-      roughness: 0.78,
-      metalness: 0.04,
+      roughness: 0.98,
+      metalness: 0,
+      envMapIntensity: 0,
       emissive: new THREE.Color('#0f172a'),
       emissiveIntensity: 0.05
     });
@@ -4955,8 +4957,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.14,
-        segments: 10
+        cornerRadiusRatio: 0.18,
+        segments: 14
       });
 
       const seatConfigs = [];
@@ -6555,15 +6557,15 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
     cache.set(faceKey, faceTexture);
   }
   const edgeMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(theme.edgeColor),
-    roughness: 0.9,
+    color: new THREE.Color(theme.edgeColor || '#f5f7fb'),
+    roughness: 0.98,
     metalness: 0,
     envMapIntensity: 0
   });
   const edgeMats = [edgeMat, edgeMat.clone(), edgeMat.clone(), edgeMat.clone()];
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTexture,
-    roughness: 0.985,
+    roughness: 1,
     metalness: 0,
     envMapIntensity: 0,
     color: new THREE.Color('#ffffff')
@@ -6572,7 +6574,7 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   const backMat = new THREE.MeshStandardMaterial({
     map: backTexture,
     color: new THREE.Color('#ffffff'),
-    roughness: 0.995,
+    roughness: 1,
     metalness: 0,
     envMapIntensity: 0,
     emissive: new THREE.Color('#0f172a'),
@@ -6580,7 +6582,7 @@ function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   });
   const hiddenMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(theme.hiddenColor || theme.backColor),
-    roughness: 0.98,
+    roughness: 1,
     metalness: 0,
     envMapIntensity: 0
   });
@@ -7047,23 +7049,23 @@ function applyCardThemeMaterials(three, theme, force = false, textureQuality = n
     mesh.userData.backTexture = backTexture;
     backMaterial.map = backTexture;
     backMaterial.color?.set?.('#ffffff');
-    backMaterial.roughness = 0.995;
+    backMaterial.roughness = 1;
     backMaterial.metalness = 0;
     backMaterial.envMapIntensity = 0;
     backMaterial.needsUpdate = true;
-    frontMaterial.roughness = 0.985;
+    frontMaterial.roughness = 1;
     frontMaterial.metalness = 0;
     frontMaterial.envMapIntensity = 0;
     if (hiddenMaterial?.color) {
       hiddenMaterial.color.set(theme.hiddenColor || theme.backColor);
-      hiddenMaterial.roughness = 0.95;
+      hiddenMaterial.roughness = 1;
       hiddenMaterial.metalness = 0;
       hiddenMaterial.envMapIntensity = 0;
       hiddenMaterial.needsUpdate = true;
     }
     edgeMaterials.forEach((mat) => {
-      mat.color?.set?.(theme.edgeColor);
-      mat.roughness = 0.82;
+      mat.color?.set?.(theme.edgeColor || '#f5f7fb');
+      mat.roughness = 0.98;
       mat.metalness = 0;
       mat.envMapIntensity = 0;
       mat.needsUpdate = true;
