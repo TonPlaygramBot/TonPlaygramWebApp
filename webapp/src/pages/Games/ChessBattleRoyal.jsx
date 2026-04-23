@@ -140,13 +140,13 @@ const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.05;
 const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.22;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.004;
 const CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL = 0.2;
-const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.08; // shorter forward hop so missiles launch almost exactly from source position
-const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.28; // quicker lift-off so strike starts moving to target sooner
-const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.66; // reserve more timeline for direct approach before any return leg
+const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.16; // keep launch hop very close to parking position
+const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.42; // spend longer lifting before cruise
+const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
 const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.07; // even lower pawn/drone strike profile
-const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.035; // keep vertical apex just above target for a more direct impact read
-const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.1; // very short top-flight pass before vertical crash
+const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
+const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.18; // show aircraft lifting from pad before starting loop
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
@@ -9713,50 +9713,6 @@ function Chess3D({
       const clampIfNeeded = (value) => (returnToOrigin ? value : constrainInsideBoardPerimeter(value));
       const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
       const impactPos = to.clone();
-      if (returnToOrigin) {
-        const u = clamp01(progress);
-        const takeoffSplit = Math.min(CAPTURE_LOOP_TAKEOFF_RATIO, returnSplit * 0.5);
-        const strikeHoverSplit = THREE.MathUtils.clamp(returnSplit, takeoffSplit + 0.06, 0.9);
-        const launchToTarget = impactPos.clone().sub(launchPos);
-        const launchToTargetPlanar = new THREE.Vector3(launchToTarget.x, 0, launchToTarget.z);
-        if (launchToTargetPlanar.lengthSq() < 1e-6) {
-          launchToTargetPlanar.set(-Math.sign(launchPos.x || 1), 0, 0);
-        } else {
-          launchToTargetPlanar.normalize();
-        }
-        const hoverOffset = tile * 0.34;
-        const hoverPoint = impactPos.clone().addScaledVector(launchToTargetPlanar, -hoverOffset);
-        hoverPoint.y = Math.max(impactPos.y + tile * 0.18, orbitHeight);
-        const takeoffPoint = launchPos.clone();
-        takeoffPoint.y = Math.max(launchPos.y + tile * 0.08, orbitHeight * 0.8);
-        if (u < takeoffSplit) {
-          const takeoffU = smoothEase(u / Math.max(0.001, takeoffSplit));
-          const pos = launchPos.clone().lerp(takeoffPoint, takeoffU);
-          const next = launchPos.clone().lerp(takeoffPoint, clamp01(takeoffU + 0.04));
-          return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
-        }
-        if (u < strikeHoverSplit) {
-          const approachU = smoothEase((u - takeoffSplit) / Math.max(0.001, strikeHoverSplit - takeoffSplit));
-          const pos = takeoffPoint.clone().lerp(hoverPoint, approachU);
-          const next = takeoffPoint.clone().lerp(hoverPoint, clamp01(approachU + 0.04));
-          return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
-        }
-        const returnU = smoothEase((u - strikeHoverSplit) / Math.max(0.001, 1 - strikeHoverSplit));
-        const cruiseReturnTarget = launchPos.clone();
-        cruiseReturnTarget.y = takeoffPoint.y;
-        const descendSplit = 0.72;
-        const returnPos =
-          returnU < descendSplit
-            ? hoverPoint.clone().lerp(cruiseReturnTarget, returnU / descendSplit)
-            : cruiseReturnTarget.clone().lerp(launchPos, (returnU - descendSplit) / Math.max(0.001, 1 - descendSplit));
-        const returnNext =
-          returnU < descendSplit
-            ? hoverPoint.clone().lerp(cruiseReturnTarget, clamp01(returnU / descendSplit + 0.05))
-            : cruiseReturnTarget
-                .clone()
-                .lerp(launchPos, clamp01((returnU - descendSplit) / Math.max(0.001, 1 - descendSplit) + 0.06));
-        return { pos: clampIfNeeded(returnPos), next: clampIfNeeded(returnNext) };
-      }
       const travel = impactPos.clone().sub(launchPos);
       const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
       const travelLen = Math.max(0.001, planarTravel.length());
@@ -9798,6 +9754,24 @@ function Chess3D({
           Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.025;
         return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
       }
+      if (returnToOrigin) {
+        const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
+        const returnTarget = launchPos.clone();
+        const cruiseReturnTarget = returnTarget.clone();
+        cruiseReturnTarget.y = takeoffTop.y;
+        const descendSplit = 0.76;
+        const returnPos =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, returnU / descendSplit)
+            : cruiseReturnTarget.clone().lerp(returnTarget, (returnU - descendSplit) / Math.max(0.001, 1 - descendSplit));
+        const returnNext =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, clamp01(returnU / descendSplit + 0.04))
+            : cruiseReturnTarget
+                .clone()
+                .lerp(returnTarget, clamp01((returnU - descendSplit) / Math.max(0.001, 1 - descendSplit) + 0.06));
+        return { pos: clampIfNeeded(returnPos), next: clampIfNeeded(returnNext) };
+      }
       const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
       const dropStart = new THREE.Vector3(impactPos.x, Math.max(orbitHeight * 0.95, impactPos.y + 0.44), impactPos.z);
       const pos =
@@ -9823,18 +9797,11 @@ function Chess3D({
       verticalCrash = false
     }) => {
       const toCenter = new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0).normalize();
-      const toTargetPlanar = targetPos.clone().sub(launchPos);
-      toTargetPlanar.y = 0;
-      if (toTargetPlanar.lengthSq() < 1e-6) {
-        toTargetPlanar.copy(toCenter);
-      } else {
-        toTargetPlanar.normalize();
-      }
       const inwardDistance = verticalCrash ? CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE : CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE;
       const strikeAltitude = verticalCrash ? CAPTURE_VERTICAL_STRIKE_ALTITUDE : altitude;
       const forwardPoint = launchPos
         .clone()
-        .addScaledVector(verticalCrash ? toTargetPlanar : toCenter, tile * inwardDistance);
+        .addScaledVector(toCenter, tile * inwardDistance);
       const cruiseHeight = Math.max(launchPos.y + strikeAltitude, launchPos.y + (verticalCrash ? 0.06 : 0.1));
       const takeoffPoint = forwardPoint.clone();
       takeoffPoint.y = cruiseHeight;
@@ -9861,7 +9828,7 @@ function Chess3D({
           pos = takeoffPoint.clone().lerp(targetPos, su);
           next = takeoffPoint.clone().lerp(targetPos, clamp01(su + 0.05));
         } else if (su < CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO) {
-          const topLaunch = takeoffPoint.clone();
+          const topLaunch = launchPos.clone();
           topLaunch.y = strikeTop.y;
           const topTarget = targetPos.clone();
           topTarget.y = strikeTop.y;
