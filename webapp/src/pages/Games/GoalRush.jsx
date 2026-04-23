@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import AirHockey3D from '../../components/AirHockey3D.jsx';
+import GoalRush3D from '../../components/GoalRush3D.jsx';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 import useOnlineRoomSync from '../../hooks/useOnlineRoomSync.js';
@@ -26,7 +26,7 @@ export default function GoalRush() {
   const chosenAiFlag = aiFlag || randomAiFlag;
   const ai = { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
   return (
-    <AirHockey3D
+    <GoalRush3D
       player={player}
       ai={ai}
       target={target}
