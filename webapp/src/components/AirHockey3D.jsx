@@ -2194,7 +2194,7 @@ export default function AirHockey3D({
             -PLAYFIELD.h / 2 + PUCK_RADIUS,
             PLAYFIELD.h / 2 - PUCK_RADIUS
           );
-          playPost();
+          playHit();
         }
       }
 
