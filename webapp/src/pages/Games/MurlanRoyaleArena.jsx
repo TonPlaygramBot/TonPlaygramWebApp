@@ -6753,7 +6753,7 @@ function easeInOutCubic(t) {
 }
 
 const CARD_FRONT_BASE_COLOR = '#e9eef5';
-const CARD_BACK_BASE_COLOR = '#dce5f0';
+const CARD_BACK_BASE_COLOR = '#ffffff';
 
 function createCardMesh(card, geometry, cache, theme, textureQuality = null) {
   const textureKey = textureQuality?.id || 'default';
@@ -7126,7 +7126,7 @@ function createFallbackOpenSourceCardSvg(cardKey) {
 
 function toOpenSourceDeckKey(rank, suit) {
   if (rank === 'JR') return 'J1';
-  if (rank === 'JB') return 'J2';
+  if (rank === 'JB') return 'J1';
   const suitCode = OPEN_SOURCE_SUIT_CODES[suit];
   if (!suitCode) return null;
   const rankCode = OPEN_SOURCE_RANK_CODES[rank] || String(rank).toLowerCase();
@@ -7139,18 +7139,7 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
   const CardComponent = OpenSourceDeck?.[cardKey];
   if (!CardComponent) return createFallbackOpenSourceCardSvg(cardKey);
   const svg = renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
-  if (rank !== 'JB') {
-    return svg;
-  }
-  return svg
-    .replace(/#ff[0-9a-f]{4}/gi, '#111111')
-    .replace(/#f0[0-9a-f]{4}/gi, '#111111')
-    .replace(/#e0[0-9a-f]{4}/gi, '#111111')
-    .replace(/#d0[0-9a-f]{4}/gi, '#111111')
-    .replace(/#d[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
-    .replace(/#e[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
-    .replace(/#f[0-9a-f]{2,2}[0-9a-f]{2,2}/gi, '#111111')
-    .replace(/rgb\(\s*2(?:0[0-9]|1[0-9]|2[0-5])\s*,\s*[0-9]{1,3}\s*,\s*[0-9]{1,3}\s*\)/gi, 'rgb(17,17,17)');
+  return svg;
 }
 
 
@@ -7198,6 +7187,9 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
     ctx.clip();
     ctx.drawImage(image, offsetX, offsetY, zoomedWidth, zoomedHeight);
+    if (rank === 'JB') {
+      recolorBlackJokerFigure(ctx, canvas.width, canvas.height);
+    }
 
     // Slightly thicken rank/suit glyph edges for better mobile readability.
     ctx.globalCompositeOperation = 'multiply';
@@ -7222,6 +7214,35 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   tex.needsUpdate = true;
   return tex;
+}
+
+function recolorBlackJokerFigure(ctx, width, height) {
+  if (!ctx || width <= 0 || height <= 0) return;
+  const figureBounds = {
+    left: Math.floor(width * 0.18),
+    right: Math.ceil(width * 0.82),
+    top: Math.floor(height * 0.12),
+    bottom: Math.ceil(height * 0.9)
+  };
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const pixelIndex = i / 4;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    if (x < figureBounds.left || x > figureBounds.right || y < figureBounds.top || y > figureBounds.bottom) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+    if (a < 12) continue;
+    const dominantRed = r > 96 && r > g + 18 && r > b + 18;
+    if (!dominantRed) continue;
+    data[i] = 17;
+    data[i + 1] = 17;
+    data[i + 2] = 17;
+  }
+  ctx.putImageData(imageData, 0, 0);
 }
 
 function makeCardBackTexture(theme, textureQuality = null) {
