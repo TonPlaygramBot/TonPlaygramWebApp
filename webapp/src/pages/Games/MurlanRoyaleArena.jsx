@@ -2462,6 +2462,8 @@ const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
+const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = false;
+const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = false;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -4673,8 +4675,21 @@ export default function MurlanRoyaleArena({ search }) {
 
     clearCameraTurnHoldTimeout();
 
-    if (gameState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
-      turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+    if (gameState?.status !== 'PLAYING') {
+      if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
+        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+      }
+      return;
+    }
+
+    if (activePlayer?.isHuman) {
+      if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
+        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+      }
+      return;
+    }
+
+    if (!activeSeat?.stoolPosition) {
       return;
     }
 
@@ -4702,6 +4717,7 @@ export default function MurlanRoyaleArena({ search }) {
 
   useEffect(() => {
     if (!threeReady) return;
+    if (!CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED) return;
     const action = gameState?.lastAction;
     if (!action || action.type !== 'PLAY') return;
     clearCameraTurnHoldTimeout();
