@@ -1655,8 +1655,8 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
   const safeCount = Math.max(handCards.length, 2);
   const cardGeometry = createCardGeometry(0.2 * MODEL_SCALE, 0.29 * MODEL_SCALE, 0.01 * MODEL_SCALE, {
     rounded: true,
-    cornerRadiusRatio: 0.24,
-    segments: 18
+    cornerRadiusRatio: 0.18,
+    segments: 14
   });
   const edgeMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(cardTheme?.edgeColor || '#f5f7fb'),
@@ -1698,7 +1698,7 @@ function createCharacterCards({ handLift = 0.96, handCardsInput = [], cardTheme 
       THREE.MathUtils.degToRad(-centered * 8),
       THREE.MathUtils.degToRad(centered * 11)
     );
-    card.castShadow = false;
+    card.castShadow = true;
     card.receiveShadow = true;
     cardsGroup.add(card);
   }
@@ -2298,7 +2298,7 @@ async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 1.03 * CARD_VISUAL_TRIM;
+const CARD_SCALE = 0.98 * CARD_VISUAL_TRIM;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.012 * MODEL_SCALE * CARD_SCALE; // Slimmer card thickness.
@@ -4957,8 +4957,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D, {
         rounded: true,
-        cornerRadiusRatio: 0.24,
-        segments: 18
+        cornerRadiusRatio: 0.18,
+        segments: 14
       });
 
       const seatConfigs = [];
@@ -6911,16 +6911,15 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
 }
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
-  const isJoker = rank === 'JR' || rank === 'JB';
-  const svg = isJoker ? null : svgMarkupFromOpenSourceDeck(rank, suit);
+  const svg = svgMarkupFromOpenSourceDeck(rank, suit);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(256, Math.round(w));
   canvas.height = Math.max(360, Math.round(h));
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    const fallbackTex = isJoker
-      ? makeCardFaceFallbackTexture(rank, suit, theme, canvas.width, canvas.height)
-      : new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+    const fallbackTex = new THREE.TextureLoader().load(
+      `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    );
     applySRGBColorSpace(fallbackTex);
     fallbackTex.anisotropy = 12;
     fallbackTex.magFilter = THREE.LinearFilter;
@@ -6940,91 +6939,30 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   image.crossOrigin = 'anonymous';
   image.onload = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = theme.frontBackground || '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
     // Slightly thicken rank/suit glyph edges for better mobile readability.
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.22;
-    ctx.drawImage(canvas, -1.1, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 1.1, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 0, -1.1, canvas.width, canvas.height);
-    ctx.drawImage(canvas, 0, 1.1, canvas.width, canvas.height);
+    ctx.globalAlpha = 0.12;
+    ctx.drawImage(canvas, -0.65, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0.65, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, -0.65, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, 0.65, canvas.width, canvas.height);
     ctx.restore();
 
     // Slight front-face matte layer to reduce glare on community cards.
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.035)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    trimCardEdgeArtifacts(ctx, canvas.width, canvas.height);
     tex.needsUpdate = true;
   };
-  if (isJoker) {
-    drawLegacyJokerFace(ctx, rank, suit, canvas.width, canvas.height, theme);
-    trimCardEdgeArtifacts(ctx, canvas.width, canvas.height);
-    tex.needsUpdate = true;
-    return tex;
-  }
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   tex.needsUpdate = true;
   return tex;
-}
-
-function drawLegacyJokerFace(ctx, rank, suit, w, h, theme) {
-  const label = rank === 'JB' ? 'JB' : 'JR';
-  const color = SUIT_COLORS[suit] || '#111111';
-  ctx.fillStyle = theme.frontBackground || '#ffffff';
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = theme.frontBorder || '#d1d5db';
-  ctx.lineWidth = Math.max(4, Math.round(w * 0.012));
-  roundRect(ctx, ctx.lineWidth / 2, ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth, Math.round(w * 0.14));
-  ctx.stroke();
-
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${Math.round(w * 0.24)}px "Inter", "Segoe UI", sans-serif`;
-  ctx.fillText(label, w / 2, h * 0.42);
-  ctx.font = `800 ${Math.round(w * 0.28)}px "Inter", "Segoe UI Symbol", sans-serif`;
-  ctx.fillText(suit, w / 2, h * 0.62);
-}
-
-function trimCardEdgeArtifacts(ctx, w, h) {
-  const inset = Math.max(4, Math.round(Math.min(w, h) * 0.015));
-  const radius = Math.max(24, Math.round(w * 0.095));
-  const source = document.createElement('canvas');
-  source.width = w;
-  source.height = h;
-  const sourceCtx = source.getContext('2d');
-  if (!sourceCtx) return;
-  sourceCtx.drawImage(ctx.canvas, 0, 0);
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, 0, 0, w, h, Math.round(radius * 1.25));
-  ctx.fill();
-  ctx.beginPath();
-  roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, radius);
-  ctx.clip();
-  ctx.drawImage(source, 0, 0);
-  ctx.restore();
-}
-
-function makeCardFaceFallbackTexture(rank, suit, theme, w, h) {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    drawLegacyJokerFace(ctx, rank, suit, w, h, theme);
-    trimCardEdgeArtifacts(ctx, w, h);
-  }
-  return new THREE.CanvasTexture(canvas);
 }
 
 function makeCardBackTexture(theme, textureQuality = null) {
