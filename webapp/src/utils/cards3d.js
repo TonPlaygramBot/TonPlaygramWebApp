@@ -209,8 +209,8 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
 }
 
 export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
-  const safeWidth = Math.max(512, Math.round(Math.min(w, 1536)));
-  const safeHeight = Math.max(768, Math.round(Math.min(h, 2304)));
+  const safeWidth = Math.max(1024, Math.round(Math.min(w, 3072)));
+  const safeHeight = Math.max(1440, Math.round(Math.min(h, 4320)));
   const cacheKey = `${theme?.id || 'default'}:${safeWidth}x${safeHeight}`;
   const cachedTexture = cardBackTextureCache.get(cacheKey);
   if (cachedTexture) return cachedTexture;
@@ -448,8 +448,8 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.94;
-    const logoBoxHeight = h * 0.4;
+    const logoBoxWidth = w * 0.98;
+    const logoBoxHeight = h * 0.46;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
