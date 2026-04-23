@@ -135,7 +135,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
+const DICE_SIZE = TILE_SIZE * 0.675 * 1.16;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -276,22 +276,22 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.46;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.64;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.11,
-  TILE_SIZE * 0.09,
-  TILE_SIZE * 0.14,
-  TILE_SIZE * 0.09
+  TILE_SIZE * 0.22,
+  TILE_SIZE * 0.2,
+  TILE_SIZE * 0.26,
+  TILE_SIZE * 0.2
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   // Lift parked weapons higher so they sit at bishop-token visual height on portrait screens.
-  fighter: TOKEN_HEIGHT * 0.06,
-  helicopter: TOKEN_HEIGHT * 0.08,
-  drone: TOKEN_HEIGHT * 0.05,
-  supportTruck: TOKEN_HEIGHT * 0.07,
-  javelin: TOKEN_HEIGHT * 0.06
+  fighter: -TOKEN_HEIGHT * 0.05,
+  helicopter: -TOKEN_HEIGHT * 0.03,
+  drone: -TOKEN_HEIGHT * 0.06,
+  supportTruck: -TOKEN_HEIGHT * 0.04,
+  javelin: -TOKEN_HEIGHT * 0.05
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -305,17 +305,17 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.24, lateral: 0, y: TILE_SIZE * 0.03 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.46, lateral: 0, y: TILE_SIZE * 0.04 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.24, lateral: 0, y: TILE_SIZE * 0.04 }),
+  Object.freeze({ radial: TILE_SIZE * 1.46, lateral: 0, y: TILE_SIZE * 0.05 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.96, lateral: 0, y: TILE_SIZE * 0.34 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.42, lateral: -TILE_SIZE * 0.24, y: TILE_SIZE * 0.34 }),
-  Object.freeze({ radial: TILE_SIZE * 0.92, lateral: 0, y: TILE_SIZE * 0.36 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.42, lateral: TILE_SIZE * 0.24, y: TILE_SIZE * 0.34 })
+  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: 0, y: TILE_SIZE * 0.44 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.66, lateral: -TILE_SIZE * 0.28, y: TILE_SIZE * 0.44 }),
+  Object.freeze({ radial: TILE_SIZE * 1.14, lateral: 0, y: TILE_SIZE * 0.46 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.66, lateral: TILE_SIZE * 0.28, y: TILE_SIZE * 0.44 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -351,22 +351,22 @@ const CAMERA_3D_ZOOM_WHEEL_FACTOR = 0.0012;
 const CAMERA_3D_ZOOM_PINCH_FACTOR = 0.0042;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
-const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.35;
+const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.56;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
-const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.15;
+const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.35;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.2;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.76;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 2.14,
+  backOffset: 1.94,
   forwardOffset: 0,
-  heightOffset: 3.96,
+  heightOffset: 3.78,
   targetLift: 0.016 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -2036,8 +2036,19 @@ function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
   pathDir.normalize();
 
   const target = toPos.clone();
-  target.y += TILE_SIZE * 0.18;
+  target.y += TILE_SIZE * 0.24;
   const position = camera.position.clone();
+  const inTopHalf = toPos.z < boardLookTarget.z - TILE_SIZE * 0.18;
+  const onTopSideLane = inTopHalf && Math.abs(toPos.x - boardLookTarget.x) > TILE_SIZE * 0.55;
+  if (onTopSideLane) {
+    position.y += TILE_SIZE * 0.36;
+    const towardTarget = target.clone().sub(position).setY(0);
+    if (towardTarget.lengthSq() > 1e-6) {
+      towardTarget.normalize();
+      position.addScaledVector(towardTarget, TILE_SIZE * 0.2);
+    }
+    target.y += TILE_SIZE * 0.12;
+  }
   return { position, target };
 }
 
@@ -4932,9 +4943,11 @@ export default function SnakeBoard3D({
           mouseButtons: { ...controls.mouseButtons }
         };
       }
+      const topDownTarget = boardLookTarget.clone();
+      topDownTarget.y = board?.tableInfo?.surfaceY ?? boardLookTarget.y;
       const topDownDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_RADIUS_FACTOR;
-      const topDownPosition = boardLookTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
-      const clampedTopDownPosition = topDownPosition.clone().sub(boardLookTarget);
+      const topDownPosition = topDownTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
+      const clampedTopDownPosition = topDownPosition.clone().sub(topDownTarget);
       const spherical = new THREE.Spherical().setFromVector3(clampedTopDownPosition);
       spherical.radius = clamp(
         spherical.radius,
@@ -4942,8 +4955,8 @@ export default function SnakeBoard3D({
         CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
       );
       spherical.phi = clamp(spherical.phi, CAMERA_TOPDOWN_MIN_POLAR, CAMERA_TOPDOWN_MAX_POLAR);
-      camera.position.copy(boardLookTarget).add(new THREE.Vector3().setFromSpherical(spherical));
-      controls.target.copy(boardLookTarget);
+      camera.position.copy(topDownTarget).add(new THREE.Vector3().setFromSpherical(spherical));
+      controls.target.copy(topDownTarget);
       controls.enableRotate = false;
       controls.enablePan = false;
       controls.enableZoom = false;
@@ -5194,6 +5207,29 @@ export default function SnakeBoard3D({
         -CAMERA_LOOK_PITCH_LIMIT,
         CAMERA_LOOK_PITCH_LIMIT
       );
+      const fixedCamera = fixedSeatCameraPositionRef.current;
+      const board = boardRef.current;
+      const controls = board?.controls;
+      const camera = cameraRef.current;
+      const target = controls?.target || board?.boardLookTarget;
+      if (fixedCamera && camera && target) {
+        const minCameraY = Number.isFinite(startCameraMinYRef.current)
+          ? startCameraMinYRef.current
+          : fixedCamera.y;
+        const maxLift = TOKEN_HEIGHT * 15;
+        const liftDelta = deltaY * -0.0034;
+        const nextY = clamp(fixedCamera.y + liftDelta, minCameraY, minCameraY + maxLift);
+        const appliedLift = nextY - fixedCamera.y;
+        fixedCamera.y = nextY;
+        if (Math.abs(appliedLift) > 1e-6) {
+          const towardTarget = target.clone().sub(fixedCamera);
+          towardTarget.y = 0;
+          if (towardTarget.lengthSq() > 1e-6) {
+            towardTarget.normalize();
+            fixedCamera.addScaledVector(towardTarget, appliedLift * 0.42);
+          }
+        }
+      }
     };
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
