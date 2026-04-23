@@ -2344,7 +2344,10 @@ const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
-const CAMERA_SCREEN_DOWN_SHIFT = 0;
+const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
+  portrait: 0.12 * MODEL_SCALE,
+  landscape: 0.04 * MODEL_SCALE
+});
 const HUMAN_HAND_CARD_SCALE = 1.06;
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
@@ -5171,7 +5174,10 @@ export default function MurlanRoyaleArena({ search }) {
         camConfig.near,
         camConfig.far
       );
-      const targetHeightOffset = CAMERA_TARGET_LIFT + 0.03 * MODEL_SCALE + CAMERA_SCREEN_DOWN_SHIFT;
+      const targetScreenDownShift = isPortrait
+        ? CAMERA_SCREEN_DOWN_SHIFT.portrait
+        : CAMERA_SCREEN_DOWN_SHIFT.landscape;
+      const targetHeightOffset = CAMERA_TARGET_LIFT + 0.03 * MODEL_SCALE + targetScreenDownShift;
       let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
       let initialCameraPosition;
       if (humanSeatConfig) {
