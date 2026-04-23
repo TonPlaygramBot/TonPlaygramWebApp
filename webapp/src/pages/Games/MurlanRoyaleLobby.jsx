@@ -243,10 +243,11 @@ export default function MurlanRoyaleLobby() {
             <h3 className="font-semibold text-white">Players</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Table size</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { opponents: 1, label: '1v1', desc: 'You vs 1 player', icon: '🆚' },
-              { opponents: 2, label: '1v2', desc: 'You vs 2 players', icon: '👥' }
+              { opponents: 2, label: '1v2', desc: 'You vs 2 players', icon: '👥' },
+              { opponents: 3, label: '1v3', desc: 'You vs 3 players', icon: '🧩' }
             ].map(({ opponents, label, desc, icon }) => {
               const active = opponentCount === opponents;
               return (
