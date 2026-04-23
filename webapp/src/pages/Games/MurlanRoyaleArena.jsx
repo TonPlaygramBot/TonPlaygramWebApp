@@ -2310,8 +2310,8 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   y: CARD_H * 1.14,
   z: -TABLE_RADIUS * 0.18
 });
-const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.2;
-const DISCARD_PILE_RIGHT_SHIFT = 0;
+const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.34;
+const DISCARD_PILE_RIGHT_SHIFT = -CARD_W * 0.42;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -3823,7 +3823,11 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
-        const backLogoVariant = !isHumanCard ? 'top' : 'default';
+        const isGiftSideSeat = seat?.handVariant === 'giftSide';
+        const isSideSeatOnScreen = Math.abs(forward?.x ?? 0) > 0.45;
+        const backLogoVariant = !isHumanCard
+          ? (isGiftSideSeat ? 'sideGift' : isSideSeatOnScreen ? 'side' : 'top')
+          : 'default';
         setBackLogoOrientation(mesh, backLogoVariant);
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
@@ -3837,9 +3841,11 @@ export default function MurlanRoyaleArena({ search }) {
         const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
         const fanDirection = isHumanCard
           ? HUMAN_HAND_FAN_DIRECTION
-          : (forward?.x ?? 0) < -0.45
+          : isGiftSideSeat
             ? -HUMAN_HAND_FAN_DIRECTION
-            : HUMAN_HAND_FAN_DIRECTION;
+            : (forward?.x ?? 0) < -0.45
+              ? -HUMAN_HAND_FAN_DIRECTION
+              : HUMAN_HAND_FAN_DIRECTION;
         const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
           ? HUMAN_HAND_FAN_MAX_YAW
           : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : AI_HAND_FAN_MAX_YAW) * fanDirection;
@@ -3980,13 +3986,13 @@ export default function MurlanRoyaleArena({ search }) {
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
       const target = discardAnchor.clone();
-      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.08;
-      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.08;
+      const scatterX = (cardIdNoise(card.id, 3) - 0.5) * CARD_W * 0.34;
+      const scatterZ = (cardIdNoise(card.id, 7) - 0.5) * CARD_H * 0.3;
       target.addScaledVector(pileRightAxis, scatterX);
       target.addScaledVector(pileForwardAxis, scatterZ);
       target.y += idx * 0.0022;
-      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(5);
-      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(1.2);
+      const discardYaw = (cardIdNoise(card.id, 13) - 0.5) * THREE.MathUtils.degToRad(14);
+      const discardTilt = (cardIdNoise(card.id, 17) - 0.5) * THREE.MathUtils.degToRad(3.2);
       setMeshPosition(
         mesh,
         target,
@@ -7191,9 +7197,6 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
     roundRect(ctx, 0, 0, canvas.width, canvas.height, cornerRadius);
     ctx.clip();
     ctx.drawImage(image, offsetX, offsetY, zoomedWidth, zoomedHeight);
-    if (rank === 'JB') {
-      recolorBlackJokerRedAccents(ctx, canvas.width, canvas.height);
-    }
 
     // Slightly thicken rank/suit glyph edges for better mobile readability.
     ctx.globalCompositeOperation = 'multiply';
@@ -7218,25 +7221,6 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   tex.needsUpdate = true;
   return tex;
-}
-
-function recolorBlackJokerRedAccents(ctx, width, height) {
-  if (!ctx || width <= 0 || height <= 0) return;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const a = data[i + 3];
-    if (a < 12) continue;
-    const dominantRed = r > 105 && r > g + 20 && r > b + 20;
-    if (!dominantRed) continue;
-    data[i] = 17;
-    data[i + 1] = 17;
-    data[i + 2] = 17;
-  }
-  ctx.putImageData(imageData, 0, 0);
 }
 
 function makeCardBackTexture(theme, textureQuality = null) {
