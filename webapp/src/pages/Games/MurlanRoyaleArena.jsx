@@ -4673,7 +4673,15 @@ export default function MurlanRoyaleArena({ search }) {
 
     clearCameraTurnHoldTimeout();
 
-    if (gameState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
+    if (gameState?.status !== 'PLAYING') {
+      turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+      return;
+    }
+    if (activePlayer?.isHuman) {
+      // Keep the bottom player's current framing stable; only manual user gestures should move closer.
+      return;
+    }
+    if (!activeSeat?.stoolPosition) {
       turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
       return;
     }
@@ -4704,65 +4712,11 @@ export default function MurlanRoyaleArena({ search }) {
     if (!threeReady) return;
     const action = gameState?.lastAction;
     if (!action || action.type !== 'PLAY') return;
-    clearCameraTurnHoldTimeout();
-    clearCameraPlayFollowTimeout();
-    stopCameraPlayTrackAnimation();
-
-    const store = threeStateRef.current;
-    const playedCardId = action.cards?.[0]?.id;
-    const playedCardMesh = playedCardId ? store.cardMap.get(playedCardId)?.mesh : null;
-    const centerTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? cameraDefaultTargetRef.current.clone();
-    turnCameraTowardTarget(centerTarget, { animate: true, durationMs: CAMERA_PLAY_TURN_DURATION_MS });
-
-    const start =
-      typeof performance !== 'undefined' && typeof performance.now === 'function'
-        ? performance.now()
-        : Date.now();
-    const trackUntil = start + CAMERA_PLAY_FOLLOW_HOLD_MS;
-    const trackCardDuringFlight = (time) => {
-      const cardTarget = playedCardMesh?.position?.clone?.() ?? store.tableAnchor?.clone?.() ?? centerTarget.clone();
-      turnCameraTowardTarget(cardTarget, { animate: false });
-      if (time < trackUntil) {
-        cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
-      } else {
-        cameraPlayTrackAnimationRef.current = null;
-      }
-    };
-    cameraPlayTrackAnimationRef.current = requestAnimationFrame(trackCardDuringFlight);
-    cameraTurnSuppressUntilRef.current = start + CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS;
-
-    cameraPlayFollowTimeoutRef.current = setTimeout(() => {
-      const liveState = gameStateRef.current;
-      const activeIndex = liveState?.activePlayer;
-      const activeSeat = Number.isInteger(activeIndex) ? store.seatConfigs?.[activeIndex] : null;
-      const activePlayer = Number.isInteger(activeIndex) ? liveState?.players?.[activeIndex] : null;
-      if (liveState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
-      } else {
-        const blendedFocus = cameraDefaultTargetRef.current
-          .clone()
-          .lerp(activeSeat.focus, CAMERA_PLAYER_TARGET_WEIGHT);
-        const sideSign = Math.sign(activeSeat?.stoolPosition?.x ?? 0);
-        if (sideSign !== 0) {
-          blendedFocus.x += sideSign * CAMERA_SIDE_LOOK_EXTRA;
-        }
-        turnCameraTowardTarget(blendedFocus, { animate: true });
-      }
-      cameraPlayFollowTimeoutRef.current = null;
-    }, CAMERA_PLAY_FOLLOW_HOLD_MS + CAMERA_PLAY_NEXT_TURN_DELAY_MS);
-
-    return () => {
-      clearCameraPlayFollowTimeout();
-      stopCameraPlayTrackAnimation();
-    };
+    // Do not auto-follow played cards; keep zoom/framing under user control.
   }, [
-    clearCameraPlayFollowTimeout,
-    clearCameraTurnHoldTimeout,
     gameState?.lastAction,
     gameState?.lastActionId,
-    stopCameraPlayTrackAnimation,
-    threeReady,
-    turnCameraTowardTarget
+    threeReady
   ]);
 
   useEffect(() => {
