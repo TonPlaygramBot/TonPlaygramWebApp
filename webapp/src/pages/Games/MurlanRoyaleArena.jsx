@@ -2345,7 +2345,7 @@ const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = 0.12 * MODEL_SCALE;
 const HUMAN_HAND_CARD_SCALE = 1.06;
-const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.28;
+const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.25;
 const HUMAN_HAND_CARD_MAX_SPREAD = HUMAN_HAND_CARD_SPACING * 10;
 const HUMAN_HAND_EXTRA_LIFT = 0.068 * MODEL_SCALE;
 const HUMAN_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(15);
@@ -2353,7 +2353,7 @@ const HUMAN_HAND_FAN_ARC_LIFT = 0.036 * MODEL_SCALE;
 const HUMAN_HAND_FAN_DIRECTION = 1;
 const HUMAN_HAND_UNIFORM_YAW_FROM_LEFT = false;
 const HUMAN_HAND_CLOSER_OFFSET = 0.042 * MODEL_SCALE;
-const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.066 * MODEL_SCALE;
+const HUMAN_HAND_BOTTOM_SHIFT_Y = -0.078 * MODEL_SCALE;
 const AI_HAND_BOTTOM_SHIFT_Y = -0.02 * MODEL_SCALE;
 const AI_HAND_CLOSER_OFFSET = 0.02 * MODEL_SCALE;
 const HUMAN_HAND_LEFT_SHIFT = -0.032 * MODEL_SCALE; // Negative value nudges the bottom human hand toward the right-side gift icon in portrait.
@@ -2463,7 +2463,7 @@ const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
 const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = false;
-const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = false;
+const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
@@ -4967,7 +4967,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.39;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.32 * MODEL_SCALE;
+        const scoreboardY = TABLE_HEIGHT + 1.56 * MODEL_SCALE;
         const scoreboardZ = -Math.max(TABLE_RADIUS * 2.2, floorRadius * 0.72);
         scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
@@ -6275,6 +6275,11 @@ function buildPlayers(search) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'You';
   const avatar = params.get('avatar') || '';
+  const requestedPlayers = Number.parseInt(params.get('players') || '', 10);
+  const totalPlayers = Number.isFinite(requestedPlayers)
+    ? Math.min(Math.max(requestedPlayers, 2), 4)
+    : 4;
+  const aiCount = Math.max(totalPlayers - 1, 1);
   const providedFlags = (params.get('flags') || '')
     .split(',')
     .map((value) => Number.parseInt(value, 10))
@@ -6284,12 +6289,19 @@ function buildPlayers(search) {
   const seedFlags = providedFlags.length
     ? [...providedFlags]
     : [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  const basePlayers = [
-    { name: username, avatar, isHuman: true },
-    seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
-    seedFlags[1] ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] } : { name: 'Milo', avatar: '🐻' },
-    seedFlags[2] ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] } : { name: 'Sora', avatar: '🐱' }
+  const fallbackAiRoster = [
+    { name: 'Aria', avatar: '🦊' },
+    { name: 'Milo', avatar: '🐻' },
+    { name: 'Sora', avatar: '🐱' }
   ];
+  const aiPlayers = Array.from({ length: aiCount }, (_, index) => {
+    const flag = seedFlags[index];
+    if (flag) {
+      return { name: flagName(flag), avatar: flag };
+    }
+    return fallbackAiRoster[index] ?? { name: `Bot ${index + 1}`, avatar: '🤖' };
+  });
+  const basePlayers = [{ name: username, avatar, isHuman: true }, ...aiPlayers];
   return basePlayers.map((player, index) => ({ ...player, color: PLAYER_COLORS[index % PLAYER_COLORS.length] }));
 }
 
