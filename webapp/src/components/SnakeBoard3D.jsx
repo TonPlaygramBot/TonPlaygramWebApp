@@ -274,14 +274,14 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.56;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.2;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
+  TILE_SIZE * 0.02,
+  TILE_SIZE * 0.02,
+  TILE_SIZE * 0.02,
+  TILE_SIZE * 0.02
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -292,7 +292,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   javelin: TOKEN_HEIGHT * 2.26
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.92;
-const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
+const WEAPON_SLOT_CLUSTER_SCALE = 0;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   0,
   0,
@@ -310,12 +310,12 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 })
+  Object.freeze({ radial: TILE_SIZE * 0.03, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.03, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.03, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.03, lateral: 0, y: 0 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = 0;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TOKEN_HEIGHT * 0.28;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -440,22 +440,22 @@ const createHighlightColors = (boardTheme = {}) => ({
   ladder: toThreeColor(boardTheme.highlightLadder, DEFAULT_HIGHLIGHT_COLORS.ladder)
 });
 
-const LADDER_BASE_LIFT = TILE_SIZE * 0.32;
-const LADDER_ARCH_BASE = TILE_SIZE * 1.22;
-const LADDER_ARCH_SCALE = TILE_SIZE * 0.016;
+const LADDER_BASE_LIFT = TILE_SIZE * 0.14;
+const LADDER_ARCH_BASE = TILE_SIZE * 0.78;
+const LADDER_ARCH_SCALE = TILE_SIZE * 0.01;
 const LADDER_SWAY_BASE = TILE_SIZE * 0.2;
 const LADDER_SWAY_SCALE = TILE_SIZE * 0.009;
 const LADDER_INNER_LIFT_RATIO = 0.78;
 const LADDER_OUTER_LIFT_RATIO = 0.78;
-const LADDER_CLEARANCE = TILE_SIZE * 0.28;
-const SNAKE_BASE_LIFT = TILE_SIZE * 0.4;
-const SNAKE_ARCH_BASE = TILE_SIZE * 0.92;
-const SNAKE_ARCH_SCALE = TILE_SIZE * 0.01;
+const LADDER_CLEARANCE = TILE_SIZE * 0.14;
+const SNAKE_BASE_LIFT = TILE_SIZE * 0.17;
+const SNAKE_ARCH_BASE = TILE_SIZE * 0.58;
+const SNAKE_ARCH_SCALE = TILE_SIZE * 0.0065;
 const SNAKE_LATERAL_BASE = TILE_SIZE * 0.24;
 const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
-const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.34;
-const SNAKE_NECK_LIFT_RATIO = 0.42;
-const SNAKE_TAIL_LIFT_RATIO = 0.36;
+const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.14;
+const SNAKE_NECK_LIFT_RATIO = 0.3;
+const SNAKE_TAIL_LIFT_RATIO = 0.24;
 const CAPTURE_MISSILE_FLIGHT_MS = 620;
 const CAPTURE_EXPLOSION_MS = 560;
 const CAPTURE_TOKEN_ADVANCE_MS = 420;
@@ -4018,6 +4018,11 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     roughness: 0.55,
     metalness: 0.05
   });
+  const matBelly = new THREE.MeshStandardMaterial({
+    color: toThreeColor(theme.belly, '#b8f2d6'),
+    roughness: 0.58,
+    metalness: 0.04
+  });
   const matTongue = new THREE.MeshStandardMaterial({
     color: toThreeColor(theme.tongue, 0xff0000),
     emissive: toThreeColor(theme.tongueEmissive, 0x440000),
@@ -4068,12 +4073,23 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const fullCurve = new THREE.CatmullRomCurve3([startPoint, controlA, controlB, controlC, endPoint]);
     fullCurve.curveType = 'centripetal';
 
-    const bodyRadius = TILE_SIZE * 0.072;
-    const mainCurve = sampleSubCurve(fullCurve, 0.03, 0.8, 18);
-    const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
-    const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.78));
-    bodyMain.material.map.repeat.set(Math.max(4, Math.ceil(mainLen / (TILE_SIZE * 0.4))), 2);
-    group.add(bodyMain);
+    const bodyRadius = TILE_SIZE * 0.078;
+    const bodySegments = [
+      [0.02, 0.34, bodyRadius * 1.08],
+      [0.34, 0.68, bodyRadius * 1],
+      [0.68, 0.84, bodyRadius * 0.84]
+    ];
+    bodySegments.forEach(([t0, t1, radius]) => {
+      const sectionCurve = sampleSubCurve(fullCurve, t0, t1, 30);
+      const section = new THREE.Mesh(new THREE.TubeGeometry(sectionCurve, 100, radius, 18, false), matBody.clone());
+      const segLen = fullCurve.getPoint(t0).distanceTo(fullCurve.getPoint(t1));
+      section.material.map.repeat.set(Math.max(3, Math.ceil(segLen / (TILE_SIZE * 0.32))), 2.2);
+      group.add(section);
+      const bellyCurve = sampleSubCurve(fullCurve, t0 + 0.012, Math.min(0.88, t1 + 0.004), 24);
+      const belly = new THREE.Mesh(new THREE.TubeGeometry(bellyCurve, 80, radius * 0.36, 14, false), matBelly.clone());
+      belly.position.y -= TILE_SIZE * 0.02;
+      group.add(belly);
+    });
 
     group.userData.paths.set(start, {
       curve: fullCurve.clone(),
@@ -4120,6 +4136,15 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     tongue.rotation.x = Math.PI / 2;
     tongue.position.z = headR * 1.5;
     headGroup.add(tongue);
+    const fangGeom = new THREE.ConeGeometry(headR * 0.08, headR * 0.45, 8);
+    const fangMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.28, metalness: 0.05 });
+    const fangLeft = new THREE.Mesh(fangGeom, fangMat);
+    const fangRight = new THREE.Mesh(fangGeom, fangMat);
+    fangLeft.rotation.x = Math.PI;
+    fangRight.rotation.x = Math.PI;
+    fangLeft.position.set(-headR * 0.25, -headR * 0.28, headR * 0.7);
+    fangRight.position.set(headR * 0.25, -headR * 0.28, headR * 0.7);
+    headGroup.add(fangLeft, fangRight);
     const headPos = startPoint.clone().add(tA.clone().multiplyScalar(headR * 0.6));
     headGroup.position.copy(headPos);
     headGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tA.clone());
@@ -4683,6 +4708,20 @@ function createSeatWeaponMesh(weaponType = 'fighter') {
   return group;
 }
 
+function getWeaponParkingPosition(board, seatIndex, railLayout, tableY) {
+  const boardLookTarget = board?.boardLookTarget;
+  if (!boardLookTarget || !railLayout) return null;
+  const floorY = Number.isFinite(board?.baseLevelTop) ? board.baseLevelTop : tableY;
+  const edgeRadius = BOARD_RADIUS + TILE_SIZE * 0.9 + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0);
+  const radialLift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex]?.radial ?? 0;
+  const lateralLift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex]?.lateral ?? 0;
+  return boardLookTarget
+    .clone()
+    .addScaledVector(railLayout.seatDirection, edgeRadius + WEAPON_PARKING_OUTWARD_OFFSET + radialLift)
+    .addScaledVector(railLayout.lateral, lateralLift)
+    .setY(floorY + WEAPON_TABLE_SURFACE_Y_OFFSET);
+}
+
 function updateSeatWeaponDisplays(board, players = []) {
   if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
   const anchors = board.seatAnchors;
@@ -4696,11 +4735,12 @@ function updateSeatWeaponDisplays(board, players = []) {
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
     if (!Number.isFinite(seatIndex)) return;
     if (seatIndex < 0 || seatIndex >= anchors.length) return;
-    if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, player);
+    if (!playersBySeat.has(seatIndex)) playersBySeat.set(seatIndex, { player, playerIndex: index });
   });
 
   for (let seatIndex = 0; seatIndex < anchors.length; seatIndex += 1) {
-    const player = playersBySeat.get(seatIndex) ?? null;
+    const seatInfo = playersBySeat.get(seatIndex) ?? null;
+    const player = seatInfo?.player ?? null;
     const anchor = anchors[seatIndex];
     if (!anchor) continue;
     const holderKey = `seat-${seatIndex}`;
@@ -4732,23 +4772,22 @@ function updateSeatWeaponDisplays(board, players = []) {
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
-      holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(
-          railLayout.lateral,
-          sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
-        )
-        .addScaledVector(
-          railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
-        );
-      if (portraitShift) {
+      const parkingPos = getWeaponParkingPosition(board, seatIndex, railLayout, tableY);
+      if (parkingPos) {
+        holder.position.copy(parkingPos);
+      } else {
         holder.position
-          .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
-          .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
+          .copy(railLayout.railLocal)
+          .addScaledVector(
+            railLayout.lateral,
+            sideSign * SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + lateralNudge
+          )
+          .addScaledVector(
+            railLayout.seatDirection,
+            WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
+          );
+        holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
       }
-      holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4767,6 +4806,8 @@ function updateSeatWeaponDisplays(board, players = []) {
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
     holder.rotation.z = 0;
+    holder.userData.seatIndex = seatIndex;
+    holder.userData.playerIndex = Number.isFinite(seatInfo?.playerIndex) ? seatInfo.playerIndex : null;
   }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
@@ -4777,6 +4818,21 @@ function updateSeatWeaponDisplays(board, players = []) {
       byPlayer.delete(key);
     }
   });
+}
+
+function getWeaponHolderForPlayer(board, playerIndex) {
+  const byPlayer = board?.weaponDisplayGroup?.userData?.byPlayer;
+  if (!(byPlayer instanceof Map) || !Number.isFinite(playerIndex)) return null;
+  const direct = byPlayer.get(playerIndex);
+  if (direct) return direct;
+  const seatKey = `seat-${playerIndex}`;
+  const seatHolder = byPlayer.get(seatKey);
+  if (seatHolder) return seatHolder;
+  for (const holder of byPlayer.values()) {
+    if (holder?.userData?.playerIndex === playerIndex) return holder;
+    if (holder?.userData?.seatIndex === playerIndex) return holder;
+  }
+  return null;
 }
 
 export default function SnakeBoard3D({
@@ -5876,7 +5932,7 @@ export default function SnakeBoard3D({
     const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
     const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
     startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
-    const parkedHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const parkedHolder = getWeaponHolderForPlayer(board, captureEvent.attackerIndex);
     const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
@@ -5889,7 +5945,7 @@ export default function SnakeBoard3D({
     const impact = targetPos.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.2, 0));
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
-    const attackerHolder = board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) || null;
+    const attackerHolder = getWeaponHolderForPlayer(board, captureEvent.attackerIndex);
     if (attackerHolder) attackerHolder.visible = false;
 
     attacker.position.copy(startPos);
