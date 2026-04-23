@@ -69,7 +69,7 @@ import {
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k', '2k']);
 const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
-const DEFAULT_HDRI_ID = 'neon_photostudio';
+const DEFAULT_HDRI_ID = 'neonPhotostudio';
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   MURLAN_HDRI_OPTIONS.findIndex((variant) => variant.id === DEFAULT_HDRI_ID)
@@ -2392,7 +2392,7 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.17 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -4077,7 +4077,7 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS * TABLE_SIDE_TRIM_SCALE,
           tableHeight: TABLE_HEIGHT,
-          pedestalHeightScale: 0.82,
+          pedestalHeightScale: 0.76,
           includeBase: true,
           shapeOption,
           woodOption: finish?.woodOption || undefined,
@@ -4234,17 +4234,13 @@ export default function MurlanRoyaleArena({ search }) {
       const prevBackground = three.environmentTexture || null;
       three.scene.environment = envResult.envMap;
       three.scene.background = envResult.backgroundMap || envResult.envMap;
-      const keepOriginalHdriMapping = activeVariant?.preserveOriginalMapping !== false;
-      const rotationY = keepOriginalHdriMapping
-        ? 0
-        : Number.isFinite(activeVariant?.rotationY)
-          ? activeVariant.rotationY
+      const hdriSource = typeof activeVariant?.source === 'string' ? activeVariant.source : 'polyhaven';
+      const rotationY = Number.isFinite(activeVariant?.rotationY)
+        ? activeVariant.rotationY
+        : hdriSource === 'polyhaven'
+          ? -Math.PI / 12
           : 0;
-      const rotationX = keepOriginalHdriMapping
-        ? 0
-        : Number.isFinite(activeVariant?.rotationX)
-          ? activeVariant.rotationX
-          : HDRI_BACKGROUND_PITCH;
+      const rotationX = Number.isFinite(activeVariant?.rotationX) ? activeVariant.rotationX : 0;
       if ('backgroundRotation' in three.scene) {
         three.scene.backgroundRotation.set(rotationX, rotationY, 0);
       }
@@ -4257,7 +4253,7 @@ export default function MurlanRoyaleArena({ search }) {
       if ('backgroundBlurriness' in three.scene) {
         three.scene.backgroundBlurriness = Number.isFinite(activeVariant?.backgroundBlurriness)
           ? activeVariant.backgroundBlurriness
-          : 0.03;
+          : 0;
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
