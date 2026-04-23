@@ -89,7 +89,7 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
-import { playLudoDiceRollSfx } from "../../utils/ludoSfx.js";
+import { createDiceRollAudio } from "../../utils/diceAudio.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -1813,6 +1813,7 @@ export default function SnakeAndLadder() {
   const badLuckSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
+  const diceRollSoundRef = useRef(null);
   const timerRef = useRef(null);
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
@@ -1822,11 +1823,13 @@ export default function SnakeAndLadder() {
   const prevTimeLeftRef = useRef(TURN_TIME);
 
   const playDiceRollSound = useCallback(() => {
-    if (muted) return;
+    if (muted || !diceRollSoundRef.current) return;
     const now = Date.now();
     if (now - lastDiceRollSfxAtRef.current < 240) return;
     lastDiceRollSfxAtRef.current = now;
-    playLudoDiceRollSfx({ volume: getGameVolume(), muted });
+    diceRollSoundRef.current.volume = 1;
+    diceRollSoundRef.current.currentTime = 0;
+    diceRollSoundRef.current.play().catch(() => {});
   }, [muted]);
 
   const getPreviousTurn = useCallback(
@@ -1879,6 +1882,8 @@ export default function SnakeAndLadder() {
     cheerSoundRef.current.volume = vol;
     timerSoundRef.current = new Audio(SNAKE_SFX.timer);
     timerSoundRef.current.volume = vol;
+    diceRollSoundRef.current = createDiceRollAudio({ muted });
+    if (diceRollSoundRef.current) diceRollSoundRef.current.volume = 1;
     return () => {
       moveSoundRef.current?.pause();
       snakeSoundRef.current?.pause();
@@ -1892,6 +1897,7 @@ export default function SnakeAndLadder() {
       badLuckSoundRef.current?.pause();
       cheerSoundRef.current?.pause();
       timerSoundRef.current?.pause();
+      diceRollSoundRef.current?.pause();
     };
   }, [accountId, muted]);
 
@@ -1908,7 +1914,8 @@ export default function SnakeAndLadder() {
       bombSoundRef,
       badLuckSoundRef,
       cheerSoundRef,
-      timerSoundRef
+      timerSoundRef,
+      diceRollSoundRef,
     ].forEach((r) => {
       if (r.current) r.current.muted = muted;
     });
