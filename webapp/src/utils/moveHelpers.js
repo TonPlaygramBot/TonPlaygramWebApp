@@ -16,6 +16,9 @@ export function moveSeq(seq, type, ctx, done = () => {}, dir = 'forward') {
       ctx.moveSoundRef.current.currentTime = 0;
       if (!ctx.muted) ctx.moveSoundRef.current.play().catch(() => {});
     }
+    if (typeof ctx.onStepSfx === 'function') {
+      ctx.onStepSfx();
+    }
     const hType = idx === seq.length - 1 ? type : dir === 'back' ? 'back' : 'forward';
     ctx.setHighlight({ cell: next, type: hType });
     ctx.setTrail((t) => [...t, { cell: next, type: hType }]);
