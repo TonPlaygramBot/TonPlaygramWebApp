@@ -6876,22 +6876,27 @@ function setBackLogoOrientation(mesh, variant = 'default') {
 
   if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
+    tunedTexture.wrapS = THREE.RepeatWrapping;
+    tunedTexture.wrapT = THREE.RepeatWrapping;
     tunedTexture.repeat.set(1, 1);
     tunedTexture.offset.set(0, 0);
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
+      // Keep top seat logo fully visible and upright.
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = 0;
+    } else if (desiredVariant === 'side') {
+      // Left side seat: mirror horizontally so branding reads naturally from camera.
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = 0;
-    } else if (desiredVariant === 'side') {
+    } else if (desiredVariant === 'sideGift') {
+      // Right side seat: avoid 180° rotation that made the logo upside down.
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
-      tunedTexture.rotation = Math.PI;
-    } else if (desiredVariant === 'sideGift') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.rotation = 0;
     }
     tunedTexture.needsUpdate = true;
     mesh.userData.backLogoOrientedTexture = tunedTexture;
