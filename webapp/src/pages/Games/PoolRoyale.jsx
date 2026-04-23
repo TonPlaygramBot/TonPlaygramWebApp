@@ -22791,22 +22791,17 @@ const shotPowerRef = useRef(0);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
             const safeHoldDuration = Math.max(0, holdDuration ?? 50);
-            const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? impactPos,
               impactPos: impactPos ?? pullPos,
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
-            const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos;
-            const resolvedFollowPos = followPos ?? resolvedContactPos ?? resolvedImpactPos;
-            const contactWindow = THREE.MathUtils.clamp(
-              safeStrikeDuration * 0.24,
-              24,
-              Math.max(24, safeStrikeDuration * 0.45)
-            );
-            const releaseWindow = Math.max(1, safeStrikeDuration - contactWindow);
+            const resolvedContactPos =
+              stroke.contactPos ??
+              normalizedStroke.impactPos ??
+              impactPos ??
+              pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
@@ -22827,65 +22822,20 @@ const shotPowerRef = useRef(0);
             }
 
             cueStick.visible = true;
-            if (elapsed < releaseWindow) {
-              const releaseT = THREE.MathUtils.clamp(elapsed / Math.max(releaseWindow, 1e-6), 0, 1);
-              const easedRelease = easeOutCubic(releaseT);
-              cueStick.position.lerpVectors(resolvedPullPos, resolvedImpactPos, easedRelease);
-              cueStick.position.y -= (strikeDip ?? 0.003) * easedRelease * 0.75;
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y =
-                (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(releaseT * Math.PI) * 0.0012 * strikeWobbleScale;
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
             if (elapsed < safeStrikeDuration) {
-              const contactT = THREE.MathUtils.clamp(
-                (elapsed - releaseWindow) / Math.max(contactWindow, 1e-6),
-                0,
-                1
-              );
-              const punchT = 1 - Math.pow(1 - contactT, 4);
-              cueStick.position.lerpVectors(resolvedImpactPos, resolvedContactPos, punchT);
-              cueStick.position.y -= (strikeDip ?? 0.003) * (0.7 + punchT * 0.45);
+              const easedRelease = easeOutCubic(strikeProgress);
+              cueStick.position.lerpVectors(resolvedPullPos, resolvedContactPos, easedRelease);
+              cueStick.position.y -= (strikeDip ?? 0.0035) * easedRelease;
               cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
               cueStick.rotation.y =
                 (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(contactT * Math.PI) * 0.0008 * strikeWobbleScale;
+                Math.sin(strikeProgress * Math.PI) * 0.0014 * strikeWobbleScale;
               cueAnimating = true;
               syncCueShadow();
               return true;
             }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              const followT = THREE.MathUtils.clamp(
-                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
-                0,
-                1
-              );
-              const easedFollow = easeOutCubic(followT);
-              cueStick.position.lerpVectors(resolvedContactPos, resolvedFollowPos, easedFollow);
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
-            const recoverStart = safeStrikeDuration + safeHoldDuration;
-            const recoverEnd = recoverStart + safeRecoverDuration;
-            if (elapsed <= recoverEnd) {
-              const t = THREE.MathUtils.clamp(
-                (elapsed - recoverStart) / Math.max(safeRecoverDuration, 1e-6),
-                0,
-                1
-              );
-              const eased = easeInOutCubic(t);
-              cueStick.visible = true;
-              cueStick.position.lerpVectors(
-                resolvedFollowPos,
-                idlePos ?? impactPos ?? pullPos,
-                eased
-              );
+              cueStick.position.copy(resolvedContactPos);
               cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
               cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
@@ -26040,19 +25990,18 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
-          pullbackDuration,
+          strikeDuration: 110,
+          holdDuration: 45,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.9,
-          forwardOnly: false,
+          impactThreshold: 0.88,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -26066,32 +26015,23 @@ const shotPowerRef = useRef(0);
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
-        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+        const effectiveMax = Math.max(cappedMax, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
-        const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
+        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
         const smoothing = instant || dragging
           ? 1
           : Number.isFinite(smoothingOverride)
             ? THREE.MathUtils.clamp(smoothingOverride, 0.04, 1)
-            : CUE_PULL_SMOOTHING;
-        const isReturning =
-          !dragging &&
-          !instant &&
-          clampedTarget <= 0 &&
-          (cuePullCurrentRef.current ?? 0) > 0;
-        const returnSmoothing = isReturning
-          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
-          : smoothing;
+            : 1;
         const nextPull =
-          returnSmoothing >= 1
+          smoothing >= 1
             ? clampedTarget
             : THREE.MathUtils.lerp(
                 cuePullCurrentRef.current ?? 0,
                 clampedTarget,
-                returnSmoothing
+                smoothing
               );
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
@@ -26133,13 +26073,11 @@ const shotPowerRef = useRef(0);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const pullRatio = easeOutCubic(ratio);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
         const target =
-          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+          effectiveMax * pullRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
@@ -26724,10 +26662,9 @@ const shotPowerRef = useRef(0);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
-          const pullTarget = pullRange * strokeProfile.pullRatio;
+          // Mirror the reference stroke pullback curve:
+          // pull = maxPull * easeOutCubic(power), then immediate forward strike.
+          const pullTarget = computePullTargetFromPower(clampedPower, maxPull);
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
@@ -26794,14 +26731,7 @@ const shotPowerRef = useRef(0);
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+          const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -26918,7 +26848,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
