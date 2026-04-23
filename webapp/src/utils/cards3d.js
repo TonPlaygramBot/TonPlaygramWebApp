@@ -448,9 +448,9 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.98;
-    // Make the back logo appear ~2x larger while still fitting inside the frame.
-    const logoBoxHeight = h * 0.92;
+    const logoBoxWidth = w * 0.9;
+    // Slightly reduce the logo footprint for cleaner spacing around the card back frame.
+    const logoBoxHeight = h * 0.84;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
