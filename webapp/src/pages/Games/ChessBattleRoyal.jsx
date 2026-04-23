@@ -93,7 +93,7 @@ const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 0.96; // tuned to Ludo Battle Royal pacing
-const CAPTURE_DRONE_CRUISE_TIME = 3.08; // longer circular pass before strike so round-around reads clearly
+const CAPTURE_DRONE_CRUISE_TIME = 3.64; // extend circular pass so aircraft complete a longer visible board loop before striking
 const CAPTURE_DRONE_DIVE_TIME = 1.6;
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
@@ -107,14 +107,14 @@ const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTA
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
-const CAPTURE_GROUND_FIRE_TIME = 0.3; // quicker ignition so pawn/truck launches read snappier
+const CAPTURE_GROUND_FIRE_TIME = 0.12; // minimize stationary launch hold so pawn/truck missiles look continuously in motion
 const CAPTURE_GROUND_TRAVEL_TIME = Math.max(0.24, CAPTURE_DRONE_TOTAL - CAPTURE_GROUND_FIRE_TIME); // keep truck/pawn strike pacing aligned with drone
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.42; // lift drone/air-strike lane above piece heads on portrait screens
+const CAPTURE_DRONE_ALTITUDE = 0.5; // raise drone/air-strike lane further above piece heads on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
@@ -125,19 +125,19 @@ const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.14; // shorten drone route further
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.09; // lower drone route further to sit near pieces
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.22; // lift jet/helicopter path a bit higher for a clearer full-board round
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.14; // keep drone route clearly above piece heads while orbiting
+const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.3; // lift jet/helicopter path higher so round-around stays clearly above the board
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.12; // shorter loop cadence shared by drone/jet/helicopter
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
-const CAPTURE_DRONE_CIRCLE_RATIO = 0.88; // keep drone in the loop longer before the dive
-const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.62; // launch later so missiles clearly fire after the longer round
-const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.8;
+const CAPTURE_DRONE_CIRCLE_RATIO = 0.92; // keep drone in the loop longer before the dive
+const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.68; // launch later so missiles clearly fire after the longer round
+const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.9;
 const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.32; // missiles travel faster after launch
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.84;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.16;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
-const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.44;
+const CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL = 0.52;
 const CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN = 0.05;
 const CAPTURE_AIR_MISSILE_TOP_BLEND = 0.22;
 const CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT = 0.004;
@@ -148,13 +148,13 @@ const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line tow
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.054; // lower short-missile cruise lane so it sits visibly lower on portrait screens
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.082; // raise short-missile cruise lane so pawn strikes arc above piece heads
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.68; // slightly higher pawn javelin lane
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE * 1.08; // drone flies just above pawn javelin
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.9; // raise pawn javelin lane for clearer lift-and-drop motion
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE * 1.14; // drone flies just above pawn javelin
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.78; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -12387,19 +12387,16 @@ function Chess3D({
             fx.launchPos.copy(liveLaunchPos);
             fx.to.copy(targetPos);
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
-              fx.missileFx.root.visible = true;
-              fx.missileFx.root.position.copy(liveLaunchPos);
-            } else if (fx.t < impactTime) {
-              if (!fx.strikeLaunchPos) {
-                fx.strikeLaunchPos = liveLaunchPos.clone();
-              }
-              if (!fx.strikeTargetPos) {
-                fx.strikeTargetPos = targetPos.clone();
-              } else {
-                fx.strikeTargetPos.copy(targetPos);
-              }
-              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+            if (!fx.strikeLaunchPos) {
+              fx.strikeLaunchPos = liveLaunchPos.clone();
+            }
+            if (!fx.strikeTargetPos) {
+              fx.strikeTargetPos = targetPos.clone();
+            } else {
+              fx.strikeTargetPos.copy(targetPos);
+            }
+            if (fx.t < impactTime) {
+              const mu = smoothEase(clamp01(fx.t / impactTime));
               const strikeFrom = fx.strikeLaunchPos;
               const strikeTo = fx.strikeTargetPos;
               const { pos: missilePos, next: missileNext } = fx.droneLikeOrbit
@@ -12420,7 +12417,7 @@ function Chess3D({
                     launchPos: strikeFrom,
                     targetPos: strikeTo,
                     progress: mu,
-                    altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82,
+                    altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.9,
                     verticalCrash: Boolean(fx.verticalStrike)
                   });
 
@@ -12440,10 +12437,6 @@ function Chess3D({
                 const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
                 puff.scale.setScalar(s * settleScale);
               });
-            } else if (fx.reloading) {
-              fx.missileFx.root.visible = true;
-              const parkedPos = fx.strikeLaunchPos || liveLaunchPos;
-              fx.missileFx.root.position.copy(parkedPos);
             } else {
               fx.missileFx.root.visible = false;
             }
@@ -12451,18 +12444,10 @@ function Chess3D({
               if (!fx.hasExploded) {
                 fx.hasExploded = true;
                 launchExplosion(targetPos);
-                fx.reloading = true;
-                fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
-                fx.missileFx.root.position.copy(fx.strikeLaunchPos || liveLaunchPos);
-                fx.missileFx.root.visible = true;
-                const parkedPos = fx.strikeLaunchPos || liveLaunchPos;
-                fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, new THREE.Vector3(-Math.sign(parkedPos.x || 1), 0, 0));
-              } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
-                fx.missileFx.root.visible = false;
-                fx.missileFx.root.position.copy(fx.strikeLaunchPos || liveLaunchPos);
-                captureFxGroup.remove(fx.missileFx.root);
-                activeCaptureFx.splice(i, 1);
               }
+              fx.missileFx.root.visible = false;
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'missile') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
