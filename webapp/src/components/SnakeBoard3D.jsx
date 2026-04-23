@@ -205,6 +205,7 @@ const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
+const DICE_HANDOFF_DURATION = TURN_CAMERA_TURN_IN_DURATION;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
 const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
 const DICE_CAMERA_LOOK_OUT_DURATION = 220;
@@ -279,10 +280,10 @@ const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.46;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.05,
-  TILE_SIZE * 0.03,
-  TILE_SIZE * 0.08,
-  TILE_SIZE * 0.03
+  TILE_SIZE * 0.12,
+  TILE_SIZE * 0.1,
+  TILE_SIZE * 0.14,
+  TILE_SIZE * 0.1
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
@@ -296,26 +297,26 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.04,
-  TILE_SIZE * 0.03,
-  TILE_SIZE * 0.05,
-  TILE_SIZE * 0.03
+  TILE_SIZE * 0.07,
+  TILE_SIZE * 0.06,
+  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.06
 ]);
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.08, lateral: 0, y: TILE_SIZE * 0.02 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.28, lateral: 0, y: TILE_SIZE * 0.03 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.08, lateral: 0, y: TILE_SIZE * 0.03 }),
+  Object.freeze({ radial: TILE_SIZE * 1.28, lateral: 0, y: TILE_SIZE * 0.04 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.84, lateral: 0, y: TILE_SIZE * 0.28 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: -TILE_SIZE * 0.2, y: TILE_SIZE * 0.28 }),
-  Object.freeze({ radial: TILE_SIZE * 0.78, lateral: 0, y: TILE_SIZE * 0.3 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: TILE_SIZE * 0.2, y: TILE_SIZE * 0.28 })
+  Object.freeze({ radial: -TILE_SIZE * 1.08, lateral: 0, y: TILE_SIZE * 0.34 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.44, lateral: -TILE_SIZE * 0.36, y: TILE_SIZE * 0.34 }),
+  Object.freeze({ radial: TILE_SIZE * 1.02, lateral: 0, y: TILE_SIZE * 0.36 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.44, lateral: TILE_SIZE * 0.36, y: TILE_SIZE * 0.34 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -2526,7 +2527,7 @@ function createDiceHandoffAnimation(diceArray, { basePositions, baseY }) {
     return null;
   }
   const startPositions = diceArray.map((die) => die.position.clone());
-  const duration = 380;
+  const duration = DICE_HANDOFF_DURATION;
   return {
     type: 'diceHandoff',
     start: performance.now(),
