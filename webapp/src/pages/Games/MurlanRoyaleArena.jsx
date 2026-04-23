@@ -6882,19 +6882,19 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
-      // Top player cards face opposite direction from camera, so rotate logo 180° to read upright on screen.
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-    } else if (desiredVariant === 'side') {
-      // Left side player: keep logo upright without horizontal mirroring.
+      // Keep top seat logo fully visible and upright.
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
+    } else if (desiredVariant === 'side') {
+      // Left side seat: mirror horizontally so branding reads naturally from camera.
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'sideGift') {
-      // Right side player: same as left, upright and not mirrored.
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
+      // Right side seat: avoid 180° rotation that made the logo upside down.
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = 0;
     }
     tunedTexture.needsUpdate = true;
