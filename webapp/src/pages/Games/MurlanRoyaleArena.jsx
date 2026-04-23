@@ -2311,7 +2311,7 @@ const DISCARD_PILE_OFFSET = Object.freeze({
   z: -TABLE_RADIUS * 0.18
 });
 const DISCARD_PILE_FORWARD_SHIFT = -CARD_H * 0.18;
-const DISCARD_PILE_RIGHT_SHIFT = -CARD_W * 0.28;
+const DISCARD_PILE_RIGHT_SHIFT = CARD_W * 0.12;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -2334,7 +2334,7 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.46,
+  portrait: 2.3,
   landscape: 1.12
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
@@ -2345,7 +2345,7 @@ const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
-  portrait: 0.14 * MODEL_SCALE,
+  portrait: 0.18 * MODEL_SCALE,
   landscape: 0.05 * MODEL_SCALE
 });
 const HUMAN_HAND_CARD_SCALE = 1.06;
@@ -2379,12 +2379,12 @@ const AI_HAND_TABLE_EDGE_MARGIN = CARD_H * 0.2;
 const HAND_CARDS_INWARD_BIAS = 0.18 * MODEL_SCALE;
 const COMMUNITY_CARD_TOP_TILT = THREE.MathUtils.degToRad(12);
 const COMMUNITY_CARD_SCALE = 1.08;
-const COMMUNITY_CARD_SPACING = CARD_W * 1.08;
-const COMMUNITY_CARD_MAX_SPREAD = COMMUNITY_CARD_SPACING * 12;
+const COMMUNITY_CARD_STACK_GAP = CARD_H * 0.16;
+const COMMUNITY_CARD_SIDE_STACK_GAP = CARD_W * 0.02;
 const COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET = Math.sin(COMMUNITY_CARD_TOP_TILT) * CARD_H * 0.5;
 const COMMUNITY_CARD_FAN_ARC_LIFT = 0;
 const COMMUNITY_CARD_CLOSER_TO_HUMAN = -0.08 * MODEL_SCALE;
-const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.028 * MODEL_SCALE;
+const COMMUNITY_CARD_BOTTOM_SHIFT_Y = -0.012 * MODEL_SCALE;
 const COMMUNITY_CARD_LEFT_SHIFT = 0;
 const COMMUNITY_CARD_DIRECTIONAL_LIFT = 0;
 const COMMUNITY_CARD_SIDE_ORIENTATION_YAW = 0;
@@ -3903,13 +3903,6 @@ export default function MurlanRoyaleArena({ search }) {
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
     const humanSeat = seatConfigs.find((seat) => state.players[seat.seatIndex]?.isHuman);
-    const bottomCardSpacing = Math.max(humanSeat?.spacing ?? 0, COMMUNITY_CARD_SPACING);
-    const bottomCardMaxSpread = Math.max(humanSeat?.maxSpread ?? 0, COMMUNITY_CARD_MAX_SPREAD);
-    const tableSpread = tableCount > 1
-      ? Math.min((tableCount - 1) * bottomCardSpacing, bottomCardMaxSpread)
-      : 0;
-    const tableSpacing = tableCount > 1 ? tableSpread / (tableCount - 1) : 0;
-    const tableStartX = tableCount > 1 ? -tableSpread / 2 : 0;
     const tableLookBase = tableAnchor.clone().setY(tableAnchor.y + 0.28 * MODEL_SCALE);
     if (humanSeat?.forward) {
       tableAnchor.addScaledVector(humanSeat.forward, COMMUNITY_CARD_CLOSER_TO_HUMAN);
@@ -3918,7 +3911,7 @@ export default function MurlanRoyaleArena({ search }) {
     const communityLookTarget = humanSeat?.focus?.clone().addScaledVector(humanSeat.forward, 2.4 * MODEL_SCALE)
       ?? tableLookBase.clone();
     const shouldSlopeCommunityCards = false;
-    const orderedTableCards = [...state.tableCards].reverse();
+    const orderedTableCards = [...state.tableCards];
     const actionPlayerIndex = Number.isInteger(state.lastAction?.playerIndex) ? state.lastAction.playerIndex : null;
     const actionPlayer = actionPlayerIndex != null ? state.players[actionPlayerIndex] : null;
     const isAiPlayAction = state.lastAction?.type === 'PLAY' && actionPlayer && !actionPlayer.isHuman;
@@ -3931,14 +3924,19 @@ export default function MurlanRoyaleArena({ search }) {
       mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
       updateCardFace(mesh, 'front');
       setCommunityCardLegibility(mesh, true);
+      applyTableCardLayering(mesh, tableCount - 1 - idx);
       const target = tableAnchor.clone();
       const { normalizedOffset } = calcFanCardPose(tableCount, idx);
       const communityFanYaw = normalizedOffset * COMMUNITY_CARD_SIDE_ORIENTATION_YAW;
-      const lateralOffset = tableStartX + idx * tableSpacing;
+      const stackOffset = tableCount > 1 ? idx * COMMUNITY_CARD_STACK_GAP : 0;
+      const sideStackOffset = (idx - (tableCount - 1) * 0.5) * COMMUNITY_CARD_SIDE_STACK_GAP;
+      if (humanSeat?.forward) {
+        target.addScaledVector(humanSeat.forward, stackOffset);
+      }
       if (humanSeat?.right) {
-        target.addScaledVector(humanSeat.right, lateralOffset + COMMUNITY_CARD_LEFT_SHIFT);
+        target.addScaledVector(humanSeat.right, COMMUNITY_CARD_LEFT_SHIFT + sideStackOffset);
       } else {
-        target.x += lateralOffset + COMMUNITY_CARD_LEFT_SHIFT;
+        target.x += COMMUNITY_CARD_LEFT_SHIFT + sideStackOffset;
       }
       target.y += 0.075 * MODEL_SCALE + COMMUNITY_CARD_BOTTOM_LOCK_Y_OFFSET + COMMUNITY_CARD_FAN_ARC_LIFT + COMMUNITY_CARD_BOTTOM_SHIFT_Y + COMMUNITY_CARD_DIRECTIONAL_LIFT;
       if (shouldSlopeCommunityCards) {
@@ -4240,9 +4238,9 @@ export default function MurlanRoyaleArena({ search }) {
       three.scene.background = envResult.backgroundMap || envResult.envMap;
       const hdriSource = typeof activeVariant?.source === 'string' ? activeVariant.source : 'polyhaven';
       const rotationY = Number.isFinite(activeVariant?.rotationY)
-        ? activeVariant.rotationY
+        ? activeVariant.rotationY + Math.PI
         : hdriSource === 'polyhaven'
-          ? -Math.PI / 12
+          ? -Math.PI / 12 + Math.PI
           : 0;
       const rotationX = Number.isFinite(activeVariant?.rotationX) ? activeVariant.rotationX : 0;
       if ('backgroundRotation' in three.scene) {
@@ -6810,6 +6808,23 @@ function applyHandCardLayering(mesh, isHumanCard, stackOrder = 0) {
   });
 }
 
+function applyTableCardLayering(mesh, stackOrder = 0) {
+  if (!mesh?.isMesh) return;
+  mesh.renderOrder = 8 + stackOrder;
+
+  const shouldForceRenderOrder = true;
+  if (mesh.userData?.forceTableRenderOrder === shouldForceRenderOrder) return;
+  mesh.userData.forceTableRenderOrder = shouldForceRenderOrder;
+
+  const allMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  allMaterials.forEach((material) => {
+    if (!material) return;
+    material.depthTest = !shouldForceRenderOrder;
+    material.depthWrite = !shouldForceRenderOrder;
+    material.needsUpdate = true;
+  });
+}
+
 function setBackLogoOrientation(mesh, variant = 'default') {
   const backMaterial = mesh?.userData?.backMaterial;
   const baseTexture = mesh?.userData?.backTexture;
@@ -6844,18 +6859,19 @@ function setBackLogoOrientation(mesh, variant = 'default') {
   if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
     if (desiredVariant === 'top') {
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = 0;
+      tunedTexture.center.set(0.5, 0.5);
     } else if (desiredVariant === 'side') {
       tunedTexture.repeat.set(1, 1);
       tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.rotation = -Math.PI / 2;
       tunedTexture.center.set(0.5, 0.5);
     } else if (desiredVariant === 'sideGift') {
-      tunedTexture.repeat.set(-1, 1);
-      tunedTexture.offset.set(1, 0);
-      tunedTexture.rotation = Math.PI;
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI / 2;
       tunedTexture.center.set(0.5, 0.5);
     }
     tunedTexture.needsUpdate = true;
@@ -7184,9 +7200,9 @@ function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
 }
 
 function makeCardBackTexture(theme, textureQuality = null) {
-  const safeQualityScale = Number.isFinite(textureQuality?.w) ? THREE.MathUtils.clamp(textureQuality.w / 768, 1, 1.5) : 1;
-  const width = Math.round(1024 * safeQualityScale);
-  const height = Math.round(1536 * safeQualityScale);
+  const safeQualityScale = Number.isFinite(textureQuality?.w) ? THREE.MathUtils.clamp(textureQuality.w / 768, 1, 1.65) : 1;
+  const width = Math.round(1536 * safeQualityScale);
+  const height = Math.round(2304 * safeQualityScale);
   return makeTonplaygramCardBackTexture(theme, width, height);
 }
 
