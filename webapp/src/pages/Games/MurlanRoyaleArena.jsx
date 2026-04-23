@@ -2334,7 +2334,7 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.78,
+  portrait: 2.46,
   landscape: 1.12
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
