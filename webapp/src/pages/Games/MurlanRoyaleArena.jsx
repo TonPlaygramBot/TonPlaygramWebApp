@@ -2334,12 +2334,12 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.68
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.46,
-  landscape: 1.12
+  portrait: 2.34,
+  landscape: 1.02
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
-  portrait: THREE.MathUtils.degToRad(5.5),
-  landscape: THREE.MathUtils.degToRad(4.5)
+  portrait: { up: THREE.MathUtils.degToRad(8.5), down: THREE.MathUtils.degToRad(4.5) },
+  landscape: { up: THREE.MathUtils.degToRad(7), down: THREE.MathUtils.degToRad(4) }
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
@@ -2469,6 +2469,8 @@ const CAMERA_UP_TILT_FORWARD_BLEND = 0.34 * MODEL_SCALE;
 const CAMERA_UP_TILT_FORWARD_LERP = 0.14;
 const CAMERA_AUTO_FOCUS_ON_PLAY_ENABLED = true;
 const CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED = true;
+const CAMERA_HUMAN_TURN_TARGET_WEIGHT = 0.74;
+const CAMERA_HUMAN_TURN_TARGET_DOWNSHIFT = 0.08 * MODEL_SCALE;
 const PASS_BUBBLE_DURATION_MS = 1700;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
@@ -4731,7 +4733,12 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (activePlayer?.isHuman) {
       if (CAMERA_AUTO_RECENTER_ON_HUMAN_TURN_ENABLED) {
-        turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+        const humanSeatFocus = activeSeat?.focus?.clone?.() ?? cameraDefaultTargetRef.current.clone();
+        const humanTurnFocus = cameraDefaultTargetRef.current
+          .clone()
+          .lerp(humanSeatFocus, CAMERA_HUMAN_TURN_TARGET_WEIGHT);
+        humanTurnFocus.y -= CAMERA_HUMAN_TURN_TARGET_DOWNSHIFT;
+        turnCameraTowardTarget(humanTurnFocus, { animate: true });
       }
       return;
     }
@@ -4803,8 +4810,14 @@ export default function MurlanRoyaleArena({ search }) {
       const activeIndex = liveState?.activePlayer;
       const activeSeat = Number.isInteger(activeIndex) ? store.seatConfigs?.[activeIndex] : null;
       const activePlayer = Number.isInteger(activeIndex) ? liveState?.players?.[activeIndex] : null;
-      if (liveState?.status !== 'PLAYING' || activePlayer?.isHuman || !activeSeat?.stoolPosition) {
+      if (liveState?.status !== 'PLAYING' || !activeSeat?.stoolPosition) {
         turnCameraTowardTarget(cameraDefaultTargetRef.current, { animate: true });
+      } else if (activePlayer?.isHuman) {
+        const humanTurnFocus = cameraDefaultTargetRef.current
+          .clone()
+          .lerp(activeSeat.focus, CAMERA_HUMAN_TURN_TARGET_WEIGHT);
+        humanTurnFocus.y -= CAMERA_HUMAN_TURN_TARGET_DOWNSHIFT;
+        turnCameraTowardTarget(humanTurnFocus, { animate: true });
       } else {
         const blendedFocus = cameraDefaultTargetRef.current
           .clone()
@@ -5253,12 +5266,12 @@ export default function MurlanRoyaleArena({ search }) {
         ? CAMERA_LOOK_VERTICAL_ALLOWANCE.portrait
         : CAMERA_LOOK_VERTICAL_ALLOWANCE.landscape;
       controls.minPolarAngle = THREE.MathUtils.clamp(
-        lockedPolarAngle - verticalAllowance,
+        lockedPolarAngle - verticalAllowance.up,
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
       controls.maxPolarAngle = THREE.MathUtils.clamp(
-        lockedPolarAngle + verticalAllowance,
+        lockedPolarAngle + verticalAllowance.down,
         ARENA_CAMERA_DEFAULTS.phiMin,
         ARENA_CAMERA_DEFAULTS.phiMax
       );
@@ -6863,21 +6876,22 @@ function setBackLogoOrientation(mesh, variant = 'default') {
 
   if (!mesh.userData.backLogoOrientedTexture) {
     const tunedTexture = baseTexture.clone();
+    tunedTexture.repeat.set(1, 1);
+    tunedTexture.offset.set(0, 0);
+    tunedTexture.rotation = 0;
+    tunedTexture.center.set(0.5, 0.5);
     if (desiredVariant === 'top') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
+      tunedTexture.repeat.set(-1, 1);
+      tunedTexture.offset.set(1, 0);
+      tunedTexture.rotation = 0;
     } else if (desiredVariant === 'side') {
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
-      tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
-    } else if (desiredVariant === 'sideGift') {
       tunedTexture.repeat.set(-1, 1);
       tunedTexture.offset.set(1, 0);
       tunedTexture.rotation = Math.PI;
-      tunedTexture.center.set(0.5, 0.5);
+    } else if (desiredVariant === 'sideGift') {
+      tunedTexture.repeat.set(1, 1);
+      tunedTexture.offset.set(0, 0);
+      tunedTexture.rotation = Math.PI;
     }
     tunedTexture.needsUpdate = true;
     mesh.userData.backLogoOrientedTexture = tunedTexture;
