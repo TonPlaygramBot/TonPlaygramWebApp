@@ -2396,7 +2396,7 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.14 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -7236,8 +7236,9 @@ function recolorBlackJokerFigure(ctx, width, height) {
     const b = data[i + 2];
     const a = data[i + 3];
     if (a < 12) continue;
-    const dominantRed = r > 96 && r > g + 18 && r > b + 18;
-    if (!dominantRed) continue;
+    // Recolor only strong red costume regions. Keep yellow/skin rounded face tones unchanged.
+    const isStrongRedCostume = r >= 120 && g <= 95 && b <= 95 && r >= g + 24 && r >= b + 24;
+    if (!isStrongRedCostume) continue;
     data[i] = 17;
     data[i + 1] = 17;
     data[i + 2] = 17;
