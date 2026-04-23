@@ -286,12 +286,12 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  // Lift parked weapons so they sit around bishop-height instead of under-table.
-  fighter: TOKEN_HEIGHT * 0.96,
-  helicopter: TOKEN_HEIGHT * 1.02,
-  drone: TOKEN_HEIGHT * 0.9,
-  supportTruck: TOKEN_HEIGHT * 0.98,
-  javelin: TOKEN_HEIGHT * 0.94
+  // Keep parked weapons visually lifted near bishop token height (portrait calibration).
+  fighter: TOKEN_HEIGHT * 0.56,
+  helicopter: TOKEN_HEIGHT * 0.62,
+  drone: TOKEN_HEIGHT * 0.52,
+  supportTruck: TOKEN_HEIGHT * 0.58,
+  javelin: TOKEN_HEIGHT * 0.54
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -317,7 +317,7 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: TILE_SIZE * 0.08 }),
   Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.08 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.14;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.24;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.9;
 
