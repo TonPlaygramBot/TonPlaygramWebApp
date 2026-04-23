@@ -144,9 +144,9 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = 520;
-const DICE_SETTLE_DURATION = 180;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
+const DICE_ROLL_DURATION = 900;
+const DICE_SETTLE_DURATION = 220;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.68;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
@@ -285,13 +285,13 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 1.72,
-  helicopter: TOKEN_HEIGHT * 1.8,
-  drone: TOKEN_HEIGHT * 1.68,
-  supportTruck: TOKEN_HEIGHT * 1.76,
-  javelin: TOKEN_HEIGHT * 1.7
+  fighter: TOKEN_HEIGHT * 1.08,
+  helicopter: TOKEN_HEIGHT * 1.16,
+  drone: TOKEN_HEIGHT * 1.04,
+  supportTruck: TOKEN_HEIGHT * 1.12,
+  javelin: TOKEN_HEIGHT * 1.06
 });
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.52;
+const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.64;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -303,21 +303,21 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: pull token closer to the table rail on portrait screens.
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.34, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 }),
   // Top seat: push token farther from the table edge (visually away from table).
-  Object.freeze({ radial: TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  Object.freeze({ radial: TILE_SIZE * 0.36, lateral: 0, y: 0 }),
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: TILE_SIZE * 0.08 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.08 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: TILE_SIZE * 0.08 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.08 })
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: TILE_SIZE * 0.18 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.18 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: TILE_SIZE * 0.18 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: TILE_SIZE * 0.18 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.14;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
-const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.9;
+const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.56;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -2359,33 +2359,18 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const spinSpeeds = diceArray.map(() => 0.22 + Math.random() * 0.16);
-  const impactPhases = diceArray.map(() => 0.42 + Math.random() * 0.18);
-  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.85 + Math.random() * 0.55));
-  const settleHeights = bounceHeights.map((height) => height * (0.35 + Math.random() * 0.3));
-  const yawSpeeds = diceArray.map(() => (Math.random() - 0.5) * 0.14);
-  const postYawSpeeds = yawSpeeds.map((speed) => -speed * (0.35 + Math.random() * 0.35));
-  const swayOffsets = diceArray.map(() => Math.random() * Math.PI * 2);
-  const swayMagnitudes = diceArray.map(() => DICE_SIZE * (0.09 + Math.random() * 0.12));
-  const slideMagnitudes = diceArray.map(() => DICE_SIZE * (0.18 + Math.random() * 0.25));
-
-  const approachAxes = diceArray.map((_, index) => {
-    const travel = travelVectors[index];
-    if (travel && travel.lengthSq() > 1e-6) {
-      const axis = new THREE.Vector3(travel.z, 0, -travel.x);
-      if (axis.lengthSq() > 1e-6) return axis.normalize();
-    }
-    return new THREE.Vector3(Math.random() * 0.6 + 0.2, Math.random() * 0.3 + 0.1, Math.random() * 0.6 + 0.2).normalize();
-  });
-
-  const retreatAxes = diceArray.map((_, index) => {
-    const travel = retreatVectors[index];
-    if (travel && travel.lengthSq() > 1e-6) {
-      const axis = new THREE.Vector3(travel.z, 0, -travel.x);
-      if (axis.lengthSq() > 1e-6) return axis.normalize();
-    }
-    return approachAxes[index].clone();
-  });
+  const spinVectors = diceArray.map(
+    () =>
+      new THREE.Vector3(
+        1.2 + Math.random() * 0.7,
+        1.35 + Math.random() * 0.65,
+        1.05 + Math.random() * 0.75
+      )
+  );
+  const wobbleVectors = diceArray.map(
+    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
+  );
+  const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.9 + Math.random() * 0.25));
 
   const lateralVectors = diceArray.map((_, index) => {
     const travel = travelVectors[index];
@@ -2410,39 +2395,28 @@ function createDiceRollAnimation(
     type: 'diceRoll',
     update: (now) => {
       const t = Math.min((now - start) / DICE_ROLL_DURATION, 1);
+      const eased = easeOutCubic(t);
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
         const bounce = bouncePoints[index] ?? base;
-        const impactPhase = impactPhases[index];
-
-        if (t < impactPhase) {
-          const local = impactPhase > 1e-3 ? Math.min(t / impactPhase, 1) : 1;
-          const ease = easeOutCubic(local);
-          die.position.copy(startPos).lerp(bounce, ease);
-          const lift = Math.sin(local * Math.PI) * bounceHeights[index];
-          die.position.y = baseY + lift;
-          const sway = Math.sin(local * Math.PI * 2.1 + swayOffsets[index]) * swayMagnitudes[index];
-          die.position.addScaledVector(lateralVectors[index], sway);
-          die.rotateOnAxis(approachAxes[index], spinSpeeds[index] * 1.25);
-          die.rotateOnWorldAxis(WORLD_UP, yawSpeeds[index]);
-        } else {
-          const remaining = Math.max(1 - impactPhase, 1e-3);
-          const local = Math.min((t - impactPhase) / remaining, 1);
-          const ease = easeOutCubic(local);
-          die.position.copy(bounce).lerp(base, ease);
-          const rebound = Math.sin(local * Math.PI) * settleHeights[index] * (1 - ease * 0.65);
-          die.position.y = baseY + rebound;
-          const sway = Math.sin((local + 0.35) * Math.PI * 2 + swayOffsets[index]) * swayMagnitudes[index] * 0.6;
-          die.position.addScaledVector(lateralVectors[index], sway);
-          const slide = Math.sin(local * Math.PI) * slideMagnitudes[index] * (1 - ease * 0.35);
-          if (retreatDirections[index].lengthSq() > 1e-6) {
-            die.position.addScaledVector(retreatDirections[index], slide);
-          }
-          die.rotateOnAxis(retreatAxes[index], spinSpeeds[index] * 0.6);
-          die.rotateOnWorldAxis(WORLD_UP, postYawSpeeds[index]);
+        die.position.copy(startPos).lerp(bounce, eased);
+        die.position.lerp(base, eased * 0.82);
+        const wobbleStrength = Math.sin(eased * Math.PI);
+        const wobble = wobbleVectors[index].clone().multiplyScalar(wobbleStrength * DICE_SIZE * 0.45);
+        die.position.add(wobble);
+        const sway = Math.sin(eased * Math.PI * 1.9) * DICE_SIZE * 0.08;
+        die.position.addScaledVector(lateralVectors[index], sway);
+        if (retreatDirections[index].lengthSq() > 1e-6) {
+          die.position.addScaledVector(retreatDirections[index], Math.sin(eased * Math.PI) * DICE_SIZE * 0.12);
         }
+        const bounceLift = Math.sin(Math.min(1, eased * 1.2) * Math.PI) * bounceHeights[index] * (1 - eased * 0.4);
+        die.position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + bounceLift;
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
