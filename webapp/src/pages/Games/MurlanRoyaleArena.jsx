@@ -2396,7 +2396,7 @@ const DEAL_SHUFFLE_LEAD_IN_MS = 220;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const CHAIR_GROUND_DROP = 0;
-const CHAIR_SCREEN_LOWER_OFFSET = 0;
+const CHAIR_SCREEN_LOWER_OFFSET = 0.11 * MODEL_SCALE;
 const HUMAN_CHAIR_EXTRA_INWARD_OFFSET = 0; // Align human chair distance with AI seats.
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
@@ -7242,6 +7242,27 @@ function recolorBlackJokerFigure(ctx, width, height) {
     data[i + 1] = 17;
     data[i + 2] = 17;
   }
+
+  // Keep the rounded joker face in the same yellow tone as the red/yellow joker.
+  const faceCenterX = width * 0.5;
+  const faceCenterY = height * 0.385;
+  const faceRadiusX = width * 0.105;
+  const faceRadiusY = height * 0.09;
+  const faceColor = { r: 246, g: 214, b: 132 };
+  for (let i = 0; i < data.length; i += 4) {
+    const pixelIndex = i / 4;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    const dx = (x - faceCenterX) / faceRadiusX;
+    const dy = (y - faceCenterY) / faceRadiusY;
+    if (dx * dx + dy * dy > 1) continue;
+    const a = data[i + 3];
+    if (a < 12) continue;
+    data[i] = faceColor.r;
+    data[i + 1] = faceColor.g;
+    data[i + 2] = faceColor.b;
+  }
+
   ctx.putImageData(imageData, 0, 0);
 }
 
