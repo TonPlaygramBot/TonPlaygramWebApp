@@ -26028,7 +26028,6 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
@@ -26037,10 +26036,13 @@ const powerRef = useRef(hud.power);
           pullSmoothing: 1,
           strikeDuration: 120,
           holdDuration: 50,
-          pullbackDuration,
+          // Keep the full pull distance from power, but remove post-release
+          // pullback time so the cue always pushes forward from the current
+          // pulled position and strikes the cue ball immediately.
+          pullbackDuration: 0,
           recoverDuration: 0,
           impactThreshold: 0.9,
-          forwardOnly: false,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
