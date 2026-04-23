@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -16,10 +10,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
-import {
-  applyRendererSRGB,
-  applySRGBColorSpace
-} from '../../utils/colorSpace.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -47,11 +38,7 @@ import {
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
-import {
-  TABLE_WOOD_OPTIONS,
-  TABLE_CLOTH_OPTIONS,
-  TABLE_BASE_OPTIONS
-} from '../../utils/tableCustomizationOptions.js';
+import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS,
@@ -104,37 +91,25 @@ const FORWARD = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
-const LUDO_CAPTURE_TOTAL_TIME =
-  LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
+const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 1.08; // shorter launch while still clearly visible from the parking pad
 const CAPTURE_DRONE_CRUISE_TIME = 4.3; // trim path duration so the strike stays close to the board action
 const CAPTURE_DRONE_DIVE_TIME = 1.84;
-const CAPTURE_DRONE_TOTAL =
-  CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
+const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
 const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL + 1.4; // slower aircraft but shorter loop so takeoff/fire/landing stays readable
-const CAPTURE_JET_MISSILE_TRAVEL = Math.max(
-  0.28,
-  CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1
-);
+const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
-const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(
-  0.28,
-  CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1
-);
+const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
 const CAPTURE_GROUND_FIRE_TIME = 0.34; // quick ignition before short vertical strike
-const CAPTURE_GROUND_TRAVEL_TIME = Math.max(
-  0.24,
-  CAPTURE_DRONE_TOTAL - CAPTURE_GROUND_FIRE_TIME
-); // keep truck/pawn strike pacing aligned with drone
-const CAPTURE_GROUND_TOTAL =
-  CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+const CAPTURE_GROUND_TRAVEL_TIME = Math.max(0.24, CAPTURE_DRONE_TOTAL - CAPTURE_GROUND_FIRE_TIME); // keep truck/pawn strike pacing aligned with drone
+const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
@@ -144,9 +119,7 @@ const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 1; // align jet/helicopter flight height with drone altitude
-const CAPTURE_JET_ALTITUDE =
-  CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE *
-  CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
+const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
@@ -171,7 +144,7 @@ const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line tow
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.055; // lower pawn/drone/truck short-missile profile on screen
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.07; // even lower pawn/drone strike profile
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
@@ -185,10 +158,8 @@ const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
 const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.04; // make rook javelin read as a heavy drone-sized strike
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const CAPTURE_MODEL_URLS = Object.freeze({
   drone: [
     'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
@@ -342,9 +313,7 @@ const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_UNITS_PER_METER = 1;
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
-  CHESS_HDRI_OPTIONS.findIndex(
-    (variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID
-  )
+  CHESS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
 );
 const DEFAULT_HDRI_VARIANT =
   CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0] ?? null;
@@ -358,14 +327,8 @@ const resolveHdriVariant = (value) => {
     );
   }
   const max = CHESS_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(value)
-    ? clamp(Math.round(value), 0, max)
-    : DEFAULT_HDRI_INDEX;
-  return (
-    CHESS_HDRI_OPTIONS[idx] ??
-    CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
-    CHESS_HDRI_OPTIONS[0]
-  );
+  const idx = Number.isFinite(value) ? clamp(Math.round(value), 0, max) : DEFAULT_HDRI_INDEX;
+  return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
 const MODEL_SCALE = 0.55;
@@ -391,8 +354,7 @@ const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_SIZE_FACTOR =
-  0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
@@ -410,7 +372,7 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const AI_CHAIR_GAP = 0.4 * MODEL_SCALE * CARD_SCALE * 0.4;
+const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
@@ -478,8 +440,7 @@ function getDisplayMetrics() {
   const fallbackHeight = window.screen?.height || 1080;
   const width = Math.max(window.innerWidth || 0, fallbackWidth);
   const height = Math.max(window.innerHeight || 0, fallbackHeight);
-  const dpr =
-    typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1;
+  const dpr = typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1;
 
   return {
     width: width || 1920,
@@ -489,10 +450,7 @@ function getDisplayMetrics() {
 }
 
 function detectRefreshRateHint() {
-  if (
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function'
-  ) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return null;
   }
   const queries = [
@@ -549,8 +507,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 1.7,
     pixelRatioScale: 1,
     resolution: 'QHD render • DPR 1.7 cap',
-    description:
-      'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
@@ -581,24 +538,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: [
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Guy',
-        'Daniel',
-        'Alex'
-      ],
-      [CHESS_BATTLE_SPEAKERS.analyst]: [
-        'en-GB',
-        'English',
-        'female',
-        'Sonia',
-        'Hazel',
-        'Kate',
-        'Emma'
-      ]
+      [CHESS_BATTLE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
@@ -611,24 +552,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Hindi commentary with lively pacing',
     language: 'hi',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'male',
-        'Raj',
-        'Amit',
-        'Arjun'
-      ],
-      [CHESS_BATTLE_SPEAKERS.analyst]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'female',
-        'Asha',
-        'Priya',
-        'Neha'
-      ]
+      [CHESS_BATTLE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
@@ -641,26 +566,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Russian commentary with steady cadence',
     language: 'ru',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'male',
-        'Dmitri',
-        'Ivan',
-        'Sergey',
-        'Alexey'
-      ],
-      [CHESS_BATTLE_SPEAKERS.analyst]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'female',
-        'Anna',
-        'Svetlana',
-        'Irina',
-        'Olga'
-      ]
+      [CHESS_BATTLE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
@@ -673,24 +580,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Spanish play-by-play with lively color',
     language: 'es',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'male',
-        'Jorge',
-        'Carlos',
-        'Miguel'
-      ],
-      [CHESS_BATTLE_SPEAKERS.analyst]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'female',
-        'Isabella',
-        'Lucia',
-        'Camila'
-      ]
+      [CHESS_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
@@ -703,22 +594,8 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     description: 'French broadcast pairing',
     language: 'fr',
     voiceHints: {
-      [CHESS_BATTLE_SPEAKERS.lead]: [
-        'fr-FR',
-        'French',
-        'male',
-        'Henri',
-        'Louis',
-        'Paul'
-      ],
-      [CHESS_BATTLE_SPEAKERS.analyst]: [
-        'fr-FR',
-        'French',
-        'female',
-        'Amelie',
-        'Marie',
-        'Charlotte'
-      ]
+      [CHESS_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
     },
     speakerSettings: {
       [CHESS_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
@@ -726,8 +603,7 @@ const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
     }
   }
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID =
-  CHESS_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
+const DEFAULT_COMMENTARY_PRESET_ID = CHESS_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
 const PIECE_LABELS = Object.freeze({
   P: 'pawn',
   N: 'knight',
@@ -750,16 +626,12 @@ function resolveDefaultGraphicsId() {
 
 function selectPerformanceProfile(overrideOption = null) {
   const refreshHint = detectRefreshRateHint();
-  const deviceMemory =
-    typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
-  const cores =
-    typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
+  const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
   const coarsePointer = detectCoarsePointer();
   const connection =
     typeof navigator !== 'undefined'
-      ? navigator.connection ||
-        navigator.mozConnection ||
-        navigator.webkitConnection
+      ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
       : null;
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
@@ -773,12 +645,9 @@ function selectPerformanceProfile(overrideOption = null) {
     })();
   const saveDataMode = Boolean(connection?.saveData);
   const { width, height, dpr } = getDisplayMetrics();
-  const screenMegapixels =
-    (Math.max(width, 1) * Math.max(height, 1) * Math.max(dpr, 1) ** 2) /
-    1_000_000;
+  const screenMegapixels = (Math.max(width, 1) * Math.max(height, 1) * Math.max(dpr, 1) ** 2) / 1_000_000;
 
-  const lowEndMemory =
-    typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
+  const lowEndMemory = typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
   const lowEndCores = typeof cores === 'number' && cores > 0 && cores <= 4;
   const highEndMemory = typeof deviceMemory === 'number' && deviceMemory >= 8;
   const highEndCores = typeof cores === 'number' && cores >= 8;
@@ -786,19 +655,10 @@ function selectPerformanceProfile(overrideOption = null) {
   const lowEndDevice = coarsePointer || lowEndMemory || lowEndCores;
   const highEndDevice = !coarsePointer && (highEndMemory || highEndCores);
 
-  const renderBudgetMp =
-    lowEndDevice || saveDataMode ? 2.8 : highEndDevice ? 6.0 : 4.2;
+  const renderBudgetMp = lowEndDevice || saveDataMode ? 2.8 : highEndDevice ? 6.0 : 4.2;
 
-  let targetFps = clamp(
-    refreshHint ?? DEFAULT_TARGET_FPS,
-    MIN_TARGET_FPS,
-    MAX_TARGET_FPS
-  );
-  let resolutionScale = clamp(
-    Math.sqrt(renderBudgetMp / Math.max(screenMegapixels, 0.1)),
-    0.72,
-    1.05
-  );
+  let targetFps = clamp(refreshHint ?? DEFAULT_TARGET_FPS, MIN_TARGET_FPS, MAX_TARGET_FPS);
+  let resolutionScale = clamp(Math.sqrt(renderBudgetMp / Math.max(screenMegapixels, 0.1)), 0.72, 1.05);
   resolutionScale = Math.min(resolutionScale, 1);
   let pixelRatioScale = RENDER_PIXEL_RATIO_SCALE;
   let pixelRatioCap = Math.min(
@@ -807,17 +667,10 @@ function selectPerformanceProfile(overrideOption = null) {
   );
 
   if (screenMegapixels > renderBudgetMp * 1.1) {
-    const downscale = clamp(
-      Math.sqrt(renderBudgetMp / screenMegapixels),
-      0.7,
-      1
-    );
+    const downscale = clamp(Math.sqrt(renderBudgetMp / screenMegapixels), 0.7, 1);
     resolutionScale = Math.min(resolutionScale, downscale);
     pixelRatioScale = Math.min(pixelRatioScale, 0.95);
-    pixelRatioCap = Math.min(
-      pixelRatioCap,
-      lowEndDevice || saveDataMode ? 1.02 : 1.15
-    );
+    pixelRatioCap = Math.min(pixelRatioCap, lowEndDevice || saveDataMode ? 1.02 : 1.15);
   } else if (highEndDevice && screenMegapixels < renderBudgetMp * 0.5) {
     resolutionScale = Math.min(1, Math.max(resolutionScale, 0.98));
   }
@@ -848,17 +701,10 @@ function selectPerformanceProfile(overrideOption = null) {
   };
 
   if (overrideOption) {
-    profile.targetFps = clamp(
-      overrideOption.fps ?? profile.targetFps,
-      MIN_TARGET_FPS,
-      MAX_TARGET_FPS
-    );
-    profile.resolutionScale =
-      overrideOption.renderScale ?? profile.resolutionScale;
-    profile.pixelRatioCap =
-      overrideOption.pixelRatioCap ?? profile.pixelRatioCap;
-    profile.pixelRatioScale =
-      overrideOption.pixelRatioScale ?? profile.pixelRatioScale;
+    profile.targetFps = clamp(overrideOption.fps ?? profile.targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS);
+    profile.resolutionScale = overrideOption.renderScale ?? profile.resolutionScale;
+    profile.pixelRatioCap = overrideOption.pixelRatioCap ?? profile.pixelRatioCap;
+    profile.pixelRatioScale = overrideOption.pixelRatioScale ?? profile.pixelRatioScale;
   }
 
   return profile;
@@ -929,18 +775,13 @@ function buildPolyhavenModelUrls(assetId) {
 }
 
 function pickBestModelUrl(urls = []) {
-  const preferred = urls.filter(
-    (u) => u.endsWith('.glb') || u.endsWith('.gltf')
-  );
+  const preferred = urls.filter((u) => u.endsWith('.glb') || u.endsWith('.gltf'));
   return preferred[0] || urls[0] || null;
 }
 
 const PREFERRED_POLYHAVEN_TEXTURE_SIZES = Object.freeze(['4k', '2k', '1k']);
 
-function pickBestTextureUrls(
-  apiJson,
-  preferredSizes = PREFERRED_POLYHAVEN_TEXTURE_SIZES
-) {
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_POLYHAVEN_TEXTURE_SIZES) {
   if (!apiJson || typeof apiJson !== 'object') {
     return { diffuse: null, normal: null, roughness: null };
   }
@@ -953,10 +794,7 @@ function pickBestTextureUrls(
     }
     if (typeof value === 'string') {
       const lower = value.toLowerCase();
-      if (
-        value.startsWith('http') &&
-        (lower.includes('.jpg') || lower.includes('.png'))
-      ) {
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
         urls.push(value);
       }
       return;
@@ -1032,8 +870,7 @@ function disposeObjectResources(object) {
 }
 
 function fitTableModelToArena(model) {
-  if (!model)
-    return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
@@ -1077,31 +914,20 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   const promise = (async () => {
     const modelCandidates = new Set(buildPolyhavenModelUrls(assetId));
     try {
-      const filesJson = await fetch(
-        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
-      ).then((r) => r.json());
+      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
       const allUrls = extractAllHttpUrls(filesJson);
       const apiModelUrl = pickBestModelUrl(allUrls);
       if (apiModelUrl) modelCandidates.add(apiModelUrl);
     } catch (error) {
-      console.warn(
-        'Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs',
-        error
-      );
+      console.warn('Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs', error);
     }
 
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
     for (const modelUrl of modelCandidates) {
       try {
-        const resolvedUrl = new URL(
-          modelUrl,
-          typeof window !== 'undefined' ? window.location?.href : modelUrl
-        ).href;
-        const resourcePath = resolvedUrl.substring(
-          0,
-          resolvedUrl.lastIndexOf('/') + 1
-        );
+        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
         loader.setResourcePath?.(resourcePath);
         loader.setPath?.('');
         // eslint-disable-next-line no-await-in-loop
@@ -1113,9 +939,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
         lastError = error;
       }
     }
-    throw (
-      lastError || new Error(`Failed to load Poly Haven model for ${assetId}`)
-    );
+    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
   })();
 
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
@@ -1132,12 +956,7 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-async function loadPolyhavenTextureSet(
-  assetId,
-  textureLoader,
-  maxAnisotropy = 1,
-  cache = null
-) {
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
   if (!assetId || !textureLoader) return null;
   const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
   if (cache?.has(key)) {
@@ -1146,9 +965,7 @@ async function loadPolyhavenTextureSet(
 
   const promise = (async () => {
     try {
-      const response = await fetch(
-        `https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`
-      );
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
       if (!response.ok) {
         return null;
       }
@@ -1178,9 +995,7 @@ async function loadPolyhavenTextureSet(
         urls.roughness ? loadTextureFromLoader(urls.roughness, false) : null
       ]);
 
-      [diffuse, normal, roughness]
-        .filter(Boolean)
-        .forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
 
       return { diffuse, normal, roughness };
     } catch (error) {
@@ -1195,12 +1010,7 @@ async function loadPolyhavenTextureSet(
   return promise;
 }
 
-function applyTextureSetToModel(
-  model,
-  textureSet,
-  fallbackTexture,
-  maxAnisotropy = 1
-) {
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
   const normalizeTexture = (texture, isColor = false) => {
     if (!texture) return null;
     if (isColor) applySRGBColorSpace(texture);
@@ -1245,12 +1055,7 @@ function applyTextureSetToModel(
   });
 }
 
-async function createPolyhavenInstance(
-  assetId,
-  rotationY = 0,
-  renderer = null,
-  textureOptions = {}
-) {
+async function createPolyhavenInstance(assetId, rotationY = 0, renderer = null, textureOptions = {}) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
   prepareLoadedModel(model);
@@ -1264,13 +1069,7 @@ async function createPolyhavenInstance(
   if (textureLoader) {
     try {
       const textures =
-        textureSet ??
-        (await loadPolyhavenTextureSet(
-          assetId,
-          textureLoader,
-          maxAnisotropy,
-          textureCache
-        ));
+        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
       if (textures || fallbackTexture) {
         applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
       }
@@ -1283,11 +1082,7 @@ async function createPolyhavenInstance(
   if (rotationY) model.rotation.y += rotationY;
   return model;
 }
-const TARGET_CHAIR_SIZE = new THREE.Vector3(
-  1.3162499970197679,
-  1.9173749900311232,
-  1.7001562547683715
-);
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 
@@ -1298,10 +1093,8 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
-const DRONE_FLY_SOUND_URL =
-  '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
-const HELICOPTER_FLY_SOUND_URL =
-  '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
+const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
+const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -1351,14 +1144,11 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   }
 ]);
 
-const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map(
-  (config) => config.name
-);
+const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => config.name);
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
-    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ??
-      {}),
+    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ?? {}),
     id: 'beautifulGameAuthenticBoard',
     label: 'Aurora Metal',
     light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
@@ -1463,27 +1253,16 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => {
     const preserveOriginal = Boolean(config.piece?.preserveOriginal);
     const pieceStyle = preserveOriginal
-      ? {
-          ...BASE_PIECE_STYLE,
-          preserveOriginalMaterials: true,
-          keepTextures: true
-        }
+      ? { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
       : {
           ...BASE_PIECE_STYLE,
           preserveOriginalMaterials: false,
           keepTextures: true,
-          white: {
-            ...BASE_PIECE_STYLE.white,
-            color: config.piece?.white ?? BASE_PIECE_STYLE.white.color
-          },
-          black: {
-            ...BASE_PIECE_STYLE.black,
-            color: config.piece?.black ?? BASE_PIECE_STYLE.black.color
-          },
+          white: { ...BASE_PIECE_STYLE.white, color: config.piece?.white ?? BASE_PIECE_STYLE.white.color },
+          black: { ...BASE_PIECE_STYLE.black, color: config.piece?.black ?? BASE_PIECE_STYLE.black.color },
           accent: config.piece?.accent ?? BASE_PIECE_STYLE.accent,
           goldAccent: config.piece?.goldAccent ?? BASE_PIECE_STYLE.goldAccent,
-          whiteAccent:
-            config.piece?.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
+          whiteAccent: config.piece?.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
           blackAccent: config.piece?.blackAccent ?? BASE_PIECE_STYLE.blackAccent
         };
     return {
@@ -1494,8 +1273,7 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
   })
 );
 
-const pieceStyleSignature = (style) =>
-  `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
+const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
 
 const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
 const BEAUTIFUL_GAME_SWAP_SET_ID = 'beautifulGameSwapRanks';
@@ -1593,10 +1371,7 @@ function colorSeed(hex = '#ffffff') {
   return Math.abs(hash % 97) + 1;
 }
 
-function buildVeinedMaterial(
-  colorHex,
-  { roughness, metalness, repeat = 2.5, normalScale = 0.34 } = {}
-) {
+function buildVeinedMaterial(colorHex, { roughness, metalness, repeat = 2.5, normalScale = 0.34 } = {}) {
   const texture = createGraniteTexture(colorHex, colorSeed(colorHex), repeat);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(colorHex),
@@ -1620,74 +1395,51 @@ function loadTexture(url, fallbackColor = '#888888') {
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
   const promise = new Promise((resolve) => {
-    loader.load(
-      url,
-      (texture) => {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        resolve(texture);
-      },
-      undefined,
-      (error) => {
-        console.warn(
-          `Chess Battle Royal: failed to load texture ${url}, using fallback`,
-          error
-        );
-        resolve(createFallbackTexture(fallbackColor));
-      }
-    );
+    loader.load(url, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      resolve(texture);
+    }, undefined, (error) => {
+      console.warn(`Chess Battle Royal: failed to load texture ${url}, using fallback`, error);
+      resolve(createFallbackTexture(fallbackColor));
+    });
   });
   TEXTURE_CACHE.set(url, promise);
   return promise;
 }
 
 const MAPLE_WOOD_TEXTURES = Object.freeze({
-  colorMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
-  roughnessMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
-  normalMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
   repeat: 2.2
 });
 
 const WALNUT_WOOD_TEXTURES = Object.freeze({
-  colorMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
-  roughnessMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
-  normalMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
   repeat: 2
 });
 
 const MARBLE_WHITE_TEXTURES = Object.freeze({
-  colorMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
-  roughnessMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
-  normalMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
   repeat: 1.4
 });
 
 const MARBLE_BLACK_TEXTURES = Object.freeze({
-  colorMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
-  roughnessMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
-  normalMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
   repeat: 1.3
 });
 
 const EBONY_POLISH_TEXTURES = Object.freeze({
-  colorMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
-  roughnessMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
-  normalMap:
-    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
   repeat: 1.8
 });
 
@@ -1702,12 +1454,7 @@ const HERITAGE_WALNUT_STYLE = Object.freeze({
 const MARBLE_ONYX_STYLE = Object.freeze({
   id: 'marbleOnyx',
   label: 'Marble & Onyx Tournament',
-  white: {
-    color: '#f3f3f3',
-    roughness: 0.18,
-    metalness: 0.08,
-    clearcoat: 0.24
-  },
+  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
   black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
   accent: '#b1c4cf'
 });
@@ -1715,18 +1462,8 @@ const MARBLE_ONYX_STYLE = Object.freeze({
 const KENNEY_WOOD_STYLE = Object.freeze({
   id: 'kenneyWood',
   label: 'Kenney Woodcut',
-  white: {
-    color: '#f2e0c5',
-    roughness: 0.48,
-    metalness: 0.08,
-    clearcoat: 0.12
-  },
-  black: {
-    color: '#2c2016',
-    roughness: 0.56,
-    metalness: 0.12,
-    clearcoat: 0.12
-  },
+  white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
+  black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
   accent: '#d7b07a',
   blackAccent: '#b98a52'
 });
@@ -1770,14 +1507,13 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     id: STAUNTON_CLASSIC_STYLE.id,
     label: STAUNTON_CLASSIC_STYLE.label,
     style: STAUNTON_CLASSIC_STYLE,
-    loader: (targetBoardSize) =>
-      loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-        targetBoardSize,
-        styleId: STAUNTON_CLASSIC_STYLE.id,
-        pieceStyle: STAUNTON_CLASSIC_STYLE,
-        assetScale: STAUNTON_ASSET_SCALE,
-        fallbackBuilder: buildStauntonFallbackAssets
-      })
+    loader: (targetBoardSize) => loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+      targetBoardSize,
+      styleId: STAUNTON_CLASSIC_STYLE.id,
+      pieceStyle: STAUNTON_CLASSIC_STYLE,
+      assetScale: STAUNTON_ASSET_SCALE,
+      fallbackBuilder: buildStauntonFallbackAssets
+    })
   },
   {
     id: HERITAGE_WALNUT_STYLE.id,
@@ -1910,12 +1646,7 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
-  {
-    id: 'marble',
-    hex: 0xffffff,
-    label: 'Marble',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble
-  },
+  { id: 'marble', hex: 0xffffff, label: 'Marble', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.sideColor.marble },
   {
     id: 'darkForest',
     hex: 0xffffff,
@@ -1967,31 +1698,15 @@ const QUICK_SIDE_COLORS = [
 ];
 
 const QUICK_HEAD_PRESETS = [
-  {
-    id: 'current',
-    label: 'Current',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.current
-  },
-  {
-    id: 'headRuby',
-    label: 'Ruby',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby
-  },
+  { id: 'current', label: 'Current', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.current },
+  { id: 'headRuby', label: 'Ruby', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headRuby },
   {
     id: 'headSapphire',
     label: 'Sapphire',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headSapphire
   },
-  {
-    id: 'headChrome',
-    label: 'Chrome',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome
-  },
-  {
-    id: 'headGold',
-    label: 'Gold',
-    thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
-  }
+  { id: 'headChrome', label: 'Chrome', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headChrome },
+  { id: 'headGold', label: 'Gold', thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold }
 ];
 
 const QUICK_BOARD_THEMES = [
@@ -2058,28 +1773,21 @@ const CHESS_ROOM_HALF_SPAN = TABLE_RADIUS + CHAIR_CLEARANCE + SEAT_DEPTH;
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
-  const resolutions =
-    Array.isArray(preferred) && preferred.length
-      ? preferred
-      : DEFAULT_HDRI_RESOLUTIONS;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
   for (const res of resolutions) {
     const entry = json[res];
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  const fallback = Object.values(json).find(
-    (value) => value?.hdr || value?.exr
-  );
+  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred =
-    Array.isArray(config?.preferredResolutions) &&
-    config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
   const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
   const fallbackUrl =
     config?.fallbackUrl ||
@@ -2088,18 +1796,13 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     for (const res of preferred) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    const manual = Object.values(config.assetUrls).find(
-      (value) => typeof value === 'string' && value.length
-    );
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
     if (manual) return manual;
   }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length)
-    return config.assetUrl;
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
-    );
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
     const picked = pickPolyHavenHdriUrl(json, preferred);
@@ -2173,10 +1876,7 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.shapeId] ??
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.themeId] ??
     0;
-  return alignGroupToFloorY(
-    boardGroup,
-    surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset
-  );
+  return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
@@ -2229,11 +1929,8 @@ const cameraPhiMax = clamp(
   Math.PI - 0.001
 );
 const CAMERA_DEFAULT_PHI = clamp(
-  THREE.MathUtils.lerp(
-    cameraPhiMin,
-    cameraPhiMax,
-    ARENA_CAMERA_DEFAULTS.initialPhiLerp
-  ) + CAMERA_INITIAL_PHI_EXTRA,
+  THREE.MathUtils.lerp(cameraPhiMin, cameraPhiMax, ARENA_CAMERA_DEFAULTS.initialPhiLerp) +
+    CAMERA_INITIAL_PHI_EXTRA,
   CAMERA_PULL_FORWARD_MIN,
   cameraPhiMax
 );
@@ -2275,13 +1972,11 @@ const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_BATTLE_TABLE_OPTIONS]);
 
 const TABLE_FINISH_OPTIONS = Object.freeze([...CHESS_TABLE_FINISH_OPTIONS]);
 const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
-const DEFAULT_WOOD_OPTION =
-  DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
+const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const DEFAULT_TABLE_SHAPE_OPTION =
-  TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') ||
-  TABLE_SHAPE_OPTIONS[0];
+  TABLE_SHAPE_OPTIONS.find((option) => option.id !== 'diamondEdge') || TABLE_SHAPE_OPTIONS[0];
 
 const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
@@ -2290,30 +1985,17 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
-  {
-    key: 'environmentHdri',
-    label: 'HDR Environment',
-    options: CHESS_HDRI_OPTIONS
-  }
+  { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
 ];
 
-const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set([
-  'hexagonTable',
-  'murlan-default',
-  'grandOval'
-]);
+const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   classicOctagon: -0.065,
   hexagonTable: -0.065,
   grandOval: -0.065,
   diamondEdge: -0.065
 });
-const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set([
-  'classicOctagon',
-  'hexagonTable',
-  'grandOval',
-  'diamondEdge'
-]);
+const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.36; // move parked vehicles farther outside board edge
@@ -2331,10 +2013,7 @@ function getTableHeightForShape(shapeId) {
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
-    ? Math.min(
-        Math.max(0, Math.round(value.pieceStyle)),
-        PIECE_STYLE_OPTIONS.length - 1
-      )
+    ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
     : null;
   const entries = [
     ['tables', TABLE_THEME_OPTIONS.length],
@@ -2360,11 +2039,8 @@ function normalizeAppearance(value = {}) {
 function getEffectiveShapeConfigForTableTheme(tableTheme) {
   const fallback = DEFAULT_TABLE_SHAPE_OPTION ?? TABLE_SHAPE_OPTIONS[0];
   const requestedShapeId = tableTheme?.proceduralShapeId;
-  if (!requestedShapeId)
-    return { option: fallback, rotationY: 0, forced: false };
-  const requested =
-    TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) ??
-    fallback;
+  if (!requestedShapeId) return { option: fallback, rotationY: 0, forced: false };
+  const requested = TABLE_SHAPE_OPTIONS.find((option) => option.id === requestedShapeId) ?? fallback;
   return { option: requested ?? fallback, rotationY: 0, forced: false };
 }
 
@@ -2373,11 +2049,7 @@ const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const targetMax = Math.max(
-    TARGET_CHAIR_SIZE.x,
-    TARGET_CHAIR_SIZE.y,
-    TARGET_CHAIR_SIZE.z
-  );
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
   const currentMax = Math.max(size.x, size.y, size.z);
   if (currentMax > 0) {
     const scale = targetMax / currentMax;
@@ -2431,10 +2103,7 @@ function applyChairThemeMaterials(chairAssets, theme) {
   mats.chairId = theme.chairId ?? 'default';
   if (mats.seat?.color) {
     mats.seat.color.set(seatColor);
-    mats.seat.userData = {
-      ...(mats.seat.userData || {}),
-      chairId: mats.chairId
-    };
+    mats.seat.userData = { ...(mats.seat.userData || {}), chairId: mats.chairId };
     mats.seat.needsUpdate = true;
   }
   if (mats.leg?.color) {
@@ -2524,10 +2193,7 @@ function createProceduralChair(theme) {
 
   const chair = new THREE.Group();
 
-  const seatMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
-    seatMaterial
-  );
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
   seatMesh.position.y = SEAT_THICKNESS / 2;
   seatMesh.castShadow = true;
   seatMesh.receiveShadow = true;
@@ -2537,20 +2203,12 @@ function createProceduralChair(theme) {
     new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
     seatMaterial
   );
-  backMesh.position.set(
-    0,
-    SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
-    -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
-  );
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
   backMesh.castShadow = true;
   backMesh.receiveShadow = true;
   chair.add(backMesh);
 
-  const armGeometry = new THREE.BoxGeometry(
-    ARM_THICKNESS,
-    ARM_HEIGHT,
-    ARM_DEPTH
-  );
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
   const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
   const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
   const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
@@ -2566,12 +2224,7 @@ function createProceduralChair(theme) {
   chair.add(rightArm);
 
   const legMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.16 * MODEL_SCALE * STOOL_SCALE,
-      0.2 * MODEL_SCALE * STOOL_SCALE,
-      BASE_COLUMN_HEIGHT,
-      18
-    ),
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
     legMaterial
   );
   legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -2580,16 +2233,10 @@ function createProceduralChair(theme) {
   chair.add(legMesh);
 
   const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.32 * MODEL_SCALE * STOOL_SCALE,
-      0.32 * MODEL_SCALE * STOOL_SCALE,
-      0.08 * MODEL_SCALE,
-      24
-    ),
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
     legMaterial
   );
-  foot.position.y =
-    legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
   foot.castShadow = true;
   foot.receiveShadow = true;
   chair.add(foot);
@@ -2600,7 +2247,7 @@ function createProceduralChair(theme) {
       seat: seatMaterial,
       leg: legMaterial,
       upholstery: [seatMaterial],
-      metal: [legMaterial]
+    metal: [legMaterial]
     }
   };
 }
@@ -2664,17 +2311,12 @@ async function buildTableFromTheme(theme, options = {}) {
 
   if (selectedTheme?.source === 'polyhaven' && selectedTheme?.assetId) {
     try {
-      const model = await createPolyhavenInstance(
-        selectedTheme.assetId,
-        0,
-        renderer,
-        {
-          textureLoader,
-          maxAnisotropy,
-          textureCache,
-          fallbackTexture
-        }
-      );
+      const model = await createPolyhavenInstance(selectedTheme.assetId, 0, renderer, {
+        textureLoader,
+        maxAnisotropy,
+        textureCache,
+        fallbackTexture
+      });
       const fitted = fitTableModelToArena(model);
       if (selectedTheme.rotationY || rotationY) {
         model.rotation.y += (selectedTheme.rotationY ?? 0) + (rotationY ?? 0);
@@ -2696,10 +2338,7 @@ async function buildTableFromTheme(theme, options = {}) {
         themeId: selectedTheme.id
       };
     } catch (error) {
-      console.warn(
-        'Chess Battle Royal: failed to load Poly Haven table',
-        error
-      );
+      console.warn('Chess Battle Royal: failed to load Poly Haven table', error);
     }
   }
 
@@ -2785,35 +2424,20 @@ function createSandTimer(accentColor = '#f4b400') {
   pillarD.position.set(-0.22, 0, -0.22);
   body.add(pillarA, pillarB, pillarC, pillarD);
 
-  const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16),
-    frameMat
-  );
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16), frameMat);
   body.add(neck);
 
-  const glassTop = new THREE.Mesh(
-    new THREE.ConeGeometry(0.21, 0.42, 26),
-    glassMat
-  );
+  const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
   glassTop.position.y = 0.16;
   glassTop.rotation.x = Math.PI;
-  const glassBottom = new THREE.Mesh(
-    new THREE.ConeGeometry(0.21, 0.42, 26),
-    glassMat
-  );
+  const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
   glassBottom.position.y = -0.16;
   body.add(glassTop, glassBottom);
 
-  const sandTop = new THREE.Mesh(
-    new THREE.ConeGeometry(0.18, 0.26, 26),
-    goldSand
-  );
+  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 26), goldSand);
   sandTop.position.y = 0.11;
   sandTop.rotation.x = Math.PI;
-  const sandBottom = new THREE.Mesh(
-    new THREE.ConeGeometry(0.16, 0.3, 26),
-    silverSand
-  );
+  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 26), silverSand);
   sandBottom.position.y = -0.16;
   const sandStream = new THREE.Mesh(
     new THREE.CylinderGeometry(0.012, 0.008, 0.24, 16),
@@ -2855,11 +2479,7 @@ function createSandTimer(accentColor = '#f4b400') {
     metalness: 0.08
   });
   const dropCount = 32;
-  const sandDrops = new THREE.InstancedMesh(
-    sandDropsGeo,
-    sandDropsMat,
-    dropCount
-  );
+  const sandDrops = new THREE.InstancedMesh(sandDropsGeo, sandDropsMat, dropCount);
   body.add(sandDrops);
   const dropStates = Array.from({ length: dropCount }, () => ({
     x: (Math.random() - 0.5) * 0.04,
@@ -2888,16 +2508,10 @@ function createSandTimer(accentColor = '#f4b400') {
     emissiveIntensity: 0.08,
     side: THREE.DoubleSide
   });
-  const timeFace = new THREE.Mesh(
-    new THREE.CircleGeometry(0.26, 64),
-    timeMaterial
-  );
+  const timeFace = new THREE.Mesh(new THREE.CircleGeometry(0.26, 64), timeMaterial);
   timeFace.rotation.x = -Math.PI / 2;
   timeFace.position.set(0, 0.42, 0);
-  const timeBezel = new THREE.Mesh(
-    new THREE.TorusGeometry(0.26, 0.026, 16, 64),
-    accentMat
-  );
+  const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.026, 16, 64), accentMat);
   timeBezel.rotation.x = -Math.PI / 2;
   timeBezel.position.set(0, 0.422, 0);
   body.add(timeFace, timeBezel);
@@ -2912,14 +2526,7 @@ function createSandTimer(accentColor = '#f4b400') {
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
-    const gradient = ctx.createRadialGradient(
-      cx,
-      cy,
-      radius * 0.25,
-      cx,
-      cy,
-      radius
-    );
+    const gradient = ctx.createRadialGradient(cx, cy, radius * 0.25, cx, cy, radius);
     gradient.addColorStop(0, 'rgba(12, 16, 26, 0.95)');
     gradient.addColorStop(0.7, 'rgba(12, 16, 26, 0.92)');
     gradient.addColorStop(1, 'rgba(8, 12, 20, 0.92)');
@@ -3006,11 +2613,7 @@ function createSandTimer(accentColor = '#f4b400') {
       sandTop.scale.set(1, Math.max(0.2, eased), 1);
       sandTop.position.y = 0.11 + (eased - 1) * 0.05;
       const bottomScale = Math.max(0.26, 1.12 - eased * 0.9);
-      sandBottom.scale.set(
-        1 + (1 - eased) * 0.35,
-        bottomScale,
-        1 + (1 - eased) * 0.35
-      );
+      sandBottom.scale.set(1 + (1 - eased) * 0.35, bottomScale, 1 + (1 - eased) * 0.35);
       sandBottom.position.y = -0.16 + (1 - eased) * 0.04;
       sandStream.visible = eased < 0.995;
       sandStream.scale.y = clamp01(1 - eased) * 1.1;
@@ -3030,12 +2633,7 @@ function createSandTimer(accentColor = '#f4b400') {
       applyTurnColor();
     },
     tick: (dt, elapsed) => {
-      body.position.x = THREE.MathUtils.damp(
-        body.position.x,
-        targetSlide,
-        6,
-        dt
-      );
+      body.position.x = THREE.MathUtils.damp(body.position.x, targetSlide, 6, dt);
       body.position.y = Math.sin(elapsed * 2.4) * 0.02;
       const lean = THREE.MathUtils.damp(body.rotation.z, targetLean, 7, dt);
       const wobble = Math.sin(elapsed * 8.2) * wobbleIntensity * 0.08;
@@ -3084,22 +2682,10 @@ function buildBoardTheme(option) {
     accent: source.accent ?? BASE_BOARD_THEME.accent,
     highlight: source.highlight ?? BASE_BOARD_THEME.highlight,
     capture: source.capture ?? BASE_BOARD_THEME.capture,
-    surfaceRoughness: clamp01(
-      source.surfaceRoughness,
-      BASE_BOARD_THEME.surfaceRoughness
-    ),
-    surfaceMetalness: clamp01(
-      source.surfaceMetalness,
-      BASE_BOARD_THEME.surfaceMetalness
-    ),
-    frameRoughness: clamp01(
-      source.frameRoughness,
-      BASE_BOARD_THEME.frameRoughness
-    ),
-    frameMetalness: clamp01(
-      source.frameMetalness,
-      BASE_BOARD_THEME.frameMetalness
-    ),
+    surfaceRoughness: clamp01(source.surfaceRoughness, BASE_BOARD_THEME.surfaceRoughness),
+    surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
+    frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
+    frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
     preserveOriginalMaterials: Boolean(
       source.preserveOriginalMaterials ?? source.preserveOriginal
     )
@@ -3135,10 +2721,7 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
-function applyBeautifulGameBoardTheme(
-  boardModel,
-  boardTheme = BEAUTIFUL_GAME_THEME
-) {
+function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
   snapshotBoardMaterials(boardModel);
@@ -3149,8 +2732,7 @@ function applyBeautifulGameBoardTheme(
     return;
   }
 
-  const luminance = (color) =>
-    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
   const toArray = (value) => (Array.isArray(value) ? value : [value]);
 
   const applyMaterial = (mesh, updater) => {
@@ -3168,13 +2750,10 @@ function applyBeautifulGameBoardTheme(
   const applyFrame = (mesh, color) =>
     applyMaterial(mesh, (mat) => {
       if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.frameRoughness))
-        mat.roughness = clamp01(theme.frameRoughness);
-      if (Number.isFinite(theme.frameMetalness))
-        mat.metalness = clamp01(theme.frameMetalness);
+      if (Number.isFinite(theme.frameRoughness)) mat.roughness = clamp01(theme.frameRoughness);
+      if (Number.isFinite(theme.frameMetalness)) mat.metalness = clamp01(theme.frameMetalness);
       if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat)
-        mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
       if ('reflectivity' in mat) mat.reflectivity = 0;
       if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
@@ -3182,13 +2761,10 @@ function applyBeautifulGameBoardTheme(
   const applySurface = (mesh, color) =>
     applyMaterial(mesh, (mat) => {
       if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.surfaceRoughness))
-        mat.roughness = clamp01(theme.surfaceRoughness);
-      if (Number.isFinite(theme.surfaceMetalness))
-        mat.metalness = clamp01(theme.surfaceMetalness);
+      if (Number.isFinite(theme.surfaceRoughness)) mat.roughness = clamp01(theme.surfaceRoughness);
+      if (Number.isFinite(theme.surfaceMetalness)) mat.metalness = clamp01(theme.surfaceMetalness);
       if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat)
-        mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
       if ('reflectivity' in mat) mat.reflectivity = 0;
       if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
@@ -3221,8 +2797,7 @@ function applyBeautifulGameBoardTheme(
       return;
     }
 
-    const isTile =
-      tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
+    const isTile = tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
     const targetColor = isTile
       ? lightness >= 0.5
         ? theme.light
@@ -3234,10 +2809,7 @@ function applyBeautifulGameBoardTheme(
   });
 }
 
-function normalizeBoardModelToDisplaySize(
-  boardModel,
-  targetSize = RAW_BOARD_SIZE
-) {
+function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZE) {
   if (!boardModel) return { span: 0, top: 0 };
 
   const safeTarget = Math.max(targetSize || RAW_BOARD_SIZE, 0.001);
@@ -3254,8 +2826,7 @@ function normalizeBoardModelToDisplaySize(
   const center = scaledBox.getCenter(new THREE.Vector3());
   boardModel.position.set(
     -center.x,
-    -scaledBox.min.y +
-      (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET + BOARD_VISUAL_Y_OFFSET),
+    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET + BOARD_VISUAL_Y_OFFSET),
     -center.z
   );
 
@@ -3272,64 +2843,46 @@ function normalizeBoardModelToDisplaySize(
   return { span, top };
 }
 
-function mergePieceStylesByColor(
-  whiteStyle = DEFAULT_PIECE_STYLE,
-  blackStyle = DEFAULT_PIECE_STYLE
-) {
+function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
   const white = whiteStyle.white ?? DEFAULT_PIECE_STYLE.white;
   const black = blackStyle.black ?? DEFAULT_PIECE_STYLE.black;
-  const accent =
-    whiteStyle.accent ?? blackStyle.accent ?? DEFAULT_PIECE_STYLE.accent;
+  const accent = whiteStyle.accent ?? blackStyle.accent ?? DEFAULT_PIECE_STYLE.accent;
   return {
     white,
     black,
     accent,
     whiteAccent: whiteStyle.whiteAccent,
     blackAccent: blackStyle.blackAccent,
-    goldAccent:
-      whiteStyle.goldAccent ??
-      blackStyle.goldAccent ??
-      DEFAULT_PIECE_STYLE.goldAccent,
+    goldAccent: whiteStyle.goldAccent ?? blackStyle.goldAccent ?? DEFAULT_PIECE_STYLE.goldAccent,
     preserveOriginalMaterials: Boolean(
-      whiteStyle.preserveOriginalMaterials &&
-      blackStyle.preserveOriginalMaterials
+      whiteStyle.preserveOriginalMaterials && blackStyle.preserveOriginalMaterials
     ),
     keepTextures: Boolean(
       whiteStyle.keepTextures ||
-      blackStyle.keepTextures ||
-      whiteStyle.preserveOriginalMaterials ||
-      blackStyle.preserveOriginalMaterials
+        blackStyle.keepTextures ||
+        whiteStyle.preserveOriginalMaterials ||
+        blackStyle.preserveOriginalMaterials
     ),
     roughness: whiteStyle.roughness ?? blackStyle.roughness,
     metalness: whiteStyle.metalness ?? blackStyle.metalness,
     clearcoat: whiteStyle.clearcoat ?? blackStyle.clearcoat,
-    clearcoatRoughness:
-      whiteStyle.clearcoatRoughness ?? blackStyle.clearcoatRoughness,
+    clearcoatRoughness: whiteStyle.clearcoatRoughness ?? blackStyle.clearcoatRoughness,
     sheen: whiteStyle.sheen ?? blackStyle.sheen,
     sheenColor: whiteStyle.sheenColor ?? blackStyle.sheenColor,
-    specularIntensity:
-      whiteStyle.specularIntensity ?? blackStyle.specularIntensity
+    specularIntensity: whiteStyle.specularIntensity ?? blackStyle.specularIntensity
   };
 }
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const whitePieceOption =
-    PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ??
-    DEFAULT_PIECE_STYLE;
+    PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const blackPieceOption =
-    PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ??
-    DEFAULT_PIECE_STYLE;
-  const pieceOption = mergePieceStylesByColor(
-    whitePieceOption,
-    blackPieceOption
-  );
-  const boardOption =
-    BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+    PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
+  const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
+  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
-  const headOption =
-    HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ??
-    HEAD_PRESET_OPTIONS[0].preset;
+  const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -3337,9 +2890,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
-    pieceSetId:
-      PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ??
-      DEFAULT_PIECE_SET_ID
+    pieceSetId: PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
   };
 }
 
@@ -3360,11 +2911,9 @@ function createConfiguredGLTFLoader(renderer = null) {
   if (!sharedKTX2Loader) {
     sharedKTX2Loader = new KTX2Loader();
     sharedKTX2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    const supportRenderer =
-      renderer ||
-      (typeof document !== 'undefined'
-        ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
-        : null);
+    const supportRenderer = renderer || (typeof document !== 'undefined'
+      ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
+      : null);
     if (supportRenderer) {
       sharedKTX2Loader.detectSupport(supportRenderer);
       if (!renderer) supportRenderer.dispose();
@@ -3394,9 +2943,7 @@ function prepareCaptureModel(root) {
     if (!child?.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
-    const materials = Array.isArray(child.material)
-      ? child.material
-      : [child.material];
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
       if (material?.map) applySRGBColorSpace(material.map);
       if (material?.emissiveMap) {
@@ -3441,13 +2988,7 @@ function isDescendantOf(node, ancestor) {
   return false;
 }
 
-function applyMilitaryHelicopterLook(
-  model,
-  topRotor = null,
-  tailRotor = null,
-  toneSeed = null,
-  skin = null
-) {
+function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, toneSeed = null, skin = null) {
   if (!model) return;
   applyCaptureTextureToOpaqueMeshes(model, 'helicopter', toneSeed);
   if (skin) {
@@ -3458,9 +2999,7 @@ function applyMilitaryHelicopterLook(
   }
   model.traverse((node) => {
     if (!node?.isMesh) return;
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     const name = `${node.name || ''}`.toLowerCase();
     materials.forEach((mat) => {
       if (!mat?.color) return;
@@ -3470,20 +3009,14 @@ function applyMilitaryHelicopterLook(
         if ('roughness' in mat) mat.roughness = 0.2;
         if ('opacity' in mat) mat.opacity = 0.95;
         if ('transparent' in mat) mat.transparent = true;
-      } else if (
-        (topRotor && node === topRotor) ||
-        (tailRotor && node === tailRotor) ||
-        /rotor|propell|blade|fan/.test(name)
-      ) {
+      } else if ((topRotor && node === topRotor) || (tailRotor && node === tailRotor) || /rotor|propell|blade|fan/.test(name)) {
         mat.color.set('#d4af37');
         if ('metalness' in mat) mat.metalness = 0.95;
         if ('roughness' in mat) mat.roughness = 0.18;
       } else {
         mat.color.offsetHSL(0.02, -0.14, -0.16);
-        if ('metalness' in mat)
-          mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
-        if ('roughness' in mat)
-          mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
+        if ('metalness' in mat) mat.metalness = Math.min(0.58, (mat.metalness ?? 0.3) + 0.08);
+        if ('roughness' in mat) mat.roughness = Math.max(0.36, (mat.roughness ?? 0.6) - 0.12);
       }
       mat.needsUpdate = true;
     });
@@ -3495,8 +3028,7 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
     ? `${toneSeed.base || ''}|${toneSeed.mid || ''}|${toneSeed.dark || ''}|${toneSeed.grid || ''}`
     : '';
   const cacheKey = `${kind}:${seedKey}`;
-  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(cacheKey))
-    return CAPTURE_VEHICLE_TEXTURE_CACHE.get(cacheKey);
+  if (CAPTURE_VEHICLE_TEXTURE_CACHE.has(cacheKey)) return CAPTURE_VEHICLE_TEXTURE_CACHE.get(cacheKey);
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
@@ -3516,12 +3048,7 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
   };
   const baseTone = palettes[kind] ?? palettes.generic;
   const tone = toneSeed
-    ? [
-        toneSeed.base || baseTone[0],
-        toneSeed.mid || baseTone[1],
-        toneSeed.dark || baseTone[2],
-        toneSeed.grid || baseTone[3]
-      ]
+    ? [toneSeed.base || baseTone[0], toneSeed.mid || baseTone[1], toneSeed.dark || baseTone[2], toneSeed.grid || baseTone[3]]
     : baseTone;
   ctx.fillStyle = tone[0];
   ctx.fillRect(0, 0, 256, 256);
@@ -3531,7 +3058,7 @@ function getCaptureVehicleTexture(kind = 'generic', toneSeed = null) {
     const x = (i * 37) % 256;
     const y = (i * 53) % 256;
     ctx.fillStyle = tone[(i % (tone.length - 1)) + 1];
-    ctx.globalAlpha = 0.42 + (i % 4) * 0.12;
+    ctx.globalAlpha = 0.42 + ((i % 4) * 0.12);
     ctx.fillRect(x, y, w, h);
   }
   ctx.globalAlpha = 1;
@@ -3569,12 +3096,7 @@ async function primeCaptureVehicleTextureSets(maxAnisotropy = 1) {
   await Promise.all(
     entries.map(async ([kind, assetId]) => {
       if (!assetId || CAPTURE_POLYHAVEN_TEXTURE_SETS.has(kind)) return;
-      const set = await loadPolyhavenTextureSet(
-        assetId,
-        textureLoader,
-        maxAnisotropy,
-        CAPTURE_POLYHAVEN_TEXTURE_CACHE
-      );
+      const set = await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, CAPTURE_POLYHAVEN_TEXTURE_CACHE);
       if (set) CAPTURE_POLYHAVEN_TEXTURE_SETS.set(kind, set);
     })
   );
@@ -3584,8 +3106,7 @@ function applyCaptureTextureToOpaqueMeshes(root, kind, toneSeed = null) {
   root.traverse((obj) => {
     if (!obj?.isMesh) return;
     const mat = obj.material;
-    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1)
-      return;
+    if (!mat || Array.isArray(mat) || mat.transparent || mat.opacity < 1) return;
     obj.material = createCaptureVehicleMaterial(kind, {
       toneSeed,
       color: mat.color ?? '#ffffff',
@@ -3604,25 +3125,15 @@ function extractVehicleSkinFromPiece(pieceMesh) {
     if (sampledMaterial || !node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     if (/head|top|cap|crown|finial|ball/.test(name)) return;
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     sampledMaterial = materials.find((mat) => mat?.color) || sampledMaterial;
   });
   if (!sampledMaterial) return null;
   return {
     map: sampledMaterial.map || null,
-    color: sampledMaterial.color
-      ? sampledMaterial.color.clone()
-      : new THREE.Color('#6c737b'),
-    roughness:
-      typeof sampledMaterial.roughness === 'number'
-        ? sampledMaterial.roughness
-        : 0.5,
-    metalness:
-      typeof sampledMaterial.metalness === 'number'
-        ? sampledMaterial.metalness
-        : 0.35
+    color: sampledMaterial.color ? sampledMaterial.color.clone() : new THREE.Color('#6c737b'),
+    roughness: typeof sampledMaterial.roughness === 'number' ? sampledMaterial.roughness : 0.5,
+    metalness: typeof sampledMaterial.metalness === 'number' ? sampledMaterial.metalness : 0.35
   };
 }
 
@@ -3630,9 +3141,7 @@ function applyVehicleSkinToModel(model, skin, exclude = () => false) {
   if (!model || !skin) return;
   model.traverse((node) => {
     if (!node?.isMesh || exclude(node)) return;
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     const skinned = materials.map((mat) => {
       if (!mat) return mat;
       const next = mat.clone();
@@ -3660,9 +3169,7 @@ function applyMilitaryJetLook(model, toneSeed = null, skin = null) {
   model.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((mat) => {
       if (!mat?.color) return;
       if (/cockpit|canopy|window|glass/.test(name)) {
@@ -3677,10 +3184,8 @@ function applyMilitaryJetLook(model, toneSeed = null, skin = null) {
         if ('roughness' in mat) mat.roughness = 0.24;
       } else {
         mat.color.offsetHSL(-0.03, -0.18, -0.12);
-        if ('metalness' in mat)
-          mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
-        if ('roughness' in mat)
-          mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
+        if ('metalness' in mat) mat.metalness = Math.min(0.75, (mat.metalness ?? 0.25) + 0.2);
+        if ('roughness' in mat) mat.roughness = Math.max(0.32, (mat.roughness ?? 0.6) - 0.14);
       }
       mat.needsUpdate = true;
     });
@@ -3697,9 +3202,7 @@ function applyMilitaryDroneLook(model, propeller = null, toneSeed = null) {
       node === propeller ||
       node.parent === propeller ||
       /propell|rotor|blade|fan|motor/.test(name);
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((mat) => {
       if (!mat?.color) return;
       if (isPropellerMesh || /engine|exhaust|rear|tail/.test(name)) {
@@ -3722,26 +3225,17 @@ function applyMilitaryTruckLook(model, toneSeed = null) {
   model.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((mat) => {
       if (!mat?.color) return;
       const materialName = `${mat.name || ''}`.toLowerCase();
-      if (
-        /window|windshield|glass|cockpit/.test(name) ||
-        /window|glass/.test(materialName) ||
-        mat.transparent
-      ) {
+      if (/window|windshield|glass|cockpit/.test(name) || /window|glass/.test(materialName) || mat.transparent) {
         mat.color.setHex(0x050608);
         if ('metalness' in mat) mat.metalness = 0.58;
         if ('roughness' in mat) mat.roughness = 0.2;
         if ('transparent' in mat) mat.transparent = true;
         if ('opacity' in mat) mat.opacity = 0.95;
-      } else if (
-        /wheel|tire|tyre|rim/.test(name) ||
-        /wheel|tire|tyre|rim/.test(materialName)
-      ) {
+      } else if (/wheel|tire|tyre|rim/.test(name) || /wheel|tire|tyre|rim/.test(materialName)) {
         mat.color.setHex(0x080808);
         if ('metalness' in mat) mat.metalness = 0.2;
         if ('roughness' in mat) mat.roughness = 0.82;
@@ -3775,10 +3269,8 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
 function decodeGlb(buffer) {
   const view = new DataView(buffer);
   if (view.byteLength < 20) throw new Error('GLB too small to parse');
-  if (view.getUint32(0, true) !== GLB_MAGIC)
-    throw new Error('Asset is not a GLB file');
-  if (view.getUint32(4, true) !== GLB_VERSION)
-    throw new Error('Unsupported GLB version');
+  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Asset is not a GLB file');
+  if (view.getUint32(4, true) !== GLB_VERSION) throw new Error('Unsupported GLB version');
 
   const totalLength = view.getUint32(8, true);
   const bytes = new Uint8Array(buffer, 0, totalLength);
@@ -3820,8 +3312,7 @@ function createMinimalGlbBuffer(json, binChunk) {
     paddedBin.set(binChunk);
   }
 
-  const totalLength =
-    12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
+  const totalLength = 12 + 8 + paddedJson.length + (paddedBin ? 8 + paddedBin.length : 0);
   const buffer = new ArrayBuffer(totalLength);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -3898,10 +3389,8 @@ function parseObjectFromBuffer(loader, buffer) {
 async function blobToDataUri(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () =>
-      resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () =>
-      reject(new Error('Failed to convert blob to data URI'));
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Failed to convert blob to data URI'));
     reader.readAsDataURL(blob);
   });
 }
@@ -3923,23 +3412,14 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(
-  imageUri,
-  kind,
-  sourceUrl,
-  modelUrls,
-  cache
-) {
+async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
     fighter: ['#98a1a9', '#646d76']
   };
-  const [primary, secondary] = placeholderColors[kind] ?? [
-    '#6e7681',
-    '#4f5861'
-  ];
+  const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
   const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
   for (const candidate of candidates) {
@@ -3962,13 +3442,7 @@ async function resolveExternalImageToDataUri(
   return placeholderDataUri;
 }
 
-async function patchGlbImagesToDataUris(
-  buffer,
-  kind,
-  sourceUrl,
-  modelUrls,
-  cache
-) {
+async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -3978,13 +3452,7 @@ async function patchGlbImagesToDataUris(
     const image = images[i];
     if (typeof image.uri === 'string') {
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(
-        image.uri,
-        kind,
-        sourceUrl,
-        modelUrls,
-        cache
-      );
+      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
@@ -3992,8 +3460,7 @@ async function patchGlbImagesToDataUris(
     if (typeof image.bufferView === 'number') {
       const bytes = extractBufferViewBytes(cloned, binChunk, image.bufferView);
       if (bytes?.length) {
-        const mimeType =
-          typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
+        const mimeType = typeof image.mimeType === 'string' ? image.mimeType : 'image/png';
         image.uri = bytesToDataUri(bytes, mimeType);
         delete image.bufferView;
         image.mimeType = mimeType;
@@ -4011,10 +3478,7 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
     try {
       const isLocal = url.startsWith('/') || url.startsWith('./');
       const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
@@ -4023,14 +3487,8 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
         loader.load(resolvedUrl, resolve, undefined, reject);
       });
       if (gltf?.scene) {
-        gltf.userData = {
-          ...(gltf.userData || {}),
-          beautifulGameSource: isLocal ? 'local' : 'remote'
-        };
-        gltf.scene.userData = {
-          ...(gltf.scene.userData || {}),
-          beautifulGameSource: gltf.userData.beautifulGameSource
-        };
+        gltf.userData = { ...(gltf.userData || {}), beautifulGameSource: isLocal ? 'local' : 'remote' };
+        gltf.scene.userData = { ...(gltf.scene.userData || {}), beautifulGameSource: gltf.userData.beautifulGameSource };
       }
       return gltf;
     } catch (error) {
@@ -4042,10 +3500,7 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
 }
 
 async function loadBeautifulGameTouchSet() {
-  return loadBeautifulGameSet([
-    ...BEAUTIFUL_GAME_TOUCH_URLS,
-    ...BEAUTIFUL_GAME_URLS
-  ]);
+  return loadBeautifulGameSet([...BEAUTIFUL_GAME_TOUCH_URLS, ...BEAUTIFUL_GAME_URLS]);
 }
 
 async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
@@ -4060,10 +3515,7 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
   for (const url of urls) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(
-        0,
-        resolvedUrl.lastIndexOf('/') + 1
-      );
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
@@ -4084,15 +3536,9 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
 
 async function resolveTextureSet(definition = {}) {
   const [map, roughnessMap, normalMap] = await Promise.all([
-    definition.colorMap
-      ? loadTexture(definition.colorMap)
-      : Promise.resolve(null),
-    definition.roughnessMap
-      ? loadTexture(definition.roughnessMap)
-      : Promise.resolve(null),
-    definition.normalMap
-      ? loadTexture(definition.normalMap)
-      : Promise.resolve(null)
+    definition.colorMap ? loadTexture(definition.colorMap) : Promise.resolve(null),
+    definition.roughnessMap ? loadTexture(definition.roughnessMap) : Promise.resolve(null),
+    definition.normalMap ? loadTexture(definition.normalMap) : Promise.resolve(null)
   ]);
   return {
     map,
@@ -4102,14 +3548,8 @@ async function resolveTextureSet(definition = {}) {
   };
 }
 
-function applyTextureSetToMaterial(
-  baseMaterial,
-  textureSet,
-  { tint, roughness, metalness } = {}
-) {
-  const material = baseMaterial?.clone
-    ? baseMaterial.clone()
-    : new THREE.MeshPhysicalMaterial();
+function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
+  const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
   if (textureSet.map) {
     material.map = textureSet.map;
     material.map.repeat.set(textureSet.repeat, textureSet.repeat);
@@ -4150,9 +3590,7 @@ async function applyTextureProfileToAssets(assets, profile) {
           applyTextureSetToMaterial(mat, textureSet, { tint: tintColor })
         );
       } else {
-        child.material = applyTextureSetToMaterial(child.material, textureSet, {
-          tint: tintColor
-        });
+        child.material = applyTextureSetToMaterial(child.material, textureSet, { tint: tintColor });
       }
       child.castShadow = true;
       child.receiveShadow = true;
@@ -4171,14 +3609,7 @@ async function applyTextureProfileToAssets(assets, profile) {
 
 function stripMaterialTextures(material) {
   if (!material) return;
-  [
-    'map',
-    'normalMap',
-    'roughnessMap',
-    'metalnessMap',
-    'aoMap',
-    'emissiveMap'
-  ].forEach((key) => {
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((key) => {
     if (material[key]) {
       material[key] = null;
     }
@@ -4278,15 +3709,8 @@ function applyLocalBeautifulGameMaterials(assets) {
         if (!child?.isMesh) return;
         const name = child.name?.toLowerCase?.() ?? '';
         const useAccent =
-          name.includes('collar') ||
-          name.includes('crown') ||
-          name.includes('cross') ||
-          name.includes('ring');
-        child.material = (
-          useAccent
-            ? makeAccentMaterial(accentColor)
-            : makeGlassMaterial(baseColor)
-        ).clone();
+          name.includes('collar') || name.includes('crown') || name.includes('cross') || name.includes('ring');
+        child.material = (useAccent ? makeAccentMaterial(accentColor) : makeGlassMaterial(baseColor)).clone();
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -4296,16 +3720,12 @@ function applyLocalBeautifulGameMaterials(assets) {
   applyPieces(
     piecePrototypes?.white,
     BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
-      BEAUTIFUL_GAME_PIECE_STYLE.accent ??
-      '#caa472'
+    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
   );
   applyPieces(
     piecePrototypes?.black,
     BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ??
-      BEAUTIFUL_GAME_PIECE_STYLE.accent ??
-      '#b58f4f'
+    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
   );
 
   return assets;
@@ -4329,12 +3749,8 @@ function isGoldCandidateMaterial(material) {
   if (!material) return false;
   const name = `${material.name || ''}`.toLowerCase();
   if (/gold|crown|ring|band|trim/.test(name)) return true;
-  const metalness = Number.isFinite(material.metalness)
-    ? material.metalness
-    : 0;
-  const roughness = Number.isFinite(material.roughness)
-    ? material.roughness
-    : 1;
+  const metalness = Number.isFinite(material.metalness) ? material.metalness : 0;
+  const roughness = Number.isFinite(material.roughness) ? material.roughness : 1;
   const color = material.color;
   if (!color) return false;
   const hsl = { h: 0, s: 0, l: 0 };
@@ -4348,10 +3764,8 @@ function captureBeautifulGameGoldSignatures(piecePrototypes) {
   const updatePieceBands = (pieceType, band) => {
     const normalizedPieceType = normalizePieceType(pieceType);
     if (!normalizedPieceType || !band) return;
-    const current =
-      BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(normalizedPieceType) || [];
-    const shouldMerge = (a, b) =>
-      Math.min(a.max, b.max) - Math.max(a.min, b.min) >= -0.05;
+    const current = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(normalizedPieceType) || [];
+    const shouldMerge = (a, b) => Math.min(a.max, b.max) - Math.max(a.min, b.min) >= -0.05;
     let merged = false;
     for (let i = 0; i < current.length; i += 1) {
       if (!shouldMerge(current[i], band)) continue;
@@ -4367,34 +3781,28 @@ function captureBeautifulGameGoldSignatures(piecePrototypes) {
   };
 
   ['white', 'black'].forEach((side) => {
-    Object.entries(piecePrototypes?.[side] || {}).forEach(
-      ([pieceType, piece]) => {
-        const pieceBox = new THREE.Box3().setFromObject(piece);
-        const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
-        piece?.traverse?.((child) => {
-          if (!child?.isMesh) return;
-          const materials = Array.isArray(child.material)
-            ? child.material
-            : [child.material];
-          if (!materials.some((mat) => isGoldCandidateMaterial(mat))) return;
-          BEAUTIFUL_GAME_GOLD_SIGNATURES.add(meshSignature(child, pieceType));
-          const box = new THREE.Box3().setFromObject(child);
-          const band = {
-            min: clamp01((box.min.y - pieceBox.min.y) / pieceHeight, 0),
-            max: clamp01((box.max.y - pieceBox.min.y) / pieceHeight, 1)
-          };
-          updatePieceBands(pieceType, band);
-        });
-      }
-    );
+    Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
+      const pieceBox = new THREE.Box3().setFromObject(piece);
+      const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
+      piece?.traverse?.((child) => {
+        if (!child?.isMesh) return;
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        if (!materials.some((mat) => isGoldCandidateMaterial(mat))) return;
+        BEAUTIFUL_GAME_GOLD_SIGNATURES.add(meshSignature(child, pieceType));
+        const box = new THREE.Box3().setFromObject(child);
+        const band = {
+          min: clamp01((box.min.y - pieceBox.min.y) / pieceHeight, 0),
+          max: clamp01((box.max.y - pieceBox.min.y) / pieceHeight, 1)
+        };
+        updatePieceBands(pieceType, band);
+      });
+    });
   });
 }
 
 function isInsideReferenceGoldBand(child, piece, pieceType) {
   if (!piece || !pieceType) return false;
-  const bands = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(
-    `${pieceType}`.toLowerCase()
-  );
+  const bands = BEAUTIFUL_GAME_GOLD_HEIGHT_BANDS.get(`${pieceType}`.toLowerCase());
   if (!Array.isArray(bands) || !bands.length) return false;
   const pieceBox = new THREE.Box3().setFromObject(piece);
   const pieceHeight = Math.max(1e-6, pieceBox.max.y - pieceBox.min.y);
@@ -4403,46 +3811,23 @@ function isInsideReferenceGoldBand(child, piece, pieceType) {
     min: clamp01((box.min.y - pieceBox.min.y) / pieceHeight, 0),
     max: clamp01((box.max.y - pieceBox.min.y) / pieceHeight, 1)
   };
-  return bands.some(
-    (band) =>
-      Math.min(band.max, testBand.max) - Math.max(band.min, testBand.min) >=
-      0.02
-  );
+  return bands.some((band) => Math.min(band.max, testBand.max) - Math.max(band.min, testBand.min) >= 0.02);
 }
 
-function forceBeautifulGameGoldParts(
-  mesh,
-  colorKey = 'white',
-  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE
-) {
+function forceBeautifulGameGoldParts(mesh, colorKey = 'white', pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!mesh) return;
   const goldAccent = pieceStyle?.goldAccent || '#d4af37';
   const accentFallback =
     colorKey === 'black'
-      ? pieceStyle?.blackAccent?.color ||
-        pieceStyle?.blackAccent ||
-        pieceStyle?.accent
-      : pieceStyle?.whiteAccent?.color ||
-        pieceStyle?.whiteAccent ||
-        pieceStyle?.accent;
+      ? pieceStyle?.blackAccent?.color || pieceStyle?.blackAccent || pieceStyle?.accent
+      : pieceStyle?.whiteAccent?.color || pieceStyle?.whiteAccent || pieceStyle?.accent;
   const accentColor = goldAccent || accentFallback || '#d4af37';
   const pieceType =
-    (
-      mesh?.userData?.__pieceType ||
-      mesh?.userData?.t ||
-      mesh?.userData?.type ||
-      ''
-    )
-      .toString()
-      .toUpperCase() || '';
+    (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '').toString().toUpperCase() || '';
   mesh.traverse((child) => {
     if (!child?.isMesh) return;
     const name = child.name?.toLowerCase?.() ?? '';
-    const referenceBandMatch = isInsideReferenceGoldBand(
-      child,
-      mesh,
-      pieceType
-    );
+    const referenceBandMatch = isInsideReferenceGoldBand(child, mesh, pieceType);
     const shouldAccent =
       child.userData?.__abgGold ||
       referenceBandMatch ||
@@ -4453,9 +3838,7 @@ function forceBeautifulGameGoldParts(
       name.includes('band') ||
       name.includes('rim');
     if (!shouldAccent) return;
-    const mats = Array.isArray(child.material)
-      ? child.material
-      : [child.material];
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
       if (mat.color?.set) {
@@ -4465,8 +3848,7 @@ function forceBeautifulGameGoldParts(
       }
       mat.metalness = clamp01((mat.metalness ?? 0.35) + 0.22);
       mat.roughness = clamp01((mat.roughness ?? 0.34) * 0.7);
-      if (Number.isFinite(mat.clearcoat))
-        mat.clearcoat = clamp01(Math.max(mat.clearcoat, 0.42));
+      if (Number.isFinite(mat.clearcoat)) mat.clearcoat = clamp01(Math.max(mat.clearcoat, 0.42));
       if (Number.isFinite(mat.clearcoatRoughness)) {
         mat.clearcoatRoughness = clamp01(Math.min(mat.clearcoatRoughness, 0.2));
       }
@@ -4476,28 +3858,19 @@ function forceBeautifulGameGoldParts(
 
 function markBeautifulGameGoldMeshes(piecePrototypes) {
   ['white', 'black'].forEach((side) => {
-    Object.entries(piecePrototypes?.[side] || {}).forEach(
-      ([pieceType, piece]) => {
-        piece?.traverse?.((child) => {
-          if (!child?.isMesh) return;
-          const nameHint = /(gold|crown|ring|band|trim)/i.test(
-            child.name || ''
-          );
-          const matchesReference = BEAUTIFUL_GAME_GOLD_SIGNATURES.has(
-            meshSignature(child, pieceType)
-          );
-          if (!nameHint && !matchesReference) return;
-          child.userData = { ...(child.userData || {}), __abgGold: true };
-        });
-      }
-    );
+    Object.entries(piecePrototypes?.[side] || {}).forEach(([pieceType, piece]) => {
+      piece?.traverse?.((child) => {
+        if (!child?.isMesh) return;
+        const nameHint = /(gold|crown|ring|band|trim)/i.test(child.name || '');
+        const matchesReference = BEAUTIFUL_GAME_GOLD_SIGNATURES.has(meshSignature(child, pieceType));
+        if (!nameHint && !matchesReference) return;
+        child.userData = { ...(child.userData || {}), __abgGold: true };
+      });
+    });
   });
 }
 
-function harmonizeBeautifulGamePieces(
-  piecePrototypes,
-  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE
-) {
+function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
   if (pieceStyle?.preserveOriginalMaterials) {
     ['white', 'black'].forEach((colorKey) => {
@@ -4515,38 +3888,27 @@ function harmonizeBeautifulGamePieces(
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ??
-    pieceStyle.accent ??
-    BEAUTIFUL_GAME_THEME.accent;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
   const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
-    if (Number.isFinite(config.roughness))
-      material.roughness = clamp01(config.roughness);
-    if (Number.isFinite(config.metalness))
-      material.metalness = clamp01(config.metalness);
-    if (Number.isFinite(config.clearcoat))
-      material.clearcoat = clamp01(config.clearcoat);
-    if (Number.isFinite(config.clearcoatRoughness))
-      material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
     if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
-    if (config.sheenColor)
-      material.sheenColor = new THREE.Color(config.sheenColor);
-    if (Number.isFinite(config.specularIntensity))
-      material.specularIntensity = clamp01(config.specularIntensity);
+    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
   };
 
   const applyColor = (piece, colorHex) => {
     if (!piece) return;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
@@ -4555,10 +3917,7 @@ function harmonizeBeautifulGamePieces(
         }
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
-        applySurface(
-          applied,
-          colorHex === lightColor ? pieceStyle.white : pieceStyle.black
-        );
+        applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -4572,9 +3931,7 @@ function harmonizeBeautifulGamePieces(
 
   ['white', 'black'].forEach((colorKey) => {
     const targetColor = colorKey === 'white' ? lightColor : darkColor;
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) =>
-      applyColor(piece, targetColor)
-    );
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
   });
 
   const accentize = (piece, colorKey, pieceType) => {
@@ -4583,11 +3940,7 @@ function harmonizeBeautifulGamePieces(
     piece.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
-      const referenceBandMatch = isInsideReferenceGoldBand(
-        child,
-        piece,
-        pieceType
-      );
+      const referenceBandMatch = isInsideReferenceGoldBand(child, piece, pieceType);
       const shouldAccent =
         child.userData?.__abgGold ||
         referenceBandMatch ||
@@ -4601,20 +3954,15 @@ function harmonizeBeautifulGamePieces(
       if (referenceBandMatch) {
         child.userData = { ...(child.userData || {}), __abgGold: true };
       }
-      const mats = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
-      mats.forEach((mat, idx) => {
-        if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
-        if (shouldStripTextures) {
-          stripMaterialTextures(applied);
-        }
-        const accentColor =
-          goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
-        applied.color = new THREE.Color(
-          accentColor || darkAccent || accentLight
-        );
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach((mat, idx) => {
+          if (!mat) return;
+          const applied = mat.clone ? mat.clone() : mat;
+          if (shouldStripTextures) {
+            stripMaterialTextures(applied);
+          }
+          const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+          applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
@@ -4633,8 +3981,8 @@ function harmonizeBeautifulGamePieces(
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.entries(piecePrototypes[colorKey] || {}).forEach(
-      ([pieceType, piece]) => accentize(piece, colorKey, pieceType)
+    Object.entries(piecePrototypes[colorKey] || {}).forEach(([pieceType, piece]) =>
+      accentize(piece, colorKey, pieceType)
     );
   });
   ['white', 'black'].forEach((colorKey) => {
@@ -4644,10 +3992,7 @@ function harmonizeBeautifulGamePieces(
   });
 }
 
-function applyBeautifulGameStyleToMeshes(
-  meshes,
-  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE
-) {
+function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
   if (pieceStyle?.preserveOriginalMaterials) {
@@ -4658,37 +4003,27 @@ function applyBeautifulGameStyleToMeshes(
           child.receiveShadow = true;
         }
       });
-      const colorKey =
-        mesh?.userData?.__pieceColor === 'black' ? 'black' : 'white';
+      const colorKey = mesh?.userData?.__pieceColor === 'black' ? 'black' : 'white';
       forceBeautifulGameGoldParts(mesh, colorKey, pieceStyle);
     });
     return;
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ??
-    pieceStyle.accent ??
-    BEAUTIFUL_GAME_THEME.accent;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
   const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
-    if (Number.isFinite(config.roughness))
-      material.roughness = clamp01(config.roughness);
-    if (Number.isFinite(config.metalness))
-      material.metalness = clamp01(config.metalness);
-    if (Number.isFinite(config.clearcoat))
-      material.clearcoat = clamp01(config.clearcoat);
-    if (Number.isFinite(config.clearcoatRoughness))
-      material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
     if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
-    if (config.sheenColor)
-      material.sheenColor = new THREE.Color(config.sheenColor);
-    if (Number.isFinite(config.specularIntensity))
-      material.specularIntensity = clamp01(config.specularIntensity);
+    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
     if (config.emissive) {
       material.emissive = new THREE.Color(config.emissive);
       if (Number.isFinite(config.emissiveIntensity)) {
@@ -4701,9 +4036,7 @@ function applyBeautifulGameStyleToMeshes(
     const targetColor = colorKey === 'black' ? darkColor : lightColor;
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (shouldStripTextures) {
@@ -4714,10 +4047,7 @@ function applyBeautifulGameStyleToMeshes(
         } else {
           mat.color = new THREE.Color(targetColor);
         }
-        applySurface(
-          mat,
-          colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {}
-        );
+        applySurface(mat, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -4726,24 +4056,12 @@ function applyBeautifulGameStyleToMeshes(
 
   const accentize = (mesh, colorKey) => {
     const pieceType =
-      (
-        mesh?.userData?.__pieceType ||
-        mesh?.userData?.t ||
-        mesh?.userData?.type ||
-        ''
-      )
-        .toString()
-        .toUpperCase() || '';
-    const accentColor =
-      goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+      (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '').toString().toUpperCase() || '';
+    const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
-      const referenceBandMatch = isInsideReferenceGoldBand(
-        child,
-        mesh,
-        pieceType
-      );
+      const referenceBandMatch = isInsideReferenceGoldBand(child, mesh, pieceType);
       const shouldAccent =
         child.userData?.__abgGold ||
         referenceBandMatch ||
@@ -4757,9 +4075,7 @@ function applyBeautifulGameStyleToMeshes(
       if (referenceBandMatch) {
         child.userData = { ...(child.userData || {}), __abgGold: true };
       }
-      const mats = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (shouldStripTextures) {
@@ -4784,8 +4100,7 @@ function applyBeautifulGameStyleToMeshes(
 
   list.forEach((mesh) => {
     if (!mesh) return;
-    const colorKey =
-      mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
+    const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
     recolorMesh(mesh, colorKey);
     accentize(mesh, colorKey);
     forceBeautifulGameGoldParts(mesh, colorKey, pieceStyle);
@@ -4835,29 +4150,20 @@ function applyHeadPresetToMeshes(meshes, preset) {
   const baseMaterial = makeHeadMaterial(preset);
   if (!baseMaterial) return;
   list.forEach((mesh) => {
-    const type = (
-      mesh?.userData?.__pieceType ||
-      mesh?.userData?.t ||
-      mesh?.userData?.type ||
-      ''
-    )
+    const type = (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '')
       .toString()
       .toUpperCase();
     if (type !== 'P' && type !== 'B') return;
     const heads = collectHeadMeshes(mesh);
     heads.forEach((head) => {
-      const mats = Array.isArray(head.material)
-        ? head.material
-        : [head.material];
+      const mats = Array.isArray(head.material) ? head.material : [head.material];
       mats.forEach((mat) => {
         if (!mat) return;
         if (mat.color?.set) {
           mat.color.set(baseMaterial.color);
         }
-        if ('metalness' in mat)
-          mat.metalness = clamp01(baseMaterial.metalness ?? 0);
-        if ('roughness' in mat)
-          mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
+        if ('metalness' in mat) mat.metalness = clamp01(baseMaterial.metalness ?? 0);
+        if ('roughness' in mat) mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
         mat.transparent = baseMaterial.transparent;
         mat.transmission = clamp01(baseMaterial.transmission ?? 0);
         mat.ior = baseMaterial.ior ?? 1.5;
@@ -4876,9 +4182,7 @@ function applyHeadPresetToPrototypes(piecePrototypes, preset) {
   if (!piecePrototypes || !preset) return;
   const list = [];
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) =>
-      list.push(proto)
-    );
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => list.push(proto));
   });
   applyHeadPresetToMeshes(list, preset);
 }
@@ -4897,9 +4201,7 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) =>
-      markShadowed(proto, colorKey)
-    );
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => markShadowed(proto, colorKey));
   });
 }
 
@@ -4992,10 +4294,7 @@ function makeSmoothMaterial(color, options = {}) {
   });
 }
 
-function makePieceMaterialFromStyle(
-  style = {},
-  { color, flatShading = false } = {}
-) {
+function makePieceMaterialFromStyle(style = {}, { color, flatShading = false } = {}) {
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(color ?? style.color ?? '#ffffff'),
     roughness: clamp01(style.roughness ?? 0.35),
@@ -5047,9 +4346,7 @@ function detectColorFromMaterialNames(node) {
 
   node.traverse((child) => {
     if (detected || !child?.isMesh) return;
-    const materials = Array.isArray(child.material)
-      ? child.material
-      : [child.material];
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
     for (const mat of materials) {
       const matName = (mat?.name || '').toString();
       if (MATERIAL_W.test(matName)) {
@@ -5109,10 +4406,7 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
       new THREE.Vector2(collarRadius * 0.65, collarHeight * 0.7),
       new THREE.Vector2(collarRadius * 0.4, collarHeight)
     ]),
-    makeSmoothMaterial(accentHex ?? colorHex, {
-      roughness: 0.24,
-      metalness: 0.22
-    })
+    makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.22 })
   );
 
   if (type === 'P') {
@@ -5130,18 +4424,8 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     body.position.y = baseHeight;
     g.add(body);
     const crenel = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.26 * scale,
-        0.28 * scale,
-        0.22 * scale,
-        32,
-        1,
-        false
-      ),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.24,
-        metalness: 0.26
-      })
+      new THREE.CylinderGeometry(0.26 * scale, 0.28 * scale, 0.22 * scale, 32, 1, false),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.26 })
     );
     crenel.position.y = baseHeight + bodyHeight * 0.72 + 0.1 * scale;
     g.add(crenel);
@@ -5151,36 +4435,11 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     g.add(body);
     const shape = new THREE.Shape();
     shape.moveTo(0, 0);
-    shape.quadraticCurveTo(
-      0.05 * scale,
-      0.1 * scale,
-      -0.02 * scale,
-      0.22 * scale
-    );
-    shape.quadraticCurveTo(
-      -0.08 * scale,
-      0.35 * scale,
-      0.05 * scale,
-      0.48 * scale
-    );
-    shape.quadraticCurveTo(
-      0.25 * scale,
-      0.72 * scale,
-      0.12 * scale,
-      0.9 * scale
-    );
-    shape.quadraticCurveTo(
-      0.02 * scale,
-      1.05 * scale,
-      -0.06 * scale,
-      0.88 * scale
-    );
-    shape.quadraticCurveTo(
-      -0.18 * scale,
-      0.65 * scale,
-      -0.12 * scale,
-      0.35 * scale
-    );
+    shape.quadraticCurveTo(0.05 * scale, 0.1 * scale, -0.02 * scale, 0.22 * scale);
+    shape.quadraticCurveTo(-0.08 * scale, 0.35 * scale, 0.05 * scale, 0.48 * scale);
+    shape.quadraticCurveTo(0.25 * scale, 0.72 * scale, 0.12 * scale, 0.9 * scale);
+    shape.quadraticCurveTo(0.02 * scale, 1.05 * scale, -0.06 * scale, 0.88 * scale);
+    shape.quadraticCurveTo(-0.18 * scale, 0.65 * scale, -0.12 * scale, 0.35 * scale);
     shape.quadraticCurveTo(-0.2 * scale, 0.1 * scale, 0, 0);
     const geo = new THREE.ExtrudeGeometry(shape, {
       depth: 0.22 * scale,
@@ -5190,10 +4449,7 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
       bevelSegments: 4
     });
     geo.translate(-0.12 * scale, 0, -0.1 * scale);
-    const head = new THREE.Mesh(
-      geo,
-      makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 })
-    );
+    const head = new THREE.Mesh(geo, makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 }));
     head.rotation.y = Math.PI / 2;
     head.position.y = baseHeight + bodyHeight * 0.55;
     g.add(head);
@@ -5218,18 +4474,12 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     const crown = new THREE.Group();
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(crownRadius, 0.05 * scale, 12, 32),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.22,
-        metalness: 0.24
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.22, metalness: 0.24 })
     );
     ring.rotation.x = Math.PI / 2;
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(0.1 * scale, 24, 16),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.18,
-        metalness: 0.26
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.26 })
     );
     orb.position.y = 0.16 * scale;
     crown.add(ring, orb);
@@ -5244,34 +4494,22 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
     const crown = new THREE.Group();
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(crownRadius * 1.05, 0.048 * scale, 12, 32),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.2,
-        metalness: 0.26
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.2, metalness: 0.26 })
     );
     ring.rotation.x = Math.PI / 2;
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(0.11 * scale, 24, 16),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.16,
-        metalness: 0.28
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.16, metalness: 0.28 })
     );
     orb.position.y = 0.18 * scale;
     const crossVert = new THREE.Mesh(
       new THREE.BoxGeometry(0.08 * scale, 0.36 * scale, 0.08 * scale),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.18,
-        metalness: 0.3
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
     );
     crossVert.position.y = 0.25 * scale;
     const crossHoriz = new THREE.Mesh(
       new THREE.BoxGeometry(0.32 * scale, 0.08 * scale, 0.08 * scale),
-      makeSmoothMaterial(accentHex ?? colorHex, {
-        roughness: 0.18,
-        metalness: 0.3
-      })
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
     );
     crossHoriz.position.y = 0.35 * scale;
     crown.add(ring, orb, crossVert, crossHoriz);
@@ -5294,10 +4532,7 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   return g;
 }
 
-function buildBeautifulGameFallback(
-  targetBoardSize,
-  boardTheme = BEAUTIFUL_GAME_THEME
-) {
+function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
   const boardModel = new THREE.Group();
   boardModel.name = 'ABeautifulGameLocal';
   const tile = BOARD.tile;
@@ -5310,15 +4545,9 @@ function buildBeautifulGameFallback(
       targetBoardSize || N * tile + BOARD.rim * 2
     ),
     new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(
-        boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark
-      ),
-      roughness: clamp01(
-        boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness
-      ),
-      metalness: clamp01(
-        boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness
-      ),
+      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
       clearcoat: 0,
       reflectivity: 0
     })
@@ -5326,21 +4555,11 @@ function buildBeautifulGameFallback(
   base.position.y = BOARD.baseH * 0.5;
   boardModel.add(base);
   const top = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      N * tile + BOARD.rim * 1.2,
-      0.14,
-      N * tile + BOARD.rim * 1.2
-    ),
+    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
     new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(
-        boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight
-      ),
-      roughness: clamp01(
-        boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness
-      ),
-      metalness: clamp01(
-        boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness
-      ),
+      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
       clearcoat: 0,
       reflectivity: 0
     })
@@ -5355,25 +4574,14 @@ function buildBeautifulGameFallback(
       const isDark = (r + c) % 2 === 1;
       const mat = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
-        roughness: clamp01(
-          boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness
-        ),
-        metalness: clamp01(
-          boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness
-        ),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
         clearcoat: 0,
         reflectivity: 0,
         specularIntensity: 0.18
       });
-      const tileMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(tile, 0.06, tile),
-        mat
-      );
-      tileMesh.position.set(
-        c * tile - half + tile / 2,
-        BOARD.baseH + 0.12,
-        r * tile - half + tile / 2
-      );
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
+      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
       tiles.add(tileMesh);
     }
   }
@@ -5382,103 +4590,29 @@ function buildBeautifulGameFallback(
   const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
   const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
   const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
-  const accentLight =
-    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
-    '#d4af78';
-  const accentDark =
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ??
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
-    accentLight;
-  piecePrototypes.white.P = buildBeautifulGamePiece(
-    'P',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.white.R = buildBeautifulGamePiece(
-    'R',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.white.N = buildBeautifulGamePiece(
-    'N',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.white.B = buildBeautifulGamePiece(
-    'B',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.white.Q = buildBeautifulGamePiece(
-    'Q',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.white.K = buildBeautifulGamePiece(
-    'K',
-    authenticWhite,
-    accentLight,
-    scale
-  );
-  piecePrototypes.black.P = buildBeautifulGamePiece(
-    'P',
-    authenticBlack,
-    accentDark,
-    scale
-  );
-  piecePrototypes.black.R = buildBeautifulGamePiece(
-    'R',
-    authenticBlack,
-    accentDark,
-    scale
-  );
-  piecePrototypes.black.N = buildBeautifulGamePiece(
-    'N',
-    authenticBlack,
-    accentDark,
-    scale
-  );
-  piecePrototypes.black.B = buildBeautifulGamePiece(
-    'B',
-    authenticBlack,
-    accentDark,
-    scale
-  );
-  piecePrototypes.black.Q = buildBeautifulGamePiece(
-    'Q',
-    authenticBlack,
-    accentDark,
-    scale
-  );
-  piecePrototypes.black.K = buildBeautifulGamePiece(
-    'K',
-    authenticBlack,
-    accentDark,
-    scale
-  );
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
 
   Object.entries(piecePrototypes).forEach(([, byColor]) => {
     Object.entries(byColor).forEach(([type, proto]) => {
-      proto.userData = {
-        ...(proto.userData || {}),
-        __pieceStyleId: 'beautifulGame',
-        __pieceType: type
-      };
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
       proto.traverse((child) => {
         if (!child.isMesh) return;
         child.castShadow = true;
         child.receiveShadow = true;
-        child.userData = {
-          ...(child.userData || {}),
-          __pieceStyleId: 'beautifulGame',
-          __pieceType: type
-        };
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
       });
     });
   });
@@ -5486,12 +4620,7 @@ function buildBeautifulGameFallback(
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
 
-  return {
-    boardModel,
-    piecePrototypes,
-    tileSize: tile,
-    pieceYOffset: boardTop + 0.02
-  };
+  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
@@ -5520,22 +4649,12 @@ function sculptLathe(points = [], segments = 96) {
   return new THREE.LatheGeometry(points, segments);
 }
 
-function buildSculptedPiece(
-  type,
-  materials = {},
-  scale = 1,
-  styleId = DEFAULT_PIECE_SET_ID
-) {
+function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_PIECE_SET_ID) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
 
-  const addMesh = (
-    geometry,
-    material = baseMat,
-    position = null,
-    rotation = null
-  ) => {
+  const addMesh = (geometry, material = baseMat, position = null, rotation = null) => {
     const mesh = new THREE.Mesh(geometry, material);
     if (position) mesh.position.copy(position);
     if (rotation) mesh.rotation.set(rotation.x, rotation.y, rotation.z);
@@ -5558,11 +4677,7 @@ function buildSculptedPiece(
       [0.0, 0.74]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(
-      new THREE.SphereGeometry(0.26, 28, 24),
-      accentMat,
-      new THREE.Vector3(0, 1.02, 0)
-    );
+    addMesh(new THREE.SphereGeometry(0.26, 28, 24), accentMat, new THREE.Vector3(0, 1.02, 0));
   } else if (type === 'R') {
     const profile = sculptProfile([
       [0, 0],
@@ -5578,16 +4693,8 @@ function buildSculptedPiece(
       [0, 0.94]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(
-      new THREE.CylinderGeometry(0.54, 0.54, 0.08, 28),
-      accentMat,
-      new THREE.Vector3(0, 1.02, 0)
-    );
-    addMesh(
-      new THREE.CylinderGeometry(0.62, 0.62, 0.1, 20, 1, true),
-      accentMat,
-      new THREE.Vector3(0, 1.1, 0)
-    );
+    addMesh(new THREE.CylinderGeometry(0.54, 0.54, 0.08, 28), accentMat, new THREE.Vector3(0, 1.02, 0));
+    addMesh(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 20, 1, true), accentMat, new THREE.Vector3(0, 1.1, 0));
   } else if (type === 'N') {
     const profile = sculptProfile([
       [0, 0],
@@ -5648,11 +4755,7 @@ function buildSculptedPiece(
       [0, 1.1]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    addMesh(
-      new THREE.SphereGeometry(0.22, 28, 22),
-      accentMat,
-      new THREE.Vector3(0, 1.28, 0)
-    );
+    addMesh(new THREE.SphereGeometry(0.22, 28, 22), accentMat, new THREE.Vector3(0, 1.28, 0));
   } else if (type === 'Q') {
     const profile = sculptProfile([
       [0, 0],
@@ -5668,17 +4771,10 @@ function buildSculptedPiece(
       [0, 1.26]
     ]);
     addMesh(sculptLathe(profile, 96), baseMat);
-    const crown = addMesh(
-      new THREE.TorusGeometry(0.34, 0.05, 12, 36),
-      accentMat
-    );
+    const crown = addMesh(new THREE.TorusGeometry(0.34, 0.05, 12, 36), accentMat);
     crown.rotation.x = Math.PI / 2;
     crown.position.y = 1.34;
-    addMesh(
-      new THREE.SphereGeometry(0.18, 24, 20),
-      accentMat,
-      new THREE.Vector3(0, 1.52, 0)
-    );
+    addMesh(new THREE.SphereGeometry(0.18, 24, 20), accentMat, new THREE.Vector3(0, 1.52, 0));
   } else if (type === 'K') {
     const profile = sculptProfile([
       [0, 0],
@@ -5697,16 +4793,8 @@ function buildSculptedPiece(
     const rim = addMesh(new THREE.TorusGeometry(0.36, 0.05, 12, 36), accentMat);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 1.44;
-    addMesh(
-      new THREE.BoxGeometry(0.06, 0.32, 0.06),
-      accentMat,
-      new THREE.Vector3(0, 1.66, 0)
-    );
-    addMesh(
-      new THREE.BoxGeometry(0.22, 0.06, 0.06),
-      accentMat,
-      new THREE.Vector3(0, 1.66, 0)
-    );
+    addMesh(new THREE.BoxGeometry(0.06, 0.32, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
+    addMesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
   }
 
   return finalizePrototype(g, scale, styleId);
@@ -5719,8 +4807,7 @@ function buildSculptedAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.6;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#60a5fa';
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#60a5fa';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
@@ -5731,42 +4818,12 @@ function buildSculptedAssets(
       base: makePieceMaterialFromStyle(colorStyle),
       accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
     };
-    piecePrototypes[colorKey].P = buildSculptedPiece(
-      'P',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].R = buildSculptedPiece(
-      'R',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].N = buildSculptedPiece(
-      'N',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].B = buildSculptedPiece(
-      'B',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].Q = buildSculptedPiece(
-      'Q',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].K = buildSculptedPiece(
-      'K',
-      materials,
-      scale,
-      styleId
-    );
+    piecePrototypes[colorKey].P = buildSculptedPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildSculptedPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildSculptedPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildSculptedPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildSculptedPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildSculptedPiece('K', materials, scale, styleId);
   };
 
   buildForColor('white', accentLight);
@@ -5775,12 +4832,7 @@ function buildSculptedAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildStauntonPiece(
-  type,
-  materials = {},
-  scale = 1,
-  styleId = 'stauntonClassic'
-) {
+function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'stauntonClassic') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -5821,10 +4873,7 @@ function buildStauntonPiece(
 
   if (type === 'P') {
     g.add(body);
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.24, 28, 24),
-      accentMat
-    );
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 28, 24), accentMat);
     head.position.y = 1.72;
     g.add(head);
   } else if (type === 'R') {
@@ -5836,10 +4885,7 @@ function buildStauntonPiece(
     crenel.position.y = 1.75;
     const grooves = new THREE.Group();
     for (let i = 0; i < 4; i += 1) {
-      const notch = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.26, 0.18),
-        baseMat
-      );
+      const notch = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.26, 0.18), baseMat);
       const angle = (i * Math.PI) / 2;
       notch.position.set(Math.cos(angle) * 0.28, 1.9, Math.sin(angle) * 0.28);
       grooves.add(notch);
@@ -5849,10 +4895,7 @@ function buildStauntonPiece(
     const torso = body.clone();
     torso.scale.set(1.05, 0.9, 1.05);
     g.add(torso);
-    const neck = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.32, 0.28, 0.26, 24),
-      baseMat
-    );
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.26, 24), baseMat);
     neck.position.y = 1.6;
     const headShape = new THREE.Shape();
     headShape.moveTo(0, 0);
@@ -5873,80 +4916,50 @@ function buildStauntonPiece(
     );
     head.rotation.y = Math.PI / 2;
     head.position.set(-0.12, 1.68, -0.18);
-    const ear = new THREE.Mesh(
-      new THREE.ConeGeometry(0.08, 0.16, 12),
-      accentMat
-    );
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 12), accentMat);
     ear.position.set(-0.02, 2.05, 0.0);
     g.add(torso, neck, head, ear);
   } else if (type === 'B') {
     const mid = body.clone();
     mid.scale.set(0.96, 1.08, 0.96);
     g.add(mid);
-    const collar = new THREE.Mesh(
-      new THREE.TorusGeometry(0.4, 0.06, 14, 32),
-      accentMat
-    );
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 14, 32), accentMat);
     collar.rotation.x = Math.PI / 2;
     collar.position.y = 1.58;
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 26, 22), baseMat);
     cap.position.y = 1.78;
-    const slit = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.38, 0.12),
-      accentMat
-    );
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.12), accentMat);
     slit.position.y = 1.9;
     g.add(mid, collar, cap, slit);
   } else if (type === 'Q') {
     const tall = body.clone();
     tall.scale.set(1.08, 1.2, 1.08);
     g.add(tall);
-    const crownRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.46, 0.06, 12, 28),
-      accentMat
-    );
+    const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.06, 12, 28), accentMat);
     crownRing.rotation.x = Math.PI / 2;
     crownRing.position.y = 1.9;
     const spikes = new THREE.Group();
     for (let i = 0; i < 6; i += 1) {
-      const spike = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.32, 10),
-        accentMat
-      );
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 10), accentMat);
       const angle = (i * Math.PI * 2) / 6;
       spike.position.set(Math.cos(angle) * 0.38, 2.06, Math.sin(angle) * 0.38);
       spikes.add(spike);
     }
-    const orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 18, 14),
-      accentMat
-    );
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 14), accentMat);
     orb.position.y = 2.25;
     g.add(tall, crownRing, spikes, orb);
   } else if (type === 'K') {
     const pillar = body.clone();
     pillar.scale.set(1.12, 1.25, 1.12);
     g.add(pillar);
-    const collar = new THREE.Mesh(
-      new THREE.TorusGeometry(0.48, 0.06, 16, 32),
-      accentMat
-    );
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.06, 16, 32), accentMat);
     collar.rotation.x = Math.PI / 2;
     collar.position.y = 1.9;
-    const orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 20, 16),
-      accentMat
-    );
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), accentMat);
     orb.position.y = 2.18;
-    const crossV = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.42, 0.08),
-      accentMat
-    );
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.08), accentMat);
     crossV.position.y = 2.42;
-    const crossH = new THREE.Mesh(
-      new THREE.BoxGeometry(0.32, 0.08, 0.08),
-      accentMat
-    );
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.08), accentMat);
     crossH.position.y = 2.42;
     g.add(pillar, collar, orb, crossV, crossH);
   }
@@ -5961,8 +4974,7 @@ function buildStauntonFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.08;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d8b07a';
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d8b07a';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
@@ -5973,42 +4985,12 @@ function buildStauntonFallbackAssets(
       base: makePieceMaterialFromStyle(colorStyle),
       accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
     };
-    piecePrototypes[colorKey].P = buildStauntonPiece(
-      'P',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].R = buildStauntonPiece(
-      'R',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].N = buildStauntonPiece(
-      'N',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].B = buildStauntonPiece(
-      'B',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].Q = buildStauntonPiece(
-      'Q',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].K = buildStauntonPiece(
-      'K',
-      materials,
-      scale,
-      styleId
-    );
+    piecePrototypes[colorKey].P = buildStauntonPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildStauntonPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildStauntonPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildStauntonPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildStauntonPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildStauntonPiece('K', materials, scale, styleId);
   };
 
   buildForColor('white', accentLight);
@@ -6017,12 +4999,7 @@ function buildStauntonFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildKenneyPiece(
-  type,
-  materials = {},
-  scale = 1,
-  styleId = 'kenneyWood'
-) {
+function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -6030,101 +5007,56 @@ function buildKenneyPiece(
   slab.position.y = 0.14;
   g.add(slab);
 
-  const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.42, 0.52, 1.15, 14, 1),
-    baseMat
-  );
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 1.15, 14, 1), baseMat);
   pillar.position.y = 0.86;
 
   if (type === 'P') {
     g.add(pillar);
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.32, 14, 10),
-      accentMat
-    );
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), accentMat);
     head.position.y = 1.52;
     g.add(head);
   } else if (type === 'R') {
     g.add(pillar);
-    const crown = new THREE.Mesh(
-      new THREE.BoxGeometry(0.9, 0.36, 0.9),
-      accentMat
-    );
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.36, 0.9), accentMat);
     crown.position.y = 1.54;
     const teeth = new THREE.Group();
     for (let i = 0; i < 4; i += 1) {
-      const tooth = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.18, 0.2),
-        baseMat
-      );
+      const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), baseMat);
       const angle = (i * Math.PI) / 2;
       tooth.position.set(Math.cos(angle) * 0.32, 1.74, Math.sin(angle) * 0.32);
       teeth.add(tooth);
     }
     g.add(crown, teeth);
   } else if (type === 'N') {
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.36, 0.38, 6, 12),
-      baseMat
-    );
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.38, 6, 12), baseMat);
     body.position.set(0, 1.25, 0);
-    const jaw = new THREE.Mesh(
-      new THREE.BoxGeometry(0.48, 0.26, 0.66),
-      accentMat
-    );
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.26, 0.66), accentMat);
     jaw.position.set(-0.1, 1.62, 0.1);
     jaw.rotation.y = Math.PI / 8;
-    const mane = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.72, 0.22),
-      baseMat
-    );
+    const mane = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.72, 0.22), baseMat);
     mane.position.set(-0.28, 1.36, 0);
     g.add(pillar, body, jaw, mane);
   } else if (type === 'B') {
-    const taper = new THREE.Mesh(
-      new THREE.ConeGeometry(0.52, 1.18, 16),
-      baseMat
-    );
+    const taper = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.18, 16), baseMat);
     taper.position.y = 1.1;
-    const cut = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.42, 0.16),
-      accentMat
-    );
+    const cut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.16), accentMat);
     cut.position.y = 1.56;
     g.add(pillar, taper, cut);
   } else if (type === 'Q') {
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.58, 0.62, 1.35, 18),
-      baseMat
-    );
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 1.35, 18), baseMat);
     body.position.y = 1.16;
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.46, 0.08, 10, 18),
-      accentMat
-    );
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.08, 10, 18), accentMat);
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 1.72;
-    const orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 16, 12),
-      accentMat
-    );
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), accentMat);
     orb.position.y = 2.04;
     g.add(body, ring, orb);
   } else if (type === 'K') {
-    const tower = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.62, 0.66, 1.45, 16),
-      baseMat
-    );
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.66, 1.45, 16), baseMat);
     tower.position.y = 1.22;
-    const crossV = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.62, 0.14),
-      accentMat
-    );
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.14), accentMat);
     crossV.position.y = 2.04;
-    const crossH = new THREE.Mesh(
-      new THREE.BoxGeometry(0.42, 0.14, 0.14),
-      accentMat
-    );
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.14), accentMat);
     crossH.position.y = 2.04;
     g.add(tower, crossV, crossH);
   }
@@ -6139,8 +5071,7 @@ function buildKenneyFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.22;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d0a472';
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d0a472';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
@@ -6148,47 +5079,14 @@ function buildKenneyFallbackAssets(
     const colorStyle = pieceStyle[colorKey] ?? {};
     const materials = {
       base: makePieceMaterialFromStyle(colorStyle, { flatShading: true }),
-      accent: makePieceMaterialFromStyle(colorStyle, {
-        color: accentHex,
-        flatShading: true
-      })
+      accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex, flatShading: true })
     };
-    piecePrototypes[colorKey].P = buildKenneyPiece(
-      'P',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].R = buildKenneyPiece(
-      'R',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].N = buildKenneyPiece(
-      'N',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].B = buildKenneyPiece(
-      'B',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].Q = buildKenneyPiece(
-      'Q',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].K = buildKenneyPiece(
-      'K',
-      materials,
-      scale,
-      styleId
-    );
+    piecePrototypes[colorKey].P = buildKenneyPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildKenneyPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildKenneyPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildKenneyPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildKenneyPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildKenneyPiece('K', materials, scale, styleId);
   };
 
   buildForColor('white', accentLight);
@@ -6197,26 +5095,15 @@ function buildKenneyFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildPolygonalPiece(
-  type,
-  materials = {},
-  scale = 1,
-  styleId = 'polygonalGraphite'
-) {
+function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygonalGraphite') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.58, 0.72, 0.32, 10),
-    baseMat
-  );
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.72, 0.32, 10), baseMat);
   base.position.y = 0.16;
   g.add(base);
 
-  const stalk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.38, 0.48, 0.98, 9),
-    baseMat
-  );
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 0.98, 9), baseMat);
   stalk.position.y = 0.98;
 
   if (type === 'P') {
@@ -6226,64 +5113,37 @@ function buildPolygonalPiece(
     g.add(cap);
   } else if (type === 'R') {
     g.add(stalk);
-    const rim = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.58, 0.62, 0.26, 8),
-      accentMat
-    );
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 0.26, 8), accentMat);
     rim.position.y = 1.44;
     g.add(rim);
   } else if (type === 'N') {
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.32, 0.4, 6, 10),
-      baseMat
-    );
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.4, 6, 10), baseMat);
     body.position.y = 1.22;
     body.rotation.z = -0.18;
-    const crest = new THREE.Mesh(
-      new THREE.ConeGeometry(0.16, 0.44, 8),
-      accentMat
-    );
+    const crest = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.44, 8), accentMat);
     crest.position.set(-0.06, 1.6, 0);
     g.add(stalk, body, crest);
   } else if (type === 'B') {
     const taper = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.2, 9), baseMat);
     taper.position.y = 1.08;
-    const slit = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.32, 0.12),
-      accentMat
-    );
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.12), accentMat);
     slit.position.y = 1.42;
     g.add(stalk, taper, slit);
   } else if (type === 'Q') {
-    const column = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.6, 0.66, 1.24, 10),
-      baseMat
-    );
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.66, 1.24, 10), baseMat);
     column.position.y = 1.08;
-    const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(0.48, 0.08, 8, 16),
-      accentMat
-    );
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.08, 8, 16), accentMat);
     halo.rotation.x = Math.PI / 2;
     halo.position.y = 1.6;
     const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), accentMat);
     orb.position.y = 1.92;
     g.add(column, halo, orb);
   } else if (type === 'K') {
-    const tower = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.64, 0.7, 1.32, 10),
-      baseMat
-    );
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.7, 1.32, 10), baseMat);
     tower.position.y = 1.12;
-    const crossV = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.46, 0.12),
-      accentMat
-    );
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 0.12), accentMat);
     crossV.position.y = 1.86;
-    const crossH = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.12, 0.12),
-      accentMat
-    );
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.12), accentMat);
     crossH.position.y = 1.86;
     g.add(tower, crossV, crossH);
   }
@@ -6298,62 +5158,25 @@ function buildPolygonalFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.18;
-  const accentLight =
-    pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#7ce3ff';
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#7ce3ff';
   const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
   const buildForColor = (colorKey, accentHex) => {
     const colorStyle = pieceStyle[colorKey] ?? {};
     const materials = {
-      base: makePieceMaterialFromStyle(
-        { ...colorStyle, flatShading: true },
-        { flatShading: true }
-      ),
-      accent: makePieceMaterialFromStyle(
-        { ...colorStyle, flatShading: true },
-        {
-          color: accentHex,
-          flatShading: true
-        }
-      )
+      base: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, { flatShading: true }),
+      accent: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, {
+        color: accentHex,
+        flatShading: true
+      })
     };
-    piecePrototypes[colorKey].P = buildPolygonalPiece(
-      'P',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].R = buildPolygonalPiece(
-      'R',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].N = buildPolygonalPiece(
-      'N',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].B = buildPolygonalPiece(
-      'B',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].Q = buildPolygonalPiece(
-      'Q',
-      materials,
-      scale,
-      styleId
-    );
-    piecePrototypes[colorKey].K = buildPolygonalPiece(
-      'K',
-      materials,
-      scale,
-      styleId
-    );
+    piecePrototypes[colorKey].P = buildPolygonalPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildPolygonalPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildPolygonalPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildPolygonalPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildPolygonalPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildPolygonalPiece('K', materials, scale, styleId);
   };
 
   buildForColor('white', accentLight);
@@ -6371,29 +5194,14 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   visualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
   boardGroup.add(visualGroup);
 
-  const light = new THREE.MeshStandardMaterial({
-    color: 0xc7b299,
-    metalness: 0.1,
-    roughness: 0.7
-  });
-  const dark = new THREE.MeshStandardMaterial({
-    color: 0x5e4529,
-    metalness: 0.2,
-    roughness: 0.6
-  });
+  const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
   for (let r = 0; r < 8; r += 1) {
     for (let c = 0; c < 8; c += 1) {
       const isLight = (r + c) % 2 === 0;
-      const tileMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(tile, tile),
-        isLight ? light : dark
-      );
+      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
       tileMesh.rotation.x = -Math.PI / 2;
-      tileMesh.position.set(
-        -half + c * tile + tile / 2,
-        0.001,
-        -half + r * tile + tile / 2
-      );
+      tileMesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
       tileMesh.name = `tile_${r}_${c}`;
       tileMesh.userData = { r, c };
       tileMesh.receiveShadow = true;
@@ -6402,27 +5210,15 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   }
 
   const border = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      boardSize + tile * 0.2,
-      tile * 0.08,
-      boardSize + tile * 0.2
-    ),
-    new THREE.MeshStandardMaterial({
-      color: 0x3a2f1f,
-      metalness: 0.2,
-      roughness: 0.7
-    })
+    new THREE.BoxGeometry(boardSize + tile * 0.2, tile * 0.08, boardSize + tile * 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
   );
   border.position.y = -tile * 0.04;
   border.name = 'frame';
   border.receiveShadow = true;
   visualGroup.add(border);
 
-  boardGroup.userData = {
-    ...(boardGroup.userData || {}),
-    proceduralAssets: true,
-    styleId: 'proceduralBattle'
-  };
+  boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
 
   return {
     boardModel: boardGroup,
@@ -6433,10 +5229,7 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   };
 }
 
-function normalizeBeautifulGamePiece(
-  object,
-  targetFootprint = BOARD.tile * PIECE_FOOTPRINT_RATIO
-) {
+function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile * PIECE_FOOTPRINT_RATIO) {
   const clone = cloneWithMaterials(object);
   clone.traverse((child) => {
     if (child?.isMesh) {
@@ -6451,10 +5244,7 @@ function normalizeBeautifulGamePiece(
   clone.scale.multiplyScalar(scale);
   const finalBox = new THREE.Box3().setFromObject(clone);
   clone.position.y -= finalBox.min.y;
-  clone.userData = {
-    ...(clone.userData || {}),
-    __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID
-  };
+  clone.userData = { ...(clone.userData || {}), __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID };
   return clone;
 }
 
@@ -6492,10 +5282,7 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
 
   const promoteToPieceRoot = (node, type) => {
     let current = node;
-    while (
-      current?.parent &&
-      detectTypeFromPath(nodePath(current.parent)) === type
-    ) {
+    while (current?.parent && detectTypeFromPath(nodePath(current.parent)) === type) {
       current = current.parent;
     }
     return current || node;
@@ -6531,33 +5318,15 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
 
   ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
     const bucket = buckets[type];
-    const whiteSource =
-      bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
-    const blackSource =
-      bucket.b[0]?.root ||
-      bucket.any[bucket.any.length - 1]?.root ||
-      bucket.w[0]?.root;
-    if (whiteSource)
-      prototypes.white[type] = normalizeBeautifulGamePiece(
-        whiteSource,
-        targetFootprint
-      );
-    if (blackSource)
-      prototypes.black[type] = normalizeBeautifulGamePiece(
-        blackSource,
-        targetFootprint
-      );
+    const whiteSource = bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
+    const blackSource = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || bucket.w[0]?.root;
+    if (whiteSource) prototypes.white[type] = normalizeBeautifulGamePiece(whiteSource, targetFootprint);
+    if (blackSource) prototypes.black[type] = normalizeBeautifulGamePiece(blackSource, targetFootprint);
     if (!prototypes.white[type] && prototypes.black[type]) {
-      prototypes.white[type] = normalizeBeautifulGamePiece(
-        prototypes.black[type],
-        targetFootprint
-      );
+      prototypes.white[type] = normalizeBeautifulGamePiece(prototypes.black[type], targetFootprint);
     }
     if (!prototypes.black[type] && prototypes.white[type]) {
-      prototypes.black[type] = normalizeBeautifulGamePiece(
-        prototypes.white[type],
-        targetFootprint
-      );
+      prototypes.black[type] = normalizeBeautifulGamePiece(prototypes.white[type], targetFootprint);
     }
   });
   captureBeautifulGameGoldSignatures(prototypes);
@@ -6568,10 +5337,7 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
     piecePrototypes: prototypes,
     tileSize,
     pieceYOffset: PIECE_PLACEMENT_Y_OFFSET,
-    userData: {
-      styleId: BEAUTIFUL_GAME_SWAP_SET_ID,
-      preserveOriginalMaterials: true
-    }
+    userData: { styleId: BEAUTIFUL_GAME_SWAP_SET_ID, preserveOriginalMaterials: true }
   };
 }
 
@@ -6584,12 +5350,7 @@ async function loadGltfResilient(url, loader) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const buffer = await response.arrayBuffer();
       return await new Promise((resolve, reject) => {
-        loader.parse(
-          buffer,
-          url.substring(0, url.lastIndexOf('/') + 1),
-          resolve,
-          reject
-        );
+        loader.parse(buffer, url.substring(0, url.lastIndexOf('/') + 1), resolve, reject);
       });
     } catch (fallbackError) {
       throw primaryError || fallbackError;
@@ -6626,28 +5387,19 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
     boardAssets = await resolveBeautifulGameBoardStrict(targetBoardSize);
   } catch (error) {
-    console.warn(
-      'Chess Battle Royal: GLTF board failed, trying swap pieces',
-      error
-    );
+    console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
   }
 
   try {
     const swapAssets = await loadBeautifulGamePiecesOnly(targetBoardSize);
     if (boardAssets) {
-      const {
-        userData: boardUserData,
-        tileSize,
-        pieceYOffset,
-        ...rest
-      } = boardAssets;
+      const { userData: boardUserData, tileSize, pieceYOffset, ...rest } = boardAssets;
       return {
         ...rest,
         boardModel: boardAssets.boardModel,
         tileSize: swapAssets?.tileSize ?? tileSize,
         pieceYOffset: pieceYOffset ?? swapAssets?.pieceYOffset,
-        piecePrototypes:
-          swapAssets?.piecePrototypes ?? boardAssets.piecePrototypes,
+        piecePrototypes: swapAssets?.piecePrototypes ?? boardAssets.piecePrototypes,
         userData: { ...(boardUserData || {}), ...(swapAssets?.userData || {}) }
       };
     }
@@ -6667,10 +5419,7 @@ async function resolveBeautifulGameTouchAssets(targetBoardSize) {
     Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error('ABeautifulGame touch load timed out')),
-          timeoutMs
-        )
+        setTimeout(() => reject(new Error('ABeautifulGame touch load timed out')), timeoutMs)
       )
     ]);
 
@@ -6680,9 +5429,7 @@ async function resolveBeautifulGameTouchAssets(targetBoardSize) {
   }
 
   const source = gltf.scene.userData?.beautifulGameSource;
-  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, {
-    source
-  });
+  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, { source });
 }
 
 function cloneWithShadows(object) {
@@ -6701,9 +5448,7 @@ function cloneWithMaterials(object) {
   clone.traverse((child) => {
     if (!child.isMesh) return;
     if (Array.isArray(child.material)) {
-      child.material = child.material.map((mat) =>
-        mat?.clone ? mat.clone() : mat
-      );
+      child.material = child.material.map((mat) => (mat?.clone ? mat.clone() : mat));
     } else if (child.material?.clone) {
       child.material = child.material.clone();
     }
@@ -6745,9 +5490,7 @@ function applyMaterialSettingsWithSRGB(node) {
   if (!node?.isMesh) return;
   node.castShadow = true;
   node.receiveShadow = true;
-  const materials = Array.isArray(node.material)
-    ? node.material
-    : [node.material];
+  const materials = Array.isArray(node.material) ? node.material : [node.material];
   materials.forEach((mat, index) => {
     if (!mat) return;
     const cloned = mat.clone ? mat.clone() : mat;
@@ -6946,20 +5689,14 @@ function extractChessSetAssets(scene, options = {}) {
     }
   });
 
-  return {
-    boardModel,
-    piecePrototypes,
-    tileSize,
-    pieceYOffset: preferredPieceYOffset
-  };
+  return { boardModel, piecePrototypes, tileSize, pieceYOffset: preferredPieceYOffset };
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
   const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
   const authenticStyle =
-    BEAUTIFUL_GAME_COLOR_VARIANTS.find(
-      (variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID
-    )?.style || BEAUTIFUL_GAME_PIECE_STYLE;
+    BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
+    BEAUTIFUL_GAME_PIECE_STYLE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
     pieceStyle: authenticStyle,
@@ -7007,10 +5744,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     if (!type) return;
     const color = detectPieceColor(node);
     if (!color) return;
-    const ascended = ascendWhile(
-      node,
-      (parent) => pieceTypeFromName(parent.name) === type
-    );
+    const ascended = ascendWhile(node, (parent) => pieceTypeFromName(parent.name) === type);
     const bucket = color === 'black' ? pool.black : pool.white;
     if (!bucket[type]) {
       bucket[type] = ascended;
@@ -7053,12 +5787,8 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
   const buildPrototype = (colorKey, type) => {
     const source = colorKey === 'black' ? pool.black[type] : pool.white[type];
     const opposite = colorKey === 'black' ? pool.white[type] : pool.black[type];
-    const anyFromColor = Object.values(
-      colorKey === 'black' ? pool.black : pool.white
-    ).find(Boolean);
-    const anyFromOther = Object.values(
-      colorKey === 'black' ? pool.white : pool.black
-    ).find(Boolean);
+    const anyFromColor = Object.values(colorKey === 'black' ? pool.black : pool.white).find(Boolean);
+    const anyFromOther = Object.values(colorKey === 'black' ? pool.white : pool.black).find(Boolean);
     const base = source || opposite || anyFromColor || anyFromOther;
     if (base) {
       const proto = cloneWithMaterials(base);
@@ -7154,28 +5884,18 @@ function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
   const whiteConfig = { ...(option.white || {}) };
   const blackConfig = { ...(option.black || {}) };
 
-  const whiteAccentColor =
-    option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
-  const blackAccentColor =
-    option.blackAccent?.color ?? option.accent ?? blackConfig.color;
+  const whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
+  const blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
 
   const whiteBase = createPhysicalPieceMaterial(whiteConfig, '#f5f5f7');
-  const whiteAccent =
-    whiteAccentColor && whiteAccentColor !== whiteConfig.color
-      ? createPhysicalPieceMaterial(
-          { ...whiteConfig, ...option.whiteAccent, color: whiteAccentColor },
-          whiteConfig.color
-        )
-      : whiteBase;
+  const whiteAccent = whiteAccentColor && whiteAccentColor !== whiteConfig.color
+    ? createPhysicalPieceMaterial({ ...whiteConfig, ...option.whiteAccent, color: whiteAccentColor }, whiteConfig.color)
+    : whiteBase;
 
   const blackBase = createPhysicalPieceMaterial(blackConfig, '#3c4044');
-  const blackAccent =
-    blackAccentColor && blackAccentColor !== blackConfig.color
-      ? createPhysicalPieceMaterial(
-          { ...blackConfig, ...option.blackAccent, color: blackAccentColor },
-          blackConfig.color
-        )
-      : blackBase;
+  const blackAccent = blackAccentColor && blackAccentColor !== blackConfig.color
+    ? createPhysicalPieceMaterial({ ...blackConfig, ...option.blackAccent, color: blackAccentColor }, blackConfig.color)
+    : blackBase;
 
   return {
     white: { base: whiteBase, accent: whiteAccent },
@@ -7202,33 +5922,15 @@ function ensureMaterial(input, defaults = {}) {
   return new THREE.MeshStandardMaterial({ color: input, roughness, metalness });
 }
 const box = (w, h, d, material, opts = {}) =>
-  new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    ensureMaterial(material, opts)
-  );
+  new THREE.Mesh(new THREE.BoxGeometry(w, h, d), ensureMaterial(material, opts));
 const cyl = (rt, rb, h, material, seg = 24, opts = {}) =>
-  new THREE.Mesh(
-    new THREE.CylinderGeometry(rt, rb, h, seg),
-    ensureMaterial(material, opts)
-  );
+  new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), ensureMaterial(material, opts));
 const sph = (r, material, seg = 20, opts = {}) =>
-  new THREE.Mesh(
-    new THREE.SphereGeometry(r, seg, seg),
-    ensureMaterial(material, {
-      roughness: opts.roughness ?? 0.6,
-      metalness: opts.metalness ?? 0.05
-    })
-  );
+  new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), ensureMaterial(material, { roughness: opts.roughness ?? 0.6, metalness: opts.metalness ?? 0.05 }));
 const cone = (r, h, material, seg = 24, opts = {}) =>
-  new THREE.Mesh(
-    new THREE.ConeGeometry(r, h, seg),
-    ensureMaterial(material, opts)
-  );
+  new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), ensureMaterial(material, opts));
 const torus = (r, tube, material, arc = Math.PI * 2, opts = {}) =>
-  new THREE.Mesh(
-    new THREE.TorusGeometry(r, tube, 12, 28, arc),
-    ensureMaterial(material, opts)
-  );
+  new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 28, arc), ensureMaterial(material, opts));
 
 function tagPieceMesh(mesh, role = 'base') {
   if (!mesh) return mesh;
@@ -7279,11 +5981,7 @@ function buildRook(materials = {}) {
   for (let i = 0; i < crenels; i++) {
     const chunk = tagPieceMesh(box(0.5, 0.55, 0.5, baseMat));
     const angle = i * ((Math.PI * 2) / crenels);
-    chunk.position.set(
-      Math.cos(angle) * 0.8,
-      PIECE_Y + 2.95,
-      Math.sin(angle) * 0.8
-    );
+    chunk.position.set(Math.cos(angle) * 0.8, PIECE_Y + 2.95, Math.sin(angle) * 0.8);
     crown.add(chunk);
   }
   g.add(crown);
@@ -7367,11 +6065,7 @@ function buildQueen(materials = {}) {
   for (let i = 0; i < spikes; i++) {
     const spike = tagPieceMesh(cone(0.16, 0.65, accentMat), 'accent');
     const angle = i * ((Math.PI * 2) / spikes);
-    spike.position.set(
-      Math.cos(angle) * 0.95,
-      PIECE_Y + 3.65,
-      Math.sin(angle) * 0.95
-    );
+    spike.position.set(Math.cos(angle) * 0.95, PIECE_Y + 3.65, Math.sin(angle) * 0.95);
     spike.rotation.x = -Math.PI / 2;
     crown.add(spike);
   }
@@ -7468,9 +6162,7 @@ function boardToFEN(board, whiteToMove = true) {
 }
 
 function cloneBoard(b) {
-  return b.map((r) =>
-    r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null))
-  );
+  return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
 }
 
 // Offsets
@@ -7617,13 +6309,7 @@ function applyMove(board, fromR, fromC, toR, toC) {
     piece.t = 'Q';
     promoted = true;
   }
-  return {
-    captured,
-    promoted,
-    previousType,
-    castle: castleSnapshot,
-    pieceMovedFlag: previousMovedFlag
-  };
+  return { captured, promoted, previousType, castle: castleSnapshot, pieceMovedFlag: previousMovedFlag };
 }
 
 function revertMove(board, fromR, fromC, toR, toC, snapshot) {
@@ -7659,15 +6345,9 @@ function getCastlingTargets(board, r, c, isWhiteTurn) {
   const results = [];
   const checkSide = (rookCol, emptyCols, transitCols, destCol) => {
     const rook = board[homeRow][rookCol];
-    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved)
-      return;
+    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved) return;
     if (emptyCols.some((col) => board[homeRow][col])) return;
-    if (
-      transitCols.some((col) =>
-        isSquareAttacked(board, homeRow, col, !isWhiteTurn)
-      )
-    )
-      return;
+    if (transitCols.some((col) => isSquareAttacked(board, homeRow, col, !isWhiteTurn))) return;
     results.push([homeRow, destCol]);
   };
 
@@ -7677,12 +6357,7 @@ function getCastlingTargets(board, r, c, isWhiteTurn) {
 }
 
 function generateMoves(board, whiteTurn, options = {}) {
-  const {
-    fromR = null,
-    fromC = null,
-    onlyCaptures = false,
-    limit = Infinity
-  } = options;
+  const { fromR = null, fromC = null, onlyCaptures = false, limit = Infinity } = options;
   const moves = [];
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
@@ -7721,10 +6396,7 @@ function generateMoves(board, whiteTurn, options = {}) {
 function legalMoves(board, r, c) {
   const piece = board[r][c];
   if (!piece) return [];
-  return generateMoves(board, piece.w, { fromR: r, fromC: c }).map((move) => [
-    move.toR,
-    move.toC
-  ]);
+  return generateMoves(board, piece.w, { fromR: r, fromC: c }).map((move) => [move.toR, move.toC]);
 }
 
 function anyLegal(board, whiteTurn) {
@@ -7736,92 +6408,139 @@ const PIECE_VALUE = { P: 100, N: 320, B: 330, R: 500, Q: 950, K: 0 };
 const MG_PIECE_VALUE = { P: 82, N: 337, B: 365, R: 477, Q: 1025, K: 0 };
 const EG_PIECE_VALUE = { P: 94, N: 281, B: 297, R: 512, Q: 936, K: 0 };
 const PIECE_PHASE = { P: 0, N: 1, B: 1, R: 2, Q: 4, K: 0 };
-const TOTAL_PHASE =
-  PIECE_PHASE.N * 4 + PIECE_PHASE.B * 4 + PIECE_PHASE.R * 4 + PIECE_PHASE.Q * 2;
+const TOTAL_PHASE = PIECE_PHASE.N * 4 + PIECE_PHASE.B * 4 + PIECE_PHASE.R * 4 + PIECE_PHASE.Q * 2;
 
 const PIECE_SQUARE_TABLES = Object.freeze({
   P: {
     opening: [
-      0, 0, 0, 0, 0, 0, 0, 0, 98, 134, 61, 95, 68, 126, 34, -11, -6, 7, 26, 31,
-      65, 56, 25, -20, -14, 13, 6, 21, 23, 12, 17, -23, -27, -2, -5, 12, 17, 6,
-      10, -25, -26, -4, -4, -10, 3, 3, 33, -12, -35, -1, -20, -23, -15, 24, 38,
-      -22, 0, 0, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 0, 0,
+      98, 134, 61, 95, 68, 126, 34, -11,
+      -6, 7, 26, 31, 65, 56, 25, -20,
+      -14, 13, 6, 21, 23, 12, 17, -23,
+      -27, -2, -5, 12, 17, 6, 10, -25,
+      -26, -4, -4, -10, 3, 3, 33, -12,
+      -35, -1, -20, -23, -15, 24, 38, -22,
+      0, 0, 0, 0, 0, 0, 0, 0
     ],
     endgame: [
-      0, 0, 0, 0, 0, 0, 0, 0, 178, 173, 158, 134, 147, 132, 165, 187, 94, 100,
-      85, 67, 56, 53, 82, 84, 32, 24, 13, 5, -2, 4, 17, 17, 13, 9, -3, -7, -7,
-      -8, 3, -1, 4, 7, -6, 1, 0, -5, -1, -8, 13, 8, 8, 10, 13, 0, 2, -7, 0, 0,
-      0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 0, 0,
+      178, 173, 158, 134, 147, 132, 165, 187,
+      94, 100, 85, 67, 56, 53, 82, 84,
+      32, 24, 13, 5, -2, 4, 17, 17,
+      13, 9, -3, -7, -7, -8, 3, -1,
+      4, 7, -6, 1, 0, -5, -1, -8,
+      13, 8, 8, 10, 13, 0, 2, -7,
+      0, 0, 0, 0, 0, 0, 0, 0
     ]
   },
   N: {
     opening: [
-      -167, -89, -34, -49, 61, -97, -15, -107, -73, -41, 72, 36, 23, 62, 7, -17,
-      -47, 60, 37, 65, 84, 129, 73, 44, -9, 17, 19, 53, 37, 69, 18, 22, -13, 4,
-      16, 13, 28, 19, 21, -8, -23, -9, 12, 10, 19, 17, 25, -16, -29, -53, -12,
-      -3, -1, 18, -14, -19, -105, -21, -58, -33, -17, -28, -19, -23
+      -167, -89, -34, -49, 61, -97, -15, -107,
+      -73, -41, 72, 36, 23, 62, 7, -17,
+      -47, 60, 37, 65, 84, 129, 73, 44,
+      -9, 17, 19, 53, 37, 69, 18, 22,
+      -13, 4, 16, 13, 28, 19, 21, -8,
+      -23, -9, 12, 10, 19, 17, 25, -16,
+      -29, -53, -12, -3, -1, 18, -14, -19,
+      -105, -21, -58, -33, -17, -28, -19, -23
     ],
     endgame: [
-      -58, -38, -13, -28, -31, -27, -63, -99, -25, -8, -25, -2, -9, -25, -24,
-      -52, -24, -20, 10, 9, -1, -9, -19, -41, -17, 3, 22, 22, 22, 11, 8, -18,
-      -18, -6, 16, 25, 16, 17, 4, -18, -23, -3, -1, 15, 10, -3, -20, -22, -42,
-      -20, -10, -5, -2, -20, -23, -44, -29, -51, -23, -15, -22, -18, -50, -64
+      -58, -38, -13, -28, -31, -27, -63, -99,
+      -25, -8, -25, -2, -9, -25, -24, -52,
+      -24, -20, 10, 9, -1, -9, -19, -41,
+      -17, 3, 22, 22, 22, 11, 8, -18,
+      -18, -6, 16, 25, 16, 17, 4, -18,
+      -23, -3, -1, 15, 10, -3, -20, -22,
+      -42, -20, -10, -5, -2, -20, -23, -44,
+      -29, -51, -23, -15, -22, -18, -50, -64
     ]
   },
   B: {
     opening: [
-      -29, 4, -82, -37, -25, -42, 7, -8, -26, 16, -18, -13, 30, 59, 18, -47,
-      -16, 37, 43, 40, 35, 50, 37, -2, -4, 5, 19, 50, 37, 37, 7, -2, -6, 13, 13,
-      26, 34, 12, 10, 4, 0, 13, 14, 27, 25, 15, 10, 0, 14, 25, 24, 15, 8, 25,
-      20, 15, -13, 0, -13, -17, -43, -7, -9, -21
+      -29, 4, -82, -37, -25, -42, 7, -8,
+      -26, 16, -18, -13, 30, 59, 18, -47,
+      -16, 37, 43, 40, 35, 50, 37, -2,
+      -4, 5, 19, 50, 37, 37, 7, -2,
+      -6, 13, 13, 26, 34, 12, 10, 4,
+      0, 13, 14, 27, 25, 15, 10, 0,
+      14, 25, 24, 15, 8, 25, 20, 15,
+      -13, 0, -13, -17, -43, -7, -9, -21
     ],
     endgame: [
-      -14, -21, -11, -8, -7, -9, -17, -24, -8, -4, 7, -12, -3, -13, -4, -14, 2,
-      -8, 0, -1, -2, 6, 0, 4, -3, 9, 12, 9, 14, 10, 3, 2, -6, 3, 13, 19, 7, 10,
-      -3, -9, -12, -3, 8, 10, 13, 3, -7, -15, -14, -18, -7, -1, 4, -9, -15, -27,
+      -14, -21, -11, -8, -7, -9, -17, -24,
+      -8, -4, 7, -12, -3, -13, -4, -14,
+      2, -8, 0, -1, -2, 6, 0, 4,
+      -3, 9, 12, 9, 14, 10, 3, 2,
+      -6, 3, 13, 19, 7, 10, -3, -9,
+      -12, -3, 8, 10, 13, 3, -7, -15,
+      -14, -18, -7, -1, 4, -9, -15, -27,
       -23, -9, -23, -5, -9, -16, -5, -17
     ]
   },
   R: {
     opening: [
-      32, 42, 32, 51, 63, 9, 31, 43, 27, 32, 58, 62, 80, 67, 26, 44, -5, 19, 26,
-      36, 17, 45, 61, 16, -24, -11, 7, 26, 24, 35, 38, -22, -36, -26, -12, -1,
-      9, -7, 6, -23, -45, -25, -16, -17, 3, 0, -5, -33, -44, -16, -20, -9, -1,
-      11, -6, -71, -19, -13, 1, 17, 16, 7, -37, -26
+      32, 42, 32, 51, 63, 9, 31, 43,
+      27, 32, 58, 62, 80, 67, 26, 44,
+      -5, 19, 26, 36, 17, 45, 61, 16,
+      -24, -11, 7, 26, 24, 35, 38, -22,
+      -36, -26, -12, -1, 9, -7, 6, -23,
+      -45, -25, -16, -17, 3, 0, -5, -33,
+      -44, -16, -20, -9, -1, 11, -6, -71,
+      -19, -13, 1, 17, 16, 7, -37, -26
     ],
     endgame: [
-      13, 10, 18, 15, 12, 12, 8, 5, 11, 13, 13, 11, -3, 3, 8, 3, 7, 7, 7, 5, 4,
-      -3, -5, -3, 4, 3, 13, 1, 2, 1, -1, 2, 3, 5, 8, 4, -5, -6, -8, -11, -4, 0,
-      -5, -1, -7, -12, -8, -16, -6, -6, 0, 2, -9, -9, -11, -3, -9, 2, 3, -1, -5,
-      -13, 4, -20
+      13, 10, 18, 15, 12, 12, 8, 5,
+      11, 13, 13, 11, -3, 3, 8, 3,
+      7, 7, 7, 5, 4, -3, -5, -3,
+      4, 3, 13, 1, 2, 1, -1, 2,
+      3, 5, 8, 4, -5, -6, -8, -11,
+      -4, 0, -5, -1, -7, -12, -8, -16,
+      -6, -6, 0, 2, -9, -9, -11, -3,
+      -9, 2, 3, -1, -5, -13, 4, -20
     ]
   },
   Q: {
     opening: [
-      -28, 0, 29, 12, 59, 44, 43, 45, -24, -39, -5, 1, -16, 57, 28, 54, -13,
-      -17, 7, 8, 29, 56, 47, 57, -27, -27, -16, -16, -1, 17, -2, 1, -9, -26, -9,
-      -10, -2, -4, 3, -3, -14, 2, -11, -2, -5, 2, 14, 5, -35, -8, 11, 2, 8, 15,
-      -3, 1, -1, -18, -9, 10, -15, -25, -31, -50
+      -28, 0, 29, 12, 59, 44, 43, 45,
+      -24, -39, -5, 1, -16, 57, 28, 54,
+      -13, -17, 7, 8, 29, 56, 47, 57,
+      -27, -27, -16, -16, -1, 17, -2, 1,
+      -9, -26, -9, -10, -2, -4, 3, -3,
+      -14, 2, -11, -2, -5, 2, 14, 5,
+      -35, -8, 11, 2, 8, 15, -3, 1,
+      -1, -18, -9, 10, -15, -25, -31, -50
     ],
     endgame: [
-      -9, 22, 22, 27, 27, 19, 10, 20, -17, 20, 32, 41, 58, 25, 30, 0, -20, 6, 9,
-      49, 47, 35, 19, 9, 3, 22, 24, 45, 57, 40, 57, 36, -18, 28, 19, 47, 31, 34,
-      39, 23, -16, -27, 15, 6, 9, 17, 10, 5, -22, -23, -30, -16, -16, -23, -36,
-      -32, -33, -28, -22, -43, -5, -32, -20, -41
+      -9, 22, 22, 27, 27, 19, 10, 20,
+      -17, 20, 32, 41, 58, 25, 30, 0,
+      -20, 6, 9, 49, 47, 35, 19, 9,
+      3, 22, 24, 45, 57, 40, 57, 36,
+      -18, 28, 19, 47, 31, 34, 39, 23,
+      -16, -27, 15, 6, 9, 17, 10, 5,
+      -22, -23, -30, -16, -16, -23, -36, -32,
+      -33, -28, -22, -43, -5, -32, -20, -41
     ]
   },
   K: {
     opening: [
-      -65, 23, 16, -15, -56, -34, 2, 13, 29, -1, -20, -7, -8, -4, -38, -29, -9,
-      24, 2, -16, -20, 6, 22, -22, -17, -20, -12, -27, -30, -25, -14, -36, -49,
-      -1, -27, -39, -46, -44, -33, -51, -14, -14, -22, -46, -44, -30, -15, -27,
-      1, 7, -8, -64, -43, -16, 9, 8, -15, 36, 12, -54, 8, -28, 24, 14
+      -65, 23, 16, -15, -56, -34, 2, 13,
+      29, -1, -20, -7, -8, -4, -38, -29,
+      -9, 24, 2, -16, -20, 6, 22, -22,
+      -17, -20, -12, -27, -30, -25, -14, -36,
+      -49, -1, -27, -39, -46, -44, -33, -51,
+      -14, -14, -22, -46, -44, -30, -15, -27,
+      1, 7, -8, -64, -43, -16, 9, 8,
+      -15, 36, 12, -54, 8, -28, 24, 14
     ],
     endgame: [
-      -74, -35, -18, -18, -11, 15, 4, -17, -12, 17, 14, 17, 17, 38, 23, 11, 10,
-      17, 23, 15, 20, 45, 44, 13, -8, 22, 24, 27, 26, 33, 26, 3, -18, -4, 21,
-      24, 27, 23, 9, -11, -19, -3, 11, 21, 23, 16, 7, -9, -27, -11, 4, 13, 14,
-      4, -5, -17, -53, -34, -21, -11, -28, -14, -24, -43
+      -74, -35, -18, -18, -11, 15, 4, -17,
+      -12, 17, 14, 17, 17, 38, 23, 11,
+      10, 17, 23, 15, 20, 45, 44, 13,
+      -8, 22, 24, 27, 26, 33, 26, 3,
+      -18, -4, 21, 24, 27, 23, 9, -11,
+      -19, -3, 11, 21, 23, 16, 7, -9,
+      -27, -11, 4, 13, 14, 4, -5, -17,
+      -53, -34, -21, -11, -28, -14, -24, -43
     ]
   }
 });
@@ -7845,10 +6564,7 @@ function boardToKey(board, whiteTurn) {
 function scoreMove(move) {
   let score = 0;
   if (move.captured) {
-    score +=
-      1000 +
-      (PIECE_VALUE[move.captured] ?? 0) * 10 -
-      (PIECE_VALUE[move.piece] ?? 0);
+    score += 1000 + (PIECE_VALUE[move.captured] ?? 0) * 10 - (PIECE_VALUE[move.piece] ?? 0);
   }
   if (move.promotion) score += 900;
   const tables = PIECE_SQUARE_TABLES[move.piece];
@@ -7891,13 +6607,7 @@ function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
   if (whiteTurn) {
     let value = alpha;
     for (const move of captures) {
-      const snapshot = applyMove(
-        board,
-        move.fromR,
-        move.fromC,
-        move.toR,
-        move.toC
-      );
+      const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
       const score = quiescence(board, value, beta, false, depth + 1);
       revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
       if (score > value) value = score;
@@ -7907,13 +6617,7 @@ function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
   }
   let value = beta;
   for (const move of captures) {
-    const snapshot = applyMove(
-      board,
-      move.fromR,
-      move.fromC,
-      move.toR,
-      move.toC
-    );
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
     const score = quiescence(board, alpha, value, true, depth + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (score < value) value = score;
@@ -8004,10 +6708,8 @@ function evaluate(board, whiteTurn) {
     blackPawnRows[file].sort((a, b) => a - b);
   }
 
-  const hasWhitePawnOnFile = (file) =>
-    file >= 0 && file < 8 && whitePawnFiles[file] > 0;
-  const hasBlackPawnOnFile = (file) =>
-    file >= 0 && file < 8 && blackPawnFiles[file] > 0;
+  const hasWhitePawnOnFile = (file) => file >= 0 && file < 8 && whitePawnFiles[file] > 0;
+  const hasBlackPawnOnFile = (file) => file >= 0 && file < 8 && blackPawnFiles[file] > 0;
 
   whitePawns.forEach(({ r, c }) => {
     if (!hasWhitePawnOnFile(c - 1) && !hasWhitePawnOnFile(c + 1)) {
@@ -8085,13 +6787,7 @@ function minimax(board, depth, whiteTurn, alpha, beta, ply = 0) {
   orderMoves(moves);
   let value = whiteTurn ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(
-      board,
-      move.fromR,
-      move.fromC,
-      move.toR,
-      move.toC
-    );
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
     const score = minimax(board, depth - 1, !whiteTurn, alpha, beta, ply + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
 
@@ -8125,21 +6821,8 @@ function bestAIMove(board, aiPlaysWhite, depth = 4) {
   let bestMove = null;
   let bestScore = aiPlaysWhite ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(
-      board,
-      move.fromR,
-      move.fromC,
-      move.toR,
-      move.toC
-    );
-    const score = minimax(
-      board,
-      searchDepth - 1,
-      !aiPlaysWhite,
-      -Infinity,
-      Infinity,
-      1
-    );
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const score = minimax(board, searchDepth - 1, !aiPlaysWhite, -Infinity, Infinity, 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (aiPlaysWhite ? score > bestScore : score < bestScore) {
       bestScore = score;
@@ -8214,11 +6897,7 @@ function Chess3D({
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const initial2dViewRef = useRef(null);
-  const settingsRef = useRef({
-    showHighlights: true,
-    soundEnabled: true,
-    moveMode: 'click'
-  });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / DEFAULT_TARGET_FPS,
     renderResolutionScale: 1,
@@ -8265,9 +6944,7 @@ function Chess3D({
   const [playerFlag, setPlayerFlag] = useState(resolvedInitialFlag);
   const [aiFlag, setAiFlag] = useState(() => {
     const preferred =
-      initialAiFlag && FLAG_EMOJIS.includes(initialAiFlag)
-        ? initialAiFlag
-        : null;
+      initialAiFlag && FLAG_EMOJIS.includes(initialAiFlag) ? initialAiFlag : null;
     if (preferred) return preferred;
     if (typeof window !== 'undefined') {
       try {
@@ -8310,10 +6987,7 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
-  const resolvedAccountId = useMemo(
-    () => chessBattleAccountId(accountId),
-    [accountId]
-  );
+  const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const chessInventory = useMemo(
     () => getChessBattleInventory(resolvedAccountId),
@@ -8321,16 +6995,12 @@ function Chess3D({
   );
   useEffect(() => {
     const handler = (event) => {
-      if (
-        !event?.detail?.accountId ||
-        event.detail.accountId === resolvedAccountId
-      ) {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
         setInventoryVersion((value) => value + 1);
       }
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
-    return () =>
-      window.removeEventListener('chessBattleInventoryUpdate', handler);
+    return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
   }, [resolvedAccountId]);
   const [p1QuickIdx, setP1QuickIdx] = useState(2);
   const [p2QuickIdx, setP2QuickIdx] = useState(3);
@@ -8347,13 +7017,8 @@ function Chess3D({
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_COMMENTARY_PRESET_ID;
     try {
-      const stored = window.localStorage?.getItem(
-        COMMENTARY_PRESET_STORAGE_KEY
-      );
-      if (
-        stored &&
-        CHESS_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)
-      ) {
+      const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && CHESS_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
         return stored;
       }
     } catch {}
@@ -8369,9 +7034,7 @@ function Chess3D({
   });
   const [isMuted, setIsMuted] = useState(() => isGameMuted());
   const effectiveSoundEnabled = soundEnabled && !isMuted;
-  const [commentarySupported, setCommentarySupported] = useState(() =>
-    getSpeechSupport()
-  );
+  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
@@ -8390,8 +7053,7 @@ function Chess3D({
     if (typeof window === 'undefined') return fallback;
     try {
       const stored = window.localStorage?.getItem(GRAPHICS_STORAGE_KEY);
-      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored))
-        return stored;
+      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored)) return stored;
     } catch {}
     return fallback;
   });
@@ -8422,17 +7084,14 @@ function Chess3D({
   );
   const activeCommentaryPreset = useMemo(
     () =>
-      CHESS_BATTLE_COMMENTARY_PRESETS.find(
-        (preset) => preset.id === commentaryPresetId
-      ) || CHESS_BATTLE_COMMENTARY_PRESETS[0],
+      CHESS_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
+      CHESS_BATTLE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
   useEffect(() => {
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) =>
-      setCommentarySupported(Boolean(supported))
-    );
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
     return () => {
       unsubscribe();
     };
@@ -8458,20 +7117,14 @@ function Chess3D({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage?.setItem(
-        COMMENTARY_PRESET_STORAGE_KEY,
-        commentaryPresetId
-      );
+      window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
     } catch {}
   }, [commentaryPresetId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage?.setItem(
-        COMMENTARY_MUTE_STORAGE_KEY,
-        commentaryMuted ? '1' : '0'
-      );
+      window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
     } catch {}
   }, [commentaryMuted]);
 
@@ -8487,24 +7140,17 @@ function Chess3D({
 
     const handleChessState = (payload = {}) => {
       if (!active) return;
-      if (
-        payload.tableId &&
-        tableJoin.current &&
-        payload.tableId !== tableJoin.current
-      )
+      if (payload.tableId && tableJoin.current && payload.tableId !== tableJoin.current)
         return;
       onlineRef.current.synced = true;
-      if (onlineRef.current.status !== 'started')
-        onlineRef.current.status = 'in-progress';
+      if (onlineRef.current.status !== 'started') onlineRef.current.status = 'in-progress';
       setOnlineStatus('in-game');
       onlineRef.current.applyRemoteMove?.(payload);
     };
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
-      const meIndex = players.findIndex(
-        (p) => String(p.id) === String(accountId)
-      );
+      const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
       const opp = players.find((p) => String(p.id) !== String(accountId));
       if (opp) setOpponent(opp);
       const mySide =
@@ -8599,60 +7245,52 @@ function Chess3D({
     setMoveMode('click');
   }, [viewMode]);
 
-  const customizationSections = useMemo(() => {
-    const selectedTableTheme =
-      TABLE_THEME_OPTIONS[appearance.tables] ?? TABLE_THEME_OPTIONS[0];
-    const showTableMaterialOptions = SHAPE_CUSTOMIZATION_TABLE_IDS.has(
-      selectedTableTheme?.id
-    );
-    return CUSTOMIZATION_SECTIONS.filter((section) => {
-      if (section.key === 'tableCloth' || section.key === 'tableFinish') {
-        return showTableMaterialOptions;
-      }
-      return true;
-    })
-      .map((section) => ({
-        ...section,
-        options: section.options
-          .map((option, idx) => ({ ...option, idx }))
-          .filter((option) => {
-            if (section.key === 'tables')
-              return isChessOptionUnlocked(
-                section.key,
-                option.id,
-                chessInventory
-              );
-            if (section.key === 'tableCloth') return true;
-            return isChessOptionUnlocked(
-              section.key,
-              option.id,
-              chessInventory
-            );
-          })
-      }))
-      .filter((section) => section.options.length > 0);
-  }, [appearance.tables, chessInventory]);
+  const customizationSections = useMemo(
+    () => {
+      const selectedTableTheme = TABLE_THEME_OPTIONS[appearance.tables] ?? TABLE_THEME_OPTIONS[0];
+      const showTableMaterialOptions = SHAPE_CUSTOMIZATION_TABLE_IDS.has(selectedTableTheme?.id);
+      return CUSTOMIZATION_SECTIONS
+        .filter((section) => {
+          if (section.key === 'tableCloth' || section.key === 'tableFinish') {
+            return showTableMaterialOptions;
+          }
+          return true;
+        })
+        .map((section) => ({
+          ...section,
+          options: section.options
+            .map((option, idx) => ({ ...option, idx }))
+            .filter((option) => {
+              if (section.key === 'tables') return isChessOptionUnlocked(section.key, option.id, chessInventory);
+              if (section.key === 'tableCloth') return true;
+              return isChessOptionUnlocked(section.key, option.id, chessInventory);
+            })
+        }))
+        .filter((section) => section.options.length > 0);
+    },
+    [appearance.tables, chessInventory]
+  );
 
   const quickSideOptions = useMemo(
     () =>
-      QUICK_SIDE_COLORS.map((option, idx) => ({ ...option, idx })).filter(
-        ({ id }) => isChessOptionUnlocked('sideColor', id, chessInventory)
+      QUICK_SIDE_COLORS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('sideColor', id, chessInventory)
       ),
     [chessInventory]
   );
 
   const quickBoardOptions = useMemo(
     () =>
-      QUICK_BOARD_THEMES.map((option, idx) => ({ ...option, idx })).filter(
-        ({ id }) => isChessOptionUnlocked('boardTheme', id, chessInventory)
+      QUICK_BOARD_THEMES.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('boardTheme', id, chessInventory)
       ),
     [chessInventory]
   );
 
   const quickHeadOptions = useMemo(
     () =>
-      QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(
-        ({ id }) => isChessOptionUnlocked('headStyle', id, chessInventory)
+      QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('headStyle', id, chessInventory)
       ),
     [chessInventory]
   );
@@ -8664,17 +7302,10 @@ function Chess3D({
 
   useEffect(() => {
     setP1QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions));
-    setP2QuickIdx((prev) =>
-      clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0)
-    );
+    setP2QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0));
     setHeadQuickIdx((prev) => clampQuickSelection(prev, quickHeadOptions));
     setBoardQuickIdx((prev) => clampQuickSelection(prev, quickBoardOptions));
-  }, [
-    clampQuickSelection,
-    quickBoardOptions,
-    quickHeadOptions,
-    quickSideOptions
-  ]);
+  }, [clampQuickSelection, quickBoardOptions, quickHeadOptions, quickSideOptions]);
 
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
@@ -8693,8 +7324,7 @@ function Chess3D({
         const option = options[idx];
         const isUnlocked = (opt) => {
           if (!opt) return false;
-          if (key === 'tables')
-            return isChessOptionUnlocked(key, opt.id, chessInventory);
+          if (key === 'tables') return isChessOptionUnlocked(key, opt.id, chessInventory);
           if (key === 'tableCloth') return true;
           return isChessOptionUnlocked(key, opt.id, chessInventory);
         };
@@ -8742,20 +7372,14 @@ function Chess3D({
       );
     }
     if (key === 'tableFinish') {
-      const swatches =
-        Array.isArray(option.swatches) && option.swatches.length >= 2
-          ? option.swatches
-          : [
-              option.swatches?.[0] || '#7c5e45',
-              option.swatches?.[1] || '#3f2e23'
-            ];
+      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
+        ? option.swatches
+        : [option.swatches?.[0] || '#7c5e45', option.swatches?.[1] || '#3f2e23'];
       return (
         <div className={baseClass}>
           <div
             className="absolute inset-0"
-            style={{
-              background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
-            }}
+            style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
           />
           <div className={overlay} />
         </div>
@@ -8781,19 +7405,16 @@ function Chess3D({
         <div className={baseClass}>
           <div
             className="absolute inset-0"
-            style={{
-              background: `linear-gradient(135deg, ${primary} 40%, ${accent})`
-            }}
+            style={{ background: `linear-gradient(135deg, ${primary} 40%, ${accent})` }}
           />
           <div className={overlay} />
         </div>
       );
     }
     if (key === 'environmentHdri') {
-      const swatches =
-        Array.isArray(option.swatches) && option.swatches.length >= 2
-          ? option.swatches
-          : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
+      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
+        ? option.swatches
+        : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
       return (
         <div className={baseClass}>
           {option.thumbnail ? (
@@ -8806,9 +7427,7 @@ function Chess3D({
           ) : (
             <div
               className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
-              }}
+              style={{ background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})` }}
             />
           )}
           <div className={overlay} />
@@ -8845,33 +7464,23 @@ function Chess3D({
   }, [seatAnchors]);
 
   useEffect(() => {
-    if (
-      !customizationSections.some(
-        (section) => section.key === activeCustomizationKey
-      )
-    ) {
+    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
       setActiveCustomizationKey(customizationSections[0]?.key ?? 'tables');
     }
   }, [activeCustomizationKey, customizationSections]);
 
   const activeCustomizationSection =
-    customizationSections.find(({ key }) => key === activeCustomizationKey) ??
-    customizationSections[0];
+    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
       const arena = arenaRef.current;
       if (!arena?.sandTimer) return;
       const surfaceY = arena.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const radius =
-        (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
+      const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
       const targetZ = (_turnWhiteValue ? 1 : -1) * radius;
       const targetRot = _turnWhiteValue ? Math.PI : 0;
-      arena.sandTimer.group.position.set(
-        0,
-        surfaceY + SAND_TIMER_SURFACE_OFFSET,
-        targetZ
-      );
+      arena.sandTimer.group.position.set(0, surfaceY + SAND_TIMER_SURFACE_OFFSET, targetZ);
       arena.sandTimer.group.rotation.y = targetRot;
     },
     []
@@ -8880,18 +7489,12 @@ function Chess3D({
   const players = useMemo(() => {
     const accentColor = paletteRef.current?.accent ?? '#4ce0c3';
     const effectivePlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+      playerFlag || resolvedInitialFlag || (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
     const playerName =
-      avatarToName(effectivePlayerFlag) ||
-      username ||
-      avatarToName(avatar) ||
-      'Player';
+      avatarToName(effectivePlayerFlag) || username || avatarToName(avatar) || 'Player';
     const playerPhoto = avatar || effectivePlayerFlag || '🙂';
 
-    const effectiveAiFlag =
-      aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
+    const effectiveAiFlag = aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
     const aiName = avatarToName(effectiveAiFlag) || 'AI Rival';
     const onlineRivalName = opponent?.name || 'Waiting for opponent…';
     const onlineRivalPhoto = opponent?.avatar || onlineRivalName || '⏳';
@@ -8913,16 +7516,7 @@ function Chess3D({
         isTurn: !ui.turnWhite
       }
     ];
-  }, [
-    aiFlag,
-    appearance,
-    avatar,
-    opponent,
-    playerFlag,
-    resolvedInitialFlag,
-    ui.turnWhite,
-    username
-  ]);
+  }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
   const giftPlayers = useMemo(
     () =>
       players.map((player) => ({
@@ -8937,14 +7531,9 @@ function Chess3D({
   );
   const winnerPlayer = useMemo(() => {
     if (!ui.winner) return null;
-    return ui.winner === 'White'
-      ? players[0]
-      : ui.winner === 'Black'
-        ? players[1]
-        : null;
+    return ui.winner === 'White' ? players[0] : ui.winner === 'Black' ? players[1] : null;
   }, [players, ui.winner]);
-  const showWinnerCelebration =
-    Boolean(ui.winner) && /checkmate/i.test(ui.status || '');
+  const showWinnerCelebration = Boolean(ui.winner) && /checkmate/i.test(ui.status || '');
   const winnerCoinBursts = useMemo(
     () =>
       Array.from({ length: 18 }, (_, idx) => {
@@ -8965,16 +7554,11 @@ function Chess3D({
 
   const resolveChessSideName = useCallback((isWhite) => {
     const [whitePlayer, blackPlayer] = playersRef.current || [];
-    return isWhite
-      ? whitePlayer?.name || 'White'
-      : blackPlayer?.name || 'Black';
+    return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
   }, []);
 
   const resolveCommentarySpeaker = useCallback(() => {
-    const speakers = [
-      CHESS_BATTLE_SPEAKERS.lead,
-      CHESS_BATTLE_SPEAKERS.analyst
-    ];
+    const speakers = [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst];
     const idx = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = idx + 1;
     return speakers[idx % speakers.length] || CHESS_BATTLE_SPEAKERS.lead;
@@ -9001,10 +7585,7 @@ function Chess3D({
   }, []);
 
   const enqueueChessCommentary = useCallback(
-    (
-      lines,
-      { priority = false, preset = commentaryPresetRef.current } = {}
-    ) => {
+    (lines, { priority = false, preset = commentaryPresetRef.current } = {}) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
       if (!commentaryReadyRef.current) {
@@ -9012,16 +7593,8 @@ function Chess3D({
         return;
       }
       const now = performance.now();
-      if (
-        !priority &&
-        now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS
-      )
-        return;
-      if (
-        !priority &&
-        commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT
-      )
-        return;
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
       if (priority) {
         commentaryQueueRef.current.unshift({ lines, preset });
       } else {
@@ -9084,8 +7657,7 @@ function Chess3D({
 
   useEffect(() => {
     if (commentaryIntroPlayedRef.current) return;
-    if (!commentarySupported || commentaryMutedRef.current || isGameMuted())
-      return;
+    if (!commentarySupported || commentaryMutedRef.current || isGameMuted()) return;
     const [whitePlayer, blackPlayer] = players || [];
     if (!whitePlayer || !blackPlayer) return;
     commentaryIntroPlayedRef.current = true;
@@ -9096,12 +7668,7 @@ function Chess3D({
       arena: 'Chess Battle Royal arena'
     });
     enqueueChessCommentary(script, { priority: true });
-  }, [
-    commentaryPresetId,
-    commentarySupported,
-    enqueueChessCommentary,
-    players
-  ]);
+  }, [commentaryPresetId, commentarySupported, enqueueChessCommentary, players]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -9128,10 +7695,7 @@ function Chess3D({
     }
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage?.setItem(
-          APPEARANCE_STORAGE_KEY,
-          JSON.stringify(appearance)
-        );
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
       } catch {}
     }
   }, [appearance]);
@@ -9199,8 +7763,7 @@ function Chess3D({
     const arena = arenaRef.current;
     if (!arena?.renderer || typeof window === 'undefined') return;
     const devicePixelRatio = window.devicePixelRatio || 1;
-    const scaledPixelRatio =
-      devicePixelRatio * renderSettingsRef.current.pixelRatioScale;
+    const scaledPixelRatio = devicePixelRatio * renderSettingsRef.current.pixelRatioScale;
     const pixelRatio = Math.max(
       MIN_RENDER_PIXEL_RATIO,
       Math.min(renderSettingsRef.current.pixelRatioCap, scaledPixelRatio)
@@ -9270,13 +7833,7 @@ function Chess3D({
         } catch {}
       }
     }
-    [
-      swordSoundRef,
-      droneSoundRef,
-      helicopterSoundRef,
-      missileLaunchSoundRef,
-      missileImpactSoundRef
-    ].forEach((ref) => {
+    [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -9287,9 +7844,7 @@ function Chess3D({
       }
     });
     if (!effectiveSoundEnabled) {
-      audioStopTimeoutsRef.current.forEach((timeoutId) =>
-        clearTimeout(timeoutId)
-      );
+      audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
       audioStopTimeoutsRef.current.clear();
     }
   }, [effectiveSoundEnabled]);
@@ -9298,42 +7853,24 @@ function Chess3D({
     const handleVolumeChange = () => {
       const volume = getGameVolume();
       if (bombSoundRef.current) {
-        bombSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        bombSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (timerSoundRef.current) {
-        timerSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        timerSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (moveSoundRef.current) {
-        moveSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        moveSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (checkSoundRef.current) {
-        checkSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        checkSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (mateSoundRef.current) {
-        mateSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        mateSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
       if (laughSoundRef.current) {
-        laughSoundRef.current.volume = settingsRef.current.soundEnabled
-          ? volume
-          : 0;
+        laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [
-        swordSoundRef,
-        droneSoundRef,
-        helicopterSoundRef,
-        missileLaunchSoundRef,
-        missileImpactSoundRef
-      ].forEach((ref) => {
+      [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -9346,27 +7883,17 @@ function Chess3D({
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply)
-      apply(
-        'white',
-        QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex
-      );
+    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
   }, [p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply)
-      apply(
-        'black',
-        QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex
-      );
+    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
   }, [p2QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applyPawnHeadPreset;
-    const presetId =
-      QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ??
-      'current';
+    const presetId = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
     if (apply) apply(presetId);
   }, [headQuickIdx]);
 
@@ -9396,36 +7923,25 @@ function Chess3D({
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-    const isBeautifulGameSet = (
-      arena.activePieceSetId ||
-      nextPieceSetId ||
-      ''
-    ).startsWith('beautifulGame');
-    const tableFinish =
-      TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
+    const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
+    const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
     const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-    const clothOption =
-      TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
+    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? DEFAULT_CLOTH_OPTION;
     const baseOption = DEFAULT_BASE_OPTION;
-    const chairOption =
-      CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const tableTheme =
-      TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
-    const { option: shapeOption, rotationY } =
-      getEffectiveShapeConfigForTableTheme(tableTheme);
+    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
     const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) =>
-      Promise.resolve().then(() => pieceSetLoader(size));
+    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption || tableTheme) {
       const shapeChanged = shapeOption?.id !== arena.tableShapeId;
       const themeChanged = tableTheme?.id !== arena.tableThemeId;
-      const rotationChanged =
-        Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
+      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
 
       const rebuildTable = async () => {
         const { boardGroup } = arena;
@@ -9452,19 +7968,10 @@ function Chess3D({
           return;
         }
         if (nextTable?.materials) {
-          applyTableMaterials(
-            nextTable.materials,
-            { woodOption, clothOption, baseOption },
-            arena.renderer
-          );
+          applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         }
-        const arenaFloorY = Number.isFinite(arena.environmentFloorY)
-          ? arena.environmentFloorY
-          : 0;
-        const tableFloorOffset = alignGroupToFloorY(
-          nextTable?.group,
-          arenaFloorY
-        );
+        const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
+        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, arenaFloorY);
         if (nextTable?.surfaceY != null) {
           nextTable.surfaceY += tableFloorOffset;
         }
@@ -9479,21 +7986,15 @@ function Chess3D({
         if (arena.boardLookTarget) {
           const targetY = boardGroup
             ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
-            : (nextTable?.surfaceY ?? TABLE_HEIGHT) +
-              (BOARD.baseH + 0.12) * BOARD_SCALE;
+            : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        (arena.chairs || []).forEach((chair) =>
-          alignGroupToFloorY(chair.group, arenaFloorY)
-        );
+        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, arenaFloorY));
         const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
         const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
         const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
         const placementOffset = alignArenaContentsToRoom(
-          [
-            nextTable?.group,
-            ...(arena.chairs || []).map((chair) => chair.group)
-          ],
+          [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)],
           roomHalfWidth,
           roomHalfDepth
         );
@@ -9503,11 +8004,7 @@ function Chess3D({
           arena.boardLookTarget.x = placementOffset.x;
           arena.boardLookTarget.z = placementOffset.z;
         }
-        if (
-          arena.camera &&
-          (Math.abs(placementDelta.x) > 1e-4 ||
-            Math.abs(placementDelta.z) > 1e-4)
-        ) {
+        if (arena.camera && (Math.abs(placementDelta.x) > 1e-4 || Math.abs(placementDelta.z) > 1e-4)) {
           arena.camera.position.x += placementDelta.x;
           arena.camera.position.z += placementDelta.z;
         }
@@ -9516,36 +8013,22 @@ function Chess3D({
           cam.position.x += placementDelta.x;
           cam.position.z += placementDelta.z;
         });
-        const arenaGroups = [
-          nextTable?.group,
-          ...(arena.chairs || []).map((chair) => chair.group)
-        ];
+        const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
         groundArenaGroups(arenaGroups, arenaFloorY);
         const updatedFloorY = computeGroupFloorY(arenaGroups);
         environmentFloorRef.current = updatedFloorY;
         arena.environmentFloorY = updatedFloorY;
         updateEnvironmentRef.current?.(hdriVariantRef.current);
-        arena.studioCameras?.forEach((cam) =>
-          cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3())
-        );
-        arena.controls?.target.copy(
-          arena.boardLookTarget ?? new THREE.Vector3()
-        );
+        arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
+        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
         fitRef.current?.();
       };
 
       if (themeChanged || shapeChanged || rotationChanged || !arena.tableInfo) {
         void rebuildTable();
-      } else if (
-        arena.tableInfo?.materials &&
-        tableTheme?.source !== 'polyhaven'
-      ) {
-        applyTableMaterials(
-          arena.tableInfo.materials,
-          { woodOption, clothOption, baseOption },
-          arena.renderer
-        );
+      } else if (arena.tableInfo?.materials && tableTheme?.source !== 'polyhaven') {
+        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
       }
     }
 
@@ -9558,8 +8041,7 @@ function Chess3D({
       }
     }
 
-    const shouldRefreshBoardPieces =
-      !arena.lastAppliedAppearance || boardOrPieceAppearanceChanged;
+    const shouldRefreshBoardPieces = !arena.lastAppliedAppearance || boardOrPieceAppearanceChanged;
     if (shouldRefreshBoardPieces && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
@@ -9582,11 +8064,7 @@ function Chess3D({
       loadPieceSet(RAW_BOARD_SIZE)
         .then((assets) => {
           if (!arenaRef.current) return;
-          arenaRef.current.applyPieceSetAssets?.(
-            assets,
-            nextPieceSetId,
-            pieceStyleOption
-          );
+          arenaRef.current.applyPieceSetAssets?.(assets, nextPieceSetId, pieceStyleOption);
         })
         .catch((error) => {
           console.warn('Chess Battle Royal: failed to swap piece set', error);
@@ -9594,28 +8072,16 @@ function Chess3D({
     }
     arena.lastAppliedAppearance = normalized;
 
-    if (
-      arena.boardMaterials &&
-      (!arena.boardModel || arena.usingProceduralBoard)
-    ) {
-      const usingExternalBoard = Boolean(
-        arena.boardModel && !arena.usingProceduralBoard
-      );
-      const {
-        base: baseMat,
-        top: topMat,
-        coord: coordMat,
-        tiles
-      } = arena.boardMaterials;
+    if (arena.boardMaterials && (!arena.boardModel || arena.usingProceduralBoard)) {
+      const usingExternalBoard = Boolean(arena.boardModel && !arena.usingProceduralBoard);
+      const { base: baseMat, top: topMat, coord: coordMat, tiles } = arena.boardMaterials;
       baseMat?.color?.set?.(boardTheme.frameDark);
       baseMat.roughness = boardTheme.frameRoughness;
       baseMat.metalness = boardTheme.frameMetalness;
       if ('clearcoat' in baseMat) baseMat.clearcoat = 0;
       if ('reflectivity' in baseMat) baseMat.reflectivity = 0;
       baseMat.transparent = usingExternalBoard;
-      baseMat.opacity = usingExternalBoard
-        ? Math.min(baseMat.opacity ?? 0.02, 0.08)
-        : 1;
+      baseMat.opacity = usingExternalBoard ? Math.min(baseMat.opacity ?? 0.02, 0.08) : 1;
       baseMat.depthWrite = !usingExternalBoard;
       topMat?.color?.set?.(boardTheme.frameLight);
       topMat.roughness = boardTheme.surfaceRoughness;
@@ -9623,25 +8089,18 @@ function Chess3D({
       if ('clearcoat' in topMat) topMat.clearcoat = 0;
       if ('reflectivity' in topMat) topMat.reflectivity = 0;
       topMat.transparent = usingExternalBoard;
-      topMat.opacity = usingExternalBoard
-        ? Math.min(topMat.opacity ?? 0.02, 0.08)
-        : 1;
+      topMat.opacity = usingExternalBoard ? Math.min(topMat.opacity ?? 0.02, 0.08) : 1;
       topMat.depthWrite = !usingExternalBoard;
       coordMat?.color?.set?.(palette.accent);
       tiles?.forEach((tileMesh) => {
         const isDark = (tileMesh.userData?.r + tileMesh.userData?.c) % 2 === 1;
-        tileMesh.material.color.set(
-          isDark ? boardTheme.dark : boardTheme.light
-        );
+        tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
         tileMesh.material.roughness = boardTheme.surfaceRoughness;
         tileMesh.material.metalness = boardTheme.surfaceMetalness;
         if ('clearcoat' in tileMesh.material) tileMesh.material.clearcoat = 0;
-        if ('reflectivity' in tileMesh.material)
-          tileMesh.material.reflectivity = 0;
+        if ('reflectivity' in tileMesh.material) tileMesh.material.reflectivity = 0;
         tileMesh.material.transparent = usingExternalBoard;
-        tileMesh.material.opacity = usingExternalBoard
-          ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12)
-          : 1;
+        tileMesh.material.opacity = usingExternalBoard ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12) : 1;
         tileMesh.material.depthWrite = !usingExternalBoard;
       });
     }
@@ -9660,20 +8119,13 @@ function Chess3D({
         arena.allPieceMeshes.forEach((group) => {
           const meshStyleId = group.userData?.__pieceStyleId;
           if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
-          const colorKey =
-            group.userData?.__pieceColor === 'black' ? 'black' : 'white';
+          const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
           const materialSet = nextPieceMaterials[colorKey];
           if (!materialSet) return;
           group.traverse((child) => {
             if (!child.isMesh) return;
-            const role =
-              child.userData?.__pieceMaterialRole === 'accent'
-                ? 'accent'
-                : 'base';
-            const mat =
-              role === 'accent' && materialSet.accent
-                ? materialSet.accent
-                : materialSet.base;
+            const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
+            const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
             if (mat) child.material = mat;
           });
         });
@@ -9759,9 +8211,7 @@ function Chess3D({
     };
 
     const clearAllAudioStopTimeouts = () => {
-      audioStopTimeoutsRef.current.forEach((timeoutId) =>
-        clearTimeout(timeoutId)
-      );
+      audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
       audioStopTimeoutsRef.current.clear();
     };
 
@@ -9770,59 +8220,38 @@ function Chess3D({
       const renderSettings = {
         targetFrameIntervalMs: 1000 / performanceProfile.targetFps,
         renderResolutionScale: performanceProfile.resolutionScale,
-        pixelRatioCap:
-          performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
-        pixelRatioScale:
-          performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+        pixelRatioCap: performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+        pixelRatioScale: performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
       };
       renderSettingsRef.current = renderSettings;
-      const {
-        targetFrameIntervalMs,
-        renderResolutionScale,
-        pixelRatioCap,
-        pixelRatioScale
-      } = renderSettings;
+      const { targetFrameIntervalMs, renderResolutionScale, pixelRatioCap, pixelRatioScale } = renderSettings;
 
       const normalizedAppearance = normalizeAppearance(appearanceRef.current);
       const palette = createChessPalette(normalizedAppearance);
       paletteRef.current = palette;
-      const environmentOption = resolveHdriVariant(
-        normalizedAppearance.environmentHdri
-      );
+      const environmentOption = resolveHdriVariant(normalizedAppearance.environmentHdri);
       hdriVariantRef.current = environmentOption;
       const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
-        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ??
-        PIECE_STYLE_OPTIONS[0];
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
       const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
       const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-      const loadPieceSet = (size = RAW_BOARD_SIZE) =>
-        Promise.resolve().then(() => pieceSetLoader(size));
+      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
         resolvedInitialFlag ||
         (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
       const initialAiFlagValue =
-        aiFlag ||
-        initialAiFlag ||
-        getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
+        aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
       const tableFinish =
-        TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ??
-        DEFAULT_TABLE_FINISH;
+        TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ?? DEFAULT_TABLE_FINISH;
       const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
-      const clothOption =
-        TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ??
-        DEFAULT_CLOTH_OPTION;
+      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? DEFAULT_CLOTH_OPTION;
       const baseOption = DEFAULT_BASE_OPTION;
-      const chairOption =
-        CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ??
-        CHAIR_COLOR_OPTIONS[0];
-      const tableTheme =
-        TABLE_THEME_OPTIONS[normalizedAppearance.tables] ??
-        TABLE_THEME_OPTIONS[0];
-      const { option: shapeOption, rotationY } =
-        getEffectiveShapeConfigForTableTheme(tableTheme);
+      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfigForTableTheme(tableTheme);
       const shapeTableHeight = getTableHeightForShape(shapeOption?.id);
       const pieceMaterials = createPieceMaterials(pieceStyleOption);
       disposers.push(() => {
@@ -9852,8 +8281,7 @@ function Chess3D({
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
       const playMateSound = () => playAudio(mateSoundRef);
-      const playLaughSound = () =>
-        playAudio(laughSoundRef, { maxDurationMs: 6000 });
+      const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 6000 });
       const chairTheme = mapChairOptionToTheme(chairOption);
       const chairBuild = await buildChessChairTemplate(chairTheme);
       if (cancelled) return;
@@ -9864,2961 +8292,2072 @@ function Chess3D({
         disposeChessChairMaterials(chairMaterials);
       });
 
-      // ----- Build scene -----
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-        powerPreference: 'high-performance'
-      });
-      applyRendererSRGB(renderer);
-      renderer.useLegacyLights = false;
-      renderer.physicallyCorrectLights = true;
-      if (sharedKTX2Loader) {
+    // ----- Build scene -----
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    applyRendererSRGB(renderer);
+    renderer.useLegacyLights = false;
+    renderer.physicallyCorrectLights = true;
+    if (sharedKTX2Loader) {
+      try {
+        sharedKTX2Loader.detectSupport(renderer);
+      } catch (error) {
+        console.warn('Chess Battle Royal: KTX2 support detection failed', error);
+      }
+    }
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.85;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
+    const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
+    renderer.setPixelRatio(pixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Ensure the canvas covers the entire host element so the board is centered
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.zIndex = '0';
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = 'grab';
+    host.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin?.('anonymous');
+    const textureCache = new Map();
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+    const fallbackTexture = textureLoader.load(
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
+    );
+    applySRGBColorSpace(fallbackTexture);
+    fallbackTexture.wrapS = THREE.RepeatWrapping;
+    fallbackTexture.wrapT = THREE.RepeatWrapping;
+    fallbackTexture.repeat?.set?.(1.6, 1.6);
+    fallbackTexture.anisotropy = maxAnisotropy;
+    fallbackTexture.needsUpdate = true;
+    disposers.push(() => {
+      fallbackTexture?.dispose?.();
+      textureCache.clear?.();
+    });
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f16);
+    sceneRef.current = scene;
+    const arena = new THREE.Group();
+    scene.add(arena);
+    const shadowSun = new THREE.DirectionalLight(0xffffff, 1.0);
+    shadowSun.position.set(8, 15, 7);
+    shadowSun.castShadow = true;
+    shadowSun.shadow.mapSize.set(2048, 2048);
+    shadowSun.shadow.radius = 4;
+    shadowSun.shadow.bias = -0.00018;
+    shadowSun.shadow.normalBias = 0.02;
+    shadowSun.shadow.camera.near = 0.5;
+    shadowSun.shadow.camera.far = 50;
+    shadowSun.shadow.camera.left = -12;
+    shadowSun.shadow.camera.right = 12;
+    shadowSun.shadow.camera.top = 12;
+    shadowSun.shadow.camera.bottom = -12;
+    shadowSun.target.position.set(0, 0, 0);
+    scene.add(shadowSun);
+    scene.add(shadowSun.target);
+    const shadowFill = new THREE.HemisphereLight(0xdbeafe, 0x1f2937, 0.26);
+    scene.add(shadowFill);
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.PlaneGeometry(CHESS_ROOM_HALF_SPAN * 2.7, CHESS_ROOM_HALF_SPAN * 2.7),
+      new THREE.ShadowMaterial({ opacity: 0.28 })
+    );
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = environmentFloorRef.current ?? 0;
+    shadowCatcher.receiveShadow = true;
+    shadowCatcher.renderOrder = -1;
+    scene.add(shadowCatcher);
+    environmentShadowCatcherRef.current = shadowCatcher;
+    disposers.push(() => {
+      shadowCatcher.parent?.remove(shadowCatcher);
+      shadowCatcher.geometry?.dispose?.();
+      shadowCatcher.material?.dispose?.();
+      if (environmentShadowCatcherRef.current === shadowCatcher) {
+        environmentShadowCatcherRef.current = null;
+      }
+    });
+    arena.textureLoader = textureLoader;
+    arena.textureCache = textureCache;
+    arena.maxAnisotropy = maxAnisotropy;
+    arena.fallbackTexture = fallbackTexture;
+
+    const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
+    const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
+    const roomWidth = roomHalfWidth * 2;
+    const roomDepth = roomHalfDepth * 2;
+    arena.roomHalfWidth = roomHalfWidth;
+    arena.roomHalfDepth = roomHalfDepth;
+
+    let syncSkyboxToCamera = () => {};
+
+    const applyHdriEnvironment = async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
+      const sceneInstance = sceneRef.current;
+      if (!renderer || !sceneInstance) return;
+      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+      if (!envResult) return;
+      const { envMap, skyboxMap } = envResult;
+      if (!envMap) return;
+      if (cancelled) {
+        envMap.dispose?.();
+        skyboxMap?.dispose?.();
+        return;
+      }
+      const prevDispose = disposeEnvironmentRef.current;
+      const prevTexture = envTextureRef.current;
+      const prevSkybox = envSkyboxRef.current;
+      const floorY = environmentFloorRef.current ?? 0;
+      if (environmentShadowCatcherRef.current) {
+        environmentShadowCatcherRef.current.position.y = floorY + 0.002;
+      }
+      const cameraHeight =
+        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+        HDRI_UNITS_PER_METER;
+      const radiusMultiplier =
+        typeof activeVariant?.groundRadiusMultiplier === 'number'
+          ? activeVariant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+      const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
+      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
+      const skyboxResolution = Math.max(
+        16,
+        Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+      );
+      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      let skybox = null;
+      if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
         try {
-          sharedKTX2Loader.detectSupport(renderer);
+          skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
+          skybox.position.y = floorY + cameraHeight;
+          skybox.material.depthWrite = false;
+          sceneInstance.background = null;
+          sceneInstance.add(skybox);
+          envSkyboxRef.current = skybox;
+          envSkyboxTextureRef.current = skyboxMap;
+          baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
         } catch (error) {
-          console.warn(
-            'Chess Battle Royal: KTX2 support detection failed',
-            error
-          );
+          console.warn('Failed to create grounded HDRI skybox', error);
+          skybox = null;
         }
       }
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.85;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
-      const pixelRatio = Math.max(
-        MIN_RENDER_PIXEL_RATIO,
-        Math.min(pixelRatioCap, scaledPixelRatio)
-      );
-      renderer.setPixelRatio(pixelRatio);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      // Ensure the canvas covers the entire host element so the board is centered
-      renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '0';
-      renderer.domElement.style.left = '0';
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.zIndex = '0';
-      renderer.domElement.style.touchAction = 'none';
-      renderer.domElement.style.cursor = 'grab';
-      host.appendChild(renderer.domElement);
-      rendererRef.current = renderer;
-
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.setCrossOrigin?.('anonymous');
-      const textureCache = new Map();
-      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
-      const fallbackTexture = textureLoader.load(
-        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
-      );
-      applySRGBColorSpace(fallbackTexture);
-      fallbackTexture.wrapS = THREE.RepeatWrapping;
-      fallbackTexture.wrapT = THREE.RepeatWrapping;
-      fallbackTexture.repeat?.set?.(1.6, 1.6);
-      fallbackTexture.anisotropy = maxAnisotropy;
-      fallbackTexture.needsUpdate = true;
-      disposers.push(() => {
-        fallbackTexture?.dispose?.();
-        textureCache.clear?.();
-      });
-
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0b0f16);
-      sceneRef.current = scene;
-      const arena = new THREE.Group();
-      scene.add(arena);
-      const shadowSun = new THREE.DirectionalLight(0xffffff, 1.0);
-      shadowSun.position.set(8, 15, 7);
-      shadowSun.castShadow = true;
-      shadowSun.shadow.mapSize.set(2048, 2048);
-      shadowSun.shadow.radius = 4;
-      shadowSun.shadow.bias = -0.00018;
-      shadowSun.shadow.normalBias = 0.02;
-      shadowSun.shadow.camera.near = 0.5;
-      shadowSun.shadow.camera.far = 50;
-      shadowSun.shadow.camera.left = -12;
-      shadowSun.shadow.camera.right = 12;
-      shadowSun.shadow.camera.top = 12;
-      shadowSun.shadow.camera.bottom = -12;
-      shadowSun.target.position.set(0, 0, 0);
-      scene.add(shadowSun);
-      scene.add(shadowSun.target);
-      const shadowFill = new THREE.HemisphereLight(0xdbeafe, 0x1f2937, 0.26);
-      scene.add(shadowFill);
-      const shadowCatcher = new THREE.Mesh(
-        new THREE.PlaneGeometry(
-          CHESS_ROOM_HALF_SPAN * 2.7,
-          CHESS_ROOM_HALF_SPAN * 2.7
-        ),
-        new THREE.ShadowMaterial({ opacity: 0.28 })
-      );
-      shadowCatcher.rotation.x = -Math.PI / 2;
-      shadowCatcher.position.y = environmentFloorRef.current ?? 0;
-      shadowCatcher.receiveShadow = true;
-      shadowCatcher.renderOrder = -1;
-      scene.add(shadowCatcher);
-      environmentShadowCatcherRef.current = shadowCatcher;
-      disposers.push(() => {
-        shadowCatcher.parent?.remove(shadowCatcher);
-        shadowCatcher.geometry?.dispose?.();
-        shadowCatcher.material?.dispose?.();
-        if (environmentShadowCatcherRef.current === shadowCatcher) {
-          environmentShadowCatcherRef.current = null;
-        }
-      });
-      arena.textureLoader = textureLoader;
-      arena.textureCache = textureCache;
-      arena.maxAnisotropy = maxAnisotropy;
-      arena.fallbackTexture = fallbackTexture;
-
-      const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
-      const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
-      const roomWidth = roomHalfWidth * 2;
-      const roomDepth = roomHalfDepth * 2;
-      arena.roomHalfWidth = roomHalfWidth;
-      arena.roomHalfDepth = roomHalfDepth;
-
-      let syncSkyboxToCamera = () => {};
-
-      const applyHdriEnvironment = async (
-        variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT
-      ) => {
-        const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant =
-          variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
-        const envResult = await loadPolyHavenHdriEnvironment(
-          renderer,
-          activeVariant
-        );
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (cancelled) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
-        const prevDispose = disposeEnvironmentRef.current;
-        const prevTexture = envTextureRef.current;
-        const prevSkybox = envSkyboxRef.current;
-        const floorY = environmentFloorRef.current ?? 0;
-        if (environmentShadowCatcherRef.current) {
-          environmentShadowCatcherRef.current.position.y = floorY + 0.002;
-        }
-        const cameraHeight =
-          Math.max(
-            activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
-            MIN_HDRI_CAMERA_HEIGHT_M
-          ) * HDRI_UNITS_PER_METER;
-        const radiusMultiplier =
-          typeof activeVariant?.groundRadiusMultiplier === 'number'
-            ? activeVariant.groundRadiusMultiplier
-            : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-        const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
-        const groundRadius = Math.max(
-          sceneSpan * radiusMultiplier,
-          MIN_HDRI_RADIUS
-        );
-        const skyboxResolution = Math.max(
-          16,
-          Math.floor(
-            activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION
-          )
-        );
-        const skyboxRadius = Math.max(
-          groundRadius,
-          cameraHeight * 2.5,
-          MIN_HDRI_RADIUS
-        );
-        let skybox = null;
-        if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
-          try {
-            skybox = new GroundedSkybox(
-              skyboxMap,
-              cameraHeight,
-              skyboxRadius,
-              skyboxResolution
-            );
-            skybox.position.y = floorY + cameraHeight;
-            skybox.material.depthWrite = false;
-            sceneInstance.background = null;
-            sceneInstance.add(skybox);
-            envSkyboxRef.current = skybox;
-            envSkyboxTextureRef.current = skyboxMap;
-            baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
-          } catch (error) {
-            console.warn('Failed to create grounded HDRI skybox', error);
-            skybox = null;
-          }
-        }
-        sceneInstance.environment = envMap;
-        if (!skybox) {
-          sceneInstance.background = envMap;
-          envSkyboxRef.current = null;
-          envSkyboxTextureRef.current = null;
-          if (
-            'backgroundIntensity' in sceneInstance &&
-            typeof activeVariant?.backgroundIntensity === 'number'
-          ) {
-            sceneInstance.backgroundIntensity =
-              activeVariant.backgroundIntensity;
-          }
-        }
-        if (typeof activeVariant?.environmentIntensity === 'number') {
-          sceneInstance.environmentIntensity =
-            activeVariant.environmentIntensity;
-        }
-        renderer.toneMappingExposure =
-          activeVariant?.exposure ?? renderer.toneMappingExposure;
-        envTextureRef.current = envMap;
-        syncSkyboxToCamera();
-        disposeEnvironmentRef.current = () => {
-          if (sceneRef.current?.environment === envMap) {
-            sceneRef.current.environment = null;
-          }
-          if (!skybox && sceneRef.current?.background === envMap) {
-            sceneRef.current.background = null;
-          }
-          envMap.dispose?.();
-          if (skybox) {
-            skybox.parent?.remove(skybox);
-            skybox.geometry?.dispose?.();
-            skybox.material?.dispose?.();
-            if (envSkyboxRef.current === skybox) {
-              envSkyboxRef.current = null;
-            }
-          }
-          if (skyboxMap) {
-            skyboxMap.dispose?.();
-            if (envSkyboxTextureRef.current === skyboxMap) {
-              envSkyboxTextureRef.current = null;
-            }
-          }
-        };
-        if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
-          prevDispose();
-        }
-      };
-      updateEnvironmentRef.current = applyHdriEnvironment;
-      disposers.push(() => {
-        disposeEnvironmentRef.current?.();
-        envTextureRef.current = null;
+      sceneInstance.environment = envMap;
+      if (!skybox) {
+        sceneInstance.background = envMap;
         envSkyboxRef.current = null;
         envSkyboxTextureRef.current = null;
-      });
-
-      const tableInfo = await buildTableFromTheme(tableTheme, {
-        arena,
-        renderer,
-        tableRadius: TABLE_RADIUS,
-        tableHeight: shapeTableHeight,
-        woodOption,
-        clothOption,
-        baseOption,
-        shapeOption,
-        rotationY
-      });
-      if (tableInfo?.materials) {
-        applyTableMaterials(
-          tableInfo.materials,
-          { woodOption, clothOption, baseOption },
-          renderer
-        );
-      }
-      const initialArenaFloorY = Number.isFinite(environmentFloorRef.current)
-        ? environmentFloorRef.current
-        : 0;
-      const tableFloorOffset = alignGroupToFloorY(
-        tableInfo?.group,
-        initialArenaFloorY
-      );
-      if (tableInfo?.surfaceY != null) {
-        tableInfo.surfaceY += tableFloorOffset;
-      }
-      if (tableInfo?.dispose) {
-        disposers.push(() => {
-          try {
-            tableInfo.dispose();
-          } catch (error) {
-            console.warn('Failed to dispose chess table', error);
-          }
-        });
-      }
-      arena.tableThemeId = tableTheme.id;
-
-      function makeChair(index) {
-        const g = new THREE.Group();
-        if (chairTemplate) {
-          const chairModel = chairTemplate.clone(true);
-          g.add(chairModel);
+        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
+          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
         }
-
-        const avatarAnchor = new THREE.Object3D();
-        avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
-        avatarAnchor.userData = { index };
-        g.add(avatarAnchor);
-
-        g.scale.setScalar(CHAIR_SCALE);
-        return {
-          group: g,
-          anchor: avatarAnchor
-        };
       }
-
-      const chairDistance =
-        (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
-
-      const chairs = [];
-      const chairA = makeChair(0);
-      chairA.group.position.set(
-        0,
-        CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-        chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
-      );
-      chairA.group.rotation.y = Math.PI;
-      arena.add(chairA.group);
-      alignGroupToFloorY(chairA.group, initialArenaFloorY);
-      chairs.push(chairA);
-      const chairB = makeChair(1);
-      chairB.group.position.set(
-        0,
-        CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-        -chairDistance
-      );
-      arena.add(chairB.group);
-      alignGroupToFloorY(chairB.group, initialArenaFloorY);
-      chairs.push(chairB);
-
-      const tablePlacementOffset = alignArenaContentsToRoom(
-        [tableInfo?.group, chairA.group, chairB.group],
-        roomHalfWidth,
-        roomHalfDepth
-      );
-      arena.tablePlacementOffset = tablePlacementOffset.clone();
-
-      groundArenaGroups(
-        [tableInfo?.group, chairA.group, chairB.group],
-        initialArenaFloorY
-      );
-      const environmentFloorY = computeGroupFloorY([
-        tableInfo?.group,
-        chairA.group,
-        chairB.group
-      ]);
-      environmentFloorRef.current = environmentFloorY;
-      arena.environmentFloorY = environmentFloorY;
-      void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
-
-      const sandTimer = null;
-
-      function makeStudioCamera() {
-        const cam = new THREE.Group();
-        const legLen = 1.2;
-        const legRad = 0.025;
-        const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
-        const legM = new THREE.MeshStandardMaterial({
-          color: 0x333333,
-          roughness: 0.5,
-          metalness: 0.3
-        });
-        const l1 = new THREE.Mesh(legG, legM);
-        l1.position.set(-0.28, legLen / 2, 0);
-        l1.rotation.z = THREE.MathUtils.degToRad(18);
-        const l2 = l1.clone();
-        l2.position.set(0.18, legLen / 2, 0.24);
-        const l3 = l1.clone();
-        l3.position.set(0.18, legLen / 2, -0.24);
-        cam.add(l1, l2, l3);
-        const head = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
-          new THREE.MeshStandardMaterial({
-            color: 0x2e2e2e,
-            roughness: 0.6,
-            metalness: 0.2
-          })
-        );
-        head.position.set(0, legLen + 0.04, 0);
-        cam.add(head);
-        const body = new THREE.Mesh(
-          new THREE.BoxGeometry(0.34, 0.22, 0.22),
-          new THREE.MeshStandardMaterial({
-            color: 0x151515,
-            roughness: 0.5,
-            metalness: 0.4
-          })
-        );
-        body.position.set(0, legLen + 0.2, 0);
-        cam.add(body);
-        const lens = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
-          new THREE.MeshStandardMaterial({
-            color: 0x202020,
-            roughness: 0.4,
-            metalness: 0.5
-          })
-        );
-        lens.rotation.z = Math.PI / 2;
-        lens.position.set(0.22, legLen + 0.2, 0);
-        cam.add(lens);
-        const handle = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
-          new THREE.MeshStandardMaterial({
-            color: 0x444444,
-            roughness: 0.6
-          })
-        );
-        handle.rotation.z = THREE.MathUtils.degToRad(30);
-        handle.position.set(-0.16, legLen + 0.16, -0.1);
-        cam.add(handle);
-        return cam;
+      if (typeof activeVariant?.environmentIntensity === 'number') {
+        sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
       }
-
-      const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
-      const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
-      const studioCamA = makeStudioCamera();
-      studioCamA.position.set(
-        -cameraRigOffsetX + tablePlacementOffset.x,
-        0,
-        -cameraRigOffsetZ + tablePlacementOffset.z
-      );
-      arena.add(studioCamA);
-      const studioCamB = makeStudioCamera();
-      studioCamB.position.set(
-        cameraRigOffsetX + tablePlacementOffset.x,
-        0,
-        cameraRigOffsetZ + tablePlacementOffset.z
-      );
-      arena.add(studioCamB);
-
-      const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const boardGroup = new THREE.Group();
-      boardGroup.scale.setScalar(BOARD_SCALE);
-      tableInfo.group.add(boardGroup);
-      alignBoardGroupToTableSurface(boardGroup, tableInfo);
-      const boardVisualGroup = new THREE.Group();
-      boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
-      boardGroup.add(boardVisualGroup);
-      const boardLookTarget = new THREE.Vector3(
-        tablePlacementOffset.x,
-        boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
-        tablePlacementOffset.z
-      );
-      studioCamA.lookAt(boardLookTarget);
-      studioCamB.lookAt(boardLookTarget);
-
-      // Camera orbit via OrbitControls
-      camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-      const isPortrait = host.clientHeight > host.clientWidth;
-      const cameraSeatAngle = Math.PI / 2;
-      const cameraBackOffset = (isPortrait ? 2.32 : 1.62) + 0.3;
-      const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-      const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
-      const cameraRadius =
-        chairDistance + cameraBackOffset - cameraForwardOffset;
-      camera.position.set(
-        Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
-        tableSurfaceY + cameraHeightOffset,
-        Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
-      );
-      camera.lookAt(boardLookTarget);
-
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.enablePan = true;
-      controls.screenSpacePanning = true;
-      controls.enableZoom = true;
-      controls.minDistance = CAMERA_3D_MIN_RADIUS;
-      controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-      controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-      controls.maxPolarAngle = CAM.phiMax;
-      controls.rotateSpeed = 0.85;
-      controls.zoomSpeed = 0.7;
-      controls.panSpeed = 0.6;
-      controls.target.copy(boardLookTarget);
-      controls.update();
-      controlsRef.current = controls;
-      syncSkyboxToCamera = () => {
-        if (!camera || !boardLookTarget) return;
-        const skybox = envSkyboxRef.current;
-        if (!skybox) return;
-        const radius = camera.position.distanceTo(boardLookTarget);
-        const baseRadius = baseCameraRadiusRef.current || radius || 1;
-        const baseScale = baseSkyboxScaleRef.current || 1;
-        const scale = clamp(radius / baseRadius, 0.35, 3.5);
-        skybox.scale.setScalar(baseScale * scale);
-        lastCameraRadiusRef.current = radius;
+      renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+      envTextureRef.current = envMap;
+      syncSkyboxToCamera();
+      disposeEnvironmentRef.current = () => {
+        if (sceneRef.current?.environment === envMap) {
+          sceneRef.current.environment = null;
+        }
+        if (!skybox && sceneRef.current?.background === envMap) {
+          sceneRef.current.background = null;
+        }
+        envMap.dispose?.();
+        if (skybox) {
+          skybox.parent?.remove(skybox);
+          skybox.geometry?.dispose?.();
+          skybox.material?.dispose?.();
+          if (envSkyboxRef.current === skybox) {
+            envSkyboxRef.current = null;
+          }
+        }
+        if (skyboxMap) {
+          skyboxMap.dispose?.();
+          if (envSkyboxTextureRef.current === skyboxMap) {
+            envSkyboxTextureRef.current = null;
+          }
+        }
       };
-      controls.addEventListener('change', syncSkyboxToCamera);
-      disposers.push(() =>
-        controls?.removeEventListener('change', syncSkyboxToCamera)
-      );
+      if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
+        prevDispose();
+      }
+    };
+    updateEnvironmentRef.current = applyHdriEnvironment;
+    disposers.push(() => {
+      disposeEnvironmentRef.current?.();
+      envTextureRef.current = null;
+      envSkyboxRef.current = null;
+      envSkyboxTextureRef.current = null;
+    });
 
-      stopCameraTween = () => {
-        if (cameraTweenRef.current) {
-          cancelAnimationFrame(cameraTweenRef.current);
+    const tableInfo = await buildTableFromTheme(tableTheme, {
+      arena,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: shapeTableHeight,
+      woodOption,
+      clothOption,
+      baseOption,
+      shapeOption,
+      rotationY
+    });
+    if (tableInfo?.materials) {
+      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+    }
+    const initialArenaFloorY = Number.isFinite(environmentFloorRef.current) ? environmentFloorRef.current : 0;
+    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, initialArenaFloorY);
+    if (tableInfo?.surfaceY != null) {
+      tableInfo.surfaceY += tableFloorOffset;
+    }
+    if (tableInfo?.dispose) {
+      disposers.push(() => {
+        try {
+          tableInfo.dispose();
+        } catch (error) {
+          console.warn('Failed to dispose chess table', error);
+        }
+      });
+    }
+    arena.tableThemeId = tableTheme.id;
+
+    function makeChair(index) {
+      const g = new THREE.Group();
+      if (chairTemplate) {
+        const chairModel = chairTemplate.clone(true);
+        g.add(chairModel);
+      }
+
+      const avatarAnchor = new THREE.Object3D();
+      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+      avatarAnchor.userData = { index };
+      g.add(avatarAnchor);
+
+      g.scale.setScalar(CHAIR_SCALE);
+      return {
+        group: g,
+        anchor: avatarAnchor
+      };
+    }
+
+    const chairDistance =
+      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
+
+    const chairs = [];
+    const chairA = makeChair(0);
+    chairA.group.position.set(
+      0,
+      CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
+      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
+    );
+    chairA.group.rotation.y = Math.PI;
+    arena.add(chairA.group);
+    alignGroupToFloorY(chairA.group, initialArenaFloorY);
+    chairs.push(chairA);
+    const chairB = makeChair(1);
+    chairB.group.position.set(0, CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET, -chairDistance);
+    arena.add(chairB.group);
+    alignGroupToFloorY(chairB.group, initialArenaFloorY);
+    chairs.push(chairB);
+
+    const tablePlacementOffset = alignArenaContentsToRoom(
+      [tableInfo?.group, chairA.group, chairB.group],
+      roomHalfWidth,
+      roomHalfDepth
+    );
+    arena.tablePlacementOffset = tablePlacementOffset.clone();
+
+    groundArenaGroups([tableInfo?.group, chairA.group, chairB.group], initialArenaFloorY);
+    const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
+    environmentFloorRef.current = environmentFloorY;
+    arena.environmentFloorY = environmentFloorY;
+    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
+
+    const sandTimer = null;
+
+    function makeStudioCamera() {
+      const cam = new THREE.Group();
+      const legLen = 1.2;
+      const legRad = 0.025;
+      const legG = new THREE.CylinderGeometry(legRad, legRad, legLen, 10);
+      const legM = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.5,
+        metalness: 0.3
+      });
+      const l1 = new THREE.Mesh(legG, legM);
+      l1.position.set(-0.28, legLen / 2, 0);
+      l1.rotation.z = THREE.MathUtils.degToRad(18);
+      const l2 = l1.clone();
+      l2.position.set(0.18, legLen / 2, 0.24);
+      const l3 = l1.clone();
+      l3.position.set(0.18, legLen / 2, -0.24);
+      cam.add(l1, l2, l3);
+      const head = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.1, 0.08, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x2e2e2e,
+          roughness: 0.6,
+          metalness: 0.2
+        })
+      );
+      head.position.set(0, legLen + 0.04, 0);
+      cam.add(head);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.22, 0.22),
+        new THREE.MeshStandardMaterial({
+          color: 0x151515,
+          roughness: 0.5,
+          metalness: 0.4
+        })
+      );
+      body.position.set(0, legLen + 0.2, 0);
+      cam.add(body);
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.22, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x202020,
+          roughness: 0.4,
+          metalness: 0.5
+        })
+      );
+      lens.rotation.z = Math.PI / 2;
+      lens.position.set(0.22, legLen + 0.2, 0);
+      cam.add(lens);
+      const handle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.01, 0.3, 10),
+        new THREE.MeshStandardMaterial({
+          color: 0x444444,
+          roughness: 0.6
+        })
+      );
+      handle.rotation.z = THREE.MathUtils.degToRad(30);
+      handle.position.set(-0.16, legLen + 0.16, -0.1);
+      cam.add(handle);
+      return cam;
+    }
+
+    const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
+    const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
+    const studioCamA = makeStudioCamera();
+    studioCamA.position.set(
+      -cameraRigOffsetX + tablePlacementOffset.x,
+      0,
+      -cameraRigOffsetZ + tablePlacementOffset.z
+    );
+    arena.add(studioCamA);
+    const studioCamB = makeStudioCamera();
+    studioCamB.position.set(
+      cameraRigOffsetX + tablePlacementOffset.x,
+      0,
+      cameraRigOffsetZ + tablePlacementOffset.z
+    );
+    arena.add(studioCamB);
+
+    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
+    const boardGroup = new THREE.Group();
+    boardGroup.scale.setScalar(BOARD_SCALE);
+    tableInfo.group.add(boardGroup);
+    alignBoardGroupToTableSurface(boardGroup, tableInfo);
+    const boardVisualGroup = new THREE.Group();
+    boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+    boardGroup.add(boardVisualGroup);
+    const boardLookTarget = new THREE.Vector3(
+      tablePlacementOffset.x,
+      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
+      tablePlacementOffset.z
+    );
+    studioCamA.lookAt(boardLookTarget);
+    studioCamB.lookAt(boardLookTarget);
+
+    // Camera orbit via OrbitControls
+    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+    const isPortrait = host.clientHeight > host.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset = (isPortrait ? 2.32 : 1.62) + 0.3;
+    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
+    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
+      tableSurfaceY + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
+    );
+    camera.lookAt(boardLookTarget);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.enableZoom = true;
+    controls.minDistance = CAMERA_3D_MIN_RADIUS;
+    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+    controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+    controls.maxPolarAngle = CAM.phiMax;
+    controls.rotateSpeed = 0.85;
+    controls.zoomSpeed = 0.7;
+    controls.panSpeed = 0.6;
+    controls.target.copy(boardLookTarget);
+    controls.update();
+    controlsRef.current = controls;
+    syncSkyboxToCamera = () => {
+      if (!camera || !boardLookTarget) return;
+      const skybox = envSkyboxRef.current;
+      if (!skybox) return;
+      const radius = camera.position.distanceTo(boardLookTarget);
+      const baseRadius = baseCameraRadiusRef.current || radius || 1;
+      const baseScale = baseSkyboxScaleRef.current || 1;
+      const scale = clamp(radius / baseRadius, 0.35, 3.5);
+      skybox.scale.setScalar(baseScale * scale);
+      lastCameraRadiusRef.current = radius;
+    };
+    controls.addEventListener('change', syncSkyboxToCamera);
+    disposers.push(() => controls?.removeEventListener('change', syncSkyboxToCamera));
+
+    stopCameraTween = () => {
+      if (cameraTweenRef.current) {
+        cancelAnimationFrame(cameraTweenRef.current);
+        cameraTweenRef.current = 0;
+      }
+    };
+
+    const applyCameraSpherical = (spherical) => {
+      const pos = new THREE.Vector3().setFromSpherical(spherical);
+      camera.position.copy(boardLookTarget).add(pos);
+      camera.lookAt(boardLookTarget);
+      controls.update();
+    };
+
+    const animateCameraTo = (targetSpherical, duration = 420) => {
+      stopCameraTween();
+      const start = performance.now();
+      const from = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
+      const tick = (now) => {
+        const t = clamp01((now - start) / duration);
+        const eased = t * t * (3 - 2 * t);
+        const current = new THREE.Spherical(
+          THREE.MathUtils.lerp(from.radius, targetSpherical.radius, eased),
+          THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
+          THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
+        );
+        applyCameraSpherical(current);
+        if (t < 1) {
+          cameraTweenRef.current = requestAnimationFrame(tick);
+        } else {
           cameraTweenRef.current = 0;
         }
       };
+      cameraTweenRef.current = requestAnimationFrame(tick);
+    };
 
-      const applyCameraSpherical = (spherical) => {
-        const pos = new THREE.Vector3().setFromSpherical(spherical);
-        camera.position.copy(boardLookTarget).add(pos);
-        camera.lookAt(boardLookTarget);
-        controls.update();
-      };
+    const cameraMemory = { last3d: null };
 
-      const animateCameraTo = (targetSpherical, duration = 420) => {
-        stopCameraTween();
-        const start = performance.now();
-        const from = new THREE.Spherical().setFromVector3(
-          camera.position.clone().sub(boardLookTarget)
-        );
-        const tick = (now) => {
-          const t = clamp01((now - start) / duration);
-          const eased = t * t * (3 - 2 * t);
-          const current = new THREE.Spherical(
-            THREE.MathUtils.lerp(from.radius, targetSpherical.radius, eased),
-            THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
-            THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
-          );
-          applyCameraSpherical(current);
-          if (t < 1) {
-            cameraTweenRef.current = requestAnimationFrame(tick);
-          } else {
-            cameraTweenRef.current = 0;
-          }
-        };
-        cameraTweenRef.current = requestAnimationFrame(tick);
-      };
+    const setViewModeInternal = (mode) => {
+      if (!controls) return;
+      const current = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
+      const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
 
-      const cameraMemory = { last3d: null };
+      const initialRadius = CAMERA_3D_MAX_RADIUS;
+      const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
-      const setViewModeInternal = (mode) => {
-        if (!controls) return;
-        const current = new THREE.Spherical().setFromVector3(
-          camera.position.clone().sub(boardLookTarget)
-        );
-        const theta = Number.isFinite(current.theta)
-          ? current.theta
-          : -Math.PI / 4;
-
-        const initialRadius = CAMERA_3D_MAX_RADIUS;
-        const default3d = new THREE.Spherical(
-          initialRadius,
-          CAMERA_DEFAULT_PHI,
-          theta
-        );
-
-        if (mode === '2d') {
-          cameraMemory.last3d = current;
-          controls.target.copy(boardLookTarget);
-          controls.enabled = true;
-          controls.enableRotate = false;
-          controls.enablePan = false;
-          controls.enableZoom = true;
-          controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
-          controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
-          controls.minDistance = CAMERA_2D_MIN_RADIUS;
-          controls.maxDistance = CAMERA_2D_MAX_RADIUS;
-          const targetRadius = clamp(
-            CAMERA_2D_MAX_RADIUS,
-            CAMERA_2D_MIN_RADIUS,
-            CAMERA_2D_MAX_RADIUS
-          );
-          if (!initial2dViewRef.current) {
-            initial2dViewRef.current = new THREE.Spherical(
-              targetRadius,
-              CAMERA_TOPDOWN_LOCK,
-              0
-            );
-          }
-          const target = initial2dViewRef.current;
-          animateCameraTo(target, 360);
-        } else {
-          controls.enabled = true;
-          controls.enableRotate = true;
-          controls.enablePan = true;
-          controls.enableZoom = true;
-          controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-          controls.maxPolarAngle = CAM.phiMax;
-          controls.minDistance = CAMERA_3D_MIN_RADIUS;
-          controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-          const restore = cameraMemory.last3d || default3d;
-          const target = new THREE.Spherical(
-            clamp(
-              CAMERA_3D_MAX_RADIUS,
-              CAMERA_3D_MIN_RADIUS,
-              CAMERA_3D_MAX_RADIUS
-            ),
-            clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
-            Number.isFinite(restore.theta) ? restore.theta : default3d.theta
-          );
-          animateCameraTo(target, 420);
+      if (mode === '2d') {
+        cameraMemory.last3d = current;
+        controls.target.copy(boardLookTarget);
+        controls.enabled = true;
+        controls.enableRotate = false;
+        controls.enablePan = false;
+        controls.enableZoom = true;
+        controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.minDistance = CAMERA_2D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_2D_MAX_RADIUS;
+        const targetRadius = clamp(CAMERA_2D_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
+        if (!initial2dViewRef.current) {
+          initial2dViewRef.current = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
         }
-      };
-
-      cameraViewRef.current = { setMode: setViewModeInternal };
-      setViewModeInternal(viewModeRef.current);
-
-      const fit = () => {
-        const w = host.clientWidth;
-        const h = host.clientHeight;
-        const renderScale =
-          renderSettingsRef.current.renderResolutionScale ||
-          renderResolutionScale;
-        const renderW = Math.max(1, Math.round(w * renderScale));
-        const renderH = Math.max(1, Math.round(h * renderScale));
-        renderer.setSize(renderW, renderH, false);
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        const minDistance =
-          viewModeRef.current === '2d'
-            ? CAMERA_2D_MIN_RADIUS
-            : CAMERA_3D_MIN_RADIUS;
-        const maxDistance =
-          viewModeRef.current === '2d'
-            ? CAMERA_2D_MAX_RADIUS
-            : CAMERA_3D_MAX_RADIUS;
-        if (viewModeRef.current === '2d') {
-          controls.target.copy(boardLookTarget);
-        }
-        const currentRadius = camera.position.distanceTo(boardLookTarget);
-        const radius = clamp(
-          currentRadius || CAMERA_SAFE_MAX_RADIUS,
-          minDistance,
-          maxDistance
+        const target = initial2dViewRef.current;
+        animateCameraTo(target, 360);
+      } else {
+        controls.enabled = true;
+        controls.enableRotate = true;
+        controls.enablePan = true;
+        controls.enableZoom = true;
+        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+        controls.maxPolarAngle = CAM.phiMax;
+        controls.minDistance = CAMERA_3D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+        const restore = cameraMemory.last3d || default3d;
+        const target = new THREE.Spherical(
+          clamp(CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
+          clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        const dir = camera.position.clone().sub(boardLookTarget).normalize();
-        camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-        controls.update();
-      };
-      fitRef.current = fit;
-      fit();
-      baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
-      baseSkyboxScaleRef.current =
-        envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
-      syncSkyboxToCamera();
+        animateCameraTo(target, 420);
+      }
+    };
 
-      const captureFxGroup = new THREE.Group();
-      scene.add(captureFxGroup);
-      const activeCaptureFx = [];
-      let board = null;
-      let pieceMeshes = null;
-      const parkedAirUnits = [];
-      const sideVehicleSkinCache = new Map();
-      const captureDir = new THREE.Vector3();
-      const captureUnitTemplates = {
-        drone: null,
-        helicopter: null,
-        fighter: null,
-        truck: null
-      };
-      const captureUnitLoads = {};
+    cameraViewRef.current = { setMode: setViewModeInternal };
+    setViewModeInternal(viewModeRef.current);
 
-      const loadCaptureUnitTemplate = async (key, targetSize) => {
-        if (captureUnitTemplates[key]) return captureUnitTemplates[key];
-        if (captureUnitLoads[key]) return captureUnitLoads[key];
-        const urls = CAPTURE_MODEL_URLS[key] || [];
-        const loader = createConfiguredGLTFLoader(renderer);
-        const imageCache = new Map();
-        const task = (async () => {
-          for (const url of urls) {
+    const fit = () => {
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      const renderScale = renderSettingsRef.current.renderResolutionScale || renderResolutionScale;
+      const renderW = Math.max(1, Math.round(w * renderScale));
+      const renderH = Math.max(1, Math.round(h * renderScale));
+      renderer.setSize(renderW, renderH, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
+      const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
+      if (viewModeRef.current === '2d') {
+        controls.target.copy(boardLookTarget);
+      }
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
+      const dir = camera.position.clone().sub(boardLookTarget).normalize();
+      camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+      controls.update();
+    };
+    fitRef.current = fit;
+    fit();
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+    baseSkyboxScaleRef.current =
+      envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
+    syncSkyboxToCamera();
+
+    const captureFxGroup = new THREE.Group();
+    scene.add(captureFxGroup);
+    const activeCaptureFx = [];
+    let board = null;
+    let pieceMeshes = null;
+    const parkedAirUnits = [];
+    const sideVehicleSkinCache = new Map();
+    const captureDir = new THREE.Vector3();
+    const captureUnitTemplates = {
+      drone: null,
+      helicopter: null,
+      fighter: null,
+      truck: null
+    };
+    const captureUnitLoads = {};
+
+    const loadCaptureUnitTemplate = async (key, targetSize) => {
+      if (captureUnitTemplates[key]) return captureUnitTemplates[key];
+      if (captureUnitLoads[key]) return captureUnitLoads[key];
+      const urls = CAPTURE_MODEL_URLS[key] || [];
+      const loader = createConfiguredGLTFLoader(renderer);
+      const imageCache = new Map();
+      const task = (async () => {
+        for (const url of urls) {
+          try {
+            const resolvedUrl = new URL(url, window.location.href).href;
+            const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+            loader.setResourcePath(resourcePath);
+            loader.setPath('');
+            let model = null;
             try {
-              const resolvedUrl = new URL(url, window.location.href).href;
-              const resourcePath = resolvedUrl.substring(
-                0,
-                resolvedUrl.lastIndexOf('/') + 1
-              );
-              loader.setResourcePath(resourcePath);
-              loader.setPath('');
-              let model = null;
-              try {
-                // eslint-disable-next-line no-await-in-loop
-                const rawBuffer = await fetchBuffer(resolvedUrl);
-                // eslint-disable-next-line no-await-in-loop
-                const patchedBuffer = await patchGlbImagesToDataUris(
-                  rawBuffer,
-                  key,
-                  resolvedUrl,
-                  urls,
-                  imageCache
-                );
-                // eslint-disable-next-line no-await-in-loop
-                model = await parseObjectFromBuffer(loader, patchedBuffer);
-              } catch {
-                // Fallback to default GLTF load flow.
-              }
-              if (!model) {
-                // eslint-disable-next-line no-await-in-loop
-                const gltf = await new Promise((resolve, reject) => {
-                  loader.load(resolvedUrl, resolve, undefined, reject);
-                });
-                model = gltf.scene || gltf.scenes?.[0] || null;
-              }
-              if (!model) continue;
-              model = model.clone?.(true) ?? model;
-              prepareCaptureModel(model);
-              normalizeModel(model, targetSize);
-              captureUnitTemplates[key] = model;
-              return model;
-            } catch (error) {
-              // Try fallback URL.
+              // eslint-disable-next-line no-await-in-loop
+              const rawBuffer = await fetchBuffer(resolvedUrl);
+              // eslint-disable-next-line no-await-in-loop
+              const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, key, resolvedUrl, urls, imageCache);
+              // eslint-disable-next-line no-await-in-loop
+              model = await parseObjectFromBuffer(loader, patchedBuffer);
+            } catch {
+              // Fallback to default GLTF load flow.
             }
+            if (!model) {
+              // eslint-disable-next-line no-await-in-loop
+              const gltf = await new Promise((resolve, reject) => {
+                loader.load(resolvedUrl, resolve, undefined, reject);
+              });
+              model = gltf.scene || gltf.scenes?.[0] || null;
+            }
+            if (!model) continue;
+            model = model.clone?.(true) ?? model;
+            prepareCaptureModel(model);
+            normalizeModel(model, targetSize);
+            captureUnitTemplates[key] = model;
+            return model;
+          } catch (error) {
+            // Try fallback URL.
           }
-          return null;
-        })();
-        captureUnitLoads[key] = task;
-        return task;
-      };
+        }
+        return null;
+      })();
+      captureUnitLoads[key] = task;
+      return task;
+    };
 
-      const cloneCaptureUnitTemplate = (key) => {
-        const template = captureUnitTemplates[key];
-        if (!template) return null;
-        const clone = cloneSkinned(template);
-        prepareCaptureModel(clone);
-        return clone;
-      };
+    const cloneCaptureUnitTemplate = (key) => {
+      const template = captureUnitTemplates[key];
+      if (!template) return null;
+      const clone = cloneSkinned(template);
+      prepareCaptureModel(clone);
+      return clone;
+    };
 
-      void loadCaptureUnitTemplate('drone', 3.7);
-      void loadCaptureUnitTemplate('helicopter', 5.2);
-      void loadCaptureUnitTemplate('fighter', 5.8);
-      void loadCaptureUnitTemplate('truck', 6.2);
-      void primeCaptureVehicleTextureSets(
-        renderer?.capabilities?.getMaxAnisotropy?.() || 1
+    void loadCaptureUnitTemplate('drone', 3.7);
+    void loadCaptureUnitTemplate('helicopter', 5.2);
+    void loadCaptureUnitTemplate('fighter', 5.8);
+    void loadCaptureUnitTemplate('truck', 6.2);
+    void primeCaptureVehicleTextureSets(renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+
+    const addFxBox = (group, size, position, color, roughness = 0.7, metalness = 0.2) => {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(size[0], size[1], size[2]),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
       );
-
-      const addFxBox = (
-        group,
-        size,
-        position,
-        color,
-        roughness = 0.7,
-        metalness = 0.2
-      ) => {
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(size[0], size[1], size[2]),
-          new THREE.MeshStandardMaterial({ color, roughness, metalness })
-        );
-        mesh.position.set(position[0], position[1], position[2]);
-        mesh.castShadow = true;
-        group.add(mesh);
-        return mesh;
-      };
-      const addFxCylinder = (
-        group,
-        rt,
-        rb,
-        h,
-        position,
-        rotation,
-        color,
-        radialSegments = 16,
-        roughness = 0.62,
-        metalness = 0.28
-      ) => {
-        const mesh = new THREE.Mesh(
-          new THREE.CylinderGeometry(rt, rb, h, radialSegments),
-          new THREE.MeshStandardMaterial({ color, roughness, metalness })
-        );
-        mesh.position.set(position[0], position[1], position[2]);
-        mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-        mesh.castShadow = true;
-        group.add(mesh);
-        return mesh;
-      };
-      const addFxSphere = (
-        group,
-        radius,
-        position,
-        color,
-        roughness = 0.45,
-        metalness = 0.25,
-        transparent = false,
-        opacity = 1
-      ) => {
-        const mesh = new THREE.Mesh(
-          new THREE.SphereGeometry(radius, 16, 16),
-          new THREE.MeshStandardMaterial({
-            color,
-            roughness,
-            metalness,
-            transparent,
-            opacity
-          })
-        );
-        mesh.position.set(position[0], position[1], position[2]);
-        mesh.castShadow = true;
-        group.add(mesh);
-        return mesh;
-      };
-      const createFxPolygon = (
-        points,
-        depth,
-        color,
-        roughness = 0.62,
-        metalness = 0.18
-      ) => {
-        const shape = new THREE.Shape();
-        shape.moveTo(points[0][0], points[0][1]);
-        for (let i = 1; i < points.length; i += 1)
-          shape.lineTo(points[i][0], points[i][1]);
-        shape.closePath();
-        const geometry = new THREE.ExtrudeGeometry(shape, {
-          depth,
-          bevelEnabled: false,
-          curveSegments: 1
-        });
-        geometry.translate(0, 0, -depth / 2);
-        geometry.rotateX(Math.PI / 2);
-        const mesh = new THREE.Mesh(
-          geometry,
-          new THREE.MeshStandardMaterial({ color, roughness, metalness })
-        );
-        mesh.castShadow = true;
-        return mesh;
-      };
-      const findCaptureRotor = (model, role = 'main') => {
-        if (!model) return null;
-        const modelBounds = new THREE.Box3().setFromObject(model);
-        const modelSize = new THREE.Vector3();
-        modelBounds.getSize(modelSize);
-        const maxModelDim =
-          Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
-        const modelCenter = modelBounds.getCenter(new THREE.Vector3());
-        const roleMatchers =
-          role === 'tail'
-            ? [/tail/i, /back/i, /rear/i]
-            : [/main/i, /top/i, /upper/i];
-        let best = null;
-        let bestScore = Number.NEGATIVE_INFINITY;
-        model.traverse((node) => {
-          if (!node || node === model) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          if (!/rotor|propell|blade|fan/.test(name)) return;
-          const bounds = new THREE.Box3().setFromObject(node);
-          const size = new THREE.Vector3();
-          bounds.getSize(size);
-          const maxDim = Math.max(size.x, size.y, size.z) || 0;
-          const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
-          if (
-            !Number.isFinite(maxDim) ||
-            maxDim <= 0 ||
-            maxDim > maxModelDim * (role === 'main' ? 0.9 : 0.45)
-          )
-            return;
-          if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
-          const center = bounds.getCenter(new THREE.Vector3());
-          const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
-          const spanBias = maxDim / Math.max(minDim, 1e-3);
-          const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim * 0.12;
-          const verticalBias =
-            role === 'main' ? (center.y - modelCenter.y) * 2.2 : 0;
-          const tailXBias =
-            role === 'tail' ? (modelCenter.x - center.x) * 1.7 : 0;
-          const score =
-            (roleMatch ? 3 : 0) +
-            spanBias * 0.08 +
-            sizeBias +
-            verticalBias +
-            tailXBias;
-          if (score > bestScore) {
-            bestScore = score;
-            best = node;
-          }
-        });
-        return best;
-      };
-      const findJetExhaustAnchor = (model) => {
-        if (!model) return new THREE.Vector3(-1.9, 0, 0);
-        const candidates = [];
-        model.traverse((node) => {
-          if (!node?.isMesh) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          if (!/engine|exhaust|nozzle|thruster|afterburn|jet/.test(name))
-            return;
-          const box = new THREE.Box3().setFromObject(node);
-          if (box.isEmpty()) return;
-          const center = new THREE.Vector3();
-          box.getCenter(center);
-          const size = new THREE.Vector3();
-          box.getSize(size);
-          const score = box.min.x * -1 + Math.max(size.y, size.z) * 0.2;
-          candidates.push({ center, score });
-        });
-        if (!candidates.length) return new THREE.Vector3(-1.9, 0, 0);
-        candidates.sort((a, b) => b.score - a.score);
-        const anchor = candidates[0].center.clone();
-        model.worldToLocal(anchor);
-        return anchor;
-      };
-      const createJetExhaustClouds = (
-        root,
-        count = 6,
-        start = [-1.95, 0, 0],
-        stepX = 0.2
-      ) => {
-        const clouds = [];
-        for (let i = 0; i < count; i += 1) {
-          clouds.push(
-            addFxSphere(
-              root,
-              0.12 + i * 0.035,
-              [start[0] - i * stepX, start[1], start[2]],
-              i < 2 ? '#f7a94b' : '#8b949b',
-              i < 2 ? 0.22 : 1,
-              0,
-              true,
-              i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
-            )
-          );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.castShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    const addFxCylinder = (group, rt, rb, h, position, rotation, color, radialSegments = 16, roughness = 0.62, metalness = 0.28) => {
+      const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(rt, rb, h, radialSegments),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
+      );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+      mesh.castShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    const addFxSphere = (group, radius, position, color, roughness = 0.45, metalness = 0.25, transparent = false, opacity = 1) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 16, 16),
+        new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
+      );
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.castShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    const createFxPolygon = (points, depth, color, roughness = 0.62, metalness = 0.18) => {
+      const shape = new THREE.Shape();
+      shape.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
+      shape.closePath();
+      const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
+      geometry.translate(0, 0, -depth / 2);
+      geometry.rotateX(Math.PI / 2);
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color, roughness, metalness })
+      );
+      mesh.castShadow = true;
+      return mesh;
+    };
+    const findCaptureRotor = (model, role = 'main') => {
+      if (!model) return null;
+      const modelBounds = new THREE.Box3().setFromObject(model);
+      const modelSize = new THREE.Vector3();
+      modelBounds.getSize(modelSize);
+      const maxModelDim = Math.max(modelSize.x, modelSize.y, modelSize.z) || 1;
+      const modelCenter = modelBounds.getCenter(new THREE.Vector3());
+      const roleMatchers =
+        role === 'tail'
+          ? [/tail/i, /back/i, /rear/i]
+          : [/main/i, /top/i, /upper/i];
+      let best = null;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      model.traverse((node) => {
+        if (!node || node === model) return;
+        const name = `${node.name || ''}`.toLowerCase();
+        if (!/rotor|propell|blade|fan/.test(name)) return;
+        const bounds = new THREE.Box3().setFromObject(node);
+        const size = new THREE.Vector3();
+        bounds.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 0;
+        const minDim = Math.min(size.x || 0, size.y || 0, size.z || 0);
+        if (!Number.isFinite(maxDim) || maxDim <= 0 || maxDim > maxModelDim * (role === 'main' ? 0.9 : 0.45)) return;
+        if (!Number.isFinite(minDim) || minDim > maxModelDim * 0.18) return;
+        const center = bounds.getCenter(new THREE.Vector3());
+        const roleMatch = roleMatchers.some((matcher) => matcher.test(name));
+        const spanBias = maxDim / Math.max(minDim, 1e-3);
+        const sizeBias = role === 'main' ? maxDim * 0.35 : -maxDim * 0.12;
+        const verticalBias = role === 'main' ? (center.y - modelCenter.y) * 2.2 : 0;
+        const tailXBias = role === 'tail' ? (modelCenter.x - center.x) * 1.7 : 0;
+        const score = (roleMatch ? 3 : 0) + spanBias * 0.08 + sizeBias + verticalBias + tailXBias;
+        if (score > bestScore) {
+          bestScore = score;
+          best = node;
         }
-        return clouds;
-      };
-      const toHexColor = (value, fallback) => {
-        const color = new THREE.Color(value || fallback);
-        return `#${color.getHexString()}`;
-      };
-      const getCaptureToneSeed = (kind = 'generic') => {
-        const boardTheme = paletteRef.current?.board ?? BASE_BOARD_THEME;
-        return {
-          base: toHexColor(boardTheme.dark, '#313940'),
-          mid: toHexColor(boardTheme.frameDark, '#74818b'),
-          dark: toHexColor(boardTheme.frameLight, '#2f353b'),
-          grid: toHexColor(boardTheme.light, '#a9b3bc'),
-          kind
-        };
-      };
-      const resolveSideVehicleSkin = (isWhiteSide) => {
-        const cacheKey = isWhiteSide ? 'white' : 'black';
-        if (sideVehicleSkinCache.has(cacheKey))
-          return sideVehicleSkinCache.get(cacheKey);
-        for (let r = 0; r < 8; r += 1) {
-          for (let c = 0; c < 8; c += 1) {
-            const boardPiece = board?.[r]?.[c];
-            if (
-              !boardPiece ||
-              boardPiece.w !== isWhiteSide ||
-              boardPiece.t !== 'P'
-            )
-              continue;
-            const skin = extractVehicleSkinFromPiece(pieceMeshes?.[r]?.[c]);
-            if (skin) {
-              sideVehicleSkinCache.set(cacheKey, skin);
-              return skin;
-            }
-          }
-        }
-        const fallbackPiece = isWhiteSide
-          ? pieceMeshes?.[6]?.[0] || pieceMeshes?.[7]?.[0]
-          : pieceMeshes?.[1]?.[0] || pieceMeshes?.[0]?.[0];
-        const fallbackSkin = extractVehicleSkinFromPiece(fallbackPiece);
-        sideVehicleSkinCache.set(cacheKey, fallbackSkin || null);
-        return fallbackSkin || null;
-      };
-      const createAvatarBadgeTexture = (label = '🙂') => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return null;
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(64, 64, 60, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#f8fafc';
-        ctx.stroke();
-        ctx.font =
-          '700 58px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillText(`${label}`.slice(0, 2), 64, 68);
-        const texture = new THREE.CanvasTexture(canvas);
-        applySRGBColorSpace(texture);
-        return texture;
-      };
-      const resolveBadgeLabel = (value, fallback = '🙂') => {
-        if (!value) return fallback;
-        if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
-          return fallback;
-        }
-        return `${value}`.trim().slice(0, 2) || fallback;
-      };
-      const attachVehicleAvatarBadge = (root, label = '🙂', sideSign = 1) => {
-        if (!root) return null;
-        const texture = createAvatarBadgeTexture(resolveBadgeLabel(label));
-        if (!texture) return null;
-        const badge = new THREE.Mesh(
-          new THREE.CircleGeometry(0.16, 28),
-          new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide
-          })
-        );
-        badge.position.set(0.1, 0.2, sideSign >= 0 ? 0.22 : -0.22);
-        badge.rotation.y = sideSign >= 0 ? Math.PI / 2 : -Math.PI / 2;
-        root.add(badge);
-        return badge;
-      };
-      const createFxDrone = ({ forceProcedural = false } = {}) => {
-        const model = forceProcedural
-          ? null
-          : cloneCaptureUnitTemplate('drone');
-        if (model) {
-          const root = new THREE.Group();
-          root.add(model);
-          const propeller =
-            model.getObjectByName('propeller') ||
-            model.getObjectByName('Propeller') ||
-            model.getObjectByName('Rotor') ||
-            model;
-          applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
-          return { root, propeller, exhaustClouds: [] };
-        }
-        const root = new THREE.Group();
-        root.scale.setScalar(0.3);
-        const droneTone = getCaptureToneSeed('missile');
-        const body = addFxCylinder(
-          root,
-          0.14,
-          0.19,
-          2.75,
-          [0, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#cfd3d6',
-          20
-        );
-        body.material = createCaptureVehicleMaterial('missile', {
-          toneSeed: droneTone,
-          color: '#d1d7de',
-          roughness: 0.28,
-          metalness: 0.84
-        });
-        const nose = new THREE.Mesh(
-          new THREE.ConeGeometry(0.18, 0.72, 20),
-          createCaptureVehicleMaterial('missile', {
-            toneSeed: droneTone,
-            color: '#edf1f6',
-            roughness: 0.24,
-            metalness: 0.88
-          })
-        );
-        nose.position.set(1.7, 0, 0);
-        nose.rotation.z = -Math.PI / 2;
-        nose.castShadow = true;
-        root.add(nose);
-        const tail = addFxCylinder(
-          root,
-          0.18,
-          0.14,
-          0.48,
-          [-1.58, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#879095',
-          14
-        );
-        tail.material = createCaptureVehicleMaterial('missile', {
-          toneSeed: droneTone,
-          color: '#10151c',
-          roughness: 0.44,
-          metalness: 0.44
-        });
-        const deltaWing = createFxPolygon(
-          [
-            [-1.2, -2.05],
-            [1.0, 0],
-            [-1.2, 2.05]
-          ],
-          0.08,
-          '#556b2f',
-          0.82,
-          0.08
-        );
-        deltaWing.position.set(-0.15, -0.06, 0);
-        root.add(deltaWing);
-        const spine = createFxPolygon(
-          [
-            [-0.55, -0.18],
-            [0.9, 0],
-            [-0.55, 0.18]
-          ],
-          0.06,
-          '#7d858a',
-          0.55,
-          0.22
-        );
-        spine.position.set(0.15, 0.03, 0);
-        root.add(spine);
-        addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
-        const propeller = new THREE.Group();
-        propeller.position.set(-1.95, 0, 0);
-        addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
-        const blade2 = new THREE.Mesh(
-          new THREE.BoxGeometry(0.05, 1.0, 0.08),
-          new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
-        );
-        blade2.rotation.x = Math.PI / 2;
-        blade2.castShadow = true;
-        propeller.add(blade2);
-        addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
-        root.add(propeller);
-
-        const exhaustClouds = [];
-        for (let i = 0; i < 5; i += 1) {
-          exhaustClouds.push(
-            addFxSphere(
-              root,
-              0.12 + i * 0.03,
-              [-0.84 - i * 0.19, 0, 0],
-              i < 2 ? '#f6af4b' : '#8f989d',
-              i < 2 ? 0.2 : 1,
-              0,
-              true,
-              i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-            )
-          );
-        }
-        return { root, propeller, exhaustClouds };
-      };
-      const createFxHelicopter = () => {
-        const model = cloneCaptureUnitTemplate('helicopter');
-        if (model) {
-          const root = new THREE.Group();
-          model.rotation.set(0, 0, 0);
-          root.add(model);
-          const tailRotor = findCaptureRotor(model, 'tail');
-          let topRotor = findCaptureRotor(model, 'main');
-          const rotorNodes = [];
-          model.traverse((node) => {
-            if (!node?.isObject3D) return;
-            const name = `${node.name || ''}`.toLowerCase();
-            if (/rotor|propell|blade|fan/.test(name)) rotorNodes.push(node);
-          });
-          if (!topRotor) {
-            model.traverse((node) => {
-              if (topRotor || !node?.isMesh || isDescendantOf(node, tailRotor))
-                return;
-              const name = `${node.name || ''}`.toLowerCase();
-              if (/rotor|propell|blade|fan/.test(name)) {
-                topRotor = node;
-              }
-            });
-          }
-          applyMilitaryHelicopterLook(
-            model,
-            topRotor,
-            tailRotor,
-            getCaptureToneSeed('helicopter')
-          );
-          const topRotorAxis = new THREE.Vector3(0, 1, 0);
-          const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
-          return {
+      });
+      return best;
+    };
+    const findJetExhaustAnchor = (model) => {
+      if (!model) return new THREE.Vector3(-1.9, 0, 0);
+      const candidates = [];
+      model.traverse((node) => {
+        if (!node?.isMesh) return;
+        const name = `${node.name || ''}`.toLowerCase();
+        if (!/engine|exhaust|nozzle|thruster|afterburn|jet/.test(name)) return;
+        const box = new THREE.Box3().setFromObject(node);
+        if (box.isEmpty()) return;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const score = (box.min.x * -1) + Math.max(size.y, size.z) * 0.2;
+        candidates.push({ center, score });
+      });
+      if (!candidates.length) return new THREE.Vector3(-1.9, 0, 0);
+      candidates.sort((a, b) => b.score - a.score);
+      const anchor = candidates[0].center.clone();
+      model.worldToLocal(anchor);
+      return anchor;
+    };
+    const createJetExhaustClouds = (root, count = 6, start = [-1.95, 0, 0], stepX = 0.2) => {
+      const clouds = [];
+      for (let i = 0; i < count; i += 1) {
+        clouds.push(
+          addFxSphere(
             root,
-            topRotor,
-            tailRotor,
-            rotorNodes,
-            topRotorAxis,
-            tailRotorAxis,
-            exhaustClouds: []
-          };
-        }
-        const root = new THREE.Group();
-        addFxCylinder(
-          root,
-          0.2,
-          0.24,
-          2.5,
-          [0.05, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#96a0a8',
-          20
-        );
-        const cockpit = addFxSphere(
-          root,
-          0.26,
-          [0.75, 0.08, 0],
-          '#304351',
-          0.24,
-          0.35
-        );
-        cockpit.scale.set(1.35, 0.72, 0.9);
-        addFxBox(
-          root,
-          [1.4, 0.07, 0.2],
-          [-0.12, 0.05, 0],
-          '#8c959d',
-          0.58,
-          0.2
-        );
-        addFxBox(
-          root,
-          [0.62, 0.12, 0.12],
-          [-1.18, 0.08, 0],
-          '#8b949b',
-          0.58,
-          0.18
-        );
-        addFxCylinder(
-          root,
-          0.05,
-          0.05,
-          0.68,
-          [-1.65, 0.11, 0],
-          [0, 0, Math.PI / 2],
-          '#7a848d',
-          14
-        );
-        addFxBox(
-          root,
-          [0.95, 0.03, 0.03],
-          [0.05, -0.34, -0.2],
-          '#616a72',
-          0.7,
-          0.1
-        );
-        addFxBox(
-          root,
-          [0.95, 0.03, 0.03],
-          [0.05, -0.34, 0.2],
-          '#616a72',
-          0.7,
-          0.1
-        );
-        const topRotor = new THREE.Group();
-        topRotor.position.set(0.02, 0.34, 0);
-        addFxBox(topRotor, [0.1, 0.05, 0.1], [0, 0, 0], '#3a434a', 0.5, 0.22);
-        addFxBox(
-          topRotor,
-          [0.08, 0.02, 1.35],
-          [0, 0, 0],
-          '#1f252a',
-          0.55,
-          0.08
-        );
-        addFxBox(
-          topRotor,
-          [1.35, 0.02, 0.08],
-          [0, 0, 0],
-          '#1f252a',
-          0.55,
-          0.08
-        );
-        root.add(topRotor);
-        const tailRotor = new THREE.Group();
-        tailRotor.position.set(-1.66, 0.11, 0);
-        addFxBox(
-          tailRotor,
-          [0.03, 0.38, 0.03],
-          [0, 0, 0],
-          '#21272d',
-          0.55,
-          0.08
-        );
-        addFxBox(
-          tailRotor,
-          [0.03, 0.03, 0.38],
-          [0, 0, 0],
-          '#21272d',
-          0.55,
-          0.08
-        );
-        root.add(tailRotor);
-        const exhaustClouds = [];
-        for (let i = 0; i < 6; i += 1) {
-          exhaustClouds.push(
-            addFxSphere(
-              root,
-              0.1 + i * 0.024,
-              [-1.05 - i * 0.18, 0, 0],
-              '#8b949b',
-              1,
-              0,
-              true,
-              0.26 - i * 0.03
-            )
-          );
-        }
-        return {
-          root,
-          topRotor,
-          tailRotor,
-          topRotorAxis: new THREE.Vector3(0, 1, 0),
-          tailRotorAxis: new THREE.Vector3(1, 0, 0),
-          exhaustClouds
-        };
-      };
-      const createFxJet = () => {
-        const model = cloneCaptureUnitTemplate('fighter');
-        if (model) {
-          const root = new THREE.Group();
-          model.rotation.set(0, 0, 0);
-          root.add(model);
-          const cockpit =
-            model.getObjectByName('cockpit') ||
-            model.getObjectByName('Cockpit') ||
-            model;
-          const detectedExhaustAnchor = findJetExhaustAnchor(model);
-          const exhaustAnchor = detectedExhaustAnchor.lerp(
-            new THREE.Vector3(-1.95, 0, 0),
-            0.9
-          );
-          const exhaustClouds = createJetExhaustClouds(
-            root,
-            6,
-            [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z],
-            0.22
-          );
-          return {
-            root,
-            cockpit,
-            leftStore: null,
-            rightStore: null,
-            exhaustClouds,
-            exhaustAnchor
-          };
-        }
-        const root = new THREE.Group();
-        addFxCylinder(
-          root,
-          0.16,
-          0.22,
-          3.1,
-          [0, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#b8bec5',
-          24
-        );
-        const nose = new THREE.Mesh(
-          new THREE.ConeGeometry(0.17, 0.96, 24),
-          new THREE.MeshStandardMaterial({
-            color: '#d7dbe0',
-            roughness: 0.45,
-            metalness: 0.2
-          })
-        );
-        nose.position.set(2.0, 0, 0);
-        nose.rotation.z = -Math.PI / 2;
-        nose.castShadow = true;
-        root.add(nose);
-        const cockpit = addFxSphere(
-          root,
-          0.2,
-          [0.62, 0.15, 0],
-          '#2d3945',
-          0.18,
-          0.3
-        );
-        cockpit.scale.set(1.2, 0.58, 0.64);
-        const wing = createFxPolygon(
-          [
-            [-1.52, -2.32],
-            [0.75, 0],
-            [-0.35, 2.32]
-          ],
-          0.1,
-          '#9fa7ae',
-          0.68,
-          0.16
-        );
-        wing.position.set(-0.2, -0.05, 0);
-        root.add(wing);
-        const tailWing = createFxPolygon(
-          [
-            [-0.92, -1.1],
-            [0.3, 0],
-            [-0.35, 1.1]
-          ],
-          0.08,
-          '#959ea5',
-          0.65,
-          0.18
-        );
-        tailWing.position.set(-1.35, 0.04, 0);
-        root.add(tailWing);
-        const fin = createFxPolygon(
-          [
-            [-0.52, 0],
-            [0.22, 0],
-            [-0.1, 0.95]
-          ],
-          0.05,
-          '#8e979f',
-          0.6,
-          0.18
-        );
-        fin.rotation.z = Math.PI / 2;
-        fin.position.set(-1.1, 0.55, 0);
-        root.add(fin);
-        const engineLeft = addFxCylinder(
-          root,
-          0.12,
-          0.1,
-          0.78,
-          [-1.95, -0.08, -0.2],
-          [0, 0, Math.PI / 2],
-          '#727b83',
-          16
-        );
-        const engineRight = engineLeft.clone();
-        engineRight.position.z = 0.2;
-        root.add(engineRight);
-        const leftStore = new THREE.Group();
-        addFxCylinder(
-          leftStore,
-          0.04,
-          0.05,
-          0.55,
-          [0, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#d9dde2',
-          12,
-          0.22,
-          0.84
-        );
-        const leftStoreNose = new THREE.Mesh(
-          new THREE.ConeGeometry(0.05, 0.14, 12),
-          new THREE.MeshStandardMaterial({
-            color: '#eef1f5',
-            roughness: 0.18,
-            metalness: 0.86
-          })
-        );
-        leftStoreNose.position.set(0.34, 0, 0);
-        leftStoreNose.rotation.z = -Math.PI / 2;
-        leftStore.add(leftStoreNose);
-        leftStore.position.set(0.25, -0.25, -1.15);
-        root.add(leftStore);
-        const rightStore = leftStore.clone();
-        rightStore.position.z = 1.15;
-        root.add(rightStore);
-        const exhaustAnchor = new THREE.Vector3(-1.95, 0, 0);
-        const exhaustClouds = createJetExhaustClouds(
-          root,
-          8,
-          [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z],
-          0.26
-        );
-        return {
-          root,
-          cockpit,
-          leftStore,
-          rightStore,
-          exhaustClouds,
-          exhaustAnchor
-        };
-      };
-      const createFxSupportTruck = () => {
-        const root = new THREE.Group();
-        const addRoofLongMissiles = (target, referenceObject) => {
-          if (!target) return;
-          const bounds = referenceObject
-            ? new THREE.Box3().setFromObject(referenceObject)
-            : new THREE.Box3();
-          if (bounds.isEmpty()) {
-            bounds.min.set(-1.1, -0.3, -0.5);
-            bounds.max.set(1.1, 0.5, 0.5);
-          }
-          const size = bounds.getSize(new THREE.Vector3());
-          const center = bounds.getCenter(new THREE.Vector3());
-          const missileLength = Math.max(size.x * 1.48, 2.7);
-          const rackY = bounds.max.y + Math.max(size.y * 0.2, 0.13);
-          const rack = new THREE.Group();
-          addFxBox(
-            rack,
-            [Math.max(size.x * 0.66, 1.0), 0.05, Math.max(size.z * 0.84, 0.64)],
-            [0, 0, 0],
-            '#2e353d',
-            0.68,
-            0.24
-          );
-          [-0.26, 0.26].forEach((lane) => {
-            const missile = new THREE.Group();
-            addFxCylinder(
-              missile,
-              Math.max(size.z * 0.05, 0.038),
-              Math.max(size.z * 0.062, 0.046),
-              missileLength,
-              [0, 0, 0],
-              [0, 0, Math.PI / 2],
-              '#6e7f57',
-              14,
-              0.24,
-              0.82
-            );
-            const tip = new THREE.Mesh(
-              new THREE.ConeGeometry(
-                Math.max(size.z * 0.068, 0.058),
-                Math.max(size.x * 0.22, 0.4),
-                14
-              ),
-              new THREE.MeshStandardMaterial({
-                color: '#8ca66a',
-                roughness: 0.2,
-                metalness: 0.86
-              })
-            );
-            tip.position.set(
-              missileLength * 0.5 + Math.max(size.x * 0.08, 0.12),
-              0,
-              0
-            );
-            tip.rotation.z = -Math.PI / 2;
-            tip.castShadow = true;
-            missile.add(tip);
-            missile.position.set(
-              -Math.max(size.x * 0.12, 0.16),
-              0.1,
-              lane * Math.max(size.z, 0.84)
-            );
-            missile.rotation.z = Math.PI * 0.22; // tilt launchers upward so missile heads point up
-            rack.add(missile);
-          });
-          rack.rotation.z = -Math.PI * 0.05;
-          rack.rotation.y = Math.PI; // keep forward orientation aligned with parked truck heading
-          rack.position.set(
-            center.x - Math.max(size.x * 0.08, 0.14),
-            rackY,
-            center.z
-          );
-          target.add(rack);
-        };
-        const truckTone = getCaptureToneSeed('missile');
-        const body = new THREE.Mesh(
-          new THREE.BoxGeometry(2.1, 0.62, 1.0),
-          createCaptureVehicleMaterial('missile', {
-            toneSeed: truckTone,
-            color: '#f1b445',
-            roughness: 0.56,
-            metalness: 0.24
-          })
-        );
-        body.castShadow = true;
-        body.receiveShadow = true;
-        root.add(body);
-        const cabin = new THREE.Mesh(
-          new THREE.BoxGeometry(0.78, 0.62, 0.92),
-          createCaptureVehicleMaterial('missile', {
-            toneSeed: truckTone,
-            color: '#f3be59',
-            roughness: 0.52,
-            metalness: 0.22
-          })
-        );
-        cabin.position.set(0.86, 0.44, 0);
-        cabin.castShadow = true;
-        cabin.receiveShadow = true;
-        root.add(cabin);
-        addFxBox(
-          root,
-          [0.42, 0.22, 0.86],
-          [0.94, 0.48, 0],
-          '#050608',
-          0.16,
-          0.56
-        );
-        addRoofLongMissiles(root, root);
-        return { root };
-      };
-      const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
-        const sideX =
-          (isWhiteSide ? -1 : 1) *
-          (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
-        const equalLaneStep = tile * SIDE_PARKED_AIR_UNITS_LANE_SPREAD;
-        const laneIndexMap = {
-          jet: 0,
-          drone: 1,
-          helicopter: 2,
-          truck: 3
-        };
-        const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
-        const zOffset = (laneIndex - 1.5) * equalLaneStep;
-        const yOffset =
-          currentPieceYOffset +
-          SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT +
-          (kind === 'truck' ? 0.02 : 0.04);
-        return new THREE.Vector3(sideX, yOffset, zOffset);
-      };
-      const acquireParkedAirUnit = (isWhiteSide, kind) => {
-        const preferred = parkedAirUnits.find(
-          (unit) =>
-            unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy
-        );
-        if (!preferred?.root) return null;
-        preferred.busy = true;
-        preferred.root.visible = true;
-        if (preferred.root.parent !== captureFxGroup) {
-          preferred.root.parent?.remove(preferred.root);
-          captureFxGroup.add(preferred.root);
-        }
-        return preferred;
-      };
-      const returnParkedAirUnit = (unit) => {
-        if (!unit?.root) return;
-        unit.root.visible = true;
-        unit.root.position.copy(unit.homePosition);
-        unit.root.rotation.copy(unit.homeRotation);
-        unit.root.quaternion.setFromEuler(unit.root.rotation);
-        if (unit.root.parent !== airPadGroup) {
-          unit.root.parent?.remove(unit.root);
-          airPadGroup.add(unit.root);
-        }
-        unit.busy = false;
-      };
-      const acquireParkedSupportUnit = (isWhiteSide) => {
-        const truck = parkedAirUnits.find(
-          (unit) => unit?.isWhite === isWhiteSide && unit?.kind === 'truck'
-        );
-        if (!truck?.root) return null;
-        truck.root.visible = true;
-        if (truck.root.parent !== airPadGroup) {
-          truck.root.parent?.remove(truck.root);
-          airPadGroup.add(truck.root);
-        }
-        return truck;
-      };
-      const createFxMissile = () => {
-        const missileTone = getCaptureToneSeed('missile');
-        const root = new THREE.Group();
-        const body = addFxCylinder(
-          root,
-          0.05,
-          0.06,
-          0.72,
-          [0, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#d9dde2',
-          14,
-          0.2,
-          0.86
-        );
-        body.material = createCaptureVehicleMaterial('missile', {
-          toneSeed: missileTone,
-          color: '#d9dde2',
-          roughness: 0.2,
-          metalness: 0.86
-        });
-        const nose = new THREE.Mesh(
-          new THREE.ConeGeometry(0.055, 0.18, 14),
-          createCaptureVehicleMaterial('missile', {
-            toneSeed: missileTone,
-            color: '#eef2f6',
-            roughness: 0.16,
-            metalness: 0.9
-          })
-        );
-        nose.position.set(0.45, 0, 0);
-        nose.rotation.z = -Math.PI / 2;
-        root.add(nose);
-        addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
-        addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
-        addFxCylinder(
-          root,
-          0.055,
-          0.055,
-          0.14,
-          [-0.42, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#12161b',
-          14,
-          0.34,
-          0.58
-        );
-        const trail = [];
-        for (let i = 0; i < 4; i += 1) {
-          trail.push(
-            addFxSphere(
-              root,
-              0.08 + i * 0.02,
-              [-0.5 - i * 0.14, 0, 0],
-              '#90989d',
-              1,
-              0,
-              true,
-              0.22 - i * 0.03
-            )
-          );
-        }
-        return { root, trail };
-      };
-      const createFxGroundMissile = () => {
-        const missileTone = getCaptureToneSeed('missile');
-        const root = new THREE.Group();
-        const body = addFxCylinder(
-          root,
-          0.092,
-          0.112,
-          1.16,
-          [0, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#d9dde2',
-          16,
-          0.2,
-          0.86
-        );
-        body.material = createCaptureVehicleMaterial('missile', {
-          toneSeed: missileTone,
-          color: '#d9dde2',
-          roughness: 0.2,
-          metalness: 0.86
-        });
-        const nose = new THREE.Mesh(
-          new THREE.ConeGeometry(0.102, 0.28, 16),
-          createCaptureVehicleMaterial('missile', {
-            toneSeed: missileTone,
-            color: '#eef2f6',
-            roughness: 0.16,
-            metalness: 0.9
-          })
-        );
-        nose.position.set(0.72, 0, 0);
-        nose.rotation.z = -Math.PI / 2;
-        root.add(nose);
-        addFxBox(
-          root,
-          [0.2, 0.026, 0.38],
-          [-0.16, 0, 0],
-          '#8f979e',
-          0.28,
-          0.72
-        );
-        addFxBox(
-          root,
-          [0.2, 0.38, 0.026],
-          [-0.16, 0, 0],
-          '#8f979e',
-          0.28,
-          0.72
-        );
-        addFxBox(
-          root,
-          [0.14, 0.024, 0.24],
-          [-0.44, 0, 0],
-          '#7e8891',
-          0.3,
-          0.68
-        );
-        addFxBox(
-          root,
-          [0.14, 0.24, 0.024],
-          [-0.44, 0, 0],
-          '#7e8891',
-          0.3,
-          0.68
-        );
-        addFxCylinder(
-          root,
-          0.088,
-          0.088,
-          0.19,
-          [-0.66, 0, 0],
-          [0, 0, Math.PI / 2],
-          '#12161b',
-          16,
-          0.34,
-          0.58
-        );
-        const rotor = new THREE.Group();
-        rotor.position.set(-0.58, 0, 0);
-        addFxBox(rotor, [0.034, 0.62, 0.046], [0, 0, 0], '#090b0d', 0.5, 0.35);
-        const rotorCross = addFxBox(
-          rotor,
-          [0.034, 0.046, 0.62],
-          [0, 0, 0],
-          '#090b0d',
-          0.5,
-          0.35
-        );
-        rotorCross.rotation.x = Math.PI / 2;
-        root.add(rotor);
-        const trail = [];
-        for (let i = 0; i < 5; i += 1) {
-          trail.push(
-            addFxSphere(
-              root,
-              0.1 + i * 0.025,
-              [-0.7 - i * 0.16, 0, 0],
-              i < 2 ? '#f6af4b' : '#8f989d',
-              i < 2 ? 0.2 : 1,
-              0,
-              true,
-              i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-            )
-          );
-        }
-        return { root, trail, rotor };
-      };
-      const createFxExplosion = (position) => {
-        const root = new THREE.Group();
-        root.position.copy(position);
-        root.scale.setScalar(CAPTURE_EXPLOSION_SCALE);
-        const flash = addFxSphere(
-          root,
-          0.18,
-          [0, 0.25, 0],
-          '#ffe59a',
-          0.08,
-          0,
-          true,
-          1
-        );
-        const fire = [];
-        const smoke = [];
-        const firePalette = [
-          '#ffd166',
-          '#ff8c1a',
-          '#ff4d3d',
-          '#d7263d',
-          '#ff8fab',
-          '#ffe45e'
-        ];
-        for (let i = 0; i < 6; i += 1) {
-          fire.push(
-            addFxSphere(
-              root,
-              0.21 + i * 0.05,
-              [0, 0.2 + i * 0.045, 0],
-              firePalette[i % firePalette.length],
-              0.2,
-              0,
-              true,
-              0.98 - i * 0.1
-            )
-          );
-        }
-        for (let i = 0; i < 6; i += 1) {
-          smoke.push(
-            addFxSphere(
-              root,
-              0.17 + i * 0.037,
-              [0, 0.165 + i * 0.067, 0],
-              '#646b72',
-              1,
-              0,
-              true,
-              0.34 - i * 0.035
-            )
-          );
-        }
-        return { root, flash, fire, smoke };
-      };
-      const launchExplosion = (position) => {
-        const explosion = createFxExplosion(position);
-        captureFxGroup.add(explosion.root);
-        playAudio(bombSoundRef, { maxDurationMs: 520 });
-        playAudio(missileImpactSoundRef);
-        activeCaptureFx.push({
-          type: 'explosion',
-          t: 0,
-          duration: LUDO_CAPTURE_EXPLOSION_TIME,
-          explosion
-        });
-      };
-      const qBezier = (a, b, c, t) => {
-        const ab = new THREE.Vector3().copy(a).lerp(b, t);
-        const bc = new THREE.Vector3().copy(b).lerp(c, t);
-        return ab.lerp(bc, t);
-      };
-      const getAirMissileImpactTime = (totalDuration) => {
-        const releaseStart =
-          totalDuration * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-        const releaseWindow =
-          totalDuration *
-          (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO -
-            CAPTURE_AIR_MISSILE_RELEASE_START_RATIO);
-        const missileTravel = Math.max(0.28, releaseWindow - 0.1);
-        const secondMissileOffset = 0.14;
-        return releaseStart + secondMissileOffset + missileTravel;
-      };
-      const constrainInsideBoardPerimeter = (vector, marginTiles = 0.62) => {
-        const margin = BOARD.tile * marginTiles;
-        const boardHalf = (BOARD.N * BOARD.tile) / 2 - margin;
-        vector.x = THREE.MathUtils.clamp(vector.x, -boardHalf, boardHalf);
-        vector.z = THREE.MathUtils.clamp(vector.z, -boardHalf, boardHalf);
-        return vector;
-      };
-      const getLiveLaunchPosition = (
-        fallback,
-        movingMesh = null,
-        lift = 0.08
-      ) => {
-        const launchPos = fallback.clone();
-        if (movingMesh?.parent) {
-          const worldBounds = new THREE.Box3().setFromObject(movingMesh);
-          if (!worldBounds.isEmpty()) {
-            launchPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
-            launchPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
-            launchPos.y = worldBounds.min.y;
-          } else {
-            movingMesh.getWorldPosition(launchPos);
-          }
-        }
-        launchPos.y += lift;
-        return launchPos;
-      };
-      const getLiveTargetPosition = (fallback, targetMesh = null, lift = 0) => {
-        const targetPos = fallback.clone();
-        if (targetMesh?.parent) {
-          const worldBounds = new THREE.Box3().setFromObject(targetMesh);
-          if (!worldBounds.isEmpty()) {
-            targetPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
-            targetPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
-            targetPos.y = worldBounds.min.y;
-          } else {
-            targetMesh.getWorldPosition(targetPos);
-          }
-        }
-        targetPos.y += lift;
-        return targetPos;
-      };
-      const getAirStrikeCenterFlightTarget = (from, to) => {
-        const centerBias = THREE.MathUtils.clamp(
-          (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
-          0.86,
-          0.985
-        );
-        const flightTarget = to.clone();
-        flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
-        flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.76);
-        return constrainInsideBoardPerimeter(
-          flightTarget,
-          CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.9
-        );
-      };
-      const getCaptureOrbitPose = ({
-        from,
-        to,
-        progress,
-        launchHeight = 0.2,
-        orbitRadiusMul = 0.74,
-        minOrbitCycles = 0.28,
-        liftSplit = 0.18,
-        strikeSplit = 0.76
-      }) => {
-        const launchPos = from
-          .clone()
-          .add(new THREE.Vector3(0, launchHeight, 0));
-        const impactPos = to.clone();
-        const travel = impactPos.clone().sub(launchPos);
-        const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
-        const travelLen = Math.max(0.001, planarTravel.length());
-        planarTravel.normalize();
-        const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
-        const orbitRadius = THREE.MathUtils.clamp(
-          travelLen * orbitRadiusMul * 0.32,
-          tile * 0.38,
-          tile * 1.12
-        );
-        const liftEnd = launchPos
-          .clone()
-          .add(new THREE.Vector3(0.26, CAPTURE_FLIGHT_ALTITUDE * 0.66, -0.12));
-        const orbitExit = launchPos
-          .clone()
-          .addScaledVector(
-            planarTravel,
-            travelLen * (0.62 + minOrbitCycles * 0.16)
+            0.12 + i * 0.035,
+            [start[0] - i * stepX, start[1], start[2]],
+            i < 2 ? '#f7a94b' : '#8b949b',
+            i < 2 ? 0.22 : 1,
+            0,
+            true,
+            i < 2 ? 0.85 - i * 0.18 : 0.28 - (i - 2) * 0.045
           )
-          .addScaledVector(sideVec, orbitRadius);
-        const u = clamp01(progress);
-        let pos;
-        let next;
-        if (u < liftSplit) {
-          const liftU = smoothEase(u / liftSplit);
-          pos = new THREE.Vector3().copy(launchPos).lerp(liftEnd, liftU);
-          pos.y += Math.sin(liftU * Math.PI * 1.6) * 0.04;
-          next = new THREE.Vector3()
-            .copy(launchPos)
-            .lerp(liftEnd, clamp01(liftU + 0.04));
-        } else if (u < strikeSplit) {
-          const orbitU = smoothEase(
-            (u - liftSplit) / (strikeSplit - liftSplit)
-          );
-          const forwardNow = THREE.MathUtils.lerp(
-            travelLen * 0.06,
-            travelLen * 0.62,
-            orbitU
-          );
-          const forwardNext = THREE.MathUtils.lerp(
-            travelLen * 0.06,
-            travelLen * 0.62,
-            clamp01(orbitU + 0.03)
-          );
-          const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
-          const sideNext =
-            Math.sin(clamp01(orbitU + 0.03) * Math.PI) * orbitRadius;
-          pos = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNow)
-            .addScaledVector(sideVec, sideNow);
-          next = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNext)
-            .addScaledVector(sideVec, sideNext);
-          pos.y =
-            CAPTURE_FLIGHT_ALTITUDE * 0.56 +
-            Math.sin(orbitU * Math.PI * 2) * 0.04;
-          next.y =
-            CAPTURE_FLIGHT_ALTITUDE * 0.56 +
-            Math.sin(clamp01(orbitU + 0.03) * Math.PI * 2) * 0.04;
-        } else {
-          const strikeU = smoothEase((u - strikeSplit) / (1 - strikeSplit));
-          pos = new THREE.Vector3().copy(orbitExit).lerp(impactPos, strikeU);
-          next = new THREE.Vector3()
-            .copy(orbitExit)
-            .lerp(impactPos, clamp01(strikeU + 0.05));
-        }
-        return { pos, next };
+        );
+      }
+      return clouds;
+    };
+    const toHexColor = (value, fallback) => {
+      const color = new THREE.Color(value || fallback);
+      return `#${color.getHexString()}`;
+    };
+    const getCaptureToneSeed = (kind = 'generic') => {
+      const boardTheme = paletteRef.current?.board ?? BASE_BOARD_THEME;
+      return {
+        base: toHexColor(boardTheme.dark, '#313940'),
+        mid: toHexColor(boardTheme.frameDark, '#74818b'),
+        dark: toHexColor(boardTheme.frameLight, '#2f353b'),
+        grid: toHexColor(boardTheme.light, '#a9b3bc'),
+        kind
       };
-      const getCaptureRingOrbitPose = ({
-        from,
-        to,
-        progress,
-        launchHeight = 0.12,
-        orbitHeight = CAPTURE_FLIGHT_ALTITUDE * 0.3,
-        orbitRadiusMul = 0.72,
-        minOrbitCycles = 0.25,
-        orbitSplit = 0.74
-      }) => {
-        const launchPos = from
-          .clone()
-          .add(new THREE.Vector3(0, launchHeight, 0));
-        const impactPos = to.clone();
-        const travel = impactPos.clone().sub(launchPos);
-        const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
-        const travelLen = Math.max(0.001, planarTravel.length());
-        planarTravel.normalize();
-        const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
-        const orbitRadius = THREE.MathUtils.clamp(
-          travelLen * orbitRadiusMul * 0.26,
-          tile * 0.28,
-          tile * 0.95
-        );
-        const orbitExit = launchPos
-          .clone()
-          .addScaledVector(
-            planarTravel,
-            travelLen * (0.6 + minOrbitCycles * 0.1)
-          )
-          .addScaledVector(sideVec, orbitRadius);
-        const u = clamp01(progress);
-        if (u < orbitSplit) {
-          const orbitU = smoothEase(u / orbitSplit);
-          const forwardNow = THREE.MathUtils.lerp(
-            travelLen * 0.04,
-            travelLen * 0.6,
-            orbitU
-          );
-          const forwardNext = THREE.MathUtils.lerp(
-            travelLen * 0.04,
-            travelLen * 0.6,
-            clamp01(orbitU + 0.02)
-          );
-          const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
-          const sideNext =
-            Math.sin(clamp01(orbitU + 0.02) * Math.PI) * orbitRadius;
-          const pos = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNow)
-            .addScaledVector(sideVec, sideNow);
-          const next = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNext)
-            .addScaledVector(sideVec, sideNext);
-          pos.y =
-            THREE.MathUtils.lerp(launchPos.y, orbitHeight, orbitU) +
-            Math.sin(orbitU * Math.PI * 2) * 0.03;
-          next.y =
-            THREE.MathUtils.lerp(
-              launchPos.y,
-              orbitHeight,
-              clamp01(orbitU + 0.02)
-            ) +
-            Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.03;
-          return {
-            pos: constrainInsideBoardPerimeter(pos),
-            next: constrainInsideBoardPerimeter(next)
-          };
-        }
-        const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
-        const pos = orbitExit.clone().lerp(impactPos, strikeU);
-        const next = orbitExit.clone().lerp(impactPos, clamp01(strikeU + 0.05));
-        return { pos, next };
-      };
-      const getCaptureLoopPose = ({
-        from,
-        to,
-        progress,
-        launchHeight = 0.08,
-        orbitHeight = CAPTURE_FLIGHT_ALTITUDE * 0.62,
-        orbitRadiusMul = 0.9,
-        minOrbitCycles = 0.34,
-        orbitSplit = 0.82,
-        returnToOrigin = false,
-        returnSplit = 0.78,
-        sideSign = 1
-      }) => {
-        const clampIfNeeded = (value) =>
-          returnToOrigin ? value : constrainInsideBoardPerimeter(value);
-        const launchPos = from
-          .clone()
-          .add(new THREE.Vector3(0, launchHeight, 0));
-        const impactPos = to.clone();
-        const travel = impactPos.clone().sub(launchPos);
-        const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
-        const travelLen = Math.max(0.001, planarTravel.length());
-        planarTravel.normalize();
-        const sideVec = new THREE.Vector3(
-          -planarTravel.z,
-          0,
-          planarTravel.x
-        ).multiplyScalar(sideSign >= 0 ? 1 : -1);
-        const orbitRadius = THREE.MathUtils.clamp(
-          travelLen * orbitRadiusMul * 0.28,
-          tile * 0.32,
-          tile * 1.06
-        );
-        const orbitExit = launchPos
-          .clone()
-          .addScaledVector(
-            planarTravel,
-            travelLen * (0.62 + minOrbitCycles * 0.12)
-          )
-          .addScaledVector(sideVec, orbitRadius);
-        const u = clamp01(progress);
-        const takeoffSplit = Math.min(
-          CAPTURE_LOOP_TAKEOFF_RATIO,
-          orbitSplit * 0.8
-        );
-        const takeoffTop = launchPos.clone();
-        takeoffTop.y = Math.max(launchPos.y + tile * 0.06, orbitHeight * 0.72);
-        if (u < takeoffSplit) {
-          const takeoffU = smoothEase(u / Math.max(0.001, takeoffSplit));
-          const pos = launchPos.clone().lerp(takeoffTop, takeoffU);
-          const next = launchPos
-            .clone()
-            .lerp(takeoffTop, clamp01(takeoffU + 0.04));
-          return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
-        }
-        if (u < orbitSplit) {
-          const orbitU = smoothEase(
-            (u - takeoffSplit) / Math.max(0.001, orbitSplit - takeoffSplit)
-          );
-          const forwardNow = THREE.MathUtils.lerp(
-            travelLen * 0.04,
-            travelLen * 0.62,
-            orbitU
-          );
-          const forwardNext = THREE.MathUtils.lerp(
-            travelLen * 0.04,
-            travelLen * 0.62,
-            clamp01(orbitU + 0.02)
-          );
-          const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
-          const sideNext =
-            Math.sin(clamp01(orbitU + 0.02) * Math.PI) * orbitRadius;
-          const pos = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNow)
-            .addScaledVector(sideVec, sideNow);
-          const next = launchPos
-            .clone()
-            .addScaledVector(planarTravel, forwardNext)
-            .addScaledVector(sideVec, sideNext);
-          pos.y =
-            THREE.MathUtils.lerp(takeoffTop.y, orbitHeight, orbitU) +
-            Math.sin(orbitU * Math.PI * 2) * 0.025;
-          next.y =
-            THREE.MathUtils.lerp(
-              takeoffTop.y,
-              orbitHeight,
-              clamp01(orbitU + 0.02)
-            ) +
-            Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.025;
-          return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
-        }
-        if (returnToOrigin) {
-          const returnU = smoothEase(
-            (u - orbitSplit) / Math.max(0.001, 1 - orbitSplit)
-          );
-          const returnTarget = launchPos.clone();
-          const cruiseReturnTarget = returnTarget.clone();
-          cruiseReturnTarget.y = takeoffTop.y;
-          const descendSplit = 0.76;
-          const returnPos =
-            returnU < descendSplit
-              ? orbitExit
-                  .clone()
-                  .lerp(cruiseReturnTarget, returnU / descendSplit)
-              : cruiseReturnTarget
-                  .clone()
-                  .lerp(
-                    returnTarget,
-                    (returnU - descendSplit) / Math.max(0.001, 1 - descendSplit)
-                  );
-          const returnNext =
-            returnU < descendSplit
-              ? orbitExit
-                  .clone()
-                  .lerp(
-                    cruiseReturnTarget,
-                    clamp01(returnU / descendSplit + 0.04)
-                  )
-              : cruiseReturnTarget
-                  .clone()
-                  .lerp(
-                    returnTarget,
-                    clamp01(
-                      (returnU - descendSplit) /
-                        Math.max(0.001, 1 - descendSplit) +
-                        0.06
-                    )
-                  );
-          return {
-            pos: clampIfNeeded(returnPos),
-            next: clampIfNeeded(returnNext)
-          };
-        }
-        const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
-        const dropStart = new THREE.Vector3(
-          impactPos.x,
-          Math.max(orbitHeight * 0.95, impactPos.y + 0.44),
-          impactPos.z
-        );
-        const pos =
-          strikeU < returnSplit
-            ? orbitExit.clone().lerp(dropStart, strikeU / returnSplit)
-            : dropStart
-                .clone()
-                .lerp(
-                  impactPos,
-                  (strikeU - returnSplit) / Math.max(0.001, 1 - returnSplit)
-                );
-        const next =
-          strikeU < returnSplit
-            ? orbitExit
-                .clone()
-                .lerp(dropStart, clamp01(strikeU / returnSplit + 0.04))
-            : dropStart
-                .clone()
-                .lerp(
-                  impactPos,
-                  clamp01(
-                    (strikeU - returnSplit) / Math.max(0.001, 1 - returnSplit) +
-                      0.06
-                  )
-                );
-        if (strikeU >= returnSplit) {
-          next.x = pos.x;
-          next.z = pos.z;
-        }
-        return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
-      };
-      const getCaptureAirRunPose = ({
-        from,
-        to,
-        progress,
-        launchHeight = 0.08,
-        cruiseHeight = CAPTURE_FLIGHT_ALTITUDE *
-          CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
-        returnToOrigin = true
-      }) => {
-        const launchPos = from
-          .clone()
-          .add(new THREE.Vector3(0, launchHeight, 0));
-        const toVec = to.clone();
-        const approachPoint = launchPos.clone().lerp(toVec, 0.42);
-        approachPoint.y = Math.max(
-          launchPos.y + tile * 0.04,
-          toVec.y + cruiseHeight
-        );
-        const nearTargetPoint = toVec.clone();
-        nearTargetPoint.y = Math.max(
-          toVec.y + cruiseHeight * 0.9,
-          launchPos.y + tile * 0.03
-        );
-        const u = clamp01(progress);
-        const takeoffSplit = Math.min(
-          CAPTURE_LOOP_TAKEOFF_RATIO,
-          CAPTURE_AIR_APPROACH_RATIO * 0.4
-        );
-        if (u < takeoffSplit) {
-          const su = smoothEase(u / Math.max(0.001, takeoffSplit));
-          const liftPoint = launchPos.clone();
-          liftPoint.y = approachPoint.y;
-          const pos = launchPos.clone().lerp(liftPoint, su);
-          const next = launchPos.clone().lerp(liftPoint, clamp01(su + 0.05));
-          return {
-            pos: constrainInsideBoardPerimeter(pos),
-            next: constrainInsideBoardPerimeter(next)
-          };
-        }
-        if (u < CAPTURE_AIR_APPROACH_RATIO) {
-          const su = smoothEase(
-            (u - takeoffSplit) /
-              Math.max(0.001, CAPTURE_AIR_APPROACH_RATIO - takeoffSplit)
-          );
-          const pos = launchPos.clone().lerp(approachPoint, su);
-          const next = launchPos
-            .clone()
-            .lerp(approachPoint, clamp01(su + 0.05));
-          return {
-            pos: constrainInsideBoardPerimeter(pos),
-            next: constrainInsideBoardPerimeter(next)
-          };
-        }
-        if (returnToOrigin) {
-          const ru = smoothEase(
-            (u - CAPTURE_AIR_APPROACH_RATIO) /
-              Math.max(0.001, 1 - CAPTURE_AIR_APPROACH_RATIO)
-          );
-          const pos = nearTargetPoint.clone().lerp(launchPos, ru);
-          const next = nearTargetPoint
-            .clone()
-            .lerp(launchPos, clamp01(ru + 0.05));
-          return {
-            pos: constrainInsideBoardPerimeter(pos),
-            next: constrainInsideBoardPerimeter(next)
-          };
-        }
-        return { pos: nearTargetPoint, next: toVec.clone() };
-      };
-      const getCaptureDirectStrikePose = ({
-        launchPos,
-        targetPos,
-        progress,
-        altitude = 0.72,
-        returnToOrigin = false,
-        verticalCrash = false
-      }) => {
-        const toCenter = new THREE.Vector3(
-          -Math.sign(launchPos.x || 1),
-          0,
-          0
-        ).normalize();
-        const inwardDistance = verticalCrash
-          ? CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE
-          : CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE;
-        const strikeAltitude = verticalCrash
-          ? CAPTURE_VERTICAL_STRIKE_ALTITUDE
-          : altitude;
-        const forwardPoint = launchPos
-          .clone()
-          .addScaledVector(toCenter, tile * inwardDistance);
-        const cruiseHeight = Math.max(
-          launchPos.y + strikeAltitude,
-          launchPos.y + (verticalCrash ? 0.06 : 0.1)
-        );
-        const takeoffPoint = forwardPoint.clone();
-        takeoffPoint.y = cruiseHeight;
-        const strikeTop = targetPos.clone();
-        strikeTop.y = verticalCrash
-          ? Math.max(
-              targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET,
-              launchPos.y + CAPTURE_VERTICAL_STRIKE_ALTITUDE
-            )
-          : Math.max(targetPos.y + 0.2, cruiseHeight * 0.84);
-        const u = clamp01(progress);
-        let pos = launchPos.clone();
-        let next = launchPos.clone().add(new THREE.Vector3(0.05, 0, 0));
-        if (u < CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO) {
-          const su = smoothEase(u / CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO);
-          pos = launchPos.clone().lerp(takeoffPoint, su);
-          next = launchPos.clone().lerp(takeoffPoint, clamp01(su + 0.04));
-        } else if (returnToOrigin && u >= CAPTURE_DIRECT_STRIKE_RETURN_RATIO) {
-          const ru = smoothEase(
-            (u - CAPTURE_DIRECT_STRIKE_RETURN_RATIO) /
-              Math.max(0.001, 1 - CAPTURE_DIRECT_STRIKE_RETURN_RATIO)
-          );
-          pos = strikeTop.clone().lerp(takeoffPoint, ru);
-          next = strikeTop.clone().lerp(takeoffPoint, clamp01(ru + 0.05));
-        } else {
-          const spanStart = CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO;
-          const spanEnd = returnToOrigin
-            ? CAPTURE_DIRECT_STRIKE_RETURN_RATIO
-            : 1;
-          const su = smoothEase(
-            (u - spanStart) / Math.max(0.001, spanEnd - spanStart)
-          );
-          if (!verticalCrash) {
-            pos = takeoffPoint.clone().lerp(targetPos, su);
-            next = takeoffPoint.clone().lerp(targetPos, clamp01(su + 0.05));
-          } else if (su < CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO) {
-            const topLaunch = launchPos.clone();
-            topLaunch.y = strikeTop.y;
-            const topTarget = targetPos.clone();
-            topTarget.y = strikeTop.y;
-            const cruiseU = smoothEase(
-              su / Math.max(0.001, CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO)
-            );
-            pos = topLaunch.clone().lerp(topTarget, cruiseU);
-            next = topLaunch.clone().lerp(topTarget, clamp01(cruiseU + 0.05));
-            pos.y = strikeTop.y;
-            next.y = strikeTop.y;
-          } else {
-            const dropU = smoothEase(
-              (su - CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO) /
-                Math.max(0.001, 1 - CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO)
-            );
-            pos = strikeTop.clone().lerp(targetPos, dropU);
-            next = strikeTop.clone().lerp(targetPos, clamp01(dropU + 0.08));
-            next.x = pos.x;
-            next.z = pos.z;
+    };
+    const resolveSideVehicleSkin = (isWhiteSide) => {
+      const cacheKey = isWhiteSide ? 'white' : 'black';
+      if (sideVehicleSkinCache.has(cacheKey)) return sideVehicleSkinCache.get(cacheKey);
+      for (let r = 0; r < 8; r += 1) {
+        for (let c = 0; c < 8; c += 1) {
+          const boardPiece = board?.[r]?.[c];
+          if (!boardPiece || boardPiece.w !== isWhiteSide || boardPiece.t !== 'P') continue;
+          const skin = extractVehicleSkinFromPiece(pieceMeshes?.[r]?.[c]);
+          if (skin) {
+            sideVehicleSkinCache.set(cacheKey, skin);
+            return skin;
           }
-        }
-        constrainInsideBoardPerimeter(
-          pos,
-          CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2
-        );
-        constrainInsideBoardPerimeter(
-          next,
-          CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2
-        );
-        return { pos, next };
-      };
-      const getCapturePrecisionVerticalStrikePose = ({
-        launchPos,
-        targetPos,
-        progress,
-        strikeAltitude = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82
-      }) => {
-        const u = clamp01(progress);
-        const liftEnd = launchPos.clone();
-        liftEnd.y = Math.max(
-          launchPos.y + strikeAltitude,
-          targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET
-        );
-        const strikeTop = targetPos.clone();
-        strikeTop.y = liftEnd.y;
-        const travelSpan = Math.max(
-          0.001,
-          1 -
-            CAPTURE_PRECISION_STRIKE_LIFT_RATIO -
-            CAPTURE_PRECISION_STRIKE_DROP_RATIO
-        );
-        if (u <= CAPTURE_PRECISION_STRIKE_LIFT_RATIO) {
-          const lu = smoothEase(
-            u / Math.max(0.001, CAPTURE_PRECISION_STRIKE_LIFT_RATIO)
-          );
-          const pos = launchPos.clone().lerp(liftEnd, lu);
-          const next = launchPos.clone().lerp(liftEnd, clamp01(lu + 0.05));
-          return { pos, next };
-        }
-        if (u >= 1 - CAPTURE_PRECISION_STRIKE_DROP_RATIO) {
-          const du = smoothEase(
-            (u - (1 - CAPTURE_PRECISION_STRIKE_DROP_RATIO)) /
-              Math.max(0.001, CAPTURE_PRECISION_STRIKE_DROP_RATIO)
-          );
-          const pos = strikeTop.clone().lerp(targetPos, du);
-          const next = strikeTop.clone().lerp(targetPos, clamp01(du + 0.08));
-          next.x = pos.x;
-          next.z = pos.z;
-          return { pos, next };
-        }
-        const cu = smoothEase(
-          (u - CAPTURE_PRECISION_STRIKE_LIFT_RATIO) / travelSpan
-        );
-        const pos = liftEnd.clone().lerp(strikeTop, cu);
-        const next = liftEnd.clone().lerp(strikeTop, clamp01(cu + 0.05));
-        pos.y = liftEnd.y;
-        next.y = liftEnd.y;
-        return { pos, next };
-      };
-
-      const playCaptureAnimation = ({
-        fromPos,
-        targetPos,
-        movingType,
-        movingMesh = null,
-        targetMesh = null,
-        distance,
-        deltaR = 0,
-        deltaC = 0
-      }) => {
-        const pieceType = (movingType || '').toUpperCase();
-        if (pieceType === 'R') {
-          suppressTimerBeepUntilRef.current =
-            performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-          const missileFx = createFxGroundMissile();
-          missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
-          const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
-          const launchBase =
-            parkedTruck?.homePosition?.clone?.() ||
-            getAirPadAnchor(isWhiteSide, 'truck', 0);
-          missileFx.root.position.copy(launchBase);
-          captureFxGroup.add(missileFx.root);
-          playAudio(missileLaunchSoundRef);
-          activeCaptureFx.push({
-            type: 'javelin',
-            t: 0,
-            duration: CAPTURE_GROUND_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.clone(),
-            movingMesh,
-            targetMesh,
-            launchFromLivePiece: false,
-            sourceUnit: parkedTruck,
-            missileFx,
-            directPath: false,
-            strictPrecision: true,
-            verticalStrike: true
-          });
-          return {
-            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-          };
-        }
-        if (pieceType === 'N' || pieceType === 'P') {
-          if (pieceType === 'N') {
-            suppressTimerBeepUntilRef.current =
-              performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-            const isWhiteSide = Boolean(movingMesh?.userData?.w);
-            const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-            const droneFx =
-              parkedDrone || createFxDrone({ forceProcedural: true });
-            droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-            if (!parkedDrone) {
-              const launchBase = getAirPadAnchor(isWhiteSide, 'drone', 0);
-              droneFx.root.position.copy(
-                launchBase.clone().add(new THREE.Vector3(0, 0.08, 0))
-              );
-              captureFxGroup.add(droneFx.root);
-            }
-            const launchBase =
-              parkedDrone?.homePosition?.clone?.() ||
-              getAirPadAnchor(isWhiteSide, 'drone', 0);
-            playAudio(droneSoundRef, {
-              maxDurationMs: CAPTURE_GROUND_TOTAL * 1000
-            });
-            activeCaptureFx.push({
-              type: 'drone',
-              t: 0,
-              duration: CAPTURE_GROUND_TOTAL,
-              from: fromPos.clone(),
-              to: targetPos.clone(),
-              launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
-              movingMesh,
-              targetMesh,
-              returnToOrigin: true,
-              sourceUnit: parkedDrone,
-              droneFx
-            });
-            return {
-              moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-              captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-            };
-          }
-          suppressTimerBeepUntilRef.current =
-            performance.now() + CAPTURE_GROUND_TOTAL * 1000;
-          const missileFx = createFxGroundMissile();
-          missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
-          const launchBase = getLiveLaunchPosition(
-            fromPos.clone(),
-            movingMesh,
-            0.11
-          );
-          missileFx.root.position.copy(
-            launchBase.clone().add(new THREE.Vector3(0, 0.03, 0))
-          );
-          captureFxGroup.add(missileFx.root);
-          playAudio(missileLaunchSoundRef);
-          activeCaptureFx.push({
-            type: 'javelin',
-            t: 0,
-            duration: CAPTURE_GROUND_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
-            movingMesh,
-            targetMesh,
-            launchFromLivePiece: true,
-            sourceUnit: null,
-            missileFx,
-            directPath: false,
-            verticalStrike: true,
-            strictPrecision: true
-          });
-          return {
-            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
-            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
-          };
-        }
-        if (pieceType === 'K') {
-          suppressTimerBeepUntilRef.current =
-            performance.now() + CAPTURE_JET_TOTAL * 1000;
-          const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
-          const jetFx = parkedUnit || createFxJet();
-          if (!parkedUnit) {
-            jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-            const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 0);
-            const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-            if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
-            attachVehicleAvatarBadge(
-              jetFx.root,
-              isWhiteSide
-                ? avatar || username || playerFlag || '🙂'
-                : (onlineRef.current.enabled
-                    ? opponent?.avatar || opponent?.name
-                    : null) ||
-                    opponent?.name ||
-                    aiFlag ||
-                    '🤖',
-              isWhiteSide ? 1 : -1
-            );
-            jetFx.root.position.copy(
-              launchBase.clone().add(new THREE.Vector3(0, 0.08, 0))
-            );
-            captureFxGroup.add(jetFx.root);
-          }
-          const launchBase =
-            parkedUnit?.homePosition?.clone?.() ||
-            getAirPadAnchor(isWhiteSide, 'jet', 0);
-          const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
-          missileFx.forEach((missile) => {
-            missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-            missile.root.visible = false;
-            captureFxGroup.add(missile.root);
-          });
-          activeCaptureFx.push({
-            type: 'jet',
-            t: 0,
-            duration: CAPTURE_JET_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
-            movingMesh,
-            targetMesh,
-            returnToOrigin: true,
-            missileReleaseTime:
-              CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-            flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-            sourceUnit: parkedUnit,
-            jetFx,
-            missileFx
-          });
-          const jetImpactDelayMs =
-            getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
-          return {
-            moveDelayMs: jetImpactDelayMs,
-            captureResolveDelayMs: jetImpactDelayMs
-          };
-        }
-        if (pieceType === 'B') {
-          suppressTimerBeepUntilRef.current =
-            performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
-          const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
-          const helicopterFx = parkedUnit || createFxHelicopter();
-          if (!parkedUnit) {
-            helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
-            const launchBase = getAirPadAnchor(isWhiteSide, 'helicopter', 0);
-            const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-            if (sideSkin) {
-              applyVehicleSkinToModel(helicopterFx.root, sideSkin, (node) =>
-                /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(
-                  `${node.name || ''}`.toLowerCase()
-                )
-              );
-            }
-            attachVehicleAvatarBadge(
-              helicopterFx.root,
-              isWhiteSide
-                ? avatar || username || playerFlag || '🙂'
-                : (onlineRef.current.enabled
-                    ? opponent?.avatar || opponent?.name
-                    : null) ||
-                    opponent?.name ||
-                    aiFlag ||
-                    '🤖',
-              isWhiteSide ? 1 : -1
-            );
-            helicopterFx.root.position.copy(
-              launchBase.clone().add(new THREE.Vector3(0, 0.08, 0))
-            );
-            captureFxGroup.add(helicopterFx.root);
-          }
-          const launchBase =
-            parkedUnit?.homePosition?.clone?.() ||
-            getAirPadAnchor(isWhiteSide, 'helicopter', 0);
-          const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
-          missileFx.forEach((missile) => {
-            missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-            missile.root.visible = false;
-            captureFxGroup.add(missile.root);
-          });
-          playAudio(helicopterSoundRef, {
-            maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000
-          });
-          activeCaptureFx.push({
-            type: 'helicopter',
-            t: 0,
-            duration: CAPTURE_HELICOPTER_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
-            movingMesh,
-            targetMesh,
-            returnToOrigin: true,
-            missileReleaseTime:
-              CAPTURE_HELICOPTER_TOTAL *
-              CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-            flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-            sourceUnit: parkedUnit,
-            helicopterFx,
-            missileFx
-          });
-          const helicopterImpactDelayMs =
-            getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) * 1000;
-          return {
-            moveDelayMs: helicopterImpactDelayMs,
-            captureResolveDelayMs: helicopterImpactDelayMs
-          };
-        }
-        if (pieceType === 'Q') {
-          suppressTimerBeepUntilRef.current =
-            performance.now() + CAPTURE_JET_TOTAL * 1000;
-          const isWhiteSide = Boolean(movingMesh?.userData?.w);
-          const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
-          const jetFx = parkedUnit || createFxJet();
-          if (!parkedUnit) {
-            jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-            const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 1);
-            const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-            if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
-            attachVehicleAvatarBadge(
-              jetFx.root,
-              isWhiteSide
-                ? avatar || username || playerFlag || '🙂'
-                : (onlineRef.current.enabled
-                    ? opponent?.avatar || opponent?.name
-                    : null) ||
-                    opponent?.name ||
-                    aiFlag ||
-                    '🤖',
-              isWhiteSide ? 1 : -1
-            );
-            jetFx.root.position.copy(
-              launchBase.clone().add(new THREE.Vector3(0, 0.08, 0))
-            );
-            captureFxGroup.add(jetFx.root);
-          }
-          const launchBase =
-            parkedUnit?.homePosition?.clone?.() ||
-            getAirPadAnchor(isWhiteSide, 'jet', 1);
-          const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
-          missileFx.forEach((missile) => {
-            missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-            missile.root.visible = false;
-            captureFxGroup.add(missile.root);
-          });
-          activeCaptureFx.push({
-            type: 'jet',
-            t: 0,
-            duration: CAPTURE_JET_TOTAL,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
-            movingMesh,
-            targetMesh,
-            returnToOrigin: true,
-            missileReleaseTime:
-              CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-            flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-            sourceUnit: parkedUnit,
-            jetFx,
-            missileFx
-          });
-          const jetImpactDelayMs =
-            getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
-          return {
-            moveDelayMs: jetImpactDelayMs,
-            captureResolveDelayMs: jetImpactDelayMs
-          };
-        }
-        if (distance <= 1.5) {
-          playAudio(swordSoundRef);
-          setTimeout(() => playAudio(swordSoundRef), 120);
-          setTimeout(() => playAudio(missileImpactSoundRef), 200);
-          return { moveDelayMs: 280 };
-        }
-        if (distance >= 2) {
-          playAudio(missileLaunchSoundRef);
-          const missileFx = createFxMissile();
-          missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
-          captureFxGroup.add(missileFx.root);
-          activeCaptureFx.push({
-            type: 'missile',
-            t: 0,
-            duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
-            from: fromPos.clone(),
-            to: targetPos.clone(),
-            targetMesh,
-            missileFx
-          });
-          return { moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 };
-        }
-        launchExplosion(targetPos.clone());
-        return { moveDelayMs: 280 };
-      };
-
-      // Board base + rim
-      const tile = BOARD.tile;
-      const N = 8;
-      const half = (N * tile) / 2;
-      let currentBoardModel = null;
-      let currentPiecePrototypes = null;
-      let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
-      let currentTileSize = tile;
-      let currentPieceSetId = initialPieceSetId;
-      let currentBoardCleanup = null;
-      const base = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          N * tile + BOARD.rim * 2,
-          BOARD.baseH,
-          N * tile + BOARD.rim * 2
-        ),
-        buildVeinedMaterial(boardTheme.frameDark, {
-          roughness: boardTheme.frameRoughness,
-          metalness: boardTheme.frameMetalness,
-          repeat: 2.1,
-          normalScale: 0.28
-        })
-      );
-      base.position.set(0, BOARD.baseH / 2, 0);
-      boardVisualGroup.add(base);
-      const top = new THREE.Mesh(
-        new THREE.BoxGeometry(N * tile, 0.12, N * tile),
-        buildVeinedMaterial(boardTheme.frameLight, {
-          roughness: boardTheme.surfaceRoughness * 0.92,
-          metalness: boardTheme.surfaceMetalness,
-          repeat: 2.8,
-          normalScale: 0.26
-        })
-      );
-      top.position.set(0, BOARD.baseH + 0.06, 0);
-      boardVisualGroup.add(top);
-
-      const inlay = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          N * tile + BOARD.rim * 1.08,
-          0.02,
-          N * tile + BOARD.rim * 1.08
-        ),
-        new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(boardTheme.accent),
-          roughness: 0.22,
-          metalness: 0.74,
-          clearcoat: 0.32,
-          clearcoatRoughness: 0.18
-        })
-      );
-      inlay.position.set(0, BOARD.baseH + 0.11, 0);
-      boardVisualGroup.add(inlay);
-
-      const airPadGroup = new THREE.Group();
-      boardVisualGroup.add(airPadGroup);
-      const addAirPadMarker = (position, label = 'J') => {
-        const marker = new THREE.Group();
-        marker.position.copy(position);
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(tile * 0.28, tile * 0.03, 10, 36),
-          new THREE.MeshStandardMaterial({
-            color: '#ef4444',
-            metalness: 0.45,
-            roughness: 0.34
-          })
-        );
-        ring.rotation.x = Math.PI / 2;
-        marker.add(ring);
-        const plate = new THREE.Mesh(
-          new THREE.CircleGeometry(tile * 0.24, 24),
-          new THREE.MeshStandardMaterial({
-            color: '#0b1020',
-            metalness: 0.18,
-            roughness: 0.65
-          })
-        );
-        plate.rotation.x = -Math.PI / 2;
-        marker.add(plate);
-        const spriteCanvas = document.createElement('canvas');
-        spriteCanvas.width = 128;
-        spriteCanvas.height = 128;
-        const ctx = spriteCanvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, 128, 128);
-          ctx.fillStyle = '#facc15';
-          ctx.font = '900 92px "JetBrains Mono","Arial Black",sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(label, 64, 68);
-        }
-        const spriteTexture = new THREE.CanvasTexture(spriteCanvas);
-        applySRGBColorSpace(spriteTexture);
-        const text = new THREE.Sprite(
-          new THREE.SpriteMaterial({
-            map: spriteTexture,
-            transparent: true,
-            depthWrite: false
-          })
-        );
-        text.scale.set(tile * 0.5, tile * 0.5, 1);
-        text.position.set(0, tile * 0.02, 0);
-        marker.add(text);
-        airPadGroup.add(marker);
-      };
-      addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
-      addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
-      addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
-      addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
-      addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
-
-      // Tiles
-      const tiles = [];
-      const tileGroup = new THREE.Group();
-      boardVisualGroup.add(tileGroup);
-      for (let r = 0; r < N; r++) {
-        for (let c = 0; c < N; c++) {
-          const isDark = (r + c) % 2 === 1;
-          const m = buildVeinedMaterial(
-            isDark ? boardTheme.dark : boardTheme.light,
-            {
-              metalness: boardTheme.surfaceMetalness + 0.04,
-              roughness: boardTheme.surfaceRoughness * 0.94,
-              repeat: 3.4,
-              normalScale: 0.3
-            }
-          );
-          const g = new THREE.BoxGeometry(tile, 0.1, tile);
-          const mesh = new THREE.Mesh(g, m);
-          mesh.position.set(
-            c * tile - half + tile / 2,
-            BOARD.baseH + 0.12,
-            r * tile - half + tile / 2
-          );
-          mesh.userData = { r, c, type: 'tile' };
-          tileGroup.add(mesh);
-          tiles.push(mesh);
         }
       }
+      const fallbackPiece = isWhiteSide
+        ? pieceMeshes?.[6]?.[0] || pieceMeshes?.[7]?.[0]
+        : pieceMeshes?.[1]?.[0] || pieceMeshes?.[0]?.[0];
+      const fallbackSkin = extractVehicleSkinFromPiece(fallbackPiece);
+      sideVehicleSkinCache.set(cacheKey, fallbackSkin || null);
+      return fallbackSkin || null;
+    };
+    const createAvatarBadgeTexture = (label = '🙂') => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(64, 64, 60, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#f8fafc';
+      ctx.stroke();
+      ctx.font = '700 58px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(`${label}`.slice(0, 2), 64, 68);
+      const texture = new THREE.CanvasTexture(canvas);
+      applySRGBColorSpace(texture);
+      return texture;
+    };
+    const resolveBadgeLabel = (value, fallback = '🙂') => {
+      if (!value) return fallback;
+      if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return fallback;
+      }
+      return `${value}`.trim().slice(0, 2) || fallback;
+    };
+    const attachVehicleAvatarBadge = (root, label = '🙂', sideSign = 1) => {
+      if (!root) return null;
+      const texture = createAvatarBadgeTexture(resolveBadgeLabel(label));
+      if (!texture) return null;
+      const badge = new THREE.Mesh(
+        new THREE.CircleGeometry(0.16, 28),
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide })
+      );
+      badge.position.set(0.1, 0.2, sideSign >= 0 ? 0.22 : -0.22);
+      badge.rotation.y = sideSign >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      root.add(badge);
+      return badge;
+    };
+    const createFxDrone = ({ forceProcedural = false } = {}) => {
+      const model = forceProcedural ? null : cloneCaptureUnitTemplate('drone');
+      if (model) {
+        const root = new THREE.Group();
+        root.add(model);
+        const propeller =
+          model.getObjectByName('propeller') ||
+          model.getObjectByName('Propeller') ||
+          model.getObjectByName('Rotor') ||
+          model;
+        applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
+        return { root, propeller, exhaustClouds: [] };
+      }
+      const root = new THREE.Group();
+      root.scale.setScalar(0.3);
+      const droneTone = getCaptureToneSeed('missile');
+      const body = addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
+      body.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#d1d7de', roughness: 0.28, metalness: 0.84 });
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 0.72, 20),
+        createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
+      );
+      nose.position.set(1.7, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      nose.castShadow = true;
+      root.add(nose);
+      const tail = addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
+      tail.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#10151c', roughness: 0.44, metalness: 0.44 });
+      const deltaWing = createFxPolygon(
+        [
+          [-1.2, -2.05],
+          [1.0, 0],
+          [-1.2, 2.05]
+        ],
+        0.08,
+        '#556b2f',
+        0.82,
+        0.08
+      );
+      deltaWing.position.set(-0.15, -0.06, 0);
+      root.add(deltaWing);
+      const spine = createFxPolygon(
+        [
+          [-0.55, -0.18],
+          [0.9, 0],
+          [-0.55, 0.18]
+        ],
+        0.06,
+        '#7d858a',
+        0.55,
+        0.22
+      );
+      spine.position.set(0.15, 0.03, 0);
+      root.add(spine);
+      addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
+      const propeller = new THREE.Group();
+      propeller.position.set(-1.95, 0, 0);
+      addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
+      const blade2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 1.0, 0.08),
+        new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
+      );
+      blade2.rotation.x = Math.PI / 2;
+      blade2.castShadow = true;
+      propeller.add(blade2);
+      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
+      root.add(propeller);
 
-      // Coordinates (optional minimal markers)
-      const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
-      for (let i = 0; i < N; i++) {
-        const mSmall = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.08, 0.8),
-          coordMat
+      const exhaustClouds = [];
+      for (let i = 0; i < 5; i += 1) {
+        exhaustClouds.push(
+          addFxSphere(
+            root,
+            0.12 + i * 0.03,
+            [-0.84 - i * 0.19, 0, 0],
+            i < 2 ? '#f6af4b' : '#8f989d',
+            i < 2 ? 0.2 : 1,
+            0,
+            true,
+            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+          )
         );
-        mSmall.rotation.x = -Math.PI / 2;
+      }
+      return { root, propeller, exhaustClouds };
+    };
+    const createFxHelicopter = () => {
+      const model = cloneCaptureUnitTemplate('helicopter');
+      if (model) {
+        const root = new THREE.Group();
+        model.rotation.set(0, 0, 0);
+        root.add(model);
+        const tailRotor = findCaptureRotor(model, 'tail');
+        let topRotor = findCaptureRotor(model, 'main');
+        const rotorNodes = [];
+        model.traverse((node) => {
+          if (!node?.isObject3D) return;
+          const name = `${node.name || ''}`.toLowerCase();
+          if (/rotor|propell|blade|fan/.test(name)) rotorNodes.push(node);
+        });
+        if (!topRotor) {
+          model.traverse((node) => {
+            if (topRotor || !node?.isMesh || isDescendantOf(node, tailRotor)) return;
+            const name = `${node.name || ''}`.toLowerCase();
+            if (/rotor|propell|blade|fan/.test(name)) {
+              topRotor = node;
+            }
+          });
+        }
+        applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
+        const topRotorAxis = new THREE.Vector3(0, 1, 0);
+        const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
+        return { root, topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, exhaustClouds: [] };
+      }
+      const root = new THREE.Group();
+      addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
+      const cockpit = addFxSphere(root, 0.26, [0.75, 0.08, 0], '#304351', 0.24, 0.35);
+      cockpit.scale.set(1.35, 0.72, 0.9);
+      addFxBox(root, [1.4, 0.07, 0.2], [-0.12, 0.05, 0], '#8c959d', 0.58, 0.2);
+      addFxBox(root, [0.62, 0.12, 0.12], [-1.18, 0.08, 0], '#8b949b', 0.58, 0.18);
+      addFxCylinder(root, 0.05, 0.05, 0.68, [-1.65, 0.11, 0], [0, 0, Math.PI / 2], '#7a848d', 14);
+      addFxBox(root, [0.95, 0.03, 0.03], [0.05, -0.34, -0.2], '#616a72', 0.7, 0.1);
+      addFxBox(root, [0.95, 0.03, 0.03], [0.05, -0.34, 0.2], '#616a72', 0.7, 0.1);
+      const topRotor = new THREE.Group();
+      topRotor.position.set(0.02, 0.34, 0);
+      addFxBox(topRotor, [0.1, 0.05, 0.1], [0, 0, 0], '#3a434a', 0.5, 0.22);
+      addFxBox(topRotor, [0.08, 0.02, 1.35], [0, 0, 0], '#1f252a', 0.55, 0.08);
+      addFxBox(topRotor, [1.35, 0.02, 0.08], [0, 0, 0], '#1f252a', 0.55, 0.08);
+      root.add(topRotor);
+      const tailRotor = new THREE.Group();
+      tailRotor.position.set(-1.66, 0.11, 0);
+      addFxBox(tailRotor, [0.03, 0.38, 0.03], [0, 0, 0], '#21272d', 0.55, 0.08);
+      addFxBox(tailRotor, [0.03, 0.03, 0.38], [0, 0, 0], '#21272d', 0.55, 0.08);
+      root.add(tailRotor);
+      const exhaustClouds = [];
+      for (let i = 0; i < 6; i += 1) {
+        exhaustClouds.push(
+          addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
+        );
+      }
+      return {
+        root,
+        topRotor,
+        tailRotor,
+        topRotorAxis: new THREE.Vector3(0, 1, 0),
+        tailRotorAxis: new THREE.Vector3(1, 0, 0),
+        exhaustClouds
+      };
+    };
+    const createFxJet = () => {
+      const model = cloneCaptureUnitTemplate('fighter');
+      if (model) {
+        const root = new THREE.Group();
+        model.rotation.set(0, 0, 0);
+        root.add(model);
+        const cockpit =
+          model.getObjectByName('cockpit') ||
+          model.getObjectByName('Cockpit') ||
+          model;
+        const detectedExhaustAnchor = findJetExhaustAnchor(model);
+        const exhaustAnchor = detectedExhaustAnchor.lerp(new THREE.Vector3(-1.95, 0, 0), 0.9);
+        const exhaustClouds = createJetExhaustClouds(
+          root,
+          6,
+          [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z],
+          0.22
+        );
+        return { root, cockpit, leftStore: null, rightStore: null, exhaustClouds, exhaustAnchor };
+      }
+      const root = new THREE.Group();
+      addFxCylinder(root, 0.16, 0.22, 3.1, [0, 0, 0], [0, 0, Math.PI / 2], '#b8bec5', 24);
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.17, 0.96, 24),
+        new THREE.MeshStandardMaterial({ color: '#d7dbe0', roughness: 0.45, metalness: 0.2 })
+      );
+      nose.position.set(2.0, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      nose.castShadow = true;
+      root.add(nose);
+      const cockpit = addFxSphere(root, 0.2, [0.62, 0.15, 0], '#2d3945', 0.18, 0.3);
+      cockpit.scale.set(1.2, 0.58, 0.64);
+      const wing = createFxPolygon([[-1.52, -2.32], [0.75, 0], [-0.35, 2.32]], 0.1, '#9fa7ae', 0.68, 0.16);
+      wing.position.set(-0.2, -0.05, 0);
+      root.add(wing);
+      const tailWing = createFxPolygon([[-0.92, -1.1], [0.3, 0], [-0.35, 1.1]], 0.08, '#959ea5', 0.65, 0.18);
+      tailWing.position.set(-1.35, 0.04, 0);
+      root.add(tailWing);
+      const fin = createFxPolygon([[-0.52, 0], [0.22, 0], [-0.1, 0.95]], 0.05, '#8e979f', 0.6, 0.18);
+      fin.rotation.z = Math.PI / 2;
+      fin.position.set(-1.1, 0.55, 0);
+      root.add(fin);
+      const engineLeft = addFxCylinder(root, 0.12, 0.1, 0.78, [-1.95, -0.08, -0.2], [0, 0, Math.PI / 2], '#727b83', 16);
+      const engineRight = engineLeft.clone();
+      engineRight.position.z = 0.2;
+      root.add(engineRight);
+      const leftStore = new THREE.Group();
+      addFxCylinder(leftStore, 0.04, 0.05, 0.55, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 12, 0.22, 0.84);
+      const leftStoreNose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.14, 12),
+        new THREE.MeshStandardMaterial({ color: '#eef1f5', roughness: 0.18, metalness: 0.86 })
+      );
+      leftStoreNose.position.set(0.34, 0, 0);
+      leftStoreNose.rotation.z = -Math.PI / 2;
+      leftStore.add(leftStoreNose);
+      leftStore.position.set(0.25, -0.25, -1.15);
+      root.add(leftStore);
+      const rightStore = leftStore.clone();
+      rightStore.position.z = 1.15;
+      root.add(rightStore);
+      const exhaustAnchor = new THREE.Vector3(-1.95, 0, 0);
+      const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
+      return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor };
+    };
+    const createFxSupportTruck = () => {
+      const root = new THREE.Group();
+      const addRoofLongMissiles = (target, referenceObject) => {
+        if (!target) return;
+        const bounds = referenceObject ? new THREE.Box3().setFromObject(referenceObject) : new THREE.Box3();
+        if (bounds.isEmpty()) {
+          bounds.min.set(-1.1, -0.3, -0.5);
+          bounds.max.set(1.1, 0.5, 0.5);
+        }
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const missileLength = Math.max(size.x * 1.48, 2.7);
+        const rackY = bounds.max.y + Math.max(size.y * 0.2, 0.13);
+        const rack = new THREE.Group();
+        addFxBox(
+          rack,
+          [Math.max(size.x * 0.66, 1.0), 0.05, Math.max(size.z * 0.84, 0.64)],
+          [0, 0, 0],
+          '#2e353d',
+          0.68,
+          0.24
+        );
+        [-0.26, 0.26].forEach((lane) => {
+          const missile = new THREE.Group();
+          addFxCylinder(
+            missile,
+            Math.max(size.z * 0.05, 0.038),
+            Math.max(size.z * 0.062, 0.046),
+            missileLength,
+            [0, 0, 0],
+            [0, 0, Math.PI / 2],
+            '#6e7f57',
+            14,
+            0.24,
+            0.82
+          );
+          const tip = new THREE.Mesh(
+            new THREE.ConeGeometry(Math.max(size.z * 0.068, 0.058), Math.max(size.x * 0.22, 0.4), 14),
+            new THREE.MeshStandardMaterial({ color: '#8ca66a', roughness: 0.2, metalness: 0.86 })
+          );
+          tip.position.set(missileLength * 0.5 + Math.max(size.x * 0.08, 0.12), 0, 0);
+          tip.rotation.z = -Math.PI / 2;
+          tip.castShadow = true;
+          missile.add(tip);
+          missile.position.set(-Math.max(size.x * 0.12, 0.16), 0.1, lane * Math.max(size.z, 0.84));
+          missile.rotation.z = Math.PI * 0.22; // tilt launchers upward so missile heads point up
+          rack.add(missile);
+        });
+        rack.rotation.z = -Math.PI * 0.05;
+        rack.rotation.y = Math.PI; // keep forward orientation aligned with parked truck heading
+        rack.position.set(center.x - Math.max(size.x * 0.08, 0.14), rackY, center.z);
+        target.add(rack);
+      };
+      const truckTone = getCaptureToneSeed('missile');
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(2.1, 0.62, 1.0),
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f1b445', roughness: 0.56, metalness: 0.24 })
+      );
+      body.castShadow = true;
+      body.receiveShadow = true;
+      root.add(body);
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(0.78, 0.62, 0.92),
+        createCaptureVehicleMaterial('missile', { toneSeed: truckTone, color: '#f3be59', roughness: 0.52, metalness: 0.22 })
+      );
+      cabin.position.set(0.86, 0.44, 0);
+      cabin.castShadow = true;
+      cabin.receiveShadow = true;
+      root.add(cabin);
+      addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
+      addRoofLongMissiles(root, root);
+      return { root };
+    };
+    const getAirPadAnchor = (isWhiteSide, kind = 'jet', slot = 0) => {
+      const sideX =
+        (isWhiteSide ? -1 : 1) * (half - tile * SIDE_PARKED_AIR_UNITS_INWARD_OFFSET);
+      const equalLaneStep = tile * SIDE_PARKED_AIR_UNITS_LANE_SPREAD;
+      const laneIndexMap = {
+        jet: 0,
+        drone: 1,
+        helicopter: 2,
+        truck: 3
+      };
+      const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
+      const zOffset = (laneIndex - 1.5) * equalLaneStep;
+      const yOffset =
+        currentPieceYOffset +
+        SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT +
+        (kind === 'truck' ? 0.02 : 0.04);
+      return new THREE.Vector3(sideX, yOffset, zOffset);
+    };
+    const acquireParkedAirUnit = (isWhiteSide, kind) => {
+      const preferred = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === kind && !unit?.busy);
+      if (!preferred?.root) return null;
+      preferred.busy = true;
+      preferred.root.visible = true;
+      if (preferred.root.parent !== captureFxGroup) {
+        preferred.root.parent?.remove(preferred.root);
+        captureFxGroup.add(preferred.root);
+      }
+      return preferred;
+    };
+    const returnParkedAirUnit = (unit) => {
+      if (!unit?.root) return;
+      unit.root.visible = true;
+      unit.root.position.copy(unit.homePosition);
+      unit.root.rotation.copy(unit.homeRotation);
+      unit.root.quaternion.setFromEuler(unit.root.rotation);
+      if (unit.root.parent !== airPadGroup) {
+        unit.root.parent?.remove(unit.root);
+        airPadGroup.add(unit.root);
+      }
+      unit.busy = false;
+    };
+    const acquireParkedSupportUnit = (isWhiteSide) => {
+      const truck = parkedAirUnits.find((unit) => unit?.isWhite === isWhiteSide && unit?.kind === 'truck');
+      if (!truck?.root) return null;
+      truck.root.visible = true;
+      if (truck.root.parent !== airPadGroup) {
+        truck.root.parent?.remove(truck.root);
+        airPadGroup.add(truck.root);
+      }
+      return truck;
+    };
+    const createFxMissile = () => {
+      const missileTone = getCaptureToneSeed('missile');
+      const root = new THREE.Group();
+      const body = addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 14, 0.2, 0.86);
+      body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#d9dde2', roughness: 0.2, metalness: 0.86 });
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.055, 0.18, 14),
+        createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#eef2f6', roughness: 0.16, metalness: 0.9 })
+      );
+      nose.position.set(0.45, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      root.add(nose);
+      addFxBox(root, [0.1, 0.02, 0.16], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.1, 0.16, 0.02], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxCylinder(root, 0.055, 0.055, 0.14, [-0.42, 0, 0], [0, 0, Math.PI / 2], '#12161b', 14, 0.34, 0.58);
+      const trail = [];
+      for (let i = 0; i < 4; i += 1) {
+        trail.push(addFxSphere(root, 0.08 + i * 0.02, [-0.5 - i * 0.14, 0, 0], '#90989d', 1, 0, true, 0.22 - i * 0.03));
+      }
+      return { root, trail };
+    };
+    const createFxGroundMissile = () => {
+      const missileTone = getCaptureToneSeed('missile');
+      const root = new THREE.Group();
+      const body = addFxCylinder(root, 0.092, 0.112, 1.16, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 16, 0.2, 0.86);
+      body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#d9dde2', roughness: 0.2, metalness: 0.86 });
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.102, 0.28, 16),
+        createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#eef2f6', roughness: 0.16, metalness: 0.9 })
+      );
+      nose.position.set(0.72, 0, 0);
+      nose.rotation.z = -Math.PI / 2;
+      root.add(nose);
+      addFxBox(root, [0.2, 0.026, 0.38], [-0.16, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.2, 0.38, 0.026], [-0.16, 0, 0], '#8f979e', 0.28, 0.72);
+      addFxBox(root, [0.14, 0.024, 0.24], [-0.44, 0, 0], '#7e8891', 0.3, 0.68);
+      addFxBox(root, [0.14, 0.24, 0.024], [-0.44, 0, 0], '#7e8891', 0.3, 0.68);
+      addFxCylinder(root, 0.088, 0.088, 0.19, [-0.66, 0, 0], [0, 0, Math.PI / 2], '#12161b', 16, 0.34, 0.58);
+      const rotor = new THREE.Group();
+      rotor.position.set(-0.58, 0, 0);
+      addFxBox(rotor, [0.034, 0.62, 0.046], [0, 0, 0], '#090b0d', 0.5, 0.35);
+      const rotorCross = addFxBox(rotor, [0.034, 0.046, 0.62], [0, 0, 0], '#090b0d', 0.5, 0.35);
+      rotorCross.rotation.x = Math.PI / 2;
+      root.add(rotor);
+      const trail = [];
+      for (let i = 0; i < 5; i += 1) {
+        trail.push(
+          addFxSphere(
+            root,
+            0.1 + i * 0.025,
+            [-0.7 - i * 0.16, 0, 0],
+            i < 2 ? '#f6af4b' : '#8f989d',
+            i < 2 ? 0.2 : 1,
+            0,
+            true,
+            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+          )
+        );
+      }
+      return { root, trail, rotor };
+    };
+    const createFxExplosion = (position) => {
+      const root = new THREE.Group();
+      root.position.copy(position);
+      root.scale.setScalar(CAPTURE_EXPLOSION_SCALE);
+      const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
+      const fire = [];
+      const smoke = [];
+      const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
+      for (let i = 0; i < 6; i += 1) {
+        fire.push(
+          addFxSphere(
+            root,
+            0.21 + i * 0.05,
+            [0, 0.2 + i * 0.045, 0],
+            firePalette[i % firePalette.length],
+            0.2,
+            0,
+            true,
+            0.98 - i * 0.1
+          )
+        );
+      }
+      for (let i = 0; i < 6; i += 1) {
+        smoke.push(
+          addFxSphere(
+            root,
+            0.17 + i * 0.037,
+            [0, 0.165 + i * 0.067, 0],
+            '#646b72',
+            1,
+            0,
+            true,
+            0.34 - i * 0.035
+          )
+        );
+      }
+      return { root, flash, fire, smoke };
+    };
+    const launchExplosion = (position) => {
+      const explosion = createFxExplosion(position);
+      captureFxGroup.add(explosion.root);
+      playAudio(bombSoundRef, { maxDurationMs: 520 });
+      playAudio(missileImpactSoundRef);
+      activeCaptureFx.push({ type: 'explosion', t: 0, duration: LUDO_CAPTURE_EXPLOSION_TIME, explosion });
+    };
+    const qBezier = (a, b, c, t) => {
+      const ab = new THREE.Vector3().copy(a).lerp(b, t);
+      const bc = new THREE.Vector3().copy(b).lerp(c, t);
+      return ab.lerp(bc, t);
+    };
+    const getAirMissileImpactTime = (totalDuration) => {
+      const releaseStart = totalDuration * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
+      const releaseWindow = totalDuration * (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO - CAPTURE_AIR_MISSILE_RELEASE_START_RATIO);
+      const missileTravel = Math.max(0.28, releaseWindow - 0.1);
+      const secondMissileOffset = 0.14;
+      return releaseStart + secondMissileOffset + missileTravel;
+    };
+    const constrainInsideBoardPerimeter = (vector, marginTiles = 0.62) => {
+      const margin = BOARD.tile * marginTiles;
+      const boardHalf = (BOARD.N * BOARD.tile) / 2 - margin;
+      vector.x = THREE.MathUtils.clamp(vector.x, -boardHalf, boardHalf);
+      vector.z = THREE.MathUtils.clamp(vector.z, -boardHalf, boardHalf);
+      return vector;
+    };
+    const getLiveLaunchPosition = (fallback, movingMesh = null, lift = 0.08) => {
+      const launchPos = fallback.clone();
+      if (movingMesh?.parent) {
+        const worldBounds = new THREE.Box3().setFromObject(movingMesh);
+        if (!worldBounds.isEmpty()) {
+          launchPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
+          launchPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
+          launchPos.y = worldBounds.min.y;
+        } else {
+          movingMesh.getWorldPosition(launchPos);
+        }
+      }
+      launchPos.y += lift;
+      return launchPos;
+    };
+    const getLiveTargetPosition = (fallback, targetMesh = null, lift = 0) => {
+      const targetPos = fallback.clone();
+      if (targetMesh?.parent) {
+        const worldBounds = new THREE.Box3().setFromObject(targetMesh);
+        if (!worldBounds.isEmpty()) {
+          targetPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
+          targetPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
+          targetPos.y = worldBounds.min.y;
+        } else {
+          targetMesh.getWorldPosition(targetPos);
+        }
+      }
+      targetPos.y += lift;
+      return targetPos;
+    };
+    const getAirStrikeCenterFlightTarget = (from, to) => {
+      const centerBias = THREE.MathUtils.clamp(
+        (Math.abs(from.x) + Math.abs(to.x)) / Math.max(tile * 8, 0.001),
+        0.86,
+        0.985
+      );
+      const flightTarget = to.clone();
+      flightTarget.x = THREE.MathUtils.lerp(to.x, 0, centerBias);
+      flightTarget.z = THREE.MathUtils.lerp(to.z, 0, 0.76);
+      return constrainInsideBoardPerimeter(flightTarget, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.9);
+    };
+    const getCaptureOrbitPose = ({
+      from,
+      to,
+      progress,
+      launchHeight = 0.2,
+      orbitRadiusMul = 0.74,
+      minOrbitCycles = 0.28,
+      liftSplit = 0.18,
+      strikeSplit = 0.76
+    }) => {
+      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
+      const impactPos = to.clone();
+      const travel = impactPos.clone().sub(launchPos);
+      const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+      const travelLen = Math.max(0.001, planarTravel.length());
+      planarTravel.normalize();
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+      const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.32, tile * 0.38, tile * 1.12);
+      const liftEnd = launchPos.clone().add(new THREE.Vector3(0.26, CAPTURE_FLIGHT_ALTITUDE * 0.66, -0.12));
+      const orbitExit = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * (0.62 + minOrbitCycles * 0.16))
+        .addScaledVector(sideVec, orbitRadius);
+      const u = clamp01(progress);
+      let pos;
+      let next;
+      if (u < liftSplit) {
+        const liftU = smoothEase(u / liftSplit);
+        pos = new THREE.Vector3().copy(launchPos).lerp(liftEnd, liftU);
+        pos.y += Math.sin(liftU * Math.PI * 1.6) * 0.04;
+        next = new THREE.Vector3().copy(launchPos).lerp(liftEnd, clamp01(liftU + 0.04));
+      } else if (u < strikeSplit) {
+        const orbitU = smoothEase((u - liftSplit) / (strikeSplit - liftSplit));
+        const forwardNow = THREE.MathUtils.lerp(travelLen * 0.06, travelLen * 0.62, orbitU);
+        const forwardNext = THREE.MathUtils.lerp(
+          travelLen * 0.06,
+          travelLen * 0.62,
+          clamp01(orbitU + 0.03)
+        );
+        const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
+        const sideNext = Math.sin(clamp01(orbitU + 0.03) * Math.PI) * orbitRadius;
+        pos = launchPos.clone().addScaledVector(planarTravel, forwardNow).addScaledVector(sideVec, sideNow);
+        next = launchPos.clone().addScaledVector(planarTravel, forwardNext).addScaledVector(sideVec, sideNext);
+        pos.y = CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(orbitU * Math.PI * 2) * 0.04;
+        next.y = CAPTURE_FLIGHT_ALTITUDE * 0.56 + Math.sin(clamp01(orbitU + 0.03) * Math.PI * 2) * 0.04;
+      } else {
+        const strikeU = smoothEase((u - strikeSplit) / (1 - strikeSplit));
+        pos = new THREE.Vector3().copy(orbitExit).lerp(impactPos, strikeU);
+        next = new THREE.Vector3().copy(orbitExit).lerp(impactPos, clamp01(strikeU + 0.05));
+      }
+      return { pos, next };
+    };
+    const getCaptureRingOrbitPose = ({
+      from,
+      to,
+      progress,
+      launchHeight = 0.12,
+      orbitHeight = CAPTURE_FLIGHT_ALTITUDE * 0.3,
+      orbitRadiusMul = 0.72,
+      minOrbitCycles = 0.25,
+      orbitSplit = 0.74
+    }) => {
+      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
+      const impactPos = to.clone();
+      const travel = impactPos.clone().sub(launchPos);
+      const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+      const travelLen = Math.max(0.001, planarTravel.length());
+      planarTravel.normalize();
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x);
+      const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.26, tile * 0.28, tile * 0.95);
+      const orbitExit = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * (0.6 + minOrbitCycles * 0.1))
+        .addScaledVector(sideVec, orbitRadius);
+      const u = clamp01(progress);
+      if (u < orbitSplit) {
+        const orbitU = smoothEase(u / orbitSplit);
+        const forwardNow = THREE.MathUtils.lerp(travelLen * 0.04, travelLen * 0.6, orbitU);
+        const forwardNext = THREE.MathUtils.lerp(
+          travelLen * 0.04,
+          travelLen * 0.6,
+          clamp01(orbitU + 0.02)
+        );
+        const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
+        const sideNext = Math.sin(clamp01(orbitU + 0.02) * Math.PI) * orbitRadius;
+        const pos = launchPos.clone().addScaledVector(planarTravel, forwardNow).addScaledVector(sideVec, sideNow);
+        const next = launchPos
+          .clone()
+          .addScaledVector(planarTravel, forwardNext)
+          .addScaledVector(sideVec, sideNext);
+        pos.y = THREE.MathUtils.lerp(launchPos.y, orbitHeight, orbitU) + Math.sin(orbitU * Math.PI * 2) * 0.03;
+        next.y =
+          THREE.MathUtils.lerp(launchPos.y, orbitHeight, clamp01(orbitU + 0.02)) +
+          Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.03;
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      }
+      const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
+      const pos = orbitExit.clone().lerp(impactPos, strikeU);
+      const next = orbitExit.clone().lerp(impactPos, clamp01(strikeU + 0.05));
+      return { pos, next };
+    };
+    const getCaptureLoopPose = ({
+      from,
+      to,
+      progress,
+      launchHeight = 0.08,
+      orbitHeight = CAPTURE_FLIGHT_ALTITUDE * 0.62,
+      orbitRadiusMul = 0.9,
+      minOrbitCycles = 0.34,
+      orbitSplit = 0.82,
+      returnToOrigin = false,
+      returnSplit = 0.78,
+      sideSign = 1
+    }) => {
+      const clampIfNeeded = (value) => (returnToOrigin ? value : constrainInsideBoardPerimeter(value));
+      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
+      const impactPos = to.clone();
+      const travel = impactPos.clone().sub(launchPos);
+      const planarTravel = new THREE.Vector3(travel.x, 0, travel.z);
+      const travelLen = Math.max(0.001, planarTravel.length());
+      planarTravel.normalize();
+      const sideVec = new THREE.Vector3(-planarTravel.z, 0, planarTravel.x).multiplyScalar(sideSign >= 0 ? 1 : -1);
+      const orbitRadius = THREE.MathUtils.clamp(travelLen * orbitRadiusMul * 0.28, tile * 0.32, tile * 1.06);
+      const orbitExit = launchPos
+        .clone()
+        .addScaledVector(planarTravel, travelLen * (0.62 + minOrbitCycles * 0.12))
+        .addScaledVector(sideVec, orbitRadius);
+      const u = clamp01(progress);
+      const takeoffSplit = Math.min(CAPTURE_LOOP_TAKEOFF_RATIO, orbitSplit * 0.8);
+      const takeoffTop = launchPos.clone();
+      takeoffTop.y = Math.max(launchPos.y + tile * 0.06, orbitHeight * 0.72);
+      if (u < takeoffSplit) {
+        const takeoffU = smoothEase(u / Math.max(0.001, takeoffSplit));
+        const pos = launchPos.clone().lerp(takeoffTop, takeoffU);
+        const next = launchPos.clone().lerp(takeoffTop, clamp01(takeoffU + 0.04));
+        return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
+      }
+      if (u < orbitSplit) {
+        const orbitU = smoothEase((u - takeoffSplit) / Math.max(0.001, orbitSplit - takeoffSplit));
+        const forwardNow = THREE.MathUtils.lerp(travelLen * 0.04, travelLen * 0.62, orbitU);
+        const forwardNext = THREE.MathUtils.lerp(
+          travelLen * 0.04,
+          travelLen * 0.62,
+          clamp01(orbitU + 0.02)
+        );
+        const sideNow = Math.sin(orbitU * Math.PI) * orbitRadius;
+        const sideNext = Math.sin(clamp01(orbitU + 0.02) * Math.PI) * orbitRadius;
+        const pos = launchPos.clone().addScaledVector(planarTravel, forwardNow).addScaledVector(sideVec, sideNow);
+        const next = launchPos
+          .clone()
+          .addScaledVector(planarTravel, forwardNext)
+          .addScaledVector(sideVec, sideNext);
+        pos.y = THREE.MathUtils.lerp(takeoffTop.y, orbitHeight, orbitU) + Math.sin(orbitU * Math.PI * 2) * 0.025;
+        next.y =
+          THREE.MathUtils.lerp(takeoffTop.y, orbitHeight, clamp01(orbitU + 0.02)) +
+          Math.sin(clamp01(orbitU + 0.02) * Math.PI * 2) * 0.025;
+        return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
+      }
+      if (returnToOrigin) {
+        const returnU = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
+        const returnTarget = launchPos.clone();
+        const cruiseReturnTarget = returnTarget.clone();
+        cruiseReturnTarget.y = takeoffTop.y;
+        const descendSplit = 0.76;
+        const returnPos =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, returnU / descendSplit)
+            : cruiseReturnTarget.clone().lerp(returnTarget, (returnU - descendSplit) / Math.max(0.001, 1 - descendSplit));
+        const returnNext =
+          returnU < descendSplit
+            ? orbitExit.clone().lerp(cruiseReturnTarget, clamp01(returnU / descendSplit + 0.04))
+            : cruiseReturnTarget
+                .clone()
+                .lerp(returnTarget, clamp01((returnU - descendSplit) / Math.max(0.001, 1 - descendSplit) + 0.06));
+        return { pos: clampIfNeeded(returnPos), next: clampIfNeeded(returnNext) };
+      }
+      const strikeU = smoothEase((u - orbitSplit) / (1 - orbitSplit));
+      const dropStart = new THREE.Vector3(impactPos.x, Math.max(orbitHeight * 0.95, impactPos.y + 0.44), impactPos.z);
+      const pos =
+        strikeU < returnSplit
+          ? orbitExit.clone().lerp(dropStart, strikeU / returnSplit)
+          : dropStart.clone().lerp(impactPos, (strikeU - returnSplit) / Math.max(0.001, 1 - returnSplit));
+      const next =
+        strikeU < returnSplit
+          ? orbitExit.clone().lerp(dropStart, clamp01(strikeU / returnSplit + 0.04))
+          : dropStart.clone().lerp(impactPos, clamp01((strikeU - returnSplit) / Math.max(0.001, 1 - returnSplit) + 0.06));
+      if (strikeU >= returnSplit) {
+        next.x = pos.x;
+        next.z = pos.z;
+      }
+      return { pos: clampIfNeeded(pos), next: clampIfNeeded(next) };
+    };
+    const getCaptureAirRunPose = ({
+      from,
+      to,
+      progress,
+      launchHeight = 0.08,
+      cruiseHeight = CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+      returnToOrigin = true
+    }) => {
+      const launchPos = from.clone().add(new THREE.Vector3(0, launchHeight, 0));
+      const toVec = to.clone();
+      const approachPoint = launchPos.clone().lerp(toVec, 0.42);
+      approachPoint.y = Math.max(launchPos.y + tile * 0.04, toVec.y + cruiseHeight);
+      const nearTargetPoint = toVec.clone();
+      nearTargetPoint.y = Math.max(toVec.y + cruiseHeight * 0.9, launchPos.y + tile * 0.03);
+      const u = clamp01(progress);
+      const takeoffSplit = Math.min(CAPTURE_LOOP_TAKEOFF_RATIO, CAPTURE_AIR_APPROACH_RATIO * 0.4);
+      if (u < takeoffSplit) {
+        const su = smoothEase(u / Math.max(0.001, takeoffSplit));
+        const liftPoint = launchPos.clone();
+        liftPoint.y = approachPoint.y;
+        const pos = launchPos.clone().lerp(liftPoint, su);
+        const next = launchPos.clone().lerp(liftPoint, clamp01(su + 0.05));
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      }
+      if (u < CAPTURE_AIR_APPROACH_RATIO) {
+        const su = smoothEase((u - takeoffSplit) / Math.max(0.001, CAPTURE_AIR_APPROACH_RATIO - takeoffSplit));
+        const pos = launchPos.clone().lerp(approachPoint, su);
+        const next = launchPos.clone().lerp(approachPoint, clamp01(su + 0.05));
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      }
+      if (returnToOrigin) {
+        const ru = smoothEase((u - CAPTURE_AIR_APPROACH_RATIO) / Math.max(0.001, 1 - CAPTURE_AIR_APPROACH_RATIO));
+        const pos = nearTargetPoint.clone().lerp(launchPos, ru);
+        const next = nearTargetPoint.clone().lerp(launchPos, clamp01(ru + 0.05));
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
+      }
+      return { pos: nearTargetPoint, next: toVec.clone() };
+    };
+    const getCaptureDirectStrikePose = ({
+      launchPos,
+      targetPos,
+      progress,
+      altitude = 0.72,
+      returnToOrigin = false,
+      verticalCrash = false
+    }) => {
+      const toCenter = new THREE.Vector3(-Math.sign(launchPos.x || 1), 0, 0).normalize();
+      const inwardDistance = verticalCrash ? CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE : CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE;
+      const strikeAltitude = verticalCrash ? CAPTURE_VERTICAL_STRIKE_ALTITUDE : altitude;
+      const forwardPoint = launchPos
+        .clone()
+        .addScaledVector(toCenter, tile * inwardDistance);
+      const cruiseHeight = Math.max(launchPos.y + strikeAltitude, launchPos.y + (verticalCrash ? 0.06 : 0.1));
+      const takeoffPoint = forwardPoint.clone();
+      takeoffPoint.y = cruiseHeight;
+      const strikeTop = targetPos.clone();
+      strikeTop.y = verticalCrash
+        ? Math.max(targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET, launchPos.y + CAPTURE_VERTICAL_STRIKE_ALTITUDE)
+        : Math.max(targetPos.y + 0.2, cruiseHeight * 0.84);
+      const u = clamp01(progress);
+      let pos = launchPos.clone();
+      let next = launchPos.clone().add(new THREE.Vector3(0.05, 0, 0));
+      if (u < CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO) {
+        const su = smoothEase(u / CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO);
+        pos = launchPos.clone().lerp(takeoffPoint, su);
+        next = launchPos.clone().lerp(takeoffPoint, clamp01(su + 0.04));
+      } else if (returnToOrigin && u >= CAPTURE_DIRECT_STRIKE_RETURN_RATIO) {
+        const ru = smoothEase((u - CAPTURE_DIRECT_STRIKE_RETURN_RATIO) / Math.max(0.001, 1 - CAPTURE_DIRECT_STRIKE_RETURN_RATIO));
+        pos = strikeTop.clone().lerp(takeoffPoint, ru);
+        next = strikeTop.clone().lerp(takeoffPoint, clamp01(ru + 0.05));
+      } else {
+        const spanStart = CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO;
+        const spanEnd = returnToOrigin ? CAPTURE_DIRECT_STRIKE_RETURN_RATIO : 1;
+        const su = smoothEase((u - spanStart) / Math.max(0.001, spanEnd - spanStart));
+        if (!verticalCrash) {
+          pos = takeoffPoint.clone().lerp(targetPos, su);
+          next = takeoffPoint.clone().lerp(targetPos, clamp01(su + 0.05));
+        } else if (su < CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO) {
+          const topLaunch = launchPos.clone();
+          topLaunch.y = strikeTop.y;
+          const topTarget = targetPos.clone();
+          topTarget.y = strikeTop.y;
+          const cruiseU = smoothEase(su / Math.max(0.001, CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO));
+          pos = topLaunch.clone().lerp(topTarget, cruiseU);
+          next = topLaunch.clone().lerp(topTarget, clamp01(cruiseU + 0.05));
+          pos.y = strikeTop.y;
+          next.y = strikeTop.y;
+        } else {
+          const dropU = smoothEase(
+            (su - CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO) /
+              Math.max(0.001, 1 - CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO)
+          );
+          pos = strikeTop.clone().lerp(targetPos, dropU);
+          next = strikeTop.clone().lerp(targetPos, clamp01(dropU + 0.08));
+          next.x = pos.x;
+          next.z = pos.z;
+        }
+      }
+      constrainInsideBoardPerimeter(pos, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+      constrainInsideBoardPerimeter(next, CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES + 0.2);
+      return { pos, next };
+    };
+    const getCapturePrecisionVerticalStrikePose = ({
+      launchPos,
+      targetPos,
+      progress,
+      strikeAltitude = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82
+    }) => {
+      const u = clamp01(progress);
+      const liftEnd = launchPos.clone();
+      liftEnd.y = Math.max(launchPos.y + strikeAltitude, targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET);
+      const strikeTop = targetPos.clone();
+      strikeTop.y = liftEnd.y;
+      const travelSpan = Math.max(0.001, 1 - CAPTURE_PRECISION_STRIKE_LIFT_RATIO - CAPTURE_PRECISION_STRIKE_DROP_RATIO);
+      if (u <= CAPTURE_PRECISION_STRIKE_LIFT_RATIO) {
+        const lu = smoothEase(u / Math.max(0.001, CAPTURE_PRECISION_STRIKE_LIFT_RATIO));
+        const pos = launchPos.clone().lerp(liftEnd, lu);
+        const next = launchPos.clone().lerp(liftEnd, clamp01(lu + 0.05));
+        return { pos, next };
+      }
+      if (u >= 1 - CAPTURE_PRECISION_STRIKE_DROP_RATIO) {
+        const du = smoothEase(
+          (u - (1 - CAPTURE_PRECISION_STRIKE_DROP_RATIO)) / Math.max(0.001, CAPTURE_PRECISION_STRIKE_DROP_RATIO)
+        );
+        const pos = strikeTop.clone().lerp(targetPos, du);
+        const next = strikeTop.clone().lerp(targetPos, clamp01(du + 0.08));
+        next.x = pos.x;
+        next.z = pos.z;
+        return { pos, next };
+      }
+      const cu = smoothEase((u - CAPTURE_PRECISION_STRIKE_LIFT_RATIO) / travelSpan);
+      const pos = liftEnd.clone().lerp(strikeTop, cu);
+      const next = liftEnd.clone().lerp(strikeTop, clamp01(cu + 0.05));
+      pos.y = liftEnd.y;
+      next.y = liftEnd.y;
+      return { pos, next };
+    };
+
+    const playCaptureAnimation = ({
+      fromPos,
+      targetPos,
+      movingType,
+      movingMesh = null,
+      targetMesh = null,
+      distance,
+      deltaR = 0,
+      deltaC = 0
+    }) => {
+      const pieceType = (movingType || '').toUpperCase();
+      if (pieceType === 'R') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+        const missileFx = createFxGroundMissile();
+        missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
+        const parkedTruck = acquireParkedSupportUnit(Boolean(movingMesh?.userData?.w));
+        const launchBase = getLiveLaunchPosition(fromPos.clone(), movingMesh, 0.11);
+        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.14, 0)));
+        captureFxGroup.add(missileFx.root);
+        playAudio(missileLaunchSoundRef);
+        activeCaptureFx.push({
+          type: 'javelin',
+          t: 0,
+          duration: CAPTURE_GROUND_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
+          movingMesh,
+          targetMesh,
+          launchFromLivePiece: true,
+          sourceUnit: parkedTruck,
+          missileFx,
+          directPath: false,
+          strictPrecision: true,
+          verticalStrike: true
+        });
+        return {
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        };
+      }
+      if (pieceType === 'N' || pieceType === 'P') {
+        if (pieceType === 'N') {
+          suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+          const isWhiteSide = Boolean(movingMesh?.userData?.w);
+          const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+          const droneFx = parkedDrone || createFxDrone({ forceProcedural: true });
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          if (!parkedDrone) {
+            const launchBase = getAirPadAnchor(isWhiteSide, 'drone', 0);
+            droneFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+            captureFxGroup.add(droneFx.root);
+          }
+          const launchBase = parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
+          playAudio(droneSoundRef, { maxDurationMs: CAPTURE_GROUND_TOTAL * 1000 });
+          activeCaptureFx.push({
+            type: 'drone',
+            t: 0,
+            duration: CAPTURE_GROUND_TOTAL,
+            from: fromPos.clone(),
+            to: targetPos.clone(),
+            launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+            movingMesh,
+            targetMesh,
+            returnToOrigin: true,
+            sourceUnit: parkedDrone,
+            droneFx
+          });
+          return {
+            moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+            captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+          };
+        }
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
+        const missileFx = createFxGroundMissile();
+        missileFx.root.scale.setScalar(CAPTURE_PAWN_JAVELIN_SCALE);
+        const launchBase = getLiveLaunchPosition(fromPos.clone(), movingMesh, 0.11);
+        missileFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.03, 0)));
+        captureFxGroup.add(missileFx.root);
+        playAudio(missileLaunchSoundRef);
+        activeCaptureFx.push({
+          type: 'javelin',
+          t: 0,
+          duration: CAPTURE_GROUND_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.03, 0)),
+          movingMesh,
+          targetMesh,
+          launchFromLivePiece: true,
+          sourceUnit: null,
+          missileFx,
+          directPath: false,
+          verticalStrike: true,
+          strictPrecision: true
+        });
+        return {
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
+        };
+      }
+      if (pieceType === 'K') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
+        const jetFx = parkedUnit || createFxJet();
+        if (!parkedUnit) {
+          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 0);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
+          attachVehicleAvatarBadge(
+            jetFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
+          );
+          jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(jetFx.root);
+        }
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 0);
+        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
+        missileFx.forEach((missile) => {
+          missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missile.root.visible = false;
+          captureFxGroup.add(missile.root);
+        });
+        activeCaptureFx.push({
+          type: 'jet',
+          t: 0,
+          duration: CAPTURE_JET_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
+          targetMesh,
+          returnToOrigin: true,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
+          sourceUnit: parkedUnit,
+          jetFx,
+          missileFx
+        });
+        const jetImpactDelayMs = getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
+        return {
+          moveDelayMs: jetImpactDelayMs,
+          captureResolveDelayMs: jetImpactDelayMs
+        };
+      }
+      if (pieceType === 'B') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'helicopter');
+        const helicopterFx = parkedUnit || createFxHelicopter();
+        if (!parkedUnit) {
+          helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'helicopter', 0);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) {
+            applyVehicleSkinToModel(helicopterFx.root, sideSkin, (node) =>
+              /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+            );
+          }
+          attachVehicleAvatarBadge(
+            helicopterFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
+          );
+          helicopterFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(helicopterFx.root);
+        }
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'helicopter', 0);
+        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
+        missileFx.forEach((missile) => {
+          missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missile.root.visible = false;
+          captureFxGroup.add(missile.root);
+        });
+        playAudio(helicopterSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
+        activeCaptureFx.push({
+          type: 'helicopter',
+          t: 0,
+          duration: CAPTURE_HELICOPTER_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
+          targetMesh,
+          returnToOrigin: true,
+          missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
+          sourceUnit: parkedUnit,
+          helicopterFx,
+          missileFx
+        });
+        const helicopterImpactDelayMs = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) * 1000;
+        return {
+          moveDelayMs: helicopterImpactDelayMs,
+          captureResolveDelayMs: helicopterImpactDelayMs
+        };
+      }
+      if (pieceType === 'Q') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_JET_TOTAL * 1000;
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedUnit = acquireParkedAirUnit(isWhiteSide, 'jet');
+        const jetFx = parkedUnit || createFxJet();
+        if (!parkedUnit) {
+          jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+          const launchBase = getAirPadAnchor(isWhiteSide, 'jet', 1);
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) applyVehicleSkinToModel(jetFx.root, sideSkin);
+          attachVehicleAvatarBadge(
+            jetFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
+          );
+          jetFx.root.position.copy(launchBase.clone().add(new THREE.Vector3(0, 0.08, 0)));
+          captureFxGroup.add(jetFx.root);
+        }
+        const launchBase = parkedUnit?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'jet', 1);
+        const missileFx = [createFxGroundMissile(), createFxGroundMissile()];
+        missileFx.forEach((missile) => {
+          missile.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+          missile.root.visible = false;
+          captureFxGroup.add(missile.root);
+        });
+        activeCaptureFx.push({
+          type: 'jet',
+          t: 0,
+          duration: CAPTURE_JET_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.add(new THREE.Vector3(0, 0.08, 0)),
+          movingMesh,
+          targetMesh,
+          returnToOrigin: true,
+          missileReleaseTime: CAPTURE_JET_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
+          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
+          sourceUnit: parkedUnit,
+          jetFx,
+          missileFx
+        });
+        const jetImpactDelayMs = getAirMissileImpactTime(CAPTURE_JET_TOTAL) * 1000;
+        return {
+          moveDelayMs: jetImpactDelayMs,
+          captureResolveDelayMs: jetImpactDelayMs
+        };
+      }
+      if (distance <= 1.5) {
+        playAudio(swordSoundRef);
+        setTimeout(() => playAudio(swordSoundRef), 120);
+        setTimeout(() => playAudio(missileImpactSoundRef), 200);
+        return { moveDelayMs: 280 };
+      }
+      if (distance >= 2) {
+        playAudio(missileLaunchSoundRef);
+        const missileFx = createFxMissile();
+        missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
+        captureFxGroup.add(missileFx.root);
+        activeCaptureFx.push({
+          type: 'missile',
+          t: 0,
+          duration: LUDO_CAPTURE_MISSILE_TRAVEL_TIME,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          targetMesh,
+          missileFx
+        });
+        return { moveDelayMs: LUDO_CAPTURE_TOTAL_TIME * 1000 };
+      }
+      launchExplosion(targetPos.clone());
+      return { moveDelayMs: 280 };
+    };
+
+    // Board base + rim
+    const tile = BOARD.tile;
+    const N = 8;
+    const half = (N * tile) / 2;
+    let currentBoardModel = null;
+    let currentPiecePrototypes = null;
+    let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
+    let currentTileSize = tile;
+    let currentPieceSetId = initialPieceSetId;
+    let currentBoardCleanup = null;
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile + BOARD.rim * 2, BOARD.baseH, N * tile + BOARD.rim * 2),
+      buildVeinedMaterial(boardTheme.frameDark, {
+        roughness: boardTheme.frameRoughness,
+        metalness: boardTheme.frameMetalness,
+        repeat: 2.1,
+        normalScale: 0.28
+      })
+    );
+    base.position.set(0, BOARD.baseH / 2, 0);
+    boardVisualGroup.add(base);
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile, 0.12, N * tile),
+      buildVeinedMaterial(boardTheme.frameLight, {
+        roughness: boardTheme.surfaceRoughness * 0.92,
+        metalness: boardTheme.surfaceMetalness,
+        repeat: 2.8,
+        normalScale: 0.26
+      })
+    );
+    top.position.set(0, BOARD.baseH + 0.06, 0);
+    boardVisualGroup.add(top);
+
+    const inlay = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile + BOARD.rim * 1.08, 0.02, N * tile + BOARD.rim * 1.08),
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(boardTheme.accent),
+        roughness: 0.22,
+        metalness: 0.74,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.18
+      })
+    );
+    inlay.position.set(0, BOARD.baseH + 0.11, 0);
+    boardVisualGroup.add(inlay);
+
+    const airPadGroup = new THREE.Group();
+    boardVisualGroup.add(airPadGroup);
+    const addAirPadMarker = (position, label = 'J') => {
+      const marker = new THREE.Group();
+      marker.position.copy(position);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(tile * 0.28, tile * 0.03, 10, 36),
+        new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.45, roughness: 0.34 })
+      );
+      ring.rotation.x = Math.PI / 2;
+      marker.add(ring);
+      const plate = new THREE.Mesh(
+        new THREE.CircleGeometry(tile * 0.24, 24),
+        new THREE.MeshStandardMaterial({ color: '#0b1020', metalness: 0.18, roughness: 0.65 })
+      );
+      plate.rotation.x = -Math.PI / 2;
+      marker.add(plate);
+      const spriteCanvas = document.createElement('canvas');
+      spriteCanvas.width = 128;
+      spriteCanvas.height = 128;
+      const ctx = spriteCanvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, 128, 128);
+        ctx.fillStyle = '#facc15';
+        ctx.font = '900 92px "JetBrains Mono","Arial Black",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 64, 68);
+      }
+      const spriteTexture = new THREE.CanvasTexture(spriteCanvas);
+      applySRGBColorSpace(spriteTexture);
+      const text = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: spriteTexture, transparent: true, depthWrite: false })
+      );
+      text.scale.set(tile * 0.5, tile * 0.5, 1);
+      text.position.set(0, tile * 0.02, 0);
+      marker.add(text);
+      airPadGroup.add(marker);
+    };
+    addAirPadMarker(getAirPadAnchor(true, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(true, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(true, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(true, 'truck'), 'T');
+    addAirPadMarker(getAirPadAnchor(false, 'jet'), 'J');
+    addAirPadMarker(getAirPadAnchor(false, 'drone'), 'D');
+    addAirPadMarker(getAirPadAnchor(false, 'helicopter'), 'H');
+    addAirPadMarker(getAirPadAnchor(false, 'truck'), 'T');
+
+    // Tiles
+    const tiles = [];
+    const tileGroup = new THREE.Group();
+    boardVisualGroup.add(tileGroup);
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const isDark = (r + c) % 2 === 1;
+        const m = buildVeinedMaterial(isDark ? boardTheme.dark : boardTheme.light, {
+          metalness: boardTheme.surfaceMetalness + 0.04,
+          roughness: boardTheme.surfaceRoughness * 0.94,
+          repeat: 3.4,
+          normalScale: 0.3
+        });
+        const g = new THREE.BoxGeometry(tile, 0.1, tile);
+        const mesh = new THREE.Mesh(g, m);
+        mesh.position.set(
+          c * tile - half + tile / 2,
+          BOARD.baseH + 0.12,
+          r * tile - half + tile / 2
+        );
+        mesh.userData = { r, c, type: 'tile' };
+        tileGroup.add(mesh);
+        tiles.push(mesh);
+      }
+    }
+
+    // Coordinates (optional minimal markers)
+    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
+    for (let i = 0; i < N; i++) {
+      const mSmall = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.08, 0.8),
+        coordMat
+      );
+      mSmall.rotation.x = -Math.PI / 2;
         mSmall.position.set(
           i * tile - half + tile / 2,
           BOARD.baseH + 0.13,
@@ -12830,7 +10369,7 @@ function Chess3D({
           coordMat
         );
         nSmall.rotation.x = -Math.PI / 2;
-        nSmall.position.set(
+      nSmall.position.set(
           -half - 0.6,
           BOARD.baseH + 0.13,
           i * tile - half + tile / 2
@@ -12838,693 +10377,609 @@ function Chess3D({
         boardVisualGroup.add(nSmall);
       }
 
-      let proceduralBoardVisible = false;
-      const setProceduralBoardVisible = () => {
-        proceduralBoardVisible = false;
-        base.visible = false;
-        top.visible = false;
-        inlay.visible = false;
-        coordMat.visible = false;
-        tileGroup.visible = true;
-        tiles.forEach((tileMesh) => {
-          tileMesh.visible = true;
-          if (tileMesh.material) {
-            tileMesh.material.transparent = true;
-            tileMesh.material.opacity = 0;
-            tileMesh.material.depthWrite = false;
-          }
-        });
-        arena.usingProceduralBoard = false;
-        if (arenaRef.current) {
-          arenaRef.current.usingProceduralBoard = false;
+    let proceduralBoardVisible = false;
+    const setProceduralBoardVisible = () => {
+      proceduralBoardVisible = false;
+      base.visible = false;
+      top.visible = false;
+      inlay.visible = false;
+      coordMat.visible = false;
+      tileGroup.visible = true;
+      tiles.forEach((tileMesh) => {
+        tileMesh.visible = true;
+        if (tileMesh.material) {
+          tileMesh.material.transparent = true;
+          tileMesh.material.opacity = 0;
+          tileMesh.material.depthWrite = false;
         }
-      };
+      });
+      arena.usingProceduralBoard = false;
+      if (arenaRef.current) {
+        arenaRef.current.usingProceduralBoard = false;
+      }
+    };
 
-      arena.setProceduralBoardVisible = setProceduralBoardVisible;
-      setProceduralBoardVisible();
+    arena.setProceduralBoardVisible = setProceduralBoardVisible;
+    setProceduralBoardVisible();
 
-      arena.boardMaterials = {
-        base: base.material,
-        top: top.material,
-        coord: coordMat,
-        tiles,
-        tileMaterials: tiles.map((tileMesh) => tileMesh.material)
-      };
+    arena.boardMaterials = {
+      base: base.material,
+      top: top.material,
+      coord: coordMat,
+      tiles,
+      tileMaterials: tiles.map((tileMesh) => tileMesh.material)
+    };
 
-      const isGoldLikeMaterial = (material) => {
-        const name = (material?.name || '').toLowerCase();
-        if (/gold|crown|ring|band/.test(name)) return true;
-        const { metalness, roughness } = material || {};
-        return (
-          typeof metalness === 'number' &&
-          typeof roughness === 'number' &&
-          metalness >= 0.6 &&
-          roughness <= 0.4
-        );
-      };
+    const isGoldLikeMaterial = (material) => {
+      const name = (material?.name || '').toLowerCase();
+      if (/gold|crown|ring|band/.test(name)) return true;
+      const { metalness, roughness } = material || {};
+      return typeof metalness === 'number' && typeof roughness === 'number' && metalness >= 0.6 && roughness <= 0.4;
+    };
 
-      const ensureIsolatedMaterial = (mesh) => {
-        if (!mesh?.isMesh) return;
-        const flag = mesh.userData?.__isolatedMat;
-        if (flag) return;
+    const ensureIsolatedMaterial = (mesh) => {
+      if (!mesh?.isMesh) return;
+      const flag = mesh.userData?.__isolatedMat;
+      if (flag) return;
+      const src = mesh.material;
+      const clone = Array.isArray(src)
+        ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+        : src?.clone
+          ? src.clone()
+          : src;
+      mesh.material = clone;
+      mesh.userData = { ...(mesh.userData || {}), __isolatedMat: true };
+    };
+
+    const collectMeshes = (root) => {
+      const out = [];
+      root?.traverse?.((node) => {
+        if (node?.isMesh) out.push(node);
+      });
+      return out;
+    };
+
+    const snapshotMaterialsByOrder = (root) =>
+      collectMeshes(root).map((mesh) => {
         const src = mesh.material;
-        const clone = Array.isArray(src)
+        return Array.isArray(src)
           ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
           : src?.clone
             ? src.clone()
             : src;
-        mesh.material = clone;
-        mesh.userData = { ...(mesh.userData || {}), __isolatedMat: true };
-      };
+      });
 
-      const collectMeshes = (root) => {
-        const out = [];
-        root?.traverse?.((node) => {
-          if (node?.isMesh) out.push(node);
+    const applyMaterialsByOrder = (root, snapshot) => {
+      const meshes = collectMeshes(root);
+      const limit = Math.min(meshes.length, snapshot.length);
+      for (let i = 0; i < limit; i += 1) {
+        const saved = snapshot[i];
+        meshes[i].material = Array.isArray(saved)
+          ? saved.map((mat) => (mat?.clone ? mat.clone() : mat))
+          : saved?.clone
+            ? saved.clone()
+            : saved;
+      }
+    };
+
+    const swapMaterialsBetweenMeshes = (meshA, meshB) => {
+      if (!meshA || !meshB) return;
+      const snapA = snapshotMaterialsByOrder(meshA);
+      const snapB = snapshotMaterialsByOrder(meshB);
+      applyMaterialsByOrder(meshA, snapB);
+      applyMaterialsByOrder(meshB, snapA);
+    };
+
+    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
+      const meshes = arenaRef.current?.allPieceMeshes || [];
+      const target = new THREE.Color(hex);
+      meshes.forEach((piece) => {
+        const isWhite = piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
+        const matches = sideKey === 'white' ? isWhite : !isWhite;
+        if (!matches) return;
+        piece.traverse((node) => {
+          if (!node?.isMesh) return;
+          ensureIsolatedMaterial(node);
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((mat) => {
+            if (!mat || isGoldLikeMaterial(mat)) return;
+            mat?.color?.copy(target);
+            mat?.emissive?.set(0x000000);
+          });
         });
-        return out;
-      };
+      });
+    };
 
-      const snapshotMaterialsByOrder = (root) =>
-        collectMeshes(root).map((mesh) => {
-          const src = mesh.material;
-          return Array.isArray(src)
+    const collectPawnHeadMeshes = (holder) => {
+      if (!holder) return [];
+      const box = new THREE.Box3().setFromObject(holder);
+      const size = box.getSize(new THREE.Vector3());
+      const height = size.y || 1;
+      const cutoff = box.max.y - height * 0.22;
+      const heads = [];
+      holder.traverse((node) => {
+        if (!node?.isMesh) return;
+        const bb = new THREE.Box3().setFromObject(node);
+        const sz = bb.getSize(new THREE.Vector3());
+        const nearTop = bb.max.y >= cutoff;
+        const shortEnough = sz.y <= height * 0.45;
+        const name = (node.name || '').toLowerCase();
+        const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
+        const gold = /(gold|ring|band)/.test(name);
+        if (((nearTop && shortEnough) || hinted) && !gold) heads.push(node);
+      });
+      return heads;
+    };
+
+    const applyPawnHeadPreset = (presetId = 'current') => {
+      const meshes = arenaRef.current?.allPieceMeshes || [];
+      const preset = HEAD_PRESET_OPTIONS.find((opt) => opt.id === presetId)?.preset;
+      const restore = !preset || presetId === 'current';
+      meshes.forEach((piece) => {
+        const isPawn = (piece?.userData?.t || '').toUpperCase() === 'P';
+        if (!isPawn) return;
+        const targets = collectPawnHeadMeshes(piece);
+        targets.forEach((node) => {
+          if (restore) {
+            const original = pawnHeadMaterialCacheRef.current.get(node.uuid);
+            if (original) {
+              node.material = Array.isArray(original)
+                ? original.map((mat) => (mat?.clone ? mat.clone() : mat))
+                : original?.clone
+                  ? original.clone()
+                  : original;
+            }
+            return;
+          }
+          if (!pawnHeadMaterialCacheRef.current.has(node.uuid)) {
+            const src = node.material;
+            pawnHeadMaterialCacheRef.current.set(
+              node.uuid,
+              Array.isArray(src)
+                ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+                : src?.clone
+                  ? src.clone()
+                  : src
+            );
+          }
+          ensureIsolatedMaterial(node);
+          const headMat = new THREE.MeshPhysicalMaterial({
+            color: preset.color,
+            metalness: preset.metalness,
+            roughness: preset.roughness,
+            transmission: preset.transmission,
+            ior: preset.ior,
+            thickness: preset.thickness,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.06,
+            transparent: preset.transmission > 0
+          });
+          node.material = Array.isArray(node.material)
+            ? node.material.map(() => headMat.clone())
+            : headMat;
+        });
+      });
+    };
+
+    const snapshotBoardMaterials = (root) => {
+      const cache = new Map();
+      root?.traverse?.((node) => {
+        if (!node?.isMesh) return;
+        const src = node.material;
+        cache.set(
+          node.uuid,
+          Array.isArray(src)
             ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
             : src?.clone
               ? src.clone()
-              : src;
-        });
+              : src
+        );
+      });
+      return cache;
+    };
 
-      const applyMaterialsByOrder = (root, snapshot) => {
-        const meshes = collectMeshes(root);
-        const limit = Math.min(meshes.length, snapshot.length);
-        for (let i = 0; i < limit; i += 1) {
-          const saved = snapshot[i];
-          meshes[i].material = Array.isArray(saved)
-            ? saved.map((mat) => (mat?.clone ? mat.clone() : mat))
-            : saved?.clone
-              ? saved.clone()
-              : saved;
+    const applyBoardThemePreset = (themeIndex = 0) => {
+      const theme = QUICK_BOARD_THEMES[(themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length];
+      const arenaState = arenaRef.current;
+      if (!arenaState) return;
+      const boardModel = arenaState.boardModel;
+      if (boardModel) {
+        if (!boardMaterialCacheRef.current.gltf.size) {
+          boardMaterialCacheRef.current.gltf = snapshotBoardMaterials(boardModel);
         }
-      };
-
-      const swapMaterialsBetweenMeshes = (meshA, meshB) => {
-        if (!meshA || !meshB) return;
-        const snapA = snapshotMaterialsByOrder(meshA);
-        const snapB = snapshotMaterialsByOrder(meshB);
-        applyMaterialsByOrder(meshA, snapB);
-        applyMaterialsByOrder(meshB, snapA);
-      };
-
-      const applySideColorHex = (
-        sideKey = 'white',
-        hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff
-      ) => {
-        const meshes = arenaRef.current?.allPieceMeshes || [];
-        const target = new THREE.Color(hex);
-        meshes.forEach((piece) => {
-          const isWhite =
-            piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
-          const matches = sideKey === 'white' ? isWhite : !isWhite;
-          if (!matches) return;
-          piece.traverse((node) => {
-            if (!node?.isMesh) return;
-            ensureIsolatedMaterial(node);
-            const materials = Array.isArray(node.material)
-              ? node.material
-              : [node.material];
-            materials.forEach((mat) => {
-              if (!mat || isGoldLikeMaterial(mat)) return;
-              mat?.color?.copy(target);
-              mat?.emissive?.set(0x000000);
-            });
-          });
-        });
-      };
-
-      const collectPawnHeadMeshes = (holder) => {
-        if (!holder) return [];
-        const box = new THREE.Box3().setFromObject(holder);
-        const size = box.getSize(new THREE.Vector3());
-        const height = size.y || 1;
-        const cutoff = box.max.y - height * 0.22;
-        const heads = [];
-        holder.traverse((node) => {
+        boardModel.traverse((node) => {
           if (!node?.isMesh) return;
-          const bb = new THREE.Box3().setFromObject(node);
-          const sz = bb.getSize(new THREE.Vector3());
-          const nearTop = bb.max.y >= cutoff;
-          const shortEnough = sz.y <= height * 0.45;
-          const name = (node.name || '').toLowerCase();
-          const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
-          const gold = /(gold|ring|band)/.test(name);
-          if (((nearTop && shortEnough) || hinted) && !gold) heads.push(node);
-        });
-        return heads;
-      };
-
-      const applyPawnHeadPreset = (presetId = 'current') => {
-        const meshes = arenaRef.current?.allPieceMeshes || [];
-        const preset = HEAD_PRESET_OPTIONS.find(
-          (opt) => opt.id === presetId
-        )?.preset;
-        const restore = !preset || presetId === 'current';
-        meshes.forEach((piece) => {
-          const isPawn = (piece?.userData?.t || '').toUpperCase() === 'P';
-          if (!isPawn) return;
-          const targets = collectPawnHeadMeshes(piece);
-          targets.forEach((node) => {
-            if (restore) {
-              const original = pawnHeadMaterialCacheRef.current.get(node.uuid);
-              if (original) {
-                node.material = Array.isArray(original)
-                  ? original.map((mat) => (mat?.clone ? mat.clone() : mat))
-                  : original?.clone
-                    ? original.clone()
-                    : original;
-              }
+          const cache = boardMaterialCacheRef.current.gltf.get(node.uuid);
+          if (!cache) return;
+          const base = Array.isArray(cache) ? cache[0] : cache;
+          const mat = base?.clone ? base.clone() : base;
+          if (!mat) return;
+          if (theme.special === 'chrome') {
+            if (mat.metalness !== undefined) mat.metalness = 0.95;
+            if (mat.roughness !== undefined) mat.roughness = 0.15;
+            mat.color?.setHex(theme.light);
+          } else {
+            if (isGoldLikeMaterial(mat)) {
+              node.material = mat;
               return;
             }
-            if (!pawnHeadMaterialCacheRef.current.has(node.uuid)) {
-              const src = node.material;
-              pawnHeadMaterialCacheRef.current.set(
-                node.uuid,
-                Array.isArray(src)
-                  ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
-                  : src?.clone
-                    ? src.clone()
-                    : src
-              );
-            }
-            ensureIsolatedMaterial(node);
-            const headMat = new THREE.MeshPhysicalMaterial({
-              color: preset.color,
-              metalness: preset.metalness,
-              roughness: preset.roughness,
-              transmission: preset.transmission,
-              ior: preset.ior,
-              thickness: preset.thickness,
-              clearcoat: 0.5,
-              clearcoatRoughness: 0.06,
-              transparent: preset.transmission > 0
-            });
-            node.material = Array.isArray(node.material)
-              ? node.material.map(() => headMat.clone())
-              : headMat;
-          });
+            const color = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
+            const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+            const target = new THREE.Color(luminance >= 0.5 ? theme.light : theme.dark);
+            mat.color?.copy(target);
+          }
+          mat.emissive?.set(0x000000);
+          node.material = mat;
         });
-      };
+      } else if (arenaState.boardMaterials?.tiles?.length) {
+        const { tiles, base: baseMat, top: topMat, coord, tileMaterials } = arenaState.boardMaterials;
+        if (!boardMaterialCacheRef.current.procedural) {
+          boardMaterialCacheRef.current.procedural = {
+            base: baseMat?.clone ? baseMat.clone() : baseMat,
+            top: topMat?.clone ? topMat.clone() : topMat,
+            coord: coord?.clone ? coord.clone() : coord,
+            tileMaterials: tileMaterials?.map((mat) => (mat?.clone ? mat.clone() : mat))
+          };
+        }
+        tiles.forEach((tileMesh) => {
+          const { r = 0, c = 0 } = tileMesh.userData || {};
+          ensureIsolatedMaterial(tileMesh);
+          const isLight = (r + c) % 2 === 0;
+          const target = isLight ? theme.light : theme.dark;
+          const mat = Array.isArray(tileMesh.material) ? tileMesh.material[0] : tileMesh.material;
+          mat?.color?.setHex(target);
+          mat?.emissive?.set(0x000000);
+        });
+        if (topMat?.color) topMat.color.setHex(theme.light);
+        if (baseMat?.color) baseMat.color.setHex(theme.dark);
+        coord?.color?.setHex(theme.special === 'chrome' ? 0xffffff : theme.dark);
+      }
+    };
 
-      const snapshotBoardMaterials = (root) => {
-        const cache = new Map();
-        root?.traverse?.((node) => {
-          if (!node?.isMesh) return;
-          const src = node.material;
-          cache.set(
-            node.uuid,
-            Array.isArray(src)
-              ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
-              : src?.clone
-                ? src.clone()
-                : src
+    const applyHomeRankMaterialSwap = () => {
+      if (rankSwapAppliedRef.current) return;
+      for (let c = 0; c < 8; c += 1) {
+        const whiteBackRank = pieceMeshes[7][c];
+        const blackBackRank = pieceMeshes[0][c];
+        if (whiteBackRank && blackBackRank) {
+          swapMaterialsBetweenMeshes(whiteBackRank, blackBackRank);
+        }
+      }
+      rankSwapAppliedRef.current = true;
+    };
+
+    // Pieces — meshes + state
+    board = parseFEN(START_FEN);
+    pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
+    const allPieceMeshes = [];
+    const rebuildParkedAirUnits = () => {
+      parkedAirUnits.forEach((unit) => {
+        if (unit?.root?.parent) unit.root.parent.remove(unit.root);
+        disposeObject3D(unit?.root);
+      });
+      parkedAirUnits.length = 0;
+      sideVehicleSkinCache.clear();
+      const sides = [
+        { isWhite: true, badge: avatar || username || playerFlag || '🙂' },
+        {
+          isWhite: false,
+          badge:
+            (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) ||
+            opponent?.avatar ||
+            opponent?.name ||
+            aiFlag ||
+            '🤖'
+        }
+      ];
+      sides.forEach(({ isWhite, badge }) => {
+        const skin = resolveSideVehicleSkin(isWhite);
+        for (let slot = 0; slot < 1; slot += 1) {
+          const jet = createFxJet();
+          jet.root.scale.setScalar(CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
+          if (skin) applyVehicleSkinToModel(jet.root, skin);
+          attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
+          const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
+          jet.root.position.copy(jetPad);
+          jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
+          const jetHomeRotation = jet.root.rotation.clone();
+          airPadGroup.add(jet.root);
+          parkedAirUnits.push({
+            kind: 'jet',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: jetPad.clone(),
+            homeRotation: jetHomeRotation,
+            ...jet,
+            root: jet.root
+          });
+
+          const helicopter = createFxHelicopter();
+          helicopter.root.scale.setScalar(
+            CAPTURE_HELICOPTER_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
           );
+          if (skin) applyVehicleSkinToModel(helicopter.root, skin, (node) =>
+            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+          );
+          attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
+          const heliPad = getAirPadAnchor(isWhite, 'helicopter', slot);
+          helicopter.root.position.copy(heliPad);
+          helicopter.root.rotation.y = isWhite ? -Math.PI * 0.1 : Math.PI * 1.1;
+          const heliHomeRotation = helicopter.root.rotation.clone();
+          airPadGroup.add(helicopter.root);
+          parkedAirUnits.push({
+            kind: 'helicopter',
+            isWhite,
+            slot,
+            busy: false,
+            homePosition: heliPad.clone(),
+            homeRotation: heliHomeRotation,
+            ...helicopter,
+            root: helicopter.root
+          });
+        }
+        const sideDrone = createFxDrone();
+        sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
+        if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
+        attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
+        const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
+        sideDrone.root.position.copy(dronePad);
+        sideDrone.root.rotation.y = isWhite ? -Math.PI * 0.13 : Math.PI * 1.13;
+        const droneHomeRotation = sideDrone.root.rotation.clone();
+        airPadGroup.add(sideDrone.root);
+        parkedAirUnits.push({
+          kind: 'drone',
+          isWhite,
+          slot: 0,
+          busy: false,
+          homePosition: dronePad.clone(),
+          homeRotation: droneHomeRotation,
+          ...sideDrone,
+          root: sideDrone.root
         });
-        return cache;
-      };
 
-      const applyBoardThemePreset = (themeIndex = 0) => {
-        const theme =
-          QUICK_BOARD_THEMES[
-            (themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length
-          ];
-        const arenaState = arenaRef.current;
-        if (!arenaState) return;
-        const boardModel = arenaState.boardModel;
-        if (boardModel) {
-          if (!boardMaterialCacheRef.current.gltf.size) {
-            boardMaterialCacheRef.current.gltf =
-              snapshotBoardMaterials(boardModel);
-          }
-          boardModel.traverse((node) => {
-            if (!node?.isMesh) return;
-            const cache = boardMaterialCacheRef.current.gltf.get(node.uuid);
-            if (!cache) return;
-            const base = Array.isArray(cache) ? cache[0] : cache;
-            const mat = base?.clone ? base.clone() : base;
-            if (!mat) return;
-            if (theme.special === 'chrome') {
-              if (mat.metalness !== undefined) mat.metalness = 0.95;
-              if (mat.roughness !== undefined) mat.roughness = 0.15;
-              mat.color?.setHex(theme.light);
-            } else {
-              if (isGoldLikeMaterial(mat)) {
-                node.material = mat;
-                return;
-              }
-              const color = mat.color
-                ? mat.color.clone()
-                : new THREE.Color(1, 1, 1);
-              const luminance =
-                0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-              const target = new THREE.Color(
-                luminance >= 0.5 ? theme.light : theme.dark
-              );
-              mat.color?.copy(target);
-            }
-            mat.emissive?.set(0x000000);
-            node.material = mat;
-          });
-        } else if (arenaState.boardMaterials?.tiles?.length) {
-          const {
-            tiles,
-            base: baseMat,
-            top: topMat,
-            coord,
-            tileMaterials
-          } = arenaState.boardMaterials;
-          if (!boardMaterialCacheRef.current.procedural) {
-            boardMaterialCacheRef.current.procedural = {
-              base: baseMat?.clone ? baseMat.clone() : baseMat,
-              top: topMat?.clone ? topMat.clone() : topMat,
-              coord: coord?.clone ? coord.clone() : coord,
-              tileMaterials: tileMaterials?.map((mat) =>
-                mat?.clone ? mat.clone() : mat
-              )
-            };
-          }
-          tiles.forEach((tileMesh) => {
-            const { r = 0, c = 0 } = tileMesh.userData || {};
-            ensureIsolatedMaterial(tileMesh);
-            const isLight = (r + c) % 2 === 0;
-            const target = isLight ? theme.light : theme.dark;
-            const mat = Array.isArray(tileMesh.material)
-              ? tileMesh.material[0]
-              : tileMesh.material;
-            mat?.color?.setHex(target);
-            mat?.emissive?.set(0x000000);
-          });
-          if (topMat?.color) topMat.color.setHex(theme.light);
-          if (baseMat?.color) baseMat.color.setHex(theme.dark);
-          coord?.color?.setHex(
-            theme.special === 'chrome' ? 0xffffff : theme.dark
+        const supportTruck = createFxSupportTruck();
+        supportTruck.root.scale.setScalar(
+          CAPTURE_HELICOPTER_SCALE *
+            1.15 *
+            SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER *
+            SIDE_PARKED_TRUCK_SCALE_MULTIPLIER
+        );
+        if (skin) {
+          applyVehicleSkinToModel(
+            supportTruck.root,
+            skin,
+            (node) => /wheel|tire|tyre|rim|window|windshield|glass|cockpit/.test(`${node.name || ''}`.toLowerCase())
           );
         }
-      };
+        attachVehicleAvatarBadge(supportTruck.root, badge, isWhite ? 1 : -1);
+        const truckPad = getAirPadAnchor(isWhite, 'truck', 0);
+        supportTruck.root.position.copy(truckPad);
+        supportTruck.root.rotation.y = isWhite ? -Math.PI * 0.18 : Math.PI * 1.18;
+        const truckHomeRotation = supportTruck.root.rotation.clone();
+        airPadGroup.add(supportTruck.root);
+        parkedAirUnits.push({
+          kind: 'truck',
+          isWhite,
+          slot: 0,
+          busy: false,
+          homePosition: truckPad.clone(),
+          homeRotation: truckHomeRotation,
+          ...supportTruck,
+          root: supportTruck.root
+        });
+      });
+    };
 
-      const applyHomeRankMaterialSwap = () => {
-        if (rankSwapAppliedRef.current) return;
-        for (let c = 0; c < 8; c += 1) {
-          const whiteBackRank = pieceMeshes[7][c];
-          const blackBackRank = pieceMeshes[0][c];
-          if (whiteBackRank && blackBackRank) {
-            swapMaterialsBetweenMeshes(whiteBackRank, blackBackRank);
-          }
+    const syncBoardFromState = (payload = {}) => {
+      const { fen, turnWhite = true, lastMove } = payload;
+      if (!fen) return;
+      try {
+        board = parseFEN(fen.split(' ')[0]);
+        paintPiecesFromPrototypes(currentPiecePrototypes);
+        applyStatus(turnWhite, turnWhite ? 'White to move' : 'Black to move', null);
+        if (lastMove?.from && lastMove?.to) {
+          const { from, to } = lastMove;
+          lastMoveRef.current = {
+            from,
+            to,
+            pieceMesh: pieceMeshes?.[to.r]?.[to.c],
+            selectionColor: paletteRef.current?.capture,
+            highlightColor: paletteRef.current?.highlight
+          };
+          highlightSelection(from.r, from.c, paletteRef.current?.capture);
+          highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
         }
-        rankSwapAppliedRef.current = true;
+      } catch (error) {
+        console.warn('Chess Battle Royal: failed to sync remote board', error);
+      }
+    };
+    onlineRef.current.applyRemoteMove = syncBoardFromState;
+
+    const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
+      if (!prototypes) return;
+      const colorKey = (p) => (p.w ? 'white' : 'black');
+      const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
+      const applyProfileViewRotation = (pieceMesh, pieceType) => {
+        if (!pieceMesh || !PROFILE_VIEW_ROTATION_TYPES.has(pieceType)) return;
+        pieceMesh.rotation.y += PROFILE_VIEW_ROTATION_RADIANS;
       };
+      const yOffset = currentPieceYOffset;
 
-      // Pieces — meshes + state
-      board = parseFEN(START_FEN);
-      pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
-      const allPieceMeshes = [];
-      const rebuildParkedAirUnits = () => {
-        parkedAirUnits.forEach((unit) => {
-          if (unit?.root?.parent) unit.root.parent.remove(unit.root);
-          disposeObject3D(unit?.root);
-        });
-        parkedAirUnits.length = 0;
-        sideVehicleSkinCache.clear();
-        const sides = [
-          { isWhite: true, badge: avatar || username || playerFlag || '🙂' },
-          {
-            isWhite: false,
-            badge:
-              (onlineRef.current.enabled
-                ? opponent?.avatar || opponent?.name
-                : null) ||
-              opponent?.avatar ||
-              opponent?.name ||
-              aiFlag ||
-              '🤖'
-          }
-        ];
-        sides.forEach(({ isWhite, badge }) => {
-          const skin = resolveSideVehicleSkin(isWhite);
-          for (let slot = 0; slot < 1; slot += 1) {
-            const jet = createFxJet();
-            jet.root.scale.setScalar(
-              CAPTURE_JET_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
-            );
-            if (skin) applyVehicleSkinToModel(jet.root, skin);
-            attachVehicleAvatarBadge(jet.root, badge, isWhite ? 1 : -1);
-            const jetPad = getAirPadAnchor(isWhite, 'jet', slot);
-            jet.root.position.copy(jetPad);
-            jet.root.rotation.y = isWhite ? -Math.PI * 0.15 : Math.PI * 1.15;
-            const jetHomeRotation = jet.root.rotation.clone();
-            airPadGroup.add(jet.root);
-            parkedAirUnits.push({
-              kind: 'jet',
-              isWhite,
-              slot,
-              busy: false,
-              homePosition: jetPad.clone(),
-              homeRotation: jetHomeRotation,
-              ...jet,
-              root: jet.root
-            });
-
-            const helicopter = createFxHelicopter();
-            helicopter.root.scale.setScalar(
-              CAPTURE_HELICOPTER_SCALE *
-                1.15 *
-                SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
-            );
-            if (skin)
-              applyVehicleSkinToModel(helicopter.root, skin, (node) =>
-                /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(
-                  `${node.name || ''}`.toLowerCase()
-                )
-              );
-            attachVehicleAvatarBadge(helicopter.root, badge, isWhite ? 1 : -1);
-            const heliPad = getAirPadAnchor(isWhite, 'helicopter', slot);
-            helicopter.root.position.copy(heliPad);
-            helicopter.root.rotation.y = isWhite
-              ? -Math.PI * 0.1
-              : Math.PI * 1.1;
-            const heliHomeRotation = helicopter.root.rotation.clone();
-            airPadGroup.add(helicopter.root);
-            parkedAirUnits.push({
-              kind: 'helicopter',
-              isWhite,
-              slot,
-              busy: false,
-              homePosition: heliPad.clone(),
-              homeRotation: heliHomeRotation,
-              ...helicopter,
-              root: helicopter.root
-            });
-          }
-          const sideDrone = createFxDrone();
-          sideDrone.root.scale.setScalar(
-            CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER
-          );
-          if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
-          attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
-          const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
-          sideDrone.root.position.copy(dronePad);
-          sideDrone.root.rotation.y = isWhite
-            ? -Math.PI * 0.13
-            : Math.PI * 1.13;
-          const droneHomeRotation = sideDrone.root.rotation.clone();
-          airPadGroup.add(sideDrone.root);
-          parkedAirUnits.push({
-            kind: 'drone',
-            isWhite,
-            slot: 0,
-            busy: false,
-            homePosition: dronePad.clone(),
-            homeRotation: droneHomeRotation,
-            ...sideDrone,
-            root: sideDrone.root
-          });
-
-          const supportTruck = createFxSupportTruck();
-          supportTruck.root.scale.setScalar(
-            CAPTURE_HELICOPTER_SCALE *
-              1.15 *
-              SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER *
-              SIDE_PARKED_TRUCK_SCALE_MULTIPLIER
-          );
-          if (skin) {
-            applyVehicleSkinToModel(supportTruck.root, skin, (node) =>
-              /wheel|tire|tyre|rim|window|windshield|glass|cockpit/.test(
-                `${node.name || ''}`.toLowerCase()
-              )
-            );
-          }
-          attachVehicleAvatarBadge(supportTruck.root, badge, isWhite ? 1 : -1);
-          const truckPad = getAirPadAnchor(isWhite, 'truck', 0);
-          supportTruck.root.position.copy(truckPad);
-          supportTruck.root.rotation.y = isWhite
-            ? -Math.PI * 0.18
-            : Math.PI * 1.18;
-          const truckHomeRotation = supportTruck.root.rotation.clone();
-          airPadGroup.add(supportTruck.root);
-          parkedAirUnits.push({
-            kind: 'truck',
-            isWhite,
-            slot: 0,
-            busy: false,
-            homePosition: truckPad.clone(),
-            homeRotation: truckHomeRotation,
-            ...supportTruck,
-            root: supportTruck.root
-          });
-        });
-      };
-
-      const syncBoardFromState = (payload = {}) => {
-        const { fen, turnWhite = true, lastMove } = payload;
-        if (!fen) return;
+      allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
-          board = parseFEN(fen.split(' ')[0]);
-          paintPiecesFromPrototypes(currentPiecePrototypes);
-          applyStatus(
-            turnWhite,
-            turnWhite ? 'White to move' : 'Black to move',
-            null
-          );
-          if (lastMove?.from && lastMove?.to) {
-            const { from, to } = lastMove;
-            lastMoveRef.current = {
-              from,
-              to,
-              pieceMesh: pieceMeshes?.[to.r]?.[to.c],
-              selectionColor: paletteRef.current?.capture,
-              highlightColor: paletteRef.current?.highlight
-            };
-            highlightSelection(from.r, from.c, paletteRef.current?.capture);
-            highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
+          boardGroup.remove(m);
+        } catch {}
+        disposeObject3D(m);
+      });
+      for (let r = 0; r < 8; r += 1) {
+        for (let c = 0; c < 8; c += 1) {
+          const p = board[r][c];
+          if (!p) {
+            pieceMeshes[r][c] = null;
+            continue;
           }
-        } catch (error) {
-          console.warn(
-            'Chess Battle Royal: failed to sync remote board',
-            error
+          const proto = build(p);
+          if (!proto) continue;
+          const clone = cloneWithShadows(proto);
+          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
+          applyProfileViewRotation(clone, p.t);
+          clone.position.set(
+            c * tile - half + tile / 2,
+            yOffset,
+            r * tile - half + tile / 2
           );
-        }
-      };
-      onlineRef.current.applyRemoteMove = syncBoardFromState;
-
-      const paintPiecesFromPrototypes = (
-        prototypes,
-        styleId = currentPieceSetId
-      ) => {
-        if (!prototypes) return;
-        const colorKey = (p) => (p.w ? 'white' : 'black');
-        const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
-        const applyProfileViewRotation = (pieceMesh, pieceType) => {
-          if (!pieceMesh || !PROFILE_VIEW_ROTATION_TYPES.has(pieceType)) return;
-          pieceMesh.rotation.y += PROFILE_VIEW_ROTATION_RADIANS;
-        };
-        const yOffset = currentPieceYOffset;
-
-        allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
-          try {
-            boardGroup.remove(m);
-          } catch {}
-          disposeObject3D(m);
-        });
-        for (let r = 0; r < 8; r += 1) {
-          for (let c = 0; c < 8; c += 1) {
-            const p = board[r][c];
-            if (!p) {
-              pieceMeshes[r][c] = null;
-              continue;
-            }
-            const proto = build(p);
-            if (!proto) continue;
-            const clone = cloneWithShadows(proto);
-            clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
-            applyProfileViewRotation(clone, p.t);
-            clone.position.set(
-              c * tile - half + tile / 2,
-              yOffset,
-              r * tile - half + tile / 2
-            );
-            clone.userData = {
-              r,
-              c,
-              w: p.w,
-              t: p.t,
-              type: 'piece',
+          clone.userData = {
+            r,
+            c,
+            w: p.w,
+            t: p.t,
+            type: 'piece',
+            __pieceColor: colorKey(p),
+            __pieceStyleId: styleId
+          };
+          clone.traverse((child) => {
+            if (!child.isMesh) return;
+            child.userData = {
+              ...(child.userData || {}),
               __pieceColor: colorKey(p),
               __pieceStyleId: styleId
             };
-            clone.traverse((child) => {
-              if (!child.isMesh) return;
-              child.userData = {
-                ...(child.userData || {}),
-                __pieceColor: colorKey(p),
-                __pieceStyleId: styleId
-              };
-            });
-            boardGroup.add(clone);
-            pieceMeshes[r][c] = clone;
-            allPieceMeshes.push(clone);
-          }
+          });
+          boardGroup.add(clone);
+          pieceMeshes[r][c] = clone;
+          allPieceMeshes.push(clone);
         }
-        applyHomeRankMaterialSwap();
-        if (arenaRef.current) {
-          arenaRef.current.allPieceMeshes = allPieceMeshes;
-          arenaRef.current.piecePrototypes = prototypes;
-          arenaRef.current.activePieceSetId = styleId;
-        }
-        rebuildParkedAirUnits();
-      };
+      }
+      applyHomeRankMaterialSwap();
+      if (arenaRef.current) {
+        arenaRef.current.allPieceMeshes = allPieceMeshes;
+        arenaRef.current.piecePrototypes = prototypes;
+        arenaRef.current.activePieceSetId = styleId;
+      }
+      rebuildParkedAirUnits();
+    };
 
-      const applyPieceSetAssets = (
-        assets,
-        setId = currentPieceSetId,
-        pieceStyleOption = paletteRef.current?.pieces
-      ) => {
-        const { boardModel, piecePrototypes } = assets || {};
-        const resolvedSetId =
-          assets?.userData?.styleId || setId || currentPieceSetId;
-        currentPieceSetId = resolvedSetId;
-        currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
-          ? assets.pieceYOffset
-          : PIECE_PLACEMENT_Y_OFFSET;
-        currentTileSize = assets?.tileSize ?? tile;
-        const headPreset =
-          paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
-        const preserveOriginalMaterials = Boolean(
-          pieceStyleOption?.preserveOriginalMaterials ||
+    const applyPieceSetAssets = (
+      assets,
+      setId = currentPieceSetId,
+      pieceStyleOption = paletteRef.current?.pieces
+    ) => {
+      const { boardModel, piecePrototypes } = assets || {};
+      const resolvedSetId = assets?.userData?.styleId || setId || currentPieceSetId;
+      currentPieceSetId = resolvedSetId;
+      currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
+        ? assets.pieceYOffset
+        : PIECE_PLACEMENT_Y_OFFSET;
+      currentTileSize = assets?.tileSize ?? tile;
+      const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
+      const preserveOriginalMaterials = Boolean(
+        pieceStyleOption?.preserveOriginalMaterials ||
           assets?.userData?.preserveOriginalMaterials ||
           PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
+      );
+      rankSwapAppliedRef.current = false;
+      pawnHeadMaterialCacheRef.current.clear();
+      boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
+      if (currentBoardCleanup) {
+        currentBoardCleanup();
+        currentBoardCleanup = null;
+      }
+      if (boardModel) {
+        boardModel.visible = true;
+        const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
+        const preferredYOffset = Math.max(
+          boardTop + PIECE_PLACEMENT_Y_OFFSET,
+          currentPieceYOffset
         );
-        rankSwapAppliedRef.current = false;
-        pawnHeadMaterialCacheRef.current.clear();
-        boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
-        if (currentBoardCleanup) {
-          currentBoardCleanup();
-          currentBoardCleanup = null;
-        }
-        if (boardModel) {
-          boardModel.visible = true;
-          const { top: boardTop } = normalizeBoardModelToDisplaySize(
-            boardModel,
-            RAW_BOARD_SIZE
-          );
-          const preferredYOffset = Math.max(
-            boardTop + PIECE_PLACEMENT_Y_OFFSET,
-            currentPieceYOffset
-          );
-          currentPieceYOffset = preferredYOffset;
-          boardGroup.add(boardModel);
-          applyBeautifulGameBoardTheme(
-            boardModel,
-            paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME
-          );
-          setProceduralBoardVisible(false);
-          currentBoardModel = boardModel;
-          currentBoardCleanup = () => {
-            try {
-              boardGroup.remove(boardModel);
-            } catch {}
-            disposeObject3D(boardModel);
-          };
-        } else {
-          setProceduralBoardVisible();
-          currentBoardModel = null;
-        }
-        alignBoardGroupToTableSurface(
-          boardGroup,
-          arenaRef.current?.tableInfo ?? tableInfo
-        );
-        if (piecePrototypes) {
-          currentPiecePrototypes = piecePrototypes;
-          if (!preserveOriginalMaterials) {
-            if ((resolvedSetId || '').startsWith('beautifulGame')) {
-              harmonizeBeautifulGamePieces(
-                currentPiecePrototypes,
-                pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
-              );
-            }
-            applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
-            adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
+        currentPieceYOffset = preferredYOffset;
+        boardGroup.add(boardModel);
+        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        setProceduralBoardVisible(false);
+        currentBoardModel = boardModel;
+        currentBoardCleanup = () => {
+          try {
+            boardGroup.remove(boardModel);
+          } catch {}
+          disposeObject3D(boardModel);
+        };
+      } else {
+        setProceduralBoardVisible();
+        currentBoardModel = null;
+      }
+      alignBoardGroupToTableSurface(boardGroup, arenaRef.current?.tableInfo ?? tableInfo);
+      if (piecePrototypes) {
+        currentPiecePrototypes = piecePrototypes;
+        if (!preserveOriginalMaterials) {
+          if ((resolvedSetId || '').startsWith('beautifulGame')) {
+            harmonizeBeautifulGamePieces(
+              currentPiecePrototypes,
+              pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+            );
           }
-          paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
-          if (!preserveOriginalMaterials) {
-            applyHeadPresetToMeshes(allPieceMeshes, headPreset);
-          }
+          applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
+          adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         }
-        applySideColorHex(
-          'white',
-          QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex
-        );
-        applySideColorHex(
-          'black',
-          QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex
-        );
-        const headTarget =
-          QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ??
-          'current';
-        applyPawnHeadPreset(headTarget);
-        applyBoardThemePreset(boardQuickIdx);
-        if (arenaRef.current) {
-          arenaRef.current.boardModel = currentBoardModel;
-          arenaRef.current.piecePrototypes = currentPiecePrototypes;
-          arenaRef.current.activePieceSetId = currentPieceSetId;
-          arenaRef.current.allPieceMeshes = allPieceMeshes;
-          arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
-          arenaRef.current.setProceduralBoardVisible =
-            setProceduralBoardVisible;
-          arenaRef.current.applySideColorHex = applySideColorHex;
-          arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
-          arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
+        paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
+        if (!preserveOriginalMaterials) {
+          applyHeadPresetToMeshes(allPieceMeshes, headPreset);
         }
+      }
+      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+      const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
+      applyPawnHeadPreset(headTarget);
+      applyBoardThemePreset(boardQuickIdx);
+      if (arenaRef.current) {
+        arenaRef.current.boardModel = currentBoardModel;
+        arenaRef.current.piecePrototypes = currentPiecePrototypes;
+        arenaRef.current.activePieceSetId = currentPieceSetId;
+        arenaRef.current.allPieceMeshes = allPieceMeshes;
+        arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
+        arenaRef.current.setProceduralBoardVisible = setProceduralBoardVisible;
+        arenaRef.current.applySideColorHex = applySideColorHex;
+        arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
+        arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
+      }
 
-        if (typeof window !== 'undefined') {
-          window.__CHESS_DEBUG__ = {
-            renderer,
-            scene,
-            camera,
-            controls,
-            boardModel: currentBoardModel,
-            piecePrototypes: currentPiecePrototypes,
-            usingProceduralBoard: proceduralBoardVisible,
-            pieceCount: allPieceMeshes.length
-          };
-          if (import.meta?.env?.DEV) {
-            console.info('Chess Battle Royal: applied piece set', {
-              boardModel: Boolean(currentBoardModel),
-              piecePrototypes: Boolean(currentPiecePrototypes),
-              pieceCount: allPieceMeshes.length,
-              setId: currentPieceSetId
-            });
-          }
+      if (typeof window !== 'undefined') {
+        window.__CHESS_DEBUG__ = {
+          renderer,
+          scene,
+          camera,
+          controls,
+          boardModel: currentBoardModel,
+          piecePrototypes: currentPiecePrototypes,
+          usingProceduralBoard: proceduralBoardVisible,
+          pieceCount: allPieceMeshes.length
+        };
+        if (import.meta?.env?.DEV) {
+          console.info('Chess Battle Royal: applied piece set', {
+            boardModel: Boolean(currentBoardModel),
+            piecePrototypes: Boolean(currentPiecePrototypes),
+            pieceCount: allPieceMeshes.length,
+            setId: currentPieceSetId
+          });
         }
-      };
+      }
+    };
 
-      disposers.push(() => {
-        if (currentBoardCleanup) currentBoardCleanup();
+    disposers.push(() => {
+      if (currentBoardCleanup) currentBoardCleanup();
+    });
+
+    pieceSetPromise
+      .then((assets) => {
+        if (cancelled) return;
+        applyPieceSetAssets(assets, initialPieceSetId, pieceStyleOption);
+      })
+      .catch((error) => {
+        console.error('Chess Battle Royal: failed to resolve chess set', error);
       });
 
-      pieceSetPromise
-        .then((assets) => {
-          if (cancelled) return;
-          applyPieceSetAssets(assets, initialPieceSetId, pieceStyleOption);
-        })
-        .catch((error) => {
-          console.error(
-            'Chess Battle Royal: failed to resolve chess set',
-            error
-          );
-        });
-
-      if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
-        window.__CHESS_DEBUG__ = { renderer, scene, camera, controls };
-      }
+    if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
+      window.__CHESS_DEBUG__ = { renderer, scene, camera, controls };
+    }
 
       arenaRef.current = {
         renderer,
@@ -13577,1693 +11032,1381 @@ function Chess3D({
       arena.maxAnisotropy = maxAnisotropy;
       arena.fallbackTexture = fallbackTexture;
 
-      // Raycaster for picking
-      ray = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
-      const setPointer = (e) => {
-        const rect = renderer.domElement.getBoundingClientRect();
-        const cx =
-          e.clientX ??
-          e.touches?.[0]?.clientX ??
-          e.changedTouches?.[0]?.clientX ??
-          0;
-        const cy =
-          e.clientY ??
-          e.touches?.[0]?.clientY ??
-          e.changedTouches?.[0]?.clientY ??
-          0;
-        pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
-      };
+    // Raycaster for picking
+    ray = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const setPointer = (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const cx =
+        e.clientX ??
+        e.touches?.[0]?.clientX ??
+        e.changedTouches?.[0]?.clientX ??
+        0;
+      const cy =
+        e.clientY ??
+        e.touches?.[0]?.clientY ??
+        e.changedTouches?.[0]?.clientY ??
+        0;
+      pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
+    };
 
-      // Selection
-      let sel = null;
-      let legal = [];
-      let selectedMesh = null;
-      const activePieceAnimations = [];
+    // Selection
+    let sel = null;
+    let legal = [];
+    let selectedMesh = null;
+    const activePieceAnimations = [];
 
-      const resetSelectedMeshElevation = () => {
-        if (!selectedMesh) return;
-        const { r, c } = selectedMesh.userData || {};
-        const baseY =
-          Number.isInteger(r) && Number.isInteger(c)
-            ? piecePosition(r, c, currentPieceYOffset).y
-            : currentPieceYOffset;
-        const activeAnim = activePieceAnimations.find(
-          (anim) => anim.mesh === selectedMesh
+    const resetSelectedMeshElevation = () => {
+      if (!selectedMesh) return;
+      const { r, c } = selectedMesh.userData || {};
+      const baseY = Number.isInteger(r) && Number.isInteger(c)
+        ? piecePosition(r, c, currentPieceYOffset).y
+        : currentPieceYOffset;
+      const activeAnim = activePieceAnimations.find((anim) => anim.mesh === selectedMesh);
+      if (activeAnim) {
+        activeAnim.target.y = baseY;
+      } else {
+        selectedMesh.position.y = baseY;
+      }
+      selectedMesh = null;
+    };
+
+    const liftSelectedMesh = (mesh) => {
+      if (!mesh) return;
+      cancelPieceAnimation(mesh);
+      const liftedY = currentPieceYOffset + PIECE_SELECTION_LIFT;
+      mesh.position.y = Math.max(mesh.position.y, liftedY);
+      selectedMesh = mesh;
+    };
+
+    const highlightSelection = (r, c, color) => {
+      const highlightColor = color ?? paletteRef.current?.capture ?? '#ef4444';
+      const highlightHeight = Math.max(0.08, tile * 0.03);
+      const mesh = pieceMeshes[r]?.[c];
+      const base = mesh?.position ?? piecePosition(r, c, currentPieceYOffset);
+      const h = new THREE.Mesh(
+        new THREE.CylinderGeometry(tile * 0.26, tile * 0.26, highlightHeight, 20),
+        new THREE.MeshStandardMaterial({
+          color: highlightColor,
+          transparent: true,
+          opacity: 0.7,
+          metalness: 0.2,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      const baseY = Math.max(
+        base.y + highlightHeight * 0.5,
+        currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
+      );
+      h.position.copy(base).setY(baseY + highlightHeight * 0.5);
+      h.renderOrder = 6;
+      h.userData.__highlight = true;
+      boardGroup.add(h);
+    };
+
+    function startTimer(isWhite) {
+      clearInterval(timerRef.current);
+      try {
+        timerSoundRef.current?.pause();
+      } catch {}
+      if (isWhite) {
+        initialWhiteTimeRef.current = 60;
+        whiteTimeRef.current = 60;
+        setWhiteTime(60);
+        lastBeepRef.current.white = null;
+        timerRef.current = setInterval(() => {
+          setWhiteTime((t) => {
+            const next = Math.max(0, t - 1);
+            if (t <= 1) {
+              clearInterval(timerRef.current);
+              setUi((s) => ({ ...s, status: 'White ran out of time', winner: 'Black' }));
+              return 0;
+            }
+            maybePlayCountdownSound(next, true);
+            return next;
+          });
+        }, 1000);
+      } else {
+        initialBlackTimeRef.current = 5;
+        blackTimeRef.current = 5;
+        setBlackTime(5);
+        lastBeepRef.current.black = null;
+        timerRef.current = setInterval(() => {
+          setBlackTime((t) => {
+            const next = Math.max(0, t - 1);
+            if (t <= 1) {
+              clearInterval(timerRef.current);
+              setUi((s) => ({ ...s, status: 'Black ran out of time', winner: 'White' }));
+              return 0;
+            }
+            maybePlayCountdownSound(next, false);
+            return next;
+          });
+        }, 1000);
+      }
+    }
+
+    const shouldTriggerAiMove = (turnWhiteValue) =>
+      !onlineRef.current.enabled &&
+      ((aiPlaysWhite && turnWhiteValue) || (!aiPlaysWhite && !turnWhiteValue));
+
+    function applyStatus(nextWhite, status, winner) {
+      setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
+      if (winner) {
+        clearInterval(timerRef.current);
+        return;
+      }
+      startTimer(nextWhite);
+      if (shouldTriggerAiMove(nextWhite)) {
+        const delay = Math.max(200, getMoveLockRemainingMs() + 30);
+        setTimeout(aiMove, delay);
+      }
+    }
+
+    const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
+      const activeTurn = uiRef.current?.turnWhite;
+      if (activeTurn !== isWhiteTurn) {
+        return;
+      }
+      if (performance.now() < suppressTimerBeepUntilRef.current) {
+        return;
+      }
+      const key = isWhiteTurn ? 'white' : 'black';
+      const last = lastBeepRef.current[key];
+      if (
+        timerSoundRef.current &&
+        settingsRef.current.soundEnabled &&
+        seconds > 0 &&
+        seconds <= 15 &&
+        seconds !== last
+      ) {
+        lastBeepRef.current[key] = seconds;
+        try {
+          timerSoundRef.current.currentTime = 0;
+          timerSoundRef.current.play().catch(() => {});
+        } catch {}
+      }
+      if (seconds > 15 && last != null) {
+        lastBeepRef.current[key] = null;
+        try {
+          timerSoundRef.current.pause();
+        } catch {}
+      }
+      if (seconds <= 0 && timerSoundRef.current) {
+        try {
+          timerSoundRef.current.pause();
+        } catch {}
+      }
+    };
+
+    function highlightMoves(list, color) {
+      if (!settingsRef.current.showHighlights) return;
+      const palette = paletteRef.current;
+      const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
+      const highlightHeight = Math.max(0.08, tile * 0.03);
+      list.forEach(([rr, cc]) => {
+        const mesh = tiles.find(
+          (t) => t.userData.r === rr && t.userData.c === cc
         );
-        if (activeAnim) {
-          activeAnim.target.y = baseY;
-        } else {
-          selectedMesh.position.y = baseY;
-        }
-        selectedMesh = null;
-      };
-
-      const liftSelectedMesh = (mesh) => {
         if (!mesh) return;
-        cancelPieceAnimation(mesh);
-        const liftedY = currentPieceYOffset + PIECE_SELECTION_LIFT;
-        mesh.position.y = Math.max(mesh.position.y, liftedY);
-        selectedMesh = mesh;
-      };
-
-      const highlightSelection = (r, c, color) => {
-        const highlightColor =
-          color ?? paletteRef.current?.capture ?? '#ef4444';
-        const highlightHeight = Math.max(0.08, tile * 0.03);
-        const mesh = pieceMeshes[r]?.[c];
-        const base = mesh?.position ?? piecePosition(r, c, currentPieceYOffset);
         const h = new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            tile * 0.26,
-            tile * 0.26,
-            highlightHeight,
-            20
-          ),
+          new THREE.CylinderGeometry(tile * 0.28, tile * 0.28, highlightHeight, 20),
           new THREE.MeshStandardMaterial({
             color: highlightColor,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.55,
             metalness: 0.2,
             depthTest: false,
             depthWrite: false
           })
         );
         const baseY = Math.max(
-          base.y + highlightHeight * 0.5,
-          currentPieceYOffset -
-            highlightHeight * 0.5 +
-            HIGHLIGHT_VERTICAL_OFFSET
+          mesh.position.y + highlightHeight * 0.5,
+          currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
         );
-        h.position.copy(base).setY(baseY + highlightHeight * 0.5);
-        h.renderOrder = 6;
+        h.position.copy(mesh.position).setY(baseY + highlightHeight * 0.5);
+        h.renderOrder = 5;
         h.userData.__highlight = true;
         boardGroup.add(h);
-      };
+      });
+    }
+    function clearHighlights() {
+      const toKill = [];
+      boardGroup.traverse((o) => {
+        if (o.userData && o.userData.__highlight) toKill.push(o);
+      });
+      toKill.forEach((o) => boardGroup.remove(o));
+    }
+    clearHighlightsRef.current = clearHighlights;
 
-      function startTimer(isWhite) {
-        clearInterval(timerRef.current);
-        try {
-          timerSoundRef.current?.pause();
-        } catch {}
-        if (isWhite) {
-          initialWhiteTimeRef.current = 60;
-          whiteTimeRef.current = 60;
-          setWhiteTime(60);
-          lastBeepRef.current.white = null;
-          timerRef.current = setInterval(() => {
-            setWhiteTime((t) => {
-              const next = Math.max(0, t - 1);
-              if (t <= 1) {
-                clearInterval(timerRef.current);
-                setUi((s) => ({
-                  ...s,
-                  status: 'White ran out of time',
-                  winner: 'Black'
-                }));
-                return 0;
-              }
-              maybePlayCountdownSound(next, true);
-              return next;
-            });
-          }, 1000);
-        } else {
-          initialBlackTimeRef.current = 5;
-          blackTimeRef.current = 5;
-          setBlackTime(5);
-          lastBeepRef.current.black = null;
-          timerRef.current = setInterval(() => {
-            setBlackTime((t) => {
-              const next = Math.max(0, t - 1);
-              if (t <= 1) {
-                clearInterval(timerRef.current);
-                setUi((s) => ({
-                  ...s,
-                  status: 'Black ran out of time',
-                  winner: 'White'
-                }));
-                return 0;
-              }
-              maybePlayCountdownSound(next, false);
-              return next;
-            });
-          }, 1000);
-        }
+    const isPlayerPiece = (piece) => {
+      if (!piece) return false;
+      if (onlineRef.current.enabled) {
+        const playerSide = onlineRef.current.side;
+        if (!playerSide) return false;
+        return playerSide === 'white' ? piece.w : !piece.w;
       }
+      // Offline games only allow the human to control white; AI plays black
+      return piece.w;
+    };
 
-      const shouldTriggerAiMove = (turnWhiteValue) =>
-        !onlineRef.current.enabled &&
-        ((aiPlaysWhite && turnWhiteValue) ||
-          (!aiPlaysWhite && !turnWhiteValue));
-
-      function applyStatus(nextWhite, status, winner) {
-        setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
-        if (winner) {
-          clearInterval(timerRef.current);
-          return;
-        }
-        startTimer(nextWhite);
-        if (shouldTriggerAiMove(nextWhite)) {
-          const delay = Math.max(200, getMoveLockRemainingMs() + 30);
-          setTimeout(aiMove, delay);
-        }
-      }
-
-      const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
-        const activeTurn = uiRef.current?.turnWhite;
-        if (activeTurn !== isWhiteTurn) {
-          return;
-        }
-        if (performance.now() < suppressTimerBeepUntilRef.current) {
-          return;
-        }
-        const key = isWhiteTurn ? 'white' : 'black';
-        const last = lastBeepRef.current[key];
+    const canInteractWithPiece = (piece) => {
+      if (isMoveInteractionLocked()) return false;
+      if (!isPlayerPiece(piece)) return false;
+      if (!uiRef.current.turnWhite && piece.w) return false;
+      if (uiRef.current.turnWhite && !piece.w) return false;
+      if (onlineRef.current.enabled) {
+        if (!onlineRef.current.synced) return false;
         if (
-          timerSoundRef.current &&
-          settingsRef.current.soundEnabled &&
-          seconds > 0 &&
-          seconds <= 15 &&
-          seconds !== last
-        ) {
-          lastBeepRef.current[key] = seconds;
-          try {
-            timerSoundRef.current.currentTime = 0;
-            timerSoundRef.current.play().catch(() => {});
-          } catch {}
-        }
-        if (seconds > 15 && last != null) {
-          lastBeepRef.current[key] = null;
-          try {
-            timerSoundRef.current.pause();
-          } catch {}
-        }
-        if (seconds <= 0 && timerSoundRef.current) {
-          try {
-            timerSoundRef.current.pause();
-          } catch {}
-        }
-      };
-
-      function highlightMoves(list, color) {
-        if (!settingsRef.current.showHighlights) return;
-        const palette = paletteRef.current;
-        const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
-        const highlightHeight = Math.max(0.08, tile * 0.03);
-        list.forEach(([rr, cc]) => {
-          const mesh = tiles.find(
-            (t) => t.userData.r === rr && t.userData.c === cc
-          );
-          if (!mesh) return;
-          const h = new THREE.Mesh(
-            new THREE.CylinderGeometry(
-              tile * 0.28,
-              tile * 0.28,
-              highlightHeight,
-              20
-            ),
-            new THREE.MeshStandardMaterial({
-              color: highlightColor,
-              transparent: true,
-              opacity: 0.55,
-              metalness: 0.2,
-              depthTest: false,
-              depthWrite: false
-            })
-          );
-          const baseY = Math.max(
-            mesh.position.y + highlightHeight * 0.5,
-            currentPieceYOffset -
-              highlightHeight * 0.5 +
-              HIGHLIGHT_VERTICAL_OFFSET
-          );
-          h.position.copy(mesh.position).setY(baseY + highlightHeight * 0.5);
-          h.renderOrder = 5;
-          h.userData.__highlight = true;
-          boardGroup.add(h);
-        });
+          onlineRef.current.status !== 'started' &&
+          onlineRef.current.status !== 'in-progress'
+        )
+          return false;
       }
-      function clearHighlights() {
-        const toKill = [];
-        boardGroup.traverse((o) => {
-          if (o.userData && o.userData.__highlight) toKill.push(o);
-        });
-        toKill.forEach((o) => boardGroup.remove(o));
-      }
-      clearHighlightsRef.current = clearHighlights;
+      return true;
+    };
 
-      const isPlayerPiece = (piece) => {
-        if (!piece) return false;
-        if (onlineRef.current.enabled) {
-          const playerSide = onlineRef.current.side;
-          if (!playerSide) return false;
-          return playerSide === 'white' ? piece.w : !piece.w;
-        }
-        // Offline games only allow the human to control white; AI plays black
-        return piece.w;
-      };
-
-      const canInteractWithPiece = (piece) => {
-        if (isMoveInteractionLocked()) return false;
-        if (!isPlayerPiece(piece)) return false;
-        if (!uiRef.current.turnWhite && piece.w) return false;
-        if (uiRef.current.turnWhite && !piece.w) return false;
-        if (onlineRef.current.enabled) {
-          if (!onlineRef.current.synced) return false;
-          if (
-            onlineRef.current.status !== 'started' &&
-            onlineRef.current.status !== 'in-progress'
-          )
-            return false;
-        }
-        return true;
-      };
-
-      function selectAt(r, c, options = {}) {
-        const { force = false, selectionColor } = options;
-        if (isReplayingRef.current) return;
-        if (!force && isMoveInteractionLocked()) return;
-        const p = board[r][c];
-        if (!p) {
-          resetSelectedMeshElevation();
-          return ((sel = null), clearHighlights());
-        }
-        if (!force && !canInteractWithPiece(p)) return;
-
+    function selectAt(r, c, options = {}) {
+      const { force = false, selectionColor } = options;
+      if (isReplayingRef.current) return;
+      if (!force && isMoveInteractionLocked()) return;
+      const p = board[r][c];
+      if (!p) {
         resetSelectedMeshElevation();
-        sel = { r, c, p };
-        liftSelectedMesh(pieceMeshes[r]?.[c]);
-        legal = legalMoves(board, r, c);
-        clearHighlights();
-        highlightSelection(r, c, selectionColor);
-        const palette = paletteRef.current;
-        const captureSquares = [];
-        const quietSquares = [];
-        legal.forEach(([rr, cc]) => {
-          const target = board[rr][cc];
-          if (target && target.w !== p.w) captureSquares.push([rr, cc]);
-          else quietSquares.push([rr, cc]);
-        });
-        highlightMoves(quietSquares, palette?.highlight);
-        if (captureSquares.length)
-          highlightMoves(captureSquares, palette?.capture);
+        return ((sel = null), clearHighlights());
       }
+      if (!force && !canInteractWithPiece(p)) return;
 
-      function moveSelTo(rr, cc, options = {}) {
-        const { byAi = false } = options;
-        const finalizeAiMove = () => {
-          if (byAi) aiMovingRef.current = false;
-        };
-        if (isReplayingRef.current) {
+      resetSelectedMeshElevation();
+      sel = { r, c, p };
+      liftSelectedMesh(pieceMeshes[r]?.[c]);
+      legal = legalMoves(board, r, c);
+      clearHighlights();
+      highlightSelection(r, c, selectionColor);
+      const palette = paletteRef.current;
+      const captureSquares = [];
+      const quietSquares = [];
+      legal.forEach(([rr, cc]) => {
+        const target = board[rr][cc];
+        if (target && target.w !== p.w) captureSquares.push([rr, cc]);
+        else quietSquares.push([rr, cc]);
+      });
+      highlightMoves(quietSquares, palette?.highlight);
+      if (captureSquares.length) highlightMoves(captureSquares, palette?.capture);
+    }
+
+    function moveSelTo(rr, cc, options = {}) {
+      const { byAi = false } = options;
+      const finalizeAiMove = () => {
+        if (byAi) aiMovingRef.current = false;
+      };
+      if (isReplayingRef.current) {
+        finalizeAiMove();
+        return;
+      }
+      if (!byAi && isMoveInteractionLocked()) {
+        finalizeAiMove();
+        return;
+      }
+      if (!sel) {
+        finalizeAiMove();
+        return;
+      }
+      if (!legal.some(([r, c]) => r === rr && c === cc)) {
+        finalizeAiMove();
+        return;
+      }
+      if (onlineRef.current.enabled) {
+        const myTurnIsWhite = onlineRef.current.side === 'white';
+        if (!onlineRef.current.synced) {
           finalizeAiMove();
           return;
         }
-        if (!byAi && isMoveInteractionLocked()) {
+        if (
+          onlineRef.current.status !== 'started' &&
+          onlineRef.current.status !== 'in-progress'
+        ) {
           finalizeAiMove();
           return;
         }
-        if (!sel) {
+        if (uiRef.current.turnWhite !== myTurnIsWhite) {
           finalizeAiMove();
           return;
         }
-        if (!legal.some(([r, c]) => r === rr && c === cc)) {
-          finalizeAiMove();
-          return;
+      } else if (!isPlayerPiece(sel.p) && !byAi) {
+        finalizeAiMove();
+        return;
+      }
+      const movingPiece = board[sel.r][sel.c];
+      const capturedPiece = board[rr][cc];
+      const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
+      const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
+      const fromSquare = resolveChessSquare(sel.r, sel.c);
+      const toSquare = resolveChessSquare(rr, cc);
+      const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
+      const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
+      let moveDelayMs = 0;
+      let captureResolveDelayMs = 0;
+      // capture mesh if any
+      const targetMesh = pieceMeshes[rr][cc];
+      if (targetMesh) {
+        const worldPos = new THREE.Vector3();
+        targetMesh.getWorldPosition(worldPos);
+        const captureFx = playCaptureAnimation({
+          fromPos: fromWorldPos,
+          targetPos: worldPos,
+          movingType: movingPiece?.t,
+          movingMesh: pieceMeshes[sel.r][sel.c],
+          targetMesh,
+          distance: Math.hypot(rr - sel.r, cc - sel.c),
+          deltaR: rr - sel.r,
+          deltaC: cc - sel.c
+        });
+        moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
+        captureResolveDelayMs = Math.max(0, captureFx?.captureResolveDelayMs ?? 0);
+        if (moveDelayMs > 0 && captureResolveDelayMs <= 0) {
+          captureResolveDelayMs = moveDelayMs;
         }
-        if (onlineRef.current.enabled) {
-          const myTurnIsWhite = onlineRef.current.side === 'white';
-          if (!onlineRef.current.synced) {
-            finalizeAiMove();
-            return;
-          }
-          if (
-            onlineRef.current.status !== 'started' &&
-            onlineRef.current.status !== 'in-progress'
-          ) {
-            finalizeAiMove();
-            return;
-          }
-          if (uiRef.current.turnWhite !== myTurnIsWhite) {
-            finalizeAiMove();
-            return;
-          }
-        } else if (!isPlayerPiece(sel.p) && !byAi) {
-          finalizeAiMove();
-          return;
+        if (captureResolveDelayMs > 0) {
+          moveDelayMs = Math.max(moveDelayMs, captureResolveDelayMs);
         }
-        const movingPiece = board[sel.r][sel.c];
-        const capturedPiece = board[rr][cc];
-        const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
-        const capturedPieceLabel = capturedPiece
-          ? PIECE_LABELS[capturedPiece.t] || 'piece'
-          : null;
-        const fromSquare = resolveChessSquare(sel.r, sel.c);
-        const toSquare = resolveChessSquare(rr, cc);
-        const fromWorldPos = piecePosition(sel.r, sel.c, currentPieceYOffset);
-        const toWorldPos = piecePosition(rr, cc, currentPieceYOffset);
-        let moveDelayMs = 0;
-        let captureResolveDelayMs = 0;
-        // capture mesh if any
-        const targetMesh = pieceMeshes[rr][cc];
-        if (targetMesh) {
-          const worldPos = new THREE.Vector3();
-          targetMesh.getWorldPosition(worldPos);
-          const captureFx = playCaptureAnimation({
-            fromPos: fromWorldPos,
-            targetPos: worldPos,
-            movingType: movingPiece?.t,
-            movingMesh: pieceMeshes[sel.r][sel.c],
+        const moveCapturedPieceToZone = () => {
+          const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
+          const zone = capturingWhite ? capturedByWhite : capturedByBlack;
+          const idx = zone.push(targetMesh) - 1;
+          const row = Math.floor(idx / 8);
+          const col = idx % 8;
+          const captureSpacing = tile * 0.68;
+          const captureRowSpacing = tile * 0.9;
+          const captureY = currentPieceYOffset;
+          const capX = (col - 3.5) * captureSpacing;
+          const capZ = capturingWhite
+            ? half + BOARD.rim + 1 + row * captureRowSpacing
+            : -half - BOARD.rim - 1 - row * captureRowSpacing;
+          cancelPieceAnimation(targetMesh);
+          targetMesh.position.y = captureY;
+          animatePieceTo(
             targetMesh,
-            distance: Math.hypot(rr - sel.r, cc - sel.c),
-            deltaR: rr - sel.r,
-            deltaC: cc - sel.c
-          });
-          moveDelayMs = Math.max(0, captureFx?.moveDelayMs ?? 0);
-          captureResolveDelayMs = Math.max(
-            0,
-            captureFx?.captureResolveDelayMs ?? 0
+            new THREE.Vector3(capX, captureY, capZ),
+            0.35
           );
-          if (moveDelayMs > 0 && captureResolveDelayMs <= 0) {
-            captureResolveDelayMs = moveDelayMs;
-          }
-          if (captureResolveDelayMs > 0) {
-            moveDelayMs = Math.max(moveDelayMs, captureResolveDelayMs);
-          }
-          const moveCapturedPieceToZone = () => {
-            const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
-            const zone = capturingWhite ? capturedByWhite : capturedByBlack;
-            const idx = zone.push(targetMesh) - 1;
-            const row = Math.floor(idx / 8);
-            const col = idx % 8;
-            const captureSpacing = tile * 0.68;
-            const captureRowSpacing = tile * 0.9;
-            const captureY = currentPieceYOffset;
-            const capX = (col - 3.5) * captureSpacing;
-            const capZ = capturingWhite
-              ? half + BOARD.rim + 1 + row * captureRowSpacing
-              : -half - BOARD.rim - 1 - row * captureRowSpacing;
-            cancelPieceAnimation(targetMesh);
-            targetMesh.position.y = captureY;
-            animatePieceTo(
-              targetMesh,
-              new THREE.Vector3(capX, captureY, capZ),
-              0.35
-            );
-          };
-          if (captureResolveDelayMs > 0) {
-            setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
-          } else {
-            moveCapturedPieceToZone();
-          }
-          pieceMeshes[rr][cc] = null;
-        }
-        // move board
-        const movedPiece = movingPiece;
-        if (movedPiece && typeof movedPiece.hasMoved !== 'boolean')
-          movedPiece.hasMoved = false;
-        const movedFromPawn = movedPiece?.t === 'P';
-        const isCastlingMove =
-          movedPiece?.t === 'K' &&
-          sel.r === rr &&
-          Math.abs(cc - sel.c) === 2 &&
-          legal.some(
-            ([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2
-          );
-        const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
-        const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
-        const rookPiece =
-          isCastlingMove && Number.isInteger(rookFromC)
-            ? board[sel.r][rookFromC]
-            : null;
-        if (rookPiece && typeof rookPiece.hasMoved !== 'boolean')
-          rookPiece.hasMoved = false;
-        const rookMesh =
-          isCastlingMove && Number.isInteger(rookFromC)
-            ? pieceMeshes[sel.r][rookFromC]
-            : null;
-        board[rr][cc] = movedPiece;
-        board[sel.r][sel.c] = null;
-        if (isCastlingMove && rookPiece) {
-          board[rr][rookToC] = rookPiece;
-          board[sel.r][rookFromC] = null;
-          rookPiece.hasMoved = true;
-        }
-        if (movedPiece) movedPiece.hasMoved = true;
-        // promotion (auto to Queen)
-        const promoted = movedFromPawn && (rr === 0 || rr === 7);
-        if (promoted) {
-          board[rr][cc].t = 'Q';
-        }
-        // move mesh
-        let m = pieceMeshes[sel.r][sel.c];
-        pieceMeshes[sel.r][sel.c] = null;
-        const syncMovedPieceMesh = () => {
-          pieceMeshes[rr][cc] = m;
-          m.userData.r = rr;
-          m.userData.c = cc;
-          m.userData.t = board[rr][cc].t;
         };
-        syncMovedPieceMesh();
-        cancelPieceAnimation(m);
-        const targetPosition = toWorldPos;
-        if (moveDelayMs > 0) {
-          setTimeout(() => {
-            syncMovedPieceMesh();
-            cancelPieceAnimation(m);
-            animatePieceTo(m, targetPosition, 0.32);
-            playMoveSound();
-          }, moveDelayMs);
+        if (captureResolveDelayMs > 0) {
+          setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
         } else {
+          moveCapturedPieceToZone();
+        }
+        pieceMeshes[rr][cc] = null;
+      }
+      // move board
+      const movedPiece = movingPiece;
+      if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
+      const movedFromPawn = movedPiece?.t === 'P';
+      const isCastlingMove =
+        movedPiece?.t === 'K' &&
+        sel.r === rr &&
+        Math.abs(cc - sel.c) === 2 &&
+        legal.some(([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2);
+      const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
+      const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
+      const rookPiece =
+        isCastlingMove && Number.isInteger(rookFromC) ? board[sel.r][rookFromC] : null;
+      if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
+      const rookMesh =
+        isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
+      board[rr][cc] = movedPiece;
+      board[sel.r][sel.c] = null;
+      if (isCastlingMove && rookPiece) {
+        board[rr][rookToC] = rookPiece;
+        board[sel.r][rookFromC] = null;
+        rookPiece.hasMoved = true;
+      }
+      if (movedPiece) movedPiece.hasMoved = true;
+      // promotion (auto to Queen)
+      const promoted = movedFromPawn && (rr === 0 || rr === 7);
+      if (promoted) {
+        board[rr][cc].t = 'Q';
+      }
+      // move mesh
+      let m = pieceMeshes[sel.r][sel.c];
+      pieceMeshes[sel.r][sel.c] = null;
+      const syncMovedPieceMesh = () => {
+        pieceMeshes[rr][cc] = m;
+        m.userData.r = rr;
+        m.userData.c = cc;
+        m.userData.t = board[rr][cc].t;
+      };
+      syncMovedPieceMesh();
+      cancelPieceAnimation(m);
+      const targetPosition = toWorldPos;
+      if (moveDelayMs > 0) {
+        setTimeout(() => {
+          syncMovedPieceMesh();
+          cancelPieceAnimation(m);
           animatePieceTo(m, targetPosition, 0.32);
           playMoveSound();
-        }
-        highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
-        lockMoveInteraction(Math.max(420, moveDelayMs + 360));
-        if (isCastlingMove && Number.isInteger(rookFromC)) {
-          pieceMeshes[sel.r][rookFromC] = null;
-        }
-        if (isCastlingMove && rookMesh) {
-          pieceMeshes[rr][rookToC] = rookMesh;
-          rookMesh.userData.r = rr;
-          rookMesh.userData.c = rookToC;
-          cancelPieceAnimation(rookMesh);
-          const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-          animatePieceTo(rookMesh, rookTarget, 0.32);
-        }
-        if (promoted && currentPiecePrototypes) {
-          const color = board[rr][cc].w ? 'white' : 'black';
-          const queenProto = currentPiecePrototypes[color]?.Q;
-          if (queenProto) {
-            const replacement = cloneWithShadows(queenProto);
-            replacement.scale.copy(m.scale);
-            replacement.quaternion.copy(m.quaternion);
-            replacement.position.copy(m.position);
-            replacement.userData = {
-              ...m.userData,
-              t: 'Q',
-              __pieceStyleId: m.userData?.__pieceStyleId || currentPieceSetId
-            };
-            const activeAnim = activePieceAnimations.find(
-              (anim) => anim.mesh === m
-            );
-            if (activeAnim) {
-              activeAnim.mesh = replacement;
-            }
-            replacement.traverse((child) => {
-              if (!child.isMesh) return;
-              child.userData = {
-                ...(child.userData || {}),
-                __pieceColor: color,
-                __pieceStyleId: currentPieceSetId
-              };
-            });
-            pieceMeshes[rr][cc] = replacement;
-            const index = allPieceMeshes.indexOf(m);
-            if (index >= 0) allPieceMeshes[index] = replacement;
-            else allPieceMeshes.push(replacement);
-            boardGroup.add(replacement);
-            try {
-              boardGroup.remove(m);
-            } catch {}
-            disposeObject3D(m);
-            m = replacement;
-          }
-        }
-
-        lastMoveRef.current = {
-          from: { r: sel.r, c: sel.c },
-          to: { r: rr, c: cc },
-          pieceMesh: m,
-          selectionColor: paletteRef.current?.capture,
-          highlightColor: paletteRef.current?.highlight
-        };
-        setCanReplay(true);
-
-        // turn switch & status
-        const nextWhite = !uiRef.current.turnWhite;
-        const king = findKing(board, nextWhite);
-        const inCheck =
-          king && isSquareAttacked(board, king[0], king[1], !nextWhite);
-        const hasMove = anyLegal(board, nextWhite);
-        let status = nextWhite ? 'White to move' : 'Black to move';
-        let winner = null;
-        if (!hasMove) {
-          if (inCheck) {
-            winner = nextWhite ? 'Black' : 'White';
-            status = `Checkmate — ${winner} wins`;
-            playMateSound();
-            playLaughSound();
-          } else {
-            status = 'Stalemate';
-          }
-        } else if (inCheck) {
-          status = (nextWhite ? 'White' : 'Black') + ' in check';
-          playCheckSound();
-          playLaughSound();
-        }
-
-        applyStatus(nextWhite, status, winner);
-
-        const moverIsWhite = movedPiece?.w ?? true;
-        const playerName = resolveChessSideName(moverIsWhite);
-        const opponentName = resolveChessSideName(!moverIsWhite);
-        const winnerName =
-          winner === 'White'
-            ? resolveChessSideName(true)
-            : winner === 'Black'
-              ? resolveChessSideName(false)
-              : playerName;
-        moveCountRef.current += 1;
-        const pieceCount = board.flat().filter(Boolean).length;
-        const context = {
-          player: playerName,
-          opponent: opponentName,
-          piece: movingPieceLabel,
-          fromSquare,
-          toSquare,
-          capturedPiece: capturedPieceLabel,
-          castleSide: isCastlingMove
-            ? cc > sel.c
-              ? 'king-side'
-              : 'queen-side'
-            : 'king-side',
-          winner: winnerName
-        };
-        let event = 'move';
-        if (!hasMove) {
-          event = inCheck ? 'checkmate' : 'stalemate';
-        } else if (inCheck) {
-          event = 'check';
-        } else if (promoted) {
-          event = 'promotion';
-        } else if (isCastlingMove) {
-          event = 'castle';
-        } else if (capturedPieceLabel) {
-          event = 'capture';
-        } else if (moveCountRef.current <= 4) {
-          event = 'opening';
-        } else if (pieceCount <= 10) {
-          event = 'endgame';
-        }
-        const priority = event === 'checkmate' || event === 'stalemate';
-        enqueueChessCommentaryEvent(event, context, { priority });
-        if (priority && !commentaryOutroPlayedRef.current) {
-          commentaryOutroPlayedRef.current = true;
-          enqueueChessCommentaryEvent('outro', context, { priority: true });
-        }
-
-        if (onlineRef.current.enabled && onlineRef.current.tableId) {
-          const movePayload = {
-            lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
-            fen: boardToFEN(board, nextWhite),
-            turnWhite: nextWhite
+        }, moveDelayMs);
+      } else {
+        animatePieceTo(m, targetPosition, 0.32);
+        playMoveSound();
+      }
+      highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
+      lockMoveInteraction(Math.max(420, moveDelayMs + 360));
+      if (isCastlingMove && Number.isInteger(rookFromC)) {
+        pieceMeshes[sel.r][rookFromC] = null;
+      }
+      if (isCastlingMove && rookMesh) {
+        pieceMeshes[rr][rookToC] = rookMesh;
+        rookMesh.userData.r = rr;
+        rookMesh.userData.c = rookToC;
+        cancelPieceAnimation(rookMesh);
+        const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
+        animatePieceTo(rookMesh, rookTarget, 0.32);
+      }
+      if (promoted && currentPiecePrototypes) {
+        const color = board[rr][cc].w ? 'white' : 'black';
+        const queenProto = currentPiecePrototypes[color]?.Q;
+        if (queenProto) {
+          const replacement = cloneWithShadows(queenProto);
+          replacement.scale.copy(m.scale);
+          replacement.quaternion.copy(m.quaternion);
+          replacement.position.copy(m.position);
+          replacement.userData = {
+            ...m.userData,
+            t: 'Q',
+            __pieceStyleId: m.userData?.__pieceStyleId || currentPieceSetId
           };
-          onlineRef.current.emitMove?.({
-            tableId: onlineRef.current.tableId,
-            move: movePayload
+          const activeAnim = activePieceAnimations.find((anim) => anim.mesh === m);
+          if (activeAnim) {
+            activeAnim.mesh = replacement;
+          }
+          replacement.traverse((child) => {
+            if (!child.isMesh) return;
+            child.userData = {
+              ...(child.userData || {}),
+              __pieceColor: color,
+              __pieceStyleId: currentPieceSetId
+            };
           });
+          pieceMeshes[rr][cc] = replacement;
+          const index = allPieceMeshes.indexOf(m);
+          if (index >= 0) allPieceMeshes[index] = replacement;
+          else allPieceMeshes.push(replacement);
+          boardGroup.add(replacement);
+          try {
+            boardGroup.remove(m);
+          } catch {}
+          disposeObject3D(m);
+          m = replacement;
         }
-        sel = null;
-        resetSelectedMeshElevation();
-        clearHighlights();
-        finalizeAiMove();
       }
 
-      const tryCastleByKingRookSwap = (targetR, targetC) => {
-        if (!sel) return false;
-        const sourcePiece = board[sel.r]?.[sel.c];
-        const targetPiece = board[targetR]?.[targetC];
-        if (!sourcePiece || !targetPiece || sourcePiece.w !== targetPiece.w)
-          return false;
+      lastMoveRef.current = {
+        from: { r: sel.r, c: sel.c },
+        to: { r: rr, c: cc },
+        pieceMesh: m,
+        selectionColor: paletteRef.current?.capture,
+        highlightColor: paletteRef.current?.highlight
+      };
+      setCanReplay(true);
 
-        const resolveCastleTarget = (kingCol, rookCol) => {
-          if (!Number.isInteger(kingCol) || !Number.isInteger(rookCol))
-            return null;
-          if (
-            Math.abs(kingCol - rookCol) !== 3 &&
-            Math.abs(kingCol - rookCol) !== 4
-          )
-            return null;
-          const kingMoves = legalMoves(board, sel.r, kingCol);
-          if (kingMoves.some(([r, c]) => r === sel.r && c === 6))
-            return [sel.r, 6];
-          if (kingMoves.some(([r, c]) => r === sel.r && c === 2))
-            return [sel.r, 2];
-          return null;
+      // turn switch & status
+      const nextWhite = !uiRef.current.turnWhite;
+      const king = findKing(board, nextWhite);
+      const inCheck =
+        king && isSquareAttacked(board, king[0], king[1], !nextWhite);
+      const hasMove = anyLegal(board, nextWhite);
+      let status = nextWhite ? 'White to move' : 'Black to move';
+      let winner = null;
+      if (!hasMove) {
+        if (inCheck) {
+          winner = nextWhite ? 'Black' : 'White';
+          status = `Checkmate — ${winner} wins`;
+          playMateSound();
+          playLaughSound();
+        } else {
+          status = 'Stalemate';
+        }
+      } else if (inCheck) {
+        status = (nextWhite ? 'White' : 'Black') + ' in check';
+        playCheckSound();
+        playLaughSound();
+      }
+
+      applyStatus(nextWhite, status, winner);
+
+      const moverIsWhite = movedPiece?.w ?? true;
+      const playerName = resolveChessSideName(moverIsWhite);
+      const opponentName = resolveChessSideName(!moverIsWhite);
+      const winnerName =
+        winner === 'White'
+          ? resolveChessSideName(true)
+          : winner === 'Black'
+            ? resolveChessSideName(false)
+            : playerName;
+      moveCountRef.current += 1;
+      const pieceCount = board.flat().filter(Boolean).length;
+      const context = {
+        player: playerName,
+        opponent: opponentName,
+        piece: movingPieceLabel,
+        fromSquare,
+        toSquare,
+        capturedPiece: capturedPieceLabel,
+        castleSide: isCastlingMove ? (cc > sel.c ? 'king-side' : 'queen-side') : 'king-side',
+        winner: winnerName
+      };
+      let event = 'move';
+      if (!hasMove) {
+        event = inCheck ? 'checkmate' : 'stalemate';
+      } else if (inCheck) {
+        event = 'check';
+      } else if (promoted) {
+        event = 'promotion';
+      } else if (isCastlingMove) {
+        event = 'castle';
+      } else if (capturedPieceLabel) {
+        event = 'capture';
+      } else if (moveCountRef.current <= 4) {
+        event = 'opening';
+      } else if (pieceCount <= 10) {
+        event = 'endgame';
+      }
+      const priority = event === 'checkmate' || event === 'stalemate';
+      enqueueChessCommentaryEvent(event, context, { priority });
+      if (priority && !commentaryOutroPlayedRef.current) {
+        commentaryOutroPlayedRef.current = true;
+        enqueueChessCommentaryEvent('outro', context, { priority: true });
+      }
+
+      if (onlineRef.current.enabled && onlineRef.current.tableId) {
+        const movePayload = {
+          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
+          fen: boardToFEN(board, nextWhite),
+          turnWhite: nextWhite
         };
+        onlineRef.current.emitMove?.({ tableId: onlineRef.current.tableId, move: movePayload });
+      }
+      sel = null;
+      resetSelectedMeshElevation();
+      clearHighlights();
+      finalizeAiMove();
+    }
 
-        if (sourcePiece.t === 'R' && targetPiece.t === 'K') {
-          const castleTarget = resolveCastleTarget(targetC, sel.c);
-          if (!castleTarget) return false;
-          selectAt(targetR, targetC);
-          moveSelTo(castleTarget[0], castleTarget[1]);
-          return true;
-        }
-        if (sourcePiece.t === 'K' && targetPiece.t === 'R') {
-          const castleTarget = resolveCastleTarget(sel.c, targetC);
-          if (!castleTarget) return false;
-          moveSelTo(castleTarget[0], castleTarget[1]);
-          return true;
-        }
-        return false;
-      };
+    const tryCastleByKingRookSwap = (targetR, targetC) => {
+      if (!sel) return false;
+      const sourcePiece = board[sel.r]?.[sel.c];
+      const targetPiece = board[targetR]?.[targetC];
+      if (!sourcePiece || !targetPiece || sourcePiece.w !== targetPiece.w) return false;
 
-      const dragState = {
-        active: false,
-        mesh: null,
-        from: null
-      };
-      let moveLockUntilMs = 0;
-      const moveHighlight = new THREE.Mesh(
-        new THREE.TorusGeometry(
-          tile * 0.22,
-          Math.max(0.05, tile * 0.02),
-          12,
-          42
-        ),
-        new THREE.MeshStandardMaterial({
-          color: paletteRef.current?.capture ?? '#ef4444',
-          emissive: new THREE.Color('#ffffff'),
-          emissiveIntensity: 0.18,
-          transparent: true,
-          opacity: 0.82,
-          depthTest: false,
-          depthWrite: false
-        })
-      );
-      moveHighlight.rotation.x = Math.PI / 2;
-      moveHighlight.visible = false;
-      moveHighlight.renderOrder = 7;
-      boardGroup.add(moveHighlight);
-      let moveHighlightMesh = null;
-      let moveHighlightEndMs = 0;
-      const getMoveLockRemainingMs = () =>
-        Math.max(0, moveLockUntilMs - performance.now());
-      const isMoveInteractionLocked = () => getMoveLockRemainingMs() > 0;
-      const lockMoveInteraction = (durationMs) => {
-        const nowMs = performance.now();
-        moveLockUntilMs = Math.max(
-          moveLockUntilMs,
-          nowMs + Math.max(0, durationMs)
-        );
-      };
-      const highlightMovingMesh = (mesh, durationMs = 800) => {
-        if (!mesh) return;
-        moveHighlightMesh = mesh;
-        moveHighlight.material.color.set(
-          paletteRef.current?.capture ?? '#ef4444'
-        );
-        moveHighlight.visible = true;
-        moveHighlightEndMs = performance.now() + Math.max(260, durationMs);
-      };
-
-      const piecePosition = (r, c, y = currentPieceYOffset) =>
-        new THREE.Vector3(
-          c * tile - half + tile / 2,
-          y,
-          r * tile - half + tile / 2
-        );
-
-      const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
-        if (!mesh) return;
-        const anim = {
-          mesh,
-          start: mesh.position.clone(),
-          target: target.clone(),
-          duration: Math.max(0.05, duration),
-          elapsed: 0,
-          onComplete
-        };
-        activePieceAnimations.push(anim);
-      };
-
-      const cancelPieceAnimation = (mesh) => {
-        if (!mesh) return;
-        for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
-          if (activePieceAnimations[i].mesh === mesh) {
-            activePieceAnimations.splice(i, 1);
-          }
-        }
-      };
-
-      replayLastMoveRef.current = () => {
-        const last = lastMoveRef.current;
-        if (!last?.pieceMesh) return;
-        if (isReplayingRef.current) return;
-        const { from, to, pieceMesh, selectionColor, highlightColor } = last;
-        const fromPos = piecePosition(from.r, from.c, currentPieceYOffset);
-        const toPos = piecePosition(to.r, to.c, currentPieceYOffset);
-        cancelPieceAnimation(pieceMesh);
-        isReplayingRef.current = true;
-        clearHighlights();
-        highlightSelection(from.r, from.c, selectionColor);
-        highlightMoves([[to.r, to.c]], highlightColor);
-        pieceMesh.position.copy(fromPos);
-        animatePieceTo(pieceMesh, toPos, 0.45, () => {
-          pieceMesh.position.copy(toPos);
-          isReplayingRef.current = false;
-        });
-      };
-
-      const pickTileFromPointer = (event) => {
-        setPointer(event);
-        ray.setFromCamera(pointer, camera);
-        const hit = ray.intersectObjects(tiles, false)[0];
-        if (!hit) return null;
-        const { r, c } = hit.object.userData || {};
-        if (r == null || c == null) return null;
-        return { r, c };
-      };
-
-      const pickBoardObject = (event) => {
-        setPointer(event);
-        ray.setFromCamera(pointer, camera);
-        const intersects = ray.intersectObjects(boardGroup.children, true);
-        for (const i of intersects) {
-          let o = i.object;
-          while (o) {
-            if (
-              o.userData &&
-              (o.userData.type === 'piece' || o.userData.type === 'tile')
-            ) {
-              return { object: o, point: i.point };
-            }
-            o = o.parent;
-          }
-        }
+      const resolveCastleTarget = (kingCol, rookCol) => {
+        if (!Number.isInteger(kingCol) || !Number.isInteger(rookCol)) return null;
+        if (Math.abs(kingCol - rookCol) !== 3 && Math.abs(kingCol - rookCol) !== 4) return null;
+        const kingMoves = legalMoves(board, sel.r, kingCol);
+        if (kingMoves.some(([r, c]) => r === sel.r && c === 6)) return [sel.r, 6];
+        if (kingMoves.some(([r, c]) => r === sel.r && c === 2)) return [sel.r, 2];
         return null;
       };
 
-      const onPointerDown = (event) => {
-        if (isReplayingRef.current) return;
-        if (isMoveInteractionLocked()) return;
-        if (settingsRef.current.moveMode !== 'drag') return;
-        const hit = pickBoardObject(event);
-        if (!hit || hit.object.userData.type !== 'piece') return;
-        const { r, c } = hit.object.userData;
-        selectAt(r, c);
-        if (!sel) return;
-        dragState.active = true;
-        dragState.mesh = pieceMeshes[r][c];
-        dragState.from = { r, c };
-        if (dragState.mesh) {
-          cancelPieceAnimation(dragState.mesh);
-          dragState.mesh.position.y = Math.max(
-            dragState.mesh.position.y,
-            currentPieceYOffset + 0.18
-          );
-        }
-        if (controls) controls.enabled = false;
-      };
+      if (sourcePiece.t === 'R' && targetPiece.t === 'K') {
+        const castleTarget = resolveCastleTarget(targetC, sel.c);
+        if (!castleTarget) return false;
+        selectAt(targetR, targetC);
+        moveSelTo(castleTarget[0], castleTarget[1]);
+        return true;
+      }
+      if (sourcePiece.t === 'K' && targetPiece.t === 'R') {
+        const castleTarget = resolveCastleTarget(sel.c, targetC);
+        if (!castleTarget) return false;
+        moveSelTo(castleTarget[0], castleTarget[1]);
+        return true;
+      }
+      return false;
+    };
 
-      const onPointerMove = (event) => {
-        if (isReplayingRef.current) return;
-        if (isMoveInteractionLocked()) return;
-        if (!dragState.active || !dragState.mesh) return;
-        const tileHit = pickTileFromPointer(event);
-        if (!tileHit) return;
-        const target = piecePosition(
-          tileHit.r,
-          tileHit.c,
+    const dragState = {
+      active: false,
+      mesh: null,
+      from: null
+    };
+    let moveLockUntilMs = 0;
+    const moveHighlight = new THREE.Mesh(
+      new THREE.TorusGeometry(tile * 0.22, Math.max(0.05, tile * 0.02), 12, 42),
+      new THREE.MeshStandardMaterial({
+        color: paletteRef.current?.capture ?? '#ef4444',
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: 0.18,
+        transparent: true,
+        opacity: 0.82,
+        depthTest: false,
+        depthWrite: false
+      })
+    );
+    moveHighlight.rotation.x = Math.PI / 2;
+    moveHighlight.visible = false;
+    moveHighlight.renderOrder = 7;
+    boardGroup.add(moveHighlight);
+    let moveHighlightMesh = null;
+    let moveHighlightEndMs = 0;
+    const getMoveLockRemainingMs = () => Math.max(0, moveLockUntilMs - performance.now());
+    const isMoveInteractionLocked = () => getMoveLockRemainingMs() > 0;
+    const lockMoveInteraction = (durationMs) => {
+      const nowMs = performance.now();
+      moveLockUntilMs = Math.max(moveLockUntilMs, nowMs + Math.max(0, durationMs));
+    };
+    const highlightMovingMesh = (mesh, durationMs = 800) => {
+      if (!mesh) return;
+      moveHighlightMesh = mesh;
+      moveHighlight.material.color.set(paletteRef.current?.capture ?? '#ef4444');
+      moveHighlight.visible = true;
+      moveHighlightEndMs = performance.now() + Math.max(260, durationMs);
+    };
+
+    const piecePosition = (r, c, y = currentPieceYOffset) =>
+      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
+
+    const animatePieceTo = (mesh, target, duration = 0.28, onComplete) => {
+      if (!mesh) return;
+      const anim = {
+        mesh,
+        start: mesh.position.clone(),
+        target: target.clone(),
+        duration: Math.max(0.05, duration),
+        elapsed: 0,
+        onComplete
+      };
+      activePieceAnimations.push(anim);
+    };
+
+    const cancelPieceAnimation = (mesh) => {
+      if (!mesh) return;
+      for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+        if (activePieceAnimations[i].mesh === mesh) {
+          activePieceAnimations.splice(i, 1);
+        }
+      }
+    };
+
+    replayLastMoveRef.current = () => {
+      const last = lastMoveRef.current;
+      if (!last?.pieceMesh) return;
+      if (isReplayingRef.current) return;
+      const { from, to, pieceMesh, selectionColor, highlightColor } = last;
+      const fromPos = piecePosition(from.r, from.c, currentPieceYOffset);
+      const toPos = piecePosition(to.r, to.c, currentPieceYOffset);
+      cancelPieceAnimation(pieceMesh);
+      isReplayingRef.current = true;
+      clearHighlights();
+      highlightSelection(from.r, from.c, selectionColor);
+      highlightMoves([[to.r, to.c]], highlightColor);
+      pieceMesh.position.copy(fromPos);
+      animatePieceTo(pieceMesh, toPos, 0.45, () => {
+        pieceMesh.position.copy(toPos);
+        isReplayingRef.current = false;
+      });
+    };
+
+    const pickTileFromPointer = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      const hit = ray.intersectObjects(tiles, false)[0];
+      if (!hit) return null;
+      const { r, c } = hit.object.userData || {};
+      if (r == null || c == null) return null;
+      return { r, c };
+    };
+
+    const pickBoardObject = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      const intersects = ray.intersectObjects(boardGroup.children, true);
+      for (const i of intersects) {
+        let o = i.object;
+        while (o) {
+          if (o.userData && (o.userData.type === 'piece' || o.userData.type === 'tile')) {
+            return { object: o, point: i.point };
+          }
+          o = o.parent;
+        }
+      }
+      return null;
+    };
+
+    const onPointerDown = (event) => {
+      if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
+      if (settingsRef.current.moveMode !== 'drag') return;
+      const hit = pickBoardObject(event);
+      if (!hit || hit.object.userData.type !== 'piece') return;
+      const { r, c } = hit.object.userData;
+      selectAt(r, c);
+      if (!sel) return;
+      dragState.active = true;
+      dragState.mesh = pieceMeshes[r][c];
+      dragState.from = { r, c };
+      if (dragState.mesh) {
+        cancelPieceAnimation(dragState.mesh);
+        dragState.mesh.position.y = Math.max(
+          dragState.mesh.position.y,
           currentPieceYOffset + 0.18
         );
-        dragState.mesh.position.lerp(target, 0.35);
-      };
-
-      const onPointerUp = (event) => {
-        if (isReplayingRef.current) return;
-        if (isMoveInteractionLocked()) return;
-        if (!dragState.active) return;
-        const tileHit = pickTileFromPointer(event);
-        const mesh = dragState.mesh;
-        const from = dragState.from;
-        dragState.active = false;
-        dragState.mesh = null;
-        dragState.from = null;
-        if (controls) controls.enabled = true;
-        if (
-          tileHit &&
-          sel &&
-          legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)
-        ) {
-          moveSelTo(tileHit.r, tileHit.c);
-          return;
-        }
-        if (mesh && from) {
-          cancelPieceAnimation(mesh);
-          mesh.position.copy(piecePosition(from.r, from.c));
-          selectAt(from.r, from.c);
-          return;
-        }
-        clearHighlights();
-        sel = null;
-      };
-
-      function aiMove() {
-        if (isReplayingRef.current) return;
-        if (isMoveInteractionLocked()) {
-          setTimeout(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
-          return;
-        }
-        const activeTurnWhite = uiRef.current?.turnWhite ?? true;
-        if (!shouldTriggerAiMove(activeTurnWhite)) return;
-        aiMovingRef.current = true;
-        const mv = bestAIMove(board, activeTurnWhite, 4);
-        if (!mv) {
-          aiMovingRef.current = false;
-          return;
-        }
-        selectAt(mv.fromR, mv.fromC, {
-          force: true,
-          selectionColor: paletteRef.current?.capture
-        });
-        setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
       }
+      if (controls) controls.enabled = false;
+    };
 
-      onClick = function onClick(e) {
-        if (isReplayingRef.current) return;
-        if (isMoveInteractionLocked()) return;
-        if (settingsRef.current.moveMode !== 'click') return;
-        setPointer(e);
-        ray.setFromCamera(pointer, camera);
-        const intersects = ray.intersectObjects(boardGroup.children, true);
-        let obj = null;
-        for (const i of intersects) {
-          let o = i.object;
-          while (o) {
+    const onPointerMove = (event) => {
+      if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
+      if (!dragState.active || !dragState.mesh) return;
+      const tileHit = pickTileFromPointer(event);
+      if (!tileHit) return;
+      const target = piecePosition(tileHit.r, tileHit.c, currentPieceYOffset + 0.18);
+      dragState.mesh.position.lerp(target, 0.35);
+    };
+
+    const onPointerUp = (event) => {
+      if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
+      if (!dragState.active) return;
+      const tileHit = pickTileFromPointer(event);
+      const mesh = dragState.mesh;
+      const from = dragState.from;
+      dragState.active = false;
+      dragState.mesh = null;
+      dragState.from = null;
+      if (controls) controls.enabled = true;
+      if (tileHit && sel && legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)) {
+        moveSelTo(tileHit.r, tileHit.c);
+        return;
+      }
+      if (mesh && from) {
+        cancelPieceAnimation(mesh);
+        mesh.position.copy(piecePosition(from.r, from.c));
+        selectAt(from.r, from.c);
+        return;
+      }
+      clearHighlights();
+      sel = null;
+    };
+
+    function aiMove() {
+      if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) {
+        setTimeout(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
+        return;
+      }
+      const activeTurnWhite = uiRef.current?.turnWhite ?? true;
+      if (!shouldTriggerAiMove(activeTurnWhite)) return;
+      aiMovingRef.current = true;
+      const mv = bestAIMove(board, activeTurnWhite, 4);
+      if (!mv) {
+        aiMovingRef.current = false;
+        return;
+      }
+      selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
+      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
+    }
+
+    onClick = function onClick(e) {
+      if (isReplayingRef.current) return;
+      if (isMoveInteractionLocked()) return;
+      if (settingsRef.current.moveMode !== 'click') return;
+      setPointer(e);
+      ray.setFromCamera(pointer, camera);
+      const intersects = ray.intersectObjects(boardGroup.children, true);
+      let obj = null;
+      for (const i of intersects) {
+        let o = i.object;
+        while (o) {
+          if (
+            o.userData &&
+            (o.userData.type === 'piece' || o.userData.type === 'tile')
+          ) {
+            obj = o;
+            break;
+          }
+          o = o.parent;
+        }
+        if (obj) break;
+      }
+      if (!obj) return;
+      const ud = obj.userData;
+      const targetPiece = board[ud.r]?.[ud.c] || null;
+      if (
+        sel &&
+        ud.type === 'piece' &&
+        targetPiece &&
+        targetPiece.w !== board[sel.r][sel.c]?.w
+      ) {
+        moveSelTo(ud.r, ud.c);
+        return;
+      }
+      if (sel && ud.type === 'piece' && targetPiece && tryCastleByKingRookSwap(ud.r, ud.c)) {
+        return;
+      }
+      if (ud.type === 'piece') selectAt(ud.r, ud.c);
+      else if (ud.type === 'tile' && sel) {
+        moveSelTo(ud.r, ud.c);
+      }
+    };
+
+    renderer.domElement.addEventListener('click', onClick);
+    renderer.domElement.addEventListener('touchend', onClick);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    // Loop
+    let lastTime = performance.now();
+    let lastRender = lastTime;
+    const step = () => {
+      const now = performance.now();
+      const rawDt = Math.max(0, (now - lastTime) / 1000);
+      const dt = Math.min(0.1, rawDt);
+      const animDt = Math.min(0.5, rawDt);
+      lastTime = now;
+      const arenaState = arenaRef.current;
+      if (camera && boardLookTarget) {
+        const radius = camera.position.distanceTo(boardLookTarget);
+        if (
+          lastCameraRadiusRef.current == null ||
+          Math.abs(radius - lastCameraRadiusRef.current) > 1e-4
+        ) {
+          lastCameraRadiusRef.current = radius;
+          syncSkyboxToCamera();
+        }
+      }
+      if (arenaState?.seatAnchors?.length && camera) {
+        const positions = arenaState.seatAnchors.map((anchor, index) => {
+          anchor.getWorldPosition(seatWorld);
+          seatNdc.copy(seatWorld).project(camera);
+          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+          const depth = camera.position.distanceTo(seatWorld);
+          return { index, x, y, depth };
+        });
+        let changed = positions.length !== seatPositionsRef.current.length;
+        if (!changed) {
+          for (let i = 0; i < positions.length; i += 1) {
+            const prev = seatPositionsRef.current[i];
+            const curr = positions[i];
             if (
-              o.userData &&
-              (o.userData.type === 'piece' || o.userData.type === 'tile')
+              !prev ||
+              Math.abs(prev.x - curr.x) > 0.2 ||
+              Math.abs(prev.y - curr.y) > 0.2 ||
+              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
             ) {
-              obj = o;
+              changed = true;
               break;
             }
-            o = o.parent;
           }
-          if (obj) break;
         }
-        if (!obj) return;
-        const ud = obj.userData;
-        const targetPiece = board[ud.r]?.[ud.c] || null;
-        if (
-          sel &&
-          ud.type === 'piece' &&
-          targetPiece &&
-          targetPiece.w !== board[sel.r][sel.c]?.w
-        ) {
-          moveSelTo(ud.r, ud.c);
-          return;
+        if (changed) {
+          seatPositionsRef.current = positions;
+          setSeatAnchors(positions);
         }
-        if (
-          sel &&
-          ud.type === 'piece' &&
-          targetPiece &&
-          tryCastleByKingRookSwap(ud.r, ud.c)
-        ) {
-          return;
-        }
-        if (ud.type === 'piece') selectAt(ud.r, ud.c);
-        else if (ud.type === 'tile' && sel) {
-          moveSelTo(ud.r, ud.c);
-        }
-      };
+      } else if (seatPositionsRef.current.length) {
+        seatPositionsRef.current = [];
+        setSeatAnchors([]);
+      }
 
-      renderer.domElement.addEventListener('click', onClick);
-      renderer.domElement.addEventListener('touchend', onClick);
-      renderer.domElement.addEventListener('pointerdown', onPointerDown);
-      renderer.domElement.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp);
+      if (arenaState?.sandTimer) {
+        const activeTotal = uiRef.current.turnWhite
+          ? initialWhiteTimeRef.current || 1
+          : initialBlackTimeRef.current || 1;
+        const activeLeft = uiRef.current.turnWhite ? whiteTimeRef.current : blackTimeRef.current;
+        const pct = clamp01(activeLeft / Math.max(1, activeTotal));
+        arenaState.sandTimer.setFill?.(pct);
+        arenaState.sandTimer.setTime?.(activeLeft);
+        arenaState.sandTimer.tick?.(dt, now * 0.001);
+      }
 
-      // Loop
-      let lastTime = performance.now();
-      let lastRender = lastTime;
-      const step = () => {
-        const now = performance.now();
-        const rawDt = Math.max(0, (now - lastTime) / 1000);
-        const dt = Math.min(0.1, rawDt);
-        const animDt = Math.min(0.5, rawDt);
-        lastTime = now;
-        const arenaState = arenaRef.current;
-        if (camera && boardLookTarget) {
-          const radius = camera.position.distanceTo(boardLookTarget);
-          if (
-            lastCameraRadiusRef.current == null ||
-            Math.abs(radius - lastCameraRadiusRef.current) > 1e-4
-          ) {
-            lastCameraRadiusRef.current = radius;
-            syncSkyboxToCamera();
-          }
+      parkedAirUnits.forEach((unit) => {
+        if (!unit?.root) return;
+        if (unit.topRotor && unit.topRotorAxis) {
+          unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
         }
-        if (arenaState?.seatAnchors?.length && camera) {
-          const positions = arenaState.seatAnchors.map((anchor, index) => {
-            anchor.getWorldPosition(seatWorld);
-            seatNdc.copy(seatWorld).project(camera);
-            const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
-            const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-            const depth = camera.position.distanceTo(seatWorld);
-            return { index, x, y, depth };
-          });
-          let changed = positions.length !== seatPositionsRef.current.length;
-          if (!changed) {
-            for (let i = 0; i < positions.length; i += 1) {
-              const prev = seatPositionsRef.current[i];
-              const curr = positions[i];
-              if (
-                !prev ||
-                Math.abs(prev.x - curr.x) > 0.2 ||
-                Math.abs(prev.y - curr.y) > 0.2 ||
-                Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
-              ) {
-                changed = true;
-                break;
-              }
-            }
-          }
-          if (changed) {
-            seatPositionsRef.current = positions;
-            setSeatAnchors(positions);
-          }
-        } else if (seatPositionsRef.current.length) {
-          seatPositionsRef.current = [];
-          setSeatAnchors([]);
+        if (unit.tailRotor && unit.tailRotorAxis) {
+          unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 24);
         }
-
-        if (arenaState?.sandTimer) {
-          const activeTotal = uiRef.current.turnWhite
-            ? initialWhiteTimeRef.current || 1
-            : initialBlackTimeRef.current || 1;
-          const activeLeft = uiRef.current.turnWhite
-            ? whiteTimeRef.current
-            : blackTimeRef.current;
-          const pct = clamp01(activeLeft / Math.max(1, activeTotal));
-          arenaState.sandTimer.setFill?.(pct);
-          arenaState.sandTimer.setTime?.(activeLeft);
-          arenaState.sandTimer.tick?.(dt, now * 0.001);
-        }
-
-        parkedAirUnits.forEach((unit) => {
-          if (!unit?.root) return;
-          if (unit.topRotor && unit.topRotorAxis) {
-            unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
-          }
-          if (unit.tailRotor && unit.tailRotorAxis) {
-            unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 24);
-          }
-          unit.rotorNodes?.forEach((rotorNode) => {
-            if (
-              !rotorNode ||
-              rotorNode === unit.topRotor ||
-              rotorNode === unit.tailRotor
-            )
-              return;
-            rotorNode.rotation.y += dt * 24;
-          });
+        unit.rotorNodes?.forEach((rotorNode) => {
+          if (!rotorNode || rotorNode === unit.topRotor || rotorNode === unit.tailRotor) return;
+          rotorNode.rotation.y += dt * 24;
         });
+      });
 
-        if (activePieceAnimations.length) {
-          for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
-            const anim = activePieceAnimations[i];
-            anim.elapsed += animDt;
-            const t = clamp01(anim.elapsed / anim.duration);
-            const eased = 1 - (1 - t) * (1 - t);
-            anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
-            if (t >= 1) {
-              anim.mesh.position.copy(anim.target);
-              activePieceAnimations.splice(i, 1);
-              if (typeof anim.onComplete === 'function') {
-                try {
-                  anim.onComplete();
-                } catch (error) {
-                  console.warn(
-                    'Chess Battle Royal: animation callback failed',
-                    error
-                  );
-                }
+      if (activePieceAnimations.length) {
+        for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+          const anim = activePieceAnimations[i];
+          anim.elapsed += animDt;
+          const t = clamp01(anim.elapsed / anim.duration);
+          const eased = 1 - (1 - t) * (1 - t);
+          anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
+          if (t >= 1) {
+            anim.mesh.position.copy(anim.target);
+            activePieceAnimations.splice(i, 1);
+            if (typeof anim.onComplete === 'function') {
+              try {
+                anim.onComplete();
+              } catch (error) {
+                console.warn('Chess Battle Royal: animation callback failed', error);
               }
             }
           }
         }
+      }
 
-        if (activeCaptureFx.length) {
-          for (let i = activeCaptureFx.length - 1; i >= 0; i -= 1) {
-            const fx = activeCaptureFx[i];
-            fx.t += dt;
-            const u = clamp01(fx.t / fx.duration);
-            if (fx.type === 'drone') {
-              const impactTime =
-                CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-              const launchPos = fx.returnToOrigin
-                ? fx.launchPos.clone()
-                : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-              if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-              fx.droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-              let pose = null;
-              if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
-                const liftU = smoothEase(
-                  fx.t / Math.max(0.001, CAPTURE_GROUND_FIRE_TIME)
-                );
-                const liftPos = launchPos.clone();
-                liftPos.y += CAPTURE_VERTICAL_STRIKE_ALTITUDE * liftU;
-                pose = {
-                  pos: liftPos,
-                  next: liftPos.clone().add(new THREE.Vector3(0, 0.05, 0))
-                };
-              } else if (fx.t < impactTime) {
-                const mu = smoothEase(
-                  (fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME
-                );
-                pose = getCaptureDirectStrikePose({
-                  launchPos,
-                  targetPos: fx.to,
-                  progress: mu,
-                  altitude: CAPTURE_VERTICAL_STRIKE_ALTITUDE,
-                  verticalCrash: true
-                });
+      if (activeCaptureFx.length) {
+        for (let i = activeCaptureFx.length - 1; i >= 0; i -= 1) {
+          const fx = activeCaptureFx[i];
+          fx.t += dt;
+          const u = clamp01(fx.t / fx.duration);
+          if (fx.type === 'drone') {
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            const launchPos = fx.returnToOrigin
+              ? fx.launchPos.clone()
+              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
+            fx.droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+            let pose = null;
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              pose = { pos: launchPos.clone(), next: launchPos.clone().add(new THREE.Vector3(0.05, 0, 0)) };
+            } else if (fx.t < impactTime) {
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              pose = getCaptureDirectStrikePose({
+                launchPos,
+                targetPos: fx.to,
+                progress: mu,
+                altitude: CAPTURE_VERTICAL_STRIKE_ALTITUDE,
+                verticalCrash: true
+              });
+            }
+            if (!pose) {
+              fx.droneFx.root.visible = false;
+            } else {
+              fx.droneFx.root.visible = true;
+              const { pos, next } = pose;
+              fx.droneFx.root.position.copy(constrainInsideBoardPerimeter(pos));
+              captureDir.copy(next).sub(pos).normalize();
+              fx.droneFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            }
+            fx.droneFx.propeller.rotation.x += dt * 40;
+            fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
+              puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
+              const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
+              puff.scale.setScalar(s);
+            });
+            if (fx.t >= impactTime) {
+              if (!fx.hasExploded) {
+                fx.hasExploded = true;
+                launchExplosion(fx.to);
+                fx.reloading = true;
+                fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
+                fx.droneFx.root.position.copy(launchPos);
+              } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
+                if (fx.sourceUnit) {
+                  returnParkedAirUnit(fx.sourceUnit);
+                } else {
+                  captureFxGroup.remove(fx.droneFx.root);
+                }
+                activeCaptureFx.splice(i, 1);
               }
-              if (!pose) {
-                fx.droneFx.root.visible = false;
+            }
+          } else if (fx.type === 'jet') {
+            const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
+            const jetU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, jetTimelineU);
+            fx.jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
+            const launchPos = fx.returnToOrigin
+              ? fx.launchPos.clone()
+              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
+            const { pos: jetPos, next: jetNext } = getCaptureAirRunPose({
+              from: launchPos,
+              to: fx.flightTarget || fx.to,
+              progress: jetU,
+              cruiseHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+              returnToOrigin: true
+            });
+            fx.jetFx.root.position.copy(constrainInsideBoardPerimeter(jetPos));
+            captureDir.copy(jetNext).sub(jetPos).normalize();
+            const jetForward = captureDir.clone();
+            fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            const jetExhaustAnchor = fx.jetFx.exhaustAnchor || new THREE.Vector3(-1.95, 0, 0);
+            fx.jetFx.exhaustClouds?.forEach((puff, idx) => {
+              puff.position.set(
+                jetExhaustAnchor.x - idx * 0.2,
+                jetExhaustAnchor.y + Math.sin(fx.t * 8.4 + idx * 0.4) * 0.02,
+                jetExhaustAnchor.z + Math.sin(fx.t * 5.8 + idx * 0.3) * 0.008
+              );
+              const s = 0.84 + idx * 0.12 + ((fx.t * 1.65 + idx * 0.11) % 1) * 0.52;
+              puff.scale.setScalar(s);
+            });
+
+            const jetMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
+            const releaseStart = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
+            const releaseEnd = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
+            const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
+            const missileImpactTime = getAirMissileImpactTime(CAPTURE_JET_TOTAL);
+            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
+            const hitTop = fx.to
+              .clone()
+              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+            let anyMissileVisible = false;
+            jetMissiles.forEach((missile, idx) => {
+              const releaseTime = releaseStart + idx * 0.14;
+              if (fx.t < releaseTime) {
+                missile.root.visible = false;
+                return;
+              }
+              const missileU = clamp01((fx.t - releaseTime) / missileTravel);
+              if (missileU <= 0 || missileU >= 1) {
+                missile.root.visible = false;
+                return;
+              }
+              anyMissileVisible = true;
+              if (!missile.didPlayLaunchSound) {
+                missile.didPlayLaunchSound = true;
+                playAudio(missileLaunchSoundRef);
+              }
+              const sideOffset = idx === 0 ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
+              const right = jetForward.clone().cross(WORLD_UP);
+              if (right.lengthSq() < 1e-6) {
+                right.set(0, 0, idx === 0 ? -1 : 1);
               } else {
-                fx.droneFx.root.visible = true;
-                const { pos, next } = pose;
-                fx.droneFx.root.position.copy(
-                  constrainInsideBoardPerimeter(pos)
-                );
-                captureDir.copy(next).sub(pos).normalize();
-                fx.droneFx.root.quaternion.setFromUnitVectors(
-                  FORWARD,
-                  captureDir
-                );
+                right.normalize();
               }
-              fx.droneFx.propeller.rotation.x += dt * 40;
-              fx.droneFx.exhaustClouds?.forEach((puff, idx) => {
-                puff.position.set(
-                  -0.55 - idx * 0.16,
-                  Math.sin(fx.t * 8.2 + idx) * 0.02,
-                  0
-                );
-                const s =
-                  0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
+              const launchPos = jetPos.clone().add(right.multiplyScalar(sideOffset));
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.9);
+              missileEntry.y += topStrikeHeight * (CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT * 0.45);
+              const verticalDropStart = new THREE.Vector3(
+                fx.to.x,
+                Math.max(hitTop.y, fx.to.y + topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL),
+                fx.to.z
+              );
+              const missilePos =
+                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
+                  ? launchPos.clone().lerp(missileEntry, missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT)
+                  : verticalDropStart
+                      .clone()
+                      .lerp(fx.to, (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION);
+              const missileNext =
+                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
+                  ? qBezier(launchPos, missileEntry, verticalDropStart, clamp01(missileU + 0.03))
+                  : verticalDropStart
+                      .clone()
+                      .lerp(fx.to, clamp01((missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION + 0.06));
+              if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
+                missileNext.x = missilePos.x;
+                missileNext.z = missilePos.z;
+              }
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              missile.root.visible = true;
+              missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
+              missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            });
+            if (!anyMissileVisible && fx.t >= missileImpactTime) {
+              jetMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
+              if (!fx.hasExploded) {
+                fx.hasExploded = true;
+                launchExplosion(fx.to);
+              }
+            }
+
+            if (jetTimelineU >= 1) {
+              if (fx.sourceUnit) {
+                returnParkedAirUnit(fx.sourceUnit);
+              } else {
+                captureFxGroup.remove(fx.jetFx.root);
+              }
+              jetMissiles.forEach((missile) => {
+                captureFxGroup.remove(missile.root);
+              });
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'helicopter') {
+            const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
+            const heliU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, heliTimelineU);
+            fx.helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
+            const launchPos = fx.returnToOrigin
+              ? fx.launchPos.clone()
+              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
+            const { pos: heliPos, next: heliNext } = getCaptureAirRunPose({
+              from: launchPos,
+              to: fx.flightTarget || fx.to,
+              progress: heliU,
+              cruiseHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+              returnToOrigin: true
+            });
+            fx.helicopterFx.root.position.copy(constrainInsideBoardPerimeter(heliPos));
+            captureDir.copy(heliNext).sub(heliPos).normalize();
+            const heliForward = captureDir.clone();
+            fx.helicopterFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
+              fx.helicopterFx.topRotor.rotateOnAxis(fx.helicopterFx.topRotorAxis, dt * 35);
+            }
+            if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
+              fx.helicopterFx.tailRotor.rotateOnAxis(fx.helicopterFx.tailRotorAxis, dt * 35);
+            }
+            fx.helicopterFx.rotorNodes?.forEach((rotorNode) => {
+              if (!rotorNode || rotorNode === fx.helicopterFx.topRotor || rotorNode === fx.helicopterFx.tailRotor) return;
+              rotorNode.rotation.y += dt * 36;
+            });
+            fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
+              puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
+            });
+
+            const heliMissiles = Array.isArray(fx.missileFx) ? fx.missileFx : [fx.missileFx].filter(Boolean);
+            const releaseStart = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
+            const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
+            const missileTravel = Math.max(0.28, releaseEnd - releaseStart - 0.1);
+            const missileImpactTime = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL);
+            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
+            const hitTop = fx.to
+              .clone()
+              .add(new THREE.Vector3(0, Math.max(topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND, 0.24), 0));
+            let anyMissileVisible = false;
+            heliMissiles.forEach((missile, idx) => {
+              const releaseTime = releaseStart + idx * 0.14;
+              if (fx.t < releaseTime) {
+                missile.root.visible = false;
+                return;
+              }
+              const missileU = clamp01((fx.t - releaseTime) / missileTravel);
+              if (missileU <= 0 || missileU >= 1) {
+                missile.root.visible = false;
+                return;
+              }
+              anyMissileVisible = true;
+              if (!missile.didPlayLaunchSound) {
+                missile.didPlayLaunchSound = true;
+                playAudio(missileLaunchSoundRef);
+              }
+              const sideOffset = idx === 0 ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
+              const right = heliForward.clone().cross(WORLD_UP);
+              if (right.lengthSq() < 1e-6) {
+                right.set(0, 0, idx === 0 ? -1 : 1);
+              } else {
+                right.normalize();
+              }
+              const launchPos = heliPos.clone().add(right.multiplyScalar(sideOffset));
+              const missileEntry = launchPos.clone().lerp(hitTop, 0.9);
+              missileEntry.y += topStrikeHeight * (CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT * 0.45);
+              const verticalDropStart = new THREE.Vector3(
+                fx.to.x,
+                Math.max(hitTop.y, fx.to.y + topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL),
+                fx.to.z
+              );
+              const missilePos =
+                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
+                  ? launchPos.clone().lerp(missileEntry, missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT)
+                  : verticalDropStart
+                      .clone()
+                      .lerp(fx.to, (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION);
+              const missileNext =
+                missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
+                  ? qBezier(launchPos, missileEntry, verticalDropStart, clamp01(missileU + 0.03))
+                  : verticalDropStart
+                      .clone()
+                      .lerp(fx.to, clamp01((missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) / CAPTURE_AIR_MISSILE_DROP_PORTION + 0.06));
+              if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
+                missileNext.x = missilePos.x;
+                missileNext.z = missilePos.z;
+              }
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              missile.root.visible = true;
+              missile.root.position.copy(constrainInsideBoardPerimeter(missilePos));
+              missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            });
+            if (!anyMissileVisible && fx.t >= missileImpactTime) {
+              heliMissiles.forEach((missile) => {
+                missile.root.visible = false;
+              });
+              if (!fx.hasExploded) {
+                fx.hasExploded = true;
+                launchExplosion(fx.to);
+              }
+            }
+            if (heliTimelineU >= 1) {
+              if (fx.sourceUnit) {
+                returnParkedAirUnit(fx.sourceUnit);
+              } else {
+                captureFxGroup.remove(fx.helicopterFx.root);
+              }
+              heliMissiles.forEach((missile) => {
+                captureFxGroup.remove(missile.root);
+              });
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'javelin') {
+            const liveLaunchPos = fx.launchFromLivePiece
+              ? getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0)
+              : fx.sourceUnit?.homePosition?.clone?.() || getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            fx.launchPos.copy(liveLaunchPos);
+            fx.to.copy(targetPos);
+            const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
+            if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
+              fx.missileFx.root.visible = true;
+              fx.missileFx.root.position.copy(liveLaunchPos);
+            } else if (fx.t < impactTime) {
+              if (!fx.strikeLaunchPos) {
+                fx.strikeLaunchPos = liveLaunchPos.clone();
+              }
+              if (!fx.strikeTargetPos) {
+                fx.strikeTargetPos = targetPos.clone();
+              } else {
+                fx.strikeTargetPos.copy(targetPos);
+              }
+              const mu = smoothEase((fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME);
+              const strikeFrom = fx.strikeLaunchPos;
+              const strikeTo = fx.strikeTargetPos;
+              const { pos: missilePos, next: missileNext } = fx.strictPrecision
+                ? getCapturePrecisionVerticalStrikePose({
+                    launchPos: strikeFrom,
+                    targetPos: strikeTo,
+                    progress: mu,
+                    strikeAltitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.84
+                  })
+                : getCaptureDirectStrikePose({
+                    launchPos: strikeFrom,
+                    targetPos: strikeTo,
+                    progress: mu,
+                    altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.82,
+                    verticalCrash: Boolean(fx.verticalStrike)
+                  });
+
+              fx.missileFx.root.visible = true;
+              fx.missileFx.root.position.copy(missilePos);
+              if (fx.missileFx.rotor) {
+                fx.missileFx.rotor.rotation.x += dt * 48;
+              }
+              captureDir.copy(missileNext).sub(missilePos).normalize();
+              fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+              fx.missileFx.trail?.forEach((puff, idx) => {
+                puff.position.set(-0.55 - idx * 0.16, Math.sin(fx.t * 8.2 + idx) * 0.02, 0);
+                const s = 0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
                 puff.scale.setScalar(s);
               });
-              if (fx.t >= impactTime) {
-                if (!fx.hasExploded) {
-                  fx.hasExploded = true;
-                  launchExplosion(fx.to);
-                  fx.reloading = true;
-                  fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
-                  fx.droneFx.root.position.copy(launchPos);
-                } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
-                  if (fx.sourceUnit) {
-                    returnParkedAirUnit(fx.sourceUnit);
-                  } else {
-                    captureFxGroup.remove(fx.droneFx.root);
-                  }
-                  activeCaptureFx.splice(i, 1);
-                }
-              }
-            } else if (fx.type === 'jet') {
-              const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
-              const jetU = THREE.MathUtils.lerp(
-                CAPTURE_JET_TRIMMED_START_RATIO,
-                1,
-                jetTimelineU
-              );
-              fx.jetFx.root.scale.setScalar(CAPTURE_JET_SCALE);
-              const launchPos = fx.returnToOrigin
-                ? fx.launchPos.clone()
-                : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-              if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-              const { pos: jetPos, next: jetNext } = getCaptureAirRunPose({
-                from: launchPos,
-                to: fx.flightTarget || fx.to,
-                progress: jetU,
-                cruiseHeight:
-                  CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
-                returnToOrigin: true
-              });
-              fx.jetFx.root.position.copy(
-                constrainInsideBoardPerimeter(jetPos)
-              );
-              captureDir.copy(jetNext).sub(jetPos).normalize();
-              const jetForward = captureDir.clone();
-              fx.jetFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              const jetExhaustAnchor =
-                fx.jetFx.exhaustAnchor || new THREE.Vector3(-1.95, 0, 0);
-              fx.jetFx.exhaustClouds?.forEach((puff, idx) => {
-                puff.position.set(
-                  jetExhaustAnchor.x - idx * 0.2,
-                  jetExhaustAnchor.y + Math.sin(fx.t * 8.4 + idx * 0.4) * 0.02,
-                  jetExhaustAnchor.z + Math.sin(fx.t * 5.8 + idx * 0.3) * 0.008
-                );
-                const s =
-                  0.84 + idx * 0.12 + ((fx.t * 1.65 + idx * 0.11) % 1) * 0.52;
-                puff.scale.setScalar(s);
-              });
-
-              const jetMissiles = Array.isArray(fx.missileFx)
-                ? fx.missileFx
-                : [fx.missileFx].filter(Boolean);
-              const releaseStart =
-                CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-              const releaseEnd =
-                CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-              const missileTravel = Math.max(
-                0.28,
-                releaseEnd - releaseStart - 0.1
-              );
-              const missileImpactTime =
-                getAirMissileImpactTime(CAPTURE_JET_TOTAL);
-              const topStrikeHeight = Math.max(
-                tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL,
-                CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN
-              );
-              const hitTop = fx.to
-                .clone()
-                .add(
-                  new THREE.Vector3(
-                    0,
-                    Math.max(
-                      topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND,
-                      0.24
-                    ),
-                    0
-                  )
-                );
-              let anyMissileVisible = false;
-              jetMissiles.forEach((missile, idx) => {
-                const releaseTime = releaseStart + idx * 0.14;
-                if (fx.t < releaseTime) {
-                  missile.root.visible = false;
-                  return;
-                }
-                const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-                if (missileU <= 0 || missileU >= 1) {
-                  missile.root.visible = false;
-                  return;
-                }
-                anyMissileVisible = true;
-                if (!missile.didPlayLaunchSound) {
-                  missile.didPlayLaunchSound = true;
-                  playAudio(missileLaunchSoundRef);
-                }
-                const sideOffset =
-                  idx === 0
-                    ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET
-                    : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
-                const right = jetForward.clone().cross(WORLD_UP);
-                if (right.lengthSq() < 1e-6) {
-                  right.set(0, 0, idx === 0 ? -1 : 1);
-                } else {
-                  right.normalize();
-                }
-                const launchPos = jetPos
-                  .clone()
-                  .add(right.multiplyScalar(sideOffset));
-                const missileEntry = launchPos.clone().lerp(hitTop, 0.9);
-                missileEntry.y +=
-                  topStrikeHeight * (CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT * 0.45);
-                const verticalDropStart = new THREE.Vector3(
-                  fx.to.x,
-                  Math.max(
-                    hitTop.y,
-                    fx.to.y +
-                      topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL
-                  ),
-                  fx.to.z
-                );
-                const missilePos =
-                  missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                    ? launchPos
-                        .clone()
-                        .lerp(
-                          missileEntry,
-                          missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT
-                        )
-                    : verticalDropStart
-                        .clone()
-                        .lerp(
-                          fx.to,
-                          (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) /
-                            CAPTURE_AIR_MISSILE_DROP_PORTION
-                        );
-                const missileNext =
-                  missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                    ? qBezier(
-                        launchPos,
-                        missileEntry,
-                        verticalDropStart,
-                        clamp01(missileU + 0.03)
-                      )
-                    : verticalDropStart
-                        .clone()
-                        .lerp(
-                          fx.to,
-                          clamp01(
-                            (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) /
-                              CAPTURE_AIR_MISSILE_DROP_PORTION +
-                              0.06
-                          )
-                        );
-                if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
-                  missileNext.x = missilePos.x;
-                  missileNext.z = missilePos.z;
-                }
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                missile.root.visible = true;
-                missile.root.position.copy(
-                  constrainInsideBoardPerimeter(missilePos)
-                );
-                missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              });
-              if (!anyMissileVisible && fx.t >= missileImpactTime) {
-                jetMissiles.forEach((missile) => {
-                  missile.root.visible = false;
-                });
-                if (!fx.hasExploded) {
-                  fx.hasExploded = true;
-                  launchExplosion(fx.to);
-                }
-              }
-
-              if (jetTimelineU >= 1) {
-                if (fx.sourceUnit) {
-                  returnParkedAirUnit(fx.sourceUnit);
-                } else {
-                  captureFxGroup.remove(fx.jetFx.root);
-                }
-                jetMissiles.forEach((missile) => {
-                  captureFxGroup.remove(missile.root);
-                });
-                activeCaptureFx.splice(i, 1);
-              }
-            } else if (fx.type === 'helicopter') {
-              const heliTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
-              const heliU = THREE.MathUtils.lerp(
-                CAPTURE_JET_TRIMMED_START_RATIO,
-                1,
-                heliTimelineU
-              );
-              fx.helicopterFx.root.scale.setScalar(CAPTURE_HELICOPTER_SCALE);
-              const launchPos = fx.returnToOrigin
-                ? fx.launchPos.clone()
-                : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-              if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-              const { pos: heliPos, next: heliNext } = getCaptureAirRunPose({
-                from: launchPos,
-                to: fx.flightTarget || fx.to,
-                progress: heliU,
-                cruiseHeight:
-                  CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
-                returnToOrigin: true
-              });
-              fx.helicopterFx.root.position.copy(
-                constrainInsideBoardPerimeter(heliPos)
-              );
-              captureDir.copy(heliNext).sub(heliPos).normalize();
-              const heliForward = captureDir.clone();
-              fx.helicopterFx.root.quaternion.setFromUnitVectors(
-                FORWARD,
-                captureDir
-              );
-              if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
-                fx.helicopterFx.topRotor.rotateOnAxis(
-                  fx.helicopterFx.topRotorAxis,
-                  dt * 35
-                );
-              }
-              if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
-                fx.helicopterFx.tailRotor.rotateOnAxis(
-                  fx.helicopterFx.tailRotorAxis,
-                  dt * 35
-                );
-              }
-              fx.helicopterFx.rotorNodes?.forEach((rotorNode) => {
-                if (
-                  !rotorNode ||
-                  rotorNode === fx.helicopterFx.topRotor ||
-                  rotorNode === fx.helicopterFx.tailRotor
-                )
-                  return;
-                rotorNode.rotation.y += dt * 36;
-              });
-              fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
-                puff.position.set(
-                  -1 - idx * 0.2,
-                  Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03,
-                  0
-                );
-              });
-
-              const heliMissiles = Array.isArray(fx.missileFx)
-                ? fx.missileFx
-                : [fx.missileFx].filter(Boolean);
-              const releaseStart =
-                CAPTURE_HELICOPTER_TOTAL *
-                CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-              const releaseEnd =
-                CAPTURE_HELICOPTER_TOTAL *
-                CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-              const missileTravel = Math.max(
-                0.28,
-                releaseEnd - releaseStart - 0.1
-              );
-              const missileImpactTime = getAirMissileImpactTime(
-                CAPTURE_HELICOPTER_TOTAL
-              );
-              const topStrikeHeight = Math.max(
-                tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL,
-                CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN
-              );
-              const hitTop = fx.to
-                .clone()
-                .add(
-                  new THREE.Vector3(
-                    0,
-                    Math.max(
-                      topStrikeHeight * CAPTURE_AIR_MISSILE_TOP_BLEND,
-                      0.24
-                    ),
-                    0
-                  )
-                );
-              let anyMissileVisible = false;
-              heliMissiles.forEach((missile, idx) => {
-                const releaseTime = releaseStart + idx * 0.14;
-                if (fx.t < releaseTime) {
-                  missile.root.visible = false;
-                  return;
-                }
-                const missileU = clamp01((fx.t - releaseTime) / missileTravel);
-                if (missileU <= 0 || missileU >= 1) {
-                  missile.root.visible = false;
-                  return;
-                }
-                anyMissileVisible = true;
-                if (!missile.didPlayLaunchSound) {
-                  missile.didPlayLaunchSound = true;
-                  playAudio(missileLaunchSoundRef);
-                }
-                const sideOffset =
-                  idx === 0
-                    ? -CAPTURE_AIR_MISSILE_SIDE_OFFSET
-                    : CAPTURE_AIR_MISSILE_SIDE_OFFSET;
-                const right = heliForward.clone().cross(WORLD_UP);
-                if (right.lengthSq() < 1e-6) {
-                  right.set(0, 0, idx === 0 ? -1 : 1);
-                } else {
-                  right.normalize();
-                }
-                const launchPos = heliPos
-                  .clone()
-                  .add(right.multiplyScalar(sideOffset));
-                const missileEntry = launchPos.clone().lerp(hitTop, 0.9);
-                missileEntry.y +=
-                  topStrikeHeight * (CAPTURE_AIR_MISSILE_TOP_EXTRA_LIFT * 0.45);
-                const verticalDropStart = new THREE.Vector3(
-                  fx.to.x,
-                  Math.max(
-                    hitTop.y,
-                    fx.to.y +
-                      topStrikeHeight * CAPTURE_AIR_MISSILE_DROP_HEIGHT_MUL
-                  ),
-                  fx.to.z
-                );
-                const missilePos =
-                  missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                    ? launchPos
-                        .clone()
-                        .lerp(
-                          missileEntry,
-                          missileU / CAPTURE_AIR_MISSILE_ARC_SPLIT
-                        )
-                    : verticalDropStart
-                        .clone()
-                        .lerp(
-                          fx.to,
-                          (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) /
-                            CAPTURE_AIR_MISSILE_DROP_PORTION
-                        );
-                const missileNext =
-                  missileU < CAPTURE_AIR_MISSILE_ARC_SPLIT
-                    ? qBezier(
-                        launchPos,
-                        missileEntry,
-                        verticalDropStart,
-                        clamp01(missileU + 0.03)
-                      )
-                    : verticalDropStart
-                        .clone()
-                        .lerp(
-                          fx.to,
-                          clamp01(
-                            (missileU - CAPTURE_AIR_MISSILE_ARC_SPLIT) /
-                              CAPTURE_AIR_MISSILE_DROP_PORTION +
-                              0.06
-                          )
-                        );
-                if (missileU >= CAPTURE_AIR_MISSILE_ARC_SPLIT) {
-                  missileNext.x = missilePos.x;
-                  missileNext.z = missilePos.z;
-                }
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                missile.root.visible = true;
-                missile.root.position.copy(
-                  constrainInsideBoardPerimeter(missilePos)
-                );
-                missile.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
-              });
-              if (!anyMissileVisible && fx.t >= missileImpactTime) {
-                heliMissiles.forEach((missile) => {
-                  missile.root.visible = false;
-                });
-                if (!fx.hasExploded) {
-                  fx.hasExploded = true;
-                  launchExplosion(fx.to);
-                }
-              }
-              if (heliTimelineU >= 1) {
-                if (fx.sourceUnit) {
-                  returnParkedAirUnit(fx.sourceUnit);
-                } else {
-                  captureFxGroup.remove(fx.helicopterFx.root);
-                }
-                heliMissiles.forEach((missile) => {
-                  captureFxGroup.remove(missile.root);
-                });
-                activeCaptureFx.splice(i, 1);
-              }
-            } else if (fx.type === 'javelin') {
-              const liveLaunchPos = fx.launchFromLivePiece
-                ? getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0)
-                : fx.sourceUnit?.homePosition?.clone?.() ||
-                  getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-              const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
-              fx.launchPos.copy(liveLaunchPos);
-              fx.to.copy(targetPos);
-              const impactTime =
-                CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-              if (fx.t < CAPTURE_GROUND_FIRE_TIME) {
-                const launchStart = fx.strikeLaunchPos || liveLaunchPos;
-                const liftU = smoothEase(
-                  fx.t / Math.max(0.001, CAPTURE_GROUND_FIRE_TIME)
-                );
-                const liftPos = launchStart.clone();
-                liftPos.y += CAPTURE_VERTICAL_STRIKE_ALTITUDE * liftU;
-                fx.missileFx.root.visible = true;
-                fx.missileFx.root.position.copy(liftPos);
-                captureDir.set(0, 1, 0);
-                fx.missileFx.root.quaternion.setFromUnitVectors(
-                  FORWARD,
-                  captureDir
-                );
-              } else if (fx.t < impactTime) {
-                if (!fx.strikeLaunchPos) {
-                  fx.strikeLaunchPos = liveLaunchPos.clone();
-                }
-                if (!fx.strikeTargetPos) {
-                  fx.strikeTargetPos = targetPos.clone();
-                } else {
-                  fx.strikeTargetPos.copy(targetPos);
-                }
-                const mu = smoothEase(
-                  (fx.t - CAPTURE_GROUND_FIRE_TIME) / CAPTURE_GROUND_TRAVEL_TIME
-                );
-                const strikeFrom = fx.strikeLaunchPos;
-                const strikeTo = fx.strikeTargetPos;
-                const { pos: missilePos, next: missileNext } =
-                  fx.strictPrecision
-                    ? getCapturePrecisionVerticalStrikePose({
-                        launchPos: strikeFrom,
-                        targetPos: strikeTo,
-                        progress: mu,
-                        strikeAltitude: CAPTURE_VERTICAL_STRIKE_ALTITUDE
-                      })
-                    : getCaptureDirectStrikePose({
-                        launchPos: strikeFrom,
-                        targetPos: strikeTo,
-                        progress: mu,
-                        altitude: CAPTURE_VERTICAL_STRIKE_ALTITUDE,
-                        verticalCrash: Boolean(fx.verticalStrike)
-                      });
-
-                fx.missileFx.root.visible = true;
-                fx.missileFx.root.position.copy(missilePos);
-                if (fx.missileFx.rotor) {
-                  fx.missileFx.rotor.rotation.x += dt * 48;
-                }
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                fx.missileFx.root.quaternion.setFromUnitVectors(
-                  FORWARD,
-                  captureDir
-                );
-                fx.missileFx.trail?.forEach((puff, idx) => {
-                  puff.position.set(
-                    -0.55 - idx * 0.16,
-                    Math.sin(fx.t * 8.2 + idx) * 0.02,
-                    0
-                  );
-                  const s =
-                    0.85 + idx * 0.16 + ((fx.t * 1.55 + idx * 0.18) % 1) * 0.52;
-                  puff.scale.setScalar(s);
-                });
-              } else if (fx.reloading) {
+            } else if (fx.reloading) {
+              fx.missileFx.root.visible = true;
+              const parkedPos = fx.strikeLaunchPos || liveLaunchPos;
+              fx.missileFx.root.position.copy(parkedPos);
+            } else {
+              fx.missileFx.root.visible = false;
+            }
+            if (fx.t >= impactTime) {
+              if (!fx.hasExploded) {
+                fx.hasExploded = true;
+                launchExplosion(targetPos);
+                fx.reloading = true;
+                fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
+                fx.missileFx.root.position.copy(fx.strikeLaunchPos || liveLaunchPos);
                 fx.missileFx.root.visible = true;
                 const parkedPos = fx.strikeLaunchPos || liveLaunchPos;
-                fx.missileFx.root.position.copy(parkedPos);
-              } else {
+                fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, new THREE.Vector3(-Math.sign(parkedPos.x || 1), 0, 0));
+              } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
                 fx.missileFx.root.visible = false;
-              }
-              if (fx.t >= impactTime) {
-                if (!fx.hasExploded) {
-                  fx.hasExploded = true;
-                  launchExplosion(targetPos);
-                  fx.reloading = true;
-                  fx.reloadEndsAt = fx.t + CAPTURE_RELOAD_SHOW_TIME;
-                  fx.missileFx.root.position.copy(
-                    fx.strikeLaunchPos || liveLaunchPos
-                  );
-                  fx.missileFx.root.visible = true;
-                  const parkedPos = fx.strikeLaunchPos || liveLaunchPos;
-                  fx.missileFx.root.quaternion.setFromUnitVectors(
-                    FORWARD,
-                    new THREE.Vector3(-Math.sign(parkedPos.x || 1), 0, 0)
-                  );
-                } else if (fx.reloading && fx.t >= fx.reloadEndsAt) {
-                  fx.missileFx.root.visible = false;
-                  fx.missileFx.root.position.copy(
-                    fx.strikeLaunchPos || liveLaunchPos
-                  );
-                  captureFxGroup.remove(fx.missileFx.root);
-                  activeCaptureFx.splice(i, 1);
-                }
-              }
-            } else if (fx.type === 'missile') {
-              const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
-              fx.to.copy(targetPos);
-              const { pos: missilePos, next: missileNext } =
-                getCaptureDirectStrikePose({
-                  launchPos: fx.from,
-                  targetPos,
-                  progress: u,
-                  altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.74
-                });
-              fx.missileFx.root.position.copy(missilePos);
-              captureDir.copy(missileNext).sub(missilePos).normalize();
-              fx.missileFx.root.quaternion.setFromUnitVectors(
-                FORWARD,
-                captureDir
-              );
-              fx.missileFx.trail?.forEach((puff, idx) => {
-                puff.position.set(
-                  -0.5 - idx * 0.14,
-                  Math.sin(fx.t * 10 + idx) * 0.015,
-                  0
-                );
-              });
-              if (u >= 1) {
-                launchExplosion(targetPos);
+                fx.missileFx.root.position.copy(fx.strikeLaunchPos || liveLaunchPos);
                 captureFxGroup.remove(fx.missileFx.root);
                 activeCaptureFx.splice(i, 1);
               }
-            } else if (fx.type === 'explosion') {
-              const lifeSec = fx.t;
-              const fireLife = clamp01(1 - lifeSec / 0.88);
-              const smokeLife = clamp01(
-                1 - lifeSec / LUDO_CAPTURE_EXPLOSION_TIME
+            }
+          } else if (fx.type === 'missile') {
+            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            fx.to.copy(targetPos);
+            const { pos: missilePos, next: missileNext } = getCaptureDirectStrikePose({
+              launchPos: fx.from,
+              targetPos,
+              progress: u,
+              altitude: CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 0.74
+            });
+            fx.missileFx.root.position.copy(missilePos);
+            captureDir.copy(missileNext).sub(missilePos).normalize();
+            fx.missileFx.root.quaternion.setFromUnitVectors(FORWARD, captureDir);
+            fx.missileFx.trail?.forEach((puff, idx) => {
+              puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.015, 0);
+            });
+            if (u >= 1) {
+              launchExplosion(targetPos);
+              captureFxGroup.remove(fx.missileFx.root);
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'explosion') {
+            const lifeSec = fx.t;
+            const fireLife = clamp01(1 - lifeSec / 0.88);
+            const smokeLife = clamp01(1 - lifeSec / LUDO_CAPTURE_EXPLOSION_TIME);
+            const fireGrow = 0.72 + lifeSec * 1.55;
+            const smokeGrow = 0.72 + lifeSec * 0.88;
+            fx.explosion.flash.scale.setScalar(0.44 + lifeSec * 1.15);
+            fx.explosion.flash.material.opacity = fireLife;
+            fx.explosion.fire.forEach((mesh, idx) => {
+              const angle = lifeSec * 5 + idx * 1.35;
+              mesh.position.set(
+                Math.cos(angle) * (0.06 + lifeSec * 0.14),
+                0.11 + lifeSec * 0.24 + idx * 0.03,
+                Math.sin(angle) * (0.06 + lifeSec * 0.13)
               );
-              const fireGrow = 0.72 + lifeSec * 1.55;
-              const smokeGrow = 0.72 + lifeSec * 0.88;
-              fx.explosion.flash.scale.setScalar(0.44 + lifeSec * 1.15);
-              fx.explosion.flash.material.opacity = fireLife;
-              fx.explosion.fire.forEach((mesh, idx) => {
-                const angle = lifeSec * 5 + idx * 1.35;
-                mesh.position.set(
-                  Math.cos(angle) * (0.06 + lifeSec * 0.14),
-                  0.11 + lifeSec * 0.24 + idx * 0.03,
-                  Math.sin(angle) * (0.06 + lifeSec * 0.13)
-                );
-                mesh.scale.setScalar(fireGrow * (0.78 + idx * 0.13));
-                mesh.material.opacity = fireLife * (0.98 - idx * 0.08);
-              });
-              fx.explosion.smoke?.forEach((mesh, idx) => {
-                const angle = idx * 1.1 + lifeSec * 1.8;
-                mesh.position.set(
-                  Math.cos(angle) * (0.06 + idx * 0.024),
-                  0.12 + lifeSec * (0.16 + idx * 0.036),
-                  Math.sin(angle) * (0.06 + idx * 0.024)
-                );
-                mesh.scale.setScalar(smokeGrow * (0.66 + idx * 0.12));
-                mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
-              });
-              if (fx.t >= LUDO_CAPTURE_EXPLOSION_TIME) {
-                captureFxGroup.remove(fx.explosion.root);
-                activeCaptureFx.splice(i, 1);
-              }
+              mesh.scale.setScalar(fireGrow * (0.78 + idx * 0.13));
+              mesh.material.opacity = fireLife * (0.98 - idx * 0.08);
+            });
+            fx.explosion.smoke?.forEach((mesh, idx) => {
+              const angle = idx * 1.1 + lifeSec * 1.8;
+              mesh.position.set(
+                Math.cos(angle) * (0.06 + idx * 0.024),
+                0.12 + lifeSec * (0.16 + idx * 0.036),
+                Math.sin(angle) * (0.06 + idx * 0.024)
+              );
+              mesh.scale.setScalar(smokeGrow * (0.66 + idx * 0.12));
+              mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
+            });
+            if (fx.t >= LUDO_CAPTURE_EXPLOSION_TIME) {
+              captureFxGroup.remove(fx.explosion.root);
+              activeCaptureFx.splice(i, 1);
             }
           }
         }
-
-        if (
-          moveHighlightMesh?.parent &&
-          performance.now() <= moveHighlightEndMs
-        ) {
-          const pulse = 0.72 + Math.sin(now * 0.012) * 0.2;
-          moveHighlight.material.opacity = pulse;
-          moveHighlight.position.copy(moveHighlightMesh.position);
-          moveHighlight.position.y = Math.max(
-            currentPieceYOffset + HIGHLIGHT_VERTICAL_OFFSET * 0.7,
-            moveHighlightMesh.position.y - PIECE_SELECTION_LIFT * 0.15
-          );
-          moveHighlight.visible = true;
-        } else {
-          moveHighlight.visible = false;
-        }
-
-        controls?.update();
-        const targetInterval =
-          renderSettingsRef.current.targetFrameIntervalMs ||
-          targetFrameIntervalMs;
-        if (now - lastRender >= targetInterval) {
-          renderer.render(scene, camera);
-          lastRender = now;
-        }
-        rafRef.current = requestAnimationFrame(step);
-      };
-      step();
-
-      // Resize
-      onResize = () => {
-        fit();
-      };
-      window.addEventListener('resize', onResize);
-
-      // Start timer for the human player
-      startTimer(true);
-      if (shouldTriggerAiMove(true)) {
-        setTimeout(aiMove, 220);
       }
+
+      if (moveHighlightMesh?.parent && performance.now() <= moveHighlightEndMs) {
+        const pulse = 0.72 + Math.sin(now * 0.012) * 0.2;
+        moveHighlight.material.opacity = pulse;
+        moveHighlight.position.copy(moveHighlightMesh.position);
+        moveHighlight.position.y = Math.max(
+          currentPieceYOffset + HIGHLIGHT_VERTICAL_OFFSET * 0.7,
+          moveHighlightMesh.position.y - PIECE_SELECTION_LIFT * 0.15
+        );
+        moveHighlight.visible = true;
+      } else {
+        moveHighlight.visible = false;
+      }
+
+      controls?.update();
+      const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
+      if (now - lastRender >= targetInterval) {
+        renderer.render(scene, camera);
+        lastRender = now;
+      }
+      rafRef.current = requestAnimationFrame(step);
     };
+    step();
+
+    // Resize
+    onResize = () => {
+      fit();
+    };
+    window.addEventListener('resize', onResize);
+
+    // Start timer for the human player
+    startTimer(true);
+    if (shouldTriggerAiMove(true)) {
+      setTimeout(aiMove, 220);
+    }
+  };
 
     setup().catch((error) => {
       console.error('Chess Battle Royal: scene setup failed', error);
@@ -15340,23 +12483,18 @@ function Chess3D({
   const chatGiftPanelClass =
     'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
   const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
-  const chatGiftTitleClass =
-    'text-sm font-semibold tracking-[0.04em] text-white';
+  const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
   const chatGiftCloseButtonClass =
     'flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 hover:bg-white/20';
   const chatGiftOptionClass =
     'text-[11px] font-semibold border border-white/15 rounded-[10px] px-2 py-1 bg-[#0f172a]/60 text-white/85';
-  const chatGiftOptionActiveClass =
-    'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
+  const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
   const chatGiftActionButtonClass =
     'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
   const playerPhotoUrl = avatar || '/assets/icons/profile.svg';
 
   return (
-    <div
-      ref={wrapRef}
-      className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none"
-    >
+    <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
@@ -15366,25 +12504,19 @@ function Chess3D({
             aria-label={configOpen ? 'Close game menu' : 'Open game menu'}
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            <span className="text-base leading-none" aria-hidden="true">
-              ☰
-            </span>
+            <span className="text-base leading-none" aria-hidden="true">☰</span>
             <span className="leading-none">Menu</span>
           </button>
           {onlineStatus !== 'offline' && (
             <div className="pointer-events-none rounded border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/90 shadow-lg backdrop-blur">
-              <div className="font-semibold uppercase tracking-wide text-[10px]">
-                Online Match
-              </div>
+              <div className="font-semibold uppercase tracking-wide text-[10px]">Online Match</div>
               <div className="text-emerald-50/80">
                 {onlineStatus === 'in-game'
                   ? `Synced${opponent ? ` vs ${avatarToName(opponent.avatar) || opponent.name || opponent.id}` : ''}`
                   : `Status: ${onlineStatus}`}
               </div>
               {tableId && (
-                <div className="text-[10px] text-emerald-50/70">
-                  Table {tableId.slice(0, 8)}
-                </div>
+                <div className="text-[10px] text-emerald-50/70">Table {tableId.slice(0, 8)}</div>
               )}
             </div>
           )}
@@ -15408,9 +12540,7 @@ function Chess3D({
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
               className={`icon-only-button flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 focus:outline-none ${
-                canReplay
-                  ? 'hover:text-white'
-                  : 'cursor-not-allowed text-white/40'
+                canReplay ? 'hover:text-white' : 'cursor-not-allowed text-white/40'
               }`}
             >
               <svg
@@ -15432,9 +12562,7 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() =>
-                setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))
-              }
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
               {viewMode === '3d' ? '2D' : '3D'}
@@ -15442,34 +12570,21 @@ function Chess3D({
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
-                    Chess Settings
-                  </p>
-                  <p className="mt-1 text-[0.7rem] text-white/70">
-                    Personalize the chairs and table finish.
-                  </p>
-                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
+                    <p className="mt-1 text-[0.7rem] text-white/70">
+                      Personalize the chairs and table finish.
+                    </p>
+                  </div>
                 <button
                   type="button"
                   onClick={() => setConfigOpen(false)}
                   className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   aria-label="Close settings"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    className="h-4 w-4"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m6 6 12 12M18 6 6 18"
-                    />
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
                   </svg>
                 </button>
               </div>
@@ -15489,20 +12604,14 @@ function Chess3D({
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
                     checked={showHighlights}
-                    onChange={(event) =>
-                      setShowHighlights(event.target.checked)
-                    }
+                    onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                        Personalize Arena
-                      </p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Table cloth, chairs, and table details.
-                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
                     </div>
                     <button
                       type="button"
@@ -15539,18 +12648,18 @@ function Chess3D({
                         </p>
                         <div className="grid grid-cols-2 gap-2">
                           {activeCustomizationSection.options.map((option) => {
-                            const selected =
-                              appearance[activeCustomizationSection.key] ===
-                              option.idx;
+                            const selected = appearance[activeCustomizationSection.key] === option.idx;
                             return (
                               <button
                                 key={option.id}
                                 type="button"
                                 onClick={() =>
-                                  setAppearance((prev) => ({
-                                    ...prev,
-                                    [activeCustomizationSection.key]: option.idx
-                                  }))
+                                  setAppearance((prev) =>
+                                    ({
+                                      ...prev,
+                                      [activeCustomizationSection.key]: option.idx
+                                    })
+                                  )
                                 }
                                 aria-pressed={selected}
                                 className={`flex flex-col items-center rounded-2xl border p-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
@@ -15559,10 +12668,7 @@ function Chess3D({
                                     : 'border-white/10 bg-white/5 hover:border-white/20'
                                 }`}
                               >
-                                {renderCustomizationPreview(
-                                  activeCustomizationSection.key,
-                                  option
-                                )}
+                                {renderCustomizationPreview(activeCustomizationSection.key, option)}
                                 <span className="mt-1 text-center text-[0.6rem] font-semibold text-gray-100">
                                   {option.label}
                                 </span>
@@ -15575,9 +12681,7 @@ function Chess3D({
                   </div>
                 </div>
                 <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
-                    Quick look swaps
-                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Quick look swaps</p>
                   <div className="space-y-2">
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
@@ -15606,15 +12710,11 @@ function Chess3D({
                               ) : (
                                 <span
                                   className="h-full w-full"
-                                  style={{
-                                    backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}`
-                                  }}
+                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">
-                              {color.label}
-                            </span>
+                            <span className="text-center leading-tight">{color.label}</span>
                           </button>
                         ))}
                       </div>
@@ -15646,15 +12746,11 @@ function Chess3D({
                               ) : (
                                 <span
                                   className="h-full w-full"
-                                  style={{
-                                    backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}`
-                                  }}
+                                  style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">
-                              {color.label}
-                            </span>
+                            <span className="text-center leading-tight">{color.label}</span>
                           </button>
                         ))}
                       </div>
@@ -15685,9 +12781,7 @@ function Chess3D({
                                 <span className="h-full w-full bg-white/20" />
                               )}
                             </span>
-                            <span className="text-center leading-tight">
-                              {preset.label}
-                            </span>
+                            <span className="text-center leading-tight">{preset.label}</span>
                           </button>
                         ))}
                       </div>
@@ -15727,9 +12821,7 @@ function Chess3D({
                                 />
                               )}
                             </span>
-                            <span className="text-center leading-tight">
-                              {theme.name}
-                            </span>
+                            <span className="text-center leading-tight">{theme.name}</span>
                           </button>
                         ))}
                       </div>
@@ -15738,12 +12830,8 @@ function Chess3D({
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                      Graphics
-                    </p>
-                    <p className="mt-1 text-[0.7rem] text-white/60">
-                      Match the Murlan Royale quality presets.
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
                   </div>
                   <div className="mt-2 grid gap-2">
                     {GRAPHICS_OPTIONS.map((option) => {
@@ -15765,9 +12853,7 @@ function Chess3D({
                               {option.label}
                             </span>
                             <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                              {option.resolution
-                                ? `${option.resolution} • ${option.fps} FPS`
-                                : `${option.fps} FPS`}
+                              {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
                             </span>
                           </span>
                           {option.description ? (
@@ -15781,9 +12867,7 @@ function Chess3D({
                   </div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
-                    Commentary
-                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
                   <div className="mt-2 grid gap-2">
                     {CHESS_BATTLE_COMMENTARY_PRESETS.map((preset) => {
                       const active = preset.id === commentaryPresetId;
@@ -15801,9 +12885,7 @@ function Chess3D({
                           } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
-                              {preset.label}
-                            </span>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
                             {active && (
                               <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
                                 Active
@@ -15877,8 +12959,7 @@ function Chess3D({
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
-            const anchor =
-              viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
+            const anchor = viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
@@ -15896,9 +12977,7 @@ function Chess3D({
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
-            const avatarSize = anchor
-              ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2)
-              : 1;
+            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
             return (
               <div
                 key={`chess-seat-${player.index}`}
@@ -15935,11 +13014,7 @@ function Chess3D({
                 Checkmate Winner
               </div>
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-2 border-amber-300/80 bg-black/55 shadow-[0_0_34px_rgba(251,191,36,0.55)]">
-                <AvatarImage
-                  src={winnerPlayer.photoUrl}
-                  alt={winnerPlayer.name}
-                  className="h-20 w-20 rounded-full object-cover"
-                />
+                <AvatarImage src={winnerPlayer.photoUrl} alt={winnerPlayer.name} className="h-20 w-20 rounded-full object-cover" />
               </div>
               <div className="mt-3 rounded-full border border-amber-300/70 bg-amber-400/18 px-4 py-1 text-sm font-extrabold uppercase tracking-[0.2em] text-amber-100">
                 {winnerPlayer.name} Wins
@@ -15967,11 +13042,7 @@ function Chess3D({
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble chess-battle-chat-bubble">
           <span>{bubble.text}</span>
-          <img
-            src={bubble.photoUrl}
-            alt="avatar"
-            className="w-5 h-5 rounded-full"
-          />
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
       ))}
       <div className="pointer-events-auto">
@@ -16009,10 +13080,7 @@ function Chess3D({
               audio.play().catch(() => {});
             }
             setTimeout(
-              () =>
-                setChatBubbles((bubbles) =>
-                  bubbles.filter((bubble) => bubble.id !== id)
-                ),
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
               3000
             );
           }}
@@ -16043,9 +13111,7 @@ function Chess3D({
           sendButtonClassName={chatGiftActionButtonClass}
           noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
           onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(
-              `[data-player-index="${from}"]`
-            );
+            const start = document.querySelector(`[data-player-index="${from}"]`);
             const end = document.querySelector(`[data-player-index="${to}"]`);
             if (!start || !end) return;
             const s = start.getBoundingClientRect();
@@ -16053,10 +13119,7 @@ function Chess3D({
             const cx = window.innerWidth / 2;
             const cy = window.innerHeight / 2;
             let icon;
-            if (
-              typeof gift.icon === 'string' &&
-              gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
-            ) {
+            if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
               icon = document.createElement('img');
               icon.src = gift.icon;
               icon.className = 'w-5 h-5';
@@ -16107,18 +13170,11 @@ function Chess3D({
             }
             const animation = icon.animate(
               [
-                {
-                  transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`
-                },
-                {
-                  transform: `translate(${cx}px, ${cy}px) scale(3)`,
-                  offset: 0.5
-                },
-                {
-                  transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)`
-                }
+                { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
               ],
-              { duration: 3500, easing: 'linear' }
+              { duration: 3500, easing: 'linear' },
             );
             animation.onfinish = () => icon.remove();
           }}
@@ -16148,18 +13204,17 @@ export default function ChessBattleRoyal() {
   const flagParam = params.get('flag') || params.get('playerFlag');
   const initialFlag =
     flagParam && FLAG_EMOJIS.includes(flagParam) ? flagParam : '';
-  const aiFlagParam =
-    params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
+  const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
   const initialSide =
     params.get('side') === 'black'
       ? 'black'
       : params.get('side') === 'white'
-        ? 'white'
-        : preferredSideParam === 'black'
-          ? 'black'
-          : 'white';
+      ? 'white'
+      : preferredSideParam === 'black'
+      ? 'black'
+      : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =
