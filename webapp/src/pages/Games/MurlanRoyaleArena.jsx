@@ -3872,11 +3872,9 @@ export default function MurlanRoyaleArena({ search }) {
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
         let handDealDelay = isNewHandCard ? (cardIdx * state.players.length + idx) * DEAL_CARD_STEP_DELAY_MS : 0;
         if (isNewHandCard && !immediate && three.deckAnchor) {
-          const shuffleSpreadX = (Math.random() - 0.5) * CARD_W * 0.34;
-          const shuffleSpreadZ = (Math.random() - 0.5) * CARD_H * 0.34;
-          const shuffleYaw = (Math.random() - 0.5) * THREE.MathUtils.degToRad(8);
+          const shuffleSpreadX = (cardIdNoise(card.id, 11) - 0.5) * CARD_W * 0.22;
+          const shuffleSpreadZ = (cardIdNoise(card.id, 29) - 0.5) * CARD_H * 0.22;
           mesh.position.copy(three.deckAnchor).add(new THREE.Vector3(shuffleSpreadX, 0, shuffleSpreadZ));
-          mesh.rotation.y = shuffleYaw;
           if (isInitialDealAnimation) {
             handDealDelay += DEAL_SHUFFLE_LEAD_IN_MS;
           }

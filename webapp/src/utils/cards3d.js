@@ -431,8 +431,8 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
-  const plateWidth = w * 0.96;
-  const plateHeight = h * 0.48;
+  const plateWidth = w * 0.92;
+  const plateHeight = h * 0.38;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
@@ -448,9 +448,9 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 1.02;
-    // Restore larger back logo sizing for clearer visibility on mobile portrait screens.
-    const logoBoxHeight = h * 1.02;
+    const logoBoxWidth = w * 0.98;
+    // Make the back logo appear ~2x larger while still fitting inside the frame.
+    const logoBoxHeight = h * 0.92;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
