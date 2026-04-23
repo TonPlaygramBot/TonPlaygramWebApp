@@ -275,7 +275,7 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.08;
+const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.14;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -285,11 +285,11 @@ const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  fighter: TOKEN_HEIGHT * 2.28,
-  helicopter: TOKEN_HEIGHT * 2.36,
-  drone: TOKEN_HEIGHT * 2.2,
-  supportTruck: TOKEN_HEIGHT * 2.32,
-  javelin: TOKEN_HEIGHT * 2.26
+  fighter: TOKEN_HEIGHT * 2.04,
+  helicopter: TOKEN_HEIGHT * 2.12,
+  drone: TOKEN_HEIGHT * 1.96,
+  supportTruck: TOKEN_HEIGHT * 2.08,
+  javelin: TOKEN_HEIGHT * 2.02
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 1.92;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -310,12 +310,12 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.2, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.1, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 })
+  Object.freeze({ radial: -TILE_SIZE * 0.24, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.14, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.16, lateral: 0, y: 0 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.24;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.08;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.65;
 
