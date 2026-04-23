@@ -99,3 +99,68 @@ test(
     }
   }
 );
+
+test(
+  'checkers alias matchmaking ignores per-user token metadata',
+  { concurrency: false, timeout: 20000 },
+  async () => {
+    fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+    fs.writeFileSync(new URL('index.html', distDir), '');
+    const env = {
+      ...process.env,
+      PORT: '3211',
+      MONGO_URI: 'memory',
+      BOT_TOKEN: 'dummy',
+      API_AUTH_TOKEN: apiToken,
+      SKIP_WEBAPP_BUILD: '1',
+      SKIP_BOT_LAUNCH: '1'
+    };
+    const server = await startServer(env);
+    const s1 = io('http://localhost:3211', { auth: { token: apiToken } });
+    const s2 = io('http://localhost:3211', { auth: { token: apiToken } });
+
+    try {
+      await Promise.all([
+        new Promise((resolve) => s1.on('connect', resolve)),
+        new Promise((resolve) => s2.on('connect', resolve))
+      ]);
+
+      const register = (socket, playerId) =>
+        new Promise((resolve) => {
+          socket.emit('register', { playerId }, resolve);
+        });
+      await Promise.all([register(s1, 'checkers-token-a'), register(s2, 'checkers-token-b')]);
+
+      const seat = (socket, payload) =>
+        new Promise((resolve) => {
+          socket.emit('seatTable', payload, resolve);
+        });
+
+      const firstSeat = await seat(s1, {
+        accountId: 'checkers-token-a',
+        gameType: 'checkers',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'user-token-a'
+      });
+      const secondSeat = await seat(s2, {
+        accountId: 'checkers-token-b',
+        gameType: 'checkersbattleroyal',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'user-token-b'
+      });
+
+      assert.equal(firstSeat.success, true);
+      assert.equal(secondSeat.success, true);
+      assert.equal(secondSeat.tableId, firstSeat.tableId);
+      assert.equal(secondSeat.players.length, 2);
+    } finally {
+      s1.disconnect();
+      s2.disconnect();
+      server.kill();
+    }
+  }
+);
