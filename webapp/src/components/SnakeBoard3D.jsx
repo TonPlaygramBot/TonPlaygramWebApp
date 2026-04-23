@@ -237,7 +237,7 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
-// Keep parked weapons on the same front rail as player tokens (table edge near each seat).
+// Keep parked weapons on explicit side parking slots around the board.
 const TOP_SEAT_WEAPON_REST_RAIL_INSET = -TILE_SIZE * 0.08;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
 const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
@@ -274,8 +274,8 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.4;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.06;
+const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
+const WEAPON_PARKING_OUTWARD_OFFSET = -TILE_SIZE * 0.08;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
   0,
@@ -310,12 +310,14 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.08, lateral: 0, y: 0 })
+  Object.freeze({ radial: -TILE_SIZE * 0.2, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.1, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.12, lateral: 0, y: 0 })
 ]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = 0;
+const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.24;
+const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
+const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 0.65;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -440,22 +442,22 @@ const createHighlightColors = (boardTheme = {}) => ({
   ladder: toThreeColor(boardTheme.highlightLadder, DEFAULT_HIGHLIGHT_COLORS.ladder)
 });
 
-const LADDER_BASE_LIFT = TILE_SIZE * 0.32;
-const LADDER_ARCH_BASE = TILE_SIZE * 1.22;
+const LADDER_BASE_LIFT = TILE_SIZE * 0.12;
+const LADDER_ARCH_BASE = TILE_SIZE * 0.44;
 const LADDER_ARCH_SCALE = TILE_SIZE * 0.016;
 const LADDER_SWAY_BASE = TILE_SIZE * 0.2;
 const LADDER_SWAY_SCALE = TILE_SIZE * 0.009;
 const LADDER_INNER_LIFT_RATIO = 0.78;
 const LADDER_OUTER_LIFT_RATIO = 0.78;
-const LADDER_CLEARANCE = TILE_SIZE * 0.28;
-const SNAKE_BASE_LIFT = TILE_SIZE * 0.4;
-const SNAKE_ARCH_BASE = TILE_SIZE * 0.92;
+const LADDER_CLEARANCE = TILE_SIZE * 0.12;
+const SNAKE_BASE_LIFT = TILE_SIZE * 0.16;
+const SNAKE_ARCH_BASE = TILE_SIZE * 0.42;
 const SNAKE_ARCH_SCALE = TILE_SIZE * 0.01;
 const SNAKE_LATERAL_BASE = TILE_SIZE * 0.24;
 const SNAKE_LATERAL_SCALE = TILE_SIZE * 0.0064;
-const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.34;
-const SNAKE_NECK_LIFT_RATIO = 0.42;
-const SNAKE_TAIL_LIFT_RATIO = 0.36;
+const SNAKE_CURVE_CLEARANCE = TILE_SIZE * 0.16;
+const SNAKE_NECK_LIFT_RATIO = 0.34;
+const SNAKE_TAIL_LIFT_RATIO = 0.28;
 const CAPTURE_MISSILE_FLIGHT_MS = 620;
 const CAPTURE_EXPLOSION_MS = 560;
 const CAPTURE_TOKEN_ADVANCE_MS = 420;
@@ -3546,6 +3548,33 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
   return { railLocal, railHeightY, seatDirection, lateral };
 }
 
+function getSeatSideParkingLayout(board, seatIndex, targetGroup = null) {
+  const boardLookTarget = board?.boardLookTarget;
+  if (!boardLookTarget) return null;
+  const seatDirections = [
+    new THREE.Vector3(0, 0, 1), // 0 bottom
+    new THREE.Vector3(1, 0, 0), // 1 right
+    new THREE.Vector3(0, 0, -1), // 2 top
+    new THREE.Vector3(-1, 0, 0) // 3 left
+  ];
+  const seatDirection = seatDirections[seatIndex];
+  if (!seatDirection) return null;
+  const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
+  const sideBaseRadius = BOARD_RADIUS + TILE_SIZE * 1.02 + WEAPON_PARKING_SIDE_EXTRA_RADIUS;
+  const tableSurfaceY = Number.isFinite(board?.tableInfo?.surfaceY)
+    ? board.tableInfo.surfaceY
+    : (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR;
+  const world = boardLookTarget.clone().addScaledVector(seatDirection, sideBaseRadius);
+  world.y = tableSurfaceY + WEAPON_TABLE_SURFACE_Y_OFFSET;
+  const local = world.clone();
+  if (targetGroup?.parent) {
+    targetGroup.parent.worldToLocal(local);
+  } else if (board?.boardRoot) {
+    board.boardRoot.worldToLocal(local);
+  }
+  return { railLocal: local, seatDirection, lateral };
+}
+
 function updateTokens(
   boardTokensGroup,
   reserveTokensGroup,
@@ -3921,13 +3950,13 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     } else {
       rightBase.normalize();
     }
-    const railOffset = TILE_SIZE * 0.13;
-    const laneLift = laneConfig.lane * TILE_SIZE * 0.06;
-    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.035;
+    const railOffset = TILE_SIZE * 0.115;
+    const laneLift = laneConfig.lane * TILE_SIZE * 0.036;
+    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.028;
     const baseLift = LADDER_BASE_LIFT;
     const laneVector = rightBase.clone().multiplyScalar(laneSideOffset).addScaledVector(up, laneLift);
-    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.78);
-    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.78);
+    const startPoint = pullPointTowardCenter(A.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.48);
+    const endPoint = pullPointTowardCenter(B.clone().addScaledVector(up, baseLift).add(laneVector), TILE_EDGE_INSET * 0.48);
     const arcHeight = Math.max(
       LADDER_CLEARANCE,
       LADDER_ARCH_BASE + len * LADDER_ARCH_SCALE + laneConfig.lane * TILE_SIZE * 0.06
@@ -3965,7 +3994,7 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     railB.material.map.repeat.x = repeat;
     group.add(railA, railB);
 
-    const rungStep = TILE_SIZE * 0.55;
+    const rungStep = TILE_SIZE * 0.5;
     const rungCount = Math.max(4, Math.floor(len / rungStep));
     for (let i = 1; i < rungCount; i++) {
         const t = i / rungCount;
@@ -4042,16 +4071,16 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     } else {
       right.normalize();
     }
-    const laneLift = laneConfig.lane * TILE_SIZE * 0.06;
-    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.032;
+    const laneLift = laneConfig.lane * TILE_SIZE * 0.032;
+    const laneSideOffset = laneConfig.direction * laneConfig.lane * TILE_SIZE * 0.03;
     const laneVector = right.clone().multiplyScalar(laneSideOffset).add(new THREE.Vector3(0, laneLift, 0));
     const startPoint = pullPointTowardCenter(
       baseStart.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
-      TILE_EDGE_INSET * 0.74
+      TILE_EDGE_INSET * 0.46
     );
     const endPoint = pullPointTowardCenter(
       baseEnd.clone().add(new THREE.Vector3(0, SNAKE_BASE_LIFT, 0)).add(laneVector),
-      TILE_EDGE_INSET * 0.74
+      TILE_EDGE_INSET * 0.46
     );
     const pathLen = startPoint.distanceTo(endPoint);
     const arch = Math.max(SNAKE_CURVE_CLEARANCE, SNAKE_ARCH_BASE + pathLen * SNAKE_ARCH_SCALE);
@@ -4068,7 +4097,7 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const fullCurve = new THREE.CatmullRomCurve3([startPoint, controlA, controlB, controlC, endPoint]);
     fullCurve.curveType = 'centripetal';
 
-    const bodyRadius = TILE_SIZE * 0.072;
+    const bodyRadius = TILE_SIZE * 0.066;
     const mainCurve = sampleSubCurve(fullCurve, 0.03, 0.8, 18);
     const bodyMain = new THREE.Mesh(new THREE.TubeGeometry(mainCurve, 160, bodyRadius, 16, false), matBody.clone());
     const mainLen = startPoint.distanceTo(fullCurve.getPoint(0.78));
@@ -4097,11 +4126,11 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     const tB = fullCurve.getTangent(1).normalize();
 
     const headGroup = new THREE.Group();
-    const headR = bodyRadius * 1.15;
+    const headR = bodyRadius * 1.28;
     const headGeom = new THREE.SphereGeometry(headR, 20, 16);
     const head = new THREE.Mesh(headGeom, matHead);
     headGroup.add(head);
-    const hood = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.6, headR * 1.6, headR * 1.9, 20, 1, true), matHead);
+    const hood = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.72, headR * 1.72, headR * 2.1, 20, 1, true), matHead);
     hood.rotation.x = Math.PI / 2;
     hood.position.z = -headR;
     headGroup.add(hood);
@@ -4118,9 +4147,9 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
     headGroup.add(eyeL, eyeR);
     const tongue = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.05, headR * 0.05, headR * 2.1, 8, 1), matTongue);
     tongue.rotation.x = Math.PI / 2;
-    tongue.position.z = headR * 1.5;
+    tongue.position.z = headR * 1.75;
     headGroup.add(tongue);
-    const headPos = startPoint.clone().add(tA.clone().multiplyScalar(headR * 0.6));
+    const headPos = startPoint.clone().add(tA.clone().multiplyScalar(headR * 0.82));
     headGroup.position.copy(headPos);
     headGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tA.clone());
     group.add(headGroup);
@@ -4690,7 +4719,6 @@ function updateSeatWeaponDisplays(board, players = []) {
   if (!boardLookTarget) return;
   const keep = new Set();
   const fallbackOrder = ['drone', 'fighter', 'helicopter', 'supportTruck', 'javelin'];
-  const tableY = Number.isFinite(board?.tableInfo?.surfaceY) ? board.tableInfo.surfaceY : boardLookTarget.y;
   const playersBySeat = new Map();
   players.forEach((player, index) => {
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
@@ -4722,13 +4750,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.add(createSeatWeaponMesh(weaponType));
       holder.userData.weaponType = weaponType;
     }
-    const weaponInset = WEAPON_REST_RAIL_INSET_BY_SEAT[seatIndex];
-    const railLayout = getSeatRailLayout(
-      board,
-      seatIndex,
-      TILE_SIZE * 0.08,
-      Number.isFinite(weaponInset) ? weaponInset : null
-    );
+    const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
     if (railLayout) {
       const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
       const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
@@ -4748,7 +4770,6 @@ function updateSeatWeaponDisplays(board, players = []) {
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
       }
-      holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4762,7 +4783,7 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = tableY + WEAPON_TABLE_SURFACE_Y_OFFSET;
+      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
