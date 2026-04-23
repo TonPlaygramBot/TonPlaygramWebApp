@@ -448,9 +448,9 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 1.02;
-    // Restore larger back logo sizing for clearer visibility on mobile portrait screens.
-    const logoBoxHeight = h * 1.02;
+    const logoBoxWidth = w * 0.95;
+    // Slightly reduce logo size to improve card-back framing.
+    const logoBoxHeight = h * 0.95;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
