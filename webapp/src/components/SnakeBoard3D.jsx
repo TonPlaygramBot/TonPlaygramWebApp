@@ -327,6 +327,8 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
+const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 0.38;
+const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.14;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -360,7 +362,7 @@ const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.56;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
-const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.35;
+const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.7;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
@@ -371,10 +373,10 @@ const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.94,
+  backOffset: 1.86,
   forwardOffset: 0,
   heightOffset: 3.78,
-  targetLift: 0.016 * MODEL_SCALE
+  targetLift: 0
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,
@@ -3880,7 +3882,8 @@ function updateTokens(
               .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
               .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
           }
-          worldPos.y = railLayout.railHeightY + (portraitShift?.y ?? 0);
+          worldPos.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+          worldPos.y = railLayout.railHeightY + (portraitShift?.y ?? 0) + PARKING_VERTICAL_LIFT;
         }
       }
       if (!worldPos) {
@@ -4780,6 +4783,8 @@ function updateSeatWeaponDisplays(board, players = []) {
           .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
           .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
       }
+      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+      holder.position.y += PARKING_VERTICAL_LIFT;
     } else {
       const seatWorld = new THREE.Vector3();
       anchor.getWorldPosition(seatWorld);
@@ -4793,7 +4798,8 @@ function updateSeatWeaponDisplays(board, players = []) {
         .addScaledVector(seatDirection, radius)
         .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
       holder.position.copy(markerPos);
-      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR;
+      holder.position.addScaledVector(BOARD_FRONT_VECTOR, -PARKING_TOP_SCREEN_WORLD_SHIFT);
+      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
     holder.lookAt(boardLookTarget.x, holder.position.y, boardLookTarget.z);
     holder.rotation.x = 0;
@@ -5319,7 +5325,7 @@ export default function SnakeBoard3D({
           return;
         }
         const factor = isTopDown ? CAMERA_TOPDOWN_ZOOM_PINCH_FACTOR : CAMERA_3D_ZOOM_PINCH_FACTOR;
-        const bounds = isTopDown ? [0.85, 1.22] : [0.9, 1.12];
+        const bounds = isTopDown ? [0.82, 1.28] : [0.9, 1.12];
         const zoomScale = 1 - deltaDistance * factor;
         applyCameraZoomScale(clamp(zoomScale, bounds[0], bounds[1]));
       }
@@ -5708,7 +5714,7 @@ export default function SnakeBoard3D({
       slide.type === 'ladder'
         ? board.laddersGroup?.userData?.paths
         : board.snakesGroup?.userData?.paths;
-    const startBase = (board.indexToPosition.get(slide.from) || board.serpentineIndexToXZ(slide.from)).clone();
+    const startBase = token.position.clone();
     const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
     startBase.y = startBase.y ?? token.parent?.position?.y ?? 0;
     endBase.y = endBase.y ?? token.parent?.position?.y ?? 0;
