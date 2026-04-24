@@ -25987,20 +25987,18 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const strikeDuration = THREE.MathUtils.lerp(88, 124, p);
-        const holdDuration = THREE.MathUtils.lerp(28, 54, p);
-        const recoverDuration = THREE.MathUtils.lerp(72, 118, p);
+        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration,
-          holdDuration,
-          pullbackDuration: 0,
-          recoverDuration,
-          impactThreshold: THREE.MathUtils.lerp(0.7, 0.82, p),
+          strikeDuration: 110,
+          holdDuration: 45,
+          pullbackDuration,
+          recoverDuration: 0,
+          impactThreshold: 0.9,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -32740,11 +32738,7 @@ const shotPowerRef = useRef(0);
           : clampPower(powerRef.current, 0);
         onPowerRelease(powerRatio);
         const resetDurationMs = 160;
-        if (typeof slider.animateToMin === 'function') {
-          slider.animateToMin({ duration: resetDurationMs });
-        } else {
-          slider.set(slider.min, { animate: true });
-        }
+        slider.animateToMin({ duration: resetDurationMs });
       }
     });
     sliderInstanceRef.current = slider;

@@ -24,7 +24,6 @@ export class PowerSlider {
     this.onStart = onStart;
     this.onCommit = onCommit;
     this.locked = false;
-    this._returnAnimFrame = null;
 
     this.el = document.createElement('div');
     this.el.className = `ps ps-theme-${theme}`;
@@ -116,33 +115,6 @@ export class PowerSlider {
     if (typeof this.onChange === 'function') this.onChange(value);
   }
 
-  animateTo(v, { duration = 160 } = {}) {
-    this._cancelReturnAnimation();
-    const target = this._clamp(this._step(v));
-    const start = this.value;
-    if (!Number.isFinite(duration) || duration <= 0 || Math.abs(target - start) < 1e-6) {
-      this.set(target, { animate: true });
-      return;
-    }
-    const startedAt = performance.now();
-    const step = (now) => {
-      const t = Math.min(1, Math.max(0, (now - startedAt) / duration));
-      const eased = 1 - (1 - t) * (1 - t);
-      const next = start + (target - start) * eased;
-      this.set(next, { animate: true });
-      if (t >= 1) {
-        this._returnAnimFrame = null;
-        return;
-      }
-      this._returnAnimFrame = requestAnimationFrame(step);
-    };
-    this._returnAnimFrame = requestAnimationFrame(step);
-  }
-
-  animateToMin({ duration = 160 } = {}) {
-    this.animateTo(this.min, { duration });
-  }
-
   lock() {
     this.locked = true;
     this.el.classList.add('ps-locked');
@@ -158,7 +130,6 @@ export class PowerSlider {
   }
 
   destroy() {
-    this._cancelReturnAnimation();
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
@@ -234,7 +205,6 @@ export class PowerSlider {
   _pointerDown(e) {
     if (this.locked) return;
     e.preventDefault();
-    this._cancelReturnAnimation();
     this.dragging = true;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
@@ -268,8 +238,6 @@ export class PowerSlider {
   _wheel(e) {
     if (this.locked) return;
     e.preventDefault();
-    this._cancelReturnAnimation();
-    if (typeof this.onStart === 'function') this.onStart(this.value);
     const dir = e.deltaY > 0 ? 1 : -1;
     this.set(this.value + dir * this.step, { animate: true });
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
@@ -277,34 +245,18 @@ export class PowerSlider {
 
   _keyDown(e) {
     if (this.locked) return;
-    let started = false;
     let handled = false;
     let inc = e.shiftKey ? this.step * 5 : this.step;
     if (e.key === 'ArrowDown') {
-      started = true;
       this.set(this.value + inc);
       handled = true;
     } else if (e.key === 'ArrowUp') {
-      started = true;
       this.set(this.value - inc);
       handled = true;
     } else if (e.key === 'Enter') {
       if (typeof this.onCommit === 'function') this.onCommit(this.value);
       handled = true;
     }
-    if (handled) {
-      if (started) {
-        this._cancelReturnAnimation();
-        if (typeof this.onStart === 'function') this.onStart(this.value);
-      }
-      e.preventDefault();
-    }
-  }
-
-  _cancelReturnAnimation() {
-    if (this._returnAnimFrame != null) {
-      cancelAnimationFrame(this._returnAnimFrame);
-      this._returnAnimFrame = null;
-    }
+    if (handled) e.preventDefault();
   }
 }
