@@ -135,7 +135,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.61 * 0.94;
+const DICE_SIZE = TILE_SIZE * 0.61 * 0.86;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -276,30 +276,30 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.78;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.9;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.42,
-  TILE_SIZE * 0.42,
-  TILE_SIZE * 0.48,
-  TILE_SIZE * 0.42
+  TILE_SIZE * 0.52,
+  TILE_SIZE * 0.52,
+  TILE_SIZE * 0.58,
+  TILE_SIZE * 0.52
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   // Lift parked weapons higher so they sit at bishop-token visual height on portrait screens.
-  fighter: -TOKEN_HEIGHT * 0.15,
-  helicopter: -TOKEN_HEIGHT * 0.13,
-  drone: -TOKEN_HEIGHT * 0.16,
-  supportTruck: -TOKEN_HEIGHT * 0.14,
-  javelin: -TOKEN_HEIGHT * 0.15
+  fighter: -TOKEN_HEIGHT * 0.22,
+  helicopter: -TOKEN_HEIGHT * 0.2,
+  drone: -TOKEN_HEIGHT * 0.23,
+  supportTruck: -TOKEN_HEIGHT * 0.2,
+  javelin: -TOKEN_HEIGHT * 0.22
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.07,
-  TILE_SIZE * 0.06,
+  TILE_SIZE * 0.09,
   TILE_SIZE * 0.08,
-  TILE_SIZE * 0.06
+  TILE_SIZE * 0.1,
+  TILE_SIZE * 0.08
 ]);
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
@@ -312,10 +312,10 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 1.84, lateral: 0, y: TILE_SIZE * 0.88 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: -TILE_SIZE * 0.68, y: TILE_SIZE * 0.86 }),
-  Object.freeze({ radial: TILE_SIZE * 1.86, lateral: 0, y: TILE_SIZE * 0.92 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: TILE_SIZE * 0.68, y: TILE_SIZE * 0.86 })
+  Object.freeze({ radial: -TILE_SIZE * 1.96, lateral: 0, y: TILE_SIZE * 1.02 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.26, lateral: -TILE_SIZE * 0.76, y: TILE_SIZE * 1.0 }),
+  Object.freeze({ radial: TILE_SIZE * 1.98, lateral: 0, y: TILE_SIZE * 1.06 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.26, lateral: TILE_SIZE * 0.76, y: TILE_SIZE * 1.0 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -2372,7 +2372,14 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const spinSpeeds = diceArray.map(() => 0.26 + Math.random() * 0.14);
+  const spinVectors = diceArray.map(
+    () =>
+      new THREE.Vector3(
+        1.2 + Math.random() * 0.7,
+        1.35 + Math.random() * 0.65,
+        1.05 + Math.random() * 0.75
+      )
+  );
   const impactPhases = diceArray.map(() => 0.42 + Math.random() * 0.18);
   const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.85 + Math.random() * 0.55));
   const settleHeights = bounceHeights.map((height) => height * (0.35 + Math.random() * 0.3));
@@ -2438,7 +2445,11 @@ function createDiceRollAnimation(
           die.position.y = baseY + lift;
           const sway = Math.sin(local * Math.PI * 2.1 + swayOffsets[index]) * swayMagnitudes[index];
           die.position.addScaledVector(lateralVectors[index], sway);
-          die.rotateOnAxis(approachAxes[index], spinSpeeds[index] * 1.25);
+          const spinFactor = 1 - ease * 0.28;
+          die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+          die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+          die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+          die.rotateOnAxis(approachAxes[index], 0.08);
           die.rotateOnWorldAxis(WORLD_UP, yawSpeeds[index]);
         } else {
           const remaining = Math.max(1 - impactPhase, 1e-3);
@@ -2453,7 +2464,11 @@ function createDiceRollAnimation(
           if (retreatDirections[index].lengthSq() > 1e-6) {
             die.position.addScaledVector(retreatDirections[index], slide);
           }
-          die.rotateOnAxis(retreatAxes[index], spinSpeeds[index] * 0.6);
+          const spinFactor = 0.72 - ease * 0.32;
+          die.rotation.x += spinVectors[index].x * spinFactor * 0.14;
+          die.rotation.y += spinVectors[index].y * spinFactor * 0.14;
+          die.rotation.z += spinVectors[index].z * spinFactor * 0.14;
+          die.rotateOnAxis(retreatAxes[index], 0.04);
           die.rotateOnWorldAxis(WORLD_UP, postYawSpeeds[index]);
         }
       });
