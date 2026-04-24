@@ -25987,18 +25987,20 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
+        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
+        const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
+        const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
-          // Match the reference cue workflow exactly:
-          // drag = pull back, release = immediate forward strike.
+          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
+          // then release performs a single forward punch through the cue ball.
           motion: 'classic',
-          pullRatio: easeOutCubic(p),
+          pullRatio: p,
           pullSmoothing: 1,
-          strikeDuration: 110,
-          holdDuration: 45,
+          strikeDuration,
+          holdDuration,
           pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 0.86,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -26683,9 +26685,13 @@ const shotPowerRef = useRef(0);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
+          // Rebuilt stroke pullback: tie visible pull directly to slider power
+          // and the currently available room behind the cue ball.
+          const pullRange = THREE.MathUtils.clamp(
+            maxPull * 0.92,
+            CUE_PULL_MIN_VISUAL,
+            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
+          );
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
@@ -26730,9 +26736,9 @@ const shotPowerRef = useRef(0);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          // Start the release from the *currently visible* pulled cue position
-          // so slider release always pushes forward from what the player sees.
-          const releaseStartPos = cueStick.position.clone();
+          // Start the release exactly from the computed pull position so the
+          // cue always pushes forward from the same pulled depth the player set.
+          const releaseStartPos = buildCuePosition(visualPull);
           cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
