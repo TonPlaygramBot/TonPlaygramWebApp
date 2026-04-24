@@ -431,36 +431,39 @@ function drawLogoFrame(ctx, w, h, theme) {
   ctx.restore();
 
   ctx.save();
-  const plateWidth = w * 0.92;
-  const plateHeight = h * 0.38;
+  const plateWidth = w * 0.9;
+  const plateHeight = h * 0.34;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
-  plateGradient.addColorStop(0, 'rgba(8, 15, 35, 0.82)');
-  plateGradient.addColorStop(1, 'rgba(15, 23, 42, 0.7)');
+  plateGradient.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
+  plateGradient.addColorStop(1, 'rgba(15, 23, 42, 0.84)');
   ctx.fillStyle = plateGradient;
   roundRect(ctx, plateX, plateY, plateWidth, plateHeight, Math.min(w, h) * 0.04);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.44)';
   ctx.lineWidth = Math.max(4, Math.round(w * 0.0028));
   roundRect(ctx, plateX + 8, plateY + 8, plateWidth - 16, plateHeight - 16, Math.min(w, h) * 0.032);
   ctx.stroke();
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.92;
-    // Keep logo prominent but slightly smaller for better balance on card backs.
-    const logoBoxHeight = h * 0.86;
+    const logoBoxWidth = w * 0.94;
+    const logoBoxHeight = h * 0.9;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
+    ctx.shadowColor = 'rgba(255,255,255,0.32)';
+    ctx.shadowBlur = Math.max(10, Math.round(w * 0.02));
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
   } else {
-    ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
+    ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.92)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '700 48px "Inter", system-ui, sans-serif';
+    ctx.font = '700 60px "Inter", system-ui, sans-serif';
     ctx.fillText('TonPlaygram', w / 2, h / 2);
   }
 
