@@ -153,7 +153,7 @@ const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pas
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.62; // raise pawn javelin lane for clearer lift-and-drop motion
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE * 1.14; // drone flies just above pawn javelin
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep drone/truck long strike on the same altitude lane as pawn short missile
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -407,6 +407,9 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
+const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(8); // push forced 3D animation camera higher for clearer portrait framing
+const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.08; // pull the camera back slightly during forced 3D animation to widen board visibility
+const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's avatar lower so chair/animation view stays clear
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -8801,6 +8804,7 @@ function Chess3D({
         camera.position.clone().sub(boardLookTarget)
       );
       const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
+      const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
 
       const initialRadius = CAMERA_3D_MAX_RADIUS;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
@@ -8832,9 +8836,19 @@ function Chess3D({
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
+        const targetPhi = clamp(
+          restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        const targetRadius = clamp(
+          CAMERA_3D_MAX_RADIUS * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          CAMERA_3D_MIN_RADIUS,
+          CAMERA_3D_MAX_RADIUS
+        );
         const target = new THREE.Spherical(
-          clamp(CAMERA_3D_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
-          clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+          targetRadius,
+          targetPhi,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
         animateCameraTo(target, 420);
@@ -12252,7 +12266,11 @@ function Chess3D({
             const releaseEnd = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
             const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
             const missileImpactTime = getAirMissileImpactTime(CAPTURE_JET_TOTAL);
-            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
+            const topStrikeHeight = Math.max(
+              tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL,
+              CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN,
+              CAPTURE_SHORT_STRIKE_ALTITUDE
+            );
             let anyMissileVisible = false;
             jetMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
@@ -12364,7 +12382,11 @@ function Chess3D({
             const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
             const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
             const missileImpactTime = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL);
-            const topStrikeHeight = Math.max(tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL, CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
+            const topStrikeHeight = Math.max(
+              tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL,
+              CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN,
+              CAPTURE_SHORT_STRIKE_ALTITUDE
+            );
             let anyMissileVisible = false;
             heliMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
@@ -13153,11 +13175,15 @@ function Chess3D({
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
+            const adjustedAnchorY =
+              anchor && player.index === 0 && viewMode === '3d'
+                ? clamp(anchor.y + CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET, -25, 125)
+                : anchor?.y;
             const positionStyle = anchor
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${adjustedAnchorY}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
