@@ -1763,7 +1763,7 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.168 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.092 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_ROLL_MS = 1680;
@@ -4100,13 +4100,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   addBoneRot(rig, rig.neck, -0.05, 0, 0, 1);
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
-  // Keep legs seated naturally on this rig: thighs slightly raised, knees bent downward, feet angled to floor.
-  addBoneRot(rig, rig.leftUpperLeg, 1.02, -0.05, -0.08, 1);
-  addBoneRot(rig, rig.leftLowerLeg, 1.18, 0.02, 0.02, 1);
-  addBoneRot(rig, rig.leftFoot, 0.16, 0.03, 0.01, 1);
-  addBoneRot(rig, rig.rightUpperLeg, 1.02, 0.05, 0.08, 1);
-  addBoneRot(rig, rig.rightLowerLeg, 1.18, -0.02, -0.02, 1);
-  addBoneRot(rig, rig.rightFoot, 0.16, -0.03, -0.01, 1);
+  // Force a more natural seated pose: thighs forward + shins down + feet touching floor.
+  addBoneRot(rig, rig.leftUpperLeg, 1.54, -0.04, -0.05, 1);
+  addBoneRot(rig, rig.leftLowerLeg, -1.28, 0.02, 0.02, 1);
+  addBoneRot(rig, rig.leftFoot, -0.12, 0.03, 0.01, 1);
+  addBoneRot(rig, rig.rightUpperLeg, 1.54, 0.04, 0.05, 1);
+  addBoneRot(rig, rig.rightLowerLeg, -1.28, -0.02, -0.02, 1);
+  addBoneRot(rig, rig.rightFoot, -0.12, -0.03, -0.01, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
