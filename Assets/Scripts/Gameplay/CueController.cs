@@ -42,6 +42,14 @@ namespace Aiming
         [Tooltip("Normalized strike progress where the hit is fired once.")]
         [Range(0.75f, 0.99f)] public float hitProgress = 0.88f;
 
+        [Header("Cue-to-ball transfer")]
+        [Tooltip("Derives extra shot power from cue forward speed as the cue stick pushes into the cue ball.")]
+        public bool useCueForwardSpeedTransfer = true;
+        [Tooltip("Cue forward speed (m/s) that maps to full normalized power transfer.")]
+        [Min(0.01f)] public float cueForwardSpeedForMaxPower = 3.2f;
+        [Tooltip("Blend amount for forward-speed-derived power. 1 means full transfer, 0 disables extra transfer.")]
+        [Range(0f, 1.5f)] public float cueForwardSpeedTransferWeight = 1f;
+
         [Header("Motion settle")]
         [Tooltip("Linear velocity threshold used to decide whether a ball is still moving.")]
         [Min(0f)] public float settleLinearVelocitySqr = 0.0004f;
@@ -77,6 +85,8 @@ namespace Aiming
         float _dynamicWobble;
         Vector3 _strikeDirection;
         Vector3 _tipBaseScale = Vector3.one;
+        float _lastCueDepthForSpeed;
+        float _peakCueForwardSpeed;
 
         void Awake()
         {
@@ -200,6 +210,8 @@ namespace Aiming
             _strikeElapsed = 0f;
             _didStrike = false;
             _shotState = ShotState.Striking;
+            _lastCueDepthForSpeed = _chargedCueDepth;
+            _peakCueForwardSpeed = 0f;
             TriggerShotBroadcastCamera();
         }
 
@@ -276,12 +288,14 @@ namespace Aiming
             _dynamicLift = -0.0035f * strikeEase;
             _dynamicWobble = Mathf.Sin(t * Mathf.PI) * 0.0014f;
             _currentCueDepth = Mathf.Lerp(idleTipGap + pull, contactTipGap - dynamicFollow, strikeEase);
+            TrackCueForwardSpeed();
 
             if (!_didStrike && t > hitT)
             {
                 _didStrike = true;
                 SquashTip();
-                ApplyStrikeImpulse(_strikeDirection, _latchedShotPower);
+                float transferredPower = EvaluateTransferredShotPower(_peakCueForwardSpeed);
+                ApplyStrikeImpulse(_strikeDirection, Mathf.Max(_latchedShotPower, transferredPower));
             }
 
             if (_strikeElapsed >= strikeTime + Mathf.Max(0f, strikeHoldDuration))
@@ -408,7 +422,30 @@ namespace Aiming
             _currentCueDepth = idleTipGap;
             _dynamicLift = 0f;
             _dynamicWobble = 0f;
+            _lastCueDepthForSpeed = 0f;
+            _peakCueForwardSpeed = 0f;
             ResetTipScale();
+        }
+
+        void TrackCueForwardSpeed()
+        {
+            float dt = Mathf.Max(Time.deltaTime, 0.0001f);
+            float forwardDistance = Mathf.Max(0f, _lastCueDepthForSpeed - _currentCueDepth);
+            float forwardSpeed = forwardDistance / dt;
+            _peakCueForwardSpeed = Mathf.Max(_peakCueForwardSpeed, forwardSpeed);
+            _lastCueDepthForSpeed = _currentCueDepth;
+        }
+
+        float EvaluateTransferredShotPower(float cueForwardSpeed)
+        {
+            if (!useCueForwardSpeedTransfer || cueForwardSpeedTransferWeight <= 0f)
+            {
+                return 0f;
+            }
+
+            float maxSpeed = Mathf.Max(0.01f, cueForwardSpeedForMaxPower);
+            float normalizedSpeedPower = Mathf.Clamp01(cueForwardSpeed / maxSpeed);
+            return Mathf.Clamp01(normalizedSpeedPower * cueForwardSpeedTransferWeight);
         }
 
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float maxChargePower)
