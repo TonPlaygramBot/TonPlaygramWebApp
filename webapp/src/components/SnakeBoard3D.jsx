@@ -153,7 +153,6 @@ const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
-const DICE_RESULT_HOLD_DURATION = 2000;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -421,21 +420,6 @@ const DICE_SEAT_ADJUSTMENTS = [
     }
   }
 ];
-// Dice parking/landing calibration for portrait mobile view:
-// - "blue" parking slots (player turn ready) stay on the wood rail near each seat.
-// - "purple" result slots land near each side of the board before handoff.
-const DICE_BLUE_SLOT_DISTANCE_BY_SEAT = Object.freeze([
-  BOARD_RADIUS + TILE_SIZE * 2.8, // bottom
-  BOARD_RADIUS + TILE_SIZE * 2.72, // right
-  BOARD_RADIUS + TILE_SIZE * 2.86, // top
-  BOARD_RADIUS + TILE_SIZE * 2.72 // left
-]);
-const DICE_PURPLE_SLOT_DISTANCE_BY_SEAT = Object.freeze([
-  BOARD_RADIUS + TILE_SIZE * 1.68, // bottom
-  BOARD_RADIUS + TILE_SIZE * 1.58, // right
-  BOARD_RADIUS + TILE_SIZE * 1.7, // top
-  BOARD_RADIUS + TILE_SIZE * 1.58 // left
-]);
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
@@ -2289,10 +2273,9 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
   const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
-  const baseStartDistance = DICE_BLUE_SLOT_DISTANCE_BY_SEAT[seatIndex] ?? (boardHalf + DICE_THROW_START_EXTRA);
+  const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
   const settleBaseDistance =
-    DICE_PURPLE_SLOT_DISTANCE_BY_SEAT[seatIndex] ??
-    (boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12);
+    boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12;
 
   const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
   const forwardAdjust = seatAdjust.forward ?? {};
@@ -2324,14 +2307,16 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.26;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.16;
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
 
-    const startDistance = startBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.2;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.06;
+    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
+    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
     const settleDistance = Math.max(
       bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.5) * DICE_SIZE * 0.06
+      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
     );
 
     const start = centerLocal
@@ -2350,8 +2335,9 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
     const base = centerLocal
       .clone()
-      .addScaledVector(awayFromBoard, settleDistance)
+      .addScaledVector(awayFromBoard, settleDistance + retreatExtra)
       .addScaledVector(lateral, offset + lateralJitter * 0.45);
+    base.addScaledVector(awayFromBoard, outwardJitter);
     base.y = diceBaseY;
     applyAxisOffsets(base, 'base');
 
@@ -4808,7 +4794,6 @@ export default function SnakeBoard3D({
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
   const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
-  const diceHandoffTimeoutRef = useRef(null);
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
   const diceTapCallbackRef = useRef(null);
@@ -5006,16 +4991,6 @@ export default function SnakeBoard3D({
       diceTapCallbackRef.current = null;
     };
   }, [onDiceTap]);
-
-  useEffect(
-    () => () => {
-      if (diceHandoffTimeoutRef.current) {
-        clearTimeout(diceHandoffTimeoutRef.current);
-        diceHandoffTimeoutRef.current = null;
-      }
-    },
-    []
-  );
 
   useEffect(() => {
     let active = true;
@@ -5751,10 +5726,6 @@ export default function SnakeBoard3D({
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
-      if (diceHandoffTimeoutRef.current) {
-        clearTimeout(diceHandoffTimeoutRef.current);
-        diceHandoffTimeoutRef.current = null;
-      }
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       removeAnimationsByType(animationsRef.current, 'diceHandoff');
@@ -5874,42 +5845,38 @@ export default function SnakeBoard3D({
         const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
         if (seatCount > 0) {
           const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn || 0));
-          if (diceHandoffTimeoutRef.current) clearTimeout(diceHandoffTimeoutRef.current);
-          diceHandoffTimeoutRef.current = setTimeout(() => {
-            const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
-            const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
-            if (handoffBases.length) {
-              removeAnimationsByType(animationsRef.current, 'diceHandoff');
-              const handoffAnimation = createDiceHandoffAnimation(active, {
-                basePositions: handoffBases,
-                baseY: board.diceBaseY ?? 0,
-                duration: TURN_CAMERA_TURN_IN_DURATION
-              });
-              if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-              const camera = cameraRef.current;
-              const controls = board?.controls;
-              if (camera && controls && cameraViewMode !== '2d') {
-                const focusState = computeTurnCameraFocusState(board, camera, seatIndex, players);
-                if (focusState) {
-                  removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-                  removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-                  const turnAnimation = createCameraTransitionAnimation(camera, controls, {
-                    toPosition: focusState.position,
-                    toTarget: focusState.target,
-                    durationIn: TURN_CAMERA_TURN_IN_DURATION,
-                    hold: 0,
-                    durationOut: 0,
-                    type: 'cameraTurnFocus',
-                    lockPosition: true,
-                    returnPosition: focusState.position,
-                    returnTarget: focusState.target
-                  });
-                  if (turnAnimation) animationsRef.current.push(turnAnimation);
-                }
+          const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
+          const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
+          if (handoffBases.length) {
+            removeAnimationsByType(animationsRef.current, 'diceHandoff');
+            const handoffAnimation = createDiceHandoffAnimation(active, {
+              basePositions: handoffBases,
+              baseY: board.diceBaseY ?? 0,
+              duration: TURN_CAMERA_TURN_IN_DURATION
+            });
+            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
+            const camera = cameraRef.current;
+            const controls = board?.controls;
+            if (camera && controls && cameraViewMode !== '2d') {
+              const focusState = computeTurnCameraFocusState(board, camera, seatIndex, players);
+              if (focusState) {
+                removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+                removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+                const turnAnimation = createCameraTransitionAnimation(camera, controls, {
+                  toPosition: focusState.position,
+                  toTarget: focusState.target,
+                  durationIn: TURN_CAMERA_TURN_IN_DURATION,
+                  hold: 0,
+                  durationOut: 0,
+                  type: 'cameraTurnFocus',
+                  lockPosition: true,
+                  returnPosition: focusState.position,
+                  returnTarget: focusState.target
+                });
+                if (turnAnimation) animationsRef.current.push(turnAnimation);
               }
             }
-            diceHandoffTimeoutRef.current = null;
-          }, DICE_RESULT_HOLD_DURATION);
+          }
         }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
