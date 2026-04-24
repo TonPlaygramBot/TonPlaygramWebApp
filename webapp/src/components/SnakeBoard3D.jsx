@@ -149,10 +149,11 @@ const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 120;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
+// Keep the pre-roll dice parked close to each player rail slot (blue marker in portrait).
+const DICE_THROW_START_EXTRA = TILE_SIZE * 1.38;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
-const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
+const DICE_RETREAT_EXTRA = DICE_SIZE * 0.28;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -261,19 +262,21 @@ const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.16;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
-const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
-const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, 1, -1]);
+// Portrait slot ordering calibrated to the marked reference:
+// token (yellow) = left/top lane, weapon (red) = right/bottom lane.
+const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, -1, 1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, 1, -1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
+  TILE_SIZE * 0.06,
   TILE_SIZE * 0.08,
-  TILE_SIZE * 0.08,
-  TILE_SIZE * 0.08,
+  TILE_SIZE * 0.06,
   TILE_SIZE * 0.08
 ]);
 const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  0,
-  0,
-  0,
-  0
+  TILE_SIZE * 0.02,
+  TILE_SIZE * 0.03,
+  TILE_SIZE * 0.02,
+  TILE_SIZE * 0.03
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 1.1;
@@ -305,17 +308,17 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.94, lateral: 0, y: TILE_SIZE * 0.1 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.8, lateral: 0, y: TILE_SIZE * 0.1 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.1, lateral: 0, y: TILE_SIZE * 0.04 }),
   // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.98, lateral: 0, y: TILE_SIZE * 0.12 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 })
+  Object.freeze({ radial: TILE_SIZE * 1.9, lateral: 0, y: TILE_SIZE * 0.12 }),
+  Object.freeze({ radial: -TILE_SIZE * 0.1, lateral: 0, y: TILE_SIZE * 0.04 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 2.28, lateral: 0, y: TILE_SIZE * 1.24 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: -TILE_SIZE * 0.92, y: TILE_SIZE * 1.2 }),
-  Object.freeze({ radial: TILE_SIZE * 2.34, lateral: 0, y: TILE_SIZE * 1.34 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: TILE_SIZE * 0.92, y: TILE_SIZE * 1.2 })
+  Object.freeze({ radial: -TILE_SIZE * 2.08, lateral: 0, y: TILE_SIZE * 1.18 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.42, lateral: -TILE_SIZE * 0.76, y: TILE_SIZE * 1.14 }),
+  Object.freeze({ radial: TILE_SIZE * 2.16, lateral: 0, y: TILE_SIZE * 1.28 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.42, lateral: TILE_SIZE * 0.76, y: TILE_SIZE * 1.14 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -393,30 +396,40 @@ const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 const DICE_SEAT_ADJUSTMENTS = [
   {
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      start: -TILE_SIZE * 0.38,
+      bounce: -TILE_SIZE * 0.22,
+      base: -TILE_SIZE * 0.3
     }
   },
   {
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      start: -TILE_SIZE * 0.3,
+      bounce: -TILE_SIZE * 0.16,
+      base: -TILE_SIZE * 0.25
+    },
+    side: {
+      start: TILE_SIZE * 0.02,
+      bounce: TILE_SIZE * 0.06,
+      base: TILE_SIZE * 0.04
     }
   },
   {
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      start: -TILE_SIZE * 0.36,
+      bounce: -TILE_SIZE * 0.2,
+      base: -TILE_SIZE * 0.28
     }
   },
   {
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      start: -TILE_SIZE * 0.3,
+      bounce: -TILE_SIZE * 0.16,
+      base: -TILE_SIZE * 0.25
+    },
+    side: {
+      start: -TILE_SIZE * 0.02,
+      bounce: -TILE_SIZE * 0.06,
+      base: -TILE_SIZE * 0.04
     }
   }
 ];
@@ -2275,7 +2288,7 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
   const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
   const settleBaseDistance =
-    boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12;
+    boardHalf + DICE_THROW_LANDING_MARGIN * 0.16 + DICE_RETREAT_EXTRA * 0.05;
 
   const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
   const forwardAdjust = seatAdjust.forward ?? {};
@@ -2315,8 +2328,11 @@ function computeDiceThrowLayout(board, seatIndex, count) {
     const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
     const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
     const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
+      boardHalf + DICE_SIZE * 0.5,
+      Math.min(
+        bounceDistance - DICE_SIZE * 0.18,
+        settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.22
+      )
     );
 
     const start = centerLocal
