@@ -93,6 +93,7 @@ import {
   smoothDamp,
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
+import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -21946,12 +21947,13 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
-          const pullTarget = pullRange * easeOutCubic(clampedPower);
+          const pullTarget = computePullTargetFromPower(clampedPower, maxPull);
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
+          const startPull = THREE.MathUtils.clamp(
+            Math.max(pulledNow, pullTarget),
+            0,
+            Math.max(maxPull, 0)
+          );
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
@@ -21998,11 +22000,11 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const pullbackDuration = THREE.MathUtils.lerp(120, 235, powerStrength);
-          const forwardDuration = THREE.MathUtils.lerp(165, CUE_LOGIC_STRIKE_TIME_MS, powerStrength);
-          const settleDuration = THREE.MathUtils.lerp(
-            CUE_LOGIC_HOLD_TIME_MS + 24,
-            CUE_LOGIC_HOLD_TIME_MS + 84,
+          const pullbackDuration = THREE.MathUtils.lerp(110, 260, powerStrength);
+          const strikeDuration = THREE.MathUtils.lerp(140, CUE_LOGIC_STRIKE_TIME_MS, powerStrength);
+          const holdDuration = THREE.MathUtils.lerp(
+            CUE_LOGIC_HOLD_TIME_MS + 18,
+            CUE_LOGIC_HOLD_TIME_MS + 72,
             powerStrength
           );
           const returnDuration = THREE.MathUtils.lerp(130, 220, powerStrength);
@@ -22038,14 +22040,14 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + forwardDuration;
-          const settleTime = impactTime + settleDuration;
-          const returnTime = settleTime + returnDuration;
+          const impactTime = pullEndTime + strikeDuration;
+          const holdEndTime = impactTime + holdDuration;
+          const returnTime = holdEndTime + returnDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
-              settleDuration,
-              Math.max(180, forwardDuration * 0.9)
+              holdDuration,
+              Math.max(180, strikeDuration * 0.9)
             );
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
@@ -22091,8 +22093,8 @@ const powerRef = useRef(hud.power);
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
-              forwardDuration,
-              settleDuration,
+              forwardDuration: strikeDuration,
+              settleDuration: holdDuration,
               returnDuration,
               startOffset: strokeStartOffset
             };
@@ -22105,22 +22107,24 @@ const powerRef = useRef(hud.power);
               cuePullTargetRef.current = 0;
               return;
             }
-            if (now <= pullEndTime && pullbackDuration > 0) {
-              const t = THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1);
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(t));
-            } else if (now <= impactTime) {
-              const t = forwardDuration > 0
-                ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
-                : 1;
-              const eased = easeOutCubic(t);
-              cueStick.position.lerpVectors(pullPos, impactPos, eased);
-            } else if (now <= settleTime) {
-              const t = settleDuration > 0
-                ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
-                : 1;
-              cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(t));
+            const elapsed = Math.max(0, now - startTime);
+            const sample = sampleCueStrokeTimeline({
+              elapsed,
+              pullbackDuration,
+              strikeDuration,
+              holdDuration,
+              animationStyle: 'spring',
+              strikeWindowRatio: 0.2,
+              hitArmRatio: 0.9
+            });
+            if (sample.phase === 'pullback') {
+              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(sample.t));
+            } else if (sample.phase === 'release' || sample.phase === 'strike') {
+              cueStick.position.lerpVectors(pullPos, impactPos, easeOutCubic(sample.t));
+            } else if (sample.phase === 'hold') {
+              cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(sample.t));
             } else if (now <= returnTime && returnDuration > 0) {
-              const t = THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1);
+              const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutCubic(t));
             } else {
               cueStick.visible = false;
