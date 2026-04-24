@@ -22789,8 +22789,8 @@ const shotPowerRef = useRef(0);
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
-            const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
-            const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const safeStrikeDuration = Math.max(1, strikeDuration ?? 110);
+            const safeHoldDuration = Math.max(0, holdDuration ?? 45);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? impactPos,
@@ -22798,96 +22798,43 @@ const shotPowerRef = useRef(0);
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
-            const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos;
-            const resolvedFollowPos = followPos ?? resolvedContactPos ?? resolvedImpactPos;
-            const contactWindow = THREE.MathUtils.clamp(
-              safeStrikeDuration * 0.24,
-              24,
-              Math.max(24, safeStrikeDuration * 0.45)
-            );
-            const releaseWindow = Math.max(1, safeStrikeDuration - contactWindow);
+            const resolvedContactPos = stroke.contactPos ?? impactPos ?? pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
               1
             );
-            const impactThreshold = THREE.MathUtils.clamp(
-              strikeImpactThreshold ?? 0.9,
-              0.05,
-              0.995
-            );
-            const strikeWobbleScale = Math.max(
-              0,
-              1 - strikeProgress
-            );
+            const strikeEase = easeOutCubic(strikeProgress);
+            cueStick.visible = true;
+            cueStick.position.lerpVectors(resolvedPullPos, resolvedContactPos, strikeEase);
+            cueStick.position.y -= (strikeDip ?? 0.0035) * strikeEase;
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y =
+              (baseRotationY ?? cueStick.rotation.y) +
+              Math.sin(strikeProgress * Math.PI) * 0.0014;
+
+            const impactThreshold = THREE.MathUtils.clamp(strikeImpactThreshold ?? 0.88, 0.05, 0.995);
             if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
 
-            cueStick.visible = true;
-            if (elapsed < releaseWindow) {
-              const releaseT = THREE.MathUtils.clamp(elapsed / Math.max(releaseWindow, 1e-6), 0, 1);
-              const easedRelease = easeOutCubic(releaseT);
-              cueStick.position.lerpVectors(resolvedPullPos, resolvedImpactPos, easedRelease);
-              cueStick.position.y -= (strikeDip ?? 0.003) * easedRelease * 0.75;
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y =
-                (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(releaseT * Math.PI) * 0.0012 * strikeWobbleScale;
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
-            if (elapsed < safeStrikeDuration) {
-              const contactT = THREE.MathUtils.clamp(
-                (elapsed - releaseWindow) / Math.max(contactWindow, 1e-6),
-                0,
-                1
-              );
-              const punchT = 1 - Math.pow(1 - contactT, 4);
-              cueStick.position.lerpVectors(resolvedImpactPos, resolvedContactPos, punchT);
-              cueStick.position.y -= (strikeDip ?? 0.003) * (0.7 + punchT * 0.45);
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y =
-                (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(contactT * Math.PI) * 0.0008 * strikeWobbleScale;
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              const followT = THREE.MathUtils.clamp(
-                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
-                0,
-                1
-              );
-              const easedFollow = easeOutCubic(followT);
-              cueStick.position.lerpVectors(resolvedContactPos, resolvedFollowPos, easedFollow);
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
             }
-            const recoverStart = safeStrikeDuration + safeHoldDuration;
-            const recoverEnd = recoverStart + safeRecoverDuration;
-            if (elapsed <= recoverEnd) {
-              const t = THREE.MathUtils.clamp(
-                (elapsed - recoverStart) / Math.max(safeRecoverDuration, 1e-6),
-                0,
-                1
-              );
-              const eased = easeInOutCubic(t);
-              cueStick.visible = true;
+            const recoverT = THREE.MathUtils.clamp(
+              (elapsed - (safeStrikeDuration + safeHoldDuration)) / Math.max(safeRecoverDuration || 1, 1),
+              0,
+              1
+            );
+            if (recoverT < 1) {
               cueStick.position.lerpVectors(
-                resolvedFollowPos,
+                resolvedContactPos,
                 idlePos ?? impactPos ?? pullPos,
-                eased
+                easeInOutCubic(recoverT)
               );
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -26047,8 +25994,8 @@ const shotPowerRef = useRef(0);
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
+          strikeDuration: 110,
+          holdDuration: 45,
           pullbackDuration,
           recoverDuration: 0,
           impactThreshold: 0.9,
@@ -26261,7 +26208,20 @@ const shotPowerRef = useRef(0);
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
         };
-        cue.vel.copy(base);
+        const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
+        if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
+        else shotDir3.set(0, 0, 1);
+        const sideDir3 = TMP_VEC3_D.set(shotDir3.z, 0, -shotDir3.x);
+        if (sideDir3.lengthSq() > 1e-8) sideDir3.normalize();
+        const baseSpeed = Math.max(0, base.length());
+        const topspin = Math.max(0, offsetScaled.y);
+        const backspin = Math.max(0, -offsetScaled.y);
+        const squirt = offsetScaled.x * clampedPower * 0.24;
+        cue.vel
+          .copy(shotDir3)
+          .multiplyScalar(baseSpeed + topspin * clampedPower * 0.9)
+          .addScaledVector(sideDir3, squirt)
+          .addScaledVector(shotDir3, -backspin * clampedPower * 0.65);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
@@ -26272,9 +26232,8 @@ const shotPowerRef = useRef(0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        const shotDir = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
-        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
+        const shotDir = shotDir3;
+        const sideAxis = TMP_VEC3_E.set(-shotDir.z, 0, shotDir.x);
         if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
         const rOffset = TMP_VEC3_E
           .copy(sideAxis)
@@ -32778,7 +32737,7 @@ const shotPowerRef = useRef(0);
           ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
           : clampPower(powerRef.current, 0);
         onPowerRelease(powerRatio);
-        const resetDurationMs = THREE.MathUtils.lerp(190, 105, powerRatio);
+        const resetDurationMs = 160;
         slider.animateToMin({ duration: resetDurationMs });
       }
     });
