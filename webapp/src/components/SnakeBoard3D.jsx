@@ -79,8 +79,8 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.07, 0.1);
-const HUMAN_SEAT_SCALE = 1.05;
+const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.2, 0.04);
+const HUMAN_SEAT_SCALE = 1.75;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1495,6 +1495,114 @@ function applyOriginalTextureMapping(root) {
       material.needsUpdate = true;
     });
   });
+}
+
+function normalizeHumanBoneName(value = '') {
+  return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getModelBones(root) {
+  const bones = [];
+  root?.traverse?.((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  return bones;
+}
+
+function findModelBone(bones, aliases = []) {
+  const normalizedAliases = aliases.map((alias) => normalizeHumanBoneName(alias));
+  for (const alias of normalizedAliases) {
+    const exact = bones.find((bone) => normalizeHumanBoneName(bone.name) === alias);
+    if (exact) return exact;
+  }
+  for (const alias of normalizedAliases) {
+    const partial = bones.find((bone) => normalizeHumanBoneName(bone.name).includes(alias));
+    if (partial) return partial;
+  }
+  return null;
+}
+
+function captureModelRestPose(root) {
+  const rest = new Map();
+  getModelBones(root).forEach((bone) => rest.set(bone, bone.quaternion.clone()));
+  return rest;
+}
+
+function composeModelBone(rest, bone, euler) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(euler));
+}
+
+function buildHumanBoneMap(root) {
+  const bones = getModelBones(root);
+  const map = {
+    hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
+    spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
+    spine1: findModelBone(bones, ['spine1', 'spine01', 'mixamorigspine1', 'chest']),
+    spine2: findModelBone(bones, ['spine2', 'spine02', 'mixamorigspine2', 'upperchest']),
+    neck: findModelBone(bones, ['neck', 'mixamorigneck', 'wolf3dneck']),
+    head: findModelBone(bones, ['head', 'mixamorighead', 'wolf3dhead']),
+    leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
+    leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
+    leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
+    rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
+    rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
+    rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
+    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
+    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
+    leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
+    leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
+    leftFoot: findModelBone(bones, ['leftfoot', 'mixamorigleftfoot']),
+    rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
+    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf']),
+    rightFoot: findModelBone(bones, ['rightfoot', 'mixamorigrightfoot'])
+  };
+  map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
+  map.spine1 ??= map.spine2 ?? map.spine;
+  map.spine2 ??= map.spine1 ?? map.spine;
+  map.leftArm ??= map.leftShoulder;
+  map.rightArm ??= map.rightShoulder;
+  map.leftForeArm ??= map.leftArm;
+  map.rightForeArm ??= map.rightArm;
+  map.leftLeg ??= map.leftUpLeg;
+  map.rightLeg ??= map.rightUpLeg;
+  map.leftFoot ??= map.leftLeg;
+  map.rightFoot ??= map.rightLeg;
+  return map;
+}
+
+function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
+  const { root, bones, rest, baseScale = 1 } = seatHuman || {};
+  if (!root || !rest || !bones) return;
+  rest.forEach((quat, bone) => bone.quaternion.copy(quat));
+  root.scale.setScalar(baseScale);
+  const breathe = Math.sin(timeSeconds * 1.05) * 0.016;
+  const dynamicLean = activeLean * 0.06;
+
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.18 - dynamicLean, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.36 + breathe - dynamicLean * 0.32, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.2, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.1, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.14, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.27) * 0.03, 0, 'XYZ'));
+
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.46, 0.15, 0.08, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.46, -0.15, -0.08, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.08, 0.06, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.08, -0.06, -0.05, 'XYZ'));
+
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.3, 'XYZ'));
+  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.3, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.88, 0.16, -0.3, 'XYZ'));
+  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.88, -0.16, 0.3, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.16, 0.12, -0.1, 'XYZ'));
+  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-1.16, -0.12, 0.1, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.24, 0.06, -0.04, 'XYZ'));
+  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.24, -0.06, 0.04, 'XYZ'));
 }
 
 async function loadSeatedHumanTemplate(renderer) {
@@ -3178,7 +3286,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
     const humanAnchor = new THREE.Object3D();
     humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
-    humanAnchor.rotation.set(0, Math.PI, 0);
+    humanAnchor.rotation.set(0, 0, 0);
     group.add(humanAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
@@ -3211,7 +3319,13 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         instance.name = `SnakeSeatHuman_${seatIndex}`;
         instance.scale.setScalar(HUMAN_SEAT_SCALE);
         chair.humanAnchor.add(instance);
-        seatedHumans[seatIndex] = instance;
+        seatedHumans[seatIndex] = {
+          root: instance,
+          bones: buildHumanBoneMap(instance),
+          rest: captureModelRestPose(instance),
+          baseScale: HUMAN_SEAT_SCALE
+        };
+        applySeatedHumanPose(seatedHumans[seatIndex], 0, 0);
       });
     })
     .catch((error) => {
@@ -3233,7 +3347,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       group.parent?.remove(group);
     });
     seatedHumans.forEach((human) => {
-      human?.parent?.remove(human);
+      human?.root?.parent?.remove(human.root);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
     environmentCleanup?.();
@@ -5517,15 +5631,17 @@ export default function SnakeBoard3D({
       if (Array.isArray(board?.seatedHumans) && board.seatedHumans.length) {
         const activeTurn = Number.isInteger(currentTurnRef.current) ? currentTurnRef.current : -1;
         const isThrowing = diceEventRef.current?.phase === 'start';
-        board.seatedHumans.forEach((human, seatIndex) => {
-          if (!human) return;
+        board.seatedHumans.forEach((seatHuman, seatIndex) => {
+          if (!seatHuman?.root) return;
           const isActiveSeat = seatIndex === activeTurn;
-          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.006;
-          const throwLean = isActiveSeat && isThrowing ? 0.08 : 0;
-          human.position.y = breathe + throwLean;
-          human.rotation.x = isActiveSeat ? -0.06 - throwLean * 0.25 : -0.02;
-          human.rotation.y = 0;
-          human.rotation.z = isActiveSeat ? Math.sin(now * 0.003) * 0.02 : 0;
+          const root = seatHuman.root;
+          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.004;
+          const throwLean = isActiveSeat && isThrowing ? 0.18 : 0;
+          root.position.y = breathe;
+          root.rotation.x = 0;
+          root.rotation.y = 0;
+          root.rotation.z = 0;
+          applySeatedHumanPose(seatHuman, now * 0.001, throwLean);
         });
       }
       let hasDiceCenter = false;
