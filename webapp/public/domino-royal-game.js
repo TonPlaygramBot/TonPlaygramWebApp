@@ -7672,16 +7672,16 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenRoughnessMap'
 ]);
 const HUMAN_MODEL_SOURCE = Object.freeze({
-  label: 'Xbot Mixamo humanoid',
-  url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
-  scale: 1.26,
-  rotationY: -Math.PI / 2
+  label: 'Ludo seated humanoid',
+  url: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+  scale: 1,
+  rotationY: Math.PI
 });
 const HUMAN_SEAT_TUNE = Object.freeze({
-  chairHeightRatio: 1.08,
-  chairDepthRatio: -0.22,
+  chairHeightRatio: 1.02,
+  chairDepthRatio: -0.18,
   hipLift: 0.045,
-  faceLift: 0.64
+  faceLift: 0.62
 });
 let humanTemplatePromise = null;
 const seatedHumans = [];
@@ -7740,6 +7740,8 @@ function buildHumanBoneMap(root) {
     rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
     rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
     rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
+    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
+    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
     leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
@@ -7777,24 +7779,57 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
 
   const rightReach = actionStrength;
   const rightKnock = knockStrength;
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.05, 0.05, -0.22, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.58, 0.16, -0.2, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.02, 0.09, -0.07, 'XYZ'));
+  // Baseline: both arms stay in a stable "holding dominos" seated pose.
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.04, -0.34, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.84, 0.18, -0.36, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.1, 0.16, -0.14, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.2, 0.08, -0.04, 'XYZ'));
+
+  let targetBiasY = -0.04;
+  let targetBiasZ = 0.18;
+  if (seatHuman?.action?.targetWorld && seatHuman?.root?.parent?.worldToLocal) {
+    const targetLocal = seatHuman.root.parent.worldToLocal(
+      seatHuman.action.targetWorld.clone()
+    );
+    const horizontal = Math.hypot(targetLocal.x, targetLocal.z) || 1;
+    targetBiasY = THREE.MathUtils.clamp(targetLocal.x / horizontal, -0.32, 0.32);
+    targetBiasZ = THREE.MathUtils.clamp(-targetLocal.z / horizontal, -0.34, 0.34);
+  }
 
   composeModelBone(
     rest,
     bones.rightShoulder,
-    new THREE.Euler(-0.06 + rightReach * 0.62 - rightKnock * 0.2, -0.11, 0.2, 'XYZ')
+    new THREE.Euler(
+      -0.18 + rightReach * 0.58 - rightKnock * 0.2,
+      -0.18 + targetBiasY * 0.52,
+      0.28 + targetBiasZ * 0.36,
+      'XYZ'
+    )
   );
   composeModelBone(
     rest,
     bones.rightArm,
-    new THREE.Euler(-0.68 + rightReach * 1.72 + rightKnock * 1.06, -0.16 - rightReach * 0.25, 0.24, 'XYZ')
+    new THREE.Euler(
+      -0.86 + rightReach * 1.78 + rightKnock * 1.06,
+      -0.2 - rightReach * 0.24 + targetBiasY * 0.4,
+      0.24 + targetBiasZ * 0.34,
+      'XYZ'
+    )
   );
   composeModelBone(
     rest,
     bones.rightForeArm,
-    new THREE.Euler(-1.1 + rightReach * 1.24 + rightKnock * 1.65, -0.08, 0.08, 'XYZ')
+    new THREE.Euler(
+      -1.22 + rightReach * 1.4 + rightKnock * 1.65,
+      -0.12 + targetBiasY * 0.35,
+      0.14 + targetBiasZ * 0.2,
+      'XYZ'
+    )
+  );
+  composeModelBone(
+    rest,
+    bones.rightHand,
+    new THREE.Euler(-0.24 + rightReach * 0.7, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
   );
 }
 
@@ -7808,7 +7843,7 @@ async function ensureHumanTemplate() {
     });
     const root = gltf?.scene;
     if (!root) {
-      throw new Error('Xbot scene missing');
+      throw new Error('Seated human scene missing');
     }
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
@@ -7835,15 +7870,26 @@ function clearSeatedHumans() {
   seatFaceAnchors.length = 0;
 }
 
-function triggerSeatHumanAction(seatIndex, action = 'place') {
+function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null) {
   const seatHuman = seatedHumans[seatIndex];
   if (!seatHuman) return;
   const now = performance.now();
+  const actionTarget = targetWorld instanceof THREE.Vector3 ? targetWorld.clone() : null;
   if (action === 'knock') {
-    seatHuman.action = { type: 'knock', startMs: now, durationMs: 720 };
+    seatHuman.action = {
+      type: 'knock',
+      startMs: now,
+      durationMs: 720,
+      targetWorld: actionTarget
+    };
     return;
   }
-  seatHuman.action = { type: 'place', startMs: now, durationMs: 900 };
+  seatHuman.action = {
+    type: 'place',
+    startMs: now,
+    durationMs: 950,
+    targetWorld: actionTarget
+  };
 }
 
 function syncSeatHumans(nowMs = performance.now()) {
@@ -9478,7 +9524,11 @@ function placeOnBoard(tile, side, options = {}) {
   } else {
     renderChain();
   }
-  triggerSeatHumanAction(current, 'place');
+  triggerSeatHumanAction(
+    current,
+    'place',
+    new THREE.Vector3(segment.x, CHAIN_TILE_Y, segment.z)
+  );
   SFX.place();
   return { success: true, segment, end: updatedEnd };
 }
