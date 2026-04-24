@@ -115,11 +115,11 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 1.1; // lift drone lane higher so it no longer skims too low on portrait screens
+const CAPTURE_DRONE_ALTITUDE = 1.28; // lift drone lane higher so it no longer skims too low on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.44; // push jet/helicopter higher above the drone lane for clearer separation
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.75; // push jet/helicopter higher above the drone lane for clearer separation
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
@@ -9558,10 +9558,8 @@ function Chess3D({
       };
       const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
       const zOffset = (laneIndex - 1.5) * equalLaneStep;
-      const yOffset =
-        currentPieceYOffset +
-        SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT +
-        (kind === 'truck' ? 0.02 : 0.04);
+      const hoverLift = kind === 'truck' ? 0.02 : kind === 'drone' ? 0.14 : 0.16;
+      const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
     const acquireParkedAirUnit = (isWhiteSide, kind) => {
