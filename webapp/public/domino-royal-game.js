@@ -5964,14 +5964,6 @@ async function applyTableTheme(
 
 const tableParts = {};
 const chairs = [];
-let humanSeatActor = null;
-const HUMAN_ACTION = Object.freeze({
-  idle: 'idle',
-  place: 'place',
-  pass: 'pass'
-});
-const HUMAN_PLACE_ANIM_MS = 560;
-const HUMAN_PASS_ANIM_MS = 460;
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7709,245 +7701,6 @@ function disposeChairResources(root) {
   });
 }
 
-function createSeatedHumanActor() {
-  const root = new THREE.Group();
-  root.name = 'domino-human-seat-actor';
-
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: '#d7a483',
-    roughness: 0.68,
-    metalness: 0.04
-  });
-  const shirtMat = new THREE.MeshStandardMaterial({
-    color: '#243247',
-    roughness: 0.62,
-    metalness: 0.08
-  });
-  const pantsMat = new THREE.MeshStandardMaterial({
-    color: '#1f2937',
-    roughness: 0.72,
-    metalness: 0.04
-  });
-  const shoeMat = new THREE.MeshStandardMaterial({
-    color: '#101317',
-    roughness: 0.85,
-    metalness: 0.02
-  });
-
-  const hips = new THREE.Group();
-  hips.position.set(0, 0, -0.03);
-  root.add(hips);
-
-  const torso = new THREE.Group();
-  torso.position.set(0, 0.22, 0.04);
-  hips.add(torso);
-
-  const chest = new THREE.Group();
-  chest.position.set(0, 0.27, 0.02);
-  torso.add(chest);
-
-  const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.29, 0.03);
-  chest.add(headPivot);
-
-  const leftUpperArm = new THREE.Group();
-  const leftForeArm = new THREE.Group();
-  const rightUpperArm = new THREE.Group();
-  const rightForeArm = new THREE.Group();
-  const rightHand = new THREE.Group();
-  leftUpperArm.position.set(-0.18, 0.17, 0.04);
-  leftForeArm.position.set(-0.16, -0.16, 0.11);
-  rightUpperArm.position.set(0.18, 0.17, 0.04);
-  rightForeArm.position.set(0.16, -0.16, 0.11);
-  rightHand.position.set(0, -0.14, 0.08);
-  chest.add(leftUpperArm, rightUpperArm);
-  leftUpperArm.add(leftForeArm);
-  rightUpperArm.add(rightForeArm);
-  rightForeArm.add(rightHand);
-
-  const leftUpperLeg = new THREE.Group();
-  const leftLowerLeg = new THREE.Group();
-  const leftFoot = new THREE.Group();
-  const rightUpperLeg = new THREE.Group();
-  const rightLowerLeg = new THREE.Group();
-  const rightFoot = new THREE.Group();
-  leftUpperLeg.position.set(-0.11, -0.02, 0.04);
-  leftLowerLeg.position.set(0, -0.02, 0.34);
-  leftFoot.position.set(0, -0.24, 0.06);
-  rightUpperLeg.position.set(0.11, -0.02, 0.04);
-  rightLowerLeg.position.set(0, -0.02, 0.34);
-  rightFoot.position.set(0, -0.24, 0.06);
-  hips.add(leftUpperLeg, rightUpperLeg);
-  leftUpperLeg.add(leftLowerLeg);
-  leftLowerLeg.add(leftFoot);
-  rightUpperLeg.add(rightLowerLeg);
-  rightLowerLeg.add(rightFoot);
-
-  const makeCapsule = (radius, length, material) => {
-    const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(radius, length, 7, 15),
-      material
-    );
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    return mesh;
-  };
-
-  const pelvis = makeCapsule(0.1, 0.12, pantsMat);
-  pelvis.scale.set(1.35, 0.7, 0.95);
-  hips.add(pelvis);
-  const torsoMesh = makeCapsule(0.11, 0.2, shirtMat);
-  torsoMesh.position.y = 0.11;
-  torso.add(torsoMesh);
-  const chestMesh = makeCapsule(0.115, 0.19, shirtMat);
-  chestMesh.position.y = 0.1;
-  chest.add(chestMesh);
-  const headMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.09, 20, 18),
-    skinMat
-  );
-  headMesh.castShadow = true;
-  headMesh.receiveShadow = true;
-  headPivot.add(headMesh);
-
-  const leftUpperArmMesh = makeCapsule(0.038, 0.18, shirtMat);
-  leftUpperArmMesh.rotation.z = -0.14;
-  leftUpperArm.add(leftUpperArmMesh);
-  const leftForeArmMesh = makeCapsule(0.032, 0.17, skinMat);
-  leftForeArmMesh.rotation.z = -0.1;
-  leftForeArm.add(leftForeArmMesh);
-  const rightUpperArmMesh = makeCapsule(0.038, 0.18, shirtMat);
-  rightUpperArmMesh.rotation.z = 0.14;
-  rightUpperArm.add(rightUpperArmMesh);
-  const rightForeArmMesh = makeCapsule(0.032, 0.17, skinMat);
-  rightForeArmMesh.rotation.z = 0.1;
-  rightForeArm.add(rightForeArmMesh);
-  const rightHandMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.07, 0.03, 0.11),
-    skinMat
-  );
-  rightHandMesh.castShadow = true;
-  rightHandMesh.receiveShadow = true;
-  rightHand.add(rightHandMesh);
-
-  const leftUpperLegMesh = makeCapsule(0.05, 0.26, pantsMat);
-  leftUpperLegMesh.rotation.x = Math.PI / 2;
-  leftUpperLeg.add(leftUpperLegMesh);
-  const leftLowerLegMesh = makeCapsule(0.042, 0.2, pantsMat);
-  leftLowerLeg.add(leftLowerLegMesh);
-  const leftFootMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.09, 0.05, 0.16),
-    shoeMat
-  );
-  leftFootMesh.castShadow = true;
-  leftFootMesh.receiveShadow = true;
-  leftFootMesh.position.z = 0.04;
-  leftFoot.add(leftFootMesh);
-
-  const rightUpperLegMesh = makeCapsule(0.05, 0.26, pantsMat);
-  rightUpperLegMesh.rotation.x = Math.PI / 2;
-  rightUpperLeg.add(rightUpperLegMesh);
-  const rightLowerLegMesh = makeCapsule(0.042, 0.2, pantsMat);
-  rightLowerLeg.add(rightLowerLegMesh);
-  const rightFootMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.09, 0.05, 0.16),
-    shoeMat
-  );
-  rightFootMesh.castShadow = true;
-  rightFootMesh.receiveShadow = true;
-  rightFootMesh.position.z = 0.04;
-  rightFoot.add(rightFootMesh);
-
-  root.userData.actor = {
-    hips,
-    torso,
-    chest,
-    headPivot,
-    leftUpperArm,
-    leftForeArm,
-    rightUpperArm,
-    rightForeArm,
-    rightHand,
-    leftUpperLeg,
-    leftLowerLeg,
-    rightUpperLeg,
-    rightLowerLeg,
-    action: HUMAN_ACTION.idle,
-    actionStart: 0,
-    actionDuration: HUMAN_PLACE_ANIM_MS
-  };
-  return root;
-}
-
-function attachHumanSeatActor() {
-  const seatWrapper = chairs[HUMAN_SEAT_INDEX];
-  if (!seatWrapper) return;
-  if (humanSeatActor?.parent) {
-    humanSeatActor.parent.remove(humanSeatActor);
-  }
-  humanSeatActor = createSeatedHumanActor();
-  const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-  const baseBodyHeight = 1.15;
-  const targetBodyHeight = CHAIR_DIMENSIONS.backHeight * 1.02;
-  const seatScale = THREE.MathUtils.clamp(targetBodyHeight / baseBodyHeight, 0.78, 1.26);
-  humanSeatActor.scale.setScalar(seatScale);
-  humanSeatActor.position.set(0, seatHeight + 0.01, -CHAIR_DIMENSIONS.seatDepth * 0.04);
-  humanSeatActor.rotation.y = Math.PI;
-  seatWrapper.add(humanSeatActor);
-}
-
-function triggerHumanAction(action = HUMAN_ACTION.idle, now = performance.now()) {
-  const actorData = humanSeatActor?.userData?.actor;
-  if (!actorData) return;
-  actorData.action = action;
-  actorData.actionStart = now;
-  actorData.actionDuration =
-    action === HUMAN_ACTION.pass ? HUMAN_PASS_ANIM_MS : HUMAN_PLACE_ANIM_MS;
-}
-
-function updateHumanSeatActor(now) {
-  const actorData = humanSeatActor?.userData?.actor;
-  if (!actorData) return;
-  const tNow = Number.isFinite(now) ? now : performance.now();
-  const elapsed = Math.max(0, tNow - (actorData.actionStart || 0));
-  const actionDuration = Math.max(1, actorData.actionDuration || HUMAN_PLACE_ANIM_MS);
-  const phase = Math.min(1, elapsed / actionDuration);
-  const breathe = Math.sin(tNow * 0.0022) * 0.03;
-
-  actorData.hips.rotation.set(-0.14, 0, 0);
-  actorData.torso.rotation.set(0.24 + breathe, 0, 0);
-  actorData.chest.rotation.set(0.18 + breathe * 0.6, 0, 0);
-  actorData.headPivot.rotation.set(-0.16, 0.06 * Math.sin(tNow * 0.0011), 0);
-  actorData.leftUpperLeg.rotation.set(-1.45, 0.08, 0.08);
-  actorData.rightUpperLeg.rotation.set(-1.45, -0.08, -0.08);
-  actorData.leftLowerLeg.rotation.set(1.52, 0, 0);
-  actorData.rightLowerLeg.rotation.set(1.52, 0, 0);
-  actorData.leftUpperArm.rotation.set(-0.88, 0.28, -0.24);
-  actorData.leftForeArm.rotation.set(-1.04, 0.08, -0.06);
-
-  if (actorData.action === HUMAN_ACTION.place) {
-    const lift = Math.sin(Math.PI * phase);
-    actorData.rightUpperArm.rotation.set(-0.7 - lift * 0.58, -0.3, 0.28 + lift * 0.18);
-    actorData.rightForeArm.rotation.set(-1.15 + lift * 0.82, -0.1, 0.16);
-    actorData.rightHand.rotation.set(0.25 - lift * 0.7, 0, 0.05);
-    if (phase >= 1) {
-      actorData.action = HUMAN_ACTION.idle;
-    }
-  } else if (actorData.action === HUMAN_ACTION.pass) {
-    const knock = Math.sin(Math.PI * phase);
-    actorData.rightUpperArm.rotation.set(-0.76 + knock * 0.24, -0.25, 0.22);
-    actorData.rightForeArm.rotation.set(-1.12 + knock * 1.28, -0.08, 0.08);
-    actorData.rightHand.rotation.set(-0.3 + knock * 1.65, 0, 0.03);
-    if (phase >= 1) {
-      actorData.action = HUMAN_ACTION.idle;
-    }
-  } else {
-    actorData.rightUpperArm.rotation.set(-0.9, -0.26, 0.22);
-    actorData.rightForeArm.rotation.set(-1.06, -0.08, 0.06);
-    actorData.rightHand.rotation.set(0.12, 0, 0.02);
-  }
-}
-
 function placeChairsWithOption(option, chairData, token) {
   if (token !== chairBuildToken || !chairData) return;
 
@@ -7960,10 +7713,6 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
-  if (humanSeatActor?.parent) {
-    humanSeatActor.parent.remove(humanSeatActor);
-  }
-  humanSeatActor = null;
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
@@ -7999,7 +7748,6 @@ function placeChairsWithOption(option, chairData, token) {
     }
   });
 
-  attachHumanSeatActor();
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
 }
@@ -8856,9 +8604,6 @@ function spawnPlacementAnimation(
   segment,
   { duration = PLACE_ANIM_DURATION, mesh: providedMesh, sourceSeat = current } = {}
 ) {
-  if (sourceSeat === human) {
-    triggerHumanAction(HUMAN_ACTION.place);
-  }
   if (!segment) {
     return;
   }
@@ -10558,9 +10303,6 @@ function schedulePassTurnAdvance(
   delayMs = PASS_TURN_ADVANCE_DELAY_MS
 ) {
   showPassBubble(playerIndex);
-  if (playerIndex === human) {
-    triggerHumanAction(HUMAN_ACTION.pass);
-  }
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
     pendingTurnAdvanceTimeout = null;
@@ -11046,7 +10788,6 @@ function tick(now) {
     updatePlacementAnimations(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
-    updateHumanSeatActor(current);
     updateCameraLookRecentering();
     updateTurnCameraFocus();
     controls.update(deltaSeconds);
