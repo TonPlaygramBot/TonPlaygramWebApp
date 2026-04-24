@@ -92,13 +92,13 @@ const LUDO_CAPTURE_MISSILE_TRAVEL_TIME = 2.52;
 const LUDO_CAPTURE_EXPLOSION_TIME = 2.6;
 const LUDO_CAPTURE_TOTAL_TIME = LUDO_CAPTURE_MISSILE_TRAVEL_TIME + LUDO_CAPTURE_EXPLOSION_TIME;
 const CAPTURE_DRONE_LIFT_TIME = 0.96; // tuned to Ludo Battle Royal pacing
-const CAPTURE_DRONE_CRUISE_TIME = 3.64; // extend circular pass so aircraft complete a longer visible board loop before striking
-const CAPTURE_DRONE_DIVE_TIME = 1.6;
+const CAPTURE_DRONE_CRUISE_TIME = 4.12; // slower, longer board loop so drone motion reads clearly on portrait screens
+const CAPTURE_DRONE_DIVE_TIME = 1.8; // slightly slower terminal phase for smoother tracking
 const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME + CAPTURE_DRONE_DIVE_TIME;
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.16; // slow jet/helicopter loop slightly so missile ejection path stays visible
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.24; // slow jet/helicopter loop a bit more for clearer fly-by readability
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -127,7 +127,6 @@ const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.18; // slightly longer drone route before descent
 const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.2; // keep drone orbit visibly higher than piece heads
-const CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL = 0.92; // raise jet/helicopter board loop
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // extend visible loop around board
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -153,6 +152,7 @@ const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pas
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.62; // raise pawn javelin lane for clearer lift-and-drop motion
+const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep jet/helicopter cruise lane aligned with pawn-missile lift altitude
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep drone/truck long strike on the same altitude lane as pawn short missile
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
@@ -9989,7 +9989,7 @@ function Chess3D({
       to,
       progress,
       launchHeight = 0.06,
-      cruiseHeight = CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+      cruiseHeight = CAPTURE_AIRCRAFT_CRUISE_HEIGHT,
       returnToOrigin = true,
       constrainToBoard = true
     }) => {
@@ -12335,7 +12335,7 @@ function Chess3D({
               from: launchPos,
               to: fx.flightTarget || fx.to,
               progress: jetU,
-              cruiseHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+              cruiseHeight: CAPTURE_AIRCRAFT_CRUISE_HEIGHT,
               returnToOrigin: true,
               constrainToBoard: false
             });
@@ -12447,7 +12447,7 @@ function Chess3D({
               from: launchPos,
               to: fx.flightTarget || fx.to,
               progress: heliU,
-              cruiseHeight: CAPTURE_FLIGHT_ALTITUDE * CAPTURE_AIR_STRIKE_ORBIT_HEIGHT_MUL,
+              cruiseHeight: CAPTURE_AIRCRAFT_CRUISE_HEIGHT,
               returnToOrigin: true,
               constrainToBoard: false
             });
