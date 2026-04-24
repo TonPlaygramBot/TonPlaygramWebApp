@@ -2462,6 +2462,7 @@ const HDRI_GROUND_FLOOR_Y = 0;
 const ARENA_GROUND_Y = HDRI_GROUND_FLOOR_Y;
 const HDRI_GROUND_FLOOR_RADIUS_MULTIPLIER = 1.76;
 const HDRI_GROUND_FLOOR_OPACITY = 0.22;
+const HDRI_WALL_DISTANCE_MULTIPLIER = 1.22;
 const HDRI_BACKGROUND_PITCH = THREE.MathUtils.degToRad(-2.4);
 const CAMERA_SIDE_LOOK_EXTRA = 0.42 * MODEL_SCALE;
 const CAMERA_INWARD_RADIUS_FACTOR = 0.94;
@@ -4994,7 +4995,8 @@ export default function MurlanRoyaleArena({ search }) {
       const arenaScale = 1.18 * ARENA_GROWTH;
       const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
       const camConfig = buildArenaCameraConfig(boardSize);
-      const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.4, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE);
+      const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.4, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE)
+        * HDRI_WALL_DISTANCE_MULTIPLIER;
       const interiorDepth = interiorWidth;
       const innerHalfWidth = interiorWidth / 2;
       const innerHalfDepth = interiorDepth / 2;
@@ -6885,20 +6887,17 @@ function setBackLogoOrientation(mesh, variant = 'default') {
     tunedTexture.offset.set(0, 0);
     tunedTexture.rotation = 0;
     tunedTexture.center.set(0.5, 0.5);
+    // Back-face UVs are mirrored on these seats; flip horizontally so the logo reads correctly.
+    tunedTexture.repeat.x = -1;
+    tunedTexture.offset.x = 1;
     if (desiredVariant === 'top') {
       // Top seat cards need a 180° turn so the logo reads upright from the camera.
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
       tunedTexture.rotation = Math.PI;
     } else if (desiredVariant === 'side') {
-      // Left side seat: keep the logo un-mirrored.
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
+      // Left side seat: keep the logo upright from the mobile portrait camera.
       tunedTexture.rotation = 0;
     } else if (desiredVariant === 'sideGift') {
-      // Right side seat: keep the logo un-mirrored.
-      tunedTexture.repeat.set(1, 1);
-      tunedTexture.offset.set(0, 0);
+      // Right side seat: keep the logo upright from the mobile portrait camera.
       tunedTexture.rotation = 0;
     }
     tunedTexture.needsUpdate = true;
