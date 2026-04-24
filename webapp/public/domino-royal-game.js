@@ -7,6 +7,7 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -7675,14 +7676,17 @@ const HUMAN_MODEL_SOURCE = Object.freeze({
   label: 'Ludo seated humanoid',
   url: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
   scale: 1,
-  rotationY: Math.PI
+  rotationY: 0
 });
 const HUMAN_SEAT_TUNE = Object.freeze({
-  chairHeightRatio: 1.02,
-  chairDepthRatio: -0.18,
-  hipLift: 0.045,
   faceLift: 0.62
 });
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.092 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
 let humanTemplatePromise = null;
 const seatedHumans = [];
 const seatFaceAnchors = [];
@@ -7917,7 +7921,7 @@ function syncSeatHumans(nowMs = performance.now()) {
   });
 }
 
-async function placeSeatedHumans(seatBottomOffset, chairSize) {
+async function placeSeatedHumans() {
   clearSeatedHumans();
   let humanTemplateData = null;
   try {
@@ -7926,14 +7930,16 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     console.warn('Xbot human model failed to load for Domino seats', error);
     return;
   }
-  const seatTopY = chairSize.y - seatBottomOffset + HUMAN_SEAT_TUNE.hipLift;
-  const seatDepth = chairSize.z * HUMAN_SEAT_TUNE.chairDepthRatio;
+  const baseScale =
+    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
   CHAIR_SEAT_ANGLES.forEach((_angle, index) => {
     const wrapper = chairs[index];
     if (!wrapper) return;
-    const root = humanTemplateData.template.clone(true);
-    root.rotation.y = HUMAN_MODEL_SOURCE.rotationY;
-    root.position.set(0, seatTopY + seatBottomOffset, seatDepth);
+    const root = cloneSkeleton(humanTemplateData.template);
+    root.scale.setScalar(baseScale);
+    root.rotation.y = SEATED_HUMAN_FACING_Y;
+    root.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
     wrapper.add(root);
     const faceAnchor = new THREE.Object3D();
     faceAnchor.position.set(0, HUMAN_SEAT_TUNE.faceLift, 0.08);
@@ -7943,16 +7949,6 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
       root,
       action: null
     };
-
-    const bounds = new THREE.Box3().setFromObject(root);
-    const size = bounds.getSize(new THREE.Vector3());
-    const height = Math.max(0.2, size.y);
-    const targetHeight = Math.max(
-      0.9,
-      chairSize.y * 2.7 * HUMAN_SEAT_TUNE.chairHeightRatio
-    );
-    const scaleFix = targetHeight / height;
-    root.scale.multiplyScalar(scaleFix);
 
     const bones = buildHumanBoneMap(root);
     seatHuman.bones = bones;
@@ -8040,7 +8036,7 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
-  placeSeatedHumans(seatBottomOffset, chairSize).catch((error) => {
+  placeSeatedHumans().catch((error) => {
     console.warn('Failed to place seated humans', error);
   });
   syncArenaGroundToFurniture();
