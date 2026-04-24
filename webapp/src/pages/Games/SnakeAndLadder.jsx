@@ -1818,15 +1818,20 @@ export default function SnakeAndLadder() {
   const aiRollTimeoutRef = useRef(null);
   const reloadingRef = useRef(false);
   const lastDiceRollSfxAtRef = useRef(0);
+  const lastDiceRollSfxKeyRef = useRef('');
   const turnEndRef = useRef(Date.now() + TURN_TIME * 1000);
   const aiRollTimeRef = useRef(null);
   const prevTimeLeftRef = useRef(TURN_TIME);
 
-  const playDiceRollSound = useCallback(() => {
+  const playDiceRollSound = useCallback((eventKey = '') => {
     if (muted) return;
     const now = Date.now();
+    if (eventKey && lastDiceRollSfxKeyRef.current === eventKey && now - lastDiceRollSfxAtRef.current < 500) {
+      return;
+    }
     if (now - lastDiceRollSfxAtRef.current < DICE_SFX_MIN_INTERVAL_MS) return;
     lastDiceRollSfxAtRef.current = now;
+    lastDiceRollSfxKeyRef.current = eventKey;
     playLudoDiceRollSfx({
       volume: getGameVolume(),
       muted
@@ -2275,8 +2280,8 @@ export default function SnakeAndLadder() {
     const onRolled = ({ value, playerId }) => {
       setRollResult(value);
       setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
-      playDiceRollSound();
       const rollerId = playerId ?? playersRef.current[currentTurn]?.id;
+      playDiceRollSound(`${rollerId ?? 'turn'}:${value}`);
       if (rollerId === myAccountId && Number(value) === 6) {
         setPendingExtraRoll(true);
         setRollCooldown(0);
@@ -2641,7 +2646,7 @@ export default function SnakeAndLadder() {
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
-    playDiceRollSound();
+    playDiceRollSound(`local:${currentTurn}:${value}`);
     if (willCapture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
@@ -2899,7 +2904,7 @@ export default function SnakeAndLadder() {
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-    playDiceRollSound();
+    playDiceRollSound(`ai:${index}:${value}`);
     if (capture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
