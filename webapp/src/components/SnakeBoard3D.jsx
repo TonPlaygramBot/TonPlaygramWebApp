@@ -310,7 +310,7 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Right seat (yellow): upper marker above side-center.
   Object.freeze({ radial: TILE_SIZE * 1.08, lateral: -TILE_SIZE * 1.1, y: TILE_SIZE * 0.08 }),
   // Top seat (yellow): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 1.72, lateral: -TILE_SIZE * 0.9, y: TILE_SIZE * 0.1 }),
+  Object.freeze({ radial: TILE_SIZE * 1.86, lateral: -TILE_SIZE * 0.72, y: TILE_SIZE * 0.1 }),
   // Left seat (yellow): upper marker above side-center.
   Object.freeze({ radial: TILE_SIZE * 1.08, lateral: TILE_SIZE * 1.1, y: TILE_SIZE * 0.08 })
 ]);
@@ -320,7 +320,7 @@ const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Right seat (red): lower side marker.
   Object.freeze({ radial: TILE_SIZE * 1.34, lateral: TILE_SIZE * 0.96, y: TILE_SIZE * 1.1 }),
   // Top seat (red): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 2.02, lateral: TILE_SIZE * 0.88, y: TILE_SIZE * 1.16 }),
+  Object.freeze({ radial: TILE_SIZE * 2.16, lateral: TILE_SIZE * 0.72, y: TILE_SIZE * 1.16 }),
   // Left seat (red): lower side marker.
   Object.freeze({ radial: TILE_SIZE * 1.34, lateral: -TILE_SIZE * 0.96, y: TILE_SIZE * 1.1 })
 ]);
