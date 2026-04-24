@@ -79,7 +79,7 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.2, 0.04);
+const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0.18, -0.44, -0.2);
 const HUMAN_SEAT_SCALE = 1.75;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
@@ -1581,19 +1581,19 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const breathe = Math.sin(timeSeconds * 1.05) * 0.016;
   const dynamicLean = activeLean * 0.06;
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.18 - dynamicLean, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.36 + breathe - dynamicLean * 0.32, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.2, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.1, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.24 - dynamicLean, 0.02, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.3 + breathe - dynamicLean * 0.32, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.18, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.14, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.27) * 0.03, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.46, 0.15, 0.08, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.46, -0.15, -0.08, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.08, 0.06, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.08, -0.06, -0.05, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.3, 0.1, 0.06, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.3, -0.1, -0.06, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.24, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.24, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.2, 0.04, 0.03, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.2, -0.04, -0.03, 'XYZ'));
 
   composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.3, 'XYZ'));
   composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.3, 'XYZ'));
@@ -3286,7 +3286,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
     const humanAnchor = new THREE.Object3D();
     humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
-    humanAnchor.rotation.set(0, 0, 0);
+    humanAnchor.rotation.set(0, Math.PI, 0);
     group.add(humanAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
