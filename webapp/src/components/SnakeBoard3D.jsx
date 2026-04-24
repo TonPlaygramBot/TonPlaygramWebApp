@@ -148,8 +148,8 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 120;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
-const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.2;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 4.1;
+const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
+const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
@@ -206,8 +206,7 @@ const CAMERA_FOLLOW_BACK_TILES = 5;
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
-const DICE_RESULT_DISPLAY_DURATION = 2000;
-const DICE_CAMERA_LOOK_HOLD_DURATION = DICE_RESULT_DISPLAY_DURATION;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
 const DICE_CAMERA_LOOK_OUT_DURATION = 220;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
@@ -259,11 +258,11 @@ const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.04
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
-const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.34;
+const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.16;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
-const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, -1, 1]);
-const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, 1, -1]);
+const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
+const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([1, -1, 1, -1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08,
@@ -295,7 +294,7 @@ const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   javelin: -TOKEN_HEIGHT * 0.22
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
-const WEAPON_SLOT_CLUSTER_SCALE = 0.55;
+const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
 const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.12,
   TILE_SIZE * 0.11,
@@ -394,30 +393,30 @@ const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 const DICE_SEAT_ADJUSTMENTS = [
   {
     forward: {
-      start: TILE_SIZE * 0.2,
+      start: 0,
       bounce: 0,
-      base: -TILE_SIZE * 0.45
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.24,
+      start: 0,
       bounce: 0,
-      base: -TILE_SIZE * 0.52
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.2,
+      start: 0,
       bounce: 0,
-      base: -TILE_SIZE * 0.45
+      base: 0
     }
   },
   {
     forward: {
-      start: TILE_SIZE * 0.24,
+      start: 0,
       bounce: 0,
-      base: -TILE_SIZE * 0.52
+      base: 0
     }
   }
 ];
@@ -2308,10 +2307,10 @@ function computeDiceThrowLayout(board, seatIndex, count) {
 
   for (let i = 0; i < count; i += 1) {
     const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.08;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.05;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.08;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.05;
+    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
+    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
+    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
+    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
 
     const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
     const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
@@ -2475,10 +2474,7 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
   };
 }
 
-function createDiceHandoffAnimation(
-  diceArray,
-  { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION, delay = 0 }
-) {
+function createDiceHandoffAnimation(diceArray, { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION }) {
   if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
     return null;
   }
@@ -2487,9 +2483,7 @@ function createDiceHandoffAnimation(
     type: 'diceHandoff',
     start: performance.now(),
     update(now) {
-      const elapsed = now - this.start;
-      if (elapsed < delay) return false;
-      const t = clamp01((elapsed - delay) / duration);
+      const t = clamp01((now - this.start) / duration);
       const eased = easeInOutCubic(t);
       diceArray.forEach((die, index) => {
         const from = startPositions[index] || die.position;
@@ -5858,8 +5852,7 @@ export default function SnakeBoard3D({
             const handoffAnimation = createDiceHandoffAnimation(active, {
               basePositions: handoffBases,
               baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION,
-              delay: DICE_RESULT_DISPLAY_DURATION
+              duration: TURN_CAMERA_TURN_IN_DURATION
             });
             if (handoffAnimation) animationsRef.current.push(handoffAnimation);
             const camera = cameraRef.current;
