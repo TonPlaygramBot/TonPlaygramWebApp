@@ -4087,6 +4087,15 @@ function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6
   return tex;
 }
 
+const FRONT_SIDE_Z = 1;
+const LEG_FRONT_OFFSET_MIXAMO = 0.3;
+
+function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
+  if (!rig) return;
+  addBonePos(rig, rig.leftUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
+  addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
+}
+
 function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   if (!rig) return;
   resetBoneRig(rig);
@@ -4094,19 +4103,20 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   const breathe = Math.sin(performance.now() * 0.002) * 0.012;
 
   addBonePos(rig, rig.hips, 0, -0.345, -0.078, 1);
-  addBoneRot(rig, rig.hips, -0.06, 0, 0, 1);
-  addBoneRot(rig, rig.spine, 0.15 + breathe, 0, 0, 1);
-  addBoneRot(rig, rig.chest, 0.12, 0, 0, 1);
-  addBoneRot(rig, rig.neck, -0.05, 0, 0, 1);
+  moveLegRootsToFront(rig);
+  addBoneRot(rig, rig.hips, -0.16, 0, 0, 1);
+  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0, 1);
+  addBoneRot(rig, rig.chest, 0.16, 0, 0, 1);
+  addBoneRot(rig, rig.neck, -0.04, 0, 0, 1);
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
-  // Force a natural chair-sit pose: thighs forward, knees bending down, feet resting near the floor.
-  addBoneRot(rig, rig.leftUpperLeg, 1.45, -0.03, -0.04, 1);
-  addBoneRot(rig, rig.leftLowerLeg, 1.12, 0.03, 0.02, 1);
-  addBoneRot(rig, rig.leftFoot, -0.05, 0.02, 0.01, 1);
-  addBoneRot(rig, rig.rightUpperLeg, 1.45, 0.03, 0.04, 1);
-  addBoneRot(rig, rig.rightLowerLeg, 1.12, -0.03, -0.02, 1);
-  addBoneRot(rig, rig.rightFoot, -0.05, -0.02, -0.01, 1);
+  // Match the seated-bone technique: leg roots shifted to visual front + Mixamo-like seated joint angles.
+  addBoneRot(rig, rig.leftUpperLeg, -1.42, 0.14, 0.1, 1);
+  addBoneRot(rig, rig.leftLowerLeg, 1.52, 0.02, 0.02, 1);
+  addBoneRot(rig, rig.leftFoot, -0.16, 0.03, 0.03, 1);
+  addBoneRot(rig, rig.rightUpperLeg, -1.42, -0.14, -0.1, 1);
+  addBoneRot(rig, rig.rightLowerLeg, 1.52, -0.02, -0.02, 1);
+  addBoneRot(rig, rig.rightFoot, -0.16, -0.03, -0.03, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
