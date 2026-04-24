@@ -79,9 +79,7 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-// Portrait calibration: move avatars lower and closer to the chair back so
-// feet reach the floor and hips/back settle into the chair profile.
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0.1, -0.52, -0.14);
+const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.2, 0.04);
 const HUMAN_SEAT_SCALE = 1.75;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
@@ -1583,20 +1581,19 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const breathe = Math.sin(timeSeconds * 1.05) * 0.016;
   const dynamicLean = activeLean * 0.06;
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.28 - dynamicLean, -0.04, 0.04, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.44 + breathe - dynamicLean * 0.32, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.18 - dynamicLean, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.36 + breathe - dynamicLean * 0.32, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine1, new THREE.Euler(0.2, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine2, new THREE.Euler(0.1, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.14, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.27) * 0.03, 0, 'XYZ'));
 
-  // Keep both legs visually grouped toward screen-right while remaining seated.
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.38, -0.28, 0.14, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.4, -0.2, 0.04, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.72, -0.05, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.68, -0.02, 0, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.04, -0.12, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.04, -0.09, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.46, 0.15, 0.08, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.46, -0.15, -0.08, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.08, 0.06, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.08, -0.06, -0.05, 'XYZ'));
 
   composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.3, 'XYZ'));
   composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.3, 'XYZ'));
