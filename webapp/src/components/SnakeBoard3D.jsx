@@ -8,6 +8,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 import {
   createMurlanStyleTable,
@@ -76,6 +77,10 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const HUMAN_MODEL_CACHE = { promise: null, template: null };
+const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.07, 0.1);
+const HUMAN_SEAT_SCALE = 1.05;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1468,6 +1473,47 @@ function createConfiguredGLTFLoader(renderer = null) {
   }
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
+}
+
+function applyOriginalTextureMapping(root) {
+  if (!root) return;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    node.castShadow = true;
+    node.receiveShadow = true;
+    node.frustumCulled = false;
+    const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+    materials.forEach((material) => {
+      if (material?.map) {
+        applySRGBColorSpace(material.map);
+        material.map.needsUpdate = true;
+      }
+      if (material?.emissiveMap) {
+        applySRGBColorSpace(material.emissiveMap);
+        material.emissiveMap.needsUpdate = true;
+      }
+      material.needsUpdate = true;
+    });
+  });
+}
+
+async function loadSeatedHumanTemplate(renderer) {
+  if (HUMAN_MODEL_CACHE.template) return HUMAN_MODEL_CACHE.template;
+  if (!HUMAN_MODEL_CACHE.promise) {
+    HUMAN_MODEL_CACHE.promise = (async () => {
+      const loader = createConfiguredGLTFLoader(renderer);
+      loader.setCrossOrigin('anonymous');
+      const gltf = await loader.loadAsync(HUMAN_MODEL_URL);
+      const scene = gltf?.scene || gltf?.scenes?.[0];
+      if (!scene) {
+        throw new Error('Failed to load seated human template');
+      }
+      applyOriginalTextureMapping(scene);
+      HUMAN_MODEL_CACHE.template = scene;
+      return scene;
+    })();
+  }
+  return HUMAN_MODEL_CACHE.promise;
 }
 
 function prepareLoadedModel(model) {
@@ -3104,6 +3150,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   let chairTemplate = initialChair.chairTemplate;
   let chairMaterials = initialChair.materials;
   const chairs = [];
+  const seatedHumans = [];
   const refreshChairInstances = () => {
     chairs.forEach((chair) => {
       if (chair.model) {
@@ -3129,13 +3176,18 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
     group.add(avatarAnchor);
 
+    const humanAnchor = new THREE.Object3D();
+    humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
+    humanAnchor.rotation.set(0, Math.PI, 0);
+    group.add(humanAnchor);
+
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
     if (chairModel) {
       group.add(chairModel);
     }
 
     arenaGroup.add(group);
-    chairs.push({ group, anchor: avatarAnchor, model: chairModel });
+    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor });
   }
 
   loadChairTemplate(chairTheme, renderer)
@@ -3149,6 +3201,22 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       if (prevMaterials !== chairMaterials) disposeChairMaterials(prevMaterials);
     })
     .catch(() => {});
+
+  loadSeatedHumanTemplate(renderer)
+    .then((humanTemplate) => {
+      if (!humanTemplate || disposed) return;
+      chairs.forEach((chair, seatIndex) => {
+        const instance = cloneSkeleton(humanTemplate);
+        applyOriginalTextureMapping(instance);
+        instance.name = `SnakeSeatHuman_${seatIndex}`;
+        instance.scale.setScalar(HUMAN_SEAT_SCALE);
+        chair.humanAnchor.add(instance);
+        seatedHumans[seatIndex] = instance;
+      });
+    })
+    .catch((error) => {
+      console.warn('Failed to load seated human players', error);
+    });
 
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
@@ -3164,6 +3232,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     chairs.forEach(({ group }) => {
       group.parent?.remove(group);
     });
+    seatedHumans.forEach((human) => {
+      human?.parent?.remove(human);
+    });
     if (tableInfo?.dispose) tableInfo.dispose();
     environmentCleanup?.();
     arenaGroup.parent?.remove(arenaGroup);
@@ -3178,6 +3249,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     controls,
     tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor),
+    seatedHumans,
     startCameraState
   };
 }
@@ -4868,6 +4940,8 @@ export default function SnakeBoard3D({
   const fixedSeatCameraPositionRef = useRef(null);
   const previousTurnRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
+  const currentTurnRef = useRef(currentTurn);
+  const diceEventRef = useRef(diceEvent);
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
@@ -4890,6 +4964,14 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
+
+  useEffect(() => {
+    currentTurnRef.current = currentTurn;
+  }, [currentTurn]);
+
+  useEffect(() => {
+    diceEventRef.current = diceEvent;
+  }, [diceEvent]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -5125,6 +5207,7 @@ export default function SnakeBoard3D({
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? [],
+      seatedHumans: arena.seatedHumans ?? [],
       startCameraState: arena.startCameraState ?? null,
       tableInfo: arena.tableInfo ?? null,
       weaponDisplayGroup
@@ -5429,6 +5512,20 @@ export default function SnakeBoard3D({
             },
             deltaSeconds
           );
+        });
+      }
+      if (Array.isArray(board?.seatedHumans) && board.seatedHumans.length) {
+        const activeTurn = Number.isInteger(currentTurnRef.current) ? currentTurnRef.current : -1;
+        const isThrowing = diceEventRef.current?.phase === 'start';
+        board.seatedHumans.forEach((human, seatIndex) => {
+          if (!human) return;
+          const isActiveSeat = seatIndex === activeTurn;
+          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.006;
+          const throwLean = isActiveSeat && isThrowing ? 0.08 : 0;
+          human.position.y = breathe + throwLean;
+          human.rotation.x = isActiveSeat ? -0.06 - throwLean * 0.25 : -0.02;
+          human.rotation.y = 0;
+          human.rotation.z = isActiveSeat ? Math.sin(now * 0.003) * 0.02 : 0;
         });
       }
       let hasDiceCenter = false;
