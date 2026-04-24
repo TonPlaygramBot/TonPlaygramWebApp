@@ -22000,16 +22000,12 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const pullbackDuration = THREE.MathUtils.lerp(110, 260, powerStrength);
-          const strikeDuration = THREE.MathUtils.lerp(140, CUE_LOGIC_STRIKE_TIME_MS, powerStrength);
-          const holdDuration = THREE.MathUtils.lerp(
-            CUE_LOGIC_HOLD_TIME_MS + 18,
-            CUE_LOGIC_HOLD_TIME_MS + 72,
-            powerStrength
-          );
-          const returnDuration = THREE.MathUtils.lerp(130, 220, powerStrength);
+          const pullbackDuration = 0;
+          const strikeDuration = 110;
+          const holdDuration = 45;
+          const returnDuration = 0;
           const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE * (0.88 + powerStrength * 0.92),
+            CUE_TIP_CLEARANCE,
             BALL_R * 0.08,
             BALL_R * 0.3
           );
@@ -22027,15 +22023,13 @@ const powerRef = useRef(hud.power);
             0,
             BALL_R * 0.34
           );
-          const followPos = impactPos.clone();
-          if (followExtra > 1e-6) {
-            TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
-            if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
-              TMP_VEC3_FOLLOW_DIR.normalize();
-              followPos.addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-            }
+          TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
+          if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_FOLLOW_DIR.normalize();
           }
-          const settlePos = followPos.clone();
+          const settlePos = impactPos
+            .clone()
+            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           cueStick.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
@@ -22113,19 +22107,25 @@ const powerRef = useRef(hud.power);
               pullbackDuration,
               strikeDuration,
               holdDuration,
-              animationStyle: 'spring',
-              strikeWindowRatio: 0.2,
-              hitArmRatio: 0.9
+              animationStyle: 'linear',
+              strikeWindowRatio: 0.12,
+              hitArmRatio: 0.88
             });
             if (sample.phase === 'pullback') {
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(sample.t));
+              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
             } else if (sample.phase === 'release' || sample.phase === 'strike') {
-              cueStick.position.lerpVectors(pullPos, impactPos, easeOutCubic(sample.t));
+              const strikeEase = easeOutCubic(sample.t);
+              const dynamicFollow =
+                followExtra * (0.55 + 0.45 * Math.sin(sample.t * Math.PI));
+              cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
+              if (dynamicFollow > 1e-6) {
+                cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
+              }
             } else if (sample.phase === 'hold') {
-              cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(sample.t));
+              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
             } else if (now <= returnTime && returnDuration > 0) {
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
-              cueStick.position.lerpVectors(settlePos, idlePos, easeInOutCubic(t));
+              cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
               cueStick.visible = false;
               cueAnimating = false;
