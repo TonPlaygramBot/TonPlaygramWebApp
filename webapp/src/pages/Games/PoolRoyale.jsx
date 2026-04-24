@@ -18,7 +18,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -121,7 +120,6 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const POOL_ROYALE_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -13129,8 +13127,6 @@ function PoolRoyaleGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
-  const poolHumansRef = useRef([]);
-  const poolHumanLoaderRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const tournamentMode = playType === 'tournament';
   const tournamentPlayers = useMemo(() => {
@@ -18215,221 +18211,6 @@ const shotPowerRef = useRef(0);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const createNpcCueStick = () => {
-        const cueGroup = new THREE.Group();
-        const shaftLength = Math.max(BALL_R * 19.5, 2.1);
-        const shaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(BALL_R * 0.1, BALL_R * 0.12, shaftLength, 16),
-          new THREE.MeshStandardMaterial({
-            color: 0xd5b892,
-            roughness: 0.45,
-            metalness: 0.05
-          })
-        );
-        shaft.rotation.x = Math.PI / 2;
-        shaft.position.z = -shaftLength * 0.5;
-        cueGroup.add(shaft);
-        const tip = new THREE.Mesh(
-          new THREE.CylinderGeometry(BALL_R * 0.07, BALL_R * 0.07, BALL_R * 0.34, 12),
-          new THREE.MeshStandardMaterial({
-            color: 0x4b6ea6,
-            roughness: 0.4,
-            metalness: 0.15
-          })
-        );
-        tip.rotation.x = Math.PI / 2;
-        tip.position.z = -shaftLength;
-        cueGroup.add(tip);
-        cueGroup.traverse((obj) => {
-          if (obj.isMesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-          }
-        });
-        return cueGroup;
-      };
-      const getHumanRigBones = (model) => {
-        const normalized = (name) => String(name || '').toLowerCase();
-        const findBone = (patterns = []) => {
-          let found = null;
-          model.traverse((obj) => {
-            if (found || !obj?.isBone) return;
-            const n = normalized(obj.name);
-            if (patterns.some((pattern) => n.includes(pattern))) {
-              found = obj;
-            }
-          });
-          return found;
-        };
-        return {
-          rightHand:
-            findBone(['righthand', 'hand_r', 'right_hand']) ||
-            findBone(['rightforearm', 'forearm_r', 'right_arm']),
-          rightUpperArm:
-            findBone(['rightarm', 'upperarm_r', 'arm_r']) || findBone(['rightshoulder']),
-          leftUpperArm:
-            findBone(['leftarm', 'upperarm_l', 'arm_l']) || findBone(['leftshoulder']),
-          spine: findBone(['spine2', 'spine1', 'spine']),
-          head: findBone(['head'])
-        };
-      };
-      const setupPoolHumans = (templateScene) => {
-        const existing = poolHumansRef.current || [];
-        existing.forEach((entry) => {
-          entry?.root?.parent?.remove(entry.root);
-        });
-        poolHumansRef.current = [];
-        const slots = [
-          { id: 'A', side: -1, tint: 0xffffff },
-          { id: 'B', side: 1, tint: 0xf3f5ff }
-        ];
-        slots.forEach((slot) => {
-          const root = cloneSkeleton(templateScene);
-          root.name = `pool-human-${slot.id}`;
-          root.scale.setScalar(1.13);
-          root.position.set(slot.side * (PLAY_W * 0.66), 0, 0);
-          root.traverse((obj) => {
-            if (!obj?.isMesh) return;
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            if (obj.material?.color) {
-              obj.material = obj.material.clone();
-              obj.material.color.multiplyScalar(0.985);
-              obj.material.color.lerp(new THREE.Color(slot.tint), 0.03);
-            }
-          });
-          const cueStick = createNpcCueStick();
-          const bones = getHumanRigBones(root);
-          if (bones.rightHand) {
-            bones.rightHand.add(cueStick);
-            cueStick.position.set(0.03, -0.02, 0.12);
-            cueStick.rotation.set(Math.PI * 0.5, 0, Math.PI * 0.07);
-          } else {
-            root.add(cueStick);
-            cueStick.position.set(0.15, 1.12, -0.45);
-            cueStick.rotation.set(Math.PI * 0.56, 0, Math.PI * 0.07);
-          }
-          world.add(root);
-          poolHumansRef.current.push({
-            id: slot.id,
-            side: slot.side,
-            root,
-            cueStick,
-            bones,
-            walkedAt: performance.now()
-          });
-        });
-      };
-      const loadPoolHumans = () => {
-        if (!poolHumanLoaderRef.current) {
-          poolHumanLoaderRef.current = new GLTFLoader();
-          poolHumanLoaderRef.current.setCrossOrigin('anonymous');
-        }
-        const loader = poolHumanLoaderRef.current;
-        loader.load(
-          POOL_ROYALE_HUMAN_MODEL_URL,
-          (gltf) => {
-            if (disposed || !gltf?.scene) return;
-            setupPoolHumans(gltf.scene);
-          },
-          undefined,
-          (error) => {
-            console.warn('Pool Royale human players failed to load', error);
-          }
-        );
-      };
-      const updatePoolHumans = (nowMs, context = {}) => {
-        if (!poolHumansRef.current?.length) return;
-        const isPlayerTurn = Boolean(context.isPlayerTurn);
-        const isAiTurn = Boolean(context.isAiTurn);
-        const activeSeat = isAiTurn ? 'B' : 'A';
-        const aimVector =
-          aimDirRef.current && aimDirRef.current.lengthSq() > 1e-5
-            ? aimDirRef.current.clone().normalize()
-            : new THREE.Vector2(0, 1);
-        const cuePos =
-          cue?.pos && Number.isFinite(cue.pos.x) && Number.isFinite(cue.pos.y)
-            ? cue.pos.clone()
-            : new THREE.Vector2(0, 0);
-        const isAiming = isPlayerTurn || isAiTurn;
-        poolHumansRef.current.forEach((entry, idx) => {
-          const root = entry?.root;
-          if (!root) return;
-          const actor = entry.id === activeSeat && isAiming;
-          const inactiveY = idx === 0 ? -1 : 1;
-          const defaultX = entry.side * (PLAY_W * 0.68);
-          const defaultZ = inactiveY * (PLAY_H * 0.56);
-          const walkTarget = actor
-            ? new THREE.Vector3(
-                cuePos.x - aimVector.x * BALL_R * 15 + entry.side * BALL_R * 8.8,
-                0,
-                cuePos.y - aimVector.y * BALL_R * 15
-              )
-            : new THREE.Vector3(defaultX, 0, defaultZ);
-          const minOuterX = PLAY_W * 0.55;
-          if (Math.abs(walkTarget.x) < minOuterX) {
-            walkTarget.x = Math.sign(entry.side || 1) * minOuterX;
-          }
-          walkTarget.z = THREE.MathUtils.clamp(walkTarget.z, -PLAY_H * 0.58, PLAY_H * 0.58);
-          const blend = actor ? 0.11 : 0.045;
-          root.position.lerp(walkTarget, blend);
-          const lookTarget = new THREE.Vector3(cuePos.x, BALL_CENTER_Y, cuePos.y);
-          root.lookAt(lookTarget);
-          const stride = Math.sin(nowMs * 0.0045 + idx * 0.75);
-          const moveSpeed = root.position.distanceTo(walkTarget);
-          const walkWeight = actor ? Math.min(1, moveSpeed * 2.6) : Math.min(0.45, moveSpeed * 2.2);
-          if (entry.bones.spine) {
-            entry.bones.spine.rotation.x = THREE.MathUtils.lerp(
-              entry.bones.spine.rotation.x,
-              actor ? -0.44 : -0.1 + stride * 0.02,
-              0.16
-            );
-            entry.bones.spine.rotation.y = THREE.MathUtils.lerp(
-              entry.bones.spine.rotation.y,
-              actor ? entry.side * 0.1 : stride * 0.03,
-              0.14
-            );
-          }
-          if (entry.bones.rightUpperArm) {
-            entry.bones.rightUpperArm.rotation.x = THREE.MathUtils.lerp(
-              entry.bones.rightUpperArm.rotation.x,
-              actor ? -0.95 : -0.3 - walkWeight * 0.25,
-              0.18
-            );
-            entry.bones.rightUpperArm.rotation.z = THREE.MathUtils.lerp(
-              entry.bones.rightUpperArm.rotation.z,
-              actor ? -0.48 : -0.2 + stride * 0.06,
-              0.18
-            );
-          }
-          if (entry.bones.leftUpperArm) {
-            entry.bones.leftUpperArm.rotation.x = THREE.MathUtils.lerp(
-              entry.bones.leftUpperArm.rotation.x,
-              actor ? -1.12 : -0.35,
-              0.18
-            );
-            entry.bones.leftUpperArm.rotation.z = THREE.MathUtils.lerp(
-              entry.bones.leftUpperArm.rotation.z,
-              actor ? 0.72 : 0.2 + stride * 0.07,
-              0.18
-            );
-          }
-          if (entry.bones.head) {
-            entry.bones.head.rotation.x = THREE.MathUtils.lerp(
-              entry.bones.head.rotation.x,
-              actor ? 0.32 : 0.08,
-              0.2
-            );
-          }
-          const baseY = actor ? 0 : Math.sin(nowMs * 0.005 + idx) * 0.01 * walkWeight;
-          root.position.y = baseY;
-          if (!entry.bones.rightHand) {
-            entry.cueStick.position.set(actor ? 0.15 : 0.12, actor ? 1.01 : 1.08, actor ? -0.52 : -0.4);
-            entry.cueStick.rotation.set(actor ? Math.PI * 0.54 : Math.PI * 0.5, 0, Math.PI * 0.07);
-          }
-        });
-      };
-      loadPoolHumans();
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
@@ -30352,7 +30133,6 @@ const shotPowerRef = useRef(0);
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
-        updatePoolHumans(nowMs, { isPlayerTurn, isAiTurn });
         const previewingAiShot = aiShotPreviewRef.current;
         const aiCueViewActive = aiShotCueViewRef.current;
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
@@ -32753,19 +32533,6 @@ const shotPowerRef = useRef(0);
         remoteShotUntilRef.current = 0;
         remoteAimRef.current = null;
         lightingRigRef.current = null;
-        poolHumansRef.current.forEach((entry) => {
-          entry?.root?.traverse?.((obj) => {
-            if (!obj?.isMesh) return;
-            obj.geometry?.dispose?.();
-            if (Array.isArray(obj.material)) {
-              obj.material.forEach((mat) => mat?.dispose?.());
-            } else {
-              obj.material?.dispose?.();
-            }
-          });
-          entry?.root?.parent?.remove?.(entry.root);
-        });
-        poolHumansRef.current = [];
         worldRef.current = null;
         trainingTableRef.current = null;
         activeRenderCameraRef.current = null;
