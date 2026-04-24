@@ -120,7 +120,6 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const POOL_PLAYER_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -12043,112 +12042,6 @@ export function Table3D(
     return loader;
   };
 
-  const createPoolHumanActor = ({ seat = 0 } = {}) => {
-    const actorRoot = new THREE.Group();
-    actorRoot.name = seat === 0 ? 'PoolHumanA' : 'PoolHumanB';
-    const modelRoot = new THREE.Group();
-    actorRoot.add(modelRoot);
-    const cueProp = new THREE.Mesh(
-      new THREE.CylinderGeometry(BALL_R * 0.08, BALL_R * 0.1, BALL_R * 26, 12),
-      new THREE.MeshStandardMaterial({
-        color: 0xd4ac74,
-        roughness: 0.45,
-        metalness: 0.08
-      })
-    );
-    cueProp.rotation.x = Math.PI / 2;
-    cueProp.position.set(0.2, 1.2, -0.25);
-    cueProp.castShadow = true;
-    cueProp.visible = false;
-    actorRoot.add(cueProp);
-    actorRoot.userData.poolHuman = true;
-    const laneX = PLAY_W * 0.68;
-    const laneZ = PLAY_H * 0.68;
-    const perimeter = seat === 0
-      ? [
-          new THREE.Vector3(-laneX, 0, -laneZ),
-          new THREE.Vector3(laneX, 0, -laneZ),
-          new THREE.Vector3(laneX, 0, laneZ),
-          new THREE.Vector3(-laneX, 0, laneZ)
-        ]
-      : [
-          new THREE.Vector3(laneX, 0, laneZ),
-          new THREE.Vector3(-laneX, 0, laneZ),
-          new THREE.Vector3(-laneX, 0, -laneZ),
-          new THREE.Vector3(laneX, 0, -laneZ)
-        ];
-    return {
-      seat,
-      root: actorRoot,
-      modelRoot,
-      cueProp,
-      skeleton: {},
-      defaultPose: {},
-      target: perimeter[0].clone(),
-      perimeter,
-      waypointIndex: 0,
-      walkSpeed: 0.68 + seat * 0.05
-    };
-  };
-
-  const cachePoolHumanSkeleton = (actor) => {
-    if (!actor?.modelRoot) return;
-    const found = {};
-    actor.modelRoot.traverse((node) => {
-      if (!node?.isBone || typeof node.name !== 'string') return;
-      const n = node.name.toLowerCase();
-      if (!found.spine && (n.includes('spine') || n.includes('chest'))) found.spine = node;
-      if (!found.rightUpperArm && (n.includes('rightarm') || n.includes('right_upper_arm'))) {
-        found.rightUpperArm = node;
-      }
-      if (!found.rightForeArm && (n.includes('rightforearm') || n.includes('right_lower_arm'))) {
-        found.rightForeArm = node;
-      }
-      if (!found.leftUpperArm && (n.includes('leftarm') || n.includes('left_upper_arm'))) {
-        found.leftUpperArm = node;
-      }
-      if (!found.leftForeArm && (n.includes('leftforearm') || n.includes('left_lower_arm'))) {
-        found.leftForeArm = node;
-      }
-    });
-    actor.skeleton = found;
-    const savePose = (key) => {
-      const bone = found[key];
-      if (!bone) return;
-      actor.defaultPose[key] = bone.rotation.clone();
-    };
-    ['spine', 'rightUpperArm', 'rightForeArm', 'leftUpperArm', 'leftForeArm'].forEach(savePose);
-  };
-
-  const loadPoolHumanTemplate = async (renderer = null) => {
-    if (poolHumanTemplateRef.current) return poolHumanTemplateRef.current;
-    if (!poolHumanLoaderPromiseRef.current) {
-      poolHumanLoaderPromiseRef.current = (async () => {
-        const loader = createConfiguredGLTFLoader(renderer);
-        const gltf = await loader.loadAsync(POOL_PLAYER_MODEL_URL);
-        const source = gltf?.scene || gltf?.scenes?.[0];
-        if (!source) throw new Error('Pool human model scene missing');
-        source.traverse((node) => {
-          if (!node?.isMesh) return;
-          node.castShadow = true;
-          node.receiveShadow = true;
-          if (node.material?.map) {
-            applySRGBColorSpace(node.material.map);
-            node.material.map.needsUpdate = true;
-          }
-          node.material.needsUpdate = true;
-        });
-        source.scale.setScalar(0.9);
-        poolHumanTemplateRef.current = source;
-        return source;
-      })().catch((error) => {
-        poolHumanLoaderPromiseRef.current = null;
-        throw error;
-      });
-    }
-    return poolHumanLoaderPromiseRef.current;
-  };
-
   const buildPolyhavenModelUrls = (assetId) => {
     if (!assetId) return [];
     const normalizedId = `${assetId}`.trim();
@@ -16241,9 +16134,6 @@ const shotPowerRef = useRef(0);
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
-  const poolHumanActorsRef = useRef([]);
-  const poolHumanTemplateRef = useRef(null);
-  const poolHumanLoaderPromiseRef = useRef(null);
   const spinRangeRef = useRef({
     side: 0,
     forward: 0,
@@ -25207,30 +25097,6 @@ const shotPowerRef = useRef(0);
         }
       };
 
-      const humanActors = [createPoolHumanActor({ seat: 0 }), createPoolHumanActor({ seat: 1 })];
-      poolHumanActorsRef.current = humanActors;
-      humanActors.forEach((actor) => {
-        actor.root.position.copy(actor.target);
-        actor.root.rotation.y = actor.seat === 0 ? 0 : Math.PI;
-        actor.root.visible = false;
-        scene.add(actor.root);
-      });
-      loadPoolHumanTemplate(renderer)
-        .then((template) => {
-          if (disposed || !template) return;
-          humanActors.forEach((actor) => {
-            if (!actor?.modelRoot) return;
-            actor.modelRoot.clear();
-            const clone = template.clone(true);
-            actor.modelRoot.add(clone);
-            cachePoolHumanSkeleton(actor);
-            actor.root.visible = true;
-          });
-        })
-        .catch((error) => {
-          console.warn('Pool Royale human players failed to load', error);
-        });
-
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
         const state = cueGalleryStateRef.current;
@@ -26121,14 +25987,14 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
+        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
         const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
         const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
-          // Match the reference cue workflow:
-          // drag = pull back, release = immediate forward strike.
+          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
+          // then release performs a single forward punch through the cue ball.
           motion: 'classic',
-          pullRatio: easeOutCubic(p),
+          pullRatio: p,
           pullSmoothing: 1,
           strikeDuration,
           holdDuration,
@@ -26819,9 +26685,13 @@ const shotPowerRef = useRef(0);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Restore the previous cue pullback calibration used before the
-          // recent cue-drive changes.
-          const pullRange = 0.24;
+          // Rebuilt stroke pullback: tie visible pull directly to slider power
+          // and the currently available room behind the cue ball.
+          const pullRange = THREE.MathUtils.clamp(
+            maxPull * 0.92,
+            CUE_PULL_MIN_VISUAL,
+            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
+          );
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
@@ -26866,8 +26736,9 @@ const shotPowerRef = useRef(0);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          // Start the release from the visible pulled position.
-          const releaseStartPos = cueStick.position.clone();
+          // Start the release exactly from the computed pull position so the
+          // cue always pushes forward from the same pulled depth the player set.
+          const releaseStartPos = buildCuePosition(visualPull);
           cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -30062,108 +29933,6 @@ const shotPowerRef = useRef(0);
     }
   }
 
-  const lerpBoneRotation = (bone, target, alpha = 0.2) => {
-    if (!bone || !target) return;
-    bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, target.x, alpha);
-    bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, target.y, alpha);
-    bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, target.z, alpha);
-  };
-
-  const updatePoolHumanActors = (deltaSeconds = 0.016, context = {}) => {
-    const actors = poolHumanActorsRef.current;
-    if (!Array.isArray(actors) || actors.length === 0) return;
-    const cueBall = context.cueBall;
-    const aimDir = context.aimDir;
-    const aiAimDir = context.aiAimDir;
-    const currentHud = context.hud;
-    const localTurn = currentHud?.turn ?? 0;
-    const allBallsStopped = Boolean(context.allBallsStopped);
-    const isStrokeLocked = Boolean(context.shooting || context.cueAnimating);
-    const center = TMP_VEC3_A.set(0, 0, 0);
-    actors.forEach((actor) => {
-      if (!actor?.root) return;
-      const isShooter = localTurn === actor.seat && allBallsStopped && !isStrokeLocked && cueBall?.pos;
-      const shooterAim = actor.seat === 0 ? aimDir : aiAimDir;
-      if (isShooter && shooterAim && shooterAim.lengthSq?.() > 1e-6) {
-        const dir = TMP_VEC3_B.set(shooterAim.x, 0, shooterAim.y).normalize();
-        const cuePos = TMP_VEC3_C.set(cueBall.pos.x, 0, cueBall.pos.y);
-        const radial = TMP_VEC3_D.copy(cuePos).sub(center);
-        if (radial.lengthSq() < 1e-6) radial.set(0, 0, actor.seat === 0 ? -1 : 1);
-        radial.normalize();
-        const stancePos = cuePos
-          .clone()
-          .addScaledVector(radial, TABLE.WALL * 1.45)
-          .addScaledVector(dir, -BALL_R * 6.8);
-        actor.target.copy(stancePos);
-        actor.root.position.lerp(actor.target, Math.min(1, deltaSeconds * 5.2));
-        actor.root.lookAt(cuePos.x, 0.82, cuePos.z);
-        actor.root.rotation.x = 0;
-        actor.root.rotation.z = 0;
-        actor.cueProp.visible = true;
-        const cueLook = cuePos.clone().addScaledVector(dir, -BALL_R * 3.8);
-        actor.cueProp.position.set(0.24, 1.08, -0.12);
-        actor.cueProp.lookAt(
-          cueLook.x - actor.root.position.x,
-          0.95,
-          cueLook.z - actor.root.position.z
-        );
-        const pose = actor.skeleton || {};
-        const defaults = actor.defaultPose || {};
-        lerpBoneRotation(
-          pose.spine,
-          TMP_EULER_A.set(
-            (defaults.spine?.x ?? 0) - 0.58,
-            defaults.spine?.y ?? 0,
-            defaults.spine?.z ?? 0
-          ),
-          0.24
-        );
-        lerpBoneRotation(
-          pose.rightUpperArm,
-          TMP_EULER_A.set(-1.25, defaults.rightUpperArm?.y ?? 0.12, 0.2),
-          0.24
-        );
-        lerpBoneRotation(
-          pose.rightForeArm,
-          TMP_EULER_A.set(-1.48, defaults.rightForeArm?.y ?? 0.1, 0),
-          0.24
-        );
-        lerpBoneRotation(
-          pose.leftUpperArm,
-          TMP_EULER_A.set(-1.15, defaults.leftUpperArm?.y ?? 0.2, -0.34),
-          0.24
-        );
-        lerpBoneRotation(
-          pose.leftForeArm,
-          TMP_EULER_A.set(-0.95, defaults.leftForeArm?.y ?? 0.08, -0.12),
-          0.24
-        );
-      } else {
-        actor.cueProp.visible = false;
-        const waypoints = actor.perimeter || [];
-        if (!waypoints.length) return;
-        const target = waypoints[actor.waypointIndex % waypoints.length];
-        actor.target.copy(target);
-        const toTarget = TMP_VEC3_E.copy(actor.target).sub(actor.root.position);
-        const distance = toTarget.length();
-        if (distance > 1e-3) {
-          const maxStep = actor.walkSpeed * deltaSeconds;
-          toTarget.normalize();
-          actor.root.position.addScaledVector(toTarget, Math.min(distance, maxStep));
-          actor.root.lookAt(actor.target.x, 0.84, actor.target.z);
-        }
-        if (distance < 0.12) {
-          actor.waypointIndex = (actor.waypointIndex + 1) % waypoints.length;
-        }
-        const pose = actor.skeleton || {};
-        const defaults = actor.defaultPose || {};
-        ['spine', 'rightUpperArm', 'rightForeArm', 'leftUpperArm', 'leftForeArm'].forEach((key) =>
-          lerpBoneRotation(pose[key], defaults[key], 0.16)
-        );
-      }
-    });
-  };
-
   // Loop
   let lastStepTime = performance.now();
   let lastReplayFrameAt = 0;
@@ -30468,15 +30237,6 @@ const shotPowerRef = useRef(0);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        updatePoolHumanActors(deltaSeconds, {
-          cueBall: cue,
-          aimDir,
-          aiAimDir: activeAiPlan?.aimDir ?? aimDir,
-          hud: currentHud,
-          allBallsStopped: allStopped(balls),
-          shooting,
-          cueAnimating
-        });
         function resolveCueObstruction(
           dirVec3,
           pullDistance = cuePullTargetRef.current ?? 0,
