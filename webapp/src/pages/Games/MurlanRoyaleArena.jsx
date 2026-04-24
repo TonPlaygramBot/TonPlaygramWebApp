@@ -104,8 +104,8 @@ const resolveTableCloth = (index) => {
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
-const CHARACTER_PROPORTION_SCALE = 2.0;
-const ENABLE_3D_HUMAN_CHARACTERS = false;
+const CHARACTER_PROPORTION_SCALE = 1.62;
+const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1;
 const ARENA_PROP_SCALE = 1;
@@ -1771,10 +1771,21 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
   heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
 
-  instance.add(heldCards);
-  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
-  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.45);
+  const attachHeldCards = (cardsGroup) => {
+    const cardsParent = leftHand || instance;
+    cardsParent.add(cardsGroup);
+    if (leftHand) {
+      cardsGroup.position.set(-0.02 * MODEL_SCALE, 0.11 * MODEL_SCALE, 0.12 * MODEL_SCALE);
+      cardsGroup.rotation.set(THREE.MathUtils.degToRad(-92), THREE.MathUtils.degToRad(20), THREE.MathUtils.degToRad(-24));
+      cardsGroup.scale.setScalar(1.16);
+    } else {
+      cardsGroup.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+      cardsGroup.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+      cardsGroup.scale.setScalar(1.45);
+    }
+  };
+
+  attachHeldCards(heldCards);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1818,6 +1829,7 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
       rightCalf: captureBoneRotation(rightCalf)
     },
     heldCards,
+    attachHeldCards,
     currentActionId: 0
   };
 
@@ -1878,10 +1890,14 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.userData.playerColor = playerColor;
   nextCards.userData.cardsSignature = cardsSignature;
 
-  rig.instance.add(nextCards);
-  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
-  nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  nextCards.scale.setScalar(1.45);
+  if (typeof rig.attachHeldCards === 'function') {
+    rig.attachHeldCards(nextCards);
+  } else {
+    rig.instance.add(nextCards);
+    nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+    nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+    nextCards.scale.setScalar(1.45);
+  }
 
   rig.heldCards = nextCards;
 }
@@ -1981,6 +1997,12 @@ function runCharacterAction(store, rig, action) {
   const cardsColor = PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
 
   if (action.type === 'PASS') {
+    const knockPrepPose = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-6) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-8) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(20) },
+      rightHand: { x: THREE.MathUtils.degToRad(8) }
+    });
     const knockPose = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-8) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-10) },
@@ -1991,18 +2013,42 @@ function runCharacterAction(store, rig, action) {
 
     list.push({
       start: now,
-      duration: 320,
+      duration: 180,
+      update: (t) => applyRigPoseLerp(rig, knockPrepPose, t)
+    });
+    list.push({
+      start: now + 180,
+      duration: 170,
       update: (t) => applyRigPoseLerp(rig, knockPose, t)
     });
     list.push({
-      start: now + 320,
-      duration: 360,
+      start: now + 350,
+      duration: 160,
+      update: (t) => applyRigPoseLerp(rig, knockPrepPose, t)
+    });
+    list.push({
+      start: now + 510,
+      duration: 180,
+      update: (t) => applyRigPoseLerp(rig, knockPose, t)
+    });
+    list.push({
+      start: now + 690,
+      duration: 300,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
     return;
   }
 
   if (action.type === 'PLAY') {
+    const pickupPose = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-14) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(8) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(14) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(12), z: THREE.MathUtils.degToRad(-20) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(-6) },
+      rightHand: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-8) }
+    });
     const throwPrep = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-10) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-40), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
@@ -2038,11 +2084,16 @@ function runCharacterAction(store, rig, action) {
 
     list.push({
       start: now,
-      duration: 180,
+      duration: 160,
+      update: (t) => applyRigPoseLerp(rig, pickupPose, t)
+    });
+    list.push({
+      start: now + 160,
+      duration: 150,
       update: (t) => applyRigPoseLerp(rig, throwPrep, t)
     });
     list.push({
-      start: now + 180,
+      start: now + 310,
       duration: 210,
       update: (t) => applyRigPoseLerp(rig, throwRelease, t),
       complete: () => {
@@ -2063,7 +2114,7 @@ function runCharacterAction(store, rig, action) {
       }
     });
     list.push({
-      start: now + 420,
+      start: now + 560,
       duration: 280,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
