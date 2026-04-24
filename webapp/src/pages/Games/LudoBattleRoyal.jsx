@@ -1758,6 +1758,14 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 1.62;
+const SEATED_HUMAN_SEAT_Y_OFFSET = SEAT_THICKNESS * 0.03;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.09;
+const SEATED_HUMAN_ROLL_MS = 1680;
+const SEATED_HUMAN_RECOVER_MS = 420;
+let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
@@ -3912,6 +3920,194 @@ function setDiceOrientation(dice, val) {
   dice.setRotationFromQuaternion(q);
 }
 
+function normalizeBoneName(name = '') {
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findBoneByNeedle(bones, ...needles) {
+  const normalized = bones.map((bone) => ({ bone, name: normalizeBoneName(bone.name) }));
+  for (const needle of needles) {
+    const clean = normalizeBoneName(needle);
+    const exact = normalized.find((entry) => entry.name === clean);
+    if (exact) return exact.bone;
+    const partial = normalized.find((entry) => entry.name.includes(clean));
+    if (partial) return partial.bone;
+  }
+  return null;
+}
+
+function saveBoneRig(modelRoot) {
+  const bones = [];
+  modelRoot.traverse((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  const saved = new Map();
+  bones.forEach((bone) => {
+    saved.set(bone, {
+      rotation: bone.rotation.clone(),
+      position: bone.position.clone()
+    });
+  });
+  return {
+    bones,
+    saved,
+    hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
+    spine: findBoneByNeedle(bones, 'spine'),
+    chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
+    neck: findBoneByNeedle(bones, 'neck'),
+    head: findBoneByNeedle(bones, 'head'),
+    leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
+    leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
+    leftFoot: findBoneByNeedle(bones, 'leftfoot'),
+    rightUpperLeg: findBoneByNeedle(bones, 'rightupleg', 'rightthigh', 'rightupperleg'),
+    rightLowerLeg: findBoneByNeedle(bones, 'rightleg', 'rightlowerleg', 'rightcalf'),
+    rightFoot: findBoneByNeedle(bones, 'rightfoot'),
+    leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
+    leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
+    leftHand: findBoneByNeedle(bones, 'lefthand'),
+    rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
+    rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
+    rightHand: findBoneByNeedle(bones, 'righthand')
+  };
+}
+
+function resetBoneRig(rig) {
+  if (!rig?.saved) return;
+  rig.saved.forEach((saved, bone) => {
+    bone.rotation.copy(saved.rotation);
+    bone.position.copy(saved.position);
+  });
+}
+
+function addBoneRot(rig, bone, x = 0, y = 0, z = 0) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.rotation.x = base.rotation.x + x;
+  bone.rotation.y = base.rotation.y + y;
+  bone.rotation.z = base.rotation.z + z;
+}
+
+function addBonePos(rig, bone, x = 0, y = 0, z = 0) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.position.x = base.position.x + x;
+  bone.position.y = base.position.y + y;
+  bone.position.z = base.position.z + z;
+}
+
+function smooth01(v) {
+  const t = clamp(v, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1) {
+  if (!rig) return;
+  resetBoneRig(rig);
+  const t = smooth01(intensity);
+  addBonePos(rig, rig.hips, 0, -0.28, -0.09);
+  addBoneRot(rig, rig.hips, -0.09, 0, 0);
+  addBoneRot(rig, rig.spine, 0.13, 0, 0);
+  addBoneRot(rig, rig.chest, 0.11, 0, 0);
+  addBoneRot(rig, rig.neck, -0.03, 0, 0);
+  addBoneRot(rig, rig.head, -0.05, 0, 0);
+  addBoneRot(rig, rig.leftUpperLeg, 0.92, -0.07, 0.04);
+  addBoneRot(rig, rig.leftLowerLeg, -1.06, 0, 0);
+  addBoneRot(rig, rig.leftFoot, 0.2, 0, 0);
+  addBoneRot(rig, rig.rightUpperLeg, 0.92, 0.07, -0.04);
+  addBoneRot(rig, rig.rightLowerLeg, -1.06, 0, 0);
+  addBoneRot(rig, rig.rightFoot, 0.2, 0, 0);
+  addBoneRot(rig, rig.leftUpperArm, -0.24, 0.12, 0.9);
+  addBoneRot(rig, rig.leftForeArm, -0.56, 0.04, -0.2);
+  addBoneRot(rig, rig.leftHand, -0.12, 0, 0);
+
+  let shoulderX = -0.22;
+  let shoulderY = -0.03;
+  let shoulderZ = -0.72;
+  let forearmX = -0.48;
+  let forearmY = -0.04;
+  let forearmZ = 0.16;
+  let wristX = -0.05;
+  let wristY = 0.02;
+  let wristZ = 0.04;
+
+  if (mode === 'reachDice') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.68, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.1, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.24, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.18, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.15, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
+  } else if (mode === 'windUp') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.74, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.36, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.32, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.15, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.44, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.58, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, 0.2, t);
+  } else if (mode === 'release') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.04, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.16, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.88, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.34, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.08, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.03, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.34, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
+  } else if (mode === 'reachToken') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.7, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.2, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.2, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
+  } else if (mode === 'carryToken') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.9, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.5, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.1, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.03, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
+  }
+
+  addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
+  addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
+}
+
+async function loadSeatedHumanTemplate() {
+  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
+  seatedHumanTemplatePromise = (async () => {
+    const loader = new GLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
+    const root = gltf?.scene || gltf?.scenes?.[0];
+    if (!root) throw new Error('Missing seated human scene');
+    root.traverse((obj) => {
+      if (obj?.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+      }
+    });
+    return root;
+  })();
+  return seatedHumanTemplatePromise;
+}
+
 function spinDice(
   dice,
   { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
@@ -4184,6 +4380,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   });
   const initialBottomCameraViewRef = useRef(null);
   const humanSelectionRef = useRef(null);
+  const seatedHumanActorsRef = useRef([]);
+  const seatedHumanActionRef = useRef({
+    rollPlayer: null,
+    rollStartMs: 0,
+    rollEndMs: 0
+  });
   const fitRef = useRef(() => {});
   const cameraRef = useRef(null);
   const boardLookTargetRef = useRef(null);
@@ -6331,6 +6533,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor });
     }
+    seatedHumanActorsRef.current = [];
+    try {
+      const humanTemplate = await loadSeatedHumanTemplate();
+      const baseScale = SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01);
+      chairs.forEach((chair, playerIndex) => {
+        const actor = humanTemplate.clone(true);
+        actor.scale.setScalar(baseScale);
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+        actor.rotation.set(0, Math.PI, 0);
+        chair.group.add(actor);
+        const rig = saveBoneRig(actor);
+        applySeatedHumanPose(rig, 'idle', 1);
+        seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
+      });
+    } catch (error) {
+      console.warn('Unable to attach seated human actors for Ludo chairs', error);
+    }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
     cameraSeatLockPositionRef.current = camera.position.clone();
@@ -6676,6 +6895,65 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
 
+      const actorState = seatedHumanActionRef.current;
+      const rollingPlayer = actorState?.rollPlayer;
+      const actors = seatedHumanActorsRef.current;
+      if (Array.isArray(actors) && actors.length) {
+        actors.forEach((entry) => {
+          const { rig, playerIndex } = entry;
+          if (!rig) return;
+          let mode = 'idle';
+          let intensity = 1;
+
+          if (
+            Number.isFinite(actorState?.rollStartMs) &&
+            rollingPlayer === playerIndex &&
+            actorState.rollStartMs > 0
+          ) {
+            const endMs = actorState.rollEndMs || (actorState.rollStartMs + SEATED_HUMAN_ROLL_MS);
+            const elapsed = now - actorState.rollStartMs;
+            const total = Math.max(1, endMs - actorState.rollStartMs);
+            const progress = clamp(elapsed / total, 0, 1.2);
+            if (progress < 0.3) {
+              mode = 'reachDice';
+              intensity = progress / 0.3;
+            } else if (progress < 0.68) {
+              mode = 'windUp';
+              intensity = (progress - 0.3) / 0.38;
+            } else if (progress < 1.04) {
+              mode = 'release';
+              intensity = clamp((progress - 0.68) / 0.36, 0, 1);
+            } else {
+              mode = 'idle';
+              intensity = clamp(1 - (progress - 1.04) * 2.3, 0, 1);
+            }
+            if (progress > 1.2) {
+              actorState.rollPlayer = null;
+            }
+          } else if (state?.animation?.active && state.animation.player === playerIndex) {
+            const anim = state.animation;
+            const seg = anim.segments?.[anim.segment];
+            const segProgress = seg ? clamp(anim.elapsed / Math.max(seg.duration, 1e-4), 0, 1) : 1;
+            if (anim.segment <= 0) {
+              mode = 'reachToken';
+              intensity = segProgress;
+            } else {
+              mode = 'carryToken';
+              intensity = 0.45 + segProgress * 0.55;
+            }
+          } else if (
+            actorState?.rollEndMs &&
+            now - actorState.rollEndMs < SEATED_HUMAN_RECOVER_MS &&
+            rollingPlayer === playerIndex
+          ) {
+            mode = 'release';
+            intensity = clamp(1 - (now - actorState.rollEndMs) / SEATED_HUMAN_RECOVER_MS, 0, 1);
+          }
+
+          applySeatedHumanPose(rig, mode, intensity);
+        });
+      }
+
       if (diceRef.current) {
         const lights = diceRef.current.userData?.lights;
         if (lights?.accent) {
@@ -6766,6 +7044,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         aiTimeoutRef.current = null;
       }
       seatPositionsRef.current = [];
+      seatedHumanActorsRef.current = [];
+      seatedHumanActionRef.current = { rollPlayer: null, rollStartMs: 0, rollEndMs: 0 };
       setSeatAnchors([]);
       stateRef.current = null;
       turnIndicatorRef.current = null;
@@ -8556,6 +8836,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       preserveUserTurnCameraRef.current = true;
     }
     playDiceSound();
+    seatedHumanActionRef.current = {
+      rollPlayer: player,
+      rollStartMs: performance.now(),
+      rollEndMs: 0
+    };
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
@@ -8563,6 +8848,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
+    seatedHumanActionRef.current.rollEndMs = performance.now();
     setUi((s) => ({
       ...s,
       dice: value,
