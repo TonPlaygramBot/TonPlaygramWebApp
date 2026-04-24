@@ -26133,12 +26133,13 @@ const shotPowerRef = useRef(0);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const easedRatio = 1 - Math.pow(1 - ratio, 3);
+        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
+        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
         const target =
-          amplifiedMax * easedRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
         return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
@@ -26726,7 +26727,7 @@ const shotPowerRef = useRef(0);
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
           const pullRange = 0.24;
-          const pullTarget = pullRange * easeOutCubic(clampedPower);
+          const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
@@ -26780,8 +26781,8 @@ const shotPowerRef = useRef(0);
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = 110;
-          const strikeHoldDuration = 45;
+          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
+          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
@@ -26917,7 +26918,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.88,
+              strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
