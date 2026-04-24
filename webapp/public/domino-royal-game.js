@@ -7672,16 +7672,16 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenRoughnessMap'
 ]);
 const HUMAN_MODEL_SOURCE = Object.freeze({
-  label: 'Ready Player Me seated humanoid',
-  url: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  scale: 1,
-  rotationY: Math.PI
+  label: 'Xbot Mixamo humanoid',
+  url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
+  scale: 1.26,
+  rotationY: -Math.PI / 2
 });
 const HUMAN_SEAT_TUNE = Object.freeze({
-  chairHeightRatio: 1.02,
-  chairDepthRatio: -0.18,
-  hipLift: 0.04,
-  faceLift: 0.62
+  chairHeightRatio: 1.08,
+  chairDepthRatio: -0.22,
+  hipLift: 0.045,
+  faceLift: 0.64
 });
 let humanTemplatePromise = null;
 const seatedHumans = [];
@@ -7737,11 +7737,9 @@ function buildHumanBoneMap(root) {
     leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
     leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
     leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
-    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand', 'handl']),
     rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
     rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
     rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
-    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand', 'handr']),
     leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
@@ -7754,8 +7752,6 @@ function buildHumanBoneMap(root) {
   map.rightArm ??= map.rightShoulder;
   map.leftForeArm ??= map.leftArm;
   map.rightForeArm ??= map.rightArm;
-  map.leftHand ??= map.leftForeArm;
-  map.rightHand ??= map.rightForeArm;
   map.leftLeg ??= map.leftUpLeg;
   map.rightLeg ??= map.rightUpLeg;
   return map;
@@ -7781,59 +7777,25 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
 
   const rightReach = actionStrength;
   const rightKnock = knockStrength;
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.1, 0.03, -0.58, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.76, 0.18, -0.72, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.26, 0.11, -0.38, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(0.15, 0, -0.08, 'XYZ'));
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.05, 0.05, -0.22, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.58, 0.16, -0.2, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.02, 0.09, -0.07, 'XYZ'));
 
   composeModelBone(
     rest,
     bones.rightShoulder,
-    new THREE.Euler(-0.12 + rightReach * 0.92 - rightKnock * 0.24, -0.14, 0.34, 'XYZ')
+    new THREE.Euler(-0.06 + rightReach * 0.62 - rightKnock * 0.2, -0.11, 0.2, 'XYZ')
   );
   composeModelBone(
     rest,
     bones.rightArm,
-    new THREE.Euler(-0.82 + rightReach * 2.05 + rightKnock * 1.18, -0.18 - rightReach * 0.35, 0.42, 'XYZ')
+    new THREE.Euler(-0.68 + rightReach * 1.72 + rightKnock * 1.06, -0.16 - rightReach * 0.25, 0.24, 'XYZ')
   );
   composeModelBone(
     rest,
     bones.rightForeArm,
-    new THREE.Euler(-1.28 + rightReach * 1.54 + rightKnock * 1.84, -0.1, 0.22, 'XYZ')
+    new THREE.Euler(-1.1 + rightReach * 1.24 + rightKnock * 1.65, -0.08, 0.08, 'XYZ')
   );
-  composeModelBone(
-    rest,
-    bones.rightHand,
-    new THREE.Euler(-0.14 + rightReach * 0.34, 0.05, 0.12 - rightReach * 0.26, 'XYZ')
-  );
-
-  if (seatHuman.action?.targetWorld && seatHuman.wrapper) {
-    const localTarget = seatHuman.wrapper.worldToLocal(
-      seatHuman.action.targetWorld.clone()
-    );
-    const lateral = THREE.MathUtils.clamp(localTarget.x / 0.55, -1, 1);
-    const depth = THREE.MathUtils.clamp((localTarget.z + 0.12) / 0.75, -1, 1);
-    composeModelBone(
-      rest,
-      bones.rightShoulder,
-      new THREE.Euler(
-        -0.12 + rightReach * (0.7 + depth * 0.5),
-        -0.14 + lateral * 0.12,
-        0.34 - lateral * 0.22,
-        'XYZ'
-      )
-    );
-    composeModelBone(
-      rest,
-      bones.rightArm,
-      new THREE.Euler(
-        -0.82 + rightReach * (1.6 + depth * 0.52),
-        -0.18 - rightReach * 0.28 + lateral * 0.14,
-        0.42 - lateral * 0.16,
-        'XYZ'
-      )
-    );
-  }
 }
 
 async function ensureHumanTemplate() {
@@ -7873,7 +7835,7 @@ function clearSeatedHumans() {
   seatFaceAnchors.length = 0;
 }
 
-function triggerSeatHumanAction(seatIndex, action = 'place', details = null) {
+function triggerSeatHumanAction(seatIndex, action = 'place') {
   const seatHuman = seatedHumans[seatIndex];
   if (!seatHuman) return;
   const now = performance.now();
@@ -7881,21 +7843,7 @@ function triggerSeatHumanAction(seatIndex, action = 'place', details = null) {
     seatHuman.action = { type: 'knock', startMs: now, durationMs: 720 };
     return;
   }
-  if (action === 'pickup') {
-    seatHuman.action = {
-      type: 'pickup',
-      startMs: now,
-      durationMs: 620,
-      targetWorld: details?.targetWorld?.clone?.() || null
-    };
-    return;
-  }
-  seatHuman.action = {
-    type: 'place',
-    startMs: now,
-    durationMs: 900,
-    targetWorld: details?.targetWorld?.clone?.() || null
-  };
+  seatHuman.action = { type: 'place', startMs: now, durationMs: 900 };
 }
 
 function syncSeatHumans(nowMs = performance.now()) {
@@ -7912,8 +7860,6 @@ function syncSeatHumans(nowMs = performance.now()) {
       );
       if (seatHuman.action.type === 'place') {
         placeStrength = Math.sin(progress * Math.PI);
-      } else if (seatHuman.action.type === 'pickup') {
-        placeStrength = Math.sin(progress * Math.PI) * 0.82;
       } else if (seatHuman.action.type === 'knock') {
         knockStrength = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
       }
@@ -7949,8 +7895,7 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     seatFaceAnchors[index] = faceAnchor;
     const seatHuman = {
       root,
-      action: null,
-      wrapper
+      action: null
     };
 
     const bounds = new THREE.Box3().setFromObject(root);
@@ -8747,7 +8692,6 @@ function spawnDrawAnimation(startWorld, seatIndex = human) {
   if (!startWorld) {
     return;
   }
-  triggerSeatHumanAction(seatIndex, 'pickup', { targetWorld: startWorld });
   const start = startWorld.clone
     ? startWorld.clone()
     : new THREE.Vector3().copy(startWorld);
@@ -9534,9 +9478,7 @@ function placeOnBoard(tile, side, options = {}) {
   } else {
     renderChain();
   }
-  triggerSeatHumanAction(current, 'place', {
-    targetWorld: new THREE.Vector3(nx, CHAIN_TILE_Y, nz)
-  });
+  triggerSeatHumanAction(current, 'place');
   SFX.place();
   return { success: true, segment, end: updatedEnd };
 }
