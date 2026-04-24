@@ -22791,7 +22791,6 @@ const shotPowerRef = useRef(0);
           if (forwardOnly) {
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 110);
             const safeHoldDuration = Math.max(0, holdDuration ?? 45);
-            const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? impactPos,
               impactPos: impactPos ?? pullPos,
@@ -22799,14 +22798,29 @@ const shotPowerRef = useRef(0);
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
             const resolvedContactPos = stroke.contactPos ?? impactPos ?? pullPos;
+            const resolvedIdlePos = idlePos ?? impactPos ?? pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
               1
             );
+            const followBoost = THREE.MathUtils.clamp(stroke.strikeExtraFollow ?? 0, 0, 0.018);
+            const dynamicFollowScale = 0.55 + 0.45 * Math.sin(strikeProgress * Math.PI);
+            const dynamicFollow = followBoost * dynamicFollowScale;
+            const forwardDir = tmpCueStrokeA
+              .copy(resolvedContactPos)
+              .sub(resolvedPullPos);
+            if (forwardDir.lengthSq() > 1e-8) {
+              forwardDir.normalize();
+            } else {
+              forwardDir.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0)).normalize();
+            }
+            const resolvedFollowContact = tmpCueStrokeB
+              .copy(resolvedContactPos)
+              .addScaledVector(forwardDir, dynamicFollow);
             const strikeEase = easeOutCubic(strikeProgress);
             cueStick.visible = true;
-            cueStick.position.lerpVectors(resolvedPullPos, resolvedContactPos, strikeEase);
+            cueStick.position.lerpVectors(resolvedPullPos, resolvedFollowContact, strikeEase);
             cueStick.position.y -= (strikeDip ?? 0.0035) * strikeEase;
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y =
@@ -22824,22 +22838,7 @@ const shotPowerRef = useRef(0);
               syncCueShadow();
               return true;
             }
-            const recoverT = THREE.MathUtils.clamp(
-              (elapsed - (safeStrikeDuration + safeHoldDuration)) / Math.max(safeRecoverDuration || 1, 1),
-              0,
-              1
-            );
-            if (recoverT < 1) {
-              cueStick.position.lerpVectors(
-                resolvedContactPos,
-                idlePos ?? impactPos ?? pullPos,
-                easeInOutCubic(recoverT)
-              );
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
-            cueStick.position.copy(idlePos ?? followPos ?? impactPos);
+            cueStick.position.copy(resolvedIdlePos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             cueStick.visible = false;
@@ -26878,12 +26877,12 @@ const shotPowerRef = useRef(0);
               pullbackDuration,
               strikeDuration,
               holdDuration: followDurationResolved,
-              recoverDuration,
+              recoverDuration: 0,
               baseRotationX: cueStick.rotation.x,
               baseRotationY: cueStick.rotation.y,
-              strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
-              wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeDip: 0.0035,
+              wobbleAmount: 0.0014,
+              strikeImpactThreshold: 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
