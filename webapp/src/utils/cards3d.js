@@ -209,8 +209,8 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
 }
 
 export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
-  const safeWidth = Math.max(1024, Math.round(Math.min(w, 3072)));
-  const safeHeight = Math.max(1440, Math.round(Math.min(h, 4320)));
+  const safeWidth = Math.max(640, Math.round(Math.min(w, 2048)));
+  const safeHeight = Math.max(960, Math.round(Math.min(h, 3072)));
   const cacheKey = `${theme?.id || 'default'}:${safeWidth}x${safeHeight}`;
   const cachedTexture = cardBackTextureCache.get(cacheKey);
   if (cachedTexture) return cachedTexture;
@@ -234,7 +234,7 @@ export function makeTonplaygramCardBackTexture(theme, w = 3072, h = 4320) {
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = 16;
+  texture.anisotropy = 8;
   texture.flipY = false;
 
   const logoImage = getTonplaygramLogoImage();

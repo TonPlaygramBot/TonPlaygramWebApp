@@ -2710,15 +2710,25 @@ function resolveHdriResolutionFromGraphics(frameOption) {
 }
 
 function resolveCardTextureSize(frameOption) {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent ?? '' : '';
+  const isAndroidWebView =
+    /Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/\d+\.\d+ Chrome\//i.test(ua));
+  const deviceMemory = typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number'
+    ? navigator.deviceMemory
+    : null;
+  const memoryScaleCap = deviceMemory != null && deviceMemory <= 4 ? 0.72 : 1;
+  const webViewScaleCap = isAndroidWebView ? 0.7 : 1;
+  const runtimeScaleCap = Math.min(memoryScaleCap, webViewScaleCap);
   const scale = Number.isFinite(frameOption?.cardTextureScale)
     ? THREE.MathUtils.clamp(frameOption.cardTextureScale, 1, 1.5)
     : 1;
+  const effectiveScale = Math.max(0.62, scale * runtimeScaleCap);
   return {
-    w: Math.round(768 * scale),
-    h: Math.round(1080 * scale),
-    heldW: Math.round(256 * scale),
-    heldH: Math.round(360 * scale),
-    id: `${frameOption?.id || DEFAULT_FRAME_RATE_ID}-${scale.toFixed(2)}`
+    w: Math.round(768 * effectiveScale),
+    h: Math.round(1080 * effectiveScale),
+    heldW: Math.round(256 * effectiveScale),
+    heldH: Math.round(360 * effectiveScale),
+    id: `${frameOption?.id || DEFAULT_FRAME_RATE_ID}-${effectiveScale.toFixed(2)}`
   };
 }
 
@@ -7252,7 +7262,9 @@ function recolorBlackJokerFigure(ctx, width, height) {
 }
 
 function makeCardBackTexture(theme, textureQuality = null) {
-  const safeQualityScale = Number.isFinite(textureQuality?.w) ? THREE.MathUtils.clamp(textureQuality.w / 768, 1, 1.5) : 1;
+  const safeQualityScale = Number.isFinite(textureQuality?.w)
+    ? THREE.MathUtils.clamp(textureQuality.w / 768, 0.62, 1.5)
+    : 1;
   const width = Math.round(1024 * safeQualityScale);
   const height = Math.round(1536 * safeQualityScale);
   return makeTonplaygramCardBackTexture(theme, width, height);
