@@ -147,6 +147,7 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 120;
+const DICE_RESULT_HOLD_DURATION = 2000;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -304,18 +305,24 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom seat: push reserve token visually upward toward top player.
-  Object.freeze({ radial: -TILE_SIZE * 1.94, lateral: 0, y: TILE_SIZE * 0.1 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  // Top seat: push reserve token further upward on portrait screens.
-  Object.freeze({ radial: TILE_SIZE * 1.98, lateral: 0, y: TILE_SIZE * 0.12 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 })
+  // Bottom seat (yellow): bottom-left marker near logo plate.
+  Object.freeze({ radial: TILE_SIZE * 1.46, lateral: TILE_SIZE * 1.06, y: TILE_SIZE * 0.08 }),
+  // Right seat (yellow): upper marker above side-center.
+  Object.freeze({ radial: TILE_SIZE * 1.08, lateral: -TILE_SIZE * 1.1, y: TILE_SIZE * 0.08 }),
+  // Top seat (yellow): upper-left marker near top edge.
+  Object.freeze({ radial: TILE_SIZE * 1.58, lateral: -TILE_SIZE * 1.04, y: TILE_SIZE * 0.1 }),
+  // Left seat (yellow): upper marker above side-center.
+  Object.freeze({ radial: TILE_SIZE * 1.08, lateral: TILE_SIZE * 1.1, y: TILE_SIZE * 0.08 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 2.28, lateral: 0, y: TILE_SIZE * 1.24 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: -TILE_SIZE * 0.92, y: TILE_SIZE * 1.2 }),
-  Object.freeze({ radial: TILE_SIZE * 2.34, lateral: 0, y: TILE_SIZE * 1.34 }),
-  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: TILE_SIZE * 0.92, y: TILE_SIZE * 1.2 })
+  // Bottom seat (red): bottom-right marker.
+  Object.freeze({ radial: TILE_SIZE * 1.72, lateral: -TILE_SIZE * 1.08, y: TILE_SIZE * 1.1 }),
+  // Right seat (red): lower side marker.
+  Object.freeze({ radial: TILE_SIZE * 1.34, lateral: TILE_SIZE * 0.96, y: TILE_SIZE * 1.1 }),
+  // Top seat (red): upper-right marker.
+  Object.freeze({ radial: TILE_SIZE * 1.86, lateral: TILE_SIZE * 1.02, y: TILE_SIZE * 1.16 }),
+  // Left seat (red): lower side marker.
+  Object.freeze({ radial: TILE_SIZE * 1.34, lateral: -TILE_SIZE * 0.96, y: TILE_SIZE * 1.1 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -392,31 +399,75 @@ const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 
 const DICE_SEAT_ADJUSTMENTS = [
   {
+    front: {
+      start: -TILE_SIZE * 0.08,
+      bounce: -TILE_SIZE * 0.06,
+      base: -TILE_SIZE * 0.14
+    },
+    side: {
+      start: -TILE_SIZE * 0.03,
+      bounce: -TILE_SIZE * 0.04,
+      base: -TILE_SIZE * 0.08
+    },
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      // Blue (turn anchor): near bottom-center. Purple (result): slightly inward.
+      start: -TILE_SIZE * 1.2,
+      bounce: -TILE_SIZE * 0.92,
+      base: -TILE_SIZE * 0.62
     }
   },
   {
+    front: {
+      start: TILE_SIZE * 0.04,
+      bounce: TILE_SIZE * 0.03,
+      base: TILE_SIZE * 0.06
+    },
+    side: {
+      start: TILE_SIZE * 0.12,
+      bounce: TILE_SIZE * 0.08,
+      base: TILE_SIZE * 0.04
+    },
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      // Blue (turn anchor): right side. Purple (result): inside-right edge.
+      start: -TILE_SIZE * 1.28,
+      bounce: -TILE_SIZE * 1.0,
+      base: -TILE_SIZE * 0.66
     }
   },
   {
+    front: {
+      start: TILE_SIZE * 0.18,
+      bounce: TILE_SIZE * 0.12,
+      base: TILE_SIZE * 0.18
+    },
+    side: {
+      start: TILE_SIZE * 0.03,
+      bounce: TILE_SIZE * 0.02,
+      base: TILE_SIZE * 0.04
+    },
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      // Blue (turn anchor): top-center. Purple (result): inward toward board center.
+      start: -TILE_SIZE * 1.28,
+      bounce: -TILE_SIZE * 1.0,
+      base: -TILE_SIZE * 0.68
     }
   },
   {
+    front: {
+      start: TILE_SIZE * 0.04,
+      bounce: TILE_SIZE * 0.03,
+      base: TILE_SIZE * 0.06
+    },
+    side: {
+      start: -TILE_SIZE * 0.12,
+      bounce: -TILE_SIZE * 0.08,
+      base: -TILE_SIZE * 0.04
+    },
     forward: {
-      start: 0,
-      bounce: 0,
-      base: 0
+      // Blue (turn anchor): left side. Purple (result): inside-left edge.
+      start: -TILE_SIZE * 1.28,
+      bounce: -TILE_SIZE * 1.0,
+      base: -TILE_SIZE * 0.66
     }
   }
 ];
@@ -2474,7 +2525,10 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
   };
 }
 
-function createDiceHandoffAnimation(diceArray, { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION }) {
+function createDiceHandoffAnimation(
+  diceArray,
+  { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION, delay = DICE_RESULT_HOLD_DURATION }
+) {
   if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
     return null;
   }
@@ -2483,7 +2537,9 @@ function createDiceHandoffAnimation(diceArray, { basePositions, baseY, duration 
     type: 'diceHandoff',
     start: performance.now(),
     update(now) {
-      const t = clamp01((now - this.start) / duration);
+      const elapsed = now - this.start;
+      if (elapsed < delay) return false;
+      const t = clamp01((elapsed - delay) / duration);
       const eased = easeInOutCubic(t);
       diceArray.forEach((die, index) => {
         const from = startPositions[index] || die.position;
@@ -4874,7 +4930,8 @@ export default function SnakeBoard3D({
             const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
               basePositions,
               baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION
+              duration: TURN_CAMERA_TURN_IN_DURATION,
+              delay: 0
             });
             if (handoffAnimation) animationsRef.current.push(handoffAnimation);
             diceStateRef.current = {
