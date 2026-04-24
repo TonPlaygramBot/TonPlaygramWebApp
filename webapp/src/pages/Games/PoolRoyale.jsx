@@ -115,7 +115,6 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
-import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -26206,7 +26205,7 @@ const shotPowerRef = useRef(0);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
-        const { base, aimDir, physicsSpin, clampedPower, liftStrength, cueDriveBoost = 1 } = payload;
+        const { base, aimDir, physicsSpin, clampedPower, liftStrength } = payload;
         const offsetScaled = {
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
@@ -26216,7 +26215,7 @@ const shotPowerRef = useRef(0);
         else shotDir3.set(0, 0, 1);
         const sideDir3 = TMP_VEC3_D.set(shotDir3.z, 0, -shotDir3.x);
         if (sideDir3.lengthSq() > 1e-8) sideDir3.normalize();
-        const baseSpeed = Math.max(0, base.length()) * THREE.MathUtils.clamp(cueDriveBoost, 0.8, 1.5);
+        const baseSpeed = Math.max(0, base.length());
         const topspin = Math.max(0, offsetScaled.y);
         const backspin = Math.max(0, -offsetScaled.y);
         const squirt = offsetScaled.x * clampedPower * 0.24;
@@ -26650,7 +26649,6 @@ const shotPowerRef = useRef(0);
             physicsSpin: { x: spinSide, y: spinTop },
             clampedPower,
             liftStrength,
-            cueDriveBoost: 1,
             applied: false
           };
 
@@ -26761,12 +26759,6 @@ const shotPowerRef = useRef(0);
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          shotImpactPayload.cueDriveBoost = computeCueDriveBoost({
-            pullDistance: releaseStartPos.distanceTo(impactPos),
-            contactAdvance,
-            strikeDurationMs: strikeDuration,
-            clampedPower
-          });
           const followDistance = THREE.MathUtils.lerp(
             CUE_FOLLOW_THROUGH_MIN,
             CUE_FOLLOW_THROUGH_MAX,
