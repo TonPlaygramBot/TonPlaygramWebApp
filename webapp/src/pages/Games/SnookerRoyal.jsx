@@ -22000,55 +22000,35 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-          const pullbackDuration = THREE.MathUtils.lerp(110, 260, powerStrength);
-          const strikeDuration = THREE.MathUtils.lerp(140, CUE_LOGIC_STRIKE_TIME_MS, powerStrength);
-          const holdDuration = THREE.MathUtils.lerp(
-            CUE_LOGIC_HOLD_TIME_MS + 18,
-            CUE_LOGIC_HOLD_TIME_MS + 72,
-            powerStrength
-          );
-          const returnDuration = THREE.MathUtils.lerp(130, 220, powerStrength);
+          const strikeDuration = 110;
+          const holdDuration = 45;
           const impactPush = THREE.MathUtils.clamp(
             CUE_TIP_CLEARANCE * (0.88 + powerStrength * 0.92),
             BALL_R * 0.08,
             BALL_R * 0.3
           );
           const impactPos = buildCuePosition(-impactPush);
-          // Match the reference cue-stick behavior for spin:
-          // topspin adds a tiny forward follow-through after contact,
-          // while backspin keeps a clean stop at impact.
-          const topspinFactor = THREE.MathUtils.clamp(
+          const topSpinWeight = THREE.MathUtils.clamp(
             Math.max(0, appliedSpin?.y ?? 0) * powerStrength,
             0,
             1
           );
-          const followExtra = THREE.MathUtils.clamp(
-            topspinFactor * BALL_R * 0.32,
-            0,
-            BALL_R * 0.34
-          );
-          const followPos = impactPos.clone();
-          if (followExtra > 1e-6) {
+          const dynamicFollow = THREE.MathUtils.clamp(topSpinWeight * BALL_R * 0.32, 0, BALL_R * 0.34);
+          const settlePos = impactPos.clone();
+          if (dynamicFollow > 1e-6) {
             TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
             if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
               TMP_VEC3_FOLLOW_DIR.normalize();
-              followPos.addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
+              settlePos.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
             }
           }
-          const settlePos = followPos.clone();
+          const baseRotY = cueStick.rotation.y;
           cueStick.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
-          const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + strikeDuration;
+          const impactTime = startTime + strikeDuration;
           const holdEndTime = impactTime + holdDuration;
-          const returnTime = holdEndTime + returnDuration;
-          const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              holdDuration,
-              Math.max(180, strikeDuration * 0.9)
-            );
+          const forwardPreviewHold = impactTime + Math.min(holdDuration, Math.max(180, strikeDuration * 0.9));
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
@@ -22092,10 +22072,10 @@ const powerRef = useRef(hud.power);
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
-              pullbackDuration,
+              pullbackDuration: 0,
               forwardDuration: strikeDuration,
               settleDuration: holdDuration,
-              returnDuration,
+              returnDuration: 0,
               startOffset: strokeStartOffset
             };
           }
@@ -22108,25 +22088,17 @@ const powerRef = useRef(hud.power);
               return;
             }
             const elapsed = Math.max(0, now - startTime);
-            const sample = sampleCueStrokeTimeline({
-              elapsed,
-              pullbackDuration,
-              strikeDuration,
-              holdDuration,
-              animationStyle: 'spring',
-              strikeWindowRatio: 0.2,
-              hitArmRatio: 0.9
-            });
-            if (sample.phase === 'pullback') {
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutCubic(sample.t));
-            } else if (sample.phase === 'release' || sample.phase === 'strike') {
-              cueStick.position.lerpVectors(pullPos, impactPos, easeOutCubic(sample.t));
-            } else if (sample.phase === 'hold') {
-              cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(sample.t));
-            } else if (now <= returnTime && returnDuration > 0) {
-              const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
-              cueStick.position.lerpVectors(settlePos, idlePos, easeInOutCubic(t));
+            if (elapsed <= strikeDuration) {
+              const t = THREE.MathUtils.clamp(elapsed / strikeDuration, 0, 1);
+              const strikeEase = easeOutCubic(t);
+              cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
+              cueStick.rotation.y = baseRotY + Math.sin(t * Math.PI) * 0.0014;
+            } else if (elapsed <= strikeDuration + holdDuration) {
+              const holdT = THREE.MathUtils.clamp((elapsed - strikeDuration) / holdDuration, 0, 1);
+              cueStick.position.lerpVectors(impactPos, settlePos, easeOutQuad(holdT));
+              cueStick.rotation.y = baseRotY;
             } else {
+              cueStick.rotation.y = baseRotY;
               cueStick.visible = false;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
