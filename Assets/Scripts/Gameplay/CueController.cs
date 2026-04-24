@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using Aiming.Gameplay.Broadcast;
 
@@ -33,29 +32,16 @@ namespace Aiming
         public bool allowAimAdjustWhileCharging = false;
 
         [Header("Strike feel")]
-        public float strikeDuration = 0.12f;
-        public float strikeHoldDuration = 0.05f;
-        [Tooltip("Extra forward travel after impact so the cue tip visibly drives through the cue ball.")]
-        [Min(0f)] public float followThroughDistance = 0.016f;
-        [Tooltip("How long the follow-through drive lasts after impact.")]
-        [Min(0.01f)] public float followThroughDuration = 0.05f;
-        [Tooltip("Small recoil pullback after follow-through before returning to idle.")]
-        [Min(0f)] public float recoilDistance = 0.012f;
-        [Tooltip("Duration of the recoil pullback phase.")]
-        [Min(0.01f)] public float recoilDuration = 0.045f;
-        [Tooltip("Duration of the final settle from recoil back to idle resting depth.")]
-        [Min(0.01f)] public float returnToIdleDuration = 0.06f;
+        public float strikeDuration = 0.11f;
+        public float strikeHoldDuration = 0.045f;
         [Tooltip("Minimum impulse used whenever a valid shot is released.")]
         [Min(0f)] public float minStrikeImpulse = 0.25f;
         [Tooltip("Smallest normalized power that still produces cue-ball movement when charge/release was valid.")]
         [Range(0f, 0.5f)] public float minimumShotPowerNormalized = 0.06f;
         public float maxStrikeImpulse = 6.5f;
         [Tooltip("Normalized strike progress where the hit is fired once.")]
-        [Range(0.75f, 0.99f)] public float hitProgress = 0.9f;
-        [Tooltip("How much of the strike stays for the final idle->contact micro drive.")]
-        [Range(0.02f, 0.25f)] public float contactDrivePortion = 0.1f;
-        [Tooltip("Minimum pull used for strike animation so the cue visibly drives forward every shot.")]
-        [Min(0f)] public float minimumVisualPull = 0.025f;
+        [Range(0.75f, 0.99f)] public float hitProgress = 0.88f;
+
         [Header("Motion settle")]
         [Tooltip("Linear velocity threshold used to decide whether a ball is still moving.")]
         [Min(0f)] public float settleLinearVelocitySqr = 0.0004f;
@@ -65,6 +51,7 @@ namespace Aiming
         [Header("Spin input")]
         [Tooltip("Receives normalized spin values from the existing on-screen spin controller.")]
         public Vector2 spinInput;
+
         [Header("Camera sync")]
         [Tooltip("Optional cue camera that should mirror pull/push stroke motion for player, AI, and replay capture.")]
         public CueCamera cueCamera;
@@ -84,14 +71,24 @@ namespace Aiming
         Vector2 _latchedShotSpin;
         ShotState _shotState = ShotState.Idle;
 
+        float _strikeElapsed;
+        bool _didStrike;
+        float _dynamicLift;
+        float _dynamicWobble;
+        Vector3 _strikeDirection;
+        Vector3 _tipBaseScale = Vector3.one;
+
+        void Awake()
+        {
+            if (cueTip != null)
+            {
+                _tipBaseScale = cueTip.localScale;
+            }
+        }
+
         void Update()
         {
             if (aiming == null || cueBall == null || objectBall == null || pocket == null)
-            {
-                return;
-            }
-
-            if (_shotState == ShotState.Striking)
             {
                 return;
             }
@@ -144,6 +141,8 @@ namespace Aiming
             _latchedShotPower = 0f;
             _chargedCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
             _currentCueDepth = _chargedCueDepth;
+            _dynamicLift = 0f;
+            _dynamicWobble = 0f;
             gameObject.SetActive(true);
             UpdateCuePose();
         }
@@ -168,6 +167,9 @@ namespace Aiming
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
             _currentCueDepth = idleTipGap;
+            _dynamicLift = 0f;
+            _dynamicWobble = 0f;
+            ResetTipScale();
             UpdateCuePose();
         }
 
@@ -186,12 +188,19 @@ namespace Aiming
                 _maxPowerDuringCharge = 0f;
                 _chargedCueDepth = idleTipGap;
                 _currentCueDepth = idleTipGap;
+                _dynamicLift = 0f;
+                _dynamicWobble = 0f;
+                ResetTipScale();
                 UpdateCuePose();
                 return;
             }
 
+            _latchedShotSpin = _liveSpinInput;
+            _strikeDirection = _aimDirection;
+            _strikeElapsed = 0f;
+            _didStrike = false;
+            _shotState = ShotState.Striking;
             TriggerShotBroadcastCamera();
-            StartCoroutine(StrikeRoutine(_latchedShotPower));
         }
 
         void TriggerShotBroadcastCamera()
@@ -229,16 +238,56 @@ namespace Aiming
 
         void UpdateCueDepth()
         {
+            float hitT = Mathf.Clamp01(hitProgress);
+            float activePower = _shotState == ShotState.Dragging ? _power : _latchedShotPower;
+            float pull = pullRange * EaseOutCubic(activePower);
+
+            if (_shotState == ShotState.Idle)
+            {
+                _strikeElapsed = 0f;
+                _didStrike = false;
+                ResetTipScale();
+                _dynamicLift = 0f;
+                _dynamicWobble = 0f;
+                _currentCueDepth = idleTipGap + (Mathf.Sin(Time.time * 1.5f) * 0.001f);
+                return;
+            }
+
             if (_shotState == ShotState.Dragging)
             {
-                float effectivePower = Mathf.Max(_power, _maxPowerDuringCharge);
-                float pull = pullRange * EaseOutCubic(effectivePower);
+                _strikeElapsed = 0f;
+                _didStrike = false;
+                ResetTipScale();
+                _dynamicLift = -0.0025f * EaseInOutQuad(activePower);
+                _dynamicWobble = 0f;
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
                 return;
             }
 
-            _currentCueDepth = idleTipGap;
+            _strikeElapsed += Time.deltaTime;
+            float strikeTime = Mathf.Max(0.001f, strikeDuration);
+            float t = Mathf.Clamp01(_strikeElapsed / strikeTime);
+            float strikeEase = EaseOutCubic(t);
+            float topspin = Mathf.Max(0f, _latchedShotSpin.y * activePower);
+            float follow = Mathf.Min(0.018f, topspin * 0.018f);
+            float dynamicFollow = follow * (0.55f + (0.45f * Mathf.Sin(t * Mathf.PI)));
+
+            _dynamicLift = -0.0035f * strikeEase;
+            _dynamicWobble = Mathf.Sin(t * Mathf.PI) * 0.0014f;
+            _currentCueDepth = Mathf.Lerp(idleTipGap + pull, contactTipGap - dynamicFollow, strikeEase);
+
+            if (!_didStrike && t > hitT)
+            {
+                _didStrike = true;
+                SquashTip();
+                ApplyStrikeImpulse(_strikeDirection, _latchedShotPower);
+            }
+
+            if (_strikeElapsed >= strikeTime + Mathf.Max(0f, strikeHoldDuration))
+            {
+                FinishStrike();
+            }
         }
 
         void UpdateCuePose()
@@ -250,15 +299,21 @@ namespace Aiming
                 right = transform.right;
             }
 
-            Vector3 spinOffset = (right * (activeSpin.x * ballRadius * 0.65f)) + (Vector3.up * (activeSpin.y * ballRadius * 0.65f));
+            Vector3 spinOffset =
+                (right * (activeSpin.x * ballRadius * 0.65f)) +
+                (Vector3.up * ((activeSpin.y * ballRadius * 0.65f) + _dynamicLift));
+
             Vector3 anchor = _cueAnchorPosition + spinOffset;
             float cueDistance = baseCueOffset + _currentCueDepth;
-            transform.position = anchor - _aimDirection * cueDistance;
-            transform.rotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
+            transform.position = anchor - (_aimDirection * cueDistance);
+
+            Quaternion baseRotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
+            Quaternion wobbleRotation = Quaternion.AngleAxis(_dynamicWobble * Mathf.Rad2Deg, Vector3.up);
+            transform.rotation = wobbleRotation * baseRotation;
 
             if (cueTip != null)
             {
-                cueTip.position = anchor - _aimDirection * _currentCueDepth;
+                cueTip.position = anchor - (_aimDirection * _currentCueDepth);
             }
 
             SyncCueCameraStroke();
@@ -340,95 +395,21 @@ namespace Aiming
             return body.angularVelocity.sqrMagnitude > settleAngularVelocitySqr;
         }
 
-        IEnumerator StrikeRoutine(float shotPower)
+        void FinishStrike()
         {
-            _shotState = ShotState.Striking;
-
-            Vector3 strikeDirection = _aimDirection;
-            float pull = Mathf.Max(0f, _chargedCueDepth - idleTipGap);
-            float visualPull = Mathf.Max(pull, minimumVisualPull);
-            float startDepth = idleTipGap + visualPull;
-            float topspin = Mathf.Max(0f, _latchedShotSpin.y * shotPower);
-            float extraFollow = Mathf.Min(0.018f, topspin * 0.016f);
-            float contactDepth = contactTipGap - extraFollow;
-            float followThrough = Mathf.Max(0f, followThroughDistance) * Mathf.Lerp(0.8f, 1.15f, shotPower);
-            float followThroughDepth = Mathf.Max(-0.03f, contactDepth - followThrough);
-            float recoilDepth = idleTipGap + Mathf.Max(0f, recoilDistance) * Mathf.Lerp(1f, 0.65f, shotPower);
-            float elapsed = 0f;
-            bool didStrike = false;
-            float hitT = Mathf.Clamp01(hitProgress);
-            _currentCueDepth = startDepth;
-            UpdateCuePose();
-
-            float driveDuration = Mathf.Max(strikeDuration, 0.001f);
-            while (elapsed < driveDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / driveDuration);
-                _currentCueDepth = Mathf.Lerp(startDepth, contactDepth, EaseOutQuart(t));
-                UpdateCuePose();
-
-                if (!didStrike && t >= hitT)
-                {
-                    didStrike = true;
-                    ApplyStrikeImpulse(strikeDirection, shotPower);
-                }
-
-                yield return null;
-            }
-
-            if (!didStrike)
-            {
-                ApplyStrikeImpulse(strikeDirection, shotPower);
-            }
-
-            _currentCueDepth = contactDepth;
-            UpdateCuePose();
-            yield return new WaitForSeconds(strikeHoldDuration);
-
-            elapsed = 0f;
-            float followDuration = Mathf.Max(0.001f, followThroughDuration);
-            while (elapsed < followDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / followDuration);
-                _currentCueDepth = Mathf.Lerp(contactDepth, followThroughDepth, EaseOutCubic(t));
-                UpdateCuePose();
-                yield return null;
-            }
-
-            elapsed = 0f;
-            float recoilPhaseDuration = Mathf.Max(0.001f, recoilDuration);
-            while (elapsed < recoilPhaseDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / recoilPhaseDuration);
-                _currentCueDepth = Mathf.Lerp(followThroughDepth, recoilDepth, EaseInOutQuad(t));
-                UpdateCuePose();
-                yield return null;
-            }
-
-            elapsed = 0f;
-            float returnDuration = Mathf.Max(0.001f, returnToIdleDuration);
-            while (elapsed < returnDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / returnDuration);
-                _currentCueDepth = Mathf.Lerp(recoilDepth, idleTipGap, EaseOutCubic(t));
-                UpdateCuePose();
-                yield return null;
-            }
-
-            _currentCueDepth = idleTipGap;
+            _strikeElapsed = 0f;
+            _didStrike = false;
+            _shotState = ShotState.Idle;
             _power = 0f;
             _maxPowerDuringCharge = 0f;
             _latchedShotPower = 0f;
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
-            _shotState = ShotState.Idle;
-            UpdateCuePose();
+            _currentCueDepth = idleTipGap;
+            _dynamicLift = 0f;
+            _dynamicWobble = 0f;
+            ResetTipScale();
         }
-
 
         float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float maxChargePower)
         {
@@ -471,18 +452,33 @@ namespace Aiming
             strikePhysics.Apply(cueBallBody, strikeDirection, impulseMagnitude, appliedSpin, ballRadius);
         }
 
+        void SquashTip()
+        {
+            if (cueTip == null)
+            {
+                return;
+            }
+
+            Vector3 s = _tipBaseScale;
+            s.z *= 0.88f;
+            cueTip.localScale = s;
+        }
+
+        void ResetTipScale()
+        {
+            if (cueTip == null)
+            {
+                return;
+            }
+
+            cueTip.localScale = _tipBaseScale;
+        }
+
         static float EaseOutCubic(float t)
         {
             t = Mathf.Clamp01(t);
             float inv = 1f - t;
             return 1f - (inv * inv * inv);
-        }
-
-        static float EaseOutQuart(float t)
-        {
-            t = Mathf.Clamp01(t);
-            float inv = 1f - t;
-            return 1f - (inv * inv * inv * inv);
         }
 
         static float EaseInOutQuad(float t)
