@@ -6248,28 +6248,32 @@ function updateSeatBadgePositions() {
   chairs.forEach((wrapper, idx) => {
     const badge = seatBadges[idx];
     if (!badge) return;
-    const world = wrapper.getWorldPosition(projectedSeatTarget);
-    world.y +=
-      CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
+    const seatHuman = seatedHumans[idx];
+    const world = projectedSeatTarget;
+    if (
+      seatHuman?.headBone &&
+      seatHuman?.headBone?.getWorldPosition
+    ) {
+      seatHuman.headBone.getWorldPosition(world);
+      world.y += 0.18;
+    } else {
+      wrapper.getWorldPosition(world);
+      world.y +=
+        CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
+    }
     world.project(camera);
     const projectedX = (world.x * 0.5 + 0.5) * rect.width + rect.left;
     const projectedY = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
     let x = projectedX;
     let y = projectedY;
+    if (!humanSeatBadgeAnchor) humanSeatBadgeAnchor = { x: x, y: y };
     if (idx === human) {
-      const anchorX =
-        rect.left + rect.width * 0.5 + HUMAN_SEAT_BADGE_LEFT_OFFSET;
-      const anchorY = rect.top + rect.height - HUMAN_SEAT_BADGE_BOTTOM_OFFSET;
-      if (!humanSeatBadgeAnchor) humanSeatBadgeAnchor = { x: anchorX, y: anchorY };
-      humanSeatBadgeAnchor.x = anchorX;
-      humanSeatBadgeAnchor.y = anchorY;
-      x = humanSeatBadgeAnchor.x;
-      y = humanSeatBadgeAnchor.y;
+      humanSeatBadgeAnchor.x = x;
+      humanSeatBadgeAnchor.y = y;
     }
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
-    badge.style.opacity =
-      idx === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
+    badge.style.opacity = world.z > 1 || world.z < -1 ? '0' : '1';
   });
   anchorSelfVideoToBottomSeat();
 }
@@ -6339,10 +6343,19 @@ function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
 function createSeatBadge({ avatar = '🎯', name = '', isSelf = false } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '0.32rem';
   if (isSelf) {
     wrap.dataset.selfPlayer = 'true';
     wrap.classList.add('is-self');
   }
+
+  const label = document.createElement('span');
+  label.className = 'seat-badge-name';
+  label.textContent = name || '';
+  wrap.appendChild(label);
 
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'seat-badge-avatar';
@@ -6357,11 +6370,6 @@ function createSeatBadge({ avatar = '🎯', name = '', isSelf = false } = {}) {
   avatarWrap.appendChild(core);
 
   wrap.appendChild(avatarWrap);
-
-  const label = document.createElement('span');
-  label.className = 'seat-badge-name';
-  label.textContent = name || '';
-  wrap.appendChild(label);
 
   seatOverlay.appendChild(wrap);
   return wrap;
@@ -7673,6 +7681,256 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenColorMap',
   'sheenRoughnessMap'
 ]);
+const HUMAN_MODEL_SOURCE = Object.freeze({
+  label: 'Xbot Mixamo humanoid',
+  url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
+  scale: 1.38,
+  rotationY: -Math.PI / 2
+});
+const HUMAN_SEAT_TUNE = Object.freeze({
+  chairHeightRatio: 1.06,
+  chairDepthRatio: 0.2
+});
+let humanTemplatePromise = null;
+const seatedHumans = [];
+
+function normalizeHumanBoneName(value = '') {
+  return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getModelBones(root) {
+  const bones = [];
+  root.traverse((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  return bones;
+}
+
+function findModelBone(bones, aliases = []) {
+  const normalizedAliases = aliases.map((alias) => normalizeHumanBoneName(alias));
+  for (const alias of normalizedAliases) {
+    const exact = bones.find((bone) => normalizeHumanBoneName(bone.name) === alias);
+    if (exact) return exact;
+  }
+  for (const alias of normalizedAliases) {
+    const partial = bones.find((bone) => normalizeHumanBoneName(bone.name).includes(alias));
+    if (partial) return partial;
+  }
+  return null;
+}
+
+function captureModelRestPose(root) {
+  const rest = new Map();
+  getModelBones(root).forEach((bone) => rest.set(bone, bone.quaternion.clone()));
+  return rest;
+}
+
+function composeModelBone(rest, bone, euler) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(euler));
+}
+
+function buildHumanBoneMap(root) {
+  const bones = getModelBones(root);
+  const map = {
+    hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
+    spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
+    spine1: findModelBone(bones, ['spine1', 'spine01', 'mixamorigspine1', 'chest']),
+    spine2: findModelBone(bones, ['spine2', 'spine02', 'mixamorigspine2', 'upperchest']),
+    neck: findModelBone(bones, ['neck', 'mixamorigneck', 'wolf3dneck']),
+    head: findModelBone(bones, ['head', 'mixamorighead', 'wolf3dhead']),
+    leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
+    leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
+    leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
+    rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
+    rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
+    rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
+    leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
+    leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
+    rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
+    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf'])
+  };
+  map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
+  map.spine1 ??= map.spine2 ?? map.spine;
+  map.spine2 ??= map.spine1 ?? map.spine;
+  map.leftArm ??= map.leftShoulder;
+  map.rightArm ??= map.rightShoulder;
+  map.leftForeArm ??= map.leftArm;
+  map.rightForeArm ??= map.rightArm;
+  map.leftLeg ??= map.leftUpLeg;
+  map.rightLeg ??= map.rightUpLeg;
+  return map;
+}
+
+function anchorHumanHipsToSeat(root, hips, seatAnchorWorld, tmp = new THREE.Vector3()) {
+  if (!hips || !seatAnchorWorld) return;
+  root.updateMatrixWorld(true);
+  hips.getWorldPosition(tmp);
+  root.position.x += seatAnchorWorld.x - tmp.x;
+  root.position.y += seatAnchorWorld.y - tmp.y;
+  root.position.z += seatAnchorWorld.z - tmp.z;
+  root.updateMatrixWorld(true);
+}
+
+function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockStrength = 0) {
+  const { root, bones, rest, baseScale = 1 } = seatHuman;
+  rest.forEach((quat, bone) => bone.quaternion.copy(quat));
+  const breathe = Math.sin(timeSeconds * 1.1) * 0.018;
+  root.scale.setScalar(baseScale * HUMAN_MODEL_SOURCE.scale);
+  root.rotation.y = HUMAN_MODEL_SOURCE.rotationY;
+  root.position.set(0, 0, 0);
+
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.1 - knockStrength * 0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.34 + breathe - knockStrength * 0.14, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.22, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.1, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ'));
+
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.52, 0.09, 0.06, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.52, -0.09, -0.06, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.57, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.57, 0, 0, 'XYZ'));
+
+  const rightReach = actionStrength;
+  const rightKnock = knockStrength;
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.04, 0.06, -0.12, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.65, 0.22, -0.18, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.95, 0.08, -0.04, 'XYZ'));
+
+  composeModelBone(
+    rest,
+    bones.rightShoulder,
+    new THREE.Euler(-0.04 + rightReach * 0.58 - rightKnock * 0.35, -0.06 - rightReach * 0.16, 0.12, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightArm,
+    new THREE.Euler(-0.65 + rightReach * 1.66 + rightKnock * 1.08, -0.22 - rightReach * 0.24, 0.18 + rightReach * 0.1, 'XYZ')
+  );
+  composeModelBone(
+    rest,
+    bones.rightForeArm,
+    new THREE.Euler(-0.95 + rightReach * 1.45 + rightKnock * 1.95, -0.08, 0.04, 'XYZ')
+  );
+}
+
+async function ensureHumanTemplate() {
+  if (humanTemplatePromise) return humanTemplatePromise;
+  humanTemplatePromise = (async () => {
+    const loader = new GLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    const gltf = await new Promise((resolve, reject) => {
+      loader.load(HUMAN_MODEL_SOURCE.url, resolve, undefined, reject);
+    });
+    const root = gltf?.scene;
+    if (!root) throw new Error('Xbot scene missing');
+    root.traverse((obj) => {
+      if (!obj?.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    });
+    return { source: HUMAN_MODEL_SOURCE, template: root };
+  })();
+  return humanTemplatePromise;
+}
+
+function clearSeatedHumans() {
+  while (seatedHumans.length) {
+    const seatHuman = seatedHumans.pop();
+    seatHuman?.root?.parent?.remove(seatHuman.root);
+    seatHuman?.root?.traverse?.((obj) => {
+      if (obj?.isMesh && obj.geometry?.dispose) obj.geometry.dispose();
+      const materials = Array.isArray(obj?.material) ? obj.material : [obj?.material];
+      materials.forEach((material) => material?.dispose?.());
+    });
+  }
+}
+
+function triggerSeatHumanAction(seatIndex, action = 'place') {
+  const seatHuman = seatedHumans[seatIndex];
+  if (!seatHuman) return;
+  const now = performance.now();
+  if (action === 'knock') {
+    seatHuman.action = { type: 'knock', startMs: now, durationMs: 620 };
+    return;
+  }
+  seatHuman.action = { type: 'place', startMs: now, durationMs: 700 };
+}
+
+function syncSeatHumans(nowMs = performance.now()) {
+  if (!seatedHumans.length) return;
+  const nowSeconds = nowMs / 1000;
+  seatedHumans.forEach((seatHuman) => {
+    if (!seatHuman?.root) return;
+    let placeStrength = 0;
+    let knockStrength = 0;
+    if (seatHuman.action) {
+      const progress = Math.min(
+        1,
+        Math.max(0, (nowMs - seatHuman.action.startMs) / Math.max(1, seatHuman.action.durationMs))
+      );
+      if (seatHuman.action.type === 'place') {
+        placeStrength = Math.sin(progress * Math.PI);
+      } else if (seatHuman.action.type === 'knock') {
+        knockStrength = Math.sin(progress * Math.PI * 4) * (1 - progress);
+      }
+      if (progress >= 1) {
+        seatHuman.action = null;
+      }
+    }
+    applyLoadedHumanPose(seatHuman, nowSeconds, placeStrength, knockStrength);
+    anchorHumanHipsToSeat(
+      seatHuman.root,
+      seatHuman.bones?.hips,
+      seatHuman.seatAnchorWorld
+    );
+  });
+}
+
+async function placeSeatedHumans(seatBottomOffset, chairSize) {
+  clearSeatedHumans();
+  const humanTemplateData = await ensureHumanTemplate().catch((error) => {
+    console.warn('Xbot.glb load failed for seat humans', error);
+    return null;
+  });
+  if (!humanTemplateData) return;
+  const seatTopY = chairSize.y - seatBottomOffset;
+  const seatDepth = chairSize.z * HUMAN_SEAT_TUNE.chairDepthRatio;
+  CHAIR_SEAT_ANGLES.forEach((_angle, index) => {
+    const wrapper = chairs[index];
+    if (!wrapper) return;
+    const root = humanTemplateData.template.clone(true);
+    root.position.set(0, seatTopY + seatBottomOffset, seatDepth);
+    wrapper.add(root);
+    const seatHuman = {
+      root,
+      action: null,
+      seatAnchorWorld: wrapper.localToWorld(
+        new THREE.Vector3(0, seatTopY + seatBottomOffset, seatDepth)
+      )
+    };
+    const bounds = new THREE.Box3().setFromObject(root);
+    const size = bounds.getSize(new THREE.Vector3());
+    const height = Math.max(0.2, size.y);
+    const targetHeight = Math.max(
+      0.4,
+      chairSize.y * 2.25 * HUMAN_SEAT_TUNE.chairHeightRatio
+    );
+    const scaleFix = targetHeight / height;
+    root.scale.multiplyScalar(scaleFix);
+    const bones = buildHumanBoneMap(root);
+    seatHuman.bones = bones;
+    seatHuman.rest = captureModelRestPose(root);
+    seatHuman.baseScale = 1;
+    seatHuman.headBone = bones.head ?? bones.neck ?? null;
+    seatedHumans[index] = seatHuman;
+    applyLoadedHumanPose(seatHuman, performance.now() / 1000, 0, 0);
+    anchorHumanHipsToSeat(root, bones.hips, seatHuman.seatAnchorWorld);
+  });
+}
 
 function disposeChairResources(root) {
   root.traverse((child) => {
@@ -7715,8 +7973,9 @@ function placeChairsWithOption(option, chairData, token) {
   }
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
+  const chairSize = chairTemplateBounds.getSize(new THREE.Vector3());
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
-  const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
+  const labelDepth = -chairSize.z * 0.35;
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
@@ -7749,6 +8008,9 @@ function placeChairsWithOption(option, chairData, token) {
   });
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
+  placeSeatedHumans(seatBottomOffset, chairSize).catch((error) => {
+    console.warn('Failed to place seated humans', error);
+  });
   syncArenaGroundToFurniture();
 }
 
@@ -9230,6 +9492,7 @@ function placeOnBoard(tile, side, options = {}) {
   } else {
     renderChain();
   }
+  triggerSeatHumanAction(current, 'place');
   SFX.place();
   return { success: true, segment, end: updatedEnd };
 }
@@ -10302,6 +10565,7 @@ function schedulePassTurnAdvance(
   playerIndex = current,
   delayMs = PASS_TURN_ADVANCE_DELAY_MS
 ) {
+  triggerSeatHumanAction(playerIndex, 'knock');
   showPassBubble(playerIndex);
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
@@ -10744,6 +11008,7 @@ function shutdownDominoRoyal(reason = 'unknown') {
     anchoredSelfVideoElement = null;
     controls.enabled = false;
     scene.visible = false;
+    clearSeatedHumans();
     if (seatOverlay?.parentNode) {
       seatOverlay.parentNode.removeChild(seatOverlay);
     }
@@ -10786,6 +11051,7 @@ function tick(now) {
     updateEntrySequence(current);
     updateDrawAnimations(current);
     updatePlacementAnimations(current);
+    syncSeatHumans(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
