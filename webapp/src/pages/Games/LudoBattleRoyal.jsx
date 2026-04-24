@@ -4088,7 +4088,7 @@ function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6
 }
 
 const FRONT_SIDE_Z = 1;
-const LEG_FRONT_OFFSET_MIXAMO = 0.34;
+const LEG_FRONT_OFFSET_MIXAMO = 0.3;
 
 function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   if (!rig) return;
@@ -4111,12 +4111,12 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
   // Match the seated-bone technique: leg roots shifted to visual front + Mixamo-like seated joint angles.
-  addBoneRot(rig, rig.leftUpperLeg, -1.48, 0.19, 0.08, 1);
-  addBoneRot(rig, rig.leftLowerLeg, 1.56, 0, 0, 1);
-  addBoneRot(rig, rig.leftFoot, -0.12, 0.05, 0.02, 1);
-  addBoneRot(rig, rig.rightUpperLeg, -1.48, 0.03, -0.04, 1);
-  addBoneRot(rig, rig.rightLowerLeg, 1.56, 0, 0, 1);
-  addBoneRot(rig, rig.rightFoot, -0.12, -0.03, -0.01, 1);
+  addBoneRot(rig, rig.leftUpperLeg, -1.42, 0.14, 0.1, 1);
+  addBoneRot(rig, rig.leftLowerLeg, 1.52, 0.02, 0.02, 1);
+  addBoneRot(rig, rig.leftFoot, -0.16, 0.03, 0.03, 1);
+  addBoneRot(rig, rig.rightUpperLeg, -1.42, -0.14, -0.1, 1);
+  addBoneRot(rig, rig.rightLowerLeg, 1.52, -0.02, -0.02, 1);
+  addBoneRot(rig, rig.rightFoot, -0.16, -0.03, -0.03, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
