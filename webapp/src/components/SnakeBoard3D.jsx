@@ -85,6 +85,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // - push backward so hips/back rest into the chair
 const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0.24, -0.72, -0.34);
 const HUMAN_SEAT_SCALE = 1.75;
+const HUMAN_FRONT_SIDE_Z = 1;
+const HUMAN_LEG_FRONT_OFFSET = 0.34;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1528,7 +1530,12 @@ function findModelBone(bones, aliases = []) {
 
 function captureModelRestPose(root) {
   const rest = new Map();
-  getModelBones(root).forEach((bone) => rest.set(bone, bone.quaternion.clone()));
+  getModelBones(root).forEach((bone) =>
+    rest.set(bone, {
+      quaternion: bone.quaternion.clone(),
+      position: bone.position.clone()
+    })
+  );
   return rest;
 }
 
@@ -1536,7 +1543,27 @@ function composeModelBone(rest, bone, euler) {
   if (!bone) return;
   const base = rest.get(bone);
   if (!base) return;
-  bone.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(euler));
+  bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(euler));
+}
+
+function restoreModelRestPose(rest) {
+  rest.forEach((pose, bone) => {
+    bone.quaternion.copy(pose.quaternion);
+    bone.position.copy(pose.position);
+  });
+}
+
+function pushModelBoneFront(rest, bone, amount) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.position.copy(base.position);
+  bone.position.z += HUMAN_FRONT_SIDE_Z * amount;
+}
+
+function moveHumanLegRootsToFront(bones, rest, amount) {
+  pushModelBoneFront(rest, bones.leftUpLeg, amount);
+  pushModelBoneFront(rest, bones.rightUpLeg, amount);
 }
 
 function buildHumanBoneMap(root) {
@@ -1580,10 +1607,12 @@ function buildHumanBoneMap(root) {
 function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman || {};
   if (!root || !rest || !bones) return;
-  rest.forEach((quat, bone) => bone.quaternion.copy(quat));
+  restoreModelRestPose(rest);
   root.scale.setScalar(baseScale);
   const breathe = Math.sin(timeSeconds * 1.05) * 0.016;
   const dynamicLean = activeLean * 0.06;
+
+  moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
 
   composeModelBone(rest, bones.hips, new THREE.Euler(-0.1 - dynamicLean * 0.55, 0.03, 0.02, 'XYZ'));
   composeModelBone(rest, bones.spine, new THREE.Euler(0.2 + breathe - dynamicLean * 0.22, 0, 0, 'XYZ'));
@@ -1592,12 +1621,12 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.09, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.27) * 0.03, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.48, 0.19, 0.08, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.48, 0.03, -0.04, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.12, 0.05, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.12, -0.03, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.08, 0.16, 0.1, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.08, -0.16, -0.1, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.26, 0.02, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.26, -0.02, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.12, 0.04, 0.03, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.12, -0.04, -0.03, 'XYZ'));
 
   composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.3, 'XYZ'));
   composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.3, 'XYZ'));
