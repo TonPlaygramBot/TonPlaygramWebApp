@@ -115,13 +115,13 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 1.9; // lift drone lane higher so it stays clearly above king/queen crowns on portrait screens
+const CAPTURE_DRONE_ALTITUDE = 1.52; // raise drone lane so it clearly stays above king/queen height on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 3.7; // push jet/helicopter higher above the drone lane for a stronger visible gap
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 3.25; // push jet/helicopter well above the drone lane for a clearer vertical gap
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
-const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.12; // keep helicopter slightly above jet cruise lane so both read clearly above tall pieces
+const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
@@ -151,9 +151,9 @@ const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before ver
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.2; // raise shared strike lane so jet/helicopter/drone stay higher in-flight
-const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_SHORT_STRIKE_ALTITUDE; // shared cruise altitude target for jet/helicopter/drone
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT; // keep drone strike path on the same altitude target as jet/helicopter
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.95; // lift strike lane so airborne units keep a stronger gap over tall pieces
+const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep jet/helicopter cruise lane aligned with pawn-missile lift altitude
+const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep drone/truck long strike on the same altitude lane as pawn short missile
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -10048,15 +10048,11 @@ function Chess3D({
       launchPos,
       targetPos,
       progress,
-      topLift = tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL,
-      topAltitude = null
+      topLift = tile * CAPTURE_AIR_MISSILE_TOP_HEIGHT_TILE_MUL
     }) => {
       const u = clamp01(progress);
       const apex = launchPos.clone().lerp(targetPos, 0.54);
-      const computedTopAltitude = Number.isFinite(topAltitude)
-        ? topAltitude
-        : Math.max(launchPos.y + topLift, targetPos.y + topLift * 0.44);
-      apex.y = Math.max(computedTopAltitude, targetPos.y + CAPTURE_AIR_MISSILE_TOP_HEIGHT_MIN);
+      apex.y = Math.max(launchPos.y + topLift, targetPos.y + topLift * 0.44);
       if (u < CAPTURE_AIR_MISSILE_ARC_SPLIT) {
         const arcU = smoothEase(u / Math.max(0.001, CAPTURE_AIR_MISSILE_ARC_SPLIT));
         const pos = qBezier(launchPos, apex, targetPos, arcU * 0.86);
@@ -10077,29 +10073,49 @@ function Chess3D({
     }) => {
       const u = clamp01(progress);
       const cruiseY = Math.max(launchPos.y + strikeAltitude, targetPos.y + CAPTURE_VERTICAL_STRIKE_TOP_OFFSET);
-      const liftTop = launchPos.clone();
-      liftTop.y = cruiseY;
-      const targetTop = targetPos.clone();
-      targetTop.y = cruiseY;
-      const liftSplit = 0.28;
-      const travelSplit = 0.76;
-      if (u <= liftSplit) {
-        const lu = smoothEase(u / Math.max(0.001, liftSplit));
-        const pos = launchPos.clone().lerp(liftTop, lu);
-        const next = launchPos.clone().lerp(liftTop, clamp01(lu + 0.06));
-        return { pos, next };
+      const orbitCenter = new THREE.Vector3(
+        THREE.MathUtils.lerp(launchPos.x, 0, 0.72),
+        cruiseY,
+        THREE.MathUtils.lerp(launchPos.z, targetPos.z, 0.36)
+      );
+      const startOffset = launchPos.clone().setY(cruiseY).sub(orbitCenter);
+      if (startOffset.lengthSq() < 1e-5) startOffset.set(tile * 0.45, 0, 0);
+      const baseRadius = THREE.MathUtils.clamp(
+        Math.max(
+          startOffset.length(),
+          new THREE.Vector2(targetPos.x - orbitCenter.x, targetPos.z - orbitCenter.z).length()
+        ),
+        tile * 0.48,
+        tile * 2.95
+      );
+      const startAngle = Math.atan2(startOffset.z, startOffset.x);
+      const spinSign = launchPos.x <= 0 ? 1 : -1;
+      const endAngle = startAngle + spinSign * (Math.PI * 2 * CAPTURE_DRONE_CIRCLE_RATIO);
+      const orbitSplit = CAPTURE_DRONE_CIRCLE_RATIO;
+      if (u <= orbitSplit) {
+        const ou = smoothEase(u / Math.max(0.001, orbitSplit));
+        const angle = THREE.MathUtils.lerp(startAngle, endAngle, ou);
+        const nextAngle = THREE.MathUtils.lerp(startAngle, endAngle, clamp01(ou + 0.03));
+        const radiusPulse = 1 + Math.sin(ou * Math.PI * 2) * 0.03;
+        const pos = new THREE.Vector3(
+          orbitCenter.x + Math.cos(angle) * baseRadius * radiusPulse,
+          cruiseY,
+          orbitCenter.z + Math.sin(angle) * baseRadius * radiusPulse
+        );
+        const next = new THREE.Vector3(
+          orbitCenter.x + Math.cos(nextAngle) * baseRadius,
+          cruiseY,
+          orbitCenter.z + Math.sin(nextAngle) * baseRadius
+        );
+        return { pos: constrainInsideBoardPerimeter(pos), next: constrainInsideBoardPerimeter(next) };
       }
-      if (u <= travelSplit) {
-        const hu = smoothEase((u - liftSplit) / Math.max(0.001, travelSplit - liftSplit));
-        const pos = liftTop.clone().lerp(targetTop, hu);
-        const next = liftTop.clone().lerp(targetTop, clamp01(hu + 0.05));
-        return { pos, next };
-      }
-      const du = smoothEase((u - travelSplit) / Math.max(0.001, 1 - travelSplit));
-      const pos = targetTop.clone().lerp(targetPos, du);
-      const next = targetTop.clone().lerp(targetPos, clamp01(du + 0.08));
-      next.x = targetPos.x;
-      next.z = targetPos.z;
+      const du = smoothEase((u - orbitSplit) / Math.max(0.001, 1 - orbitSplit));
+      const topStrike = targetPos.clone();
+      topStrike.y = cruiseY;
+      const descentAim = targetPos.clone();
+      descentAim.addScaledVector(targetPos.clone().sub(launchPos).setY(0), 0.06);
+      const pos = topStrike.clone().lerp(descentAim, du);
+      const next = topStrike.clone().lerp(descentAim, clamp01(du + 0.08));
       return { pos, next };
     };
     const getCaptureLongJavelinPose = ({
@@ -12341,7 +12357,9 @@ function Chess3D({
             const releaseEnd = CAPTURE_JET_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
             const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
             const missileImpactTime = getAirMissileImpactTime(CAPTURE_JET_TOTAL);
-            const topStrikeHeight = Math.max(CAPTURE_SHORT_STRIKE_ALTITUDE);
+            const topStrikeHeight = Math.max(
+              CAPTURE_SHORT_STRIKE_ALTITUDE
+            );
             let anyMissileVisible = false;
             jetMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
@@ -12374,8 +12392,7 @@ function Chess3D({
                 launchPos: missile.launchPos.clone(),
                 targetPos: liveTargetPos,
                 progress: missileU,
-                topLift: topStrikeHeight,
-                topAltitude: Math.max(jetPos.y, liveTargetPos.y + CAPTURE_AIRCRAFT_CRUISE_HEIGHT)
+                topLift: topStrikeHeight
               });
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
@@ -12455,7 +12472,9 @@ function Chess3D({
             const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
             const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
             const missileImpactTime = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL);
-            const topStrikeHeight = Math.max(CAPTURE_SHORT_STRIKE_ALTITUDE);
+            const topStrikeHeight = Math.max(
+              CAPTURE_SHORT_STRIKE_ALTITUDE
+            );
             let anyMissileVisible = false;
             heliMissiles.forEach((missile, idx) => {
               const releaseTime = releaseStart + idx * 0.14;
@@ -12488,8 +12507,7 @@ function Chess3D({
                 launchPos: missile.launchPos.clone(),
                 targetPos: liveTargetPos,
                 progress: missileU,
-                topLift: topStrikeHeight,
-                topAltitude: Math.max(heliPos.y, liveTargetPos.y + CAPTURE_AIRCRAFT_CRUISE_HEIGHT)
+                topLift: topStrikeHeight
               });
               captureDir.copy(missileNext).sub(missilePos).normalize();
               missile.root.visible = true;
