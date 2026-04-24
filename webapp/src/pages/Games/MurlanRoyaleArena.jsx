@@ -1745,6 +1745,26 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
+function placeHeldCardsForRig(rig, cardsGroup) {
+  if (!rig || !cardsGroup) return;
+  const leftHand = rig?.bones?.leftHand;
+  if (leftHand) {
+    leftHand.add(cardsGroup);
+    cardsGroup.position.set(-0.02 * MODEL_SCALE, 0.015 * MODEL_SCALE, 0.115 * MODEL_SCALE);
+    cardsGroup.rotation.set(
+      THREE.MathUtils.degToRad(-88),
+      THREE.MathUtils.degToRad(10),
+      THREE.MathUtils.degToRad(-4)
+    );
+    cardsGroup.scale.setScalar(1.2);
+    return;
+  }
+  rig.instance.add(cardsGroup);
+  cardsGroup.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
+  cardsGroup.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
+  cardsGroup.scale.setScalar(1.45);
+}
+
 function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
   const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
@@ -1770,11 +1790,6 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
 
   heldCards.userData.playerColor = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length] ?? '#1d4ed8';
   heldCards.userData.cardsSignature = (player?.hand ?? []).slice(0, 5).map((card) => `${card.rank || ''}${card.suit || ''}`).join('-');
-
-  instance.add(heldCards);
-  heldCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
-  heldCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  heldCards.scale.setScalar(1.45);
 
   if (!leftThigh || !rightThigh) {
     instance.position.y -= 0.02 * MODEL_SCALE;
@@ -1852,6 +1867,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
     rightCalf: captureBoneRotation(rightCalf)
   };
 
+  placeHeldCardsForRig(rig, heldCards);
+
   return rig;
 }
 
@@ -1878,10 +1895,7 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   nextCards.userData.playerColor = playerColor;
   nextCards.userData.cardsSignature = cardsSignature;
 
-  rig.instance.add(nextCards);
-  nextCards.position.set(0.0 * MODEL_SCALE, 0.7 * MODEL_SCALE, 0.95 * MODEL_SCALE);
-  nextCards.rotation.set(THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(0), THREE.MathUtils.degToRad(0));
-  nextCards.scale.setScalar(1.45);
+  placeHeldCardsForRig(rig, nextCards);
 
   rig.heldCards = nextCards;
 }
@@ -1981,40 +1995,65 @@ function runCharacterAction(store, rig, action) {
   const cardsColor = PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
 
   if (action.type === 'PASS') {
-    const knockPose = buildPoseVariant(basePose, {
+    const knockLiftPose = buildPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-10) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(34) },
-      rightHand: { x: THREE.MathUtils.degToRad(12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-12) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(22) },
+      rightHand: { x: THREE.MathUtils.degToRad(10) },
       head: { x: THREE.MathUtils.degToRad(4) }
+    });
+    const knockTapPose = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(6) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(14), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(54) },
+      rightHand: { x: THREE.MathUtils.degToRad(32), y: THREE.MathUtils.degToRad(-8) },
+      head: { x: THREE.MathUtils.degToRad(-4) }
     });
 
     list.push({
       start: now,
-      duration: 320,
-      update: (t) => applyRigPoseLerp(rig, knockPose, t)
+      duration: 170,
+      update: (t) => applyRigPoseLerp(rig, knockLiftPose, t)
     });
     list.push({
-      start: now + 320,
-      duration: 360,
+      start: now + 170,
+      duration: 120,
+      update: (t) => applyRigPoseLerp(rig, knockTapPose, t)
+    });
+    list.push({
+      start: now + 290,
+      duration: 90,
+      update: (t) => applyRigPoseLerp(rig, knockLiftPose, t)
+    });
+    list.push({
+      start: now + 380,
+      duration: 120,
+      update: (t) => applyRigPoseLerp(rig, knockTapPose, t)
+    });
+    list.push({
+      start: now + 500,
+      duration: 280,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
     return;
   }
 
   if (action.type === 'PLAY') {
-    const throwPrep = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-40), y: THREE.MathUtils.degToRad(-14), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-24) },
-      rightHand: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-16) },
-      head: { x: THREE.MathUtils.degToRad(-6) }
+    const pickPose = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(-7), y: THREE.MathUtils.degToRad(-2) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-10) },
+      leftHand: { x: THREE.MathUtils.degToRad(8), y: THREE.MathUtils.degToRad(8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-48), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-20) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-40), y: THREE.MathUtils.degToRad(10) },
+      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-22) },
+      head: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(-10) }
     });
-    const throwRelease = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-24) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(44) },
-      rightHand: { x: THREE.MathUtils.degToRad(24), y: THREE.MathUtils.degToRad(-8) }
+    const placePose = buildPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(10) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-26), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(58), y: THREE.MathUtils.degToRad(-6) },
+      rightHand: { x: THREE.MathUtils.degToRad(26), y: THREE.MathUtils.degToRad(-12) },
+      head: { x: THREE.MathUtils.degToRad(-7) }
     });
 
     const thrown = createThrownCardMesh(cardsColor);
@@ -2038,18 +2077,18 @@ function runCharacterAction(store, rig, action) {
 
     list.push({
       start: now,
-      duration: 180,
-      update: (t) => applyRigPoseLerp(rig, throwPrep, t)
+      duration: 200,
+      update: (t) => applyRigPoseLerp(rig, pickPose, t)
     });
     list.push({
-      start: now + 180,
-      duration: 210,
-      update: (t) => applyRigPoseLerp(rig, throwRelease, t),
+      start: now + 200,
+      duration: 220,
+      update: (t) => applyRigPoseLerp(rig, placePose, t),
       complete: () => {
         const flightStart = performance.now();
         list.push({
           start: flightStart,
-          duration: 340,
+          duration: 300,
           update: (t) => {
             const eased = easeInOutCubic(t);
             thrown.position.lerpVectors(handPos, target, eased);
@@ -2063,8 +2102,8 @@ function runCharacterAction(store, rig, action) {
       }
     });
     list.push({
-      start: now + 420,
-      duration: 280,
+      start: now + 500,
+      duration: 260,
       update: (t) => applyRigPoseLerp(rig, basePose, t)
     });
   }
