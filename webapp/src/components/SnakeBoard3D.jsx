@@ -253,10 +253,10 @@ const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT)
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
 // Pull bottom/side reserve tokens inwards so they sit on the wooden rim near each seat.
 const TOKEN_REST_EXTRA_RADIAL_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.02,
-  TILE_SIZE * 0.04,
-  TILE_SIZE * 0.06,
-  TILE_SIZE * 0.04
+  -TILE_SIZE * 0.08,
+  -TILE_SIZE * 0.06,
+  -TILE_SIZE * 0.12,
+  -TILE_SIZE * 0.06
 ]);
 const SEAT_RAIL_DICE_GAP = Math.max(DICE_SIZE * 0.95, TOKEN_RADIUS * 2.75);
 const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.16;
@@ -306,29 +306,29 @@ const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat (yellow): bottom-left marker near logo plate.
-  Object.freeze({ radial: TILE_SIZE * 1.02, lateral: TILE_SIZE * 1.06, y: TILE_SIZE * 0.12 }),
+  Object.freeze({ radial: TILE_SIZE * 0.72, lateral: TILE_SIZE * 0.72, y: TILE_SIZE * 0.18 }),
   // Right seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.72, lateral: -TILE_SIZE * 1.1, y: TILE_SIZE * 0.12 }),
+  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: -TILE_SIZE * 0.78, y: TILE_SIZE * 0.18 }),
   // Top seat (yellow): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 1.3, lateral: -TILE_SIZE * 0.72, y: TILE_SIZE * 0.14 }),
+  Object.freeze({ radial: TILE_SIZE * 1.04, lateral: -TILE_SIZE * 0.48, y: TILE_SIZE * 0.22 }),
   // Left seat (yellow): upper marker above side-center.
-  Object.freeze({ radial: TILE_SIZE * 0.72, lateral: TILE_SIZE * 1.1, y: TILE_SIZE * 0.12 })
+  Object.freeze({ radial: TILE_SIZE * 0.5, lateral: TILE_SIZE * 0.78, y: TILE_SIZE * 0.18 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Bottom seat (red): bottom-right marker.
-  Object.freeze({ radial: TILE_SIZE * 1.18, lateral: -TILE_SIZE * 1.08, y: TILE_SIZE * 1.2 }),
+  Object.freeze({ radial: TILE_SIZE * 1.02, lateral: -TILE_SIZE * 0.86, y: TILE_SIZE * 1.34 }),
   // Right seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.88, lateral: TILE_SIZE * 0.96, y: TILE_SIZE * 1.2 }),
+  Object.freeze({ radial: TILE_SIZE * 0.76, lateral: TILE_SIZE * 0.76, y: TILE_SIZE * 1.34 }),
   // Top seat (red): push toward top player while nudging inward toward board center.
-  Object.freeze({ radial: TILE_SIZE * 1.46, lateral: TILE_SIZE * 0.72, y: TILE_SIZE * 1.28 }),
+  Object.freeze({ radial: TILE_SIZE * 1.3, lateral: TILE_SIZE * 0.56, y: TILE_SIZE * 1.42 }),
   // Left seat (red): lower side marker.
-  Object.freeze({ radial: TILE_SIZE * 0.88, lateral: -TILE_SIZE * 0.96, y: TILE_SIZE * 1.2 })
+  Object.freeze({ radial: TILE_SIZE * 0.76, lateral: -TILE_SIZE * 0.76, y: TILE_SIZE * 1.34 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
 const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
-const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 0.78;
-const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.14;
+const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 0.92;
+const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.2;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
