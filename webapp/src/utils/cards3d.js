@@ -432,41 +432,30 @@ function drawLogoFrame(ctx, w, h, theme) {
 
   ctx.save();
   const plateWidth = w * 0.92;
-  const plateHeight = h * 0.42;
+  const plateHeight = h * 0.38;
   const plateX = (w - plateWidth) / 2;
   const plateY = (h - plateHeight) / 2;
-  const glow = ctx.createRadialGradient(w / 2, h / 2, w * 0.08, w / 2, h / 2, w * 0.5);
-  glow.addColorStop(0, 'rgba(255,255,255,0.24)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
   const plateGradient = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateHeight);
-  plateGradient.addColorStop(0, 'rgba(5, 10, 26, 0.9)');
-  plateGradient.addColorStop(1, 'rgba(15, 23, 42, 0.82)');
+  plateGradient.addColorStop(0, 'rgba(8, 15, 35, 0.82)');
+  plateGradient.addColorStop(1, 'rgba(15, 23, 42, 0.7)');
   ctx.fillStyle = plateGradient;
   roundRect(ctx, plateX, plateY, plateWidth, plateHeight, Math.min(w, h) * 0.04);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.52)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
   ctx.lineWidth = Math.max(4, Math.round(w * 0.0028));
   roundRect(ctx, plateX + 8, plateY + 8, plateWidth - 16, plateHeight - 16, Math.min(w, h) * 0.032);
   ctx.stroke();
 
   if (logoImage?.complete && logoImage.naturalWidth > 0) {
     const ratio = logoImage.naturalWidth / Math.max(logoImage.naturalHeight, 1);
-    const logoBoxWidth = w * 0.86;
-    // Keep logo clear on mobile with extra margin from card edges.
-    const logoBoxHeight = h * 0.76;
+    const logoBoxWidth = w * 0.92;
+    // Keep logo prominent but slightly smaller for better balance on card backs.
+    const logoBoxHeight = h * 0.86;
     const drawWidth = Math.min(logoBoxWidth, logoBoxHeight * ratio);
     const drawHeight = drawWidth / ratio;
     const logoX = w / 2 - drawWidth / 2;
     const logoY = h / 2 - drawHeight / 2;
-    ctx.shadowColor = 'rgba(255,255,255,0.42)';
-    ctx.shadowBlur = Math.max(18, Math.round(w * 0.022));
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
     ctx.drawImage(logoImage, logoX, logoY, drawWidth, drawHeight);
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
   } else {
     ctx.fillStyle = theme.backAccent || 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
