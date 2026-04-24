@@ -115,18 +115,18 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehi
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 1.28; // lift drone lane higher so it no longer skims too low on portrait screens
+const CAPTURE_DRONE_ALTITUDE = 1.52; // raise drone lane so it clearly stays above king/queen height on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.75; // push jet/helicopter higher above the drone lane for clearer separation
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 3.25; // push jet/helicopter well above the drone lane for a clearer vertical gap
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
 const CAPTURE_DRONE_ORBIT_RADIUS_MUL = 0.18; // slightly longer drone route before descent
-const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.2; // keep drone orbit visibly higher than piece heads
+const CAPTURE_DRONE_ORBIT_HEIGHT_MUL = 0.28; // keep drone orbit clearly above king/queen crowns during the pass
 const CAPTURE_DRONE_ORBIT_CYCLES = 0.22; // extend visible loop around board
 const CAPTURE_DRONE_ORBIT_SPLIT = 0.72;
 const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
@@ -151,7 +151,7 @@ const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before ver
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.62; // raise pawn javelin lane for clearer lift-and-drop motion
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.95; // lift strike lane so airborne units keep a stronger gap over tall pieces
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep jet/helicopter cruise lane aligned with pawn-missile lift altitude
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE; // keep drone/truck long strike on the same altitude lane as pawn short missile
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
@@ -9558,7 +9558,7 @@ function Chess3D({
       };
       const laneIndex = laneIndexMap[kind] ?? laneIndexMap.helicopter;
       const zOffset = (laneIndex - 1.5) * equalLaneStep;
-      const hoverLift = kind === 'truck' ? 0.02 : kind === 'drone' ? 0.14 : 0.16;
+      const hoverLift = kind === 'truck' ? 0.02 : kind === 'drone' ? 0.24 : 0.26;
       const yOffset = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + hoverLift;
       return new THREE.Vector3(sideX, yOffset, zOffset);
     };
