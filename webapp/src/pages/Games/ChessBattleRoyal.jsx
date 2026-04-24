@@ -98,7 +98,7 @@ const CAPTURE_DRONE_TOTAL = CAPTURE_DRONE_LIFT_TIME + CAPTURE_DRONE_CRUISE_TIME 
 const CAPTURE_JET_SPEED_FACTOR = 4.9 / CAPTURE_DRONE_TOTAL; // slower than prior tuning for clearer portrait tracking
 const PROFILE_VIEW_ROTATION_TYPES = new Set(['K', 'N']);
 const PROFILE_VIEW_ROTATION_RADIANS = Math.PI / 2;
-const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.08; // let jet/helicopter complete a longer around-board pass
+const CAPTURE_JET_TOTAL = CAPTURE_DRONE_TOTAL * 1.16; // slow jet/helicopter loop slightly so missile ejection path stays visible
 const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.56) - 0.1);
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
@@ -109,17 +109,17 @@ const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live
 const CAPTURE_GROUND_FIRE_TIME = 0.12; // minimize stationary launch hold so pawn/truck missiles look continuously in motion
 const CAPTURE_GROUND_TRAVEL_TIME = Math.max(0.24, CAPTURE_DRONE_TOTAL - CAPTURE_GROUND_FIRE_TIME); // keep truck strike pacing aligned with drone
 const CAPTURE_GROUND_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_GROUND_TRAVEL_TIME;
-const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.88; // pawns strike a bit faster than rook/truck missiles
+const CAPTURE_PAWN_TRAVEL_TIME = CAPTURE_GROUND_TRAVEL_TIME * 0.78; // make pawn short-missile strike noticeably faster
 const CAPTURE_PAWN_TOTAL = CAPTURE_GROUND_FIRE_TIME + CAPTURE_PAWN_TRAVEL_TIME;
 const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.2; // make parked/flying capture vehicles 20% larger
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.12; // trim jet size slightly so it reads cleaner in portrait view
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.2; // keep helicopter larger than drone while respecting 20% downsize
-const CAPTURE_DRONE_ALTITUDE = 0.84; // lift drone lane higher on portrait screens
+const CAPTURE_DRONE_ALTITUDE = 0.94; // lift drone lane higher on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
 const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude strictly from board plane
-const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.06; // keep jet/helicopter clearly above drone lane
+const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 2.28; // push jet/helicopter higher above drone lane
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0; // keep helicopter and jet at the same flight altitude
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
@@ -134,7 +134,7 @@ const CAPTURE_DRONE_RETURN_SPLIT = 0.72;
 const CAPTURE_DRONE_CIRCLE_RATIO = 0.92; // keep drone in the loop longer before the dive
 const CAPTURE_AIR_MISSILE_RELEASE_START_RATIO = 0.68; // launch later so missiles clearly fire after the longer round
 const CAPTURE_AIR_MISSILE_RELEASE_END_RATIO = 0.9;
-const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.32; // missiles travel faster after launch
+const CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER = 1.1; // slow jet/helicopter missile travel slightly for better path readability
 const CAPTURE_AIR_MISSILE_ARC_SPLIT = 0.72;
 const CAPTURE_AIR_MISSILE_DROP_PORTION = 0.22;
 const CAPTURE_AIR_MISSILE_SIDE_OFFSET = 0.022;
@@ -147,12 +147,12 @@ const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line tow
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.082; // raise short-missile cruise lane so pawn strikes arc above piece heads
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = 0.1; // raise short-missile cruise lane so pawn/truck strikes arc higher
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.28; // strict vertical launch segment for short missiles
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.24; // strict vertical terminal drop for short missiles
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.46; // raise pawn javelin lane for clearer lift-and-drop motion
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.62; // raise pawn javelin lane for clearer lift-and-drop motion
 const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_SHORT_STRIKE_ALTITUDE * 1.14; // drone flies just above pawn javelin
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.9; // extend around-board run before return/strike
@@ -160,9 +160,9 @@ const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
-const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.04; // make rook javelin read as a heavy drone-sized strike
+const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.12; // enlarge truck missile to match launcher missile presence
 const CAPTURE_PAWN_STRIKE_TARGET_LIFT = 0.14; // pawn strike lands slightly above target head
-const CAPTURE_TRUCK_STRIKE_TARGET_LIFT = 0.18; // truck strike lands at drone-height engagement lane
+const CAPTURE_TRUCK_STRIKE_TARGET_LIFT = 0.24; // truck strike lands on a slightly higher engagement lane
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -2004,11 +2004,11 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 25;
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.36; // move parked vehicles farther outside board edge
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.5; // push parked vehicles farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.52; // four equal parking slots with wider gap between each spot
-const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.2; // truck also gets the requested +20% size bump
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.72; // increase spacing between parking slots
+const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.28; // increase parked truck size just a bit more
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -9373,7 +9373,7 @@ function Chess3D({
         }
         const size = bounds.getSize(new THREE.Vector3());
         const center = bounds.getCenter(new THREE.Vector3());
-        const missileLength = Math.max(size.x * 1.48, 2.7);
+        const missileLength = Math.max(size.x * 1.64, 2.9); // keep parked rack missiles closer to animated missile size
         const rackY = bounds.max.y + Math.max(size.y * 0.2, 0.13);
         const rack = new THREE.Group();
         addFxBox(
@@ -9388,8 +9388,8 @@ function Chess3D({
           const missile = new THREE.Group();
           addFxCylinder(
             missile,
-            Math.max(size.z * 0.05, 0.038),
-            Math.max(size.z * 0.062, 0.046),
+            Math.max(size.z * 0.058, 0.044),
+            Math.max(size.z * 0.074, 0.054),
             missileLength,
             [0, 0, 0],
             [0, 0, Math.PI / 2],
@@ -9399,7 +9399,7 @@ function Chess3D({
             0.82
           );
           const tip = new THREE.Mesh(
-            new THREE.ConeGeometry(Math.max(size.z * 0.068, 0.058), Math.max(size.x * 0.22, 0.4), 14),
+            new THREE.ConeGeometry(Math.max(size.z * 0.078, 0.07), Math.max(size.x * 0.25, 0.46), 14),
             new THREE.MeshStandardMaterial({ color: '#8ca66a', roughness: 0.2, metalness: 0.86 })
           );
           tip.position.set(missileLength * 0.5 + Math.max(size.x * 0.08, 0.12), 0, 0);
@@ -10468,13 +10468,13 @@ function Chess3D({
       const marker = new THREE.Group();
       marker.position.copy(position);
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(tile * 0.28, tile * 0.03, 10, 36),
+        new THREE.TorusGeometry(tile * 0.32, tile * 0.036, 10, 36),
         new THREE.MeshStandardMaterial({ color: '#ef4444', metalness: 0.45, roughness: 0.34 })
       );
       ring.rotation.x = Math.PI / 2;
       marker.add(ring);
       const plate = new THREE.Mesh(
-        new THREE.CircleGeometry(tile * 0.24, 24),
+        new THREE.CircleGeometry(tile * 0.29, 24),
         new THREE.MeshStandardMaterial({ color: '#0b1020', metalness: 0.18, roughness: 0.65 })
       );
       plate.rotation.x = -Math.PI / 2;
@@ -10496,7 +10496,7 @@ function Chess3D({
       const text = new THREE.Sprite(
         new THREE.SpriteMaterial({ map: spriteTexture, transparent: true, depthWrite: false })
       );
-      text.scale.set(tile * 0.5, tile * 0.5, 1);
+      text.scale.set(tile * 0.56, tile * 0.56, 1);
       text.position.set(0, tile * 0.02, 0);
       marker.add(text);
       airPadGroup.add(marker);
