@@ -135,7 +135,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 1.52; // make pyramid tiers taller
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.675 * 0.94;
+const DICE_SIZE = TILE_SIZE * 0.61 * 0.94;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -145,12 +145,12 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice pacing aligned with Ludo Battle Royale dice rhythm.
-const DICE_ROLL_DURATION = 1100;
-const DICE_SETTLE_DURATION = 260;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.6;
+const DICE_ROLL_DURATION = 900;
+const DICE_SETTLE_DURATION = 220;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.44;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 1.25;
+const DICE_THROW_HEIGHT = DICE_SIZE * 1.05;
 const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -276,22 +276,22 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   0
 ]);
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.64;
+const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.78;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.32,
-  TILE_SIZE * 0.32,
-  TILE_SIZE * 0.38,
-  TILE_SIZE * 0.32
+  TILE_SIZE * 0.42,
+  TILE_SIZE * 0.42,
+  TILE_SIZE * 0.48,
+  TILE_SIZE * 0.42
 ]);
 const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
 const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
   // Lift parked weapons higher so they sit at bishop-token visual height on portrait screens.
-  fighter: -TOKEN_HEIGHT * 0.05,
-  helicopter: -TOKEN_HEIGHT * 0.03,
-  drone: -TOKEN_HEIGHT * 0.06,
-  supportTruck: -TOKEN_HEIGHT * 0.04,
-  javelin: -TOKEN_HEIGHT * 0.05
+  fighter: -TOKEN_HEIGHT * 0.15,
+  helicopter: -TOKEN_HEIGHT * 0.13,
+  drone: -TOKEN_HEIGHT * 0.16,
+  supportTruck: -TOKEN_HEIGHT * 0.14,
+  javelin: -TOKEN_HEIGHT * 0.15
 });
 const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
 const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
@@ -312,10 +312,10 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   Object.freeze({ radial: 0, lateral: 0, y: 0 })
 ]);
 const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  Object.freeze({ radial: -TILE_SIZE * 1.58, lateral: 0, y: TILE_SIZE * 0.66 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.98, lateral: -TILE_SIZE * 0.52, y: TILE_SIZE * 0.64 }),
-  Object.freeze({ radial: TILE_SIZE * 1.56, lateral: 0, y: TILE_SIZE * 0.7 }),
-  Object.freeze({ radial: -TILE_SIZE * 0.98, lateral: TILE_SIZE * 0.52, y: TILE_SIZE * 0.64 })
+  Object.freeze({ radial: -TILE_SIZE * 1.84, lateral: 0, y: TILE_SIZE * 0.88 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: -TILE_SIZE * 0.68, y: TILE_SIZE * 0.86 }),
+  Object.freeze({ radial: TILE_SIZE * 1.86, lateral: 0, y: TILE_SIZE * 0.92 }),
+  Object.freeze({ radial: -TILE_SIZE * 1.18, lateral: TILE_SIZE * 0.68, y: TILE_SIZE * 0.86 })
 ]);
 const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_PARKING_SIDE_EXTRA_RADIUS = TILE_SIZE * 0.2;
@@ -2372,11 +2372,11 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const spinSpeeds = diceArray.map(() => 0.22 + Math.random() * 0.16);
+  const spinSpeeds = diceArray.map(() => 0.26 + Math.random() * 0.14);
   const impactPhases = diceArray.map(() => 0.42 + Math.random() * 0.18);
   const bounceHeights = diceArray.map(() => DICE_BOUNCE_HEIGHT * (0.85 + Math.random() * 0.55));
   const settleHeights = bounceHeights.map((height) => height * (0.35 + Math.random() * 0.3));
-  const yawSpeeds = diceArray.map(() => (Math.random() - 0.5) * 0.14);
+  const yawSpeeds = diceArray.map(() => (Math.random() - 0.5) * 0.12);
   const postYawSpeeds = yawSpeeds.map((speed) => -speed * (0.35 + Math.random() * 0.35));
   const swayOffsets = diceArray.map(() => Math.random() * Math.PI * 2);
   const swayMagnitudes = diceArray.map(() => DICE_SIZE * (0.09 + Math.random() * 0.12));
