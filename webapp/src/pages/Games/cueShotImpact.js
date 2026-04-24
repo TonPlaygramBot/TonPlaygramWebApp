@@ -20,6 +20,25 @@ export function createShotImpactFallback(payload, impactAtMs) {
   };
 }
 
+export function computeCueDriveBoost({
+  pullDistance = 0,
+  contactAdvance = 0,
+  strikeDurationMs = 120,
+  clampedPower = 0
+} = {}) {
+  const safePower = Number.isFinite(clampedPower) ? Math.max(0, Math.min(1, clampedPower)) : 0;
+  const strokeDistance = Math.max(
+    0,
+    (Number.isFinite(pullDistance) ? pullDistance : 0) +
+      (Number.isFinite(contactAdvance) ? contactAdvance : 0)
+  );
+  const strokeSeconds = Math.max(0.05, (Number.isFinite(strikeDurationMs) ? strikeDurationMs : 120) / 1000);
+  const strokeSpeed = strokeDistance / strokeSeconds;
+  const driveFromSpeed = Math.max(0, Math.min(1, strokeSpeed / 3.25));
+  const driveFromPower = Math.max(0, Math.min(1, safePower));
+  return Math.max(0.85, Math.min(1.35, 0.9 + driveFromSpeed * 0.34 + driveFromPower * 0.11));
+}
+
 
 export function shouldResolveShot({ hasAnyMotion, shotApplied }) {
   return Boolean(shotApplied) && !Boolean(hasAnyMotion);

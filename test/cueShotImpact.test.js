@@ -1,5 +1,6 @@
 import {
   applyShotImpact,
+  computeCueDriveBoost,
   createShotImpactFallback,
   createShotImpactPayload,
   shouldResolveShot
@@ -38,5 +39,24 @@ describe('cue shot impact orchestration', () => {
     expect(shouldResolveShot({ hasAnyMotion: false, shotApplied: false })).toBe(false);
     expect(shouldResolveShot({ hasAnyMotion: true, shotApplied: true })).toBe(false);
     expect(shouldResolveShot({ hasAnyMotion: false, shotApplied: true })).toBe(true);
+  });
+
+  test('boosts impact speed more for longer and stronger cue drives', () => {
+    const soft = computeCueDriveBoost({
+      pullDistance: 0.04,
+      contactAdvance: 0.01,
+      strikeDurationMs: 150,
+      clampedPower: 0.2
+    });
+    const strong = computeCueDriveBoost({
+      pullDistance: 0.18,
+      contactAdvance: 0.05,
+      strikeDurationMs: 90,
+      clampedPower: 1
+    });
+
+    expect(soft).toBeGreaterThanOrEqual(0.85);
+    expect(strong).toBeLessThanOrEqual(1.35);
+    expect(strong).toBeGreaterThan(soft);
   });
 });
