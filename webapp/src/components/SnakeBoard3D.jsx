@@ -1610,13 +1610,11 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
 
   composeModelBone(rest, bones.hips, new THREE.Euler(-0.1 - dynamicLean * 0.55, 0.03, 0.02, 'XYZ'));
-  // Match Ludo Battle Royale upper-body orientation so the torso faces the board in portrait view,
-  // while keeping Snake & Ladder leg placement untouched.
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.22, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.1, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, Math.sin(timeSeconds * 0.27) * 0.02, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.2 + breathe - dynamicLean * 0.22, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.11, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.09, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.27) * 0.03, 0, 'XYZ'));
 
   composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.48, 0.19, 0.08, 'XYZ'));
   composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.48, 0.03, -0.04, 'XYZ'));
@@ -1625,14 +1623,14 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.12, 0.05, 0.02, 'XYZ'));
   composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.12, -0.03, -0.01, 'XYZ'));
 
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.24, 'XYZ'));
-  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.24, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.06, -0.3, 'XYZ'));
+  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.14, -0.06, 0.3, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.88, 0.16, -0.3, 'XYZ'));
+  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.88, -0.16, 0.3, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.16, 0.12, -0.1, 'XYZ'));
+  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-1.16, -0.12, 0.1, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.24, 0.06, -0.04, 'XYZ'));
+  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.24, -0.06, 0.04, 'XYZ'));
 }
 
 async function loadSeatedHumanTemplate(renderer) {
