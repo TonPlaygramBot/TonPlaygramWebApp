@@ -7674,14 +7674,14 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
 const HUMAN_MODEL_SOURCE = Object.freeze({
   label: 'Xbot Mixamo humanoid',
   url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
-  scale: 1.32,
+  scale: 1.26,
   rotationY: -Math.PI / 2
 });
 const HUMAN_SEAT_TUNE = Object.freeze({
-  chairHeightRatio: 1.34,
-  chairDepthRatio: -0.28,
-  hipLift: 0.06,
-  faceLift: 0.72
+  chairHeightRatio: 1.08,
+  chairDepthRatio: -0.22,
+  hipLift: 0.045,
+  faceLift: 0.64
 });
 let humanTemplatePromise = null;
 const seatedHumans = [];
@@ -7740,8 +7740,6 @@ function buildHumanBoneMap(root) {
     rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
     rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
     rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
-    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
-    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
     leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
@@ -7754,76 +7752,50 @@ function buildHumanBoneMap(root) {
   map.rightArm ??= map.rightShoulder;
   map.leftForeArm ??= map.leftArm;
   map.rightForeArm ??= map.rightArm;
-  map.leftHand ??= map.leftForeArm;
-  map.rightHand ??= map.rightForeArm;
   map.leftLeg ??= map.leftUpLeg;
   map.rightLeg ??= map.rightUpLeg;
   return map;
 }
 
-function applyLoadedHumanPose(
-  seatHuman,
-  timeSeconds,
-  actionProgress = null,
-  actionType = null,
-  knockStrength = 0
-) {
+function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockStrength = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman;
   rest.forEach((quat, bone) => bone.quaternion.copy(quat));
-  const breathe = Math.sin(timeSeconds * 1.1) * 0.015;
+  const breathe = Math.sin(timeSeconds * 1.1) * 0.018;
   root.scale.setScalar(baseScale);
 
-  const progress = Number.isFinite(actionProgress) ? THREE.MathUtils.clamp(actionProgress, 0, 1) : null;
-  let pickLift = 0;
-  let placeExtend = 0;
-  if (actionType === 'place' && progress !== null) {
-    if (progress <= 0.48) {
-      pickLift = Math.sin((progress / 0.48) * Math.PI);
-    } else {
-      placeExtend = Math.sin(((progress - 0.48) / 0.52) * Math.PI);
-    }
-  }
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.12 - knockStrength * 0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.34 + breathe - knockStrength * 0.15, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.22 - knockStrength * 0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12 - knockStrength * 0.03, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ'));
 
-  const torsoLean = placeExtend * 0.14 + pickLift * 0.06;
-  const shoulderForward = placeExtend * 0.58 + pickLift * 0.24;
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.5, 0.13, 0.1, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.5, -0.13, -0.1, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.34 - knockStrength * 0.09, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.56 + breathe + torsoLean - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.3 + torsoLean * 0.35, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.16 + torsoLean * 0.2, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.neck, new THREE.Euler(-0.14 - torsoLean * 0.25, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(-0.09 - torsoLean * 0.1, Math.sin(timeSeconds * 0.28) * 0.024, 0, 'XYZ'));
-
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.42, 0.12, 0.08, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.42, -0.12, -0.08, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.47, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.47, 0, 0, 'XYZ'));
-
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.24 + shoulderForward * 0.16, 0.08, -0.09, 'XYZ'));
-  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.24 + shoulderForward * 0.16 - knockStrength * 0.09, -0.08, 0.09, 'XYZ'));
+  const rightReach = actionStrength;
+  const rightKnock = knockStrength;
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.05, 0.05, -0.22, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.58, 0.16, -0.2, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.02, 0.09, -0.07, 'XYZ'));
 
   composeModelBone(
     rest,
-    bones.leftArm,
-    new THREE.Euler(-1.16 + shoulderForward * 0.88, 0.07 + shoulderForward * 0.08, -0.07, 'XYZ')
+    bones.rightShoulder,
+    new THREE.Euler(-0.06 + rightReach * 0.62 - rightKnock * 0.2, -0.11, 0.2, 'XYZ')
   );
   composeModelBone(
     rest,
     bones.rightArm,
-    new THREE.Euler(-1.16 + shoulderForward * 0.88 + knockStrength * 0.42, -0.07 - shoulderForward * 0.08, 0.07, 'XYZ')
-  );
-  composeModelBone(
-    rest,
-    bones.leftForeArm,
-    new THREE.Euler(-0.36 + shoulderForward * 0.56, 0.05, -0.02, 'XYZ')
+    new THREE.Euler(-0.68 + rightReach * 1.72 + rightKnock * 1.06, -0.16 - rightReach * 0.25, 0.24, 'XYZ')
   );
   composeModelBone(
     rest,
     bones.rightForeArm,
-    new THREE.Euler(-0.36 + shoulderForward * 0.56 + knockStrength * 0.6, -0.05, 0.02, 'XYZ')
+    new THREE.Euler(-1.1 + rightReach * 1.24 + rightKnock * 1.65, -0.08, 0.08, 'XYZ')
   );
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.08 + shoulderForward * 0.3, 0, 0.04, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08 + shoulderForward * 0.3, 0, -0.04, 'XYZ'));
 }
 
 async function ensureHumanTemplate() {
@@ -7879,8 +7851,7 @@ function syncSeatHumans(nowMs = performance.now()) {
   const nowSeconds = nowMs / 1000;
   seatedHumans.forEach((seatHuman) => {
     if (!seatHuman?.root) return;
-    let actionProgress = null;
-    let actionType = null;
+    let placeStrength = 0;
     let knockStrength = 0;
     if (seatHuman.action) {
       const progress = Math.min(
@@ -7888,8 +7859,7 @@ function syncSeatHumans(nowMs = performance.now()) {
         Math.max(0, (nowMs - seatHuman.action.startMs) / Math.max(1, seatHuman.action.durationMs))
       );
       if (seatHuman.action.type === 'place') {
-        actionProgress = progress;
-        actionType = 'place';
+        placeStrength = Math.sin(progress * Math.PI);
       } else if (seatHuman.action.type === 'knock') {
         knockStrength = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
       }
@@ -7897,7 +7867,7 @@ function syncSeatHumans(nowMs = performance.now()) {
         seatHuman.action = null;
       }
     }
-    applyLoadedHumanPose(seatHuman, nowSeconds, actionProgress, actionType, knockStrength);
+    applyLoadedHumanPose(seatHuman, nowSeconds, placeStrength, knockStrength);
   });
 }
 
