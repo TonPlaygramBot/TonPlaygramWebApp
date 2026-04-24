@@ -4021,6 +4021,12 @@ function addBonePos(rig, bone, x = 0, y = 0, z = 0, weight = 1) {
   bone.position.z = base.position.z + z * weight;
 }
 
+function moveSeatedLegRootsToFront(rig, amount = 0) {
+  if (!rig || !Number.isFinite(amount)) return;
+  addBonePos(rig, rig.leftUpperLeg, 0, 0, amount, 1);
+  addBonePos(rig, rig.rightUpperLeg, 0, 0, amount, 1);
+}
+
 function smooth01(v) {
   const t = clamp(v, 0, 1);
   return t * t * (3 - 2 * t);
@@ -4093,20 +4099,24 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   const t = smooth01(intensity);
   const breathe = Math.sin(performance.now() * 0.002) * 0.012;
 
+  // Match the proven Mixamo seated technique:
+  // push both leg roots toward the same visual front side before bending.
+  moveSeatedLegRootsToFront(rig, 0.3);
+
   addBonePos(rig, rig.hips, 0, -0.345, -0.078, 1);
-  addBoneRot(rig, rig.hips, -0.06, 0, 0, 1);
-  addBoneRot(rig, rig.spine, 0.15 + breathe, 0, 0, 1);
-  addBoneRot(rig, rig.chest, 0.12, 0, 0, 1);
-  addBoneRot(rig, rig.neck, -0.05, 0, 0, 1);
+  addBoneRot(rig, rig.hips, -0.16, 0, 0, 1);
+  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0, 1);
+  addBoneRot(rig, rig.chest, 0.16, 0, 0, 1);
+  addBoneRot(rig, rig.neck, -0.04, 0, 0, 1);
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
-  // Force a natural chair-sit pose: thighs forward, knees bending down, feet resting near the floor.
-  addBoneRot(rig, rig.leftUpperLeg, 1.45, -0.03, -0.04, 1);
-  addBoneRot(rig, rig.leftLowerLeg, 1.12, 0.03, 0.02, 1);
-  addBoneRot(rig, rig.leftFoot, -0.05, 0.02, 0.01, 1);
-  addBoneRot(rig, rig.rightUpperLeg, 1.45, 0.03, 0.04, 1);
-  addBoneRot(rig, rig.rightLowerLeg, 1.12, -0.03, -0.02, 1);
-  addBoneRot(rig, rig.rightFoot, -0.05, -0.02, -0.01, 1);
+  // Keep the same character, only fix seated leg direction/placement.
+  addBoneRot(rig, rig.leftUpperLeg, -1.42, 0.14, 0.1, 1);
+  addBoneRot(rig, rig.leftLowerLeg, 1.52, 0.02, 0.02, 1);
+  addBoneRot(rig, rig.leftFoot, -0.16, 0.03, 0.03, 1);
+  addBoneRot(rig, rig.rightUpperLeg, -1.42, -0.14, -0.1, 1);
+  addBoneRot(rig, rig.rightLowerLeg, 1.52, -0.02, -0.02, 1);
+  addBoneRot(rig, rig.rightFoot, -0.16, -0.03, -0.03, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
