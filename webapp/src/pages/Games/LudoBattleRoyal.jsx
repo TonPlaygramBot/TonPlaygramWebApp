@@ -1762,6 +1762,7 @@ const CHAIR_MODEL_URLS = [
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.015 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -4063,12 +4064,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   addBoneRot(rig, rig.neck, -0.05, 0, 0, 1);
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
-  addBoneRot(rig, rig.leftUpperLeg, 0.94, -0.08, 0.04, 1);
-  addBoneRot(rig, rig.leftLowerLeg, -1.08, 0, 0, 1);
-  addBoneRot(rig, rig.leftFoot, 0.22, 0, 0, 1);
-  addBoneRot(rig, rig.rightUpperLeg, 0.94, 0.08, -0.04, 1);
-  addBoneRot(rig, rig.rightLowerLeg, -1.08, 0, 0, 1);
-  addBoneRot(rig, rig.rightFoot, 0.22, 0, 0, 1);
+  // Keep legs seated downward so feet do not point up/out from the chair in portrait views.
+  addBoneRot(rig, rig.leftUpperLeg, 1.36, -0.05, -0.08, 1);
+  addBoneRot(rig, rig.leftLowerLeg, -0.34, 0, 0, 1);
+  addBoneRot(rig, rig.leftFoot, -0.22, 0.04, 0.02, 1);
+  addBoneRot(rig, rig.rightUpperLeg, 1.36, 0.05, 0.08, 1);
+  addBoneRot(rig, rig.rightLowerLeg, -0.34, 0, 0, 1);
+  addBoneRot(rig, rig.rightFoot, -0.22, -0.04, -0.02, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
@@ -4219,10 +4221,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   applyRightHandGrip(rig, handGrip);
 }
 
-async function loadSeatedHumanTemplate() {
+async function loadSeatedHumanTemplate(renderer = null) {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
-    const loader = createConfiguredGLTFLoader();
+    const loader = createConfiguredGLTFLoader(renderer);
     loader.setCrossOrigin('anonymous');
     const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
     const root = gltf?.scene || gltf?.scenes?.[0];
@@ -6672,8 +6674,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     seatedHumanActorsRef.current = [];
     try {
-      const humanTemplate = await loadSeatedHumanTemplate();
-      const baseScale = SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01);
+      const humanTemplate = await loadSeatedHumanTemplate(renderer);
+      const baseScale =
+        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
