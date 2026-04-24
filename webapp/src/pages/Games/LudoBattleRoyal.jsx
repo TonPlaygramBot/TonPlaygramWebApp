@@ -1761,9 +1761,10 @@ const CHAIR_MODEL_URLS = [
 ];
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 1.62;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.07 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.07;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.015 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -4221,7 +4222,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
 async function loadSeatedHumanTemplate() {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
-    const loader = new GLTFLoader();
+    const loader = createConfiguredGLTFLoader();
     loader.setCrossOrigin('anonymous');
     const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
     const root = gltf?.scene || gltf?.scenes?.[0];
@@ -4233,10 +4234,8 @@ async function loadSeatedHumanTemplate() {
         obj.frustumCulled = false;
         const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
         materials.forEach((mat) => {
-          if (mat?.map) {
-            applySRGBColorSpace(mat.map);
-            mat.map.needsUpdate = true;
-          }
+          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+          if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
           mat.needsUpdate = true;
         });
       }
@@ -6679,7 +6678,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
         actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
-        actor.rotation.set(0, Math.PI, 0);
+        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1);
