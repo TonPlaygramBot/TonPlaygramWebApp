@@ -1761,9 +1761,11 @@ const CHAIR_MODEL_URLS = [
 ];
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 1.62;
+// Keep seated humans visually proportional to antique chair themes in portrait gameplay views.
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.02;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.07 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.07;
+// Positive Z keeps thighs/legs over the seat cushion (not clipping into the backrest side).
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.1;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -4221,25 +4223,27 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
 async function loadSeatedHumanTemplate() {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
+    const loader = createConfiguredGLTFLoader();
     const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error('Missing seated human scene');
+    // Preserve source UV/texture mapping so the original human skin/outfit textures stay intact.
+    prepareLoadedModel(root, { preserveGltfTextureMapping: true });
     root.traverse((obj) => {
-      if (obj?.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        obj.frustumCulled = false;
-        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-        materials.forEach((mat) => {
-          if (mat?.map) {
-            applySRGBColorSpace(mat.map);
-            mat.map.needsUpdate = true;
-          }
-          mat.needsUpdate = true;
-        });
-      }
+      if (!obj?.isMesh) return;
+      obj.frustumCulled = false;
+      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+      materials.forEach((mat) => {
+        if (mat?.map) {
+          applySRGBColorSpace(mat.map);
+          mat.map.needsUpdate = true;
+        }
+        if (mat?.emissiveMap) {
+          applySRGBColorSpace(mat.emissiveMap);
+          mat.emissiveMap.needsUpdate = true;
+        }
+        mat.needsUpdate = true;
+      });
     });
     return root;
   })();
@@ -6679,7 +6683,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const actor = cloneSkeleton(humanTemplate);
         actor.scale.setScalar(baseScale);
         actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
-        actor.rotation.set(0, Math.PI, 0);
+        actor.rotation.set(0, 0, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1);
