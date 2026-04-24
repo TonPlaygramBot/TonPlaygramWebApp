@@ -22813,7 +22813,7 @@ const shotPowerRef = useRef(0);
               1
             );
             const impactThreshold = THREE.MathUtils.clamp(
-              strikeImpactThreshold ?? 0.9,
+              strikeImpactThreshold ?? 0.88,
               0.05,
               0.995
             );
@@ -26040,22 +26040,49 @@ const shotPowerRef = useRef(0);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
         return {
           // Match the reference cue workflow exactly:
           // drag = pull back, release = immediate forward strike.
           motion: 'classic',
           pullRatio: easeOutCubic(p),
           pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
-          pullbackDuration,
+          strikeDuration: 110,
+          holdDuration: 45,
+          pullbackDuration: 0,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 0.88,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
+      };
+      const resolveReferenceCueShotVector = ({
+        shotAimDir,
+        physicsSpin,
+        clampedPower,
+        isBreakShot
+      }) => {
+        const dir3 = new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y);
+        if (dir3.lengthSq() < 1e-8) dir3.set(0, 0, 1);
+        dir3.normalize();
+        const side3 = new THREE.Vector3(dir3.z, 0, -dir3.x);
+        if (side3.lengthSq() > 1e-8) side3.normalize();
+        const refBaseSpeed = 1.7 + 7.1 * Math.pow(clampedPower, 1.08);
+        const refMaxSpeed = 8.8;
+        const legacyScale = refBaseSpeed / refMaxSpeed;
+        const existingMaxScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE;
+        const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+        const baseForward = speedBase * existingMaxScale * legacyScale;
+        const spinX = physicsSpin?.x ?? 0;
+        const spinY = physicsSpin?.y ?? 0;
+        const topspin = Math.max(0, spinY);
+        const backspin = Math.max(0, -spinY);
+        const forwardBiasNormalized =
+          (topspin * clampedPower * 0.9 - backspin * clampedPower * 0.65) / refMaxSpeed;
+        const sideBiasNormalized = (spinX * clampedPower * 0.24) / refMaxSpeed;
+        const forwardSpeed = Math.max(0, baseForward * (1 + forwardBiasNormalized));
+        const sideSpeed = speedBase * existingMaxScale * sideBiasNormalized;
+        return dir3.multiplyScalar(forwardSpeed).addScaledVector(side3, sideSpeed);
       };
 
       const computeCuePull = (
@@ -26460,7 +26487,6 @@ const shotPowerRef = useRef(0);
         if (shotPrediction.railNormal) replayTags.add('bank');
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -26487,11 +26513,12 @@ const shotPowerRef = useRef(0);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = shotAimDir
-            .clone()
-            .multiplyScalar(speedBase * powerScale);
+          const base = resolveReferenceCueShotVector({
+            shotAimDir,
+            physicsSpin,
+            clampedPower,
+            isBreakShot
+          });
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -26726,7 +26753,7 @@ const shotPowerRef = useRef(0);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Mirror the reference stroke pullback curve exactly:
           // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
+          const pullRange = 0.34;
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
@@ -26918,7 +26945,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              strikeImpactThreshold: 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
@@ -32778,7 +32805,7 @@ const shotPowerRef = useRef(0);
           ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
           : clampPower(powerRef.current, 0);
         onPowerRelease(powerRatio);
-        const resetDurationMs = THREE.MathUtils.lerp(190, 105, powerRatio);
+        const resetDurationMs = 160;
         slider.animateToMin({ duration: resetDurationMs });
       }
     });
