@@ -79,8 +79,12 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.07, 0.1);
-const HUMAN_SEAT_SCALE = 1.05;
+const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0, -0.44, -0.09);
+const HUMAN_SEAT_SCALE = 1.42;
+const HUMAN_SEAT_BREATH_AMPLITUDE = 0.0042;
+const HUMAN_SEAT_THROW_LEAN = 0.045;
+const HUMAN_SEAT_ACTIVE_FORWARD_LEAN = -0.035;
+const HUMAN_SEAT_IDLE_FORWARD_LEAN = -0.018;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1495,6 +1499,58 @@ function applyOriginalTextureMapping(root) {
       material.needsUpdate = true;
     });
   });
+}
+
+function setBoneRotation(bonesByName, names, x = 0, y = 0, z = 0) {
+  for (const name of names) {
+    const bone = bonesByName.get(name.toLowerCase());
+    if (!bone) continue;
+    bone.rotation.set(x, y, z);
+  }
+}
+
+function applySeatedHumanPose(root) {
+  if (!root) return;
+  const bonesByName = new Map();
+  root.traverse((node) => {
+    if (!node?.isBone || !node.name) return;
+    bonesByName.set(node.name.toLowerCase(), node);
+  });
+  if (!bonesByName.size) return;
+
+  setBoneRotation(bonesByName, ['Hips', 'mixamorigHips'], -0.16, 0, 0);
+  setBoneRotation(bonesByName, ['Spine', 'mixamorigSpine'], 0.18, 0, 0);
+  setBoneRotation(bonesByName, ['Spine1', 'mixamorigSpine1'], 0.1, 0, 0);
+  setBoneRotation(bonesByName, ['Spine2', 'mixamorigSpine2'], -0.05, 0, 0);
+  setBoneRotation(bonesByName, ['Neck', 'mixamorigNeck'], -0.08, 0, 0);
+  setBoneRotation(bonesByName, ['Head', 'mixamorigHead'], 0.02, 0, 0);
+
+  const leftHipNames = ['LeftUpLeg', 'mixamorigLeftUpLeg', 'left_thigh'];
+  const rightHipNames = ['RightUpLeg', 'mixamorigRightUpLeg', 'right_thigh'];
+  const leftKneeNames = ['LeftLeg', 'mixamorigLeftLeg', 'left_calf'];
+  const rightKneeNames = ['RightLeg', 'mixamorigRightLeg', 'right_calf'];
+  const leftFootNames = ['LeftFoot', 'mixamorigLeftFoot', 'left_foot'];
+  const rightFootNames = ['RightFoot', 'mixamorigRightFoot', 'right_foot'];
+  const leftToeNames = ['LeftToeBase', 'mixamorigLeftToeBase', 'left_toe'];
+  const rightToeNames = ['RightToeBase', 'mixamorigRightToeBase', 'right_toe'];
+
+  setBoneRotation(bonesByName, leftHipNames, -1.3, -0.08, 0.07);
+  setBoneRotation(bonesByName, rightHipNames, -1.3, 0.08, -0.07);
+  setBoneRotation(bonesByName, leftKneeNames, 1.66, -0.03, 0);
+  setBoneRotation(bonesByName, rightKneeNames, 1.66, 0.03, 0);
+  setBoneRotation(bonesByName, leftFootNames, -0.28, 0.03, 0);
+  setBoneRotation(bonesByName, rightFootNames, -0.28, -0.03, 0);
+  setBoneRotation(bonesByName, leftToeNames, 0.18, 0, 0);
+  setBoneRotation(bonesByName, rightToeNames, 0.18, 0, 0);
+
+  setBoneRotation(bonesByName, ['LeftShoulder', 'mixamorigLeftShoulder'], -0.06, 0.18, 0.12);
+  setBoneRotation(bonesByName, ['RightShoulder', 'mixamorigRightShoulder'], -0.06, -0.18, -0.12);
+  setBoneRotation(bonesByName, ['LeftArm', 'mixamorigLeftArm'], -0.34, 0.1, 0.14);
+  setBoneRotation(bonesByName, ['RightArm', 'mixamorigRightArm'], -0.34, -0.1, -0.14);
+  setBoneRotation(bonesByName, ['LeftForeArm', 'mixamorigLeftForeArm'], -0.7, 0.05, 0.08);
+  setBoneRotation(bonesByName, ['RightForeArm', 'mixamorigRightForeArm'], -0.7, -0.05, -0.08);
+  setBoneRotation(bonesByName, ['LeftHand', 'mixamorigLeftHand'], -0.14, 0.04, 0.04);
+  setBoneRotation(bonesByName, ['RightHand', 'mixamorigRightHand'], -0.14, -0.04, -0.04);
 }
 
 async function loadSeatedHumanTemplate(renderer) {
@@ -3178,7 +3234,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
     const humanAnchor = new THREE.Object3D();
     humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
-    humanAnchor.rotation.set(0, Math.PI, 0);
+    humanAnchor.rotation.set(0, 0, 0);
     group.add(humanAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
@@ -3208,6 +3264,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       chairs.forEach((chair, seatIndex) => {
         const instance = cloneSkeleton(humanTemplate);
         applyOriginalTextureMapping(instance);
+        applySeatedHumanPose(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
         instance.scale.setScalar(HUMAN_SEAT_SCALE);
         chair.humanAnchor.add(instance);
@@ -5520,12 +5577,14 @@ export default function SnakeBoard3D({
         board.seatedHumans.forEach((human, seatIndex) => {
           if (!human) return;
           const isActiveSeat = seatIndex === activeTurn;
-          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.006;
-          const throwLean = isActiveSeat && isThrowing ? 0.08 : 0;
+          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * HUMAN_SEAT_BREATH_AMPLITUDE;
+          const throwLean = isActiveSeat && isThrowing ? HUMAN_SEAT_THROW_LEAN : 0;
           human.position.y = breathe + throwLean;
-          human.rotation.x = isActiveSeat ? -0.06 - throwLean * 0.25 : -0.02;
+          human.rotation.x = isActiveSeat
+            ? HUMAN_SEAT_ACTIVE_FORWARD_LEAN - throwLean * 0.18
+            : HUMAN_SEAT_IDLE_FORWARD_LEAN;
           human.rotation.y = 0;
-          human.rotation.z = isActiveSeat ? Math.sin(now * 0.003) * 0.02 : 0;
+          human.rotation.z = isActiveSeat ? Math.sin(now * 0.003) * 0.014 : 0;
         });
       }
       let hasDiceCenter = false;
