@@ -1937,6 +1937,7 @@ const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 0.58;
 const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
+const HUMAN_SHOOT_BLEND_THRESHOLD = 0.42; // transition the shooter into cue-address pose once camera is lowered toward cue view
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24595,11 +24596,15 @@ const shotPowerRef = useRef(0);
           const anim = rig?.anim;
           if (!anim?.pelvis) return;
           const isShooter = anim.seat === activeSeat;
+          const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+          const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
+          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
+          const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
           else if (isShotActive && anim.seat === shotSeat && shotAge < 420) mode = 'strike';
           else if (isShotActive) mode = 'react';
-          else if (isShooter) mode = 'aim';
+          else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
 
           const targetPose = mode === 'idle' ? 0 : 1;
@@ -24643,11 +24648,34 @@ const shotPowerRef = useRef(0);
             .addScaledVector(side, -0.018 * scale)
             .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
 
-          const shotPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - shotPower, 3));
-          const practiceStroke = mode === 'aim' ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + shotPower * 0.75) : 0;
-          const cueBallGap = BALL_R * (mode === 'strike' ? 1.05 : 1.22 + (mode === 'aim' ? pull / (BALL_R * 8.5) : 0) + practiceStroke / (BALL_R * 8));
-          const cueTipShoot = cueWorld.clone().addScaledVector(aimForward, -cueBallGap).setY(bridgeHandTarget.y + 0.05 * scale);
+          const humanShotState =
+            mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+          const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+          const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+          const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
+          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
+          const practiceStroke =
+            humanShotState === 'dragging'
+              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
+              : 0;
+          const strikeNorm =
+            humanShotState === 'striking'
+              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
+              : 0;
+          let cueBallGap = BALL_R * 1.22;
+          if (humanShotState === 'dragging') {
+            cueBallGap += pull + practiceStroke;
+          } else if (humanShotState === 'striking') {
+            cueBallGap = THREE.MathUtils.lerp(
+              BALL_R * (1.22 + (pull / BALL_R)),
+              BALL_R * 1.05,
+              1 - Math.pow(1 - strikeNorm, 3)
+            );
+          }
+          const cueTipShoot = cueWorld
+            .clone()
+            .addScaledVector(aimForward, -cueBallGap)
+            .setY(bridgeHandTarget.y + 0.05 * scale);
           const cueBackShoot = bridgeHandTarget
             .clone()
             .addScaledVector(aimForward, -(anim.humanHeight * 0.76))
@@ -33149,16 +33177,16 @@ const shotPowerRef = useRef(0);
       labels: true,
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
-      onCommit: (committedValue) => {
-        const hasCommittedValue = Number.isFinite(committedValue);
-        const powerRatio = hasCommittedValue
-          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
-          : clampPower(powerRef.current, 0);
-        onPowerRelease(powerRatio);
-        const resetDurationMs = 160;
-        slider.animateToMin({ duration: resetDurationMs });
-      }
-    });
+	      onCommit: (committedValue) => {
+	        const hasCommittedValue = Number.isFinite(committedValue);
+	        const powerRatio = hasCommittedValue
+	          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
+	          : clampPower(powerRef.current, 0);
+	        onPowerRelease(powerRatio);
+	        const resetDurationMs = 180;
+	        slider.animateToMin({ duration: resetDurationMs });
+	      }
+	    });
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
