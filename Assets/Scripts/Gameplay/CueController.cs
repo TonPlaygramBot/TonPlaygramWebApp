@@ -5,7 +5,7 @@ namespace Aiming
 {
     public class CueController : MonoBehaviour
     {
-        enum ShotState
+        public enum ShotState
         {
             Idle,
             Dragging,
@@ -76,6 +76,9 @@ namespace Aiming
         float _dynamicWobble;
         Vector3 _strikeDirection;
         Vector3 _tipBaseScale = Vector3.one;
+
+        public ShotState CurrentShotState => _shotState;
+        public Vector3 CurrentAimDirection => _aimDirection;
 
         void Awake()
         {
