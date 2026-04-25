@@ -7673,10 +7673,12 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenRoughnessMap'
 ]);
 const HUMAN_CHARACTER_DISABLED = false;
-const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const DOMINO_SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.42 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
+const DOMINO_RIGHT_HAND_PICKUP_OFFSET = new THREE.Vector3(-0.03 * MODEL_SCALE, 0.014 * MODEL_SCALE, 0.078 * MODEL_SCALE);
+const DOMINO_RIGHT_HAND_PLACE_OFFSET = new THREE.Vector3(-0.025 * MODEL_SCALE, 0.02 * MODEL_SCALE, 0.108 * MODEL_SCALE);
 const seatedHumans = [];
 const seatFaceAnchors = [];
 const seatCharacterHelpers = [];
@@ -7722,6 +7724,20 @@ function composeModelBone(rest, bone, euler) {
 
 function buildHumanBoneMap(root) {
   const bones = getModelBones(root);
+  const findBoneChain = (...aliases) => {
+    const roots = aliases
+      .map((alias) => findModelBone(bones, [alias]))
+      .filter(Boolean);
+    const rootBone = roots[0];
+    if (!rootBone) return [];
+    const chain = [];
+    let cursor = rootBone;
+    while (cursor && chain.length < 4) {
+      chain.push(cursor);
+      cursor = cursor.children?.find?.((child) => child?.isBone) || null;
+    }
+    return chain;
+  };
   const map = {
     hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
     spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
@@ -7737,6 +7753,16 @@ function buildHumanBoneMap(root) {
     rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
     leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
     rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
+    leftThumb: findBoneChain('lefthandthumb', 'leftthumb'),
+    leftIndex: findBoneChain('lefthandindex', 'leftindex'),
+    leftMiddle: findBoneChain('lefthandmiddle', 'leftmiddle'),
+    leftRing: findBoneChain('lefthandring', 'leftring'),
+    leftPinky: findBoneChain('lefthandpinky', 'leftpinky'),
+    rightThumb: findBoneChain('righthandthumb', 'rightthumb'),
+    rightIndex: findBoneChain('righthandindex', 'rightindex'),
+    rightMiddle: findBoneChain('righthandmiddle', 'rightmiddle'),
+    rightRing: findBoneChain('righthandring', 'rightring'),
+    rightPinky: findBoneChain('righthandpinky', 'rightpinky'),
     leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
@@ -7752,6 +7778,57 @@ function buildHumanBoneMap(root) {
   map.leftLeg ??= map.leftUpLeg;
   map.rightLeg ??= map.rightUpLeg;
   return map;
+}
+
+function applyFingerGrip(rest, chain = [], amount = 0, spread = 0) {
+  const grip = THREE.MathUtils.clamp(amount, 0, 1);
+  chain.forEach((bone, index) => {
+    const base = rest.get(bone);
+    if (!base) return;
+    const curl = index === 0 ? -0.34 : -0.68;
+    const side = index === 0 ? spread : spread * 0.35;
+    bone.quaternion
+      .copy(base)
+      .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(curl * grip, 0.05 * grip, side * grip, 'XYZ')));
+  });
+}
+
+function applyHandGrip(rest, bones, side = 'right', amount = 0) {
+  const thumb = side === 'left' ? bones.leftThumb : bones.rightThumb;
+  const index = side === 'left' ? bones.leftIndex : bones.rightIndex;
+  const middle = side === 'left' ? bones.leftMiddle : bones.rightMiddle;
+  const ring = side === 'left' ? bones.leftRing : bones.rightRing;
+  const pinky = side === 'left' ? bones.leftPinky : bones.rightPinky;
+  const sign = side === 'left' ? -1 : 1;
+  applyFingerGrip(rest, index, amount, -0.08 * sign);
+  applyFingerGrip(rest, middle, amount, -0.02 * sign);
+  applyFingerGrip(rest, ring, amount, 0.04 * sign);
+  applyFingerGrip(rest, pinky, amount, 0.08 * sign);
+  (thumb || []).forEach((bone, indexIdx) => {
+    const base = rest.get(bone);
+    if (!base) return;
+    const fold = indexIdx === 0 ? -0.24 : -0.46;
+    bone.quaternion
+      .copy(base)
+      .multiply(
+        new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(fold * amount, -0.2 * amount * sign, 0.2 * amount * sign, 'XYZ')
+        )
+      );
+  });
+}
+
+function createDominoHandHelpers(root, bones) {
+  const parent = bones?.rightHand?.isBone ? bones.rightHand : root;
+  const pickup = new THREE.Object3D();
+  pickup.position.copy(DOMINO_RIGHT_HAND_PICKUP_OFFSET);
+  pickup.name = 'dominoRightPickupHelper';
+  parent.add(pickup);
+  const place = new THREE.Object3D();
+  place.position.copy(DOMINO_RIGHT_HAND_PLACE_OFFSET);
+  place.name = 'dominoRightPlaceHelper';
+  parent.add(place);
+  return { pickup, place };
 }
 
 function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockStrength = 0) {
@@ -7826,6 +7903,10 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
     bones.rightHand,
     new THREE.Euler(-0.24 + rightReach * 0.7, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
   );
+  applyHandGrip(rest, bones, 'left', 0.66);
+  applyHandGrip(rest, bones, 'right', 0.5 + rightReach * 0.45);
+  const forwardLean = Math.max(0, rightReach * 0.05);
+  root.position.z = seatHuman.seatOrigin.z + forwardLean;
 }
 
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
@@ -7865,24 +7946,16 @@ async function ensureHumanTemplate() {
   seatedHumanTemplatePromise = (async () => {
     const loader = createConfiguredGltfLoader();
     loader.setCrossOrigin('anonymous');
-    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
+    const gltf = await loader.loadAsync(DOMINO_SEATED_HUMAN_MODEL_URL);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error('Missing seated human scene');
-    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
       obj.castShadow = true;
       obj.receiveShadow = true;
       obj.frustumCulled = false;
-      const meshName = `${obj.name || ''}`.toLowerCase();
-      const useSkin = /head|face|neck|ear|hand/.test(meshName);
-      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
-        if (!mat?.map) mat.map = fallbackTex;
         if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
@@ -8020,11 +8093,13 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     seatFaceAnchors[index] = faceAnchor;
     const seatHuman = {
       root,
-      action: null
+      action: null,
+      seatOrigin: root.position.clone()
     };
 
     const bones = buildHumanBoneMap(root);
     seatHuman.bones = bones;
+    seatHuman.helpers = createDominoHandHelpers(root, bones);
     seatHuman.rest = captureModelRestPose(root);
     seatHuman.baseScale = 1;
 
@@ -9029,6 +9104,16 @@ function spawnPlacementAnimation(
   orientDominoFlat(orientTarget, segment.rot ?? 0);
   const endQuat = orientTarget.quaternion.clone();
 
+  let handPickup = null;
+  let handRelease = null;
+  const sourceHuman = seatedHumans[sourceSeat];
+  if (sourceHuman?.helpers?.pickup?.getWorldPosition && sourceHuman?.helpers?.place?.getWorldPosition) {
+    handPickup = sourceHuman.helpers.pickup.getWorldPosition(new THREE.Vector3());
+    handRelease = sourceHuman.helpers.place.getWorldPosition(new THREE.Vector3());
+    start.copy(handRelease);
+    mesh.position.copy(handRelease);
+  }
+
   placementAnimations.push({
     mesh,
     start,
@@ -9040,6 +9125,8 @@ function spawnPlacementAnimation(
     startTime: performance.now(),
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
+    handPickup,
+    handRelease,
     segment
   });
 }
@@ -10982,6 +11069,21 @@ function updatePlacementAnimations(now) {
     const ease = 1 - Math.pow(1 - t, 3);
 
     const pos = anim.start.clone().lerp(anim.end, ease);
+    if (anim.handPickup && anim.handRelease) {
+      const pickupPhase = 0.3;
+      const releasePhase = 0.56;
+      if (t <= pickupPhase) {
+        const pickT = THREE.MathUtils.clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
+        pos.copy(anim.start).lerp(anim.handPickup, easeInOutCubic(pickT));
+      } else if (t <= releasePhase) {
+        const relT = THREE.MathUtils.clamp(
+          (t - pickupPhase) / Math.max(1e-4, releasePhase - pickupPhase),
+          0,
+          1
+        );
+        pos.copy(anim.handRelease).lerp(anim.end, easeOutCubic(relT));
+      }
+    }
     if (anim.arc) {
       pos.y += Math.sin(Math.PI * ease) * anim.arc;
     }
