@@ -422,7 +422,7 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.54 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
@@ -430,12 +430,13 @@ const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
 const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 2.32;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.62;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.62;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.5;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.96;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -7226,7 +7227,7 @@ function Chess3D({
   const environmentShadowCatcherRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
-  const viewModeRef = useRef('2d');
+  const viewModeRef = useRef('3d');
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
   const cameraTweenRef = useRef(0);
@@ -7395,7 +7396,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('2d');
+  const [viewMode, setViewMode] = useState('3d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -9052,8 +9053,8 @@ function Chess3D({
     boardGroup.add(boardVisualGroup);
     const boardLookTarget = new THREE.Vector3(
       tablePlacementOffset.x,
-      boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
-      tablePlacementOffset.z
+      boardGroup.position.y + (BOARD.baseH + 0.06) * BOARD_SCALE,
+      tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
