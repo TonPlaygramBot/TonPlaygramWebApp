@@ -18,7 +18,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1925,9 +1924,6 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const CUE_POWER_GAMMA = 1.18; // keep slider-to-speed mapping closer to linear so cue-ball speed follows slider power
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.62; // keep standing avatar height close to real world relative to table length
-const POOL_PLAYER_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_PLAYER_MODEL_SCALE = 1.26; // keep Pool Royale humans slightly bigger than the legacy capsule character
-const POOL_PLAYER_MODEL_Y_OFFSET = -TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE * 0.55;
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -15278,9 +15274,6 @@ function PoolRoyaleGame({
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
   const playerCharacterRigsRef = useRef([]);
-  const playerCharacterTemplateRef = useRef(null);
-  const playerCharacterLoadRef = useRef(null);
-  const playerCharacterSpawnRunRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
@@ -24338,38 +24331,17 @@ const shotPowerRef = useRef(0);
         });
         playerCharacterRigsRef.current = [];
       };
-      const loadPoolPlayerTemplate = async () => {
-        if (playerCharacterTemplateRef.current) {
-          return playerCharacterTemplateRef.current;
-        }
-        if (playerCharacterLoadRef.current) {
-          return playerCharacterLoadRef.current;
-        }
-        const loader = createConfiguredGLTFLoader(rendererRef.current);
-        playerCharacterLoadRef.current = loader
-          .loadAsync(POOL_PLAYER_MODEL_URL)
-          .then((gltf) => {
-            const scene = gltf?.scene || gltf?.scenes?.[0];
-            if (!scene) {
-              throw new Error('Pool Royale player model scene is missing.');
-            }
-            playerCharacterTemplateRef.current = scene;
-            return scene;
-          })
-          .catch((error) => {
-            console.warn('Pool Royale: failed to load shared Ludo human model', error);
-            playerCharacterLoadRef.current = null;
-            return null;
-          });
-        return playerCharacterLoadRef.current;
-      };
-      const createFallbackPlayerCharacter = ({ seat = 'A' } = {}) => {
+      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+        const rigGroup = new THREE.Group();
+        rigGroup.position.set(x, floorY, z);
+        rigGroup.rotation.y = facingY;
+        const torsoPivot = new THREE.Group();
+        rigGroup.add(torsoPivot);
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const torsoHeight = humanHeight * 0.46;
         const legHeight = humanHeight * 0.42;
         const shoulderY = legHeight + torsoHeight * 0.84;
         const headRadius = humanHeight * 0.09;
-        const root = new THREE.Group();
         const skin = new THREE.MeshStandardMaterial({ color: 0xf4d8c2, roughness: 0.84, metalness: 0.02 });
         const cloth = new THREE.MeshStandardMaterial({
           color: seat === 'A' ? 0x3558d6 : 0x2a2a2f,
@@ -24383,10 +24355,10 @@ const shotPowerRef = useRef(0);
           cloth
         );
         torso.position.set(0, legHeight + torsoHeight * 0.5, 0);
-        root.add(torso);
+        torsoPivot.add(torso);
         const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 18, 16), skin);
         head.position.set(0, legHeight + torsoHeight + headRadius * 1.12, 0);
-        root.add(head);
+        torsoPivot.add(head);
         const legOffset = humanHeight * 0.05;
         [-1, 1].forEach((side) => {
           const leg = new THREE.Mesh(
@@ -24394,7 +24366,7 @@ const shotPowerRef = useRef(0);
             trousers
           );
           leg.position.set(legOffset * side, legHeight * 0.5, 0);
-          root.add(leg);
+          torsoPivot.add(leg);
         });
         const cue = new THREE.Mesh(
           new THREE.CylinderGeometry(humanHeight * 0.005, humanHeight * 0.008, humanHeight * 0.78, 12),
@@ -24402,35 +24374,7 @@ const shotPowerRef = useRef(0);
         );
         cue.rotation.z = Math.PI / 2;
         cue.position.set(humanHeight * 0.17, shoulderY - humanHeight * 0.12, humanHeight * 0.02);
-        root.add(cue);
-        return { root, head, cue, humanHeight };
-      };
-      const createPlayerCharacterRig = async ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
-        const rigGroup = new THREE.Group();
-        rigGroup.position.set(x, floorY, z);
-        rigGroup.rotation.y = facingY;
-        const torsoPivot = new THREE.Group();
-        rigGroup.add(torsoPivot);
-        const template = await loadPoolPlayerTemplate();
-        let head = null;
-        let cue = null;
-        let humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        if (template) {
-          const model = cloneSkeleton(template);
-          model.scale.setScalar(POOL_PLAYER_MODEL_SCALE);
-          model.position.set(0, POOL_PLAYER_MODEL_Y_OFFSET, 0);
-          torsoPivot.add(model);
-          const modelHead = model.getObjectByName('Head');
-          if (modelHead) {
-            head = modelHead;
-          }
-        } else {
-          const fallback = createFallbackPlayerCharacter({ seat });
-          torsoPivot.add(fallback.root);
-          head = fallback.head;
-          cue = fallback.cue;
-          humanHeight = fallback.humanHeight;
-        }
+        torsoPivot.add(cue);
         rigGroup.userData.anim = {
           seat,
           mode: 'idle',
@@ -24447,25 +24391,22 @@ const shotPowerRef = useRef(0);
         });
         return rigGroup;
       };
-      const spawnPlayerCharacters = async () => {
+      const spawnPlayerCharacters = () => {
         disposePlayerCharacters();
-        const runToken = Symbol('spawn-player-characters');
-        playerCharacterSpawnRunRef.current = runToken;
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
-        const leftPlayer = await createPlayerCharacterRig({
+        const leftPlayer = createPlayerCharacterRig({
           seat: 'A',
           x: -sideOffset,
           z: -zOffset,
           facingY: 0
         });
-        const rightPlayer = await createPlayerCharacterRig({
+        const rightPlayer = createPlayerCharacterRig({
           seat: 'B',
           x: sideOffset,
           z: zOffset,
           facingY: Math.PI
         });
-        if (playerCharacterSpawnRunRef.current !== runToken) return;
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
           anim: group.userData.anim
@@ -24483,7 +24424,7 @@ const shotPowerRef = useRef(0);
         const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
         rigs.forEach((rig) => {
           const anim = rig?.anim;
-          if (!anim?.torsoPivot) return;
+          if (!anim?.torsoPivot || !anim?.head || !anim?.cue) return;
           const isShooter = anim.seat === activeSeat;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
@@ -24507,18 +24448,14 @@ const shotPowerRef = useRef(0);
                   ? HUMAN_PLAYER_REACT_LEAN * anim.intensity
                   : sway * anim.intensity;
           anim.torsoPivot.rotation.y = sway * 0.42;
-          if (anim.head) {
-            anim.head.rotation.y = sway * 0.5;
-          }
-          if (anim.cue) {
-            anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing;
-            anim.cue.position.z =
-              anim.humanHeight * 0.02 +
-              (mode === 'strike' ? -anim.humanHeight * 0.05 : cueSwing * anim.humanHeight * 0.18);
-          }
+          anim.head.rotation.y = sway * 0.5;
+          anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing;
+          anim.cue.position.z =
+            anim.humanHeight * 0.02 +
+            (mode === 'strike' ? -anim.humanHeight * 0.05 : cueSwing * anim.humanHeight * 0.18);
         });
       };
-      void spawnPlayerCharacters();
+      spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -32954,13 +32891,9 @@ const shotPowerRef = useRef(0);
       onChange: (v) => onPowerDrag((v ?? 0) / 100),
       onStart: () => onPowerDragStart(),
       onCommit: (committedValue) => {
-        const liveSliderValue = slider.get();
-        const hasCommittedValue = Number.isFinite(committedValue) || Number.isFinite(liveSliderValue);
-        const resolvedCommittedValue = Number.isFinite(committedValue)
-          ? committedValue
-          : liveSliderValue;
+        const hasCommittedValue = Number.isFinite(committedValue);
         const powerRatio = hasCommittedValue
-          ? THREE.MathUtils.clamp(resolvedCommittedValue / 100, 0, 1)
+          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
           : clampPower(powerRef.current, 0);
         onPowerRelease(powerRatio);
         const resetDurationMs = 160;
