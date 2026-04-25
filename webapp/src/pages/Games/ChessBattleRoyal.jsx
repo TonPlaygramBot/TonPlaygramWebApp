@@ -395,10 +395,6 @@ const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull bottom chair slightly closer to the table.
 const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.12 * MODEL_SCALE; // Push top chair slightly farther from the table.
 const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_TARGET = 0.11 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_MIN = 0.06 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_MAX = 0.3 * MODEL_SCALE;
-const CHAIR_TOP_VISUAL_PUSH = 0.32 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -435,18 +431,6 @@ const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
 const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
-const FIRST_PERSON_PITCH_MIN = THREE.MathUtils.degToRad(-75);
-const FIRST_PERSON_PITCH_MAX = THREE.MathUtils.degToRad(72);
-const FIRST_PERSON_MOUSE_SENSITIVITY = 0.0024;
-const FIRST_PERSON_BODY_YAW_FACTOR = 1;
-const FIRST_PERSON_HEAD_YAW_FACTOR = 0.45;
-const FIRST_PERSON_HEAD_PITCH_FACTOR = 0.7;
-const FIRST_PERSON_EYE_HEIGHT_OFFSET = 0.02;
-const FIRST_PERSON_CAMERA_FORWARD = 0.06;
-const FIRST_PERSON_CAMERA_UP_OFFSET = 0.01;
-const FIRST_PERSON_HEAD_BOB_FREQ = 8.5;
-const FIRST_PERSON_HEAD_BOB_AMP = 0.008;
-const FIRST_PERSON_CAMERA_SMOOTH = 0.18;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
@@ -2275,36 +2259,6 @@ function groundArenaGroups(groups = [], floorY = 0) {
     group.position.y += offset;
   });
   return offset;
-}
-
-function computeAdaptiveChairZOffsets({
-  tableGroup,
-  baseDistance,
-  playerExtra = 0,
-  opponentExtra = 0,
-  topVisualPush = 0
-}) {
-  const fallbackBottom = baseDistance + playerExtra;
-  const fallbackTop = -(baseDistance + opponentExtra + topVisualPush);
-  if (!tableGroup) {
-    return { bottomZ: fallbackBottom, topZ: fallbackTop };
-  }
-  tableGroup.updateMatrixWorld(true);
-  const tableBounds = new THREE.Box3().setFromObject(tableGroup);
-  if (!Number.isFinite(tableBounds.min.z) || !Number.isFinite(tableBounds.max.z)) {
-    return { bottomZ: fallbackBottom, topZ: fallbackTop };
-  }
-  const bottomEdge = tableBounds.max.z;
-  const topEdge = tableBounds.min.z;
-  const bottomGap = clamp(CHAIR_TABLE_GAP_TARGET + playerExtra, CHAIR_TABLE_GAP_MIN, CHAIR_TABLE_GAP_MAX);
-  const topGap = clamp(
-    CHAIR_TABLE_GAP_TARGET + opponentExtra + topVisualPush,
-    CHAIR_TABLE_GAP_MIN,
-    CHAIR_TABLE_GAP_MAX * 1.7
-  );
-  const bottomZ = Math.max(fallbackBottom, bottomEdge + SEAT_DEPTH / 2 + bottomGap);
-  const topAbs = Math.max(Math.abs(fallbackTop), Math.abs(topEdge) + SEAT_DEPTH / 2 + topGap);
-  return { bottomZ, topZ: -topAbs };
 }
 
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
@@ -7285,7 +7239,6 @@ function Chess3D({
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('3d');
-  const firstPersonLookRef = useRef({ yaw: 0, pitch: 0, bobTime: 0 });
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
   const cameraTweenRef = useRef(0);
@@ -8625,31 +8578,6 @@ function Chess3D({
     let stopCameraTween = () => {};
     let onResize = null;
     let onClick = null;
-    let onMouseMove = null;
-    let onMouseDown = null;
-    let onPointerLockChange = null;
-    let onPointerLockError = null;
-    const fpvCameraPos = new THREE.Vector3();
-    const fpvCameraTarget = new THREE.Vector3();
-    const fpvHeadPos = new THREE.Vector3();
-    const fpvForward = new THREE.Vector3();
-    const fpvUp = new THREE.Vector3(0, 1, 0);
-    const fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-    const fpvRaycaster = new THREE.Raycaster();
-    const fpvState = {
-      enabled: false,
-      pitch: 0,
-      yaw: 0,
-      bobTime: 0,
-      bodyYaw: 0,
-      bodyRoot: null,
-      headBone: null,
-      bodyHiddenMeshes: [],
-      wasPointerLocked: false
-    };
-    fpvState.pitch = firstPersonLookRef.current?.pitch ?? 0;
-    fpvState.yaw = firstPersonLookRef.current?.yaw ?? 0;
-    fpvState.bobTime = firstPersonLookRef.current?.bobTime ?? 0;
 
     const clearAudioStopTimeout = (audioRef = null) => {
       if (!audioRef?.current) return;
@@ -9003,20 +8931,12 @@ function Chess3D({
     const chairDistance =
       (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE + CHAIR_TABLE_PUSHBACK;
 
-    const chairOffsets = computeAdaptiveChairZOffsets({
-      tableGroup: tableInfo?.group,
-      baseDistance: chairDistance,
-      playerExtra: PLAYER_CHAIR_EXTRA_CLEARANCE,
-      opponentExtra: OPPONENT_CHAIR_EXTRA_CLEARANCE,
-      topVisualPush: CHAIR_TOP_VISUAL_PUSH
-    });
-
     const chairs = [];
     const chairA = makeChair(0);
     chairA.group.position.set(
       0,
       CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      chairOffsets.bottomZ
+      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
     );
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
@@ -9026,7 +8946,7 @@ function Chess3D({
     chairB.group.position.set(
       0,
       CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      chairOffsets.topZ
+      -(chairDistance + OPPONENT_CHAIR_EXTRA_CLEARANCE)
     );
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
@@ -9048,10 +8968,6 @@ function Chess3D({
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1, 0);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
-        if (playerIndex === 0) {
-          fpvState.bodyRoot = actor;
-          fpvState.headBone = rig?.head ?? null;
-        }
       });
     } catch (error) {
       console.warn('Chess Battle Royal: unable to attach seated human actors', error);
@@ -9264,60 +9180,11 @@ function Chess3D({
       );
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
-      const isFirstPerson = mode === 'fpv';
-
-      const releasePointerLock = () => {
-        if (document.pointerLockElement === renderer.domElement) {
-          try {
-            document.exitPointerLock?.();
-          } catch (error) {
-            console.warn('Chess Battle Royal: unable to exit pointer lock', error);
-          }
-        }
-      };
-      const resetFirstPersonBody = () => {
-        if (fpvState.bodyRoot) {
-          fpvState.bodyRoot.rotation.y = SEATED_HUMAN_FACING_Y;
-        }
-        if (fpvState.headBone) {
-          fpvState.headBone.rotation.x = 0;
-          fpvState.headBone.rotation.y = 0;
-        }
-      };
-      const toggleFirstPersonBodyVisibility = (enabled) => {
-        if (!fpvState.bodyRoot) return;
-        if (!enabled) {
-          fpvState.bodyHiddenMeshes.forEach((entry) => {
-            if (!entry?.mesh) return;
-            entry.mesh.visible = entry.visible;
-          });
-          fpvState.bodyHiddenMeshes = [];
-          return;
-        }
-        fpvState.bodyHiddenMeshes = [];
-        fpvState.bodyRoot.traverse((node) => {
-          if (!node?.isMesh) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          const keepVisible = /hand|arm|wrist|finger/.test(name);
-          const forceHide = /head|face|hair|eye|ear|teeth|mouth|nose/.test(name);
-          fpvState.bodyHiddenMeshes.push({ mesh: node, visible: node.visible });
-          node.visible = keepVisible && !forceHide;
-        });
-      };
 
       const initialRadius = CAMERA_3D_MAX_RADIUS;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
-      if (isFirstPerson) {
-        controls.enabled = false;
-        controls.enableRotate = false;
-        controls.enablePan = false;
-        controls.enableZoom = false;
-        camera.near = 0.02;
-        camera.updateProjectionMatrix();
-        toggleFirstPersonBodyVisibility(true);
-      } else if (mode === '2d') {
-        releasePointerLock();
+      if (mode === '2d') {
         cameraMemory.last3d = current;
         controls.target.copy(boardLookTarget);
         controls.enabled = true;
@@ -9335,13 +9202,10 @@ function Chess3D({
         const target = initial2dViewRef.current;
         animateCameraTo(target, 360);
       } else {
-        releasePointerLock();
         controls.enabled = true;
         controls.enableRotate = true;
         controls.enablePan = true;
         controls.enableZoom = true;
-        camera.near = CAM.near;
-        camera.updateProjectionMatrix();
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
@@ -9364,44 +9228,10 @@ function Chess3D({
         );
         animateCameraTo(target, 420);
       }
-      if (!isFirstPerson) {
-        toggleFirstPersonBodyVisibility(false);
-        resetFirstPersonBody();
-      }
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
     setViewModeInternal(viewModeRef.current);
-
-    onMouseMove = (event) => {
-      if (viewModeRef.current !== 'fpv') return;
-      const isLocked = document.pointerLockElement === renderer.domElement;
-      if (!isLocked && !(event.buttons & 1)) return;
-      const movementX = Number.isFinite(event.movementX) ? event.movementX : 0;
-      const movementY = Number.isFinite(event.movementY) ? event.movementY : 0;
-      fpvState.yaw -= movementX * FIRST_PERSON_MOUSE_SENSITIVITY;
-      fpvState.pitch = clamp(
-        fpvState.pitch - movementY * FIRST_PERSON_MOUSE_SENSITIVITY,
-        FIRST_PERSON_PITCH_MIN,
-        FIRST_PERSON_PITCH_MAX
-      );
-      firstPersonLookRef.current = { ...firstPersonLookRef.current, yaw: fpvState.yaw, pitch: fpvState.pitch };
-    };
-    onMouseDown = () => {
-      if (viewModeRef.current !== 'fpv') return;
-      if (document.pointerLockElement === renderer.domElement) return;
-      renderer.domElement.requestPointerLock?.();
-    };
-    onPointerLockChange = () => {
-      fpvState.wasPointerLocked = document.pointerLockElement === renderer.domElement;
-    };
-    onPointerLockError = () => {
-      fpvState.wasPointerLocked = false;
-    };
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('pointerlockchange', onPointerLockChange);
-    document.addEventListener('pointerlockerror', onPointerLockError);
 
     const fit = () => {
       const w = host.clientWidth;
@@ -9412,9 +9242,6 @@ function Chess3D({
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      if (viewModeRef.current === 'fpv') {
-        return;
-      }
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       if (viewModeRef.current === '2d') {
@@ -13302,57 +13129,7 @@ function Chess3D({
         });
       }
 
-      if (viewModeRef.current === 'fpv' && fpvState.bodyRoot && fpvState.headBone) {
-        const fpvDt = Math.max(0.001, dt);
-        fpvState.bobTime += fpvDt;
-        const bob = Math.sin(fpvState.bobTime * FIRST_PERSON_HEAD_BOB_FREQ) * FIRST_PERSON_HEAD_BOB_AMP;
-        fpvState.bodyYaw = THREE.MathUtils.lerp(
-          fpvState.bodyYaw,
-          fpvState.yaw * FIRST_PERSON_BODY_YAW_FACTOR,
-          FIRST_PERSON_CAMERA_SMOOTH
-        );
-        fpvState.bodyRoot.rotation.y = SEATED_HUMAN_FACING_Y + fpvState.bodyYaw;
-        fpvState.headBone.rotation.y = THREE.MathUtils.lerp(
-          fpvState.headBone.rotation.y,
-          fpvState.yaw * FIRST_PERSON_HEAD_YAW_FACTOR,
-          FIRST_PERSON_CAMERA_SMOOTH
-        );
-        fpvState.headBone.rotation.x = THREE.MathUtils.lerp(
-          fpvState.headBone.rotation.x,
-          fpvState.pitch * FIRST_PERSON_HEAD_PITCH_FACTOR,
-          FIRST_PERSON_CAMERA_SMOOTH
-        );
-        fpvState.headBone.updateWorldMatrix(true, false);
-        fpvState.headBone.getWorldPosition(fpvHeadPos);
-        fpvHeadPos.y += FIRST_PERSON_EYE_HEIGHT_OFFSET + bob;
-        fpvEuler.set(fpvState.pitch, fpvState.yaw, 0);
-        fpvForward.set(0, 0, -1).applyEuler(fpvEuler).normalize();
-        fpvCameraTarget.copy(fpvHeadPos).addScaledVector(fpvForward, 1.5);
-        const desiredCameraPos = fpvCameraPos
-          .copy(fpvHeadPos)
-          .addScaledVector(fpvForward, FIRST_PERSON_CAMERA_FORWARD);
-        desiredCameraPos.y += FIRST_PERSON_CAMERA_UP_OFFSET;
-        fpvRaycaster.set(fpvHeadPos, fpvForward);
-        fpvRaycaster.far = Math.max(FIRST_PERSON_CAMERA_FORWARD + 0.12, 0.2);
-        const collisionHits = fpvRaycaster
-          .intersectObjects([tableInfo?.group, chairA?.group, chairB?.group].filter(Boolean), true)
-          .filter((hit) => hit.distance > 0.015);
-        if (collisionHits.length > 0) {
-          const clipSafeDistance = Math.max(0.02, collisionHits[0].distance - 0.02);
-          desiredCameraPos.copy(fpvHeadPos).addScaledVector(fpvForward, clipSafeDistance);
-        }
-        camera.position.lerp(desiredCameraPos, FIRST_PERSON_CAMERA_SMOOTH);
-        camera.up.copy(fpvUp);
-        camera.lookAt(fpvCameraTarget);
-      } else {
-        controls?.update();
-      }
-
-      firstPersonLookRef.current = {
-        yaw: fpvState.yaw,
-        pitch: fpvState.pitch,
-        bobTime: fpvState.bobTime
-      };
+      controls?.update();
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
       if (now - lastRender >= targetInterval) {
         renderer.render(scene, camera);
@@ -13387,21 +13164,6 @@ function Chess3D({
       stopCameraTween();
       if (onResize) {
         window.removeEventListener('resize', onResize);
-      }
-      if (renderer?.domElement && onMouseMove) {
-        renderer.domElement.removeEventListener('mousemove', onMouseMove);
-      }
-      if (renderer?.domElement && onMouseDown) {
-        renderer.domElement.removeEventListener('mousedown', onMouseDown);
-      }
-      if (onPointerLockChange) {
-        document.removeEventListener('pointerlockchange', onPointerLockChange);
-      }
-      if (onPointerLockError) {
-        document.removeEventListener('pointerlockerror', onPointerLockError);
-      }
-      if (document.pointerLockElement === renderer?.domElement) {
-        document.exitPointerLock?.();
       }
       clearInterval(timerRef.current);
       disposers.forEach((fn) => {
@@ -13546,16 +13308,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() =>
-                setViewMode((mode) => {
-                  if (mode === '3d') return '2d';
-                  if (mode === '2d') return 'fpv';
-                  return '3d';
-                })
-              }
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : viewMode === '2d' ? 'FPV' : '3D'}
+              {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
