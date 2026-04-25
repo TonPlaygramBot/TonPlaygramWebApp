@@ -1764,11 +1764,11 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
 // Push seated humans noticeably lower on portrait screens so they do not appear to hover above chairs.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.7 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.92 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to match the user's requested stronger downward move.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.42 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.5 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
