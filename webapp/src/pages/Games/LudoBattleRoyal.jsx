@@ -1763,7 +1763,8 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.31 * MODEL_SCALE * STOOL_SCALE;
+// Lower seated humans so feet visually rest on the HDRI floor while preserving pose/orientation.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.43 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_ROLL_MS = 1680;
