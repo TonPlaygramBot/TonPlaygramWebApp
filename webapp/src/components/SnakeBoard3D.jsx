@@ -383,15 +383,13 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.2;
-const PORTRAIT_CAMERA_FOV = 62;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
-  // Pull portrait camera inward so the table fills more of the screen.
-  forwardOffset: 0.82,
+  forwardOffset: 0.34,
   heightOffset: 3.05,
   targetLift: 0
 });
@@ -3317,10 +3315,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     SEAT_DEPTH / 2 +
     AI_CHAIR_GAP +
     CHAIR_GLOBAL_PUSHBACK;
-  const cameraFov = isPortrait ? PORTRAIT_CAMERA_FOV : CAM.fov;
-  const camera = new THREE.PerspectiveCamera(cameraFov, 1, CAM.near, CAM.far);
-  // Portrait view should sit in front of the local avatar instead of from behind.
-  const cameraSeatAngle = isPortrait ? -Math.PI / 2 : Math.PI / 2;
+  const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+  const cameraSeatAngle = Math.PI / 2;
   const cameraBackOffset = cameraTuning.backOffset;
   const cameraForwardOffset = cameraTuning.forwardOffset;
   const cameraHeightOffset = cameraTuning.heightOffset + CAMERA_EXTRA_LIFT;
