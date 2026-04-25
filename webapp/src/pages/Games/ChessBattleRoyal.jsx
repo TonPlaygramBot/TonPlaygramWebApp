@@ -416,6 +416,13 @@ const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 6; // keep local player's ava
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
+const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.125 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -443,6 +450,136 @@ function detectCoarsePointer() {
     // ignore
   }
   return false;
+}
+
+function normalizeBoneName(name = '') {
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findBoneByNeedle(bones, ...needles) {
+  const normalized = bones.map((bone) => ({ bone, name: normalizeBoneName(bone.name) }));
+  for (const needle of needles) {
+    const clean = normalizeBoneName(needle);
+    const exact = normalized.find((entry) => entry.name === clean);
+    if (exact) return exact.bone;
+    const partial = normalized.find((entry) => entry.name.includes(clean));
+    if (partial) return partial.bone;
+  }
+  return null;
+}
+
+function saveBoneRig(modelRoot) {
+  const bones = [];
+  modelRoot?.traverse?.((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  const saved = new Map();
+  bones.forEach((bone) => {
+    saved.set(bone, {
+      rotation: bone.rotation.clone(),
+      position: bone.position.clone()
+    });
+  });
+  return {
+    saved,
+    hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
+    spine: findBoneByNeedle(bones, 'spine'),
+    chest: findBoneByNeedle(bones, 'spine2', 'chest', 'upperchest'),
+    neck: findBoneByNeedle(bones, 'neck'),
+    head: findBoneByNeedle(bones, 'head'),
+    leftUpperLeg: findBoneByNeedle(bones, 'leftupleg', 'leftthigh', 'leftupperleg'),
+    leftLowerLeg: findBoneByNeedle(bones, 'leftleg', 'leftlowerleg', 'leftcalf'),
+    leftFoot: findBoneByNeedle(bones, 'leftfoot'),
+    rightUpperLeg: findBoneByNeedle(bones, 'rightupleg', 'rightthigh', 'rightupperleg'),
+    rightLowerLeg: findBoneByNeedle(bones, 'rightleg', 'rightlowerleg', 'rightcalf'),
+    rightFoot: findBoneByNeedle(bones, 'rightfoot'),
+    leftUpperArm: findBoneByNeedle(bones, 'leftarm', 'leftupperarm'),
+    leftForeArm: findBoneByNeedle(bones, 'leftforearm', 'leftlowerarm'),
+    leftHand: findBoneByNeedle(bones, 'lefthand'),
+    rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
+    rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
+    rightHand: findBoneByNeedle(bones, 'righthand')
+  };
+}
+
+function resetBoneRig(rig) {
+  if (!rig?.saved) return;
+  rig.saved.forEach((pose, bone) => {
+    bone.rotation.copy(pose.rotation);
+    bone.position.copy(pose.position);
+  });
+}
+
+function addBoneRot(rig, bone, x = 0, y = 0, z = 0) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.rotation.x = base.rotation.x + x;
+  bone.rotation.y = base.rotation.y + y;
+  bone.rotation.z = base.rotation.z + z;
+}
+
+function addBonePos(rig, bone, x = 0, y = 0, z = 0) {
+  if (!rig || !bone) return;
+  const base = rig.saved.get(bone);
+  if (!base) return;
+  bone.position.x = base.position.x + x;
+  bone.position.y = base.position.y + y;
+  bone.position.z = base.position.z + z;
+}
+
+function applySeatedHumanPoseIdle(rig) {
+  if (!rig) return;
+  resetBoneRig(rig);
+  const breathe = Math.sin(performance.now() * 0.002) * 0.012;
+
+  addBonePos(rig, rig.hips, 0, -0.345, -0.078);
+  addBoneRot(rig, rig.hips, -0.16, 0, 0);
+  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0);
+  addBoneRot(rig, rig.chest, 0.28, 0, 0);
+  addBoneRot(rig, rig.neck, -0.04, 0, 0);
+  addBoneRot(rig, rig.head, -0.06, 0, 0);
+
+  addBoneRot(rig, rig.leftUpperLeg, -1.32, 0.16, 0.05);
+  addBoneRot(rig, rig.leftLowerLeg, -1.28, 0.02, 0.01);
+  addBoneRot(rig, rig.leftFoot, 0.16, 0.03, 0.02);
+  addBoneRot(rig, rig.rightUpperLeg, -1.32, 0.03, -0.02);
+  addBoneRot(rig, rig.rightLowerLeg, -1.28, -0.02, -0.01);
+  addBoneRot(rig, rig.rightFoot, 0.16, -0.02, -0.01);
+
+  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96);
+  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24);
+  addBoneRot(rig, rig.leftHand, -0.16, 0, 0);
+  addBoneRot(rig, rig.rightUpperArm, -0.2, -0.02, -0.72);
+  addBoneRot(rig, rig.rightForeArm, -0.5, -0.04, 0.14);
+  addBoneRot(rig, rig.rightHand, -0.08, 0, 0.06);
+}
+
+let seatedHumanTemplatePromise = null;
+
+async function loadSeatedHumanTemplate(renderer = null) {
+  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
+  seatedHumanTemplatePromise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader.setCrossOrigin('anonymous');
+    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
+    const root = gltf?.scene || gltf?.scenes?.[0];
+    if (!root) throw new Error('Missing seated human scene');
+    root.traverse((obj) => {
+      if (!obj?.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      obj.frustumCulled = false;
+      const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        mat.needsUpdate = true;
+      });
+    });
+    return root;
+  })();
+  return seatedHumanTemplatePromise;
 }
 
 function getDisplayMetrics() {
@@ -7063,6 +7200,7 @@ function Chess3D({
   const playersRef = useRef([]);
   const moveCountRef = useRef(0);
   const [showHighlights, setShowHighlights] = useState(true);
+  const seatedHumanActorsRef = useRef([]);
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -8605,6 +8743,25 @@ function Chess3D({
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
     chairs.push(chairB);
+
+    seatedHumanActorsRef.current = [];
+    try {
+      const humanTemplate = await loadSeatedHumanTemplate(renderer);
+      const baseScale =
+        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+      chairs.forEach((chair, playerIndex) => {
+        const actor = cloneSkinned(humanTemplate);
+        actor.scale.setScalar(baseScale);
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+        chair.group.add(actor);
+        const rig = saveBoneRig(actor);
+        applySeatedHumanPoseIdle(rig);
+        seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
+      });
+    } catch (error) {
+      console.warn('Chess Battle Royal: unable to attach seated human actors', error);
+    }
 
     const tablePlacementOffset = alignArenaContentsToRoom(
       [tableInfo?.group, chairA.group, chairB.group],
@@ -12677,6 +12834,14 @@ function Chess3D({
         moveHighlight.visible = false;
       }
 
+      const seatedActors = seatedHumanActorsRef.current;
+      if (Array.isArray(seatedActors) && seatedActors.length) {
+        seatedActors.forEach((entry) => {
+          if (!entry?.rig) return;
+          applySeatedHumanPoseIdle(entry.rig);
+        });
+      }
+
       controls?.update();
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
       if (now - lastRender >= targetInterval) {
@@ -12706,6 +12871,7 @@ function Chess3D({
 
     return () => {
       cancelled = true;
+      seatedHumanActorsRef.current = [];
       cancelAnimationFrame(rafRef.current);
       stopCameraTween();
       if (onResize) {
