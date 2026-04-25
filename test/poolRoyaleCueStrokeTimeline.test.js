@@ -13,19 +13,16 @@ describe('Pool Royale cue stroke timeline', () => {
     expect(sample.t).toBeCloseTo(0.2, 2);
   });
 
-  it('arms impact only when strike reaches cue-ball contact', () => {
+  it('arms impact during the dedicated strike window before hold begins', () => {
     const preStrike = sampleCueStrokeTimeline({ elapsed: 277, ...options });
     const strikeStart = sampleCueStrokeTimeline({ elapsed: 278, ...options });
-    const nearContact = sampleCueStrokeTimeline({ elapsed: 299, ...options });
-    const atContact = sampleCueStrokeTimeline({ elapsed: 300, ...options });
+    const armedStrike = sampleCueStrokeTimeline({ elapsed: 282, ...options });
     expect(preStrike.phase).toBe('release');
     expect(preStrike.hitArmed).toBe(false);
     expect(strikeStart.phase).toBe('strike');
     expect(strikeStart.hitArmed).toBe(false);
-    expect(nearContact.phase).toBe('strike');
-    expect(nearContact.hitArmed).toBe(false);
-    expect(atContact.phase).toBe('strike');
-    expect(atContact.hitArmed).toBe(true);
+    expect(armedStrike.phase).toBe('strike');
+    expect(armedStrike.hitArmed).toBe(true);
   });
 
   it('keeps spring release monotonic so cue does not snap backward mid-push', () => {
