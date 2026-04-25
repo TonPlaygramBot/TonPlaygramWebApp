@@ -81,9 +81,9 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.15;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.8 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.28;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.9;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_Y = 0;
@@ -1600,6 +1600,16 @@ function composeModelBone(rest, bone, euler) {
   bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(euler));
 }
 
+function offsetModelBone(rest, bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.position.copy(base.position);
+  bone.position.x += x;
+  bone.position.y += y;
+  bone.position.z += z;
+}
+
 function pushModelBoneFront(rest, bone, amount) {
   if (!bone) return;
   const base = rest.get(bone);
@@ -1662,6 +1672,7 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
   const dynamicLean = activeLean * 0.04;
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
+  offsetModelBone(rest, bones.hips, 0, -0.345, -0.078);
 
   composeModelBone(
     rest,
@@ -1669,10 +1680,10 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
     new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
   );
   composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.06, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.28, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, Math.sin(timeSeconds * 0.27) * 0.022, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
   composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.32, 0.16, 0.05, 'XYZ'));
   composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.32, 0.03, -0.02, 'XYZ'));
@@ -1681,8 +1692,6 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.16, 0.03, 0.02, 'XYZ'));
   composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.16, -0.02, -0.01, 'XYZ'));
 
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.04, 0.05, -0.1, 'XYZ'));
-  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.04, -0.05, 0.1, 'XYZ'));
   composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
   composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
   composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
