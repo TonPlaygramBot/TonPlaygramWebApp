@@ -3185,7 +3185,6 @@ const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
 const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
 const DICE_TAP_MIN_RADIUS_PX = 74;
-const DICE_TAP_TOUCH_RADIUS_MULTIPLIER = 1.45;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -4482,41 +4481,18 @@ function spinDice(
     const start = performance.now();
     const startPos = dice.position.clone();
     const endPos = targetPosition.clone();
-    const travelDistance = startPos.distanceTo(endPos);
     const spinVec = new THREE.Vector3(
-      1.28 + Math.random() * 0.52,
-      1.46 + Math.random() * 0.56,
-      1.16 + Math.random() * 0.58
+      1.2 + Math.random() * 0.7,
+      1.35 + Math.random() * 0.65,
+      1.05 + Math.random() * 0.75
     );
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.06, 0, (Math.random() - 0.5) * 0.06);
+    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
     const pickupHandTarget = new THREE.Vector3();
     const releaseHandTarget = new THREE.Vector3();
-    const pickupLift = Math.max(0.035, bounceHeight * 1.08);
-    const pickupPhase = 0.34;
-    const holdPhase = 0.56;
-    const throwPhase = 0.86;
-    const curveTmpA = new THREE.Vector3();
-    const curveTmpB = new THREE.Vector3();
-    const curveTmpC = new THREE.Vector3();
-    const curveTmpD = new THREE.Vector3();
-    const releaseArcLift = Math.max(0.03, bounceHeight * 0.9);
-    const bezierCurve = (out, p0, p1, p2, p3, t) => {
-      const clampedT = clamp(t, 0, 1);
-      const oneMinus = 1 - clampedT;
-      curveTmpA.copy(p0).multiplyScalar(oneMinus * oneMinus * oneMinus);
-      curveTmpB.copy(p1).multiplyScalar(3 * oneMinus * oneMinus * clampedT);
-      curveTmpC.copy(p2).multiplyScalar(3 * oneMinus * clampedT * clampedT);
-      curveTmpD.copy(p3).multiplyScalar(clampedT * clampedT * clampedT);
-      out.copy(curveTmpA).add(curveTmpB).add(curveTmpC).add(curveTmpD);
-      return out;
-    };
-    const pickupPoint = new THREE.Vector3();
-    const pickupControl = new THREE.Vector3();
-    const pickupControl2 = new THREE.Vector3();
-    const holdPoint = new THREE.Vector3();
-    const throwControl = new THREE.Vector3();
-    const throwControl2 = new THREE.Vector3();
+    const easedTarget = new THREE.Vector3();
+    const pickupPhase = 0.42;
+    const throwBlendPhase = 0.72;
 
     const step = () => {
       const now = performance.now();
@@ -4531,44 +4507,37 @@ function spinDice(
       const handPickup = pickupAvailable ? pickupHandTarget : releaseAvailable ? releaseHandTarget : null;
       const handRelease = releaseAvailable ? releaseHandTarget : pickupAvailable ? pickupHandTarget : null;
       if (handAvailable && handPickup) {
-        pickupPoint.copy(handPickup);
-        pickupPoint.y += pickupLift;
-        holdPoint.copy(handRelease ?? handPickup);
-        holdPoint.y += pickupLift * 0.9;
-        pickupControl.copy(startPos).lerp(pickupPoint, 0.4);
-        pickupControl.y += Math.max(0.01, pickupLift * 0.5);
-        pickupControl2.copy(startPos).lerp(pickupPoint, 0.82);
-        pickupControl2.y += Math.max(0.008, pickupLift * 0.35);
-        throwControl.copy(holdPoint).lerp(endPos, 0.24);
-        throwControl.y += releaseArcLift + Math.min(0.035, travelDistance * 0.22);
-        throwControl2.copy(holdPoint).lerp(endPos, 0.65);
-        throwControl2.y += releaseArcLift * 0.45;
         if (t <= pickupPhase) {
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
-          bezierCurve(position, startPos, pickupControl, pickupControl2, pickupPoint, easeInOutCubic(pickupT));
-        } else if (t <= holdPhase) {
-          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, holdPhase - pickupPhase), 0, 1);
-          position.copy(pickupPoint).lerp(holdPoint, holdT * 0.35);
-          position.y += Math.sin(holdT * Math.PI) * 0.01;
-        } else if (t <= throwPhase) {
-          const throwT = clamp((t - holdPhase) / Math.max(1e-4, throwPhase - holdPhase), 0, 1);
-          bezierCurve(position, holdPoint, throwControl, throwControl2, endPos, easeOutCubic(throwT));
+          easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
+          position.copy(easedTarget);
+        } else if (t <= throwBlendPhase * 0.68) {
+          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase * 0.68 - pickupPhase), 0, 1);
+          const bodyHold = handPickup
+            .clone()
+            .lerp(handRelease ?? handPickup, 0.22 + holdT * 0.12);
+          bodyHold.y += Math.sin(holdT * Math.PI) * 0.014;
+          position.copy(bodyHold);
+        } else if (t <= throwBlendPhase) {
+          const throwT = clamp((t - throwBlendPhase * 0.68) / Math.max(1e-4, throwBlendPhase - throwBlendPhase * 0.68), 0, 1);
+          easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
+          position.copy(easedTarget);
         }
       }
       const wobbleStrength = Math.sin(eased * Math.PI);
-      position.addScaledVector(wobble, wobbleStrength * 0.22);
-      const bounce = Math.sin(Math.min(1, eased * 1.2) * Math.PI) * bounceHeight * (1 - eased * 0.38);
-      if (handAvailable && t <= throwPhase) {
-        const blend = clamp(t / Math.max(1e-4, throwPhase), 0, 1);
+      position.addScaledVector(wobble, wobbleStrength * 0.45);
+      const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
+      if (handAvailable && t <= throwBlendPhase) {
+        const blend = clamp(t / Math.max(1e-4, throwBlendPhase), 0, 1);
         position.y = THREE.MathUtils.lerp(position.y, THREE.MathUtils.lerp(startPos.y, endPos.y, eased), blend * 0.6);
       }
       position.y += bounce;
       dice.position.copy(position);
 
-      const spinFactor = 1 - eased * 0.24;
-      dice.rotation.x += spinVec.x * spinFactor * 0.2;
-      dice.rotation.y += spinVec.y * spinFactor * 0.21;
-      dice.rotation.z += spinVec.z * spinFactor * 0.19;
+      const spinFactor = 1 - eased * 0.28;
+      dice.rotation.x += spinVec.x * spinFactor * 0.22;
+      dice.rotation.y += spinVec.y * spinFactor * 0.22;
+      dice.rotation.z += spinVec.z * spinFactor * 0.22;
 
       if (t < 1) {
         requestAnimationFrame(step);
@@ -7071,7 +7040,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     hdriVariantRef.current = envVariant || DEFAULT_HDRI_VARIANT;
     void applyHdriEnvironment(envVariant);
 
-    const attemptDiceRoll = (clientX, clientY, pointerType = '') => {
+    const attemptDiceRoll = (clientX, clientY) => {
       const dice = diceRef.current;
       const rollFn = rollDiceRef.current;
       const state = stateRef.current;
@@ -7114,10 +7083,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const centerPxX = ((diceCenterNdc.x + 1) * 0.5) * rect.width + rect.left;
       const centerPxY = ((1 - diceCenterNdc.y) * 0.5) * rect.height + rect.top;
       const edgePxX = ((diceEdgeNdc.x + 1) * 0.5) * rect.width + rect.left;
-      const tapRadiusBoost =
-        pointerType === 'touch' || pointerType === 'pen' ? DICE_TAP_TOUCH_RADIUS_MULTIPLIER : 1;
-      const projectedRadiusPx =
-        Math.max(Math.abs(edgePxX - centerPxX), DICE_TAP_MIN_RADIUS_PX) * tapRadiusBoost;
+      const projectedRadiusPx = Math.max(Math.abs(edgePxX - centerPxX), DICE_TAP_MIN_RADIUS_PX);
       const pointerDistance = Math.hypot(clientX - centerPxX, clientY - centerPxY);
       if (pointerDistance <= projectedRadiusPx * 1.2) {
         rollFn();
@@ -7208,7 +7174,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (clientX == null || clientY == null) return;
       let handled = attemptHumanSelection(clientX, clientY);
       if (!handled) {
-        handled = attemptDiceRoll(clientX, clientY, event.pointerType || '');
+        handled = attemptDiceRoll(clientX, clientY);
       }
       if (handled) {
         pointerLocked = true;
