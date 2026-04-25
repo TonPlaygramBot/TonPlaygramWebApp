@@ -1927,12 +1927,7 @@ const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
 const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_PLAYER_HUMAN_URLS = Object.freeze([
-  LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL
-]);
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.45; // enlarge player avatars so humans read bigger on portrait screens
-const POOL_ROYALE_HUMAN_SHOT_LEAN_X = -0.52; // drive GLB avatar into a clear cue-address lean while aiming/dragging
-const POOL_ROYALE_HUMAN_SHOT_DROP_Y = 0.22; // lower GLB avatar toward table during cue-address stance
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24448,8 +24443,6 @@ const shotPowerRef = useRef(0);
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
-        const visualRoot = new THREE.Group();
-        rigGroup.add(visualRoot);
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = humanHeight / 1.82;
@@ -24501,11 +24494,11 @@ const shotPowerRef = useRef(0);
         ].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          visualRoot.add(mesh);
+          rigGroup.add(mesh);
         });
 
-        visualRoot.add(bridgeHand);
-        visualRoot.add(gripHand);
+        rigGroup.add(bridgeHand);
+        rigGroup.add(gripHand);
 
         rigGroup.userData.anim = {
           seat,
@@ -24534,46 +24527,9 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          visualRoot,
-          avatarRoot: null,
-          avatarBaseY: 0,
-          avatarBaseRotX: 0,
-          avatarBaseRotZ: 0,
           usesFallbackRig: false
         };
         return rigGroup;
-      };
-
-      const ensurePoolRoyalePlayerHumanTemplate = async () => {
-        if (seatedHumanTemplateRef.current) {
-          return seatedHumanTemplateRef.current;
-        }
-        if (seatedHumanLoadRef.current) {
-          return seatedHumanLoadRef.current;
-        }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf(POOL_ROYALE_PLAYER_HUMAN_URLS)
-          .then((gltf) => {
-            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
-            if (!model) {
-              throw new Error('Missing Pool Royale player human scene');
-            }
-            model.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              child.frustumCulled = false;
-            });
-            seatedHumanTemplateRef.current = model;
-            return model;
-          })
-          .catch((error) => {
-            console.warn('Failed to load Pool Royale player human GLB', error);
-            return null;
-          })
-          .finally(() => {
-            seatedHumanLoadRef.current = null;
-          });
-        return seatedHumanLoadRef.current;
       };
 
       const spawnPlayerCharacters = async () => {
@@ -24596,39 +24552,6 @@ const shotPowerRef = useRef(0);
           group,
           anim: group.userData.anim
         }));
-        const playerHumanTemplate = await ensurePoolRoyalePlayerHumanTemplate();
-        if (playerHumanTemplate) {
-          playerCharacterRigsRef.current.forEach((rigEntry) => {
-            const anim = rigEntry?.anim;
-            const host = anim?.visualRoot;
-            if (!anim || !host) return;
-            const avatarRoot = new THREE.Group();
-            const avatar = playerHumanTemplate.clone(true);
-            avatar.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-            });
-            avatarRoot.add(avatar);
-            const avatarBox = new THREE.Box3().setFromObject(avatar);
-            const avatarSize = avatarBox.getSize(new THREE.Vector3());
-            const avatarCenter = avatarBox.getCenter(new THREE.Vector3());
-            const avatarHeight = Math.max(avatarSize.y, 1e-4);
-            const targetHeight = anim.humanHeight * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
-            const avatarScale = targetHeight / avatarHeight;
-            avatar.scale.setScalar(avatarScale);
-            avatar.position.set(
-              -avatarCenter.x * avatarScale,
-              -avatarBox.min.y * avatarScale,
-              -avatarCenter.z * avatarScale
-            );
-            host.add(avatarRoot);
-            anim.avatarRoot = avatarRoot;
-            anim.avatarBaseY = avatarRoot.position.y;
-            anim.avatarBaseRotX = avatarRoot.rotation.x;
-            anim.avatarBaseRotZ = avatarRoot.rotation.z;
-          });
-        }
         playerCharacterRigsRef.current.forEach((rig) => world.add(rig.group));
       };
 
@@ -24683,32 +24606,6 @@ const shotPowerRef = useRef(0);
           else if (isShotActive) mode = 'react';
           else if (isShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           anim.mode = mode;
-          const hasAvatar = Boolean(anim.avatarRoot);
-          const proceduralMeshes = [
-            anim.pelvis,
-            anim.torso,
-            anim.chest,
-            anim.neck,
-            anim.head,
-            anim.leftUpperArm,
-            anim.leftLowerArm,
-            anim.rightUpperArm,
-            anim.rightLowerArm,
-            anim.leftUpperLeg,
-            anim.leftLowerLeg,
-            anim.rightUpperLeg,
-            anim.rightLowerLeg,
-            anim.bridgeHand,
-            anim.gripHand,
-            anim.leftFoot,
-            anim.rightFoot
-          ];
-          proceduralMeshes.forEach((mesh) => {
-            if (mesh) mesh.visible = !hasAvatar;
-          });
-          if (anim.avatarRoot) {
-            anim.avatarRoot.visible = true;
-          }
 
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
@@ -24756,18 +24653,6 @@ const shotPowerRef = useRef(0);
           const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
           const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
           const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
-          if (anim.avatarRoot) {
-            const shotBlend = t;
-            const strikeBlend = humanShotState === 'striking' ? 1 : 0;
-            const lean = (shotBlend + activePower * 0.35) * (1 + strikeBlend * 0.18);
-            const sway = Math.sin(nowMs * 0.0012 * HUMAN_PLAYER_IDLE_SWAY_SPEED) * HUMAN_PLAYER_IDLE_SWAY_ANGLE;
-            anim.avatarRoot.position.y =
-              (anim.avatarBaseY ?? 0) - POOL_ROYALE_HUMAN_SHOT_DROP_Y * lean;
-            anim.avatarRoot.rotation.x =
-              (anim.avatarBaseRotX ?? 0) + POOL_ROYALE_HUMAN_SHOT_LEAN_X * lean;
-            anim.avatarRoot.rotation.z =
-              (anim.avatarBaseRotZ ?? 0) + sway * (1 - shotBlend);
-          }
           const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
           const practiceStroke =
             humanShotState === 'dragging'
