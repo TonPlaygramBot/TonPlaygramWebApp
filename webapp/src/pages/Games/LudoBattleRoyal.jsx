@@ -1764,11 +1764,11 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
 // Push seated humans noticeably lower on portrait screens so they do not appear to hover above chairs.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.92 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.08 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to match the user's requested stronger downward move.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.5 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.64 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -1841,16 +1841,24 @@ const CAMERA_ZOOM_MIN_FACTOR = 1;
 const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
+const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.075 * 3.22 * ARENA_SCALE * 0.55;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.54,
-  forwardOffset: 0,
-  heightOffset: 1.08,
+  backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE,
+  forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE,
+  heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE,
   targetLift: 0.08 * MODEL_SCALE
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.74,
-  forwardOffset: 0,
-  heightOffset: 2.5,
+  backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
+  forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
+  heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
   targetLift: 0.048 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.04;
@@ -6526,12 +6534,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
       cameraRef.current = camera;
       const isPortrait = host.clientHeight > host.clientWidth;
-      const cameraSeatAngle = Math.PI / 2;
+      const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
       const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : LANDSCAPE_CAMERA_TUNING.backOffset;
       const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : LANDSCAPE_CAMERA_TUNING.forwardOffset;
       const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : LANDSCAPE_CAMERA_TUNING.heightOffset;
       const chairRadius = AI_CHAIR_RADIUS;
-      const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset + CAMERA_EXTRA_PULLBACK;
+      const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
       camera.position.set(
         Math.cos(cameraSeatAngle) * cameraRadius,
         TABLE_HEIGHT + cameraHeightOffset,
@@ -6632,23 +6640,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const targetLift = isPortrait ? PORTRAIT_CAMERA_TUNING.targetLift : CAMERA_TARGET_LIFT;
     const boardLookTarget = new THREE.Vector3(
       0,
-      tableInfo.surfaceY + targetLift + 0.12 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
-      0
+      tableInfo.surfaceY + targetLift + 0.06 * MODEL_SCALE - CAMERA_LOOKDOWN_TARGET_OFFSET,
+      PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
     boardLookTargetRef.current = boardLookTarget;
-    const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
-    if (Math.abs(initialCameraDirection.x) > 1e-4) {
-      const zSign = Math.sign(initialCameraDirection.z) || 1;
-      initialCameraDirection.set(
-        0,
-        initialCameraDirection.y,
-        zSign * Math.max(Math.abs(initialCameraDirection.z), 1e-3)
-      ).normalize();
-    }
-    const initialDistanceFactor = isPortrait ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR : INITIAL_CAMERA_DISTANCE_FACTOR;
-    const desiredInitialCameraRadius = clamp(CAM.maxR * initialDistanceFactor, CAM.minR, CAM.maxR);
-    camera.position.copy(boardLookTarget).add(initialCameraDirection.multiplyScalar(desiredInitialCameraRadius));
-    camera.position.y += CAMERA_3D_HEIGHT_BOOST + (isPortrait ? PORTRAIT_CAMERA_EXTRA_LIFT : CAMERA_EXTRA_LIFT);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -6771,7 +6766,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
     cameraSeatLockPositionRef.current = camera.position.clone();
-    baseCameraRadiusRef.current = desiredInitialCameraRadius;
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
     controls.update();
     groundArenaToHdriFloor({ preserveView: true });
     updateEnvironmentFloor();
