@@ -352,7 +352,7 @@ const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.85; // Keep the same table/board/chair proportions, but 15% smaller than current.
 const PIECE_SCALE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * 1.5 * 0.85; // Shrink tokens by 15% while preserving the existing style proportions.
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = 0.035;
+const BOARD_GROUP_Y_OFFSET = 0.115; // Lift board + pieces higher on screen for clearer portrait framing.
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
@@ -438,6 +438,8 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_FACE_CAMERA_FORWARD_OFFSET = 0.18; // Nudge the camera slightly toward the board from the player's face.
+const PLAYER_VIEW_FACE_CAMERA_HEIGHT_OFFSET = 0.06; // Keep camera at eye/face level of the seated human.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
 
 function detectCoarsePointer() {
@@ -2437,7 +2439,7 @@ const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable',
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.7; // push parked vehicles farther to the sides
-const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
+const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.38; // lift parked weapons higher so they track the raised board level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.28; // increase parked truck size just a bit more
 
@@ -9186,6 +9188,15 @@ function Chess3D({
       tableSurfaceY + cameraHeightOffset,
       Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
     );
+    const bottomPlayerAnchorWorld = chairA.anchor.getWorldPosition(new THREE.Vector3());
+    const faceToBoard = boardLookTarget.clone().sub(bottomPlayerAnchorWorld);
+    faceToBoard.y = 0;
+    if (faceToBoard.lengthSq() > 1e-6) {
+      faceToBoard.normalize();
+      camera.position.copy(bottomPlayerAnchorWorld);
+      camera.position.y += PLAYER_VIEW_FACE_CAMERA_HEIGHT_OFFSET;
+      camera.position.addScaledVector(faceToBoard, PLAYER_VIEW_FACE_CAMERA_FORWARD_OFFSET);
+    }
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
