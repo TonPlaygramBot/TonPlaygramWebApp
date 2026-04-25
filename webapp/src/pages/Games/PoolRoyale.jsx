@@ -1927,7 +1927,11 @@ const REFERENCE_CUE_SPEED_GAMMA = 1.08; // reference implementation: power curve
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.8; // larger character relative to table/balls on portrait screens
 const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
+const POOL_ROYALE_HUMAN_GLB_URL_CANDIDATES = [
+  '/assets/models/pool-royale-human.glb',
+  LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL
+];
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.34; // increase visible character size so humans read bigger on portrait screens
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -24439,10 +24443,74 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
+      let sharedPoolRoyaleHumanTemplate = null;
+      let sharedPoolRoyaleHumanTemplatePromise = null;
+      const loadPoolRoyaleHumanTemplate = async () => {
+        if (sharedPoolRoyaleHumanTemplate) return sharedPoolRoyaleHumanTemplate;
+        if (sharedPoolRoyaleHumanTemplatePromise) return sharedPoolRoyaleHumanTemplatePromise;
+        sharedPoolRoyaleHumanTemplatePromise = (async () => {
+          const configuredLoader = createConfiguredGLTFLoader(renderer);
+          let lastError = null;
+          for (const url of POOL_ROYALE_HUMAN_GLB_URL_CANDIDATES) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const gltf = await configuredLoader.loadAsync(url);
+              const sceneRoot = gltf?.scene || gltf?.scenes?.[0];
+              if (!sceneRoot) throw new Error('Missing scene in Pool Royale human GLB');
+              sharedPoolRoyaleHumanTemplate = sceneRoot;
+              return sceneRoot;
+            } catch (error) {
+              lastError = error;
+            }
+          }
+          throw lastError || new Error('Failed to load any Pool Royale human GLB');
+        })()
+          .catch((error) => {
+            console.warn('Pool Royale human GLB load failed, fallback rig will remain active.', error);
+            return null;
+          })
+          .finally(() => {
+            sharedPoolRoyaleHumanTemplatePromise = null;
+          });
+        return sharedPoolRoyaleHumanTemplatePromise;
+      };
+
+      const attachPoolRoyaleHumanModel = async (anim, seat = 'A') => {
+        if (!anim?.modelRoot || anim?.humanModelLoaded) return;
+        const template = await loadPoolRoyaleHumanTemplate();
+        if (!template) return;
+        const model = template.clone(true);
+        model.name = `PoolRoyaleHuman-${seat}`;
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, Math.PI, 0);
+        model.scale.setScalar(POOL_ROYALE_HUMAN_SCALE_MULTIPLIER);
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        model.position.x -= center.x;
+        model.position.y -= box.min.y;
+        model.position.z -= center.z;
+        model.traverse((child) => {
+          if (!child?.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          child.frustumCulled = false;
+        });
+        anim.modelRoot.clear();
+        anim.modelRoot.add(model);
+        anim.humanModelLoaded = true;
+        anim.usesFallbackRig = false;
+        if (anim.fallbackGroup) anim.fallbackGroup.visible = false;
+      };
+
       const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
+        const fallbackGroup = new THREE.Group();
+        const modelRoot = new THREE.Group();
+        rigGroup.add(fallbackGroup);
+        rigGroup.add(modelRoot);
 
         const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = humanHeight / 1.82;
@@ -24494,11 +24562,11 @@ const shotPowerRef = useRef(0);
         ].forEach((mesh) => {
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          rigGroup.add(mesh);
+          fallbackGroup.add(mesh);
         });
 
-        rigGroup.add(bridgeHand);
-        rigGroup.add(gripHand);
+        fallbackGroup.add(bridgeHand);
+        fallbackGroup.add(gripHand);
 
         rigGroup.userData.anim = {
           seat,
@@ -24527,7 +24595,10 @@ const shotPowerRef = useRef(0);
           walkT: 0,
           yaw: facingY,
           rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
+          usesFallbackRig: true,
+          humanModelLoaded: false,
+          fallbackGroup,
+          modelRoot
         };
         return rigGroup;
       };
@@ -24552,7 +24623,10 @@ const shotPowerRef = useRef(0);
           group,
           anim: group.userData.anim
         }));
-        playerCharacterRigsRef.current.forEach((rig) => world.add(rig.group));
+        playerCharacterRigsRef.current.forEach((rig) => {
+          world.add(rig.group);
+          void attachPoolRoyaleHumanModel(rig.anim, rig.anim?.seat);
+        });
       };
 
       const updatePlayerCharacters = (nowMs, dtSeconds) => {
@@ -24630,6 +24704,21 @@ const shotPowerRef = useRef(0);
           const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
           const scale = anim.scale || 1;
+          if (anim.modelRoot) {
+            const isAimingMode = mode === 'aim' || mode === 'strike';
+            const breathing = Math.sin(nowMs * 0.0035) * 0.006;
+            anim.modelRoot.visible = Boolean(anim.humanModelLoaded);
+            anim.modelRoot.position.set(0, -0.02 + breathing - t * 0.05, -t * 0.06);
+            anim.modelRoot.rotation.set(
+              THREE.MathUtils.lerp(0, -0.12, t),
+              0,
+              THREE.MathUtils.lerp(0, isAimingMode ? -0.04 : 0, t)
+            );
+            anim.modelRoot.scale.setScalar(POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (1 + t * 0.02));
+          }
+          if (anim.fallbackGroup) {
+            anim.fallbackGroup.visible = !anim.humanModelLoaded;
+          }
 
           const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
           const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
