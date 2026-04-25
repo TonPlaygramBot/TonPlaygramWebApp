@@ -393,12 +393,8 @@ const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.2 * MODEL_SCALE; // Pull bottom chair slightly closer to the table.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.28 * MODEL_SCALE; // Push top chair farther away from table.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.12 * MODEL_SCALE; // Push top chair slightly farther from the table.
 const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_MAX = 0.48 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_TARGET = 0.2 * MODEL_SCALE;
-const CHAIR_LEG_SAFETY_GAP = 0.06 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -443,15 +439,6 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
-const FIRST_PERSON_ENABLED = true;
-const FIRST_PERSON_MOUSE_SENSITIVITY = 0.00235;
-const FIRST_PERSON_PITCH_MIN = THREE.MathUtils.degToRad(-62);
-const FIRST_PERSON_PITCH_MAX = THREE.MathUtils.degToRad(55);
-const FIRST_PERSON_EYE_FORWARD_OFFSET = 0.08;
-const FIRST_PERSON_EYE_HEIGHT_OFFSET = 0.015;
-const FIRST_PERSON_EYE_BOB_AMOUNT = 0.0075;
-const FIRST_PERSON_EYE_BOB_SPEED = 2.8;
-const FIRST_PERSON_ROTATION_SMOOTH = 0.18;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -571,19 +558,6 @@ function addBoneRot(rig, bone, x = 0, y = 0, z = 0) {
   bone.rotation.x = base.rotation.x + x;
   bone.rotation.y = base.rotation.y + y;
   bone.rotation.z = base.rotation.z + z;
-}
-
-function collectFirstPersonHeadMeshes(actor) {
-  const result = [];
-  actor?.traverse?.((obj) => {
-    if (!obj?.isMesh) return;
-    const name = normalizeBoneName(obj.name || '');
-    if (!name) return;
-    if (/head|face|hair|eyebrow|eye|eyelash|teeth|tongue|helmet|hat|cap/.test(name)) {
-      result.push(obj);
-    }
-  });
-  return result;
 }
 
 function addBonePos(rig, bone, x = 0, y = 0, z = 0) {
@@ -2247,30 +2221,6 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.themeId] ??
     0;
   return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
-}
-
-function estimateTableHalfExtentOnAxis(tableGroup, axis = 'z') {
-  if (!tableGroup) return TABLE_RADIUS;
-  tableGroup.updateMatrixWorld?.(true);
-  const box = new THREE.Box3().setFromObject(tableGroup);
-  if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return TABLE_RADIUS;
-  if (axis === 'x') {
-    return Math.max(Math.abs(box.max.x), Math.abs(box.min.x));
-  }
-  return Math.max(Math.abs(box.max.z), Math.abs(box.min.z));
-}
-
-function resolveChairOffsetsFromTable(tableInfo) {
-  const halfDepth = estimateTableHalfExtentOnAxis(tableInfo?.group, 'z');
-  const seatHalfDepth = (SEAT_DEPTH * CHAIR_SCALE * CHAIR_WIDTH_SCALE) / 2;
-  const rawGap = CHAIR_TABLE_GAP_TARGET + CHAIR_LEG_SAFETY_GAP;
-  const adaptiveGap = clamp(rawGap, CHAIR_TABLE_GAP_MIN, CHAIR_TABLE_GAP_MAX);
-  const baseDistance = halfDepth + seatHalfDepth + adaptiveGap + CHAIR_TABLE_PUSHBACK;
-  return {
-    baseDistance,
-    playerDistance: baseDistance + PLAYER_CHAIR_EXTRA_CLEARANCE,
-    opponentDistance: baseDistance + OPPONENT_CHAIR_EXTRA_CLEARANCE
-  };
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
@@ -7288,19 +7238,6 @@ function Chess3D({
   const environmentShadowCatcherRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
-  const firstPersonStateRef = useRef({
-    enabled: false,
-    yaw: 0,
-    pitch: 0,
-    yawCurrent: 0,
-    pitchCurrent: 0,
-    bobPhase: 0,
-    actor: null,
-    rig: null,
-    chair: null,
-    headMeshes: [],
-    hiddenHeadMeshes: new Set()
-  });
   const viewModeRef = useRef('3d');
   const forced3dAnimationCountRef = useRef(0);
   const restoreAutoViewTo2dRef = useRef(false);
@@ -8991,15 +8928,15 @@ function Chess3D({
       };
     }
 
-    const chairLayout = resolveChairOffsetsFromTable(tableInfo);
-    const chairDistance = chairLayout.baseDistance;
+    const chairDistance =
+      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE + CHAIR_TABLE_PUSHBACK;
 
     const chairs = [];
     const chairA = makeChair(0);
     chairA.group.position.set(
       0,
       CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      chairLayout.playerDistance
+      chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE
     );
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
@@ -9009,7 +8946,7 @@ function Chess3D({
     chairB.group.position.set(
       0,
       CHAIR_BASE_HEIGHT + CHAIR_VERTICAL_OFFSET,
-      -chairLayout.opponentDistance
+      -(chairDistance + OPPONENT_CHAIR_EXTRA_CLEARANCE)
     );
     arena.add(chairB.group);
     alignGroupToFloorY(chairB.group, initialArenaFloorY);
@@ -9017,12 +8954,6 @@ function Chess3D({
 
     seatedHumanActorsRef.current = [];
     seatedHumanMoveActionsRef.current.clear();
-    firstPersonStateRef.current.enabled = false;
-    firstPersonStateRef.current.actor = null;
-    firstPersonStateRef.current.rig = null;
-    firstPersonStateRef.current.chair = null;
-    firstPersonStateRef.current.hiddenHeadMeshes = new Set();
-    firstPersonStateRef.current.headMeshes = [];
     try {
       const humanTemplate = await loadSeatedHumanTemplate(renderer);
       const baseScale =
@@ -9037,25 +8968,6 @@ function Chess3D({
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1, 0);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
-        if (playerIndex === 0 && FIRST_PERSON_ENABLED) {
-          firstPersonStateRef.current.enabled = true;
-          firstPersonStateRef.current.actor = actor;
-          firstPersonStateRef.current.rig = rig;
-          firstPersonStateRef.current.chair = chair.group;
-          firstPersonStateRef.current.yaw = 0;
-          firstPersonStateRef.current.pitch = 0;
-          firstPersonStateRef.current.yawCurrent = 0;
-          firstPersonStateRef.current.pitchCurrent = 0;
-          firstPersonStateRef.current.bobPhase = 0;
-          const headMeshes = collectFirstPersonHeadMeshes(actor);
-          firstPersonStateRef.current.headMeshes = headMeshes;
-          const hidden = new Set();
-          headMeshes.forEach((mesh) => {
-            hidden.add(mesh);
-            mesh.visible = false;
-          });
-          firstPersonStateRef.current.hiddenHeadMeshes = hidden;
-        }
       });
     } catch (error) {
       console.warn('Chess Battle Royal: unable to attach seated human actors', error);
@@ -9260,78 +9172,6 @@ function Chess3D({
     };
 
     const cameraMemory = { last3d: null };
-    const firstPersonRay = new THREE.Raycaster();
-    const firstPersonOrigin = new THREE.Vector3();
-    const firstPersonLook = new THREE.Vector3();
-    const firstPersonForward = new THREE.Vector3();
-    const firstPersonHeadWorld = new THREE.Vector3();
-    const firstPersonCameraTarget = new THREE.Vector3();
-    const firstPersonClipBuffer = 0.02;
-
-    const applyFirstPersonCamera = (dt = 0.016) => {
-      const fp = firstPersonStateRef.current;
-      if (!fp?.enabled || viewModeRef.current !== '3d' || restoreAutoViewTo2dRef.current) return false;
-      const actor = fp.actor;
-      if (!actor) return false;
-      actor.updateMatrixWorld(true);
-      const headNode = fp.rig?.head || fp.rig?.neck || actor;
-      headNode.getWorldPosition(firstPersonHeadWorld);
-      fp.yawCurrent = THREE.MathUtils.lerp(
-        fp.yawCurrent ?? fp.yaw ?? 0,
-        fp.yaw ?? 0,
-        clamp01(FIRST_PERSON_ROTATION_SMOOTH * (dt * 60))
-      );
-      fp.pitchCurrent = THREE.MathUtils.lerp(
-        fp.pitchCurrent ?? fp.pitch ?? 0,
-        fp.pitch ?? 0,
-        clamp01(FIRST_PERSON_ROTATION_SMOOTH * (dt * 60))
-      );
-      fp.bobPhase += dt * FIRST_PERSON_EYE_BOB_SPEED;
-      const bobOffset = Math.sin(fp.bobPhase) * FIRST_PERSON_EYE_BOB_AMOUNT;
-      if (fp.chair) {
-        fp.chair.rotation.y = Math.PI + fp.yawCurrent * 0.82;
-      }
-      firstPersonOrigin.copy(firstPersonHeadWorld);
-      firstPersonOrigin.y += FIRST_PERSON_EYE_HEIGHT_OFFSET + bobOffset;
-      firstPersonForward.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), fp.yawCurrent);
-      firstPersonLook.copy(firstPersonForward).normalize();
-      firstPersonLook.y = Math.sin(fp.pitchCurrent);
-      firstPersonLook.normalize();
-      firstPersonCameraTarget.copy(firstPersonOrigin).addScaledVector(firstPersonLook, 4.2);
-      const desiredPos = firstPersonOrigin.clone().addScaledVector(firstPersonLook, FIRST_PERSON_EYE_FORWARD_OFFSET);
-      const clipTargets = [tableInfo?.group, chairA.group, chairB.group].filter(Boolean);
-      if (clipTargets.length) {
-        firstPersonRay.set(firstPersonOrigin, firstPersonLook);
-        const hits = firstPersonRay.intersectObjects(clipTargets, true);
-        const clipped = hits.find((hit) => hit.distance > 0.01 && !actor.getObjectById(hit.object.id));
-        if (clipped) {
-          desiredPos.copy(firstPersonOrigin).addScaledVector(
-            firstPersonLook,
-            Math.max(0.01, clipped.distance - firstPersonClipBuffer)
-          );
-        }
-      }
-      camera.position.copy(desiredPos);
-      camera.lookAt(firstPersonCameraTarget);
-      controls.target.copy(firstPersonCameraTarget);
-      return true;
-    };
-
-    const onFirstPersonMouseMove = (event) => {
-      const fp = firstPersonStateRef.current;
-      if (!fp?.enabled || viewModeRef.current !== '3d' || restoreAutoViewTo2dRef.current) return;
-      const movementX = event.movementX ?? 0;
-      const movementY = event.movementY ?? 0;
-      if (!Number.isFinite(movementX) || !Number.isFinite(movementY)) return;
-      fp.yaw -= movementX * FIRST_PERSON_MOUSE_SENSITIVITY;
-      fp.pitch = clamp(
-        fp.pitch - movementY * FIRST_PERSON_MOUSE_SENSITIVITY,
-        FIRST_PERSON_PITCH_MIN,
-        FIRST_PERSON_PITCH_MAX
-      );
-    };
-    renderer.domElement.addEventListener('mousemove', onFirstPersonMouseMove);
-    disposers.push(() => renderer.domElement.removeEventListener('mousemove', onFirstPersonMouseMove));
 
     const setViewModeInternal = (mode) => {
       if (!controls) return;
@@ -9362,39 +9202,31 @@ function Chess3D({
         const target = initial2dViewRef.current;
         animateCameraTo(target, 360);
       } else {
-        const useFirstPerson = FIRST_PERSON_ENABLED && !isForcedCapture3dView;
-        if (useFirstPerson) {
-          controls.enabled = false;
-          controls.enableRotate = false;
-          controls.enablePan = false;
-          controls.enableZoom = false;
-        } else {
-          controls.enabled = true;
-          controls.enableRotate = true;
-          controls.enablePan = true;
-          controls.enableZoom = true;
-          controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-          controls.maxPolarAngle = CAM.phiMax;
-          controls.minDistance = CAMERA_3D_MIN_RADIUS;
-          controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-          const restore = cameraMemory.last3d || default3d;
-          const targetPhi = clamp(
-            restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
-            CAMERA_PULL_FORWARD_MIN,
-            CAM.phiMax
-          );
-          const targetRadius = clamp(
-            CAMERA_3D_MAX_RADIUS * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
-            CAMERA_3D_MIN_RADIUS,
-            CAMERA_3D_MAX_RADIUS
-          );
-          const target = new THREE.Spherical(
-            targetRadius,
-            targetPhi,
-            Number.isFinite(restore.theta) ? restore.theta : default3d.theta
-          );
-          animateCameraTo(target, 420);
-        }
+        controls.enabled = true;
+        controls.enableRotate = true;
+        controls.enablePan = true;
+        controls.enableZoom = true;
+        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+        controls.maxPolarAngle = CAM.phiMax;
+        controls.minDistance = CAMERA_3D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+        const restore = cameraMemory.last3d || default3d;
+        const targetPhi = clamp(
+          restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        const targetRadius = clamp(
+          CAMERA_3D_MAX_RADIUS * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          CAMERA_3D_MIN_RADIUS,
+          CAMERA_3D_MAX_RADIUS
+        );
+        const target = new THREE.Spherical(
+          targetRadius,
+          targetPhi,
+          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
+        );
+        animateCameraTo(target, 420);
       }
     };
 
@@ -9410,14 +9242,6 @@ function Chess3D({
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      if (
-        FIRST_PERSON_ENABLED &&
-        viewModeRef.current === '3d' &&
-        !restoreAutoViewTo2dRef.current
-      ) {
-        applyFirstPersonCamera(1 / 60);
-        return;
-      }
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       if (viewModeRef.current === '2d') {
@@ -13305,10 +13129,7 @@ function Chess3D({
         });
       }
 
-      const usedFirstPersonCamera = applyFirstPersonCamera(dt);
-      if (!usedFirstPersonCamera) {
-        controls?.update();
-      }
+      controls?.update();
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
       if (now - lastRender >= targetInterval) {
         renderer.render(scene, camera);
