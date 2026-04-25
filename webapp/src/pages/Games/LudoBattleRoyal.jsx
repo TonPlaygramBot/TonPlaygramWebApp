@@ -3184,8 +3184,7 @@ const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
 const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
-const DICE_TAP_MIN_RADIUS_PX = 92;
-const DICE_TAP_MAX_TRAVEL_PX = 16;
+const DICE_TAP_MIN_RADIUS_PX = 74;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -4492,16 +4491,8 @@ function spinDice(
     const pickupHandTarget = new THREE.Vector3();
     const releaseHandTarget = new THREE.Vector3();
     const easedTarget = new THREE.Vector3();
-    const pickupPhase = 0.38;
-    const holdPhase = 0.62;
-    const releasePhase = 0.79;
-    const throwArcLift = Math.max(0.028, bounceHeight * 1.12);
-    const handGripOffset = new THREE.Vector3(0, -0.012, 0.004);
-    const rollPlaneHeight = THREE.MathUtils.lerp(startPos.y, endPos.y, 0.58);
-    const handPickupWorld = new THREE.Vector3();
-    const handReleaseWorld = new THREE.Vector3();
-    const throwStart = new THREE.Vector3();
-    const throwEnd = new THREE.Vector3();
+    const pickupPhase = 0.42;
+    const throwBlendPhase = 0.72;
 
     const step = () => {
       const now = performance.now();
@@ -4515,39 +4506,29 @@ function spinDice(
       const handAvailable = pickupAvailable || releaseAvailable;
       const handPickup = pickupAvailable ? pickupHandTarget : releaseAvailable ? releaseHandTarget : null;
       const handRelease = releaseAvailable ? releaseHandTarget : pickupAvailable ? pickupHandTarget : null;
-      if (handPickup) {
-        handPickupWorld.copy(handPickup).add(handGripOffset);
-      }
-      if (handRelease) {
-        handReleaseWorld.copy(handRelease).add(handGripOffset);
-      }
       if (handAvailable && handPickup) {
         if (t <= pickupPhase) {
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
-          easedTarget.copy(startPos).lerp(handPickupWorld, easeInOutCubic(pickupT));
+          easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
           position.copy(easedTarget);
-        } else if (t <= holdPhase) {
-          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, holdPhase - pickupPhase), 0, 1);
-          const bodyHold = handPickupWorld
+        } else if (t <= throwBlendPhase * 0.68) {
+          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase * 0.68 - pickupPhase), 0, 1);
+          const bodyHold = handPickup
             .clone()
-            .lerp(handReleaseWorld ?? handPickupWorld, 0.16 + holdT * 0.24);
+            .lerp(handRelease ?? handPickup, 0.22 + holdT * 0.12);
           bodyHold.y += Math.sin(holdT * Math.PI) * 0.014;
           position.copy(bodyHold);
-        } else if (t <= releasePhase) {
-          const releaseT = clamp((t - holdPhase) / Math.max(1e-4, releasePhase - holdPhase), 0, 1);
-          throwStart.copy(handReleaseWorld ?? handPickupWorld);
-          throwEnd.copy(endPos);
-          easedTarget.copy(throwStart).lerp(throwEnd, easeOutCubic(releaseT));
-          const arcLift = Math.sin(releaseT * Math.PI) * throwArcLift;
-          easedTarget.y = Math.max(rollPlaneHeight, easedTarget.y + arcLift);
+        } else if (t <= throwBlendPhase) {
+          const throwT = clamp((t - throwBlendPhase * 0.68) / Math.max(1e-4, throwBlendPhase - throwBlendPhase * 0.68), 0, 1);
+          easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
           position.copy(easedTarget);
         }
       }
       const wobbleStrength = Math.sin(eased * Math.PI);
       position.addScaledVector(wobble, wobbleStrength * 0.45);
       const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
-      if (handAvailable && t <= releasePhase) {
-        const blend = clamp(t / Math.max(1e-4, releasePhase), 0, 1);
+      if (handAvailable && t <= throwBlendPhase) {
+        const blend = clamp(t / Math.max(1e-4, throwBlendPhase), 0, 1);
         position.y = THREE.MathUtils.lerp(position.y, THREE.MathUtils.lerp(startPos.y, endPos.y, eased), blend * 0.6);
       }
       position.y += bounce;
@@ -6661,14 +6642,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let cancelled = false;
     let onPointerDown = null;
     let onPointerUp = null;
-    let onTouchStart = null;
-    let onTouchEnd = null;
-    const touchTapState = {
-      active: false,
-      id: null,
-      startX: 0,
-      startY: 0
-    };
     let onResize = null;
 
   const setupScene = async () => {
@@ -7264,38 +7237,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (controls) controls.enabled = true;
       }
     };
-    onTouchStart = (event) => {
-      const touch = event.changedTouches?.[0];
-      if (!touch) return;
-      touchTapState.active = true;
-      touchTapState.id = touch.identifier;
-      touchTapState.startX = touch.clientX;
-      touchTapState.startY = touch.clientY;
-    };
-    onTouchEnd = (event) => {
-      if (!touchTapState.active) return;
-      const touches = Array.from(event.changedTouches || []);
-      const touch = touches.find((entry) => entry.identifier === touchTapState.id) || touches[0];
-      touchTapState.active = false;
-      touchTapState.id = null;
-      if (!touch) return;
-      const travel = Math.hypot(
-        touch.clientX - touchTapState.startX,
-        touch.clientY - touchTapState.startY
-      );
-      if (travel > DICE_TAP_MAX_TRAVEL_PX) return;
-      let handled = attemptHumanSelection(touch.clientX, touch.clientY);
-      if (!handled) {
-        handled = attemptDiceRoll(touch.clientX, touch.clientY);
-      }
-      if (handled) {
-        event.preventDefault();
-      }
-    };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
     renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
-    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
-    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: false });
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
@@ -7594,12 +7537,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       if (renderer?.domElement && onPointerMove) {
         renderer.domElement.removeEventListener('pointermove', onPointerMove);
-      }
-      if (renderer?.domElement && onTouchStart) {
-        renderer.domElement.removeEventListener('touchstart', onTouchStart);
-      }
-      if (renderer?.domElement && onTouchEnd) {
-        renderer.domElement.removeEventListener('touchend', onTouchEnd);
       }
       if (onPointerUp) {
         window.removeEventListener('pointerup', onPointerUp);
