@@ -131,7 +131,7 @@ export class PowerSlider {
     const startedAt = performance.now();
     const step = (now) => {
       const t = Math.min(1, Math.max(0, (now - startedAt) / duration));
-      const eased = 1 - (1 - t) * (1 - t);
+      const eased = 1 - Math.pow(1 - t, 3);
       const next = start + (target - start) * eased;
       this.set(next, { animate: true });
       if (t >= 1) {
