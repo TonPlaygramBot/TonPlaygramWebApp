@@ -79,12 +79,15 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-// Portrait calibration for seated humans:
-// - keep the back close to the chair back-rest
-// - keep hips centered on the seat pan
-// - keep feet grounded for a clear ~90° seated posture
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0.22, -0.76, -0.4);
-const HUMAN_SEAT_SCALE = 1.75;
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
+// Align Snake seated humans with the same seat offset/facing conventions used by Ludo Battle Royal.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.38 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
+const HUMAN_SEAT_SCALE =
+  (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0.31;
 const HUMAN_TORSO_FACE_BOARD_YAW = 0.24;
@@ -1486,6 +1489,27 @@ function createConfiguredGLTFLoader(renderer = null) {
 
 function applyOriginalTextureMapping(root) {
   if (!root) return;
+  const maxAnisotropy = 8;
+  const normalizeMaterialTextures = (material, { preserveGltfTextureMapping = false } = {}) => {
+    if (!material) return;
+    const normalizeTex = (texture, isColor = false) => {
+      if (!texture) return;
+      if (isColor) applySRGBColorSpace(texture);
+      texture.flipY = false;
+      if (!preserveGltfTextureMapping) {
+        texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+        texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+      }
+      texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+      texture.needsUpdate = true;
+    };
+    normalizeTex(material.map, true);
+    normalizeTex(material.emissiveMap, true);
+    normalizeTex(material.normalMap, false);
+    normalizeTex(material.roughnessMap, false);
+    normalizeTex(material.metalnessMap, false);
+    normalizeTex(material.aoMap, false);
+  };
   root.traverse((node) => {
     if (!node?.isMesh) return;
     node.castShadow = true;
@@ -1493,14 +1517,7 @@ function applyOriginalTextureMapping(root) {
     node.frustumCulled = false;
     const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
     materials.forEach((material) => {
-      if (material?.map) {
-        applySRGBColorSpace(material.map);
-        material.map.needsUpdate = true;
-      }
-      if (material?.emissiveMap) {
-        applySRGBColorSpace(material.emissiveMap);
-        material.emissiveMap.needsUpdate = true;
-      }
+      normalizeMaterialTextures(material, { preserveGltfTextureMapping: true });
       material.needsUpdate = true;
     });
   });
@@ -1659,6 +1676,48 @@ async function loadSeatedHumanTemplate(renderer) {
       if (!scene) {
         throw new Error('Failed to load seated human template');
       }
+      const createFallbackTexture = (baseHex, darkHex) => {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, baseHex);
+        gradient.addColorStop(1, darkHex);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        ctx.strokeStyle = `${darkHex}88`;
+        ctx.lineWidth = 2;
+        for (let x = 0; x < size; x += 24) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(0, x);
+          ctx.stroke();
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.flipY = false;
+        texture.anisotropy = 8;
+        texture.needsUpdate = true;
+        return texture;
+      };
+      const skinTex = createFallbackTexture('#d8c0a6', '#b48d6b');
+      const clothTex = createFallbackTexture('#55739a', '#2c3f54');
+      const hairTex = createFallbackTexture('#7b5d3f', '#3f2f20');
+      scene.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        const meshName = `${obj.name || ''}`.toLowerCase();
+        const useSkin = /head|face|neck|ear|hand/.test(meshName);
+        const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+        const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
+        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        materials.forEach((material) => {
+          if (!material?.map && fallbackTex) material.map = fallbackTex;
+          if (material?.color?.setHex) material.color.setHex(0xffffff);
+        });
+      });
       applyOriginalTextureMapping(scene);
       HUMAN_MODEL_CACHE.template = scene;
       return scene;
@@ -3327,18 +3386,13 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
     group.add(avatarAnchor);
 
-    const humanAnchor = new THREE.Object3D();
-    humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
-    humanAnchor.rotation.set(0, Math.PI, 0);
-    group.add(humanAnchor);
-
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
     if (chairModel) {
       group.add(chairModel);
     }
 
     arenaGroup.add(group);
-    chairs.push({ group, anchor: avatarAnchor, model: chairModel, humanAnchor });
+    chairs.push({ group, anchor: avatarAnchor, model: chairModel });
   }
 
   loadChairTemplate(chairTheme, renderer)
@@ -3361,7 +3415,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
         instance.scale.setScalar(HUMAN_SEAT_SCALE);
-        chair.humanAnchor.add(instance);
+        instance.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+        instance.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+        chair.group.add(instance);
         seatedHumans[seatIndex] = {
           root: instance,
           bones: buildHumanBoneMap(instance),
