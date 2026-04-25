@@ -1776,24 +1776,16 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
-const SEATED_HUMAN_DICE_REACH_MS = 280;
-const SEATED_HUMAN_DICE_GRIP_MS = 220;
-const SEATED_HUMAN_DICE_ANTICIPATE_MS = 190;
-const SEATED_HUMAN_DICE_RELEASE_MS = 170;
-const SEATED_HUMAN_DICE_FOLLOW_MS = 540;
-const SEATED_HUMAN_TOKEN_REACH_PHASE = 0.22;
-const SEATED_HUMAN_TOKEN_GRIP_PHASE = 0.2;
-const SEATED_HUMAN_TOKEN_CARRY_PHASE = 0.38;
-const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.076 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.138 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_DICE = -0.025 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PICKUP = 0.021 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_RELEASE = 0.039 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.07 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.11 * MODEL_SCALE;
-const SEATED_HELPER_RIGHT_TOKEN = -0.024 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PICKUP = 0.01 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_PLACE = 0.013 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.066 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.124 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_DICE = -0.023 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_PICKUP = 0.018 * MODEL_SCALE;
+const SEATED_HELPER_UP_DICE_RELEASE = 0.036 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.064 * MODEL_SCALE;
+const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.098 * MODEL_SCALE;
+const SEATED_HELPER_RIGHT_TOKEN = -0.022 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PICKUP = 0.008 * MODEL_SCALE;
+const SEATED_HELPER_UP_TOKEN_PLACE = 0.011 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
 const SEATED_HELPER_FACE_CAMERA_UP = 0.016 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
@@ -4066,22 +4058,6 @@ function smooth01(v) {
   return t * t * (3 - 2 * t);
 }
 
-function easeInOutBack01(v) {
-  const t = clamp(v, 0, 1);
-  const c1 = 1.70158;
-  const c2 = c1 * 1.525;
-  if (t < 0.5) {
-    const x = 2 * t;
-    return (x * x * ((c2 + 1) * x - c2)) / 2;
-  }
-  const x = 2 * t - 2;
-  return (x * x * ((c2 + 1) * x + c2) + 2) / 2;
-}
-
-function pulse01(v) {
-  return Math.sin(clamp(v, 0, 1) * Math.PI);
-}
-
 function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
   const grip = clamp(amount, 0, 1);
   chain.forEach((bone, index) => {
@@ -4193,8 +4169,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
   let chestY = 0;
   let headX = -0.06;
   let headY = 0;
-  let headZ = 0;
-  const breathingLift = Math.sin(performance.now() * 0.004) * 0.02;
 
   if (mode === 'reachDice') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
@@ -4250,23 +4224,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmY += throwLateral * 0.14 * t;
     wristY += throwLateral * 0.08 * t;
     shoulderZ += (1 - throwForward) * 0.14 * t;
-  } else if (mode === 'anticipateRoll') {
-    const anticipation = easeInOutBack01(t);
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.02, anticipation);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.46, anticipation);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.32, anticipation);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.28, anticipation);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, anticipation);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.52, anticipation);
-    wristX = THREE.MathUtils.lerp(wristX, -0.74, anticipation);
-    wristY = THREE.MathUtils.lerp(wristY, -0.1, anticipation);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.3, anticipation);
-    chestX = THREE.MathUtils.lerp(chestX, 0.01, anticipation);
-    chestY = THREE.MathUtils.lerp(chestY, -0.08, anticipation);
-    headX = THREE.MathUtils.lerp(headX, -0.03, anticipation);
-    shoulderY += throwLateral * 0.28 * anticipation;
-    forearmY += throwLateral * 0.17 * anticipation;
-    shoulderZ += (1 - throwForward) * 0.2 * anticipation;
   } else if (mode === 'release') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.18, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
@@ -4284,25 +4241,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     forearmY += throwLateral * 0.24 * t;
     wristY += throwLateral * 0.2 * t;
     shoulderZ += (1 - throwForward) * 0.2 * t;
-  } else if (mode === 'releaseSnap') {
-    const snap = easeInOutBack01(t);
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.26, snap);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.1, snap);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.04, snap);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.14, snap);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.06, snap);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.05, snap);
-    wristX = THREE.MathUtils.lerp(wristX, 0.58, snap);
-    wristY = THREE.MathUtils.lerp(wristY, 0.16, snap);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.13, snap);
-    chestX = THREE.MathUtils.lerp(chestX, 0.22, snap);
-    chestY = THREE.MathUtils.lerp(chestY, 0.05, snap);
-    headX = THREE.MathUtils.lerp(headX, 0.08, snap);
-    headZ = THREE.MathUtils.lerp(headZ, throwLateral * -0.08, snap);
-    shoulderY += throwLateral * 0.38 * snap;
-    forearmY += throwLateral * 0.27 * snap;
-    wristY += throwLateral * 0.24 * snap;
-    shoulderZ += (1 - throwForward) * 0.24 * snap;
   } else if (mode === 'followThrough') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.12, t);
@@ -4316,20 +4254,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     shoulderY += throwLateral * 0.24 * t;
     forearmY += throwLateral * 0.14 * t;
     wristY += throwLateral * 0.1 * t;
-  } else if (mode === 'recoverPose') {
-    const recovery = smooth01(t);
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.38, recovery);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.06, recovery);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.76, recovery);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.58, recovery);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.01, recovery);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.11, recovery);
-    wristX = THREE.MathUtils.lerp(wristX, -0.1, recovery);
-    wristY = THREE.MathUtils.lerp(wristY, 0.01, recovery);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.04, recovery);
-    chestX = THREE.MathUtils.lerp(chestX, 0.13, recovery);
-    chestY = THREE.MathUtils.lerp(chestY, 0.01, recovery);
-    headX = THREE.MathUtils.lerp(headX, -0.04, recovery);
   } else if (mode === 'reachToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.04, t);
@@ -4354,19 +4278,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
-  } else if (mode === 'tokenAnticipate') {
-    const anticipation = pulse01(t);
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, anticipation);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, anticipation);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, anticipation);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.62, anticipation);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.15, anticipation);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.08, anticipation);
-    wristX = THREE.MathUtils.lerp(wristX, 0.04, anticipation);
-    wristY = THREE.MathUtils.lerp(wristY, 0.09, anticipation);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.05, anticipation);
-    chestX = THREE.MathUtils.lerp(chestX, 0.2, anticipation);
-    headX = THREE.MathUtils.lerp(headX, 0.06, anticipation);
   } else if (mode === 'carryToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
@@ -4391,26 +4302,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, t
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
     headX = THREE.MathUtils.lerp(headX, 0.10, t);
-  } else if (mode === 'tokenRelease') {
-    const release = smooth01(t);
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.74, release);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, release);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.8, release);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, release);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.14, release);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.23, release);
-    wristX = THREE.MathUtils.lerp(wristX, -0.38, release);
-    wristY = THREE.MathUtils.lerp(wristY, 0.13, release);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, release);
-    chestX = THREE.MathUtils.lerp(chestX, 0.2, release);
-    headX = THREE.MathUtils.lerp(headX, 0.08, release);
   }
 
-  chestX += breathingLift * 0.35;
-  headX += breathingLift * 0.25;
-
   addBoneRot(rig, rig.chest, chestX, chestY, 0, 1);
-  addBoneRot(rig, rig.head, headX, headY, headZ, 1);
+  addBoneRot(rig, rig.head, headX, headY, 0, 1);
   addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ, 1);
   addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ, 1);
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ, 1);
@@ -7427,40 +7322,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             actorState.throwStartMs > 0
           ) {
             const elapsedSec = Math.max(0, (now - actorState.throwStartMs) / 1000);
-            const elapsedMs = elapsedSec * 1000;
-            const anticipateEnd = SEATED_HUMAN_DICE_ANTICIPATE_MS;
-            const releaseEnd = anticipateEnd + SEATED_HUMAN_DICE_RELEASE_MS;
-            const followEnd = releaseEnd + SEATED_HUMAN_DICE_FOLLOW_MS;
-            if (elapsedMs < anticipateEnd) {
-              mode = 'anticipateRoll';
-              intensity = clamp(elapsedMs / Math.max(1, anticipateEnd), 0, 1);
-              handGrip = 0.58;
-            } else if (elapsedMs < releaseEnd) {
-              mode = 'releaseSnap';
-              intensity = clamp(
-                (elapsedMs - anticipateEnd) / Math.max(1, SEATED_HUMAN_DICE_RELEASE_MS),
-                0,
-                1
-              );
-              handGrip = 0.58 * (1 - smooth01(intensity));
-            } else if (elapsedMs < followEnd) {
+            if (elapsedSec < 0.18) {
+              mode = 'holdDice';
+              intensity = 1;
+              handGrip = 0.52;
+            } else if (elapsedSec < 0.38) {
+              mode = 'windUp';
+              intensity = clamp((elapsedSec - 0.18) / 0.2, 0, 1);
+              handGrip = 0.56;
+            } else if (elapsedSec < 0.66) {
+              mode = 'release';
+              intensity = clamp((elapsedSec - 0.38) / 0.28, 0, 1);
+              handGrip = 1 - intensity;
+            } else if (elapsedSec < 1.45) {
               mode = 'followThrough';
-              intensity = clamp(
-                1 - (elapsedMs - releaseEnd) / Math.max(1, SEATED_HUMAN_DICE_FOLLOW_MS),
-                0,
-                1
-              );
+              intensity = 1;
               handGrip = 0;
             } else {
-              mode = 'recoverPose';
-              intensity = clamp(
-                (elapsedMs - followEnd) / Math.max(1, SEATED_HUMAN_RECOVER_MS),
-                0,
-                1
-              );
+              mode = 'idle';
+              intensity = 1;
               handGrip = 0;
             }
-            if (elapsedMs > followEnd + SEATED_HUMAN_RECOVER_MS) {
+            if (elapsedSec > 1.62) {
               actorState.throwPlayer = null;
             }
           } else if (
@@ -7469,23 +7352,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             actorState.holdStartMs > 0
           ) {
             const elapsedSec = Math.max(0, (now - actorState.holdStartMs) / 1000);
-            const elapsedMs = elapsedSec * 1000;
-            if (elapsedMs < SEATED_HUMAN_DICE_REACH_MS) {
+            if (elapsedSec < 0.36) {
               mode = 'reachDice';
-              intensity = clamp(elapsedMs / Math.max(1, SEATED_HUMAN_DICE_REACH_MS), 0, 1);
+              intensity = clamp(elapsedSec / 0.36, 0, 1);
               handGrip = 0.02;
-            } else if (elapsedMs < SEATED_HUMAN_DICE_REACH_MS + SEATED_HUMAN_DICE_GRIP_MS) {
+            } else if (elapsedSec < 0.68) {
               mode = 'gripDice';
-              intensity = clamp(
-                (elapsedMs - SEATED_HUMAN_DICE_REACH_MS) / Math.max(1, SEATED_HUMAN_DICE_GRIP_MS),
-                0,
-                1
-              );
+              intensity = clamp((elapsedSec - 0.36) / 0.32, 0, 1);
               handGrip = 0.42;
             } else {
               mode = 'holdDice';
               intensity = 1;
-              handGrip = 0.56;
+              handGrip = 0.52;
             }
           } else if (state?.animation?.active && state.animation.player === playerIndex) {
             const anim = state.animation;
@@ -7499,39 +7377,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             } else if (anim.segment > 0 && anim.segments?.[anim.segment - 1]?.viaHelper === 'pickup') {
               mode = 'gripToken';
               intensity = segProgress;
-              handGrip = smooth01(segProgress);
+              handGrip = segProgress;
             } else if (helperPhase === 'place' || anim.segments?.[anim.segment + 1]?.viaHelper === 'place') {
               mode = 'placeToken';
               intensity = segProgress;
               handGrip = 1 - segProgress * 0.85;
-            } else if (segProgress < SEATED_HUMAN_TOKEN_REACH_PHASE) {
-              mode = 'tokenAnticipate';
-              intensity = clamp(segProgress / Math.max(1e-4, SEATED_HUMAN_TOKEN_REACH_PHASE), 0, 1);
-              handGrip = 0.68;
-            } else if (segProgress > 1 - SEATED_HUMAN_TOKEN_GRIP_PHASE) {
-              mode = 'tokenRelease';
-              intensity = clamp(
-                (segProgress - (1 - SEATED_HUMAN_TOKEN_GRIP_PHASE)) /
-                  Math.max(1e-4, SEATED_HUMAN_TOKEN_GRIP_PHASE),
-                0,
-                1
-              );
-              handGrip = 0.92 * (1 - intensity * 0.88);
             } else {
               mode = 'carryToken';
-              const carryBase =
-                (segProgress - SEATED_HUMAN_TOKEN_REACH_PHASE) /
-                Math.max(1e-4, SEATED_HUMAN_TOKEN_CARRY_PHASE);
-              intensity = clamp(0.45 + carryBase * 0.55, 0.45, 1);
-              handGrip = 0.95;
+              intensity = 0.45 + segProgress * 0.55;
+              handGrip = 1;
             }
           } else if (
             actorState?.rollEndMs &&
             now - actorState.rollEndMs < SEATED_HUMAN_RECOVER_MS &&
             throwingPlayer === playerIndex
           ) {
-            mode = 'recoverPose';
-            intensity = clamp((now - actorState.rollEndMs) / SEATED_HUMAN_RECOVER_MS, 0, 1);
+            mode = 'followThrough';
+            intensity = clamp(1 - (now - actorState.rollEndMs) / SEATED_HUMAN_RECOVER_MS, 0, 1);
           }
 
           applySeatedHumanPose(rig, mode, intensity, handGrip, throwBias);
