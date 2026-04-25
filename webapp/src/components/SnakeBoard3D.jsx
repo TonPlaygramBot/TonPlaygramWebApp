@@ -79,17 +79,18 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-// Portrait calibration for seated humans:
-// - keep the back close to the chair back-rest
-// - keep hips centered on the seat pan
-// - keep feet grounded for a clear ~90° seated posture
-const HUMAN_SEAT_LOCAL_POSITION = new THREE.Vector3(0.22, -0.76, -0.4);
-const HUMAN_SEAT_SCALE = 1.75;
+// Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.38 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
 const HUMAN_FRONT_SIDE_Z = 1;
-const HUMAN_LEG_FRONT_OFFSET = 0.31;
-const HUMAN_TORSO_FACE_BOARD_YAW = 0.24;
-const HUMAN_NECK_FACE_BOARD_YAW = 0.18;
-const HUMAN_HEAD_FACE_BOARD_YAW = 0.12;
+const HUMAN_LEG_FRONT_OFFSET = 0;
+const HUMAN_TORSO_FACE_BOARD_YAW = 0;
+const HUMAN_NECK_FACE_BOARD_YAW = 0;
+const HUMAN_HEAD_FACE_BOARD_YAW = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -1506,6 +1507,58 @@ function applyOriginalTextureMapping(root) {
   });
 }
 
+function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTextureMapping = false } = {}) {
+  if (!material) return;
+  const maps = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap'];
+  maps.forEach((key) => {
+    const tex = material[key];
+    if (!tex) return;
+    applySRGBColorSpace(tex);
+    if (!preserveGltfTextureMapping) {
+      tex.flipY = false;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+    }
+    tex.anisotropy = Math.max(tex.anisotropy || 1, maxAnisotropy);
+    tex.needsUpdate = true;
+  });
+}
+
+function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  for (let i = 0; i < 180; i += 1) {
+    const x = (i * 53) % size;
+    const y = (i * 79) % size;
+    const w = 8 + ((i * 11) % 22);
+    const h = 4 + ((i * 7) % 14);
+    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+  }
+
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(tex);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function normalizeHumanBoneName(value = '') {
   return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -1659,7 +1712,27 @@ async function loadSeatedHumanTemplate(renderer) {
       if (!scene) {
         throw new Error('Failed to load seated human template');
       }
-      applyOriginalTextureMapping(scene);
+      const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+      const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+      const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+      scene.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const meshName = `${obj.name || ''}`.toLowerCase();
+        const useSkin = /head|face|neck|ear|hand/.test(meshName);
+        const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+        const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
+        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        materials.forEach((mat) => {
+          if (!mat?.map) mat.map = fallbackTex;
+          if (mat?.color?.setHex) mat.color.setHex(0xffffff);
+          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+          if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+          mat.needsUpdate = true;
+        });
+      });
       HUMAN_MODEL_CACHE.template = scene;
       return scene;
     })();
@@ -3328,8 +3401,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     group.add(avatarAnchor);
 
     const humanAnchor = new THREE.Object3D();
-    humanAnchor.position.copy(HUMAN_SEAT_LOCAL_POSITION);
-    humanAnchor.rotation.set(0, Math.PI, 0);
+    humanAnchor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
+    humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
@@ -3360,13 +3433,15 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         const instance = cloneSkeleton(humanTemplate);
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
-        instance.scale.setScalar(HUMAN_SEAT_SCALE);
+        const baseScale =
+          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+        instance.scale.setScalar(baseScale);
         chair.humanAnchor.add(instance);
         seatedHumans[seatIndex] = {
           root: instance,
           bones: buildHumanBoneMap(instance),
           rest: captureModelRestPose(instance),
-          baseScale: HUMAN_SEAT_SCALE
+          baseScale
         };
         applySeatedHumanPose(seatedHumans[seatIndex], 0, 0);
       });
