@@ -1728,10 +1728,10 @@ const AI_CHAIR_RADIUS =
   CHAIR_OUTWARD_OFFSET -
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
-// Pull all chairs (with seated humans) slightly farther away from the table edge for clearer spacing.
-const CHAIR_GLOBAL_PUSHBACK = 0.176 * MODEL_SCALE;
-// Keep the bottom/local-player seat noticeably farther out than the rest.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.258 * MODEL_SCALE;
+// Pull all chairs (with seated humans) a bit farther away from the table edge for clearer spacing.
+const CHAIR_GLOBAL_PUSHBACK = 0.212 * MODEL_SCALE;
+// Keep the bottom/local-player seat distinctly farther out than the rest.
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.332 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1765,9 +1765,9 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.38;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.62;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.55 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.72 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
