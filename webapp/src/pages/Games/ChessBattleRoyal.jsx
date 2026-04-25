@@ -391,6 +391,7 @@ const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE;
+const CHAIR_TABLE_PUSHBACK = 0.045 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -419,8 +420,8 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.125 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.4;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.205 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 
@@ -498,7 +499,32 @@ function saveBoneRig(modelRoot) {
     leftHand: findBoneByNeedle(bones, 'lefthand'),
     rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
     rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
-    rightHand: findBoneByNeedle(bones, 'righthand')
+    rightHand: findBoneByNeedle(bones, 'righthand'),
+    rightThumb: [
+      findBoneByNeedle(bones, 'rightthumb1'),
+      findBoneByNeedle(bones, 'rightthumb2'),
+      findBoneByNeedle(bones, 'rightthumb3')
+    ].filter(Boolean),
+    rightIndex: [
+      findBoneByNeedle(bones, 'rightindex1'),
+      findBoneByNeedle(bones, 'rightindex2'),
+      findBoneByNeedle(bones, 'rightindex3')
+    ].filter(Boolean),
+    rightMiddle: [
+      findBoneByNeedle(bones, 'rightmiddle1'),
+      findBoneByNeedle(bones, 'rightmiddle2'),
+      findBoneByNeedle(bones, 'rightmiddle3')
+    ].filter(Boolean),
+    rightRing: [
+      findBoneByNeedle(bones, 'rightring1'),
+      findBoneByNeedle(bones, 'rightring2'),
+      findBoneByNeedle(bones, 'rightring3')
+    ].filter(Boolean),
+    rightPinky: [
+      findBoneByNeedle(bones, 'rightpinky1'),
+      findBoneByNeedle(bones, 'rightpinky2'),
+      findBoneByNeedle(bones, 'rightpinky3')
+    ].filter(Boolean)
   };
 }
 
@@ -528,9 +554,70 @@ function addBonePos(rig, bone, x = 0, y = 0, z = 0) {
   bone.position.z = base.position.z + z;
 }
 
-function applySeatedHumanPoseIdle(rig) {
+function smooth01(v) {
+  const t = clamp(v, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
+  const grip = clamp(amount, 0, 1);
+  chain.forEach((bone, index) => {
+    const curl = index === 0 ? -0.38 : -0.72;
+    const side = index === 0 ? sideSpread : sideSpread * 0.25;
+    addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip);
+  });
+}
+
+function applyRightHandGrip(rig, gripAmount = 0) {
+  if (!rig) return;
+  const grip = clamp(gripAmount, 0, 1);
+  const open = 1 - grip;
+  curlFingerChain(rig, rig.rightIndex, grip, -0.08 + 0.08 * open);
+  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
+  curlFingerChain(rig, rig.rightRing, grip, 0.04 - 0.04 * open);
+  curlFingerChain(rig, rig.rightPinky, grip, 0.09 - 0.06 * open);
+  (rig.rightThumb || []).forEach((bone, index) => {
+    const fold = index === 0 ? -0.28 : -0.48;
+    addBoneRot(rig, bone, fold * grip, -0.24 * grip, 0.22 * grip);
+  });
+}
+
+function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 180; i += 1) {
+    const x = (i * 53) % size;
+    const y = (i * 79) % size;
+    const w = 8 + ((i * 11) % 22);
+    const h = 4 + ((i * 7) % 14);
+    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(tex);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   if (!rig) return;
   resetBoneRig(rig);
+  const t = smooth01(intensity);
   const breathe = Math.sin(performance.now() * 0.002) * 0.012;
 
   addBonePos(rig, rig.hips, 0, -0.345, -0.078);
@@ -550,9 +637,70 @@ function applySeatedHumanPoseIdle(rig) {
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24);
   addBoneRot(rig, rig.leftHand, -0.16, 0, 0);
-  addBoneRot(rig, rig.rightUpperArm, -0.2, -0.02, -0.72);
-  addBoneRot(rig, rig.rightForeArm, -0.5, -0.04, 0.14);
-  addBoneRot(rig, rig.rightHand, -0.08, 0, 0.06);
+  let shoulderX = -0.2;
+  let shoulderY = -0.02;
+  let shoulderZ = -0.72;
+  let forearmX = -0.5;
+  let forearmY = -0.04;
+  let forearmZ = 0.14;
+  let wristX = -0.08;
+  let wristY = 0;
+  let wristZ = 0.06;
+  let chestX = 0.12;
+  let headX = -0.06;
+
+  if (mode === 'reachPiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.8, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.0, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.72, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.22, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.12, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
+    headX = THREE.MathUtils.lerp(headX, 0.05, t);
+  } else if (mode === 'gripPiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.98, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.74, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.18, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.22, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
+  } else if (mode === 'carryPiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.54, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.12, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
+    wristX = THREE.MathUtils.lerp(wristX, 0.02, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
+  } else if (mode === 'placePiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
+    headX = THREE.MathUtils.lerp(headX, 0.1, t);
+  }
+
+  addBoneRot(rig, rig.chest, chestX, 0, 0);
+  addBoneRot(rig, rig.head, headX, 0, 0);
+  addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
+  addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
+  applyRightHandGrip(rig, handGrip);
 }
 
 let seatedHumanTemplatePromise = null;
@@ -565,13 +713,22 @@ async function loadSeatedHumanTemplate(renderer = null) {
     const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
     const root = gltf?.scene || gltf?.scenes?.[0];
     if (!root) throw new Error('Missing seated human scene');
+    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
       obj.castShadow = true;
       obj.receiveShadow = true;
       obj.frustumCulled = false;
+      const meshName = `${obj.name || ''}`.toLowerCase();
+      const useSkin = /head|face|neck|ear|hand/.test(meshName);
+      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       mats.forEach((mat) => {
+        if (!mat?.map) mat.map = fallbackTex;
+        if (mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
         mat.needsUpdate = true;
@@ -7201,6 +7358,7 @@ function Chess3D({
   const moveCountRef = useRef(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const seatedHumanActorsRef = useRef([]);
+  const seatedHumanMoveActionsRef = useRef(new Map());
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -8725,7 +8883,7 @@ function Chess3D({
     }
 
     const chairDistance =
-      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
+      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE + CHAIR_TABLE_PUSHBACK;
 
     const chairs = [];
     const chairA = makeChair(0);
@@ -8745,6 +8903,7 @@ function Chess3D({
     chairs.push(chairB);
 
     seatedHumanActorsRef.current = [];
+    seatedHumanMoveActionsRef.current.clear();
     try {
       const humanTemplate = await loadSeatedHumanTemplate(renderer);
       const baseScale =
@@ -8756,7 +8915,7 @@ function Chess3D({
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
-        applySeatedHumanPoseIdle(rig);
+        applySeatedHumanPose(rig, 'idle', 1, 0);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
       });
     } catch (error) {
@@ -11885,15 +12044,33 @@ function Chess3D({
       syncMovedPieceMesh();
       cancelPieceAnimation(m);
       const targetPosition = toWorldPos;
+      const moverSeatIndex = movedPiece?.w ? 0 : 1;
+      const moverActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === moverSeatIndex);
+      const useHumanHandMove = !!(moverActor?.rig && m);
+      if (useHumanHandMove) {
+        const nowMs = performance.now();
+        seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
+          playerIndex: moverSeatIndex,
+          mesh: m,
+          from: fromWorldPos.clone(),
+          to: toWorldPos.clone(),
+          startMs: nowMs + Math.max(0, moveDelayMs),
+          durationMs: 900
+        });
+      }
       if (moveDelayMs > 0) {
         setTimeout(() => {
           syncMovedPieceMesh();
           cancelPieceAnimation(m);
-          animatePieceTo(m, targetPosition, 0.32);
+          if (!useHumanHandMove) {
+            animatePieceTo(m, targetPosition, 0.32);
+          }
           playMoveSound();
         }, moveDelayMs);
       } else {
-        animatePieceTo(m, targetPosition, 0.32);
+        if (!useHumanHandMove) {
+          animatePieceTo(m, targetPosition, 0.32);
+        }
         playMoveSound();
       }
       highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
@@ -12838,7 +13015,60 @@ function Chess3D({
       if (Array.isArray(seatedActors) && seatedActors.length) {
         seatedActors.forEach((entry) => {
           if (!entry?.rig) return;
-          applySeatedHumanPoseIdle(entry.rig);
+          const action = seatedHumanMoveActionsRef.current.get(entry.playerIndex);
+          if (!action) {
+            applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+            return;
+          }
+          const elapsedMs = now - action.startMs;
+          if (elapsedMs <= 0) {
+            applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+            return;
+          }
+          const u = clamp01(elapsedMs / Math.max(1, action.durationMs));
+          let mode = 'carryPiece';
+          let intensity = 1;
+          let grip = 1;
+          if (u < 0.25) {
+            mode = 'reachPiece';
+            intensity = clamp01(u / 0.25);
+            grip = 0.05;
+          } else if (u < 0.4) {
+            mode = 'gripPiece';
+            intensity = clamp01((u - 0.25) / 0.15);
+            grip = intensity;
+          } else if (u < 0.78) {
+            mode = 'carryPiece';
+            intensity = clamp01((u - 0.4) / 0.38);
+            grip = 1;
+          } else {
+            mode = 'placePiece';
+            intensity = clamp01((u - 0.78) / 0.22);
+            grip = 1 - intensity * 0.9;
+          }
+          applySeatedHumanPose(entry.rig, mode, intensity, grip);
+          if (action?.mesh) {
+            if (u < 0.25) {
+              const lift = action.from.clone();
+              lift.y += 0.22 * clamp01(u / 0.25);
+              action.mesh.position.copy(lift);
+            } else if (u < 0.82 && entry.rig.rightHand) {
+              const handWorld = entry.rig.rightHand.getWorldPosition(new THREE.Vector3());
+              handWorld.y -= 0.03;
+              handWorld.z += entry.playerIndex === 0 ? -0.01 : 0.01;
+              action.mesh.position.copy(handWorld);
+            } else {
+              const dropT = clamp01((u - 0.82) / 0.18);
+              const handWorld = entry.rig.rightHand
+                ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
+                : action.from;
+              action.mesh.position.lerpVectors(handWorld, action.to, dropT);
+            }
+          }
+          if (u >= 1) {
+            if (action?.mesh) action.mesh.position.copy(action.to);
+            seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
+          }
         });
       }
 
@@ -12872,6 +13102,7 @@ function Chess3D({
     return () => {
       cancelled = true;
       seatedHumanActorsRef.current = [];
+      seatedHumanMoveActionsRef.current.clear();
       cancelAnimationFrame(rafRef.current);
       stopCameraTween();
       if (onResize) {
