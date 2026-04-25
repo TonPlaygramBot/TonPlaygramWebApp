@@ -436,13 +436,13 @@ const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.54;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.84;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.74;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // pull the whole table noticeably closer to the bottom/local player on portrait screens
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
@@ -771,6 +771,46 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
 
 const seatedHumanTemplatePromiseById = new Map();
 
+function normalizeHumanModelUrlCandidates(modelUrls = []) {
+  const next = [];
+  const seen = new Set();
+  const push = (value) => {
+    if (!value || typeof value !== 'string') return;
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    next.push(normalized);
+  };
+  modelUrls.forEach((url) => {
+    push(url);
+    const rawGithubMatch = url.match(
+      /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/
+    );
+    if (rawGithubMatch) {
+      const [, owner, repo, branch, path] = rawGithubMatch;
+      push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${path}`);
+      push(`https://cdn.statically.io/gh/${owner}/${repo}/${branch}/${path}`);
+    }
+  });
+  return next;
+}
+
+function measureObjectHeight(object) {
+  if (!object) return SEATED_HUMAN_BASE_HEIGHT;
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return SEATED_HUMAN_BASE_HEIGHT;
+  return Math.max(0.01, box.max.y - box.min.y);
+}
+
+function computeSeatedHumanScale(actorTemplate) {
+  const measuredHeight = measureObjectHeight(actorTemplate);
+  return (
+    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(measuredHeight, 0.01)) *
+    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER
+  );
+}
+
 async function loadSeatedHumanTemplate(option, renderer = null) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
@@ -784,7 +824,7 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
       ? selectedOption.modelUrls.filter(Boolean)
       : [];
     const candidateUrls = modelUrls.length
-      ? modelUrls
+      ? normalizeHumanModelUrlCandidates(modelUrls)
       : [SEATED_HUMAN_DEFAULT_MODEL_URL].filter(Boolean);
     let lastError = null;
     let root = null;
@@ -821,6 +861,10 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
         mat.needsUpdate = true;
       });
     });
+    root.userData = {
+      ...(root.userData || {}),
+      seatedHumanScale: computeSeatedHumanScale(root)
+    };
     return root;
   })();
   seatedHumanTemplatePromiseById.set(cacheKey, promise);
@@ -8574,8 +8618,7 @@ function Chess3D({
         .then((humanTemplate) => {
           if (!arenaRef.current) return;
           const baseScale =
-            (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
-            SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+            humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
           const arenaFloorY = Number.isFinite(arena.environmentFloorY) ? arena.environmentFloorY : 0;
           const nextActors = [];
           (arena.chairs || []).forEach((chair, playerIndex) => {
@@ -9159,7 +9202,7 @@ function Chess3D({
     try {
       const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
       const baseScale =
-        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+        humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
       chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkinned(humanTemplate);
         actor.scale.setScalar(baseScale);
@@ -9300,7 +9343,7 @@ function Chess3D({
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
     const cameraBackOffset =
-      (isPortrait ? PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT : PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE) + 0.3;
+      isPortrait ? PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT : PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE;
     const cameraForwardOffset = isPortrait
       ? PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT
       : PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE;
