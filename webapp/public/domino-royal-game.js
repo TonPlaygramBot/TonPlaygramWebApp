@@ -7,7 +7,6 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkinned } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -7672,14 +7671,7 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenColorMap',
   'sheenRoughnessMap'
 ]);
-const HUMAN_CHARACTER_DISABLED = false;
-const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-let seatedHumanTemplatePromise = null;
-const seatedHumanFallbackTextures = {
-  skin: null,
-  cloth: null,
-  hair: null
-};
+const HUMAN_CHARACTER_DISABLED = true;
 const seatedHumans = [];
 const seatFaceAnchors = [];
 const seatCharacterHelpers = [];
@@ -7830,92 +7822,19 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
   );
 }
 
-function createSeatedHumanFallbackTexture(primary = '#d8c0a6', secondary = '#b48d6b') {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, primary);
-  gradient.addColorStop(1, secondary);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 180; i += 1) {
-    const x = (i * 53) % size;
-    const y = (i * 79) % size;
-    const w = 8 + ((i * 11) % 22);
-    const h = 4 + ((i * 7) % 14);
-    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
-    ctx.fillRect(x, y, w, h);
-  }
-
-  ctx.globalAlpha = 1;
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 8;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function getSeatedHumanFallbackTextureSet() {
-  if (!seatedHumanFallbackTextures.skin) {
-    seatedHumanFallbackTextures.skin = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-    seatedHumanFallbackTextures.cloth = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-    seatedHumanFallbackTextures.hair = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-  }
-  return seatedHumanFallbackTextures;
-}
-
 async function ensureHumanTemplate() {
-  if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
-  seatedHumanTemplatePromise = (async () => {
-    const loader = createConfiguredGltfLoader();
-    loader.setCrossOrigin('anonymous');
-    const gltf = await loader.loadAsync(SEATED_HUMAN_MODEL_URL);
-    const template = gltf?.scene || gltf?.scenes?.[0];
-    if (!template) {
-      throw new Error('Missing seated human scene');
-    }
-
-    const textureSet = getSeatedHumanFallbackTextureSet();
-    template.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      obj.frustumCulled = false;
-      const meshName = `${obj.name || ''}`.toLowerCase();
-      const useSkin = /head|face|neck|ear|hand/.test(meshName);
-      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-      const fallback = useHair ? textureSet.hair : useSkin ? textureSet.skin : textureSet.cloth;
-      const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      mats.forEach((mat) => {
-        if (!mat) return;
-        if (!mat.map) mat.map = fallback;
-        if (mat?.color?.setHex) mat.color.setHex(0xffffff);
-        if (mat?.map) applySRGBColorSpace(mat.map);
-        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-        mat.needsUpdate = true;
-      });
-    });
-
-    return { template };
-  })();
-
-  return seatedHumanTemplatePromise;
+  throw new Error('Domino Royal seated human character is disabled');
 }
 
 function clearSeatedHumans() {
   while (seatedHumans.length) {
     const seatHuman = seatedHumans.pop();
     seatHuman?.root?.parent?.remove(seatHuman.root);
+    seatHuman?.root?.traverse?.((obj) => {
+      if (obj?.isMesh && obj.geometry?.dispose) obj.geometry.dispose();
+      const materials = Array.isArray(obj?.material) ? obj.material : [obj?.material];
+      materials.forEach((material) => material?.dispose?.());
+    });
   }
   seatFaceAnchors.length = 0;
   seatCharacterHelpers.length = 0;
@@ -8022,7 +7941,7 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     const seatHelper = createSeatCharacterHelper({ chairSize, seatBottomOffset });
     wrapper.add(seatHelper);
     seatCharacterHelpers[index] = seatHelper;
-    const root = cloneSkinned(humanTemplateData.template);
+    const root = humanTemplateData.template.clone(true);
     root.rotation.y = Math.PI;
     fitHumanToSeat(root, seatHelper, chairSize);
     root.position.y += 0.045;
