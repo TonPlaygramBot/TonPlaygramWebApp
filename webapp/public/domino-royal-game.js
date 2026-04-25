@@ -7671,23 +7671,7 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenColorMap',
   'sheenRoughnessMap'
 ]);
-const HUMAN_MODEL_SOURCE = Object.freeze({
-  label: 'Ludo seated humanoid',
-  url: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  scale: 1,
-  rotationY: Math.PI
-});
-const HUMAN_SEAT_TUNE = Object.freeze({
-  chairHeightRatio: 1.02,
-  targetHeightRatio: 2.7,
-  baseCharacterHeight: 1.74,
-  visualScaleMultiplier: 3.24,
-  seatYOffset: -0.125 * MODEL_SCALE * STOOL_SCALE,
-  seatZOffsetRatio: -0.2,
-  hipLift: 0.045,
-  faceLift: 0.62
-});
-let humanTemplatePromise = null;
+const HUMAN_CHARACTER_DISABLED = true;
 const seatedHumans = [];
 const seatFaceAnchors = [];
 const seatCharacterHelpers = [];
@@ -7839,27 +7823,7 @@ function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockS
 }
 
 async function ensureHumanTemplate() {
-  if (humanTemplatePromise) return humanTemplatePromise;
-  humanTemplatePromise = (async () => {
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
-    const gltf = await new Promise((resolve, reject) => {
-      loader.load(HUMAN_MODEL_SOURCE.url, resolve, undefined, reject);
-    });
-    const root = gltf?.scene;
-    if (!root) {
-      throw new Error('Seated human scene missing');
-    }
-    root.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    });
-    root.scale.setScalar(HUMAN_MODEL_SOURCE.scale);
-    root.rotation.y = HUMAN_MODEL_SOURCE.rotationY;
-    return { source: HUMAN_MODEL_SOURCE, template: root };
-  })();
-  return humanTemplatePromise;
+  throw new Error('Domino Royal seated human character is disabled');
 }
 
 function clearSeatedHumans() {
@@ -7879,8 +7843,8 @@ function clearSeatedHumans() {
 function createSeatCharacterHelper({ chairSize, seatBottomOffset }) {
   const helper = new THREE.Object3D();
   const seatY = chairSize.y - seatBottomOffset;
-  const seatDepth = chairSize.z * HUMAN_SEAT_TUNE.seatZOffsetRatio;
-  helper.position.set(0, seatY + HUMAN_SEAT_TUNE.seatYOffset, seatDepth);
+  const seatDepth = chairSize.z * -0.2;
+  helper.position.set(0, seatY + -0.125 * MODEL_SCALE * STOOL_SCALE, seatDepth);
   helper.userData = {
     seatBottomOffset,
     chairSize: chairSize.clone(),
@@ -7896,14 +7860,13 @@ function fitHumanToSeat(root, seatHelper, chairSize) {
   const baseHeight = Math.max(
     0.1,
     size.y,
-    HUMAN_SEAT_TUNE.baseCharacterHeight
+    1.74
   );
   const targetHeightFromChair = Math.max(
     0.9,
-    chairSize.y * HUMAN_SEAT_TUNE.targetHeightRatio * HUMAN_SEAT_TUNE.chairHeightRatio
+    chairSize.y * 2.7 * 1.02
   );
-  const targetHeightFromLudo =
-    HUMAN_SEAT_TUNE.baseCharacterHeight * HUMAN_SEAT_TUNE.visualScaleMultiplier;
+  const targetHeightFromLudo = 1.74 * 3.24;
   const targetHeight = Math.max(targetHeightFromChair, targetHeightFromLudo);
   const scaleFix = targetHeight / baseHeight;
   root.scale.multiplyScalar(scaleFix);
@@ -7911,6 +7874,7 @@ function fitHumanToSeat(root, seatHelper, chairSize) {
 }
 
 function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null) {
+  if (HUMAN_CHARACTER_DISABLED) return;
   const seatHuman = seatedHumans[seatIndex];
   if (!seatHuman) return;
   const now = performance.now();
@@ -7933,6 +7897,7 @@ function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null)
 }
 
 function syncSeatHumans(nowMs = performance.now()) {
+  if (HUMAN_CHARACTER_DISABLED) return;
   if (!seatedHumans.length) return;
   const nowSeconds = nowMs / 1000;
   seatedHumans.forEach((seatHuman) => {
@@ -7958,6 +7923,10 @@ function syncSeatHumans(nowMs = performance.now()) {
 }
 
 async function placeSeatedHumans(seatBottomOffset, chairSize) {
+  if (HUMAN_CHARACTER_DISABLED) {
+    clearSeatedHumans();
+    return;
+  }
   clearSeatedHumans();
   let humanTemplateData = null;
   try {
@@ -7973,12 +7942,12 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     wrapper.add(seatHelper);
     seatCharacterHelpers[index] = seatHelper;
     const root = humanTemplateData.template.clone(true);
-    root.rotation.y = HUMAN_MODEL_SOURCE.rotationY;
+    root.rotation.y = Math.PI;
     fitHumanToSeat(root, seatHelper, chairSize);
-    root.position.y += HUMAN_SEAT_TUNE.hipLift;
+    root.position.y += 0.045;
     wrapper.add(root);
     const faceAnchor = new THREE.Object3D();
-    faceAnchor.position.set(0, HUMAN_SEAT_TUNE.faceLift, 0.08);
+    faceAnchor.position.set(0, 0.62, 0.08);
     root.add(faceAnchor);
     seatFaceAnchors[index] = faceAnchor;
     const seatHuman = {
