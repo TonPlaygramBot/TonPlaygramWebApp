@@ -1767,7 +1767,7 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -2.65 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -2.9 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
