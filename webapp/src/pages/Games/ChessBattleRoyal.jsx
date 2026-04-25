@@ -2384,13 +2384,13 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: -0.065,
-  hexagonTable: -0.065,
-  grandOval: -0.065,
-  diamondEdge: -0.065
+  classicOctagon: 0.024,
+  hexagonTable: 0.024,
+  grandOval: 0.024,
+  diamondEdge: 0.024
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
-const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.12;
+const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 27; // make parked units/markers a bit larger
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -0.7; // push parked vehicles farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
@@ -9292,10 +9292,11 @@ function Chess3D({
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
+      const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
 
-      const initialRadius = CAMERA_3D_MAX_RADIUS;
+      const initialRadius = currentRadius;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
       if (mode === '2d') {
@@ -9340,7 +9341,7 @@ function Chess3D({
           CAM.phiMax
         );
         const targetRadius = clamp(
-          CAMERA_3D_MAX_RADIUS * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          restore.radius * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
           CAMERA_3D_MIN_RADIUS,
           CAMERA_3D_MAX_RADIUS
         );
