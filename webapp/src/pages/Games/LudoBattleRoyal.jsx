@@ -1763,12 +1763,12 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
-// Push seated humans noticeably lower on portrait screens so they do not appear to hover above chairs.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.08 * MODEL_SCALE * STOOL_SCALE;
+// Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.26 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-// Keep feet slightly below the strict grounding plane to match the user's requested stronger downward move.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.64 * MODEL_SCALE * STOOL_SCALE;
+// Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -1844,10 +1844,12 @@ const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.2;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.82;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.58;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
+const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.18 * MODEL_SCALE;
+const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.075 * 3.22 * ARENA_SCALE * 0.55;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE,
@@ -1859,7 +1861,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
   forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
-  targetLift: 0.048 * MODEL_SCALE
+  targetLift: 0.04 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.04;
 const CAMERA_EXTRA_LIFT = 0.076;
@@ -1872,6 +1874,12 @@ const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
+const ROLL_PHASE_REACH_END_SEC = 0.54;
+const ROLL_PHASE_GRIP_END_SEC = 0.8;
+const ROLL_PHASE_HOLD_END_SEC = 1.05;
+const ROLL_PHASE_WINDUP_END_SEC = 1.3;
+const ROLL_PHASE_RELEASE_END_SEC = 1.56;
+const ROLL_PHASE_FOLLOW_END_SEC = 2.4;
 const CAMERA_TOUCH_PULL_FORWARD_FACTOR = 0.0032;
 const CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO = 0.32;
 const CAMERA_TOUCH_PULL_BACK_MAX_RATIO = 0.4;
@@ -4162,13 +4170,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     headX = THREE.MathUtils.lerp(headX, 0.03, t);
     headY = THREE.MathUtils.lerp(headY, -0.08, t);
   } else if (mode === 'gripDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.79, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.10, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.82, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.88, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.20, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.18, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.30, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.34, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.15, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.12, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
@@ -4233,13 +4241,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
   } else if (mode === 'gripToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.9, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.00, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.70, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.76, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.18, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.22, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.28, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
@@ -4257,13 +4265,13 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     chestX = THREE.MathUtils.lerp(chestX, 0.18, t);
     headX = THREE.MathUtils.lerp(headX, 0.08, t);
   } else if (mode === 'placeToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
     shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.92, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.32, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
@@ -4334,7 +4342,12 @@ async function loadSeatedHumanTemplate(renderer = null) {
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
+  {
+    duration = 900,
+    targetPosition = new THREE.Vector3(),
+    bounceHeight = 0.06,
+    handPositionSampler = null
+  } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -4347,16 +4360,37 @@ function spinDice(
     );
     const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
+    const handTarget = new THREE.Vector3();
+    const easedTarget = new THREE.Vector3();
+    const pickupPhase = 0.32;
+    const throwBlendPhase = 0.58;
 
     const step = () => {
       const now = performance.now();
       const t = Math.min(1, (now - start) / Math.max(1, duration));
       const eased = easeOutCubic(t);
       const position = startPos.clone().lerp(endPos, eased);
+      const handAvailable =
+        typeof handPositionSampler === 'function' && handPositionSampler(handTarget) !== false;
+      if (handAvailable) {
+        if (t <= pickupPhase) {
+          const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
+          easedTarget.copy(startPos).lerp(handTarget, easeInOutCubic(pickupT));
+          position.copy(easedTarget);
+        } else if (t <= throwBlendPhase) {
+          const throwT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase - pickupPhase), 0, 1);
+          easedTarget.copy(handTarget).lerp(endPos, easeOutCubic(throwT));
+          position.copy(easedTarget);
+        }
+      }
       const wobbleStrength = Math.sin(eased * Math.PI);
       position.addScaledVector(wobble, wobbleStrength * 0.45);
       const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
-      position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
+      if (handAvailable && t <= throwBlendPhase) {
+        const blend = clamp(t / Math.max(1e-4, throwBlendPhase), 0, 1);
+        position.y = THREE.MathUtils.lerp(position.y, THREE.MathUtils.lerp(startPos.y, endPos.y, eased), blend * 0.6);
+      }
+      position.y += bounce;
       dice.position.copy(position);
 
       const spinFactor = 1 - eased * 0.28;
@@ -6538,12 +6572,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const cameraBackOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.backOffset : LANDSCAPE_CAMERA_TUNING.backOffset;
       const cameraForwardOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.forwardOffset : LANDSCAPE_CAMERA_TUNING.forwardOffset;
       const cameraHeightOffset = isPortrait ? PORTRAIT_CAMERA_TUNING.heightOffset : LANDSCAPE_CAMERA_TUNING.heightOffset;
+      const eyeForwardOffset = isPortrait
+        ? PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT
+        : PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE;
       const chairRadius = AI_CHAIR_RADIUS;
       const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
+      const seatForward = new THREE.Vector3(Math.cos(cameraSeatAngle), 0, Math.sin(cameraSeatAngle));
       camera.position.set(
-        Math.cos(cameraSeatAngle) * cameraRadius,
+        Math.cos(cameraSeatAngle) * cameraRadius + seatForward.x * eyeForwardOffset,
         TABLE_HEIGHT + cameraHeightOffset,
-        Math.sin(cameraSeatAngle) * cameraRadius
+        Math.sin(cameraSeatAngle) * cameraRadius + seatForward.z * eyeForwardOffset
       );
 
       const arenaGroup = new THREE.Group();
@@ -7125,34 +7163,59 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             actorState.rollStartMs > 0
           ) {
             const elapsedSec = Math.max(0, (now - actorState.rollStartMs) / 1000);
-            if (elapsedSec < 0.55) {
+            if (elapsedSec < ROLL_PHASE_REACH_END_SEC) {
               mode = 'reachDice';
-              intensity = clamp(elapsedSec / 0.55, 0, 1);
+              intensity = clamp(elapsedSec / Math.max(1e-4, ROLL_PHASE_REACH_END_SEC), 0, 1);
               handGrip = 0.05;
-            } else if (elapsedSec < 0.85) {
+            } else if (elapsedSec < ROLL_PHASE_GRIP_END_SEC) {
               mode = 'gripDice';
-              intensity = clamp((elapsedSec - 0.55) / 0.30, 0, 1);
+              intensity = clamp(
+                (elapsedSec - ROLL_PHASE_REACH_END_SEC) /
+                  Math.max(1e-4, ROLL_PHASE_GRIP_END_SEC - ROLL_PHASE_REACH_END_SEC),
+                0,
+                1
+              );
               handGrip = intensity;
-            } else if (elapsedSec < 1.10) {
+            } else if (elapsedSec < ROLL_PHASE_HOLD_END_SEC) {
               mode = 'holdDice';
-              intensity = clamp((elapsedSec - 0.85) / 0.25, 0, 1);
+              intensity = clamp(
+                (elapsedSec - ROLL_PHASE_GRIP_END_SEC) /
+                  Math.max(1e-4, ROLL_PHASE_HOLD_END_SEC - ROLL_PHASE_GRIP_END_SEC),
+                0,
+                1
+              );
               handGrip = 1;
-            } else if (elapsedSec < 1.31) {
+            } else if (elapsedSec < ROLL_PHASE_WINDUP_END_SEC) {
               mode = 'windUp';
-              intensity = clamp((elapsedSec - 1.10) / 0.21, 0, 1);
+              intensity = clamp(
+                (elapsedSec - ROLL_PHASE_HOLD_END_SEC) /
+                  Math.max(1e-4, ROLL_PHASE_WINDUP_END_SEC - ROLL_PHASE_HOLD_END_SEC),
+                0,
+                1
+              );
               handGrip = 1;
-            } else if (elapsedSec < 1.58) {
+            } else if (elapsedSec < ROLL_PHASE_RELEASE_END_SEC) {
               mode = 'release';
-              intensity = clamp((elapsedSec - 1.31) / 0.27, 0, 1);
+              intensity = clamp(
+                (elapsedSec - ROLL_PHASE_WINDUP_END_SEC) /
+                  Math.max(1e-4, ROLL_PHASE_RELEASE_END_SEC - ROLL_PHASE_WINDUP_END_SEC),
+                0,
+                1
+              );
               handGrip = 1 - intensity;
-            } else if (elapsedSec < 2.55) {
+            } else if (elapsedSec < ROLL_PHASE_FOLLOW_END_SEC) {
               mode = 'followThrough';
-              intensity = clamp((elapsedSec - 1.58) / 0.65, 0, 1);
+              intensity = clamp(
+                (elapsedSec - ROLL_PHASE_RELEASE_END_SEC) /
+                  Math.max(1e-4, ROLL_PHASE_FOLLOW_END_SEC - ROLL_PHASE_RELEASE_END_SEC),
+                0,
+                1
+              );
             } else {
               mode = 'idle';
               intensity = 1;
             }
-            if (elapsedSec > 2.8) {
+            if (elapsedSec > ROLL_PHASE_FOLLOW_END_SEC + 0.2) {
               actorState.rollPlayer = null;
             }
           } else if (state?.animation?.active && state.animation.player === playerIndex) {
@@ -9038,6 +9101,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return list;
   };
 
+  const sampleDiceHandPosition = useCallback((player, out) => {
+    if (!out?.isVector3) return false;
+    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
+    const handBone = actorEntry?.rig?.rightHand;
+    if (!handBone?.isBone) return false;
+    handBone.updateMatrixWorld?.(true);
+    handBone.getWorldPosition(out);
+    const handQuat = handBone.getWorldQuaternion(new THREE.Quaternion());
+    const handForward = new THREE.Vector3(0, 0, 1).applyQuaternion(handQuat).normalize();
+    const handRight = new THREE.Vector3(1, 0, 0).applyQuaternion(handQuat).normalize();
+    out.addScaledVector(handForward, 0.06 * MODEL_SCALE);
+    out.addScaledVector(handRight, -0.028 * MODEL_SCALE);
+    out.y += 0.018 * MODEL_SCALE;
+    return true;
+  }, []);
+
   const rollDice = async () => {
     const state = stateRef.current;
     clearHumanRollTimeout();
@@ -9080,7 +9159,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1400 }),
       targetPosition: baseTarget,
-      bounceHeight: dice.userData?.bounceHeight ?? 0.06
+      bounceHeight: dice.userData?.bounceHeight ?? 0.06,
+      handPositionSampler: (out) => sampleDiceHandPosition(player, out)
     });
     dice.userData.isRolling = false;
     seatedHumanActionRef.current.rollEndMs = performance.now();
