@@ -356,7 +356,6 @@ const BOARD_GROUP_Y_OFFSET = 0.05;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
-const BOARD_SURFACE_CLEARANCE = 0.035; // Keep board visibly above every table surface to avoid clipping.
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
@@ -2271,10 +2270,7 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.shapeId] ??
     BOARD_SURFACE_OFFSETS_BY_SHAPE[tableInfo?.themeId] ??
     0;
-  return alignGroupToFloorY(
-    boardGroup,
-    surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset + BOARD_SURFACE_CLEARANCE
-  );
+  return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, preferredShiftZ = 0) {
@@ -9299,7 +9295,7 @@ function Chess3D({
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
 
-      const initialRadius = clamp(cameraRadius, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+      const initialRadius = CAMERA_3D_MAX_RADIUS;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
       if (mode === '2d') {
@@ -9344,8 +9340,7 @@ function Chess3D({
           CAM.phiMax
         );
         const targetRadius = clamp(
-          (Number.isFinite(restore.radius) ? restore.radius : default3d.radius) *
-            (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          CAMERA_3D_MAX_RADIUS * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
           CAMERA_3D_MIN_RADIUS,
           CAMERA_3D_MAX_RADIUS
         );
