@@ -1778,21 +1778,14 @@ const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.052 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_RELEASE = 0.088 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_DICE_PULLBACK = -0.042 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_DICE = -0.027 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_PICKUP = 0.014 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.022 * MODEL_SCALE;
-const SEATED_HELPER_UP_DICE_PULLBACK = 0.034 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.064 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.098 * MODEL_SCALE;
-const SEATED_HELPER_FORWARD_TOKEN_CARRY = -0.016 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.022 * MODEL_SCALE;
 const SEATED_HELPER_UP_TOKEN_PICKUP = 0.008 * MODEL_SCALE;
 const SEATED_HELPER_UP_TOKEN_PLACE = 0.011 * MODEL_SCALE;
-const SEATED_HELPER_UP_TOKEN_CARRY = 0.041 * MODEL_SCALE;
-const SEATED_HELPER_FACE_CAMERA_RIGHT = 0;
-const SEATED_HELPER_FACE_CAMERA_UP = 0.018 * MODEL_SCALE;
-const SEATED_HELPER_FACE_CAMERA_FORWARD = 0.12 * MODEL_SCALE;
 let seatedHumanTemplatePromise = null;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -1864,18 +1857,14 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.22;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.74;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.26;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.12;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.62;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.24 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
-const PLAYER_VIEW_FACE_CAMERA_PULLBACK_PORTRAIT = 0.018 * MODEL_SCALE;
-const PLAYER_VIEW_FACE_CAMERA_PULLBACK_LANDSCAPE = 0.032 * MODEL_SCALE;
-const PLAYER_VIEW_FACE_CAMERA_LIFT_PORTRAIT = -0.006 * MODEL_SCALE;
-const PLAYER_VIEW_FACE_CAMERA_LIFT_LANDSCAPE = 0.002 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE,
@@ -4330,23 +4319,13 @@ function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_
 
 function createSeatedHumanActionHelpers(actor, rig) {
   const rightHand = rig?.rightHand;
-  const head = rig?.head;
   const helperRoot = rightHand?.isBone ? rightHand : actor;
-  const headRoot = head?.isBone ? head : actor;
   if (!helperRoot?.isObject3D) return null;
   const createHelper = (name, x, y, z) => {
     const helper = new THREE.Object3D();
     helper.name = name;
     helper.position.set(x, y, z);
     helperRoot.add(helper);
-    return helper;
-  };
-  const createHeadHelper = (name, x, y, z) => {
-    if (!headRoot?.isObject3D) return null;
-    const helper = new THREE.Object3D();
-    helper.name = name;
-    helper.position.set(x, y, z);
-    headRoot.add(helper);
     return helper;
   };
   return {
@@ -4362,35 +4341,17 @@ function createSeatedHumanActionHelpers(actor, rig) {
       SEATED_HELPER_UP_DICE_RELEASE,
       SEATED_HELPER_FORWARD_DICE_RELEASE
     ),
-    dicePullback: createHelper(
-      'dicePullbackHelper',
-      SEATED_HELPER_RIGHT_DICE,
-      SEATED_HELPER_UP_DICE_PULLBACK,
-      SEATED_HELPER_FORWARD_DICE_PULLBACK
-    ),
     tokenPickup: createHelper(
       'tokenPickupHelper',
       SEATED_HELPER_RIGHT_TOKEN,
       SEATED_HELPER_UP_TOKEN_PICKUP,
       SEATED_HELPER_FORWARD_TOKEN_PICKUP
     ),
-    tokenCarry: createHelper(
-      'tokenCarryHelper',
-      SEATED_HELPER_RIGHT_TOKEN,
-      SEATED_HELPER_UP_TOKEN_CARRY,
-      SEATED_HELPER_FORWARD_TOKEN_CARRY
-    ),
     tokenPlace: createHelper(
       'tokenPlaceHelper',
       SEATED_HELPER_RIGHT_TOKEN,
       SEATED_HELPER_UP_TOKEN_PLACE,
       SEATED_HELPER_FORWARD_TOKEN_PLACE
-    ),
-    faceCamera: createHeadHelper(
-      'faceCameraHelper',
-      SEATED_HELPER_FACE_CAMERA_RIGHT,
-      SEATED_HELPER_FACE_CAMERA_UP,
-      SEATED_HELPER_FACE_CAMERA_FORWARD
     )
   };
 }
@@ -4441,7 +4402,6 @@ function spinDice(
     targetPosition = new THREE.Vector3(),
     bounceHeight = 0.06,
     handPickupSampler = null,
-    handPullbackSampler = null,
     handReleaseSampler = null
   } = {}
 ) {
@@ -4457,12 +4417,10 @@ function spinDice(
     const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
     const pickupHandTarget = new THREE.Vector3();
-    const pullbackHandTarget = new THREE.Vector3();
     const releaseHandTarget = new THREE.Vector3();
     const easedTarget = new THREE.Vector3();
-    const pickupPhase = 0.24;
-    const pullbackPhase = 0.44;
-    const throwBlendPhase = 0.66;
+    const pickupPhase = 0.32;
+    const throwBlendPhase = 0.58;
 
     const step = () => {
       const now = performance.now();
@@ -4471,44 +4429,19 @@ function spinDice(
       const position = startPos.clone().lerp(endPos, eased);
       const pickupAvailable =
         typeof handPickupSampler === 'function' && handPickupSampler(pickupHandTarget) !== false;
-      const pullbackAvailable =
-        typeof handPullbackSampler === 'function' && handPullbackSampler(pullbackHandTarget) !== false;
       const releaseAvailable =
         typeof handReleaseSampler === 'function' && handReleaseSampler(releaseHandTarget) !== false;
-      const handAvailable = pickupAvailable || releaseAvailable || pullbackAvailable;
-      const handPickup = pickupAvailable
-        ? pickupHandTarget
-        : pullbackAvailable
-          ? pullbackHandTarget
-          : releaseAvailable
-            ? releaseHandTarget
-            : null;
-      const handPullback = pullbackAvailable
-        ? pullbackHandTarget
-        : pickupAvailable
-          ? pickupHandTarget
-          : releaseAvailable
-            ? releaseHandTarget
-            : null;
-      const handRelease = releaseAvailable
-        ? releaseHandTarget
-        : pullbackAvailable
-          ? pullbackHandTarget
-          : pickupAvailable
-            ? pickupHandTarget
-            : null;
+      const handAvailable = pickupAvailable || releaseAvailable;
+      const handPickup = pickupAvailable ? pickupHandTarget : releaseAvailable ? releaseHandTarget : null;
+      const handRelease = releaseAvailable ? releaseHandTarget : pickupAvailable ? pickupHandTarget : null;
       if (handAvailable && handPickup) {
         if (t <= pickupPhase) {
           const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
           easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
           position.copy(easedTarget);
-        } else if (t <= pullbackPhase) {
-          const pullbackT = clamp((t - pickupPhase) / Math.max(1e-4, pullbackPhase - pickupPhase), 0, 1);
-          easedTarget.copy(handPickup).lerp(handPullback ?? handPickup, easeInOutCubic(pullbackT));
-          position.copy(easedTarget);
         } else if (t <= throwBlendPhase) {
-          const throwT = clamp((t - pullbackPhase) / Math.max(1e-4, throwBlendPhase - pullbackPhase), 0, 1);
-          easedTarget.copy(handRelease ?? handPullback ?? handPickup).lerp(endPos, easeOutCubic(throwT));
+          const throwT = clamp((t - pickupPhase) / Math.max(1e-4, throwBlendPhase - pickupPhase), 0, 1);
+          easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
           position.copy(easedTarget);
         }
       }
@@ -6935,28 +6868,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig, actionHelpers });
       });
-      const faceCameraPos = new THREE.Vector3();
-      const faceLookTarget = new THREE.Vector3();
-      if (sampleHumanFaceCameraPose(0, faceCameraPos, faceLookTarget)) {
-        const faceForward = faceLookTarget.clone().sub(faceCameraPos).normalize();
-        if (faceForward.lengthSq() < 1e-6) {
-          faceForward.set(0, 0, -1);
-        }
-        const isPortraitScreen = host.clientHeight > host.clientWidth;
-        const facePullback = isPortraitScreen
-          ? PLAYER_VIEW_FACE_CAMERA_PULLBACK_PORTRAIT
-          : PLAYER_VIEW_FACE_CAMERA_PULLBACK_LANDSCAPE;
-        const faceLift = isPortraitScreen
-          ? PLAYER_VIEW_FACE_CAMERA_LIFT_PORTRAIT
-          : PLAYER_VIEW_FACE_CAMERA_LIFT_LANDSCAPE;
-        const faceCameraPosition = faceCameraPos
-          .clone()
-          .addScaledVector(faceForward, -facePullback)
-          .add(new THREE.Vector3(0, faceLift, 0));
-        camera.position.copy(faceCameraPosition);
-        const blendedTarget = boardLookTarget.clone().lerp(faceLookTarget, 0.35);
-        controls.target.copy(blendedTarget);
-      }
     } catch (error) {
       console.warn('Unable to attach seated human actors for Ludo chairs', error);
     }
@@ -7169,7 +7080,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
-    let pointerTapCandidate = null;
     let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
@@ -7180,17 +7090,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       if (handled) {
         pointerLocked = true;
-        pointerTapCandidate = null;
         if (controls) controls.enabled = false;
         event.preventDefault();
         return;
       }
-      pointerTapCandidate = {
-        pointerId: event.pointerId,
-        startX: clientX,
-        startY: clientY,
-        startedAt: performance.now()
-      };
       if (
         LUDO_CAMERA_CUSTOM_LOOK_ENABLED &&
         !isCamera2d &&
@@ -7215,10 +7118,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
-      if (pointerTapCandidate && pointerTapCandidate.pointerId === event.pointerId) {
-        const drift = Math.hypot(clientX - pointerTapCandidate.startX, clientY - pointerTapCandidate.startY);
-        if (drift > 14) pointerTapCandidate = null;
-      }
       const deltaX = clientX - lookState.lastX;
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
@@ -7247,21 +7146,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       if (pointerLocked) {
         pointerLocked = false;
-        pointerTapCandidate = null;
         if (controls) controls.enabled = true;
-        return;
-      }
-      const tap = pointerTapCandidate;
-      pointerTapCandidate = null;
-      if (
-        tap &&
-        tap.pointerId === event?.pointerId &&
-        event?.clientX != null &&
-        event?.clientY != null &&
-        performance.now() - tap.startedAt <= 340
-      ) {
-        const handled = attemptHumanSelection(event.clientX, event.clientY) || attemptDiceRoll(event.clientX, event.clientY);
-        if (handled) return;
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -7435,10 +7320,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               mode = 'reachToken';
               intensity = segProgress;
               handGrip = 0.05;
-            } else if (helperPhase === 'carry') {
-              mode = 'carryToken';
-              intensity = 0.65 + segProgress * 0.35;
-              handGrip = 1;
             } else if (anim.segment > 0 && anim.segments?.[anim.segment - 1]?.viaHelper === 'pickup') {
               mode = 'gripToken';
               intensity = segProgress;
@@ -8870,10 +8751,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     const token = state.tokens[player][tokenIndex];
     const pickupHelper = new THREE.Vector3();
-    const carryHelper = new THREE.Vector3();
     const placeHelper = new THREE.Vector3();
     const hasPickupHelper = sampleHumanActionHelperPosition(player, 'tokenPickup', pickupHelper);
-    const hasCarryHelper = sampleHumanActionHelperPosition(player, 'tokenCarry', carryHelper);
     const hasPlaceHelper = sampleHumanActionHelperPosition(player, 'tokenPlace', placeHelper);
     const pushPathNode = (collection, position, progress = null, viaHelper = null) => {
       collection.push({
@@ -8887,9 +8766,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       pushPathNode(animatedPath, path[0].position, path[0].progress);
       if (hasPickupHelper && path.length > 1 && path[0].position.distanceTo(pickupHelper) > 1e-4) {
         pushPathNode(animatedPath, pickupHelper.clone(), null, 'pickup');
-      }
-      if (hasCarryHelper && path.length > 1 && pickupHelper.distanceTo(carryHelper) > 1e-4) {
-        pushPathNode(animatedPath, carryHelper.clone(), null, 'carry');
       }
       for (let i = 1; i < path.length; i += 1) {
         if (hasPlaceHelper && i === path.length - 1 && path[i - 1].position.distanceTo(placeHelper) > 1e-4) {
@@ -9366,23 +9242,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return true;
   }, []);
 
-  const sampleHumanFaceCameraPose = useCallback((player, outPosition, outTarget) => {
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    const helper = actorEntry?.actionHelpers?.faceCamera;
-    const rig = actorEntry?.rig;
-    if (!helper?.isObject3D || !outPosition?.isVector3) return false;
-    helper.updateMatrixWorld?.(true);
-    helper.getWorldPosition(outPosition);
-    if (outTarget?.isVector3) {
-      if (rig?.head?.isBone) {
-        rig.head.getWorldPosition(outTarget);
-      } else {
-        outTarget.copy(outPosition);
-      }
-    }
-    return true;
-  }, []);
-
   const rollDice = async () => {
     const state = stateRef.current;
     clearHumanRollTimeout();
@@ -9427,7 +9286,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       targetPosition: baseTarget,
       bounceHeight: dice.userData?.bounceHeight ?? 0.06,
       handPickupSampler: (out) => sampleHumanActionHelperPosition(player, 'dicePickup', out),
-      handPullbackSampler: (out) => sampleHumanActionHelperPosition(player, 'dicePullback', out),
       handReleaseSampler: (out) => sampleHumanActionHelperPosition(player, 'diceRelease', out)
     });
     dice.userData.isRolling = false;
