@@ -22495,7 +22495,7 @@ const shotPowerRef = useRef(0);
             return;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             syncCueShadow();
             return;
@@ -22542,7 +22542,7 @@ const shotPowerRef = useRef(0);
               cueBallFramePos ??
               (snapshotApplied ? cueStick.position.clone() : null);
             if (!cuePos) {
-              cueStick.visible = false;
+              if (cueStick) cueStick.visible = false;
               cueAnimating = false;
               syncCueShadow();
               return;
@@ -22648,7 +22648,7 @@ const shotPowerRef = useRef(0);
           );
           if (!idleSnap || !pullSnap || !impactSnap || !followSnap) {
             if (!applyCueSnapshot()) {
-              cueStick.visible = false;
+              if (cueStick) cueStick.visible = false;
               cueAnimating = false;
               syncCueShadow();
             }
@@ -22813,6 +22813,11 @@ const shotPowerRef = useRef(0);
         const updateCueStroke = (now) => {
           const stroke = cueStrokeStateRef.current;
           if (!cueStick) {
+            const stroke = cueStrokeStateRef.current;
+            if (stroke && !stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             return Boolean(cueAnimating);
           }
           if (!stroke) {
@@ -22822,7 +22827,7 @@ const shotPowerRef = useRef(0);
                 cueStick.position.copy(idlePose.position);
                 cueStick.rotation.x = idlePose.rotationX ?? cueStick.rotation.x;
                 cueStick.rotation.y = idlePose.rotationY ?? cueStick.rotation.y;
-                cueStick.visible = false;
+                if (cueStick) cueStick.visible = false;
                 syncCueShadow();
               }
               cueAnimating = false;
@@ -22833,7 +22838,7 @@ const shotPowerRef = useRef(0);
             return false;
           }
           if (!ENABLE_CUE_STROKE_ANIMATION) {
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
@@ -22883,7 +22888,8 @@ const shotPowerRef = useRef(0);
               Math.sin(strikeProgress * Math.PI) * 0.0014;
 
             const impactThreshold = THREE.MathUtils.clamp(strikeImpactThreshold ?? 0.88, 0.05, 0.995);
-            if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
+            const forceImpactAtStrikeEnd = elapsed >= safeStrikeDuration;
+            if (!stroke.shotApplied && (strikeProgress >= impactThreshold || forceImpactAtStrikeEnd)) {
               stroke.shotApplied = true;
               stroke.onImpact?.();
             }
@@ -22908,10 +22914,14 @@ const shotPowerRef = useRef(0);
               syncCueShadow();
               return true;
             }
+            if (!stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             cueStick.position.copy(idlePos ?? followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
             syncCueShadow();
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -23379,7 +23389,7 @@ const shotPowerRef = useRef(0);
             camera.updateProjectionMatrix();
           }
           if (cueStick) {
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
           }
           cueAnimating = false;
           if (playback.pocketDrops) {
@@ -27466,7 +27476,7 @@ const shotPowerRef = useRef(0);
               startOffset: strokeStartOffset
             };
           }
-          if (ENABLE_CUE_STROKE_ANIMATION) {
+          if (ENABLE_CUE_STROKE_ANIMATION && cueStick) {
             cueStick.visible = true;
             cueAnimating = true;
             lastCueIdlePoseRef.current = {
@@ -27501,7 +27511,7 @@ const shotPowerRef = useRef(0);
             };
           } else {
             applyShotAtImpact(shotImpactPayload);
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
@@ -31714,7 +31724,7 @@ const shotPowerRef = useRef(0);
             !aiTakingShot &&
             !(ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
           ) {
-            cueStick.visible = false;
+            if (cueStick) cueStick.visible = false;
           }
           updateChalkVisibility(null);
         }
