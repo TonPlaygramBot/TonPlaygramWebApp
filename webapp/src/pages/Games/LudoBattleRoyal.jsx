@@ -1729,9 +1729,9 @@ const AI_CHAIR_RADIUS =
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
 // Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
-const CHAIR_GLOBAL_PUSHBACK = 0.31 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.4 * MODEL_SCALE;
 // Keep the bottom/local-player seat distinctly farther out than the rest.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.48 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.58 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1767,10 +1767,10 @@ const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.98;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -2.08 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -2.28 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans slightly farther back on the chair so they stay aligned after outward chair spacing changes.
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.26;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.1;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.34;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.14;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
