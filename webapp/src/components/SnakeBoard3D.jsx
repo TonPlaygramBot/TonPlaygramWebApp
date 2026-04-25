@@ -82,8 +82,8 @@ const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.5;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.52 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.0;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.66 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const HUMAN_FRONT_SIDE_Z = 1;
