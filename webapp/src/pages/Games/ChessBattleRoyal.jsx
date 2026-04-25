@@ -433,7 +433,6 @@ const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
-const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.78;
@@ -443,6 +442,12 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.38; // keep table/board a bit closer to the bottom (local) player on portrait screens
+const SEATED_HUMAN_MOVE_DURATION_MS = 980; // restore faster piece pacing while keeping human hand synced
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.78;
+const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -457,6 +462,28 @@ function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT
     CHAIR_TABLE_GAP_MAX
   );
   return shapedRadius + seatDepth / 2 + clearance + CHAIR_TABLE_PUSHBACK;
+}
+
+function averageBoneWorldPosition(bones = []) {
+  if (!Array.isArray(bones) || !bones.length) return null;
+  const sum = new THREE.Vector3();
+  let count = 0;
+  bones.forEach((bone) => {
+    if (!bone?.getWorldPosition) return;
+    sum.add(bone.getWorldPosition(new THREE.Vector3()));
+    count += 1;
+  });
+  if (!count) return null;
+  return sum.multiplyScalar(1 / count);
+}
+
+function getThreeFingerGripWorldPosition(rig) {
+  if (!rig) return null;
+  const thumbTip = rig.rightThumb?.[rig.rightThumb.length - 1] ?? null;
+  const indexTip = rig.rightIndex?.[rig.rightIndex.length - 1] ?? null;
+  const middleTip = rig.rightMiddle?.[rig.rightMiddle.length - 1] ?? null;
+  const tips = [thumbTip, indexTip, middleTip].filter(Boolean);
+  return averageBoneWorldPosition(tips);
 }
 
 function detectCoarsePointer() {
@@ -2242,7 +2269,7 @@ function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
   return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET + surfaceOffset);
 }
 
-function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
+function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, preferredShiftZ = 0) {
   const box = new THREE.Box3();
   let hasObject = false;
   groups.forEach((obj) => {
@@ -2258,7 +2285,7 @@ function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
   const minShiftZ = -roomHalfDepth - box.min.z;
   const maxShiftZ = roomHalfDepth - box.max.z;
   const shiftX = clamp(-center.x, minShiftX, maxShiftX);
-  const shiftZ = clamp(-center.z, minShiftZ, maxShiftZ);
+  const shiftZ = clamp(-center.z + preferredShiftZ, minShiftZ, maxShiftZ);
   if (Math.abs(shiftX) > 1e-4 || Math.abs(shiftZ) > 1e-4) {
     groups.forEach((obj) => {
       if (!obj) return;
@@ -2538,7 +2565,9 @@ function mapChairOptionToTheme(chairOption) {
     seatColor: chairOption?.primary ?? '#2b314e',
     legColor: chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor,
     chairId: chairOption?.id ?? 'default',
-    preserveMaterials: chairOption?.preserveMaterials
+    preserveMaterials: chairOption?.preserveMaterials,
+    source: chairOption?.source,
+    assetId: chairOption?.assetId
   };
 }
 
@@ -8401,7 +8430,8 @@ function Chess3D({
         const placementOffset = alignArenaContentsToRoom(
           [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)],
           roomHalfWidth,
-          roomHalfDepth
+          roomHalfDepth,
+          TABLE_BOTTOM_PLAYER_BIAS_Z
         );
         const placementDelta = placementOffset.clone().sub(prevPlacement);
         arena.tablePlacementOffset = placementOffset.clone();
@@ -8441,7 +8471,45 @@ function Chess3D({
       const chairTheme = mapChairOptionToTheme(chairOption);
       const currentId = arena.chairMaterials?.chairId ?? 'default';
       const nextId = chairTheme.chairId;
-      if (currentId !== nextId) {
+      const currentChairAssetId = arena.chairAssetId ?? null;
+      const nextChairAssetId = chairTheme.assetId ?? null;
+      const currentChairSource = arena.chairSource ?? null;
+      const nextChairSource = chairTheme.source ?? null;
+      const shouldRebuildChairModel =
+        currentChairAssetId !== nextChairAssetId ||
+        currentChairSource !== nextChairSource;
+
+      if (shouldRebuildChairModel) {
+        void buildChessChairTemplate(chairTheme)
+          .then((chairBuild) => {
+            if (!arenaRef.current) {
+              disposeChessChairMaterials(chairBuild?.materials);
+              return;
+            }
+            arena.chairs?.forEach((chair) => {
+              if (!chair?.group) return;
+              if (chair.chairModel) {
+                chair.group.remove(chair.chairModel);
+                disposeObject3D(chair.chairModel);
+              }
+              const nextModel = chairBuild?.chairTemplate?.clone?.(true) ?? null;
+              if (!nextModel) {
+                chair.chairModel = null;
+                return;
+              }
+              chair.group.add(nextModel);
+              chair.chairModel = nextModel;
+            });
+            disposeChessChairMaterials(arena.chairMaterials);
+            arena.chairMaterials = chairBuild?.materials ?? null;
+            applyChairThemeMaterials(arena, chairTheme);
+            arena.chairSource = nextChairSource;
+            arena.chairAssetId = nextChairAssetId;
+          })
+          .catch((error) => {
+            console.warn('Chess Battle Royal: failed to rebuild chair model', error);
+          });
+      } else if (currentId !== nextId) {
         applyChairThemeMaterials(arena, chairTheme);
       }
     }
@@ -8938,8 +9006,9 @@ function Chess3D({
 
     function makeChair(index) {
       const g = new THREE.Group();
+      let chairModel = null;
       if (chairTemplate) {
-        const chairModel = chairTemplate.clone(true);
+        chairModel = chairTemplate.clone(true);
         g.add(chairModel);
       }
 
@@ -8951,7 +9020,8 @@ function Chess3D({
       g.scale.set(CHAIR_SCALE * CHAIR_WIDTH_SCALE, CHAIR_SCALE, CHAIR_SCALE * CHAIR_WIDTH_SCALE);
       return {
         group: g,
-        anchor: avatarAnchor
+        anchor: avatarAnchor,
+        chairModel
       };
     }
 
@@ -9015,7 +9085,8 @@ function Chess3D({
     const tablePlacementOffset = alignArenaContentsToRoom(
       [tableInfo?.group, chairA.group, chairB.group],
       roomHalfWidth,
-      roomHalfDepth
+      roomHalfDepth,
+      TABLE_BOTTOM_PLAYER_BIAS_Z
     );
     arena.tablePlacementOffset = tablePlacementOffset.clone();
 
@@ -11700,6 +11771,8 @@ function Chess3D({
         boardGroup,
         boardLookTarget,
         chairMaterials,
+        chairSource: chairTheme?.source ?? null,
+        chairAssetId: chairTheme?.assetId ?? null,
         chairs,
         seatAnchors: chairs.map((chair) => chair.anchor),
         sandTimer,
@@ -12153,13 +12226,14 @@ function Chess3D({
       const useHumanHandMove = !!(moverActor?.rig && m);
       if (useHumanHandMove) {
         const nowMs = performance.now();
+        const liveFrom = m.getWorldPosition(new THREE.Vector3());
         seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
           playerIndex: moverSeatIndex,
           mesh: m,
-          from: fromWorldPos.clone(),
+          from: liveFrom.clone(),
           to: toWorldPos.clone(),
           startMs: nowMs + Math.max(0, moveDelayMs),
-          durationMs: 1280
+          durationMs: SEATED_HUMAN_MOVE_DURATION_MS
         });
       }
       if (moveDelayMs > 0) {
@@ -13147,41 +13221,46 @@ function Chess3D({
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (u < 0.28) {
+          if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
-            intensity = clamp01(u / 0.28);
+            intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
-          } else if (u < 0.46) {
+          } else if (u < 0.44) {
             mode = 'gripPiece';
-            intensity = clamp01((u - 0.28) / 0.18);
+            intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
             grip = intensity;
-          } else if (u < 0.82) {
+          } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
             mode = 'carryPiece';
-            intensity = clamp01((u - 0.46) / 0.36);
+            intensity = clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44));
             grip = 1;
           } else {
             mode = 'placePiece';
-            intensity = clamp01((u - 0.82) / 0.18);
+            intensity = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
             grip = 1 - intensity * 0.9;
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip);
           if (action?.mesh) {
-            const handWorld = entry.rig.rightHand
-              ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
-              : action.from.clone();
-            const holdWorld = handWorld.clone();
-            holdWorld.y += SEATED_HUMAN_HAND_PIECE_LIFT;
+            const gripWorld =
+              getThreeFingerGripWorldPosition(entry.rig) ||
+              (entry.rig.rightHand
+                ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
+                : action.from.clone());
+            const holdWorld = gripWorld.clone();
+            holdWorld.y += SEATED_HUMAN_HAND_GRIP_HEIGHT;
             holdWorld.z += entry.playerIndex === 0 ? -SEATED_HUMAN_HAND_PIECE_FORWARD : SEATED_HUMAN_HAND_PIECE_FORWARD;
-            if (u < 0.3) {
-              const pickupT = smoothEase(clamp01(u / 0.3));
+            if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+              const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
               const pickupArc = action.from.clone().lerp(holdWorld, pickupT);
               pickupArc.y += Math.sin(pickupT * Math.PI) * SEATED_HUMAN_PICK_LIFT_HEIGHT;
               action.mesh.position.copy(pickupArc);
-            } else if (u < 0.82) {
+            } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
               action.mesh.position.copy(holdWorld);
             } else {
-              const dropT = clamp01((u - 0.82) / 0.18);
-              action.mesh.position.lerpVectors(holdWorld, action.to, smoothEase(dropT));
+              const dropT = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
+              const easedDropT = smoothEase(dropT);
+              const landing = action.to.clone();
+              landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
+              action.mesh.position.lerpVectors(holdWorld, landing, easedDropT);
             }
           }
           if (u >= 1) {
