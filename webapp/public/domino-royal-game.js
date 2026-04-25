@@ -7674,9 +7674,13 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
 ]);
 const HUMAN_CHARACTER_DISABLED = false;
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -1.42 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
 const seatedHumans = [];
 const seatFaceAnchors = [];
 const seatCharacterHelpers = [];
@@ -7737,10 +7741,22 @@ function buildHumanBoneMap(root) {
     rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
     leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
     rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
+    leftFoot: findModelBone(bones, ['leftfoot', 'mixamorigleftfoot']),
+    rightFoot: findModelBone(bones, ['rightfoot', 'mixamorigrightfoot']),
     leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
     leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
     rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
-    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf'])
+    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf']),
+    leftThumb: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('lefthandthumb')).slice(0, 4),
+    leftIndex: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('lefthandindex')).slice(0, 4),
+    leftMiddle: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('lefthandmiddle')).slice(0, 4),
+    leftRing: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('lefthandring')).slice(0, 4),
+    leftPinky: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('lefthandpinky')).slice(0, 4),
+    rightThumb: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('righthandthumb')).slice(0, 4),
+    rightIndex: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('righthandindex')).slice(0, 4),
+    rightMiddle: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('righthandmiddle')).slice(0, 4),
+    rightRing: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('righthandring')).slice(0, 4),
+    rightPinky: bones.filter((bone) => normalizeHumanBoneName(bone.name).includes('righthandpinky')).slice(0, 4)
   };
   map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
   map.spine1 ??= map.spine2 ?? map.spine;
@@ -7754,78 +7770,116 @@ function buildHumanBoneMap(root) {
   return map;
 }
 
-function applyLoadedHumanPose(seatHuman, timeSeconds, actionStrength = 0, knockStrength = 0) {
+function applyFingerCurl(rest, chain = [], amount = 0, sideSpread = 0) {
+  const grip = THREE.MathUtils.clamp(amount, 0, 1);
+  chain.forEach((bone, index) => {
+    const curl = index === 0 ? -0.38 : -0.72;
+    const side = index === 0 ? sideSpread : sideSpread * 0.25;
+    composeModelBone(rest, bone, new THREE.Euler(curl * grip, 0.03 * grip, side * grip, 'XYZ'));
+  });
+}
+
+function applyHandGrip(rest, bones, side = 'right', grip = 0.35) {
+  const safeGrip = THREE.MathUtils.clamp(grip, 0, 1);
+  const prefix = side === 'left' ? 'left' : 'right';
+  applyFingerCurl(rest, bones[`${prefix}Index`], safeGrip, side === 'left' ? 0.08 : -0.08);
+  applyFingerCurl(rest, bones[`${prefix}Middle`], safeGrip, side === 'left' ? 0.02 : -0.02);
+  applyFingerCurl(rest, bones[`${prefix}Ring`], safeGrip, side === 'left' ? -0.04 : 0.04);
+  applyFingerCurl(rest, bones[`${prefix}Pinky`], safeGrip, side === 'left' ? -0.08 : 0.08);
+  (bones[`${prefix}Thumb`] ?? []).forEach((bone, index) => {
+    const fold = index === 0 ? -0.28 : -0.48;
+    const thumbY = side === 'left' ? 0.24 : -0.24;
+    const thumbZ = side === 'left' ? -0.22 : 0.22;
+    composeModelBone(rest, bone, new THREE.Euler(fold * safeGrip, thumbY * safeGrip, thumbZ * safeGrip, 'XYZ'));
+  });
+}
+
+function applyLoadedHumanPose(seatHuman, timeSeconds, mode = 'idle', intensity = 1, handGrip = 0.35, leanForward = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman;
   rest.forEach((quat, bone) => bone.quaternion.copy(quat));
   const breathe = Math.sin(timeSeconds * 1.1) * 0.018;
+  const t = THREE.MathUtils.clamp(intensity, 0, 1);
+  const lean = THREE.MathUtils.clamp(leanForward, 0, 1);
   root.scale.setScalar(baseScale);
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.12 - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.34 + breathe - knockStrength * 0.15, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.22 - knockStrength * 0.08, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12 - knockStrength * 0.03, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.hips, new THREE.Euler(-0.14 - lean * 0.12, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.32 + breathe + lean * 0.16, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.2 + lean * 0.08, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.12 + lean * 0.04, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.08, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.08, Math.sin(timeSeconds * 0.33) * 0.03, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.5, 0.13, 0.1, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.5, -0.13, -0.1, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
   composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.56, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
 
-  const rightReach = actionStrength;
-  const rightKnock = knockStrength;
-  // Baseline: both arms stay in a stable "holding dominos" seated pose.
-  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.14, 0.04, -0.34, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.84, 0.18, -0.36, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.1, 0.16, -0.14, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.2, 0.08, -0.04, 'XYZ'));
+  // Base two-handed domino hold (both hands on tile sides).
+  composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.24, 0.05, -0.44, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.94, 0.18, -0.44, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-1.2, 0.16, -0.22, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.24, 0.08, -0.04, 'XYZ'));
 
-  let targetBiasY = -0.04;
-  let targetBiasZ = 0.18;
-  if (seatHuman?.action?.targetWorld && seatHuman?.root?.parent?.worldToLocal) {
-    const targetLocal = seatHuman.root.parent.worldToLocal(
-      seatHuman.action.targetWorld.clone()
-    );
-    const horizontal = Math.hypot(targetLocal.x, targetLocal.z) || 1;
-    targetBiasY = THREE.MathUtils.clamp(targetLocal.x / horizontal, -0.32, 0.32);
-    targetBiasZ = THREE.MathUtils.clamp(-targetLocal.z / horizontal, -0.34, 0.34);
+  let shoulder = new THREE.Euler(-0.28, -0.06, -0.76, 'XYZ');
+  let upperArm = new THREE.Euler(-0.82, -0.14, 0.24, 'XYZ');
+  let foreArm = new THREE.Euler(-1.04, -0.08, 0.16, 'XYZ');
+  let hand = new THREE.Euler(-0.24, 0.06, -0.06, 'XYZ');
+  if (mode === 'reach') {
+    shoulder = new THREE.Euler(-0.72, -0.16, -1.02, 'XYZ');
+    upperArm = new THREE.Euler(-0.66, -0.24, -0.06, 'XYZ');
+    foreArm = new THREE.Euler(-1.18, -0.12, -0.16, 'XYZ');
+    hand = new THREE.Euler(-0.32, 0.14, -0.18, 'XYZ');
+  } else if (mode === 'grip') {
+    shoulder = new THREE.Euler(-0.82, -0.14, -0.98, 'XYZ');
+    upperArm = new THREE.Euler(-0.74, -0.2, -0.03, 'XYZ');
+    foreArm = new THREE.Euler(-1.06, -0.08, -0.08, 'XYZ');
+    hand = new THREE.Euler(-0.34, 0.12, -0.14, 'XYZ');
+  } else if (mode === 'carry') {
+    shoulder = new THREE.Euler(-0.62, -0.18, -0.58, 'XYZ');
+    upperArm = new THREE.Euler(-1.04, -0.18, 0.34, 'XYZ');
+    foreArm = new THREE.Euler(-0.92, -0.1, 0.22, 'XYZ');
+    hand = new THREE.Euler(-0.26, 0.08, 0.05, 'XYZ');
+  } else if (mode === 'place') {
+    shoulder = new THREE.Euler(-0.94, -0.1, -0.94, 'XYZ');
+    upperArm = new THREE.Euler(-0.58, -0.22, -0.04, 'XYZ');
+    foreArm = new THREE.Euler(-1.2, -0.12, -0.14, 'XYZ');
+    hand = new THREE.Euler(-0.38, 0.14, -0.16, 'XYZ');
+  } else if (mode === 'knock') {
+    shoulder = new THREE.Euler(-0.22, -0.12, -0.34, 'XYZ');
+    upperArm = new THREE.Euler(-0.14, -0.34, 0.18, 'XYZ');
+    foreArm = new THREE.Euler(-0.58, -0.08, 0.06, 'XYZ');
+    hand = new THREE.Euler(-0.08, 0.03, 0.04, 'XYZ');
   }
 
-  composeModelBone(
-    rest,
-    bones.rightShoulder,
-    new THREE.Euler(
-      -0.18 + rightReach * 0.58 - rightKnock * 0.2,
-      -0.18 + targetBiasY * 0.52,
-      0.28 + targetBiasZ * 0.36,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightArm,
-    new THREE.Euler(
-      -0.86 + rightReach * 1.78 + rightKnock * 1.06,
-      -0.2 - rightReach * 0.24 + targetBiasY * 0.4,
-      0.24 + targetBiasZ * 0.34,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightForeArm,
-    new THREE.Euler(
-      -1.22 + rightReach * 1.4 + rightKnock * 1.65,
-      -0.12 + targetBiasY * 0.35,
-      0.14 + targetBiasZ * 0.2,
-      'XYZ'
-    )
-  );
-  composeModelBone(
-    rest,
-    bones.rightHand,
-    new THREE.Euler(-0.24 + rightReach * 0.7, 0.06 + targetBiasY * 0.22, -0.06, 'XYZ')
-  );
+  composeModelBone(rest, bones.rightShoulder, new THREE.Euler(
+    THREE.MathUtils.lerp(-0.28, shoulder.x, t),
+    THREE.MathUtils.lerp(-0.06, shoulder.y, t),
+    THREE.MathUtils.lerp(-0.76, shoulder.z, t),
+    'XYZ'
+  ));
+  composeModelBone(rest, bones.rightArm, new THREE.Euler(
+    THREE.MathUtils.lerp(-0.82, upperArm.x, t),
+    THREE.MathUtils.lerp(-0.14, upperArm.y, t),
+    THREE.MathUtils.lerp(0.24, upperArm.z, t),
+    'XYZ'
+  ));
+  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(
+    THREE.MathUtils.lerp(-1.04, foreArm.x, t),
+    THREE.MathUtils.lerp(-0.08, foreArm.y, t),
+    THREE.MathUtils.lerp(0.16, foreArm.z, t),
+    'XYZ'
+  ));
+  composeModelBone(rest, bones.rightHand, new THREE.Euler(
+    THREE.MathUtils.lerp(-0.24, hand.x, t),
+    THREE.MathUtils.lerp(0.06, hand.y, t),
+    THREE.MathUtils.lerp(-0.06, hand.z, t),
+    'XYZ'
+  ));
+
+  applyHandGrip(rest, bones, 'left', THREE.MathUtils.lerp(0.58, 0.72, t));
+  applyHandGrip(rest, bones, 'right', THREE.MathUtils.lerp(0.38, handGrip, t));
 }
 
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
@@ -7934,11 +7988,28 @@ function fitHumanToSeat(root, seatHelper, chairSize) {
     0.9,
     chairSize.y * 2.7 * 1.02
   );
-  const targetHeightFromLudo = 1.74 * 3.24;
+  const targetHeightFromLudo =
+    (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) *
+    SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
   const targetHeight = Math.max(targetHeightFromChair, targetHeightFromLudo);
   const scaleFix = targetHeight / baseHeight;
   root.scale.multiplyScalar(scaleFix);
   root.position.copy(seatHelper.position);
+}
+
+function alignSeatedHumanFeetToGroundPlane(actor, bones, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
+  if (!actor?.isObject3D) return;
+  actor.updateMatrixWorld(true);
+  const footBones = [bones?.leftFoot, bones?.rightFoot].filter((bone) => bone?.isBone);
+  if (!footBones.length) return;
+  let minFootY = Infinity;
+  footBones.forEach((bone) => {
+    const worldPos = bone.getWorldPosition(new THREE.Vector3());
+    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
+  });
+  if (!Number.isFinite(minFootY)) return;
+  actor.position.y -= minFootY - clearance;
+  actor.updateMatrixWorld(true);
 }
 
 function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null) {
@@ -7952,6 +8023,15 @@ function triggerSeatHumanAction(seatIndex, action = 'place', targetWorld = null)
       type: 'knock',
       startMs: now,
       durationMs: 720,
+      targetWorld: actionTarget
+    };
+    return;
+  }
+  if (action === 'draw') {
+    seatHuman.action = {
+      type: 'draw',
+      startMs: now,
+      durationMs: 1050,
       targetWorld: actionTarget
     };
     return;
@@ -7970,23 +8050,50 @@ function syncSeatHumans(nowMs = performance.now()) {
   const nowSeconds = nowMs / 1000;
   seatedHumans.forEach((seatHuman) => {
     if (!seatHuman?.root) return;
-    let placeStrength = 0;
-    let knockStrength = 0;
+    let mode = 'idle';
+    let intensity = 0;
+    let grip = 0.34;
+    let lean = 0;
     if (seatHuman.action) {
       const progress = Math.min(
         1,
         Math.max(0, (nowMs - seatHuman.action.startMs) / Math.max(1, seatHuman.action.durationMs))
       );
-      if (seatHuman.action.type === 'place') {
-        placeStrength = Math.sin(progress * Math.PI);
+      if (seatHuman.action.type === 'draw' || seatHuman.action.type === 'place') {
+        if (progress < 0.28) {
+          mode = 'reach';
+          intensity = progress / 0.28;
+          grip = 0.3;
+        } else if (progress < 0.46) {
+          mode = 'grip';
+          intensity = (progress - 0.28) / 0.18;
+          grip = 0.86;
+        } else if (progress < 0.76) {
+          mode = 'carry';
+          intensity = (progress - 0.46) / 0.3;
+          grip = 0.82;
+          lean = 0.52;
+        } else {
+          mode = seatHuman.action.type === 'draw' ? 'carry' : 'place';
+          intensity = (progress - 0.76) / 0.24;
+          grip = seatHuman.action.type === 'draw' ? 0.66 : 0.76;
+          lean = seatHuman.action.type === 'draw' ? 0.42 : 0.78;
+        }
       } else if (seatHuman.action.type === 'knock') {
-        knockStrength = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
+        mode = 'knock';
+        intensity = Math.sin(progress * Math.PI * 3.4) * (1 - progress * 0.55);
+        grip = 0.18;
       }
       if (progress >= 1) {
         seatHuman.action = null;
       }
     }
-    applyLoadedHumanPose(seatHuman, nowSeconds, placeStrength, knockStrength);
+    if (seatHuman?.action?.targetWorld && seatHuman?.root?.parent?.worldToLocal) {
+      const targetLocal = seatHuman.root.parent.worldToLocal(seatHuman.action.targetWorld.clone());
+      const distance = Math.hypot(targetLocal.x, targetLocal.z);
+      lean = Math.max(lean, THREE.MathUtils.clamp((distance - 0.2) * 0.5, 0, 0.9));
+    }
+    applyLoadedHumanPose(seatHuman, nowSeconds, mode, intensity, grip, lean);
   });
 }
 
@@ -8027,6 +8134,7 @@ async function placeSeatedHumans(seatBottomOffset, chairSize) {
     seatHuman.bones = bones;
     seatHuman.rest = captureModelRestPose(root);
     seatHuman.baseScale = 1;
+    alignSeatedHumanFeetToGroundPlane(root, bones);
 
     seatedHumans[index] = seatHuman;
     triggerSeatHumanAction(index, 'place');
@@ -9242,9 +9350,11 @@ function scoreMove(player, move) {
 function cpuDrawUntilPlayable(player) {
   let drew = false;
   while (boneyard.length) {
+    const drawStart = getBoneyardTopWorld();
     const tile = drawTileFromStock();
     if (!tile) break;
     player.hand.push(tile);
+    triggerSeatHumanAction(current, 'draw', drawStart || null);
     drew = true;
     if (!ends) break;
     const { L, R } = validSidesFor(tile);
@@ -10103,6 +10213,7 @@ if (btnDraw) {
     const t = drawTileFromStock();
     if (!t) break;
     players[human].hand.push(t);
+    triggerSeatHumanAction(human, 'draw', startWorld || null);
     spawnDrawAnimation(startWorld, human);
     drewTile = true;
     const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
