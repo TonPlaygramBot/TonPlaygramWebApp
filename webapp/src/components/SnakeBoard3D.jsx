@@ -79,15 +79,13 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-// Portrait-screen tuning for Snake seated humans:
-// - restore the compact pre-PR seated scale
-// - keep the previous seat-facing orientation
-// - lower the avatar so the feet meet the HDRI floor plane visually
-const SEATED_HUMAN_SCALE = 1.75;
-const SEATED_HUMAN_SEAT_X_OFFSET = 0.22;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.84;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -0.4;
-const SEATED_HUMAN_FACING_Y = Math.PI;
+// Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.24;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.38 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const HUMAN_TORSO_FACE_BOARD_YAW = 0;
@@ -3403,11 +3401,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     group.add(avatarAnchor);
 
     const humanAnchor = new THREE.Object3D();
-    humanAnchor.position.set(
-      SEATED_HUMAN_SEAT_X_OFFSET,
-      SEATED_HUMAN_SEAT_Y_OFFSET,
-      SEATED_HUMAN_SEAT_Z_OFFSET
-    );
+    humanAnchor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
     humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
     group.add(humanAnchor);
 
@@ -3439,7 +3433,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
         const instance = cloneSkeleton(humanTemplate);
         applyOriginalTextureMapping(instance);
         instance.name = `SnakeSeatHuman_${seatIndex}`;
-        const baseScale = SEATED_HUMAN_SCALE;
+        const baseScale =
+          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
         instance.scale.setScalar(baseScale);
         chair.humanAnchor.add(instance);
         seatedHumans[seatIndex] = {
