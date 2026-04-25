@@ -443,6 +443,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.55;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.38; // move table/board slightly toward the local bottom player on portrait screens
 
 
 function resolveChairDistanceForDirection(tableInfo, direction, seatDepth = SEAT_DEPTH) {
@@ -606,14 +607,33 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   if (!rig) return;
   const grip = clamp(gripAmount, 0, 1);
   const open = 1 - grip;
+  // Precision pinch: thumb + index + middle do the majority of the grip, ring/pinky stay softer.
   curlFingerChain(rig, rig.rightIndex, grip, -0.08 + 0.08 * open);
-  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
-  curlFingerChain(rig, rig.rightRing, grip, 0.04 - 0.04 * open);
-  curlFingerChain(rig, rig.rightPinky, grip, 0.09 - 0.06 * open);
+  curlFingerChain(rig, rig.rightMiddle, grip, -0.04);
+  curlFingerChain(rig, rig.rightRing, grip * 0.4, 0.04 - 0.04 * open);
+  curlFingerChain(rig, rig.rightPinky, grip * 0.28, 0.09 - 0.06 * open);
   (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.28 : -0.48;
-    addBoneRot(rig, bone, fold * grip, -0.24 * grip, 0.22 * grip);
+    const fold = index === 0 ? -0.32 : -0.58;
+    addBoneRot(rig, bone, fold * grip, -0.3 * grip, 0.24 * grip);
   });
+}
+
+function getRightHandPinchPointWorld(rig, fallback = new THREE.Vector3()) {
+  if (!rig) return fallback.clone();
+  const tips = [
+    rig.rightThumb?.[rig.rightThumb.length - 1],
+    rig.rightIndex?.[rig.rightIndex.length - 1],
+    rig.rightMiddle?.[rig.rightMiddle.length - 1]
+  ].filter(Boolean);
+  if (!tips.length) {
+    return rig.rightHand ? rig.rightHand.getWorldPosition(new THREE.Vector3()) : fallback.clone();
+  }
+  const point = new THREE.Vector3();
+  tips.forEach((bone) => {
+    point.add(bone.getWorldPosition(new THREE.Vector3()));
+  });
+  point.multiplyScalar(1 / tips.length);
+  return point;
 }
 
 function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
@@ -2258,7 +2278,8 @@ function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
   const minShiftZ = -roomHalfDepth - box.min.z;
   const maxShiftZ = roomHalfDepth - box.max.z;
   const shiftX = clamp(-center.x, minShiftX, maxShiftX);
-  const shiftZ = clamp(-center.z, minShiftZ, maxShiftZ);
+  const biasedCenterZ = center.z - TABLE_BOTTOM_PLAYER_BIAS_Z;
+  const shiftZ = clamp(-biasedCenterZ, minShiftZ, maxShiftZ);
   if (Math.abs(shiftX) > 1e-4 || Math.abs(shiftZ) > 1e-4) {
     groups.forEach((obj) => {
       if (!obj) return;
@@ -8442,7 +8463,45 @@ function Chess3D({
       const currentId = arena.chairMaterials?.chairId ?? 'default';
       const nextId = chairTheme.chairId;
       if (currentId !== nextId) {
-        applyChairThemeMaterials(arena, chairTheme);
+        const shouldRebuildChairModel = Boolean(chairTheme?.preserveMaterials || arena.chairTheme?.preserveMaterials);
+        if (shouldRebuildChairModel && Array.isArray(arena.chairs) && arena.chairs.length) {
+          const rebuildToken = Symbol('chairThemeSwap');
+          arena.pendingChairRebuildToken = rebuildToken;
+          void buildChessChairTemplate(chairTheme)
+            .then((chairBuild) => {
+              if (!arenaRef.current || arena.pendingChairRebuildToken !== rebuildToken) return;
+              const chairTemplate = chairBuild?.chairTemplate ?? null;
+              const nextChairMaterials = chairBuild?.materials ?? null;
+              if (chairTemplate) {
+                arena.chairs.forEach((chair) => {
+                  if (!chair?.group) return;
+                  const removable = [];
+                  chair.group.children.forEach((child) => {
+                    if (child?.userData?.chairModel) removable.push(child);
+                  });
+                  removable.forEach((child) => {
+                    chair.group.remove(child);
+                    disposeObject3D(child);
+                  });
+                  const chairModel = chairTemplate.clone(true);
+                  chairModel.userData = { ...(chairModel.userData || {}), chairModel: true };
+                  chair.group.add(chairModel);
+                });
+              }
+              if (arena.chairMaterials && arena.chairMaterials !== nextChairMaterials) {
+                disposeChessChairMaterials(arena.chairMaterials);
+              }
+              arena.chairMaterials = nextChairMaterials;
+              applyChairThemeMaterials(arena, chairTheme);
+              arena.chairTheme = chairTheme;
+            })
+            .catch((error) => {
+              console.warn('Chess Battle Royal: failed to rebuild chair model', error);
+            });
+        } else {
+          applyChairThemeMaterials(arena, chairTheme);
+          arena.chairTheme = chairTheme;
+        }
       }
     }
 
@@ -8940,6 +8999,7 @@ function Chess3D({
       const g = new THREE.Group();
       if (chairTemplate) {
         const chairModel = chairTemplate.clone(true);
+        chairModel.userData = { ...(chairModel.userData || {}), chairModel: true };
         g.add(chairModel);
       }
 
@@ -11700,6 +11760,7 @@ function Chess3D({
         boardGroup,
         boardLookTarget,
         chairMaterials,
+        chairTheme,
         chairs,
         seatAnchors: chairs.map((chair) => chair.anchor),
         sandTimer,
@@ -11723,7 +11784,8 @@ function Chess3D({
         lastAppliedAppearance: normalizedAppearance,
         applyPieceSetAssets,
         setProceduralBoardVisible,
-        usingProceduralBoard: proceduralBoardVisible
+        usingProceduralBoard: proceduralBoardVisible,
+        pendingChairRebuildToken: null
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -12159,7 +12221,7 @@ function Chess3D({
           from: fromWorldPos.clone(),
           to: toWorldPos.clone(),
           startMs: nowMs + Math.max(0, moveDelayMs),
-          durationMs: 1280
+          durationMs: 920
         });
       }
       if (moveDelayMs > 0) {
@@ -13166,12 +13228,12 @@ function Chess3D({
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip);
           if (action?.mesh) {
-            const handWorld = entry.rig.rightHand
-              ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
-              : action.from.clone();
-            const holdWorld = handWorld.clone();
+            const gripWorld = getRightHandPinchPointWorld(entry.rig, action.from);
+            const holdWorld = gripWorld.clone();
             holdWorld.y += SEATED_HUMAN_HAND_PIECE_LIFT;
-            holdWorld.z += entry.playerIndex === 0 ? -SEATED_HUMAN_HAND_PIECE_FORWARD : SEATED_HUMAN_HAND_PIECE_FORWARD;
+            holdWorld.z +=
+              entry.playerIndex === 0 ? -SEATED_HUMAN_HAND_PIECE_FORWARD : SEATED_HUMAN_HAND_PIECE_FORWARD;
+            const liveTo = action.to?.clone?.() || action.mesh.position.clone();
             if (u < 0.3) {
               const pickupT = smoothEase(clamp01(u / 0.3));
               const pickupArc = action.from.clone().lerp(holdWorld, pickupT);
@@ -13181,7 +13243,7 @@ function Chess3D({
               action.mesh.position.copy(holdWorld);
             } else {
               const dropT = clamp01((u - 0.82) / 0.18);
-              action.mesh.position.lerpVectors(holdWorld, action.to, smoothEase(dropT));
+              action.mesh.position.lerpVectors(holdWorld, liveTo, smoothEase(dropT));
             }
           }
           if (u >= 1) {
