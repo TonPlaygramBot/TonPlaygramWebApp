@@ -366,13 +366,14 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_FOOTPRINT_SHRINK = 0.82; // Keep chair height, but make chair body visually smaller on screen.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
-const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
-const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
-const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
-const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR;
@@ -419,11 +420,14 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.4;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.205 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.75;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.295 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
+const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
+const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -12055,7 +12059,7 @@ function Chess3D({
           from: fromWorldPos.clone(),
           to: toWorldPos.clone(),
           startMs: nowMs + Math.max(0, moveDelayMs),
-          durationMs: 900
+          durationMs: 1280
         });
       }
       if (moveDelayMs > 0) {
@@ -13029,40 +13033,41 @@ function Chess3D({
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (u < 0.25) {
+          if (u < 0.28) {
             mode = 'reachPiece';
-            intensity = clamp01(u / 0.25);
+            intensity = clamp01(u / 0.28);
             grip = 0.05;
-          } else if (u < 0.4) {
+          } else if (u < 0.46) {
             mode = 'gripPiece';
-            intensity = clamp01((u - 0.25) / 0.15);
+            intensity = clamp01((u - 0.28) / 0.18);
             grip = intensity;
-          } else if (u < 0.78) {
+          } else if (u < 0.82) {
             mode = 'carryPiece';
-            intensity = clamp01((u - 0.4) / 0.38);
+            intensity = clamp01((u - 0.46) / 0.36);
             grip = 1;
           } else {
             mode = 'placePiece';
-            intensity = clamp01((u - 0.78) / 0.22);
+            intensity = clamp01((u - 0.82) / 0.18);
             grip = 1 - intensity * 0.9;
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip);
           if (action?.mesh) {
-            if (u < 0.25) {
-              const lift = action.from.clone();
-              lift.y += 0.22 * clamp01(u / 0.25);
-              action.mesh.position.copy(lift);
-            } else if (u < 0.82 && entry.rig.rightHand) {
-              const handWorld = entry.rig.rightHand.getWorldPosition(new THREE.Vector3());
-              handWorld.y -= 0.03;
-              handWorld.z += entry.playerIndex === 0 ? -0.01 : 0.01;
-              action.mesh.position.copy(handWorld);
+            const handWorld = entry.rig.rightHand
+              ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
+              : action.from.clone();
+            const holdWorld = handWorld.clone();
+            holdWorld.y += SEATED_HUMAN_HAND_PIECE_LIFT;
+            holdWorld.z += entry.playerIndex === 0 ? -SEATED_HUMAN_HAND_PIECE_FORWARD : SEATED_HUMAN_HAND_PIECE_FORWARD;
+            if (u < 0.3) {
+              const pickupT = smoothEase(clamp01(u / 0.3));
+              const pickupArc = action.from.clone().lerp(holdWorld, pickupT);
+              pickupArc.y += Math.sin(pickupT * Math.PI) * SEATED_HUMAN_PICK_LIFT_HEIGHT;
+              action.mesh.position.copy(pickupArc);
+            } else if (u < 0.82) {
+              action.mesh.position.copy(holdWorld);
             } else {
               const dropT = clamp01((u - 0.82) / 0.18);
-              const handWorld = entry.rig.rightHand
-                ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
-                : action.from;
-              action.mesh.position.lerpVectors(handWorld, action.to, dropT);
+              action.mesh.position.lerpVectors(holdWorld, action.to, smoothEase(dropT));
             }
           }
           if (u >= 1) {
