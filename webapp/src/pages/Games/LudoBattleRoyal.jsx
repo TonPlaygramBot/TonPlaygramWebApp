@@ -1729,9 +1729,9 @@ const AI_CHAIR_RADIUS =
   TABLE_EDGE_INSET -
   CHAIR_INWARD_PULL;
 // Pull all chairs (with seated humans) farther away from the table edge for clearer portrait spacing.
-const CHAIR_GLOBAL_PUSHBACK = 0.48 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.62 * MODEL_SCALE;
 // Keep the bottom/local-player seat distinctly farther out than the rest.
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.62 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.76 * MODEL_SCALE;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -1765,15 +1765,15 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.98;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.55;
 // Push seated humans further downward so hips are clearly seated and feet stay grounded on portrait gameplay.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -2.3 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -2.65 * MODEL_SCALE * STOOL_SCALE;
 // Shift humans farther back on the chair so they appear more outward from the table in portrait gameplay.
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.34;
-const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.14;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 // Keep feet slightly below the strict grounding plane to reinforce the lower seated posture.
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.76 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.82 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 const SEATED_HELPER_FORWARD_DICE_PICKUP = 0.052 * MODEL_SCALE;
@@ -1857,11 +1857,11 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.56;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.74;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.3;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.12;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.5;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.62;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.24 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
@@ -1878,9 +1878,9 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
   targetLift: 0.04 * MODEL_SCALE
 });
-const CAMERA_EXTRA_PULLBACK = 0.04;
-const CAMERA_EXTRA_LIFT = 0.076;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.074;
+const CAMERA_EXTRA_PULLBACK = 0.08;
+const CAMERA_EXTRA_LIFT = 0.11;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.12;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -3164,8 +3164,8 @@ const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAMERA_EXTRA_ZOOM_IN = 0.82;
 const CAMERA_EXTRA_ZOOM_OUT = 1.32;
-const INITIAL_CAMERA_DISTANCE_FACTOR = 0.74;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.68;
+const INITIAL_CAMERA_DISTANCE_FACTOR = 0.8;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.78;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -3178,7 +3178,8 @@ const CAM = {
 const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
-const CAMERA_3D_HEIGHT_BOOST = 0.084 * MODEL_SCALE;
+const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
+const DICE_TAP_MIN_RADIUS_PX = 56;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -6551,6 +6552,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let animationId = 0;
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
+    const diceBounds = new THREE.Box3();
+    const diceCenterWorld = new THREE.Vector3();
+    const diceEdgeWorld = new THREE.Vector3();
+    const diceCenterNdc = new THREE.Vector3();
+    const diceEdgeNdc = new THREE.Vector3();
+    const cameraRight = new THREE.Vector3();
 
     let cancelled = false;
     let onPointerDown = null;
@@ -6968,6 +6975,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObject(dice, true);
       if (hit.length) {
+        rollFn();
+        return true;
+      }
+      // Mobile-safe fallback: allow taps near the projected dice center even if tiny meshes miss the raycast.
+      diceBounds.setFromObject(dice);
+      if (!Number.isFinite(diceBounds.min.x) || !Number.isFinite(diceBounds.max.x)) return false;
+      diceBounds.getCenter(diceCenterWorld);
+      const diceRadiusWorld = Math.max(
+        0.001,
+        diceBounds.getSize(diceEdgeWorld).length() * 0.5
+      );
+      diceCenterNdc.copy(diceCenterWorld).project(camera);
+      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      diceEdgeWorld
+        .copy(diceCenterWorld)
+        .addScaledVector(cameraRight, diceRadiusWorld);
+      diceEdgeNdc.copy(diceEdgeWorld).project(camera);
+      const centerPxX = ((diceCenterNdc.x + 1) * 0.5) * rect.width + rect.left;
+      const centerPxY = ((1 - diceCenterNdc.y) * 0.5) * rect.height + rect.top;
+      const edgePxX = ((diceEdgeNdc.x + 1) * 0.5) * rect.width + rect.left;
+      const projectedRadiusPx = Math.max(Math.abs(edgePxX - centerPxX), DICE_TAP_MIN_RADIUS_PX);
+      const pointerDistance = Math.hypot(clientX - centerPxX, clientY - centerPxY);
+      if (pointerDistance <= projectedRadiusPx * 1.2) {
         rollFn();
         return true;
       }
