@@ -129,38 +129,38 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
-    id: 'mixamo-grace',
-    label: 'Grace',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Grace.glb'],
-    thumbnail: swatchThumbnail(['#7e22ce', '#4c1d95', '#f0c9aa']),
+    id: 'webgl-vietnam-human',
+    label: 'Vietnam Human',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    thumbnail: swatchThumbnail(['#1f6feb', '#0f172a', '#d7b59a']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
-    id: 'mixamo-fred',
-    label: 'Fred',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Fred.glb'],
-    thumbnail: swatchThumbnail(['#78350f', '#1f2937', '#be8f67']),
+    id: 'webgl-human-body-a',
+    label: 'Human Body A',
+    modelUrls: ['https://raw.githubusercontent.com/msorkhpar/3d-human-model-vite/main/body.glb'],
+    thumbnail: swatchThumbnail(['#2563eb', '#111827', '#c8a88b']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
-    id: 'mixamo-ellen',
-    label: 'Ellen',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Ellen.glb'],
-    thumbnail: swatchThumbnail(['#0369a1', '#1f2937', '#ebc3a2']),
+    id: 'webgl-human-body-b',
+    label: 'Human Body B',
+    modelUrls: ['https://raw.githubusercontent.com/bddicken/humanbody/main/body.glb'],
+    thumbnail: swatchThumbnail(['#0ea5e9', '#1e293b', '#c69f80']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
-    id: 'mixamo-diego',
-    label: 'Diego',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Diego.glb'],
-    thumbnail: swatchThumbnail(['#166534', '#1f2937', '#bf8a61']),
+    id: 'webgl-ai-teacher',
+    label: 'AI Teacher',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    thumbnail: swatchThumbnail(['#3b82f6', '#0f172a', '#d8b495']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
-    id: 'mixamo-carla',
-    label: 'Carla',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Carla.glb'],
-    thumbnail: swatchThumbnail(['#be185d', '#1f2937', '#e5bc96']),
+    id: 'webgl-ai-teacher-1',
+    label: 'AI Teacher 1',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    thumbnail: swatchThumbnail(['#1d4ed8', '#111827', '#d9b99d']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   }
 ]);

@@ -436,21 +436,21 @@ const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.54;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.96;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.84;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.56;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.74;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.02;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.42;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // pull the whole table noticeably closer to the bottom/local player on portrait screens
+const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.48; // keep board low on portrait screens but leave more room to show the seated actor.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 420; // keep piece pacing close to classic move speed while syncing hand contact.
-const SEATED_HUMAN_PICKUP_PHASE_END = 0.2;
-const SEATED_HUMAN_CARRY_PHASE_END = 0.82;
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
 
@@ -684,81 +684,87 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   if (!rig) return;
   resetBoneRig(rig);
   const t = smooth01(intensity);
-  const breathe = Math.sin(performance.now() * 0.002) * 0.012;
+  const breathe = Math.sin(performance.now() * 0.002) * 0.01;
 
-  addBonePos(rig, rig.hips, 0, -0.345, -0.078);
-  addBoneRot(rig, rig.hips, -0.16, 0, 0);
-  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0);
-  addBoneRot(rig, rig.chest, 0.28, 0, 0);
-  addBoneRot(rig, rig.neck, -0.04, 0, 0);
-  addBoneRot(rig, rig.head, -0.06, 0, 0);
+  // Baseline pose tuned to match the seated portrait reference:
+  // upright torso, shoulders open, both arms spread and hovering over chair arms.
+  addBonePos(rig, rig.hips, 0, -0.332, -0.052);
+  addBoneRot(rig, rig.hips, -0.08, 0, 0);
+  addBoneRot(rig, rig.spine, 0.18 + breathe, 0, 0);
+  addBoneRot(rig, rig.chest, 0.16 + breathe * 0.5, 0, 0);
+  addBoneRot(rig, rig.neck, -0.02, 0, 0);
+  addBoneRot(rig, rig.head, -0.03, 0, 0);
 
-  addBoneRot(rig, rig.leftUpperLeg, -1.32, 0.16, 0.05);
-  addBoneRot(rig, rig.leftLowerLeg, -1.28, 0.02, 0.01);
-  addBoneRot(rig, rig.leftFoot, 0.16, 0.03, 0.02);
-  addBoneRot(rig, rig.rightUpperLeg, -1.32, 0.03, -0.02);
-  addBoneRot(rig, rig.rightLowerLeg, -1.28, -0.02, -0.01);
-  addBoneRot(rig, rig.rightFoot, 0.16, -0.02, -0.01);
+  addBoneRot(rig, rig.leftUpperLeg, -1.18, 0.14, 0.04);
+  addBoneRot(rig, rig.leftLowerLeg, -1.2, 0.02, 0.01);
+  addBoneRot(rig, rig.leftFoot, 0.14, 0.04, 0.02);
+  addBoneRot(rig, rig.rightUpperLeg, -1.18, 0.02, -0.03);
+  addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
+  addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
-  addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96);
-  addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24);
-  addBoneRot(rig, rig.leftHand, -0.16, 0, 0);
-  let shoulderX = -0.2;
-  let shoulderY = -0.02;
-  let shoulderZ = -0.72;
-  let forearmX = -0.5;
-  let forearmY = -0.04;
-  let forearmZ = 0.14;
-  let wristX = -0.08;
-  let wristY = 0;
-  let wristZ = 0.06;
-  let chestX = 0.12;
-  let headX = -0.06;
+  addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
+  addBoneRot(rig, rig.leftForeArm, -0.56, 0.06, -0.22);
+  addBoneRot(rig, rig.leftHand, -0.14, 0.02, 0.02);
+  let shoulderX = -0.36;
+  let shoulderY = -0.03;
+  let shoulderZ = -1.02;
+  let forearmX = -0.56;
+  let forearmY = -0.06;
+  let forearmZ = 0.22;
+  let wristX = -0.14;
+  let wristY = 0.02;
+  let wristZ = 0.02;
+  let chestX = 0.16;
+  let headX = -0.03;
 
   if (mode === 'reachPiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.8, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.0, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.72, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.22, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.12, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.23, t);
-    headX = THREE.MathUtils.lerp(headX, 0.05, t);
-  } else if (mode === 'gripPiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.98, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.92, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.18, t);
     forearmX = THREE.MathUtils.lerp(forearmX, -0.74, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.18, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.22, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.14, t);
-  } else if (mode === 'carryPiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.08, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.54, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.12, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.02, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
-  } else if (mode === 'placePiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.76, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.92, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.24, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.28, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.18, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.16, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.22, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.28, t);
+    headX = THREE.MathUtils.lerp(headX, 0.07, t);
+  } else if (mode === 'gripPiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.12, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.82, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.2, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.26, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.16, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
-    headX = THREE.MathUtils.lerp(headX, 0.1, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.31, t);
+    headX = THREE.MathUtils.lerp(headX, 0.09, t);
+  } else if (mode === 'carryPiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.16, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.62, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.09, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.02, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.27, t);
+    headX = THREE.MathUtils.lerp(headX, 0.05, t);
+  } else if (mode === 'placePiece') {
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -0.88, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.28, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.28, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
+    headX = THREE.MathUtils.lerp(headX, 0.11, t);
   }
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
@@ -801,6 +807,18 @@ function measureObjectHeight(object) {
   const box = new THREE.Box3().setFromObject(object);
   if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return SEATED_HUMAN_BASE_HEIGHT;
   return Math.max(0.01, box.max.y - box.min.y);
+}
+
+function normalizeSeatedHumanTemplateAnchor(modelRoot) {
+  if (!modelRoot) return;
+  modelRoot.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(modelRoot);
+  if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return;
+  const center = box.getCenter(new THREE.Vector3());
+  modelRoot.position.x -= center.x;
+  modelRoot.position.z -= center.z;
+  modelRoot.position.y -= box.min.y;
+  modelRoot.updateMatrixWorld(true);
 }
 
 function computeSeatedHumanScale(actorTemplate) {
@@ -861,6 +879,7 @@ async function loadSeatedHumanTemplate(option, renderer = null) {
         mat.needsUpdate = true;
       });
     });
+    normalizeSeatedHumanTemplateAnchor(root);
     root.userData = {
       ...(root.userData || {}),
       seatedHumanScale: computeSeatedHumanScale(root)
@@ -7520,6 +7539,8 @@ function Chess3D({
   const [showHighlights, setShowHighlights] = useState(true);
   const seatedHumanActorsRef = useRef([]);
   const seatedHumanMoveActionsRef = useRef(new Map());
+  const seatedHumanContactHelpersRef = useRef(new Map());
+  const seatedHumanContactHelperRootRef = useRef(null);
   const firstPersonViewRef = useRef({
     activeLook: false,
     yaw: 0,
@@ -8649,6 +8670,10 @@ function Chess3D({
           });
           seatedHumanActorsRef.current = nextActors;
           seatedHumanMoveActionsRef.current.clear();
+          seatedHumanContactHelpersRef.current.forEach((helper) => {
+            if (helper?.hand) helper.hand.visible = false;
+            if (helper?.piece) helper.piece.visible = false;
+          });
           arena.selectedHumanCharacterId = selectedHumanCharacterId;
         })
         .catch((error) => {
@@ -9199,6 +9224,10 @@ function Chess3D({
 
     seatedHumanActorsRef.current = [];
     seatedHumanMoveActionsRef.current.clear();
+    seatedHumanContactHelpersRef.current.forEach((helper) => {
+      if (helper?.hand) helper.hand.visible = false;
+      if (helper?.piece) helper.piece.visible = false;
+    });
     try {
       const humanTemplate = await loadSeatedHumanTemplate(humanCharacterOption, renderer);
       const baseScale =
@@ -9527,6 +9556,39 @@ function Chess3D({
 
     const captureFxGroup = new THREE.Group();
     scene.add(captureFxGroup);
+    const contactHelperGroup = new THREE.Group();
+    contactHelperGroup.name = 'SeatedHumanContactHelpers';
+    scene.add(contactHelperGroup);
+    seatedHumanContactHelperRootRef.current = contactHelperGroup;
+    const getOrCreateSeatedContactHelper = (playerIndex) => {
+      const existing = seatedHumanContactHelpersRef.current.get(playerIndex);
+      if (existing?.hand && existing?.piece) return existing;
+      const hand = new THREE.Mesh(
+        new THREE.SphereGeometry(0.028, 12, 12),
+        new THREE.MeshBasicMaterial({
+          color: 0x37c6ff,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false
+        })
+      );
+      const piece = new THREE.Mesh(
+        new THREE.SphereGeometry(0.032, 12, 12),
+        new THREE.MeshBasicMaterial({
+          color: 0xffd166,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false
+        })
+      );
+      hand.visible = false;
+      piece.visible = false;
+      contactHelperGroup.add(hand);
+      contactHelperGroup.add(piece);
+      const next = { hand, piece };
+      seatedHumanContactHelpersRef.current.set(playerIndex, next);
+      return next;
+    };
     const activeCaptureFx = [];
     let board = null;
     let pieceMeshes = null;
@@ -12373,11 +12435,14 @@ function Chess3D({
       if (useHumanHandMove) {
         const nowMs = performance.now();
         const liveFrom = m.getWorldPosition(new THREE.Vector3());
+        getOrCreateSeatedContactHelper(moverSeatIndex);
         seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
           playerIndex: moverSeatIndex,
           mesh: m,
           from: liveFrom.clone(),
           to: toWorldPos.clone(),
+          fromSquare: { r: sel.r, c: sel.c },
+          toSquare: { r: rr, c: cc },
           startMs: nowMs + Math.max(0, moveDelayMs),
           durationMs: SEATED_HUMAN_MOVE_DURATION_MS
         });
@@ -13354,12 +13419,17 @@ function Chess3D({
         seatedActors.forEach((entry) => {
           if (!entry?.rig) return;
           const action = seatedHumanMoveActionsRef.current.get(entry.playerIndex);
+          const contactHelpers = seatedHumanContactHelpersRef.current.get(entry.playerIndex);
           if (!action) {
+            if (contactHelpers?.hand) contactHelpers.hand.visible = false;
+            if (contactHelpers?.piece) contactHelpers.piece.visible = false;
             applySeatedHumanPose(entry.rig, 'idle', 1, 0);
             return;
           }
           const elapsedMs = now - action.startMs;
           if (elapsedMs <= 0) {
+            if (contactHelpers?.hand) contactHelpers.hand.visible = false;
+            if (contactHelpers?.piece) contactHelpers.piece.visible = false;
             applySeatedHumanPose(entry.rig, 'idle', 1, 0);
             return;
           }
@@ -13386,24 +13456,28 @@ function Chess3D({
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip);
           if (action?.mesh) {
+            const liveFrom = action.mesh.getWorldPosition(new THREE.Vector3());
+            const liveTo = action.toSquare
+              ? piecePosition(action.toSquare.r, action.toSquare.c, currentPieceYOffset)
+              : action.to.clone();
             const gripWorld =
               getThreeFingerGripWorldPosition(entry.rig) ||
               (entry.rig.rightHand
                 ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
-                : action.from.clone());
+                : liveFrom.clone());
             const holdWorld = gripWorld.clone();
             holdWorld.y += SEATED_HUMAN_HAND_GRIP_HEIGHT;
             holdWorld.z +=
               entry.playerIndex === 0
                 ? -SEATED_HUMAN_HAND_PIECE_FORWARD
                 : SEATED_HUMAN_HAND_PIECE_FORWARD;
-            const liftedFrom = action.from.clone();
+            const liftedFrom = liveFrom.clone();
             liftedFrom.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
-            const liftedTo = action.to.clone();
+            const liftedTo = liveTo.clone();
             liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
             if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
-              action.mesh.position.lerpVectors(action.from, liftedFrom, pickupT);
+              action.mesh.position.lerpVectors(liveFrom, liftedFrom, pickupT);
             } else if (u < 0.44) {
               const gripT = smoothEase(
                 clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
@@ -13419,13 +13493,26 @@ function Chess3D({
             } else {
               const dropT = clamp01((u - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END));
               const easedDropT = smoothEase(dropT);
-              const landing = action.to.clone();
+              const landing = liveTo.clone();
               landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
               action.mesh.position.lerpVectors(liftedTo, landing, easedDropT);
+            }
+            if (contactHelpers?.hand && contactHelpers?.piece) {
+              const handPos = holdWorld.clone();
+              const piecePos = action.mesh.getWorldPosition(new THREE.Vector3());
+              const dist = handPos.distanceTo(piecePos);
+              contactHelpers.hand.position.copy(handPos);
+              contactHelpers.piece.position.copy(piecePos);
+              contactHelpers.hand.visible = true;
+              contactHelpers.piece.visible = true;
+              contactHelpers.hand.material.opacity = clamp(1 - dist * 4.2, 0.28, 0.95);
+              contactHelpers.piece.material.opacity = clamp(1 - dist * 3.6, 0.32, 0.95);
             }
           }
           if (u >= 1) {
             if (action?.mesh) action.mesh.position.copy(action.to);
+            if (contactHelpers?.hand) contactHelpers.hand.visible = false;
+            if (contactHelpers?.piece) contactHelpers.piece.visible = false;
             seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
           }
         });
@@ -13498,6 +13585,19 @@ function Chess3D({
       cancelled = true;
       seatedHumanActorsRef.current = [];
       seatedHumanMoveActionsRef.current.clear();
+      seatedHumanContactHelpersRef.current.forEach((helper) => {
+        if (helper?.hand?.parent) helper.hand.parent.remove(helper.hand);
+        if (helper?.piece?.parent) helper.piece.parent.remove(helper.piece);
+        helper?.hand?.geometry?.dispose?.();
+        helper?.piece?.geometry?.dispose?.();
+        helper?.hand?.material?.dispose?.();
+        helper?.piece?.material?.dispose?.();
+      });
+      seatedHumanContactHelpersRef.current.clear();
+      if (seatedHumanContactHelperRootRef.current?.parent) {
+        seatedHumanContactHelperRootRef.current.parent.remove(seatedHumanContactHelperRootRef.current);
+      }
+      seatedHumanContactHelperRootRef.current = null;
       cancelAnimationFrame(rafRef.current);
       stopCameraTween();
       if (onResize) {
