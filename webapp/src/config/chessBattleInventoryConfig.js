@@ -5,7 +5,7 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_STORE_ITEMS
 } from './poolRoyaleInventoryConfig.js';
-import { swatchThumbnail } from './storeThumbnails.js';
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
@@ -62,6 +62,7 @@ const mapStoolThemeToChair = (theme) => ({
   primary: theme.seatColor || theme.primary || '#7c3aed',
   accent: theme.accent || theme.highlight || theme.seatColor,
   legColor: theme.legColor || theme.baseColor || '#111827',
+  thumbnail: theme.thumbnail || (theme.assetId ? polyHavenThumb(theme.assetId) : undefined),
   preserveMaterials: theme.preserveMaterials ?? theme.source === 'polyhaven'
 });
 
