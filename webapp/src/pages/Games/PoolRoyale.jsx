@@ -1924,6 +1924,8 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const CUE_POWER_GAMMA = 1.18; // keep slider-to-speed mapping closer to linear so cue-ball speed follows slider power
 const MIN_SHOT_POWER_TO_FIRE = 0.015; // ignore accidental micro drags/releases that should not launch the cue ball
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.62; // keep standing avatar height close to real world relative to table length
+const LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.2; // make Pool Royale humans slightly bigger than the old procedural rig
 const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
@@ -15280,6 +15282,8 @@ function PoolRoyaleGame({
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
+  const seatedHumanTemplateRef = useRef(null);
+  const seatedHumanLoadRef = useRef(null);
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -19653,6 +19657,38 @@ const shotPowerRef = useRef(0);
         ensureHospitalityVisibility(group);
         return group;
       };
+
+      const ensureSeatedHumanTemplate = async () => {
+        if (seatedHumanTemplateRef.current) {
+          return seatedHumanTemplateRef.current;
+        }
+        if (seatedHumanLoadRef.current) {
+          return seatedHumanLoadRef.current;
+        }
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([LUDO_BATTLE_ROYAL_SEATED_HUMAN_URL])
+          .then((gltf) => {
+            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
+            if (!model) {
+              throw new Error('Missing seated human scene');
+            }
+            model.traverse((child) => {
+              if (!child?.isMesh) return;
+              child.castShadow = true;
+              child.receiveShadow = true;
+            });
+            seatedHumanTemplateRef.current = model;
+            return model;
+          })
+          .catch((error) => {
+            console.warn('Failed to load seated human GLB for Pool Royale', error);
+            return null;
+          })
+          .finally(() => {
+            seatedHumanLoadRef.current = null;
+          });
+        return seatedHumanLoadRef.current;
+      };
+
       const createChessLoungeSet = async ({
         chairOffsets,
         position = [0, 0],
@@ -24331,7 +24367,7 @@ const shotPowerRef = useRef(0);
         });
         playerCharacterRigsRef.current = [];
       };
-      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
+      const createFallbackPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0 } = {}) => {
         const rigGroup = new THREE.Group();
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
@@ -24382,7 +24418,8 @@ const shotPowerRef = useRef(0);
           torsoPivot,
           head,
           cue,
-          humanHeight
+          humanHeight,
+          usesFallbackRig: true
         };
         rigGroup.traverse((child) => {
           if (!child.isMesh) return;
@@ -24391,21 +24428,65 @@ const shotPowerRef = useRef(0);
         });
         return rigGroup;
       };
-      const spawnPlayerCharacters = () => {
+      const createPlayerCharacterRigFromGltf = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
+        if (!template) return createFallbackPlayerCharacterRig({ seat, x, z, facingY });
+        const rigGroup = new THREE.Group();
+        rigGroup.position.set(x, floorY, z);
+        rigGroup.rotation.y = facingY;
+        const actorRoot = template.clone(true);
+        const actorBounds = new THREE.Box3().setFromObject(actorRoot);
+        const actorHeight = Math.max(actorBounds.max.y - actorBounds.min.y, 1e-3);
+        const targetHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const scale = targetHeight / actorHeight;
+        actorRoot.scale.multiplyScalar(scale);
+        const scaledBounds = new THREE.Box3().setFromObject(actorRoot);
+        actorRoot.position.y += -scaledBounds.min.y;
+        actorRoot.position.z -= targetHeight * 0.05;
+        actorRoot.traverse((child) => {
+          if (!child?.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        });
+        const torsoPivot = new THREE.Group();
+        torsoPivot.add(actorRoot);
+        rigGroup.add(torsoPivot);
+        const cue = new THREE.Mesh(
+          new THREE.CylinderGeometry(targetHeight * 0.005, targetHeight * 0.008, targetHeight * 0.82, 12),
+          new THREE.MeshStandardMaterial({ color: 0xb28452, roughness: 0.68, metalness: 0.14 })
+        );
+        cue.rotation.z = Math.PI / 2;
+        cue.position.set(targetHeight * 0.2, targetHeight * 0.58, targetHeight * 0.02);
+        torsoPivot.add(cue);
+        rigGroup.userData.anim = {
+          seat,
+          mode: 'idle',
+          intensity: 0,
+          torsoPivot,
+          head: actorRoot,
+          cue,
+          humanHeight: targetHeight,
+          usesFallbackRig: false
+        };
+        return rigGroup;
+      };
+      const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
-        const leftPlayer = createPlayerCharacterRig({
+        const humanTemplate = await ensureSeatedHumanTemplate();
+        const leftPlayer = createPlayerCharacterRigFromGltf({
           seat: 'A',
           x: -sideOffset,
           z: -zOffset,
-          facingY: 0
+          facingY: 0,
+          template: humanTemplate
         });
-        const rightPlayer = createPlayerCharacterRig({
+        const rightPlayer = createPlayerCharacterRigFromGltf({
           seat: 'B',
           x: sideOffset,
           z: zOffset,
-          facingY: Math.PI
+          facingY: Math.PI,
+          template: humanTemplate
         });
         playerCharacterRigsRef.current = [leftPlayer, rightPlayer].map((group) => ({
           group,
@@ -24424,7 +24505,7 @@ const shotPowerRef = useRef(0);
         const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
         rigs.forEach((rig) => {
           const anim = rig?.anim;
-          if (!anim?.torsoPivot || !anim?.head || !anim?.cue) return;
+          if (!anim?.torsoPivot || !anim?.cue) return;
           const isShooter = anim.seat === activeSeat;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
@@ -24448,14 +24529,14 @@ const shotPowerRef = useRef(0);
                   ? HUMAN_PLAYER_REACT_LEAN * anim.intensity
                   : sway * anim.intensity;
           anim.torsoPivot.rotation.y = sway * 0.42;
-          anim.head.rotation.y = sway * 0.5;
+          if (anim.head?.rotation) anim.head.rotation.y = sway * 0.5;
           anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing;
           anim.cue.position.z =
             anim.humanHeight * 0.02 +
             (mode === 'strike' ? -anim.humanHeight * 0.05 : cueSwing * anim.humanHeight * 0.18);
         });
       };
-      spawnPlayerCharacters();
+      void spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -26507,13 +26588,16 @@ const shotPowerRef = useRef(0);
         }
         const sourcePower = Number.isFinite(committedPowerOverride)
           ? committedPowerOverride
-          : powerRef.current;
+          : Number.isFinite(shotPowerRef.current)
+            ? shotPowerRef.current
+            : powerRef.current;
         const clampedPower = clampPower(sourcePower, 0);
         if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
           setShootingState(false);
           return;
         }
         shotPowerRef.current = clampedPower;
+        powerRef.current = clampedPower;
         characterShotStartedAtRef.current = shotStartTime;
         characterShotShooterRef.current = currentHud?.turn === 1 ? 'B' : 'A';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
@@ -32867,8 +32951,10 @@ const shotPowerRef = useRef(0);
     captureCueStickAnchor();
   }, [captureCueStickAnchor]);
   const onPowerDrag = useCallback((powerRatio = 0) => {
-    applyPower(powerRatio);
-  }, [applyPower]);
+    const clamped = clampPower(powerRatio, 0);
+    shotPowerRef.current = clamped;
+    applyPower(clamped);
+  }, [applyPower, clampPower]);
   const onPowerRelease = useCallback((powerRatio = null) => {
     const sourcePower = Number.isFinite(powerRatio) ? powerRatio : powerRef.current;
     const latchedPower = clampPower(sourcePower, 0);
