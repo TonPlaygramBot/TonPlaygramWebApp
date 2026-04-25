@@ -1763,11 +1763,10 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
-// Keep seated humans lower so their feet can be grounded against the chair/floor contact plane.
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.52 * MODEL_SCALE * STOOL_SCALE;
+// Lower seated humans so feet visually rest on the HDRI floor while preserving pose/orientation.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.43 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = 0.002;
 const SEATED_HUMAN_ROLL_MS = 1680;
 const SEATED_HUMAN_RECOVER_MS = 420;
 let seatedHumanTemplatePromise = null;
@@ -4269,21 +4268,6 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   applyRightHandGrip(rig, handGrip);
 }
 
-function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
-  if (!actor?.isObject3D) return;
-  actor.updateMatrixWorld(true);
-  const footBones = [rig?.leftFoot, rig?.rightFoot].filter((bone) => bone?.isBone);
-  if (!footBones.length) return;
-  let minFootY = Infinity;
-  footBones.forEach((bone) => {
-    const worldPos = bone.getWorldPosition(new THREE.Vector3());
-    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
-  });
-  if (!Number.isFinite(minFootY)) return;
-  actor.position.y -= minFootY - clearance;
-  actor.updateMatrixWorld(true);
-}
-
 async function loadSeatedHumanTemplate(renderer = null) {
   if (seatedHumanTemplatePromise) return seatedHumanTemplatePromise;
   seatedHumanTemplatePromise = (async () => {
@@ -6761,7 +6745,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1);
-        alignSeatedHumanFeetToGroundPlane(actor, rig);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
       });
     } catch (error) {
