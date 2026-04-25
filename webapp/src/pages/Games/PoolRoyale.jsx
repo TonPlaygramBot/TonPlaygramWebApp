@@ -1930,6 +1930,11 @@ const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
 const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
 const HUMAN_PLAYER_AIM_LEAN = 0.2;
 const HUMAN_PLAYER_REACT_LEAN = 0.12;
+const HUMAN_POSE_LAMBDA = 9.0;
+const HUMAN_MOVE_LAMBDA = 5.6;
+const HUMAN_ROT_LAMBDA = 8.5;
+const HUMAN_EDGE_MARGIN = 0.58;
+const HUMAN_DESIRED_SHOOT_DISTANCE = 1.06;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -24419,6 +24424,10 @@ const shotPowerRef = useRef(0);
           head,
           cue,
           humanHeight,
+          poseT: 0,
+          walkT: 0,
+          yaw: facingY,
+          rootTarget: new THREE.Vector3(x, floorY, z),
           usesFallbackRig: true
         };
         rigGroup.traverse((child) => {
@@ -24465,6 +24474,10 @@ const shotPowerRef = useRef(0);
           head: actorRoot,
           cue,
           humanHeight: targetHeight,
+          poseT: 0,
+          walkT: 0,
+          yaw: facingY,
+          rootTarget: new THREE.Vector3(x, floorY, z),
           usesFallbackRig: false
         };
         return rigGroup;
@@ -24503,6 +24516,37 @@ const shotPowerRef = useRef(0);
         const activeSeat = hudState?.turn === 1 ? 'B' : 'A';
         const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
         const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
+        const cueBall = cueRef.current;
+        const aimDir2 = aimDirRef.current;
+        const hasAim =
+          cueBall?.pos &&
+          aimDir2 &&
+          Number.isFinite(aimDir2.x) &&
+          Number.isFinite(aimDir2.y) &&
+          aimDir2.lengthSq?.() > 1e-6;
+        const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
+        const cueWorld = hasAim
+          ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y)
+          : new THREE.Vector3(0, floorY, 0);
+        const chooseEdgeTarget = (forward2) => {
+          const desired = cueWorld.clone().add(new THREE.Vector3(
+            -forward2.x * HUMAN_DESIRED_SHOOT_DISTANCE,
+            0,
+            -forward2.y * HUMAN_DESIRED_SHOOT_DISTANCE
+          ));
+          const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
+          const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
+          const candidates = [
+            new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
+          ];
+          return candidates.reduce((best, candidate) =>
+            candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
+          );
+        };
+        const desiredRoot = chooseEdgeTarget(normalizedAim);
         rigs.forEach((rig) => {
           const anim = rig?.anim;
           if (!anim?.torsoPivot || !anim?.cue) return;
@@ -24513,27 +24557,57 @@ const shotPowerRef = useRef(0);
           else if (isShotActive) mode = 'react';
           else if (isShooter) mode = 'aim';
           anim.mode = mode;
-          const targetIntensity =
-            mode === 'aim' ? 1 : mode === 'strike' ? 1 : mode === 'react' ? 0.7 : 0.2;
+          const targetIntensity = mode === 'aim' ? 1 : mode === 'strike' ? 1 : mode === 'react' ? 0.7 : 0.2;
           const lerpT = THREE.MathUtils.clamp(dtSeconds * 6.5, 0, 1);
           anim.intensity = THREE.MathUtils.lerp(anim.intensity ?? 0, targetIntensity, lerpT);
+          const targetPose = mode === 'idle' ? 0 : 1;
+          anim.poseT = THREE.MathUtils.lerp(
+            anim.poseT ?? 0,
+            targetPose,
+            1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds)
+          );
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+          const seatTarget = desiredRoot
+            .clone()
+            .lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+          if (!anim.rootTarget) anim.rootTarget = rig.group.position.clone();
+          anim.rootTarget.copy(seatTarget);
+          rig.group.position.lerp(
+            anim.rootTarget,
+            THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_MOVE_LAMBDA * dtSeconds), 0, 1)
+          );
+          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
+          const desiredYaw = Math.atan2(-normalizedAim.x, normalizedAim.y);
+          anim.yaw = THREE.MathUtils.lerp(
+            anim.yaw ?? rig.group.rotation.y,
+            desiredYaw,
+            THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1)
+          );
+          rig.group.rotation.y = anim.yaw;
+          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
           const phase = nowMs * 0.001 * HUMAN_PLAYER_IDLE_SWAY_SPEED + (anim.seat === 'A' ? 0 : Math.PI);
           const sway = Math.sin(phase) * HUMAN_PLAYER_IDLE_SWAY_ANGLE;
-          const cueSwing = Math.sin(phase * 1.8) * HUMAN_PLAYER_IDLE_SWAY_ANGLE * 0.6;
-          anim.torsoPivot.rotation.x =
+          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+          const cueSwing =
             mode === 'aim'
-              ? -HUMAN_PLAYER_AIM_LEAN * anim.intensity
-              : mode === 'strike'
-                ? -HUMAN_PLAYER_AIM_LEAN * 1.15
-                : mode === 'react'
-                  ? HUMAN_PLAYER_REACT_LEAN * anim.intensity
-                  : sway * anim.intensity;
-          anim.torsoPivot.rotation.y = sway * 0.42;
+              ? Math.sin(nowMs * 0.012) * 0.035 * (0.25 + (powerRef.current ?? 0) * 0.75)
+              : Math.sin(phase * 1.8) * HUMAN_PLAYER_IDLE_SWAY_ANGLE * 0.6;
+          anim.torsoPivot.rotation.x =
+            mode === 'aim' || mode === 'strike'
+              ? THREE.MathUtils.lerp(-HUMAN_PLAYER_AIM_LEAN * 0.35, -HUMAN_PLAYER_AIM_LEAN * 1.15, t)
+              : mode === 'react'
+                ? HUMAN_PLAYER_REACT_LEAN * anim.intensity
+                : sway * anim.intensity + walk * 0.02;
+          anim.torsoPivot.rotation.y = sway * 0.42 + walk * 0.03;
           if (anim.head?.rotation) anim.head.rotation.y = sway * 0.5;
-          anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing;
+          anim.cue.rotation.y = mode === 'strike' ? -0.55 : -0.38 + cueSwing - t * 0.12;
           anim.cue.position.z =
             anim.humanHeight * 0.02 +
-            (mode === 'strike' ? -anim.humanHeight * 0.05 : cueSwing * anim.humanHeight * 0.18);
+            (mode === 'strike'
+              ? -anim.humanHeight * 0.05
+              : cueSwing * anim.humanHeight * THREE.MathUtils.lerp(0.12, 0.22, t));
         });
       };
       void spawnPlayerCharacters();
