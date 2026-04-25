@@ -120,7 +120,6 @@ import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const POOL_ROYALE_HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -15497,6 +15496,7 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const shotPowerRef = useRef(0);
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -18211,298 +18211,6 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const humanActors = [];
-      const humanTemplateRef = { current: null };
-      const humanLoadRef = { current: null };
-      const PLAYFIELD_REAL_HEIGHT_M = 1.27;
-      const HUMAN_REAL_HEIGHT_M = 1.76;
-      const HUMAN_HEIGHT_RATIO_TO_PLAYFIELD = HUMAN_REAL_HEIGHT_M / PLAYFIELD_REAL_HEIGHT_M;
-      const HUMAN_WALK_RING_X = PLAY_W * 1.28;
-      const HUMAN_WALK_RING_Z = PLAY_H * 1.34;
-      const HUMAN_TABLE_SAFE_RING_X = PLAY_W * 0.82;
-      const HUMAN_TABLE_SAFE_RING_Z = PLAY_H * 0.9;
-      const getActorBone = (actor, pattern) =>
-        actor?.bones?.find((entry) => pattern.test(entry.name || ''))?.bone ?? null;
-      const cloneHumanMaterial = (mat) => {
-        if (!mat) return mat;
-        const cloned = mat.clone ? mat.clone() : mat;
-        applySRGBColorSpace(cloned.map);
-        applySRGBColorSpace(cloned.emissiveMap);
-        if (cloned.map) sharpenTexture(cloned.map);
-        if (cloned.emissiveMap) sharpenTexture(cloned.emissiveMap);
-        if (cloned.roughnessMap) sharpenTexture(cloned.roughnessMap);
-        if (cloned.metalnessMap) sharpenTexture(cloned.metalnessMap);
-        if (cloned.normalMap) sharpenTexture(cloned.normalMap);
-        if (renderer?.capabilities?.getMaxAnisotropy) {
-          const cap = renderer.capabilities.getMaxAnisotropy();
-          if (cloned.map) cloned.map.anisotropy = cap;
-          if (cloned.emissiveMap) cloned.emissiveMap.anisotropy = cap;
-          if (cloned.roughnessMap) cloned.roughnessMap.anisotropy = cap;
-          if (cloned.metalnessMap) cloned.metalnessMap.anisotropy = cap;
-          if (cloned.normalMap) cloned.normalMap.anisotropy = cap;
-        }
-        cloned.needsUpdate = true;
-        return cloned;
-      };
-      const keepOutsideTable = (target) => {
-        const x = Number.isFinite(target?.x) ? target.x : 0;
-        const z = Number.isFinite(target?.z) ? target.z : 0;
-        const needPushX = Math.abs(x) < HUMAN_TABLE_SAFE_RING_X;
-        const needPushZ = Math.abs(z) < HUMAN_TABLE_SAFE_RING_Z;
-        const out = new THREE.Vector3(x, FLOOR_Y, z);
-        if (needPushX && needPushZ) {
-          const axisX = HUMAN_TABLE_SAFE_RING_X - Math.abs(x);
-          const axisZ = HUMAN_TABLE_SAFE_RING_Z - Math.abs(z);
-          if (axisX < axisZ) {
-            out.x = Math.sign(x || 1) * HUMAN_TABLE_SAFE_RING_X;
-          } else {
-            out.z = Math.sign(z || 1) * HUMAN_TABLE_SAFE_RING_Z;
-          }
-        }
-        const ellipse =
-          (out.x * out.x) / Math.max(1e-6, HUMAN_TABLE_SAFE_RING_X * HUMAN_TABLE_SAFE_RING_X) +
-          (out.z * out.z) / Math.max(1e-6, HUMAN_TABLE_SAFE_RING_Z * HUMAN_TABLE_SAFE_RING_Z);
-        if (ellipse < 1) {
-          const theta = Math.atan2(out.z || 1e-6, out.x || 1e-6);
-          out.x = Math.cos(theta) * HUMAN_TABLE_SAFE_RING_X;
-          out.z = Math.sin(theta) * HUMAN_TABLE_SAFE_RING_Z;
-        }
-        out.x = THREE.MathUtils.clamp(out.x, -HUMAN_WALK_RING_X, HUMAN_WALK_RING_X);
-        out.z = THREE.MathUtils.clamp(out.z, -HUMAN_WALK_RING_Z, HUMAN_WALK_RING_Z);
-        return out;
-      };
-      const setActorPose = (actor, mode, options = {}) => {
-        if (!actor) return;
-        const now = options.now ?? performance.now();
-        const spine = getActorBone(actor, /(spine|chest|upperchest)/i);
-        const hips = getActorBone(actor, /(hips|pelvis)/i);
-        const head = getActorBone(actor, /head/i);
-        const rightUpperArm = getActorBone(actor, /(rightarm|rightupperarm)/i);
-        const rightForeArm = getActorBone(actor, /(rightforearm|rightlowerarm)/i);
-        const leftUpperArm = getActorBone(actor, /(leftarm|leftupperarm)/i);
-        const leftForeArm = getActorBone(actor, /(leftforearm|leftlowerarm)/i);
-        const leftHand = getActorBone(actor, /(lefthand|hand_l|mixamorigLeftHand)/i);
-        const rightHand = getActorBone(actor, /(righthand|hand_r|mixamorigRightHand)/i);
-        const rightUpperLeg = getActorBone(actor, /(rightupleg|rightthigh)/i);
-        const rightLowerLeg = getActorBone(actor, /(rightleg|rightcalf|rightlowerleg)/i);
-        const leftUpperLeg = getActorBone(actor, /(leftupleg|leftthigh)/i);
-        const leftLowerLeg = getActorBone(actor, /(leftleg|leftcalf|leftlowerleg)/i);
-        const applyBone = (bone, key, euler) => {
-          if (!bone || !actor.restPose?.[key]) return;
-          bone.quaternion.copy(actor.restPose[key]).multiply(
-            new THREE.Quaternion().setFromEuler(euler)
-          );
-        };
-        if (mode === 'aim' || mode === 'stroke') {
-          const sway = Math.sin((now + actor.phaseOffset * 1200) * 0.008) * 0.012;
-          const strokeWave =
-            mode === 'stroke'
-              ? Math.sin((now + actor.phaseOffset * 700) * 0.014) * 0.12
-              : 0;
-          applyBone(hips, 'hips', new THREE.Euler(-0.34 + strokeWave * 0.15, 0, 0));
-          applyBone(spine, 'spine', new THREE.Euler(-0.74 + sway + strokeWave * 0.12, 0.03, -0.09));
-          applyBone(head, 'head', new THREE.Euler(0.2 - strokeWave * 0.05, 0, 0));
-          // Back hand (right): drives stroke and moves slightly on release.
-          applyBone(
-            rightUpperArm,
-            'rightUpperArm',
-            new THREE.Euler(-1.52 + strokeWave * 0.38, 0.58, -0.24)
-          );
-          applyBone(
-            rightForeArm,
-            'rightForeArm',
-            new THREE.Euler(-0.6 + strokeWave * 0.24, 0.15, 0.16)
-          );
-          applyBone(rightHand, 'rightHand', new THREE.Euler(0.08, 0.18, -0.14));
-          // Bridge hand (left): flat and stable on cloth.
-          applyBone(leftUpperArm, 'leftUpperArm', new THREE.Euler(-1.74, -0.18, 0.18));
-          applyBone(leftForeArm, 'leftForeArm', new THREE.Euler(-1.16, -0.05, -0.42));
-          applyBone(leftHand, 'leftHand', new THREE.Euler(0.66, -0.03, -0.1));
-          applyBone(rightUpperLeg, 'rightUpperLeg', new THREE.Euler(0.42, 0, 0));
-          applyBone(rightLowerLeg, 'rightLowerLeg', new THREE.Euler(-0.52, 0, 0));
-          applyBone(leftUpperLeg, 'leftUpperLeg', new THREE.Euler(0.25, 0, 0));
-          applyBone(leftLowerLeg, 'leftLowerLeg', new THREE.Euler(-0.28, 0, 0));
-          return;
-        }
-        applyBone(hips, 'hips', new THREE.Euler(0, 0, 0));
-        applyBone(spine, 'spine', new THREE.Euler(0, 0, 0));
-        applyBone(head, 'head', new THREE.Euler(0, 0, 0));
-        applyBone(rightUpperArm, 'rightUpperArm', new THREE.Euler(-0.22, 0, 0));
-        applyBone(rightForeArm, 'rightForeArm', new THREE.Euler(-0.08, 0, 0));
-        applyBone(rightHand, 'rightHand', new THREE.Euler(0, 0, 0));
-        applyBone(leftUpperArm, 'leftUpperArm', new THREE.Euler(-0.14, 0, 0));
-        applyBone(leftForeArm, 'leftForeArm', new THREE.Euler(-0.08, 0, 0));
-        applyBone(leftHand, 'leftHand', new THREE.Euler(0, 0, 0));
-        applyBone(rightUpperLeg, 'rightUpperLeg', new THREE.Euler(0, 0, 0));
-        applyBone(rightLowerLeg, 'rightLowerLeg', new THREE.Euler(0, 0, 0));
-        applyBone(leftUpperLeg, 'leftUpperLeg', new THREE.Euler(0, 0, 0));
-        applyBone(leftLowerLeg, 'leftLowerLeg', new THREE.Euler(0, 0, 0));
-        if (mode === 'walk') {
-          const swing = Math.sin((now + actor.phaseOffset * 1000) * 0.01) * 0.28;
-          applyBone(rightUpperArm, 'rightUpperArm', new THREE.Euler(-0.28 - swing, 0, 0));
-          applyBone(leftUpperArm, 'leftUpperArm', new THREE.Euler(-0.12 + swing, 0, 0));
-          applyBone(rightUpperLeg, 'rightUpperLeg', new THREE.Euler(swing * 0.65, 0, 0));
-          applyBone(leftUpperLeg, 'leftUpperLeg', new THREE.Euler(-swing * 0.65, 0, 0));
-          applyBone(rightLowerLeg, 'rightLowerLeg', new THREE.Euler(-Math.max(0, swing) * 0.4, 0, 0));
-          applyBone(leftLowerLeg, 'leftLowerLeg', new THREE.Euler(Math.min(0, swing) * 0.4, 0, 0));
-        }
-      };
-      const buildHumanActor = (template, index) => {
-        const group = template.clone(true);
-        const bounds = new THREE.Box3().setFromObject(group);
-        const size = bounds.getSize(new THREE.Vector3());
-        const rawHeight = Math.max(size.y, 1e-4);
-        const targetHeight = PLAY_H * HUMAN_HEIGHT_RATIO_TO_PLAYFIELD;
-        const scale = targetHeight / rawHeight;
-        group.scale.setScalar(scale);
-        group.traverse((obj) => {
-          if (obj.isMesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            const next = mats.map((mat) => cloneHumanMaterial(mat));
-            obj.material = Array.isArray(obj.material) ? next : next[0];
-          }
-        });
-        const scaledBounds = new THREE.Box3().setFromObject(group);
-        const floorOffset = FLOOR_Y - (scaledBounds.min.y ?? FLOOR_Y);
-        group.position.y += floorOffset;
-        const bones = [];
-        group.traverse((obj) => {
-          if (obj.isBone) bones.push({ name: obj.name, bone: obj });
-        });
-        const actor = {
-          index,
-          group,
-          bones,
-          phaseOffset: Math.random(),
-          walkAngle: index === 0 ? Math.PI * 0.28 : Math.PI * 1.18,
-          restPose: {}
-        };
-        const captureRest = (key, pattern) => {
-          const bone = getActorBone(actor, pattern);
-          if (bone) actor.restPose[key] = bone.quaternion.clone();
-        };
-        captureRest('hips', /(hips|pelvis)/i);
-        captureRest('spine', /(spine|chest|upperchest)/i);
-        captureRest('head', /head/i);
-        captureRest('rightUpperArm', /(rightarm|rightupperarm)/i);
-        captureRest('rightForeArm', /(rightforearm|rightlowerarm)/i);
-        captureRest('rightHand', /(righthand|hand_r|mixamorigRightHand)/i);
-        captureRest('leftUpperArm', /(leftarm|leftupperarm)/i);
-        captureRest('leftForeArm', /(leftforearm|leftlowerarm)/i);
-        captureRest('leftHand', /(lefthand|hand_l|mixamorigLeftHand)/i);
-        captureRest('rightUpperLeg', /(rightupleg|rightthigh)/i);
-        captureRest('rightLowerLeg', /(rightleg|rightcalf|rightlowerleg)/i);
-        captureRest('leftUpperLeg', /(leftupleg|leftthigh)/i);
-        captureRest('leftLowerLeg', /(leftleg|leftcalf|leftlowerleg)/i);
-        actor.group.position.copy(
-          keepOutsideTable(
-            new THREE.Vector3(
-              index === 0 ? -HUMAN_WALK_RING_X : HUMAN_WALK_RING_X,
-              0,
-              index === 0 ? -HUMAN_WALK_RING_Z * 0.72 : HUMAN_WALK_RING_Z * 0.72
-            )
-          )
-        );
-        world.add(group);
-        return actor;
-      };
-      const ensureHumanActors = async () => {
-        if (humanActors.length >= 2) return;
-        if (humanLoadRef.current) return humanLoadRef.current;
-        const loader = new GLTFLoader();
-        loader.setCrossOrigin('anonymous');
-        humanLoadRef.current = loader
-          .loadAsync(POOL_ROYALE_HUMAN_URL)
-          .then((gltf) => {
-            humanTemplateRef.current = gltf?.scene ?? null;
-            if (!humanTemplateRef.current) return;
-            for (let i = 0; i < 2; i += 1) {
-              humanActors.push(buildHumanActor(humanTemplateRef.current, i));
-            }
-          })
-          .catch((error) => {
-            console.warn('Pool Royale human players failed to load', error);
-          })
-          .finally(() => {
-            humanLoadRef.current = null;
-          });
-        return humanLoadRef.current;
-      };
-      const updateHumanActors = ({ cueBall, turn, shotActive, ballsState, cueStickObj, aimDirection, now }) => {
-        if (!humanActors.length) return;
-        const allStoppedNow = allStopped(ballsState || []);
-        const activeShooter = turn === 1 ? 1 : 0;
-        const aimDir = aimDirection?.clone?.() ?? new THREE.Vector2(0, 1);
-        if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
-        aimDir.normalize();
-        const aimPerp = new THREE.Vector2(-aimDir.y, aimDir.x);
-        humanActors.forEach((actor, index) => {
-          const targetAim = cueBall?.pos
-            ? new THREE.Vector3(cueBall.pos.x, 0, cueBall.pos.y)
-            : new THREE.Vector3();
-          if (!allStoppedNow || shotActive) {
-            actor.walkAngle += (index === activeShooter ? 1 : -1) * 0.0028;
-            const walkRadiusX = HUMAN_WALK_RING_X;
-            const walkRadiusZ = HUMAN_WALK_RING_Z;
-            const tx = Math.cos(actor.walkAngle) * walkRadiusX;
-            const tz = Math.sin(actor.walkAngle) * walkRadiusZ;
-            actor.group.position.lerp(
-              keepOutsideTable(new THREE.Vector3(tx, 0, tz)),
-              0.05
-            );
-            actor.group.lookAt(targetAim.x, actor.group.position.y + 1.15, targetAim.z);
-            setActorPose(actor, 'walk', { now });
-            return;
-          }
-          const sideSign = index === 0 ? -1 : 1;
-          let stickDir = aimDir.clone();
-          let stickButt = null;
-          if (cueStickObj?.visible) {
-            const y = Number.isFinite(cueStickObj.rotation?.y) ? cueStickObj.rotation.y : 0;
-            stickDir = new THREE.Vector2(Math.sin(y), Math.cos(y));
-            if (stickDir.lengthSq() > 1e-6) {
-              stickDir.normalize();
-              stickButt = new THREE.Vector3(
-                cueStickObj.position.x + stickDir.x * (CUE_LEN * 0.46),
-                FLOOR_Y,
-                cueStickObj.position.z + stickDir.y * (CUE_LEN * 0.46)
-              );
-            }
-          }
-          const useDir = stickDir.lengthSq() > 1e-6 ? stickDir : aimDir;
-          const bridgePoint = new THREE.Vector3(
-            targetAim.x - useDir.x * BALL_R * 1.8 + aimPerp.x * sideSign * BALL_R * 0.35,
-            FLOOR_Y,
-            targetAim.z - useDir.y * BALL_R * 1.8 + aimPerp.y * sideSign * BALL_R * 0.35
-          );
-          const anchor = stickButt || bridgePoint;
-          const shooterBehindDistance = BALL_R * 14.5;
-          const spectatorBehindDistance = BALL_R * 9.5;
-          const lateralOffset =
-            index === activeShooter
-              ? BALL_R * 0.5
-              : sideSign * BALL_R * 4.8;
-          const behindDistance =
-            index === activeShooter ? shooterBehindDistance : spectatorBehindDistance;
-          const bodyTarget = keepOutsideTable(
-            new THREE.Vector3(
-              anchor.x - useDir.x * behindDistance - aimPerp.x * lateralOffset,
-              FLOOR_Y,
-              anchor.z - useDir.y * behindDistance - aimPerp.y * lateralOffset
-            )
-          );
-          actor.group.position.lerp(bodyTarget, 0.08);
-          actor.group.lookAt(targetAim.x, actor.group.position.y + 1.06, targetAim.z);
-          const shooterPose = shotActive ? 'stroke' : 'aim';
-          setActorPose(actor, index === activeShooter ? shooterPose : 'idle', { now });
-          if (index === activeShooter && cueStickObj?.visible) {
-            cueStickObj.visible = true;
-          }
-        });
-      };
-      void ensureHumanActors();
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
@@ -23076,12 +22784,13 @@ const powerRef = useRef(hud.power);
             baseRotationX,
             baseRotationY,
             strikeDip,
-            forwardOnly
+            forwardOnly,
+            strikeImpactThreshold
           } = stroke;
           const elapsed = Math.max(0, now - startTime);
           if (forwardOnly) {
-            const safeStrikeDuration = Math.max(1, strikeDuration ?? 120);
-            const safeHoldDuration = Math.max(0, holdDuration ?? 50);
+            const safeStrikeDuration = Math.max(1, strikeDuration ?? 110);
+            const safeHoldDuration = Math.max(0, holdDuration ?? 45);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? impactPos,
@@ -23089,87 +22798,43 @@ const powerRef = useRef(hud.power);
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
-            const resolvedImpactPos = normalizedStroke.impactPos ?? impactPos ?? pullPos;
-            const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos;
-            const resolvedFollowPos = followPos ?? resolvedContactPos ?? resolvedImpactPos;
-            // New stroke profile:
-            // 1) short settle on pull position
-            // 2) acceleration burst toward contact
-            // 3) guided follow-through
-            // 4) smooth settle back to idle
-            const settleWindow = THREE.MathUtils.clamp(safeStrikeDuration * 0.16, 16, 42);
-            const accelerationWindow = Math.max(1, safeStrikeDuration - settleWindow);
-            const strikeWobbleScale = Math.max(
+            const resolvedContactPos = stroke.contactPos ?? impactPos ?? pullPos;
+            const strikeProgress = THREE.MathUtils.clamp(
+              elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
-              1 - THREE.MathUtils.clamp(elapsed / Math.max(safeStrikeDuration, 1e-6), 0, 1)
+              1
             );
-
+            const strikeEase = easeOutCubic(strikeProgress);
             cueStick.visible = true;
-            if (elapsed < settleWindow) {
-              const settleT = THREE.MathUtils.clamp(elapsed / Math.max(settleWindow, 1e-6), 0, 1);
-              const settleEase = easeInOutCubic(settleT);
-              cueStick.position.lerpVectors(resolvedPullPos, resolvedImpactPos, settleEase * 0.22);
-              cueStick.position.y -= (strikeDip ?? 0.003) * 0.16 * settleEase;
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y =
-                (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(settleT * Math.PI) * 0.00085 * strikeWobbleScale;
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
+            cueStick.position.lerpVectors(resolvedPullPos, resolvedContactPos, strikeEase);
+            cueStick.position.y -= (strikeDip ?? 0.0035) * strikeEase;
+            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
+            cueStick.rotation.y =
+              (baseRotationY ?? cueStick.rotation.y) +
+              Math.sin(strikeProgress * Math.PI) * 0.0014;
+
+            const impactThreshold = THREE.MathUtils.clamp(strikeImpactThreshold ?? 0.88, 0.05, 0.995);
+            if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
             }
-            if (elapsed < safeStrikeDuration) {
-              const accelT = THREE.MathUtils.clamp(
-                (elapsed - settleWindow) / Math.max(accelerationWindow, 1e-6),
-                0,
-                1
-              );
-              const accelEase = 1 - Math.pow(1 - accelT, 4);
-              cueStick.position.lerpVectors(resolvedImpactPos, resolvedContactPos, accelEase);
-              cueStick.position.y -= (strikeDip ?? 0.003) * (0.48 + accelEase * 0.58);
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y =
-                (baseRotationY ?? cueStick.rotation.y) +
-                Math.sin(accelT * Math.PI) * 0.0012 * strikeWobbleScale;
-              if (!stroke.shotApplied && accelT >= 0.18) {
-                stroke.shotApplied = true;
-                stroke.onImpact?.();
-              }
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
+
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              const followT = THREE.MathUtils.clamp(
-                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
-                0,
-                1
-              );
-              const easedFollow = easeOutCubic(followT);
-              cueStick.position.lerpVectors(resolvedContactPos, resolvedFollowPos, easedFollow);
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
             }
-            const recoverStart = safeStrikeDuration + safeHoldDuration;
-            const recoverEnd = recoverStart + safeRecoverDuration;
-            if (elapsed <= recoverEnd) {
-              const t = THREE.MathUtils.clamp(
-                (elapsed - recoverStart) / Math.max(safeRecoverDuration, 1e-6),
-                0,
-                1
-              );
-              const eased = easeInOutCubic(t);
-              cueStick.visible = true;
+            const recoverT = THREE.MathUtils.clamp(
+              (elapsed - (safeStrikeDuration + safeHoldDuration)) / Math.max(safeRecoverDuration || 1, 1),
+              0,
+              1
+            );
+            if (recoverT < 1) {
               cueStick.position.lerpVectors(
-                resolvedFollowPos,
+                resolvedContactPos,
                 idlePos ?? impactPos ?? pullPos,
-                eased
+                easeInOutCubic(recoverT)
               );
-              cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-              cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -26322,18 +25987,20 @@ const powerRef = useRef(hud.power);
 
       const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
         const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(90, 170, p);
+        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
+        const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
+        const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
-          // Match the reference cue workflow exactly:
-          // drag = pull back, release = immediate forward strike.
+          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
+          // then release performs a single forward punch through the cue ball.
           motion: 'classic',
-          pullRatio: easeOutCubic(p),
+          pullRatio: p,
           pullSmoothing: 1,
-          strikeDuration: 120,
-          holdDuration: 50,
+          strikeDuration,
+          holdDuration,
           pullbackDuration,
           recoverDuration: 0,
-          impactThreshold: 0.9,
+          impactThreshold: 0.86,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
@@ -26543,7 +26210,20 @@ const powerRef = useRef(hud.power);
           x: physicsSpin?.x ?? 0,
           y: physicsSpin?.y ?? 0
         };
-        cue.vel.copy(base);
+        const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
+        if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
+        else shotDir3.set(0, 0, 1);
+        const sideDir3 = TMP_VEC3_D.set(shotDir3.z, 0, -shotDir3.x);
+        if (sideDir3.lengthSq() > 1e-8) sideDir3.normalize();
+        const baseSpeed = Math.max(0, base.length());
+        const topspin = Math.max(0, offsetScaled.y);
+        const backspin = Math.max(0, -offsetScaled.y);
+        const squirt = offsetScaled.x * clampedPower * 0.24;
+        cue.vel
+          .copy(shotDir3)
+          .multiplyScalar(baseSpeed + topspin * clampedPower * 0.9)
+          .addScaledVector(sideDir3, squirt)
+          .addScaledVector(shotDir3, -backspin * clampedPower * 0.65);
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
         }
@@ -26554,9 +26234,8 @@ const powerRef = useRef(hud.power);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
-        const shotDir = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
-        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
+        const shotDir = shotDir3;
+        const sideAxis = TMP_VEC3_E.set(-shotDir.z, 0, shotDir.x);
         if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
         const rOffset = TMP_VEC3_E
           .copy(sideAxis)
@@ -26585,7 +26264,7 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = (committedPowerOverride = null) => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -26684,7 +26363,11 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const clampedPower = clampPower(powerRef.current, 0);
+        const sourcePower = Number.isFinite(committedPowerOverride)
+          ? committedPowerOverride
+          : powerRef.current;
+        const clampedPower = clampPower(sourcePower, 0);
+        shotPowerRef.current = clampedPower;
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -26960,42 +26643,14 @@ const powerRef = useRef(hud.power);
               spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
             }
           }
-          cue.vel.copy(base);
-          cue.maxRailSpeed = Math.max(cue.vel.length(), 0);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.omega) {
-            cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
-            if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
-            TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
-            if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
-            TMP_VEC3_C.copy(TMP_VEC3_B).multiplyScalar(scaledSpin.x * BALL_R);
-            TMP_VEC3_C.y += scaledSpin.y * BALL_R;
-            const impulseMag = BALL_MASS * base.length();
-            TMP_VEC3_D.copy(TMP_VEC3_A).multiplyScalar(impulseMag);
-            TMP_VEC3_E.copy(TMP_VEC3_C).cross(TMP_VEC3_D);
-            cue.omega.addScaledVector(TMP_VEC3_E, 1 / BALL_INERTIA);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.swerveStrength = 0;
-          cue.swervePowerStrength = 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = shotAimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
-          spawnCueImpactDust({
-            origin: new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y),
-            direction: new THREE.Vector3(shotAimDir.x, 0, shotAimDir.y),
-            power: clampedPower
-          });
+          const shotImpactPayload = {
+            base: base.clone(),
+            aimDir: shotAimDir.clone(),
+            physicsSpin: { x: spinSide, y: spinTop },
+            clampedPower,
+            liftStrength,
+            applied: false
+          };
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -27030,9 +26685,13 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Mirror the reference stroke pullback curve exactly:
-          // pull = pullRange * easeOutCubic(power), then push forward on strike.
-          const pullRange = 0.24;
+          // Rebuilt stroke pullback: tie visible pull directly to slider power
+          // and the currently available room behind the cue ball.
+          const pullRange = THREE.MathUtils.clamp(
+            maxPull * 0.92,
+            CUE_PULL_MIN_VISUAL,
+            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
+          );
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
@@ -27077,9 +26736,9 @@ const powerRef = useRef(hud.power);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          // Start the release from the *currently visible* pulled cue position
-          // so slider release always pushes forward from what the player sees.
-          const releaseStartPos = cueStick.position.clone();
+          // Start the release exactly from the computed pull position so the
+          // cue always pushes forward from the same pulled depth the player set.
+          const releaseStartPos = buildCuePosition(visualPull);
           cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -27229,11 +26888,13 @@ const powerRef = useRef(hud.power);
               // Slider release should drive an immediate forward strike from the
               // currently pulled cue position back to contact.
               forwardOnly: true,
+              onImpact: () => applyShotAtImpact(shotImpactPayload),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
               releaseStartsFromCurrentPull: true
             };
           } else {
+            applyShotAtImpact(shotImpactPayload);
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -28716,7 +28377,7 @@ const powerRef = useRef(hud.power);
           );
           const deadline = started + thinkingBudget;
           const think = () => {
-            if (shootingRef.current || hudRef.current?.turn !== 1) {
+            if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
               aiPlanRef.current = null;
               aiThinkingHandle = null;
@@ -28753,7 +28414,7 @@ const powerRef = useRef(hud.power);
               aiThinkingHandle = requestAnimationFrame(think);
             } else {
               aiThinkingHandle = null;
-              if (!shootingRef.current) {
+              if (!shooting) {
                 aiShoot.current();
               }
             }
@@ -29305,14 +28966,7 @@ const powerRef = useRef(hud.power);
             }, 200);
             return;
           }
-          if (currentHud?.over) return;
-          if (currentHud?.inHand || shootingRef.current) {
-            aiRetryTimeoutRef.current = window.setTimeout(() => {
-              aiRetryTimeoutRef.current = null;
-              aiShoot.current();
-            }, 140);
-            return;
-          }
+          if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -29512,17 +29166,6 @@ const powerRef = useRef(hud.power);
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
                 updateCamera();
                 fire();
-                if (!shootingRef.current) {
-                  // Guard against AI break edge-cases (e.g. break-roll transitions)
-                  // where fire() can early-return and leave the game waiting forever.
-                  setAiShotCueViewActive(false);
-                  setAiShotPreviewActive(false);
-                  aiRetryTimeoutRef.current = window.setTimeout(() => {
-                    aiRetryTimeoutRef.current = null;
-                    aiShoot.current();
-                  }, 160);
-                  return;
-                }
                 if (breakWinnerSeatRef.current === 'B') {
                   breakWinnerSeatRef.current = null;
                 }
@@ -30366,15 +30009,6 @@ const powerRef = useRef(hud.power);
             if (cueStick?.visible) {
               cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
             }
-            updateHumanActors({
-              cueBall: cue,
-              turn: hudRef.current?.turn ?? 0,
-              shotActive: shooting,
-              ballsState: balls,
-              cueStickObj: cueStick,
-              aimDirection: aimDirRef.current,
-              now
-            });
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
@@ -30585,15 +30219,6 @@ const powerRef = useRef(hud.power);
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
-        updateHumanActors({
-          cueBall: cue,
-          turn: currentHud?.turn ?? 0,
-          shotActive: shooting,
-          ballsState: balls,
-          cueStickObj: cueStick,
-          aimDirection: aimDirRef.current,
-          now
-        });
         if (
           cue?.pos &&
           !sliderInstanceRef.current?.dragging &&
@@ -32913,12 +32538,6 @@ const powerRef = useRef(hud.power);
         activeRenderCameraRef.current = null;
         cueBodyRef.current = null;
         tipGroupRef.current = null;
-        humanActors.forEach((actor) => {
-          actor?.group?.parent?.remove?.(actor.group);
-        });
-        humanActors.length = 0;
-        humanTemplateRef.current = null;
-        humanLoadRef.current = null;
         try {
           host.removeChild(renderer.domElement);
         } catch {}
@@ -33091,6 +32710,19 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
+  const onPowerDragStart = useCallback(() => {
+    captureCueStickAnchor();
+  }, [captureCueStickAnchor]);
+  const onPowerDrag = useCallback((powerRatio = 0) => {
+    applyPower(powerRatio);
+  }, [applyPower]);
+  const onPowerRelease = useCallback((powerRatio = null) => {
+    const sourcePower = Number.isFinite(powerRatio) ? powerRatio : powerRef.current;
+    const latchedPower = clampPower(sourcePower, 0);
+    shotPowerRef.current = latchedPower;
+    applyPower(latchedPower);
+    fireRef.current?.(latchedPower);
+  }, [applyPower, clampPower]);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -33103,14 +32735,15 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
-      onStart: () => {
-        captureCueStickAnchor();
-      },
-      onCommit: (committedValue = 0) => {
-        fireRef.current?.();
-        const powerRatio = THREE.MathUtils.clamp((committedValue ?? 0) / 100, 0, 1);
-        const resetDurationMs = THREE.MathUtils.lerp(190, 105, powerRatio);
+      onChange: (v) => onPowerDrag((v ?? 0) / 100),
+      onStart: () => onPowerDragStart(),
+      onCommit: (committedValue) => {
+        const hasCommittedValue = Number.isFinite(committedValue);
+        const powerRatio = hasCommittedValue
+          ? THREE.MathUtils.clamp(committedValue / 100, 0, 1)
+          : clampPower(powerRef.current, 0);
+        onPowerRelease(powerRatio);
+        const resetDurationMs = 160;
         slider.animateToMin({ duration: resetDurationMs });
       }
     });
@@ -33120,7 +32753,7 @@ const powerRef = useRef(hud.power);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, clampPower, onPowerDrag, onPowerDragStart, onPowerRelease, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
