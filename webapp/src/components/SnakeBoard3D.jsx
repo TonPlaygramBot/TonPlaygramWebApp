@@ -81,16 +81,14 @@ const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
 // Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.22;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.0;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.66 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.3;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.8 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_Y = 0;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
-const HUMAN_TORSO_FACE_BOARD_YAW = 0;
-const HUMAN_NECK_FACE_BOARD_YAW = 0;
-const HUMAN_HEAD_FACE_BOARD_YAW = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -383,14 +381,14 @@ const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.2;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.7;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.86,
-  forwardOffset: 0,
-  heightOffset: 3.78,
+  backOffset: 1.72,
+  forwardOffset: 0.34,
+  heightOffset: 3.05,
   targetLift: 0
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -1668,38 +1666,47 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   composeModelBone(
     rest,
     bones.hips,
-    new THREE.Euler(-0.14 - dynamicLean * 0.4, 0.02 + HUMAN_TORSO_FACE_BOARD_YAW * 0.34, 0.01, 'XYZ')
+    new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
   );
-  composeModelBone(
-    rest,
-    bones.spine,
-    new THREE.Euler(0.24 + breathe - dynamicLean * 0.2, HUMAN_TORSO_FACE_BOARD_YAW, 0, 'XYZ')
-  );
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.14, HUMAN_TORSO_FACE_BOARD_YAW * 0.66, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine2, new THREE.Euler(0.06, HUMAN_TORSO_FACE_BOARD_YAW * 0.52, 0, 'XYZ'));
-  composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, HUMAN_NECK_FACE_BOARD_YAW, 0, 'XYZ'));
-  composeModelBone(
-    rest,
-    bones.head,
-    new THREE.Euler(-0.06, HUMAN_HEAD_FACE_BOARD_YAW + Math.sin(timeSeconds * 0.27) * 0.022, 0, 'XYZ')
-  );
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0.06, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, Math.sin(timeSeconds * 0.27) * 0.022, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.42, 0.14, 0.08, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.42, -0.12, -0.08, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(1.5, 0.02, 0, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(1.5, -0.02, 0, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(-0.16, 0.04, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(-0.16, -0.04, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.32, 0.16, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.32, 0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.28, 0.02, 0.01, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.28, -0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.16, 0.03, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.16, -0.02, -0.01, 'XYZ'));
 
   composeModelBone(rest, bones.leftShoulder, new THREE.Euler(-0.04, 0.05, -0.1, 'XYZ'));
   composeModelBone(rest, bones.rightShoulder, new THREE.Euler(-0.04, -0.05, 0.1, 'XYZ'));
-  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.4, 0.14, -0.18, 'XYZ'));
-  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.4, -0.14, 0.18, 'XYZ'));
-  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.74, 0.06, -0.04, 'XYZ'));
-  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.74, -0.06, 0.04, 'XYZ'));
-  composeModelBone(rest, bones.leftHand, new THREE.Euler(0.06, 0.02, -0.04, 'XYZ'));
-  composeModelBone(rest, bones.rightHand, new THREE.Euler(0.06, -0.02, 0.04, 'XYZ'));
+  composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
+  composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
+  composeModelBone(rest, bones.leftForeArm, new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ'));
+  composeModelBone(rest, bones.rightForeArm, new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ'));
+  composeModelBone(rest, bones.leftHand, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
 }
+
+function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
+  const { root, bones } = seatHuman || {};
+  if (!root || !bones) return;
+  root.updateMatrixWorld(true);
+  const feet = [bones.leftFoot, bones.rightFoot].filter((bone) => bone?.isBone);
+  if (!feet.length) return;
+  let minFootY = Infinity;
+  feet.forEach((bone) => {
+    const worldPos = bone.getWorldPosition(new THREE.Vector3());
+    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
+  });
+  if (!Number.isFinite(minFootY)) return;
+  root.position.y += groundY - minFootY;
+  root.updateMatrixWorld(true);
+}
+
 
 async function loadSeatedHumanTemplate(renderer) {
   if (HUMAN_MODEL_CACHE.template) return HUMAN_MODEL_CACHE.template;
@@ -3444,6 +3451,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
           baseScale
         };
         applySeatedHumanPose(seatedHumans[seatIndex], 0, 0);
+        alignSeatedHumanFeetToGround(seatedHumans[seatIndex]);
       });
     })
     .catch((error) => {
@@ -5760,6 +5768,7 @@ export default function SnakeBoard3D({
           root.rotation.y = 0;
           root.rotation.z = 0;
           applySeatedHumanPose(seatHuman, now * 0.001, throwLean);
+          alignSeatedHumanFeetToGround(seatHuman);
         });
       }
       let hasDiceCenter = false;
