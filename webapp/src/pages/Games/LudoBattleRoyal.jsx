@@ -1749,7 +1749,6 @@ const CUSTOM_CHAIR_ANGLES = [
 const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 2600;
-const HUMAN_DICE_TOUCH_ONLY = true;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const ANIMATION_BASE_FPS = 60;
@@ -1894,14 +1893,6 @@ const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-10);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
-const ROLL_PHASE_REACH_END_SEC = 0.54;
-const ROLL_PHASE_GRIP_END_SEC = 0.8;
-const ROLL_PHASE_HOLD_END_SEC = 1.05;
-const ROLL_PHASE_WINDUP_END_SEC = 1.3;
-const ROLL_PHASE_RELEASE_END_SEC = 1.56;
-const ROLL_PHASE_FOLLOW_END_SEC = 2.4;
-const HUMAN_DICE_THROW_MIN_DURATION_MS = Math.round(ROLL_PHASE_RELEASE_END_SEC * 1000 + 40);
-const TAP_MOVE_TOLERANCE_PX = 12;
 const CAMERA_TOUCH_PULL_FORWARD_FACTOR = 0.0032;
 const CAMERA_TOUCH_PULL_FORWARD_MAX_RATIO = 0.32;
 const CAMERA_TOUCH_PULL_BACK_MAX_RATIO = 0.4;
@@ -3186,7 +3177,6 @@ const CAMERA_2D_DISTANCE_FACTOR = 1.08;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 1.32;
 const CAMERA_3D_VERTICAL_DROP = 0;
 const CAMERA_3D_HEIGHT_BOOST = 0.12 * MODEL_SCALE;
-const DICE_TAP_MIN_RADIUS_PX = 74;
 const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.038 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
@@ -4471,13 +4461,7 @@ async function loadSeatedHumanTemplate(renderer = null) {
 
 function spinDice(
   dice,
-  {
-    duration = 900,
-    targetPosition = new THREE.Vector3(),
-    bounceHeight = 0.06,
-    handPickupSampler = null,
-    handReleaseSampler = null
-  } = {}
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06 } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -4490,51 +4474,16 @@ function spinDice(
     );
     const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
     const targetValue = 1 + Math.floor(Math.random() * 6);
-    const pickupHandTarget = new THREE.Vector3();
-    const releaseHandTarget = new THREE.Vector3();
-    const easedTarget = new THREE.Vector3();
-    const pickupPhase = clamp(ROLL_PHASE_REACH_END_SEC / Math.max(duration / 1000, 1e-4), 0.1, 0.72);
-    const holdPhase = clamp(ROLL_PHASE_HOLD_END_SEC / Math.max(duration / 1000, 1e-4), pickupPhase + 0.08, 0.84);
-    const throwBlendPhase = clamp(ROLL_PHASE_RELEASE_END_SEC / Math.max(duration / 1000, 1e-4), holdPhase + 0.08, 0.96);
 
     const step = () => {
       const now = performance.now();
       const t = Math.min(1, (now - start) / Math.max(1, duration));
       const eased = easeOutCubic(t);
       const position = startPos.clone().lerp(endPos, eased);
-      const pickupAvailable =
-        typeof handPickupSampler === 'function' && handPickupSampler(pickupHandTarget) !== false;
-      const releaseAvailable =
-        typeof handReleaseSampler === 'function' && handReleaseSampler(releaseHandTarget) !== false;
-      const handAvailable = pickupAvailable || releaseAvailable;
-      const handPickup = pickupAvailable ? pickupHandTarget : releaseAvailable ? releaseHandTarget : null;
-      const handRelease = releaseAvailable ? releaseHandTarget : pickupAvailable ? pickupHandTarget : null;
-      if (handAvailable && handPickup) {
-        if (t <= pickupPhase) {
-          const pickupT = clamp(t / Math.max(1e-4, pickupPhase), 0, 1);
-          easedTarget.copy(startPos).lerp(handPickup, easeInOutCubic(pickupT));
-          position.copy(easedTarget);
-        } else if (t <= holdPhase) {
-          const holdT = clamp((t - pickupPhase) / Math.max(1e-4, holdPhase - pickupPhase), 0, 1);
-          const bodyHold = handPickup
-            .clone()
-            .lerp(handRelease ?? handPickup, 0.22 + holdT * 0.12);
-          bodyHold.y += Math.sin(holdT * Math.PI) * 0.014;
-          position.copy(bodyHold);
-        } else if (t <= throwBlendPhase) {
-          const throwT = clamp((t - holdPhase) / Math.max(1e-4, throwBlendPhase - holdPhase), 0, 1);
-          easedTarget.copy(handRelease ?? handPickup).lerp(endPos, easeOutCubic(throwT));
-          position.copy(easedTarget);
-        }
-      }
-      const wobbleStrength = Math.sin(eased * Math.PI) * (handAvailable && t <= holdPhase ? 0.35 : 1);
+      const wobbleStrength = Math.sin(eased * Math.PI);
       position.addScaledVector(wobble, wobbleStrength * 0.45);
       const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
-      if (handAvailable && t <= throwBlendPhase) {
-        const blend = clamp(t / Math.max(1e-4, throwBlendPhase), 0, 1);
-        position.y = THREE.MathUtils.lerp(position.y, THREE.MathUtils.lerp(startPos.y, endPos.y, eased), blend * 0.6);
-      }
-      position.y += bounce;
+      position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
       dice.position.copy(position);
 
       const spinFactor = 1 - eased * 0.28;
@@ -5788,7 +5737,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 
   const scheduleHumanAutoRoll = useCallback(() => {
-    if (HUMAN_DICE_TOUCH_ONLY) return;
     const state = stateRef.current;
     if (!state || state.winner || state.turn !== 0 || state.animation) return;
     if (humanSelectionRef.current) return;
@@ -6635,12 +6583,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let animationId = 0;
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
-    const diceBounds = new THREE.Box3();
-    const diceCenterWorld = new THREE.Vector3();
-    const diceEdgeWorld = new THREE.Vector3();
-    const diceCenterNdc = new THREE.Vector3();
-    const diceEdgeNdc = new THREE.Vector3();
-    const cameraRight = new THREE.Vector3();
 
     let cancelled = false;
     let onPointerDown = null;
@@ -7069,29 +7011,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         rollFn();
         return true;
       }
-      // Mobile-safe fallback: allow taps near the projected dice center even if tiny meshes miss the raycast.
-      diceBounds.setFromObject(dice);
-      if (!Number.isFinite(diceBounds.min.x) || !Number.isFinite(diceBounds.max.x)) return false;
-      diceBounds.getCenter(diceCenterWorld);
-      const diceRadiusWorld = Math.max(
-        0.001,
-        diceBounds.getSize(diceEdgeWorld).length() * 0.5
-      );
-      diceCenterNdc.copy(diceCenterWorld).project(camera);
-      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
-      diceEdgeWorld
-        .copy(diceCenterWorld)
-        .addScaledVector(cameraRight, diceRadiusWorld);
-      diceEdgeNdc.copy(diceEdgeWorld).project(camera);
-      const centerPxX = ((diceCenterNdc.x + 1) * 0.5) * rect.width + rect.left;
-      const centerPxY = ((1 - diceCenterNdc.y) * 0.5) * rect.height + rect.top;
-      const edgePxX = ((diceEdgeNdc.x + 1) * 0.5) * rect.width + rect.left;
-      const projectedRadiusPx = Math.max(Math.abs(edgePxX - centerPxX), DICE_TAP_MIN_RADIUS_PX);
-      const pointerDistance = Math.hypot(clientX - centerPxX, clientY - centerPxY);
-      if (pointerDistance <= projectedRadiusPx * 1.2) {
-        rollFn();
-        return true;
-      }
       return false;
     };
 
@@ -7171,23 +7090,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
-    let pointerTapState = null;
     let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
-      pointerTapState = {
-        pointerId: event.pointerId,
-        startX: clientX,
-        startY: clientY,
-        moved: false,
-        handled: false
-      };
       let handled = attemptHumanSelection(clientX, clientY);
       if (!handled) {
         handled = attemptDiceRoll(clientX, clientY);
       }
-      if (pointerTapState) pointerTapState.handled = handled;
       if (handled) {
         pointerLocked = true;
         if (controls) controls.enabled = false;
@@ -7218,12 +7128,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
-      if (pointerTapState?.pointerId === event.pointerId) {
-        const movedDistance = Math.hypot(clientX - pointerTapState.startX, clientY - pointerTapState.startY);
-        if (movedDistance > TAP_MOVE_TOLERANCE_PX) {
-          pointerTapState.moved = true;
-        }
-      }
       const deltaX = clientX - lookState.lastX;
       const deltaY = clientY - lookState.lastY;
       lookState.lastX = clientX;
@@ -7245,23 +7149,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls?.update();
     };
     onPointerUp = (event) => {
-      if (
-        pointerTapState &&
-        pointerTapState.pointerId === event?.pointerId &&
-        !pointerTapState.handled &&
-        !pointerTapState.moved
-      ) {
-        const tapX = event?.clientX ?? pointerTapState.startX;
-        const tapY = event?.clientY ?? pointerTapState.startY;
-        let handled = attemptHumanSelection(tapX, tapY);
-        if (!handled) {
-          handled = attemptDiceRoll(tapX, tapY);
-        }
-        pointerTapState.handled = handled;
-      }
-      if (pointerTapState?.pointerId === event?.pointerId) {
-        pointerTapState = null;
-      }
       const lookState = cameraLookStateRef.current;
       if (lookState.pointerId === event?.pointerId) {
         lookState.pointerId = null;
@@ -7283,6 +7170,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const animLook = new THREE.Vector3();
     const seatWorld = new THREE.Vector3();
     const seatNdc = new THREE.Vector3();
+    const faceWorld = new THREE.Vector3();
 
     const step = () => {
       const now = performance.now();
@@ -7379,59 +7267,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             actorState.rollStartMs > 0
           ) {
             const elapsedSec = Math.max(0, (now - actorState.rollStartMs) / 1000);
-            if (elapsedSec < ROLL_PHASE_REACH_END_SEC) {
+            if (elapsedSec < 0.55) {
               mode = 'reachDice';
-              intensity = clamp(elapsedSec / Math.max(1e-4, ROLL_PHASE_REACH_END_SEC), 0, 1);
+              intensity = clamp(elapsedSec / 0.55, 0, 1);
               handGrip = 0.05;
-            } else if (elapsedSec < ROLL_PHASE_GRIP_END_SEC) {
+            } else if (elapsedSec < 0.85) {
               mode = 'gripDice';
-              intensity = clamp(
-                (elapsedSec - ROLL_PHASE_REACH_END_SEC) /
-                  Math.max(1e-4, ROLL_PHASE_GRIP_END_SEC - ROLL_PHASE_REACH_END_SEC),
-                0,
-                1
-              );
+              intensity = clamp((elapsedSec - 0.55) / 0.3, 0, 1);
               handGrip = intensity;
-            } else if (elapsedSec < ROLL_PHASE_HOLD_END_SEC) {
+            } else if (elapsedSec < 1.10) {
               mode = 'holdDice';
-              intensity = clamp(
-                (elapsedSec - ROLL_PHASE_GRIP_END_SEC) /
-                  Math.max(1e-4, ROLL_PHASE_HOLD_END_SEC - ROLL_PHASE_GRIP_END_SEC),
-                0,
-                1
-              );
+              intensity = clamp((elapsedSec - 0.85) / 0.25, 0, 1);
               handGrip = 1;
-            } else if (elapsedSec < ROLL_PHASE_WINDUP_END_SEC) {
+            } else if (elapsedSec < 1.31) {
               mode = 'windUp';
-              intensity = clamp(
-                (elapsedSec - ROLL_PHASE_HOLD_END_SEC) /
-                  Math.max(1e-4, ROLL_PHASE_WINDUP_END_SEC - ROLL_PHASE_HOLD_END_SEC),
-                0,
-                1
-              );
+              intensity = clamp((elapsedSec - 1.10) / 0.21, 0, 1);
               handGrip = 1;
-            } else if (elapsedSec < ROLL_PHASE_RELEASE_END_SEC) {
+            } else if (elapsedSec < 1.58) {
               mode = 'release';
-              intensity = clamp(
-                (elapsedSec - ROLL_PHASE_WINDUP_END_SEC) /
-                  Math.max(1e-4, ROLL_PHASE_RELEASE_END_SEC - ROLL_PHASE_WINDUP_END_SEC),
-                0,
-                1
-              );
+              intensity = clamp((elapsedSec - 1.31) / 0.27, 0, 1);
               handGrip = 1 - intensity;
-            } else if (elapsedSec < ROLL_PHASE_FOLLOW_END_SEC) {
+            } else if (elapsedSec < 2.55) {
               mode = 'followThrough';
-              intensity = clamp(
-                (elapsedSec - ROLL_PHASE_RELEASE_END_SEC) /
-                  Math.max(1e-4, ROLL_PHASE_FOLLOW_END_SEC - ROLL_PHASE_RELEASE_END_SEC),
-                0,
-                1
-              );
+              intensity = 1;
+              handGrip = 0;
             } else {
               mode = 'idle';
               intensity = 1;
+              handGrip = 0;
             }
-            if (elapsedSec > ROLL_PHASE_FOLLOW_END_SEC + 0.2) {
+            if (elapsedSec > 2.75) {
               actorState.rollPlayer = null;
             }
           } else if (state?.animation?.active && state.animation.player === playerIndex) {
@@ -7482,11 +7347,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
-          anchor.getWorldPosition(seatWorld);
+          const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === index);
+          const faceHelper = actorEntry?.actionHelpers?.faceCamera;
+          const headBone = actorEntry?.rig?.head;
+          if (faceHelper?.isObject3D) {
+            faceHelper.updateMatrixWorld?.(true);
+            faceHelper.getWorldPosition(seatWorld);
+          } else if (headBone?.isBone) {
+            headBone.updateMatrixWorld?.(true);
+            headBone.getWorldPosition(seatWorld);
+          } else {
+            anchor.getWorldPosition(seatWorld);
+          }
           seatNdc.copy(seatWorld).project(camera);
           const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
           const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-          const depth = camera.position.distanceTo(seatWorld);
+          if (faceHelper?.isObject3D) {
+            faceHelper.getWorldPosition(faceWorld);
+          } else if (headBone?.isBone) {
+            headBone.getWorldPosition(faceWorld);
+          } else {
+            faceWorld.copy(seatWorld);
+          }
+          const depth = camera.position.distanceTo(faceWorld);
           return { index, x, y, depth };
         });
         let changed = positions.length !== seatPositionsRef.current.length;
@@ -9411,14 +9294,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
-      duration: resolveFrameSyncedDuration(
-        Math.max(AUTO_ROLL_DURATION_MS, HUMAN_DICE_THROW_MIN_DURATION_MS),
-        { min: 620, max: 1800 }
-      ),
+      duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
       targetPosition: baseTarget,
-      bounceHeight: dice.userData?.bounceHeight ?? 0.06,
-      handPickupSampler: (out) => sampleHumanActionHelperPosition(player, 'dicePickup', out),
-      handReleaseSampler: (out) => sampleHumanActionHelperPosition(player, 'diceRelease', out)
+      bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
     seatedHumanActionRef.current.rollEndMs = performance.now();
