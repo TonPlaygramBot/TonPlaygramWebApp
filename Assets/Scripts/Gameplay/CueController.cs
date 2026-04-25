@@ -65,7 +65,6 @@ namespace Aiming
         float _currentCueDepth;
         float _chargedCueDepth;
         float _power;
-        float _maxPowerDuringCharge;
         float _latchedShotPower;
         Vector2 _liveSpinInput;
         Vector2 _latchedShotSpin;
@@ -117,9 +116,7 @@ namespace Aiming
 
             if (_shotState == ShotState.Dragging)
             {
-                _maxPowerDuringCharge = Mathf.Max(_maxPowerDuringCharge, _power);
-                float effectivePower = Mathf.Max(_power, _maxPowerDuringCharge);
-                float pull = pullRange * EaseOutCubic(effectivePower);
+                float pull = pullRange * EaseOutCubic(_power);
                 _chargedCueDepth = idleTipGap + pull;
                 _currentCueDepth = _chargedCueDepth;
                 UpdateCuePose();
@@ -137,7 +134,6 @@ namespace Aiming
             _latchedShotSpin = _liveSpinInput;
             _shotState = ShotState.Dragging;
             _power = Mathf.Max(_power, RecoverPowerFromCueDepth(_currentCueDepth));
-            _maxPowerDuringCharge = _power;
             _latchedShotPower = 0f;
             _chargedCueDepth = idleTipGap + (pullRange * EaseOutCubic(_power));
             _currentCueDepth = _chargedCueDepth;
@@ -162,7 +158,6 @@ namespace Aiming
 
             _shotState = ShotState.Idle;
             _power = 0f;
-            _maxPowerDuringCharge = 0f;
             _latchedShotPower = 0f;
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
@@ -181,11 +176,10 @@ namespace Aiming
             }
 
             float recoveredPower = RecoverPowerFromCueDepth(_chargedCueDepth);
-            _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower, _maxPowerDuringCharge);
+            _latchedShotPower = ResolveReleasedShotPower(_power, recoveredPower);
             if (_latchedShotPower <= 0f)
             {
                 _shotState = ShotState.Idle;
-                _maxPowerDuringCharge = 0f;
                 _chargedCueDepth = idleTipGap;
                 _currentCueDepth = idleTipGap;
                 _dynamicLift = 0f;
@@ -273,11 +267,22 @@ namespace Aiming
             float follow = Mathf.Min(0.018f, topspin * 0.018f);
             float dynamicFollow = follow * (0.55f + (0.45f * Mathf.Sin(t * Mathf.PI)));
 
+            float pulledDepth = Mathf.Max(idleTipGap, _chargedCueDepth);
+            float releaseTargetDepth = idleTipGap;
+            float contactDepth = Mathf.Min(contactTipGap - dynamicFollow, releaseTargetDepth);
+
             _dynamicLift = -0.0035f * strikeEase;
             _dynamicWobble = Mathf.Sin(t * Mathf.PI) * 0.0014f;
-            _currentCueDepth = Mathf.Lerp(idleTipGap + pull, contactTipGap - dynamicFollow, strikeEase);
+            _currentCueDepth = Mathf.Lerp(pulledDepth, releaseTargetDepth, strikeEase);
 
-            if (!_didStrike && t > hitT)
+            if (!_didStrike && _currentCueDepth <= contactDepth)
+            {
+                _didStrike = true;
+                SquashTip();
+                ApplyStrikeImpulse(_strikeDirection, _latchedShotPower);
+            }
+
+            if (!_didStrike && t >= hitT)
             {
                 _didStrike = true;
                 SquashTip();
@@ -401,7 +406,6 @@ namespace Aiming
             _didStrike = false;
             _shotState = ShotState.Idle;
             _power = 0f;
-            _maxPowerDuringCharge = 0f;
             _latchedShotPower = 0f;
             _latchedShotSpin = _liveSpinInput;
             _chargedCueDepth = idleTipGap;
@@ -411,9 +415,9 @@ namespace Aiming
             ResetTipScale();
         }
 
-        float ResolveReleasedShotPower(float sliderPower, float recoveredPower, float maxChargePower)
+        float ResolveReleasedShotPower(float sliderPower, float recoveredPower)
         {
-            float raw = Mathf.Clamp01(Mathf.Max(Mathf.Max(sliderPower, recoveredPower), maxChargePower));
+            float raw = Mathf.Clamp01(Mathf.Max(sliderPower, recoveredPower));
             if (raw <= 0f)
             {
                 return 0f;
