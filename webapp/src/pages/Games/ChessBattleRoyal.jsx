@@ -366,7 +366,7 @@ const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_SIZE_FACTOR = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_FOOTPRINT_SHRINK = 0.82; // Keep chair height, but make chair body visually smaller on screen.
+const CHAIR_FOOTPRINT_SHRINK = 0.78; // Keep chair height, but make chair body slightly smaller on screen.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -392,7 +392,7 @@ const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = -0.14 * MODEL_SCALE;
-const CHAIR_TABLE_PUSHBACK = 0.045 * MODEL_SCALE;
+const CHAIR_TABLE_PUSHBACK = 0.08 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
@@ -421,8 +421,8 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.75;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.295 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.36 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
@@ -2174,6 +2174,19 @@ function alignGroupToFloorY(group, floorY = 0) {
   const offset = floorY - box.min.y;
   if (Math.abs(offset) > 1e-4) {
     group.position.y += offset;
+  }
+  return offset;
+}
+
+function alignActorFeetToFloorY(actor, floorY = 0) {
+  if (!actor) return 0;
+  actor.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(actor);
+  if (!Number.isFinite(box.min.y)) return 0;
+  const offset = floorY - box.min.y;
+  if (Math.abs(offset) > 1e-4) {
+    actor.position.y += offset;
+    actor.updateMatrixWorld(true);
   }
   return offset;
 }
@@ -8918,6 +8931,7 @@ function Chess3D({
         actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, SEATED_HUMAN_SEAT_Z_OFFSET);
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
+        alignActorFeetToFloorY(actor, initialArenaFloorY);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1, 0);
         seatedHumanActorsRef.current.push({ playerIndex, actor, rig });
