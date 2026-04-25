@@ -4111,12 +4111,12 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
   addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
   // Match Snake & Ladder seated leg posture while leaving torso/arm animation unchanged.
-  addBoneRot(rig, rig.leftUpperLeg, 1.45, -0.03, -0.04, 1);
-  addBoneRot(rig, rig.leftLowerLeg, 1.12, 0.03, 0.02, 1);
-  addBoneRot(rig, rig.leftFoot, -0.05, 0.02, 0.01, 1);
-  addBoneRot(rig, rig.rightUpperLeg, 1.45, 0.03, 0.04, 1);
-  addBoneRot(rig, rig.rightLowerLeg, 1.12, -0.03, -0.02, 1);
-  addBoneRot(rig, rig.rightFoot, -0.05, -0.02, -0.01, 1);
+  addBoneRot(rig, rig.leftUpperLeg, -1.48, 0.19, 0.08, 1);
+  addBoneRot(rig, rig.leftLowerLeg, 1.56, 0, 0, 1);
+  addBoneRot(rig, rig.leftFoot, -0.12, 0.05, 0.02, 1);
+  addBoneRot(rig, rig.rightUpperLeg, -1.48, 0.03, -0.04, 1);
+  addBoneRot(rig, rig.rightLowerLeg, 1.56, 0, 0, 1);
+  addBoneRot(rig, rig.rightFoot, -0.12, -0.03, -0.01, 1);
 
   addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
   addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
