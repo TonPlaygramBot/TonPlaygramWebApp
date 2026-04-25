@@ -389,12 +389,12 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width/depth.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.14 * MODEL_SCALE; // Push local seat slightly lower on portrait screens.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.5 * MODEL_SCALE; // Keep top player seat slightly lower too for symmetric framing.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Pull local seat slightly farther from the table for clearer portrait framing.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.46 * MODEL_SCALE; // Pull opponent seat a bit farther from the table while preserving top-screen spacing.
 const CHAIR_TABLE_PUSHBACK = 0.12 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -428,21 +428,21 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.22;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.74;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.2;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.96;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.56;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.16;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.02;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.62; // shift board/chairs/humans lower on portrait screens.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.48; // keep board low on portrait screens but leave more room to show the seated actor.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
@@ -2757,18 +2757,6 @@ async function buildChessChairTemplate(theme) {
       const root = await loadPolyhavenModel(theme.assetId);
       const model = root.clone(true);
       prepareLoadedModel(model);
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.setCrossOrigin('anonymous');
-      const textureSet = await loadPolyhavenTextureSet(
-        theme.assetId,
-        textureLoader,
-        8,
-        CAPTURE_POLYHAVEN_TEXTURE_SETS
-      );
-      if (textureSet) {
-        // Keep original GLTF UV/mapping while filling any missing channels from Poly Haven maps.
-        applyTextureSetToModel(model, textureSet, null, 8);
-      }
       fitChairModelToFootprint(model);
       const materials = extractChairMaterials(model);
       applyChairThemeMaterials({ chairMaterials: materials }, theme);
@@ -12429,9 +12417,8 @@ function Chess3D({
           from: liveFrom.clone(),
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
-          startMs: nowMs,
-          holdBeforeCarryMs: Math.max(0, moveDelayMs),
-          durationMs: SEATED_HUMAN_MOVE_DURATION_MS + Math.max(0, moveDelayMs),
+          startMs: nowMs + Math.max(0, moveDelayMs),
+          durationMs: SEATED_HUMAN_MOVE_DURATION_MS,
           handHelper: null,
           pieceHelper: null
         });
@@ -13417,23 +13404,11 @@ function Chess3D({
             applySeatedHumanPose(entry.rig, 'idle', 1, 0);
             return;
           }
-          const holdBeforeCarryMs = Math.max(0, action.holdBeforeCarryMs ?? 0);
-          const contactMoveDurationMs = Math.max(
-            1,
-            (action.durationMs ?? SEATED_HUMAN_MOVE_DURATION_MS) - holdBeforeCarryMs
-          );
-          const holdWindowActive = holdBeforeCarryMs > 0 && elapsedMs < holdBeforeCarryMs;
-          const holdWindowProgress = holdBeforeCarryMs > 0 ? clamp01(elapsedMs / holdBeforeCarryMs) : 1;
-          const moveElapsedMs = holdWindowActive ? 0 : elapsedMs - holdBeforeCarryMs;
-          const u = clamp01(moveElapsedMs / contactMoveDurationMs);
+          const u = clamp01(elapsedMs / Math.max(1, action.durationMs));
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (holdWindowActive) {
-            mode = 'gripPiece';
-            intensity = 1;
-            grip = 1;
-          } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+          if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
@@ -13480,12 +13455,7 @@ function Chess3D({
             liftedFrom.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
             const liftedTo = liveTo.clone();
             liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
-            if (holdWindowActive) {
-              const pickupT = smoothEase(clamp01(holdWindowProgress / 0.35));
-              const holdTarget = holdWorld.clone();
-              holdTarget.y = Math.max(holdTarget.y, liftedFrom.y);
-              action.mesh.position.lerpVectors(liveFrom, holdTarget, pickupT);
-            } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+            if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
               action.mesh.position.lerpVectors(liveFrom, liftedFrom, pickupT);
             } else if (u < 0.44) {
@@ -13734,10 +13704,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : mode === '2d' ? 'fpv' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === '3d' ? '2D' : viewMode === '2d' ? 'POV' : '3D'}
             </button>
           </div>
           {configOpen && (
