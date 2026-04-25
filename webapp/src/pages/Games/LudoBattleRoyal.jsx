@@ -4383,11 +4383,11 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
   const target = new THREE.Vector3();
   faceHelper.updateMatrixWorld?.(true);
   faceHelper.getWorldPosition(position);
-  if (actorEntry?.rig?.head?.isBone) {
+  if (fallbackTarget?.isVector3) {
+    target.copy(fallbackTarget);
+  } else if (actorEntry?.rig?.head?.isBone) {
     actorEntry.rig.head.updateMatrixWorld?.(true);
     actorEntry.rig.head.getWorldPosition(target);
-  } else if (fallbackTarget?.isVector3) {
-    target.copy(fallbackTarget);
   } else {
     target.copy(position).add(new THREE.Vector3(0, -0.005, 0.08 * MODEL_SCALE));
   }
