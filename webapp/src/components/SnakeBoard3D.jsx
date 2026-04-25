@@ -79,14 +79,14 @@ const CHAIR_MODEL_URLS = [
 ];
 const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const HUMAN_MODEL_CACHE = { promise: null, template: null };
-// Keep Snake seated humans matched to Ludo Battle Royal seated calibration.
+// Keep Snake seated humans aligned with Ludo Battle Royal chair anchoring and scale technique.
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.92;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -1.08 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.28;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.9;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
-const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -0.64 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_Y = 0;
 const HUMAN_FRONT_SIDE_Z = 1;
 const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
@@ -1661,7 +1661,7 @@ function buildHumanBoneMap(root) {
   return map;
 }
 
-function applySeatedHumanPose(seatHuman, timeSeconds = 0) {
+function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0) {
   const { root, bones, rest, baseScale = 1 } = seatHuman || {};
   if (!root || !rest || !bones) return;
   rest.forEach((pose, bone) => {
@@ -1670,22 +1670,27 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0) {
   });
   root.scale.setScalar(baseScale);
   const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
+  const dynamicLean = activeLean * 0.04;
   moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
-  offsetModelBone(rest, bones.hips, 0, -0.62, -0.078);
+  offsetModelBone(rest, bones.hips, 0, -0.345, -0.078);
 
-  composeModelBone(rest, bones.hips, new THREE.Euler(-0.16, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe, 0, 0, 'XYZ'));
-  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
+  composeModelBone(
+    rest,
+    bones.hips,
+    new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
+  );
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.28, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.spine2, new THREE.Euler(0, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
   composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
 
-  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
-  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
-  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
-  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
-  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
-  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.32, 0.16, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.32, 0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.28, 0.02, 0.01, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.28, -0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.16, 0.03, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.16, -0.02, -0.01, 'XYZ'));
 
   composeModelBone(rest, bones.leftArm, new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ'));
   composeModelBone(rest, bones.rightArm, new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ'));
@@ -1695,7 +1700,7 @@ function applySeatedHumanPose(seatHuman, timeSeconds = 0) {
   composeModelBone(rest, bones.rightHand, new THREE.Euler(-0.08, 0, 0.06, 'XYZ'));
 }
 
-function alignSeatedHumanFeetToGround(seatHuman, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
+function alignSeatedHumanFeetToGround(seatHuman, groundY = SEATED_HUMAN_FOOT_GROUND_Y) {
   const { root, bones } = seatHuman || {};
   if (!root || !bones) return;
   root.updateMatrixWorld(true);
@@ -1707,7 +1712,7 @@ function alignSeatedHumanFeetToGround(seatHuman, clearance = SEATED_HUMAN_FOOT_G
     if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
   });
   if (!Number.isFinite(minFootY)) return;
-  root.position.y -= minFootY - clearance;
+  root.position.y += groundY - minFootY;
   root.updateMatrixWorld(true);
 }
 
