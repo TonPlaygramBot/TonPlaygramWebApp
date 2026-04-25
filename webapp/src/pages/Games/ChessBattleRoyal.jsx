@@ -389,8 +389,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.88 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 0.84; // Keep chair height while trimming visual width/depth.
+const CHAIR_SCALE = 0.98 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR; // Slightly larger chairs for stronger portrait readability.
+const CHAIR_WIDTH_SCALE = 0.92; // Keep chair proportion natural while making the chair feel fuller on screen.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.08 * MODEL_SCALE; // Pull local seat slightly farther from the table for clearer portrait framing.
@@ -402,7 +402,7 @@ const CHAIR_TABLE_SHAPE_BIAS = 0.18 * MODEL_SCALE;
 const CHAIR_HUMAN_LEG_GAP = 0.06 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
-const CAMERA_INITIAL_PHI_EXTRA = 0;
+const CAMERA_INITIAL_PHI_EXTRA = -0.1; // Start from a slightly higher 3D angle.
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(2.0);
 const DEFAULT_TARGET_FPS = 120;
 const MIN_TARGET_FPS = 50;
@@ -427,29 +427,29 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.7;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2; // Make seated humans a bit bigger like the reference framing.
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.24;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.03;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.96;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.34;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.56;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.02;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.8;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.2;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.7;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.8;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.16;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 0.3;
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.48; // keep board low on portrait screens but leave more room to show the seated actor.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 0.7; // Push table/chairs/humans visually lower on portrait screens to match reference composition.
 const FPV_FACE_FORWARD_OFFSET = 0.08; // keep camera very close and centered in front of the face.
 const FPV_FACE_UP_OFFSET = 0.015; // tiny vertical lift to avoid clipping while staying face-level.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
 const FPV_BOB_AMPLITUDE = 0.004;
 const SEATED_HUMAN_MOVE_DURATION_MS = 420; // keep piece pacing close to classic move speed while syncing hand contact.
-const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
-const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.22;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.86;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.02;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0;
 const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
@@ -2430,8 +2430,8 @@ const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAMERA_SAFE_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.2;
 const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
-const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
-const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
+const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.58;
+const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.18;
 const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.14;
 const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS * 0.8;
 const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS * 1.4;
@@ -2622,11 +2622,25 @@ function applyChairThemeMaterials(chairAssets, theme) {
   });
 }
 
-async function loadGltfChair() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
+function preserveOriginalTextureMapping(material, maxAnisotropy = 1) {
+  if (!material) return;
+  const textures = [
+    material.map,
+    material.emissiveMap,
+    material.normalMap,
+    material.roughnessMap,
+    material.metalnessMap,
+    material.aoMap
+  ].filter(Boolean);
+  textures.forEach((texture) => {
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+    texture.needsUpdate = true;
+  });
+}
+
+async function loadGltfChair(renderer = null) {
+  const loader = createConfiguredGLTFLoader(renderer);
 
   let gltf = null;
   let lastError = null;
@@ -2655,6 +2669,7 @@ async function loadGltfChair() {
       mats.forEach((mat) => {
         if (mat?.map) applySRGBColorSpace(mat.map);
         if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        preserveOriginalTextureMapping(mat, renderer?.capabilities?.getMaxAnisotropy?.() ?? 1);
       });
     }
   });
@@ -2751,18 +2766,21 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChessChairTemplate(theme) {
+async function buildChessChairTemplate(theme, renderer = null) {
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const root = await loadPolyhavenModel(theme.assetId);
+      const root = await loadPolyhavenModel(theme.assetId, renderer);
       const model = root.clone(true);
       prepareLoadedModel(model);
       fitChairModelToFootprint(model);
       const materials = extractChairMaterials(model);
+      const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
+      const allMats = [...(materials?.upholstery ?? []), ...(materials?.metal ?? [])];
+      allMats.forEach((mat) => preserveOriginalTextureMapping(mat, maxAnisotropy));
       applyChairThemeMaterials({ chairMaterials: materials }, theme);
       return { chairTemplate: model, materials };
     }
-    const gltfChair = await loadGltfChair();
+    const gltfChair = await loadGltfChair(renderer);
     applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     gltfChair.materials.chairId = theme.chairId ?? 'default';
     return gltfChair;
@@ -8609,7 +8627,7 @@ function Chess3D({
         currentChairSource !== nextChairSource;
 
       if (shouldRebuildChairModel) {
-        void buildChessChairTemplate(chairTheme)
+        void buildChessChairTemplate(chairTheme, rendererRef.current)
           .then((chairBuild) => {
             if (!arenaRef.current) {
               disposeChessChairMaterials(chairBuild?.materials);
@@ -8930,7 +8948,7 @@ function Chess3D({
       const playMateSound = () => playAudio(mateSoundRef);
       const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 6000 });
       const chairTheme = mapChairOptionToTheme(chairOption);
-      const chairBuild = await buildChessChairTemplate(chairTheme);
+      const chairBuild = await buildChessChairTemplate(chairTheme, renderer);
       if (cancelled) return;
       const chairTemplate = chairBuild?.chairTemplate ?? null;
       const chairMaterials = chairBuild?.materials ?? null;
@@ -12417,8 +12435,9 @@ function Chess3D({
           from: liveFrom.clone(),
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
-          startMs: nowMs + Math.max(0, moveDelayMs),
-          durationMs: SEATED_HUMAN_MOVE_DURATION_MS,
+          startMs: nowMs,
+          holdUntilMs: nowMs + Math.max(0, moveDelayMs),
+          durationMs: Math.max(SEATED_HUMAN_MOVE_DURATION_MS, moveDelayMs + 220),
           handHelper: null,
           pieceHelper: null
         });
@@ -13405,6 +13424,11 @@ function Chess3D({
             return;
           }
           const u = clamp01(elapsedMs / Math.max(1, action.durationMs));
+          const holdUntilMs = Number.isFinite(action.holdUntilMs) ? action.holdUntilMs : action.startMs;
+          const holdGate = clamp01((holdUntilMs - action.startMs) / Math.max(1, action.durationMs));
+          const holdReleaseWindow = 0.18;
+          const holdReleaseStart = clamp(holdGate, SEATED_HUMAN_PICKUP_PHASE_END, 1 - holdReleaseWindow);
+          const holdReleaseEnd = clamp(holdReleaseStart + holdReleaseWindow, holdReleaseStart + 0.04, 1);
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
@@ -13412,13 +13436,17 @@ function Chess3D({
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
-          } else if (u < 0.44) {
+          } else if (u < holdReleaseStart) {
             mode = 'gripPiece';
-            intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
+            intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / Math.max(0.05, holdReleaseStart - SEATED_HUMAN_PICKUP_PHASE_END));
             grip = intensity;
+          } else if (u < holdReleaseEnd) {
+            mode = 'carryPiece';
+            intensity = clamp01((u - holdReleaseStart) / Math.max(0.05, holdReleaseEnd - holdReleaseStart));
+            grip = 1;
           } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
             mode = 'carryPiece';
-            intensity = clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44));
+            intensity = clamp01((u - holdReleaseEnd) / Math.max(0.05, SEATED_HUMAN_CARRY_PHASE_END - holdReleaseEnd));
             grip = 1;
           } else {
             mode = 'placePiece';
@@ -13458,14 +13486,19 @@ function Chess3D({
             if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
               const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
               action.mesh.position.lerpVectors(liveFrom, liftedFrom, pickupT);
-            } else if (u < 0.44) {
+            } else if (u < holdReleaseStart) {
               const gripT = smoothEase(
-                clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
+                clamp01(
+                  (u - SEATED_HUMAN_PICKUP_PHASE_END) /
+                    Math.max(0.05, holdReleaseStart - SEATED_HUMAN_PICKUP_PHASE_END)
+                )
               );
               action.mesh.position.lerpVectors(liftedFrom, holdWorld, gripT);
+            } else if (u < holdReleaseEnd) {
+              action.mesh.position.copy(holdWorld);
             } else if (u < SEATED_HUMAN_CARRY_PHASE_END) {
               const carryT = smoothEase(
-                clamp01((u - 0.44) / (SEATED_HUMAN_CARRY_PHASE_END - 0.44))
+                clamp01((u - holdReleaseEnd) / Math.max(0.05, SEATED_HUMAN_CARRY_PHASE_END - holdReleaseEnd))
               );
               const carryTarget = holdWorld.clone().lerp(liftedTo, carryT);
               carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
@@ -13704,10 +13737,10 @@ function Chess3D({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : mode === '2d' ? 'fpv' : '3d'))}
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
               className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
-              {viewMode === '3d' ? '2D' : viewMode === '2d' ? 'POV' : '3D'}
+              {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
