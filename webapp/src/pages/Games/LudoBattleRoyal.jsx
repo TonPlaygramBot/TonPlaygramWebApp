@@ -1832,7 +1832,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 60;
+const CAMERA_FOV = 66;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -1865,8 +1865,8 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.5;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.42;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.86;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.62;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.72;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.76;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.32 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.12 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -1883,8 +1883,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.04 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.08;
-const CAMERA_EXTRA_LIFT = 0.11;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.12;
+const CAMERA_EXTRA_LIFT = 0.16;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.19;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -4128,11 +4128,13 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
 }
 
-function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
+function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, throwBias = {}) {
   if (!rig) return;
   resetBoneRig(rig);
   const t = smooth01(intensity);
   const breathe = Math.sin(performance.now() * 0.002) * 0.012;
+  const throwLateral = clamp(throwBias?.lateral ?? 0, -1, 1);
+  const throwForward = clamp(throwBias?.forward ?? 1, -1, 1);
 
   addBonePos(rig, rig.hips, 0, -0.62, -0.078, 1);
   moveLegRootsToFront(rig);
@@ -4218,6 +4220,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     chestX = THREE.MathUtils.lerp(chestX, 0.02, t);
     chestY = THREE.MathUtils.lerp(chestY, -0.06, t);
     headX = THREE.MathUtils.lerp(headX, -0.02, t);
+    shoulderY += throwLateral * 0.24 * t;
+    forearmY += throwLateral * 0.14 * t;
+    wristY += throwLateral * 0.08 * t;
+    shoulderZ += (1 - throwForward) * 0.14 * t;
   } else if (mode === 'release') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.18, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
@@ -4231,6 +4237,10 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     chestX = THREE.MathUtils.lerp(chestX, 0.20, t);
     chestY = THREE.MathUtils.lerp(chestY, 0.04, t);
     headX = THREE.MathUtils.lerp(headX, 0.04, t);
+    shoulderY += throwLateral * 0.34 * t;
+    forearmY += throwLateral * 0.24 * t;
+    wristY += throwLateral * 0.2 * t;
+    shoulderZ += (1 - throwForward) * 0.2 * t;
   } else if (mode === 'followThrough') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.12, t);
@@ -4241,6 +4251,9 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0) {
     wristX = THREE.MathUtils.lerp(wristX, 0.22, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.15, t);
+    shoulderY += throwLateral * 0.24 * t;
+    forearmY += throwLateral * 0.14 * t;
+    wristY += throwLateral * 0.1 * t;
   } else if (mode === 'reachToken') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.84, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.04, t);
@@ -4733,9 +4746,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const humanSelectionRef = useRef(null);
   const seatedHumanActorsRef = useRef([]);
   const seatedHumanActionRef = useRef({
-    rollPlayer: null,
-    rollStartMs: 0,
-    rollEndMs: 0
+    holdPlayer: null,
+    holdStartMs: 0,
+    throwPlayer: null,
+    throwStartMs: 0,
+    rollEndMs: 0,
+    throwLateral: 0,
+    throwForward: 1
   });
   const fitRef = useRef(() => {});
   const cameraRef = useRef(null);
@@ -6014,7 +6031,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     diceTransitionRef.current = null;
   };
 
-  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04 } = {}) => {
+  const beginDiceHoldPose = (player, { startMs = performance.now() } = {}) => {
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      holdPlayer: player,
+      holdStartMs: startMs,
+      throwPlayer: null,
+      throwStartMs: 0,
+      rollEndMs: 0
+    };
+  };
+
+  const beginDiceThrowPose = (player, throwBias = {}) => {
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      holdPlayer: null,
+      holdStartMs: 0,
+      throwPlayer: player,
+      throwStartMs: performance.now(),
+      rollEndMs: 0,
+      throwLateral: clamp(throwBias?.lateral ?? 0, -1, 1),
+      throwForward: clamp(throwBias?.forward ?? 1, -1, 1)
+    };
+  };
+
+  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04, onComplete = null } = {}) => {
     if (!dice || !destination) return;
     const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
     stopDiceTransition();
@@ -6042,6 +6083,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         requestAnimationFrame(step);
       } else {
         dice.position.copy(target);
+        if (typeof onComplete === 'function') {
+          onComplete();
+        }
         if (diceTransitionRef.current === handle) {
           diceTransitionRef.current = null;
         }
@@ -6059,9 +6103,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (immediate) {
       stopDiceTransition();
       dice.position.copy(target);
+      beginDiceHoldPose(player);
       return;
     }
-    animateDicePosition(dice, target, { duration: 520, lift: 0.05 });
+    beginDiceHoldPose(player, { startMs: performance.now() - 220 });
+    animateDicePosition(dice, target, {
+      duration: 520,
+      lift: 0.05,
+      onComplete: () => beginDiceHoldPose(player)
+    });
   };
 
   const updateTurnIndicator = (player, immediate = false) => {
@@ -7251,7 +7301,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
 
       const actorState = seatedHumanActionRef.current;
-      const rollingPlayer = actorState?.rollPlayer;
+      const holdPlayer = actorState?.holdPlayer;
+      const throwingPlayer = actorState?.throwPlayer;
       const actors = seatedHumanActorsRef.current;
       if (Array.isArray(actors) && actors.length) {
         actors.forEach((entry) => {
@@ -7260,34 +7311,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           let mode = 'idle';
           let intensity = 1;
           let handGrip = 0;
+          const throwBias = {
+            lateral: actorState?.throwLateral ?? 0,
+            forward: actorState?.throwForward ?? 1
+          };
 
           if (
-            Number.isFinite(actorState?.rollStartMs) &&
-            rollingPlayer === playerIndex &&
-            actorState.rollStartMs > 0
+            Number.isFinite(actorState?.throwStartMs) &&
+            throwingPlayer === playerIndex &&
+            actorState.throwStartMs > 0
           ) {
-            const elapsedSec = Math.max(0, (now - actorState.rollStartMs) / 1000);
-            if (elapsedSec < 0.55) {
-              mode = 'reachDice';
-              intensity = clamp(elapsedSec / 0.55, 0, 1);
-              handGrip = 0.05;
-            } else if (elapsedSec < 0.85) {
-              mode = 'gripDice';
-              intensity = clamp((elapsedSec - 0.55) / 0.3, 0, 1);
-              handGrip = intensity;
-            } else if (elapsedSec < 1.10) {
+            const elapsedSec = Math.max(0, (now - actorState.throwStartMs) / 1000);
+            if (elapsedSec < 0.18) {
               mode = 'holdDice';
-              intensity = clamp((elapsedSec - 0.85) / 0.25, 0, 1);
-              handGrip = 1;
-            } else if (elapsedSec < 1.31) {
+              intensity = 1;
+              handGrip = 0.52;
+            } else if (elapsedSec < 0.38) {
               mode = 'windUp';
-              intensity = clamp((elapsedSec - 1.10) / 0.21, 0, 1);
-              handGrip = 1;
-            } else if (elapsedSec < 1.58) {
+              intensity = clamp((elapsedSec - 0.18) / 0.2, 0, 1);
+              handGrip = 0.56;
+            } else if (elapsedSec < 0.66) {
               mode = 'release';
-              intensity = clamp((elapsedSec - 1.31) / 0.27, 0, 1);
+              intensity = clamp((elapsedSec - 0.38) / 0.28, 0, 1);
               handGrip = 1 - intensity;
-            } else if (elapsedSec < 2.55) {
+            } else if (elapsedSec < 1.45) {
               mode = 'followThrough';
               intensity = 1;
               handGrip = 0;
@@ -7296,8 +7343,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               intensity = 1;
               handGrip = 0;
             }
-            if (elapsedSec > 2.75) {
-              actorState.rollPlayer = null;
+            if (elapsedSec > 1.62) {
+              actorState.throwPlayer = null;
+            }
+          } else if (
+            Number.isFinite(actorState?.holdStartMs) &&
+            holdPlayer === playerIndex &&
+            actorState.holdStartMs > 0
+          ) {
+            const elapsedSec = Math.max(0, (now - actorState.holdStartMs) / 1000);
+            if (elapsedSec < 0.36) {
+              mode = 'reachDice';
+              intensity = clamp(elapsedSec / 0.36, 0, 1);
+              handGrip = 0.02;
+            } else if (elapsedSec < 0.68) {
+              mode = 'gripDice';
+              intensity = clamp((elapsedSec - 0.36) / 0.32, 0, 1);
+              handGrip = 0.42;
+            } else {
+              mode = 'holdDice';
+              intensity = 1;
+              handGrip = 0.52;
             }
           } else if (state?.animation?.active && state.animation.player === playerIndex) {
             const anim = state.animation;
@@ -7324,13 +7390,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           } else if (
             actorState?.rollEndMs &&
             now - actorState.rollEndMs < SEATED_HUMAN_RECOVER_MS &&
-            rollingPlayer === playerIndex
+            throwingPlayer === playerIndex
           ) {
             mode = 'followThrough';
             intensity = clamp(1 - (now - actorState.rollEndMs) / SEATED_HUMAN_RECOVER_MS, 0, 1);
           }
 
-          applySeatedHumanPose(rig, mode, intensity, handGrip);
+          applySeatedHumanPose(rig, mode, intensity, handGrip, throwBias);
         });
       }
 
@@ -7443,7 +7509,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       seatPositionsRef.current = [];
       seatedHumanActorsRef.current = [];
-      seatedHumanActionRef.current = { rollPlayer: null, rollStartMs: 0, rollEndMs: 0 };
+      seatedHumanActionRef.current = {
+        holdPlayer: null,
+        holdStartMs: 0,
+        throwPlayer: null,
+        throwStartMs: 0,
+        rollEndMs: 0,
+        throwLateral: 0,
+        throwForward: 1
+      };
       setSeatAnchors([]);
       stateRef.current = null;
       turnIndicatorRef.current = null;
@@ -9287,11 +9361,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       preserveUserTurnCameraRef.current = true;
     }
     playDiceSound();
-    seatedHumanActionRef.current = {
-      rollPlayer: player,
-      rollStartMs: performance.now(),
-      rollEndMs: 0
-    };
+    const diceToTarget = baseTarget.clone().sub(dice.position);
+    let throwLateral = 0;
+    let throwForward = 1;
+    const seatAnchor = arenaRef.current?.seatAnchors?.[player];
+    if (seatAnchor?.isObject3D && diceToTarget.lengthSq() > 1e-7) {
+      const anchorQuat = seatAnchor.getWorldQuaternion(new THREE.Quaternion());
+      const localDir = diceToTarget
+        .clone()
+        .normalize()
+        .applyQuaternion(anchorQuat.clone().invert());
+      seatAnchor.updateMatrixWorld?.(true);
+      throwLateral = clamp(localDir.x * 2.1, -1, 1);
+      throwForward = clamp(-localDir.z * 1.4, -1, 1);
+    }
+    beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
@@ -9299,7 +9383,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       bounceHeight: dice.userData?.bounceHeight ?? 0.06
     });
     dice.userData.isRolling = false;
-    seatedHumanActionRef.current.rollEndMs = performance.now();
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      rollEndMs: performance.now()
+    };
     setUi((s) => ({
       ...s,
       dice: value,
