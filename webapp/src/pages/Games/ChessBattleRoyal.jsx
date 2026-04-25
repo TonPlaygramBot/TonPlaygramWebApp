@@ -422,13 +422,20 @@ const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readypl
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.55;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.05;
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.36 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.54 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_FOOT_GROUND_DROP = 0.12;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.3;
 const SEATED_HUMAN_HAND_PIECE_LIFT = 0.075;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.07;
+const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 2.32;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.62;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.62;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.5;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.96;
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -9054,10 +9061,15 @@ function Chess3D({
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
-    const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = (isPortrait ? 2.32 : 1.62) + 0.3;
-    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
-    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
+    const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
+    const cameraBackOffset =
+      (isPortrait ? PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT : PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE) + 0.3;
+    const cameraForwardOffset = isPortrait
+      ? PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT
+      : PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE;
+    const cameraHeightOffset = isPortrait
+      ? PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT
+      : PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
@@ -9141,7 +9153,7 @@ function Chess3D({
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
-      const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
+      const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = mode === '3d' && restoreAutoViewTo2dRef.current;
 
       const initialRadius = CAMERA_3D_MAX_RADIUS;
